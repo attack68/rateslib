@@ -12,8 +12,8 @@ matplotlib==3.6.3
 pytest==7.0.1
 sphinx==5.1.1  # for doc building
 sphinx-automodapi==0.14.1  # for doc building
-asv==0.5.1  # for performance test suite
-virtualenv==20.16.3  # requirement of asv
+# asv==0.5.1  # for performance test suite
+# virtualenv==20.16.3  # requirement of asv
 black==22.8.0  # for code formatting
 mypy==0.982  # for type checking
 coverage==7.1.0  # for test and code monitoring
