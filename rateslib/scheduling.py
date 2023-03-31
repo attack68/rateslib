@@ -22,6 +22,10 @@ from rateslib.calendars import (
 )
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 class Schedule:
     """
     Generate a schedule of dates according to a regular pattern and calendar inference.
@@ -424,6 +428,10 @@ class Schedule:
         return len(self.aschedule[1:])
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int):
     """
     Test whether two dates' months define a period divisible by frequency months.
@@ -515,6 +523,10 @@ def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool
     else:
         return non_eom_map[e_cat][t_cat]
 
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 def _get_date_category(date: datetime):
     """
@@ -715,6 +727,10 @@ def _check_regular_swap(
             err_str += ret[1] + "\n"
     return False, f"All unadjusted date combinations exhuasted:\n{err_str}"
 
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 def _infer_stub_date(
     effective: datetime,
@@ -949,6 +965,10 @@ def _get_unadjusted_stub_date(
         roll
     )
 
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 def _get_unadjusted_short_stub_date(
     ueffective: datetime,
@@ -1185,3 +1205,7 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
         except ValueError:  # day is out of range for month, i.e. 30 or 31
             date = _get_eom(month, year)
     return date
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.

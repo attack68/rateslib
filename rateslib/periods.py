@@ -35,6 +35,10 @@ from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 def _get_fx_and_base(
     currency: str,
     fx: Optional[Union[float, FXRates, FXForwards]] = None,
@@ -355,6 +359,10 @@ class FixedPeriod(BasePeriod):
         return None if self.fixed_rate is None \
             else -self.notional * self.dcf * self.fixed_rate / 100
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     def npv(
         self,
         curve: Curve,
@@ -649,6 +657,10 @@ class FloatPeriod(BasePeriod):
         # self.calendar = get_calendar(calendar)
         # self.modifier = modifier
         super().__init__(*args, **kwargs)
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def analytic_delta(
         self,
@@ -1019,6 +1031,10 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}."
             )
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     @property
     def _is_complex(self):
         """
@@ -1277,3 +1293,7 @@ class Cashflow:
         base: Optional[str] = None,
     ):
         return 0
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.

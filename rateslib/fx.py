@@ -21,6 +21,10 @@ from rateslib.curves import Curve, LineCurve
 """
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 class FXRates:
     """
     Object to store and calculate FX rates for a consistent settlement date.
@@ -518,6 +522,10 @@ class FXRates:
         }
         return json.dumps(container, default=str)
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     @classmethod
     def from_json(cls, fx_rates, **kwargs):
         """
@@ -916,6 +924,10 @@ class FXForwards:
 
         return False, recursive_path
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     def _update_fx_rates_immediate(self):
         """
         Find the immediate FX rates values.
@@ -1114,6 +1126,10 @@ class FXForwards:
             ) for k in [self.immediate + timedelta(days=i) for i in range(days+1)]
         }
         return Curve(nodes)
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def curve(
         self,
@@ -1438,6 +1454,9 @@ class ProxyCurve(Curve):
         """
         return NotImplementedError("`set_ad_order` not available on proxy curve.")
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 #####
 

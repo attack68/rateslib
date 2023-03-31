@@ -22,6 +22,10 @@ from rateslib.defaults import plot
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 class Serialize:
     """
     Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
@@ -349,6 +353,10 @@ class Curve(Serialize, PlotCurve):
             return self._local_interp_(date)
         else:
             return self._op_exp(self.spline.ppev_single(date))
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def _local_interp_(self, date: datetime):
         if date < self.node_dates[0]:
@@ -792,6 +800,10 @@ class Curve(Serialize, PlotCurve):
             }
         return new_nodes
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     def roll(self, tenor: Union[datetime, str]):
         """
         Create a new curve with its shape translated in time
@@ -1060,6 +1072,10 @@ class LineCurve(Curve):
         else:
             new_nodes = {start: self[start], **new_nodes}
         return new_nodes
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def translate(self, start: datetime, t: bool = False):
         """
@@ -1443,3 +1459,8 @@ def index_left(
 #         return left_count
 #     else:
 #         return index_left_exhaustive(list_input[1:], value, left_count + 1)
+
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
