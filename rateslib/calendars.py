@@ -38,6 +38,10 @@ USLabourDay = Holiday('US Labour Day', month=9, day=1, offset=DateOffset(weekday
 USColumbusDay = Holiday('US Columbus Day', month=10, day=1, offset=DateOffset(weekday=MO(2)))
 USThanksgivingDay = Holiday('US Thanksgiving', month=11, day=1, offset=DateOffset(weekday=TH(4)))
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 # UK based
 UKEarlyMayBankHoliday = Holiday("UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1)))
 UKSpringBankHoliday = Holiday("UK Spring Bank Holiday", month=5, day=31, offset=DateOffset(weekday=MO(-1)))
@@ -139,6 +143,10 @@ def create_calendar(rules: list, weekmask: str = None):
     """
     weekmask = "Mon Tue Wed Thu Fri" if weekmask is None else weekmask
     return CustomBusinessDay(calendar=AbstractHolidayCalendar(rules=rules), weekmask=weekmask)
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
 def get_calendar(calendar: Optional[Union[CustomBusinessDay, str]], kind: bool = False):
@@ -257,6 +265,10 @@ def _adjust_date(
         adjusted_date = getattr(calendar, mod_op)(date)
     return adjusted_date.to_pydatetime()
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 
 def add_tenor(
     start: datetime,
@@ -352,6 +364,10 @@ def _add_days(
     return _adjust_date(end, modifier, cal)
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 def _is_imm(date: datetime, hmuz=False) -> bool:
     """
     Test whether a given date is an IMM date, defined as third wednesday in month.
@@ -423,6 +439,10 @@ def _get_eom(month: int, year: int) -> datetime:
     int : Day
     """
     return datetime(year, month, calendar_mod.monthrange(year, month)[1])
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
 def _is_som(date: datetime) -> bool:
@@ -612,3 +632,7 @@ def dcf(
                          "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
                          "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
                          "'ActActISMA', 'ActActBond'}")
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
