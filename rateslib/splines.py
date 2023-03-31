@@ -11,6 +11,11 @@ from rateslib.dual import dual_solve
 from datetime import timedelta
 
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
 def bsplev_single(x, i, k, t, org_k=None):
     """
     Calculate the value of an indexed b-spline of the pp at the coordinate `x`.
@@ -205,6 +210,10 @@ class PPSpline:
     piecewise polynomial.
     """
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     def __init__(self, k, t, c=None):
         self.t = t
         self.k = k
@@ -380,6 +389,10 @@ class PPSpline:
         self.c = c[:, 0]
         return None
 
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     def ppev_single(self, x):
         """
         Evaluate a single `x` coordinate on the piecewise polynomial spline.
@@ -481,3 +494,8 @@ class PPSpline:
         """
         func = np.vectorize(self.ppdnev_single)
         return func(x, m)
+
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
