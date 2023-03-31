@@ -1,0 +1,7 @@
+numpy==1.23.5
+pandas==1.5.3
+scipy==1.9.3
+matplotlib==3.6.3
+sphinx==5.1.1  # for doc building
+sphinx-automodapi==0.14.1  # for doc building
+pydata-sphinx-theme==0.12.0
