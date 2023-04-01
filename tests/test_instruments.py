@@ -8,7 +8,7 @@ import context
 from rateslib import defaults, default_context
 from rateslib.instruments import (
     IRS, forward_fx, SBS, FXSwap, NonMtmXCS, FixedRateBond, Bill, Value,
-    _get_curve_from_solver, _AttributesMixin, FloatRateBond, FRA,
+    _get_curve_from_solver, BaseMixin, FloatRateBond, FRA,
     NonMtmFixedFloatXCS, NonMtmFixedFixedXCS, XCS, FixedFloatXCS, FixedFixedXCS, FloatFixedXCS,
     Portfolio, Spread, Fly
 )
@@ -110,7 +110,7 @@ def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, 
     ) if solver else None
     curve = curve if crv else None
 
-    a = _AttributesMixin()
+    a = BaseMixin()
     crv_result, fx_result = a._get_curves_and_fx_maybe_from_solver(
         solver, curve, fx
     )
@@ -133,7 +133,7 @@ def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, 
 def test_get_curves_and_fx_from_solver_raises():
     from rateslib.solver import Solver
 
-    a = _AttributesMixin()
+    a = BaseMixin()
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
     inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
     solver = Solver([curve], inst, [0.975])
@@ -155,7 +155,7 @@ def test_get_curves_from_solver_multiply(num):
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
     inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
     solver = Solver([curve], inst, [0.975])
-    a = _AttributesMixin()
+    a = BaseMixin()
     result, _ = a._get_curves_and_fx_maybe_from_solver(solver, ["tagged"] * num, None)
     assert result == (curve, curve, curve, curve)
 

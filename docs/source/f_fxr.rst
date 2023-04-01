@@ -10,8 +10,8 @@
 FX Spot Rates
 ***********************
 
-This documentation page discusses the methods of the :class:`FXRates` class.
-which are summarised below,
+This documentation page discusses the methods of the
+:class:`~rateslib.fx.FXRates` class which are summarised below,
 
 .. autosummary::
    rateslib.fx.FXRates
@@ -28,10 +28,10 @@ which are summarised below,
 Introduction
 ------------
 
-:class:`FXRates` classes are initialised straightforwardly with a given set
-of FX rates.
+:class:`~rateslib.fx.FXRates` classes are initialised straightforwardly with a
+given set of FX rates.
 The optional ``settlement`` argument is only used in conjunction
-with :class:`FXForwards`
+with :class:`~rateslib.fx.FXForwards`
 specification. The cross multiplications
 to derive all FX rates from the stated FX market are performed internally.
 
@@ -120,9 +120,12 @@ And the cash positions can be converted into any base representation currency.
 Updating
 --------
 
-Once an :class:`FXRates` class has been instantiated it may then be associated with
-other objects, such as an :class:`FXForwards` class. It is **best practice**
-not to create further :class:`FXRates` instances but to **update** the existing
+Once an :class:`~rateslib.fx.FXRates` class has been instantiated it may then be
+associated with
+other objects, such as an :class:`~rateslib.fx.FXForwards` class.
+It is **best practice**
+not to create further :class:`~rateslib.fx.FXRates` instances but
+to **update** the existing
 ones instead.
 Please review the documentation for :meth:`~rateslib.fx.FXRates.update` for
 further details.

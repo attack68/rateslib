@@ -323,6 +323,7 @@ class FXRates:
 
            fxr = FXRates({"usdnok": 8.0})
            fxr.positions(Dual(125000, "fx_usdnok", np.array([-15625])), "usd")
+           fxr.positions(100, base="nok")
 
         """
         if isinstance(value, (float, int)):

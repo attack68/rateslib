@@ -248,7 +248,7 @@ class Sensitivities:
         return grad_s_sT_P
 
 
-class _AttributesMixin:
+class BaseMixin:
     _fixed_rate_mixin = False
     _float_spread_mixin = False
     _leg2_fixed_rate_mixin = False
@@ -402,7 +402,7 @@ class _AttributesMixin:
         return curves_, fx_
 
 
-class Value(_AttributesMixin):
+class Value(BaseMixin):
     """
     A null instrument which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a node.
@@ -466,7 +466,7 @@ class Value(_AttributesMixin):
 ### Securities
 
 
-class FixedRateBond(Sensitivities, _AttributesMixin):
+class FixedRateBond(Sensitivities, BaseMixin):
     # TODO ensure calculations work for amortizing bonds.
     """
     Create a fixed rate bond security.
@@ -1344,7 +1344,7 @@ class Bill(FixedRateBond):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatRateBond(Sensitivities, _AttributesMixin):
+class FloatRateBond(Sensitivities, BaseMixin):
     """
     Create a floating rate bond security.
 
@@ -1809,7 +1809,7 @@ class FloatRateBond(Sensitivities, _AttributesMixin):
 ### Single currency derivatives
 
 
-class BaseDerivative(Sensitivities, _AttributesMixin, metaclass=ABCMeta):
+class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     """
     Abstract base class with common parameters for many ``Derivative`` subclasses.
 
@@ -2737,7 +2737,7 @@ class SBS(BaseDerivative):
         return self.rate(*args, **kwargs)
 
 
-class FRA(Sensitivities, _AttributesMixin):
+class FRA(Sensitivities, BaseMixin):
     """
     Create a forward rate agreement composing a :class:`~rateslib.periods.FixedPeriod`
     and :class:`~rateslib.periods.FloatPeriod` valued in a customised manner.

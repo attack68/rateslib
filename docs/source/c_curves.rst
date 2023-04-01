@@ -164,8 +164,8 @@ Visualization
 
 Visualization methods are inherited by subclassing
 :class:`~rateslib.curves.PlotCurve` which provides
-the methods :meth:`~rateslib.curves.Curve.plot` and
-:meth:`~rateslib.curves.LineCurve.plot`. This allows the easy
+the methods :meth:`Curve.plot()<rateslib.curves.Curve.plot>` and
+:meth:`LineCurve.plot()<rateslib.curves.LineCurve.plot>`. This allows the easy
 inspection of curves directly. Below we demonstrate a plot highlighting the
 differences between our parametrised :class:`~rateslib.curves.Curve`
 and :class:`~rateslib.curves.LineCurve`.
@@ -345,6 +345,10 @@ standard cubic spline.
 In order to instruct this mode of interpolation a **knot sequence** is required
 as the ``t`` argument. This is a list of datetimes and follows the
 appropriate convention for such sequences (see :ref:`pp splines<splines-doc>`).
+
+Mixed Interpolation
+-------------------
+
 Prior to the initial knot in the sequence the local interpolation method
 is used. This allows curves to be constructed with a mixed interpolation in two parts of
 the curve. This is common practice for interest rate curves usually with a
