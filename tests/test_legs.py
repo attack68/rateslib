@@ -197,7 +197,7 @@ class TestFloatLeg:
             frequency="Q",
         )
         assert float_leg.float_spread is None
-        assert float_leg.periods[0].float_spread is 0
+        assert float_leg.periods[0].float_spread == 0
 
         float_leg.float_spread = 2.0
         assert float_leg.float_spread == 2.0

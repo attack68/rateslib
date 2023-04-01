@@ -1559,6 +1559,10 @@ class FloatRateBond(Sensitivities, _AttributesMixin):
         settlement date by compounding known fixing rates. Negative accrued is
         extrapolated by evaluating the number of remaining days in the ex div period
         and comparing them to the number of days in the existing accrual period.
+        Negative accrued **may need to be forecast** if fixings within the ex-div
+        period are unpublished (i.e. when a combination of ``settle``, ``ex_div`` days
+        and ``method_param`` are sufficient). If a forecast is required the last known
+        given fixing is repeated.
 
         Examples
         --------
@@ -1641,12 +1645,28 @@ class FloatRateBond(Sensitivities, _AttributesMixin):
                 spread_compound_method=self.leg1.spread_compound_method
             )
 
-            _crv = Curve({
-                self.leg1.periods[acc_idx].start: 1.0,
-                self.leg1.periods[acc_idx].end: 1.0
-            })
-            rate_to_settle = float(p.rate(_crv))
-            accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
+            # For negative accrued in ex-div we need to forecast unpublished rates.
+            # Build a curve which replicates the last known fixing value from fixings
+            try:
+                last_fixing = p.fixings[-1]
+            except TypeError:
+                # then rfr fixing cannot be fetched from attribute
+                if acc_idx == 0 and p.start == self.leg1.schedule.aschedule[0]:
+                    # bond settles on issue date of bond, fixing may not be available.
+                    accrued_to_settle = 0.
+                else:
+                    raise TypeError(
+                        "`fixings` are not available for RFR float period. Must be a "
+                        f"Series or list, {p.fixings} was given."
+                    )
+            else:
+                _crv = LineCurve({
+                    self.leg1.periods[acc_idx].start: last_fixing,
+                    self.leg1.periods[acc_idx].end: last_fixing,
+                })
+                # Otherwise rate to settle is determined fully by known fixings.
+                rate_to_settle = float(p.rate(_crv))
+                accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
 
             if self.ex_div(settlement):
                 rate_to_end = self.leg1.periods[acc_idx].rate(_crv)

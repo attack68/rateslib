@@ -786,6 +786,9 @@ class TestNonMtmFixedFixedXCS:
         with pytest.raises(ValueError, match="Cannot solve for a"):
             xcs.rate([curve, curve, curve2, curve2], None, fxf, leg=2)
 
+        with pytest.raises(AttributeError, match="Cannot set `leg2_float_spread` for"):
+            xcs.leg2_float_spread = 2.0
+
 
 class TestXCS:
 
@@ -1218,6 +1221,21 @@ class TestFixedRateBond:
         with pytest.raises(ValueError, match="`metric` must be in"):
             gilt.rate(curve, metric="bad_metric")
 
+    def test_fixed_rate_bond_no_amortization(self):
+        with pytest.raises(NotImplementedError, match="`amortization` for"):
+            gilt = FixedRateBond(
+                effective=dt(1998, 12, 7),
+                termination=dt(2015, 12, 7),
+                frequency="S",
+                calendar="ldn",
+                currency="gbp",
+                convention="ActActICMA",
+                ex_div=7,
+                fixed_rate=8.0,
+                notional=-100,
+                amortization=100
+            )
+
 
 class TestBill:
 
@@ -1397,6 +1415,67 @@ class TestFloatRateBond:
                 method_param=5,
                 spread_compound_method="none_simple",
             )
+
+    @pytest.mark.parametrize("fixings", [
+        Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 8))),
+        [2.0, [2.0, 2.0]],
+    ])
+    def test_negative_accrued_needs_forecasting(self, fixings):
+        bond = FloatRateBond(
+            effective=dt(2009, 9, 16),
+            termination=dt(2017, 3, 16),
+            frequency="Q",
+            convention="Act365f",
+            ex_div=5,
+            float_spread=0,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+            method_param=5,
+            spread_compound_method="none_simple",
+            calendar=None,
+        )
+        result = bond.accrued(dt(2010, 3, 11))
+
+        # approximate calculation 5 days of negative accrued at 2% = -0.027397
+        assert abs(result+0.027397) < 1e-3
+
+    @pytest.mark.parametrize("fixings", [
+        None,
+        [2.0, 2.0],
+    ])
+    def test_negative_accrued_raises(self, fixings):
+        bond = FloatRateBond(
+            effective=dt(2009, 9, 16),
+            termination=dt(2017, 3, 16),
+            frequency="Q",
+            convention="Act365f",
+            ex_div=5,
+            float_spread=0,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+            method_param=5,
+            spread_compound_method="none_simple",
+            calendar=None,
+        )
+        with pytest.raises(TypeError, match="`fixings` are not available for RFR"):
+            result = bond.accrued(dt(2010, 3, 11))
+
+    def test_accrued_no_fixings_in_period(self):
+        bond = FloatRateBond(
+            effective=dt(2010, 3, 16),
+            termination=dt(2017, 3, 16),
+            frequency="Q",
+            convention="Act365f",
+            ex_div=0,
+            float_spread=0,
+            fixing_method="rfr_observation_shift",
+            fixings=None,
+            method_param=0,
+            spread_compound_method="none_simple",
+            calendar=None,
+        )
+        result = bond.accrued(dt(2010, 3, 16))
+        assert result == 0.
 
 
 class TestPricingMechanism:
