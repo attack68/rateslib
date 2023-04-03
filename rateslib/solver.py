@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Union
 from itertools import combinations
 from uuid import uuid4
+from time import time
 import numpy as np
 from pandas import DataFrame, MultiIndex
 
@@ -157,11 +158,13 @@ class Solver:
         self.pre_curves = {}
         self.pre_variables = []
         self.pre_instrument_labels = []
+        self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
         curve_collection = []
         for pre_solver in self.pre_solvers:
             self.pre_variables.extend(pre_solver.pre_variables)
             self.pre_instrument_labels.extend(pre_solver.pre_instrument_labels)
+            self.pre_rate_scalars.extend(pre_solver.pre_rate_scalars)
             self.pre_m += pre_solver.pre_m
             self.pre_n += pre_solver.pre_n
             self.pre_curves.update(pre_solver.pre_curves)
@@ -182,6 +185,9 @@ class Solver:
         self._ad = 1
         self.fx = fx
         self.instruments = [self._parse_instrument(inst) for inst in instruments]
+        self.rate_scalars = [inst[0]._rate_scalar for inst in self.instruments]
+        self.pre_rate_scalars.extend(self.rate_scalars)
+
         # TODO need to check curves associated with fx object and set order.
         # self._reset_properties_()  performed in iterate
         self.iterate()
@@ -234,9 +240,7 @@ class Solver:
                 ret2 = {**ret2, **value[2]}
             return (ret0, ret1, ret2)
 
-
     # convert to tuple
-
 
     def _reset_properties_(self, dual2_only=False):
         """
@@ -481,6 +485,7 @@ class Solver:
         self.f_prev, self.f_list, self.lambd = 1e10, [], 1000
         self._reset_properties_()
         self._update_fx()
+        t0 = time()
         for i in range(self.max_iter):
             f_val = self.f.real
             self.f_list.append(f_val)
@@ -488,13 +493,15 @@ class Solver:
             if self.f.real < self.f_prev and (self.f_prev - self.f.real) < self.conv_tol:
                 print(
                     f"SUCCESS: `conv_tol` reached after {i} iterations "
-                    f"({self.algorithm}), `f_val`: {self.f.real}"
+                    f"({self.algorithm}), `f_val`: {self.f.real}, "
+                    f"`time`: {time() - t0:.4f}s"
                 )
                 return None
             elif self.f.real < self.func_tol:
                 print(
                     f"SUCCESS: `func_tol` reached after {i} iterations "
-                    f"({self.algorithm}) , `f_val`: {self.f.real}"
+                    f"({self.algorithm}) , `f_val`: {self.f.real}, "
+                    f"`time`: {time() - t0:.4f}s"
                 )
                 return None
             self.f_prev = self.f.real
@@ -509,7 +516,7 @@ class Solver:
             self._update_fx()
         print(
             f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
-            f"`f_val`: {self.f.real}"
+            f"`f_val`: {self.f.real}, `time`: {time() - t0:.4f}s"
         )
         return None
         # raise ValueError(f"Max iterations reached, func: {self.f.real}")
@@ -647,7 +654,7 @@ class Solver:
 
     def _grad_s_s_vT_fwd_difference_method(self):
         """Use a numerical method, iterating through changes in s to calculate."""
-        ds = 10 ** (int(dual_log(self.tol, 10) / 2))
+        ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
         grad_s_vT_0 = np.copy(self.grad_s_vT)
         grad_s_s_vT = np.zeros(shape=(self.m, self.m, self.n))
 
@@ -697,12 +704,17 @@ class Solver:
         # if no pre_solvers this reduces to solving without the 'pre'
         grad_s_P = np.matmul(self.grad_s_vT_pre, npv.gradient(self.pre_variables))
 
-        if len(self.pre_solvers) == 0:
-            idx = self.instrument_labels
-        else:
-            idx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        # if len(self.pre_solvers) == 0:
+        #     idx = self.instrument_labels
+        # else:
+        #     idx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        idx = MultiIndex.from_tuples(self.pre_instrument_labels)
 
-        return DataFrame({"Delta": grad_s_P / 100}, index=idx)
+        fx_vars = [var for var in npv.vars if "fx_" in var]
+
+
+        scalar = np.array(self.pre_rate_scalars)
+        return DataFrame({"Delta": grad_s_P * scalar / 100}, index=idx)
 
     def gamma(self, npv):
         if self._ad != 2:
@@ -717,12 +729,17 @@ class Solver:
             self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
         )[:, :, 0]
 
-        if len(self.pre_solvers) == 0:
-            idx = self.instrument_labels
-        else:
-            idx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        # if len(self.pre_solvers) == 0:
+        #     idx = self.instrument_labels
+        # else:
+        #     idx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        idx = MultiIndex.from_tuples(self.pre_instrument_labels)
 
-        return DataFrame(grad_s_sT_P / 10000, columns=idx, index=idx)
+        scalar = np.matmul(
+            np.array(self.pre_rate_scalars)[:, np.newaxis],
+            np.array(self.pre_rate_scalars)[np.newaxis, :],
+        )
+        return DataFrame(grad_s_sT_P * scalar / 10000, columns=idx, index=idx)
 
     def jacobian(self, solver: Solver):
         """

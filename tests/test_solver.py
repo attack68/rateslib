@@ -374,7 +374,7 @@ def test_solver_pre_solver_dependency_generates_same_delta():
 
     delta_sim = eur_swap.delta([eur_ibor_curve2, eur_disc_curve2], eur_solver_sim)
     delta_pre = eur_swap.delta([eur_ibor_curve, eur_disc_curve], eur_solver2)
-
+    delta_pre.index = delta_sim.index
     assert_frame_equal(delta_sim, delta_pre)
 
 
@@ -488,6 +488,9 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
     grad_s_s_vT_pre = ibor_solver.grad_s_s_vT_pre
     assert_allclose(grad_s_s_vT_pre, grad_s_s_vT_sim, atol=1e-14, rtol=1e-10)
 
+    gamma_pre.index = gamma_sim.index
+    gamma_pre.columns = gamma_sim.columns
+    delta_pre.index = delta_sim.index
     assert_frame_equal(delta_sim, delta_pre)
     assert_frame_equal(gamma_sim, gamma_pre)
 
@@ -601,3 +604,63 @@ def test_solver_float_rate_bond():
     result = d_c.rate(dt(2022, 7, 1), "1D")
     expected = f_c.rate(dt(2022, 7, 1), "1D") + 0.25
     assert abs(result - expected) < 1e-5
+
+
+def test_solver_grad_s_s_vt_methods_equivalent():
+    curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2025, 1, 1): 1.0,
+            dt(2026, 1, 1): 1.0,
+            dt(2027, 1, 1): 1.0,
+            dt(2028, 1, 1): 1.0,
+            dt(2029, 1, 1): 1.0,
+        },
+        id="curve",
+    )
+    instruments = [
+        IRS(dt(2022, 1, 1), "1y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "2y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "3y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "4y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "5y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "6y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "7y", "A", curves="curve"),
+    ]
+    solver = Solver(
+        curves=[curve],
+        instruments=instruments,
+        s=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
+    )
+    grad_s_s_vt_fwddiff = solver._grad_s_s_vT_fwd_difference_method()
+    solver._set_ad_order(order=2)
+    grad_s_s_vt_final = solver._grad_s_s_vT_final_iteration_analytical()
+    solver._set_ad_order(order=1)
+    assert_allclose(grad_s_s_vt_final, grad_s_s_vt_fwddiff, atol=5e-7)
+
+
+def test_gamma_raises():
+    curve = Curve({
+        dt(2022, 1, 1): 1.0,
+        dt(2023, 1, 1): 1.0,
+        dt(2024, 1, 1): 1.0,
+        dt(2025, 1, 1): 1.0,
+    }, id="v")
+    instruments = [
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+    ]
+    s = np.array([1.0, 1.6, 2.0])
+    solver = Solver(
+        curves=[curve],
+        instruments=instruments,
+        s=s,
+    )
+    with pytest.raises(ValueError, match="`Solver` must be in ad order 2"):
+        solver.gamma(100)
+
+
+

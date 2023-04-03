@@ -823,7 +823,8 @@ class FXForwards:
     @staticmethod
     def _get_curves_for_currencies(fx_curves, currencies):
         ps = product(currencies, currencies)
-        return {p[0]+p[1]: fx_curves[p[0]+p[1]] for p in ps if p[0]+p[1] in fx_curves}
+        ret = {p[0]+p[1]: fx_curves[p[0]+p[1]] for p in ps if p[0]+p[1] in fx_curves}
+        return ret
 
     @staticmethod
     def _get_forwards_transformation_matrix(q, currencies, fx_curves):
@@ -845,9 +846,14 @@ class FXForwards:
                 )
             T[cash_idx, coll_idx] = 1
 
-        if T.sum() < (2 * q) - 1:
+        if T.sum() > (2 * q) - 1:
             raise ValueError(
-                f"`fx_curves` does not contain enough curves. {2 * q -1} expected "
+                f"`fx_curves` is overspecified. {2 * q - 1} curves are expected "
+                f"but {len(fx_curves.keys())} provided."
+            )
+        elif T.sum() < (2 * q) - 1:
+            raise ValueError(
+                f"`fx_curves` is underspecified. {2 * q -1} curves are expected "
                 f"but {len(fx_curves.keys())} provided."
             )
         elif np.linalg.matrix_rank(T) != q:

@@ -304,7 +304,6 @@ other so these solvers could be arranged in either order.
            dt(2024, 1, 1): 1.0,
            dt(2025, 1, 1): 1.0,
        },
-       calendar="nyc",
        id="sofr",
    )
    sofr_instruments = [
@@ -324,7 +323,6 @@ other so these solvers could be arranged in either order.
            dt(2024, 1, 1): 1.0,
            dt(2025, 1, 1): 1.0,
        },
-       calendar="tgt",
        id="estr",
    )
    estr_instruments = [
@@ -344,3 +342,134 @@ above. However, in practice it is less efficient to solve independent solvers
 within the same framework. And practically, this is not usually how trading teams are
 configured, all as one big group. Normally siloed teams are responsible for their
 own subsections, be it one currency or another, or different product types.
+
+Multi-Currency Instruments
+***************************
+
+Multi-currency derivatives rely on :class:`~rateslib.fx.FXForwards`. In this
+example we establish a new cash-collateral discount curve and use
+:class:`~rateslib.instruments.XCS` within a :class:`~rateslib.solver.Solver`.
+
+.. ipython:: python
+
+   eurusd = Curve(
+       nodes={
+           dt(2022, 1, 1): 1.0,
+           dt(2023, 1, 1): 1.0,
+           dt(2024, 1, 1): 1.0,
+           dt(2025, 1, 1): 1.0,
+       },
+       id="eurusd",
+   )
+   fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={
+           "eureur": estr_curve,
+           "eurusd": eurusd,
+           "usdusd": sofr_curve,
+       }
+   )
+   kwargs={
+       "currency": "eur",
+       "leg2_currency": "usd",
+       "curves": ["estr", "eurusd", "sofr", "sofr"],
+   }
+   xcs_instruments = [
+       XCS(dt(2022, 1, 1), "1Y", "A", **kwargs),
+       XCS(dt(2022, 1, 1), "2Y", "A", **kwargs),
+       XCS(dt(2022, 1, 1), "3Y", "A", **kwargs),
+   ]
+   xcs_solver = Solver(
+       curves = [eurusd],
+       instruments = xcs_instruments,
+       s = [-10, -15, -20],
+       fx=fxf,
+       pre_solvers=[estr_solver],
+   )
+   estr_curve.plot("1d", comparators=[eurusd], labels=["Eur:eur", "Eur:usd"])
+
+.. plot::
+
+   from rateslib.curves import *
+   from rateslib.instruments import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   sofr_curve = Curve(
+       nodes={
+           dt(2022, 1, 1): 1.0,
+           dt(2023, 1, 1): 1.0,
+           dt(2024, 1, 1): 1.0,
+           dt(2025, 1, 1): 1.0,
+       },
+       id="sofr",
+   )
+   sofr_instruments = [
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="sofr"),
+       IRS(dt(2022, 1, 1), "2Y", "A", currency="usd", curves="sofr"),
+       IRS(dt(2022, 1, 1), "3Y", "A", currency="usd", curves="sofr"),
+   ]
+   sofr_solver = Solver(
+       curves = [sofr_curve],
+       instruments = sofr_instruments,
+       s = [2.5, 3.0, 3.5],
+   )
+   estr_curve = Curve(
+       nodes={
+           dt(2022, 1, 1): 1.0,
+           dt(2023, 1, 1): 1.0,
+           dt(2024, 1, 1): 1.0,
+           dt(2025, 1, 1): 1.0,
+       },
+       id="estr",
+   )
+   estr_instruments = [
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves="estr"),
+       IRS(dt(2022, 1, 1), "2Y", "A", currency="eur", curves="estr"),
+       IRS(dt(2022, 1, 1), "3Y", "A", currency="eur", curves="estr"),
+   ]
+   estr_solver = Solver(
+       curves = [estr_curve],
+       instruments = estr_instruments,
+       s = [1.25, 1.5, 1.75],
+       pre_solvers=[sofr_solver]
+   )
+   eurusd = Curve(
+       nodes={
+           dt(2022, 1, 1): 1.0,
+           dt(2023, 1, 1): 1.0,
+           dt(2024, 1, 1): 1.0,
+           dt(2025, 1, 1): 1.0,
+       },
+       id="eurusd",
+   )
+   fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={
+           "eureur": estr_curve,
+           "eurusd": eurusd,
+           "usdusd": sofr_curve,
+       }
+   )
+   kwargs={
+       "currency": "eur",
+       "leg2_currency": "usd",
+       "curves": ["estr", "eurusd", "sofr", "sofr"],
+   }
+   xcs_instruments = [
+       XCS(dt(2022, 1, 1), "1Y", "A", **kwargs),
+       XCS(dt(2022, 1, 1), "2Y", "A", **kwargs),
+       XCS(dt(2022, 1, 1), "3Y", "A", **kwargs),
+   ]
+   xcs_solver = Solver(
+       curves = [eurusd],
+       instruments = xcs_instruments,
+       s = [-10, -15, -20],
+       fx=fxf,
+       pre_solvers=[estr_solver],
+   )
+   fig, ax, lines = estr_curve.plot("1D", comparators=[eurusd], labels=["Eur:eur", "Eur:usd"])
+   plt.show()
+   plt.close()

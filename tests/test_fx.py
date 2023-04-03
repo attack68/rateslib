@@ -359,11 +359,19 @@ def test_recursive_chain_interim_broken_path():
     assert result == expected
 
 
-def test_multiple_currencies_number_raises():
+def test_multiple_currencies_number_raises(usdusd):
     fxr1 = FXRates({"eurusd": 0.95}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"gbpcad": 1.1}, settlement=dt(2022, 1, 2))
-    with pytest.raises(ValueError, match="`fx_curves` does not contain enough curves."):
+    with pytest.raises(ValueError, match="`fx_curves` is underspecified."):
         FXForwards([fxr1, fxr2], {})
+
+    with pytest.raises(ValueError, match="`fx_curves` is overspecified."):
+        FXForwards(fxr1, {
+            "eureur": usdusd,
+            "usdusd": usdusd,
+            "usdeur": usdusd,
+            "eurusd": usdusd,
+        })
 
 
 def test_forwards_unexpected_curve_raise(usdusd):
@@ -378,13 +386,14 @@ def test_forwards_unexpected_curve_raise(usdusd):
 
 
 def test_forwards_codependent_curve_raise(usdusd):
-    fxr = FXRates({"eurusd": 0.95}, settlement=dt(2022, 1, 3))
+    fxr = FXRates({"eurusd": 0.95, "usdnok": 10.0}, settlement=dt(2022, 1, 3))
     with pytest.raises(ValueError, match="`fx_curves` contains co-dependent rates"):
         FXForwards(fxr, {
             "eureur": usdusd,
             "usdusd": usdusd,
             "usdeur": usdusd,
             "eurusd": usdusd,
+            "noknok": usdusd,
         })
 
 

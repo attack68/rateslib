@@ -253,6 +253,7 @@ class BaseMixin:
     _float_spread_mixin = False
     _leg2_fixed_rate_mixin = False
     _leg2_float_spread_mixin = False
+    _rate_scalar = 1.
 
     @property
     def fixed_rate(self):
@@ -2537,6 +2538,7 @@ class SBS(BaseDerivative):
     """
     _float_spread_mixin = True
     _leg2_float_spread_mixin = True
+    _rate_scalar = 100.
 
     def __init__(
         self,
@@ -3383,6 +3385,7 @@ class NonMtmXCS(BaseXCS):
     """
     _float_spread_mixin = True
     _leg2_float_spread_mixin = True
+    _rate_scalar = 100.
 
     def __init__(
         self,
@@ -3901,6 +3904,7 @@ class XCS(BaseXCS):
     _float_spread_mixin = True
     _leg2_float_spread_mixin = True
     _is_mtm = True
+    _rate_scalar = 100.
 
     def __init__(
         self,
@@ -4291,6 +4295,7 @@ class FloatFixedXCS(BaseXCS):
     _float_spread_mixin = True
     _leg2_fixed_rate_mixin = True
     _is_mtm = True
+    _rate_scalar = 100.
 
     def __init__(
             self,
