@@ -785,7 +785,7 @@ class FXForwards:
             self.fx_rates = fx_rates
 
         if isinstance(self.fx_rates, list):
-            fx_rates_imm, base = {}, self.fx_rates[0].base
+            acyclic_fxf = None
             for fx_rates_obj in self.fx_rates:
                 # create sub FXForwards for each FXRates instance and re-combine.
                 # This reuses the arg validation of a single FXRates object and
@@ -793,9 +793,37 @@ class FXForwards:
                 sub_curves = self._get_curves_for_currencies(
                     self.fx_curves, fx_rates_obj.currencies_list
                 )
-                sub_fxf = FXForwards(fx_rates_obj, sub_curves)
-                fx_rates_imm.update(sub_fxf.fx_rates_immediate.fx_rates)
-            _ = FXForwards(FXRates(fx_rates_imm, self.immediate), self.fx_curves, base)
+                if acyclic_fxf is None:
+                    acyclic_fxf = FXForwards(
+                        fx_rates=fx_rates_obj,
+                        fx_curves=sub_curves,
+                    )
+                else:
+                    # calculate additional FX rates from previous objects
+                    # in the same settlement frame.
+                    pre_curves = acyclic_fxf.fx_curves
+                    pre_currencies = [
+                        ccy for ccy in acyclic_fxf.currencies_list
+                        if ccy not in fx_rates_obj.currencies_list
+                    ]
+                    pre_rates = {
+                        f"{fx_rates_obj.base}{ccy}": acyclic_fxf.rate(
+                            f"{fx_rates_obj.base}{ccy}", fx_rates_obj.settlement
+                        )
+                        for ccy in pre_currencies
+                    }
+                    combined_fx_rates = FXRates(
+                        fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
+                        settlement=fx_rates_obj.settlement
+                    )
+                    acyclic_fxf = FXForwards(
+                        fx_rates=combined_fx_rates,
+                        fx_curves={**sub_curves, **pre_curves}
+                    )
+
+            if base is not None:
+                acyclic_fxf.base = base.lower()
+
             for attr in [
                 "currencies",
                 "q",
@@ -804,7 +832,7 @@ class FXForwards:
                 "base",
                 "fx_rates_immediate"
             ]:
-                setattr(self, attr, getattr(_, attr))
+                setattr(self, attr, getattr(acyclic_fxf, attr))
         else:
             self.currencies = self.fx_rates.currencies
             self.q = len(self.currencies.keys())

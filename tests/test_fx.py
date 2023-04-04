@@ -410,7 +410,8 @@ def test_multiple_settlement_forwards():
         "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
     })
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
-    assert fxf.fx_rates_immediate.fx_array[0, 1].real == F0_usdeur
+    F0_usdeur_result = fxf.rate("usdeur", dt(2022, 1, 1))
+    assert F0_usdeur_result.real == F0_usdeur
     assert fxf.rate("usdeur", dt(2022, 1, 3)) == Dual(0.95, "fx_usdeur", [1.])
 
 
@@ -605,9 +606,11 @@ def test_oo_update_forwards_rates_list():
     fx_rates2 = FXRates({"eurnok": 8.888889}, dt(2022, 1, 3))
     fxf = FXForwards([fx_rates1, fx_rates2], fx_curves)
     original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  #  7.917 = 0.9 * 8.888
+    assert abs(original_fwd - 7.917) < 1e-3
     fx_rates1.update({"usdeur": 1.0})
     fxf.update()
     updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  #  8.797 = 1.0 * 8.888
+    assert abs(updated_fwd - 8.797) < 1e-3
     assert original_fwd != updated_fwd
 
 
