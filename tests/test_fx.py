@@ -93,8 +93,9 @@ def test_restate():
 
 
 def test_restate_return_self():
+    # test a new object is always returned even if nothing is restated
     fxr = FXRates({"usdnok": 8.0, "gbpnok": 10})
-    assert id(fxr) == id(fxr.restate(["gbpnok", "usdnok"], True))
+    assert id(fxr) != id(fxr.restate(["gbpnok", "usdnok"], True))
 
 
 def test_rates_table():

@@ -198,7 +198,7 @@ class FXRates:
            fxr2.convert(100, "gbp", "usd")
         """
         if set(pairs) == set(self.pairs) and keep_ad:
-            return self  # no restate needed
+            return self.copy()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
             {pair: self.rate(pair) if keep_ad else self.rate(pair).real
@@ -577,7 +577,11 @@ class FXRates:
         return not self.__eq__(other)
 
     def copy(self):
-        return self.from_json(self.to_json())
+        return FXRates(
+            fx_rates=self.fx_rates.copy(),
+            settlement=self.settlement,
+            base=self.base
+        )
 
 
 class FXForwards:
