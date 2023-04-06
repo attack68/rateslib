@@ -663,3 +663,124 @@ def test_bad_settlement_date(usdusd, usdeur, eureur):
     )
     with pytest.raises(ValueError, match="`settlement` cannot"):
         fxf.rate("usdeur", dt(1999, 1, 1))  # < date before curves
+
+
+def test_fxforwards_separable_system():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2],
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        }
+    )
+    result = fxf.rate("eurcad", dt(2022, 2, 1))
+    expected = 1.05 * 1.10
+    assert abs(result - expected) < 1e-2
+
+
+def test_fxforwards_acyclic_system():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2],
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        }
+    )
+    result = fxf.rate("eurcad", dt(2022, 2, 1))
+    expected = 1.05 * 1.10
+    assert abs(result - expected) < 1e-2
+
+
+def test_fxforwards_cyclic_system_fails():
+    fxr1 = FXRates({"eurusd": 1.05, "gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+    with pytest.raises(ValueError, match="`fx_curves` is underspecified."):
+        fxf = FXForwards(
+            fx_rates=[fxr1, fxr2],
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            }
+        )
+
+
+def test_fxforwards_cyclic_system_restructured():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+    fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2, fxr3],
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        }
+    )
+    result = fxf.rate("eurcad", dt(2022, 2, 1))
+    expected = 1.05 * 1.10
+    assert abs(result - expected) < 1e-2
+
+
+def test_fxforwards_positions_when_immediate_aligns_with_settlement():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 1))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2],
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        }
+    )
+    pv = Dual(100000, ["fx_eurusd", "fx_usdcad"], [-100000, -150000])
+    result = fxf.positions(pv, base="usd")
+    expected = DataFrame(
+        index=["cad", "eur", "usd"],
+        columns=[dt(2022, 1, 1), dt(2022, 1, 2), dt(2022, 1, 3)],
+        data=[[0., 181500., 0.], [0., 0., -100000.], [100000, -165000, 105000]]
+    )
+    assert_frame_equal(result, expected)
+
+
+def test_fxforwards_positions_multiple_fx_rates():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2],
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        }
+    )
+    pv = Dual(100000, ["fx_eurusd", "fx_usdcad"], [-100000, -150000])
+    result = fxf.positions(pv, base="usd")
+    expected = DataFrame(
+        index=["cad", "eur", "usd"],
+        columns=[dt(2022, 1, 1), dt(2022, 1, 2), dt(2022, 1, 3)],
+        data=[[0., 181500., 0.], [0., 0., -100000.], [100000, -165000, 105000]]
+    )
+    assert_frame_equal(result, expected)

@@ -790,10 +790,10 @@ class FXForwards:
                 # create sub FXForwards for each FXRates instance and re-combine.
                 # This reuses the arg validation of a single FXRates object and
                 # dependency of FXRates with fx_curves.
-                sub_curves = self._get_curves_for_currencies(
-                    self.fx_curves, fx_rates_obj.currencies_list
-                )
                 if acyclic_fxf is None:
+                    sub_curves = self._get_curves_for_currencies(
+                        self.fx_curves, fx_rates_obj.currencies_list
+                    )
                     acyclic_fxf = FXForwards(
                         fx_rates=fx_rates_obj,
                         fx_curves=sub_curves,
@@ -801,7 +801,6 @@ class FXForwards:
                 else:
                     # calculate additional FX rates from previous objects
                     # in the same settlement frame.
-                    pre_curves = acyclic_fxf.fx_curves
                     pre_currencies = [
                         ccy for ccy in acyclic_fxf.currencies_list
                         if ccy not in fx_rates_obj.currencies_list
@@ -816,9 +815,12 @@ class FXForwards:
                         fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
                         settlement=fx_rates_obj.settlement
                     )
+                    sub_curves = self._get_curves_for_currencies(
+                        self.fx_curves, fx_rates_obj.currencies_list + pre_currencies
+                    )
                     acyclic_fxf = FXForwards(
                         fx_rates=combined_fx_rates,
-                        fx_curves={**sub_curves, **pre_curves}
+                        fx_curves=sub_curves
                     )
 
             if base is not None:
@@ -1096,6 +1098,224 @@ class FXForwards:
         if return_path:
             return rate_, path
         return rate_
+
+    def positions(
+        self,
+        value,
+        base: Optional[str] = None,
+        aggregate: bool = False
+    ):
+        """
+        Convert a base value with FX rate sensitivities into an array of cash positions
+        by settlement date.
+
+        Parameters
+        ----------
+        value : float or Dual
+            The amount expressed in base currency to convert to cash positions.
+        base : str, optional
+            The base currency in which ``value`` is given (3-digit code). If *None*
+            assumes the ``base`` of the object.
+        aggregate : bool, optional
+            Whether to aggregate positions across all settlement dates and yield
+            a single column Series.
+
+        Returns
+        -------
+        DataFrame or Series
+
+        Examples
+        --------
+        .. ipython:: python
+
+           fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+           fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+           fxf = FXForwards(
+               fx_rates=[fxr1, fxr2],
+               fx_curves={
+                   "usdusd": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "eureur": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "cadcad": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "usdeur": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "cadusd": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+               }
+           )
+           fxf.positions(
+               value=Dual(100000, ["fx_eurusd", "fx_usdcad"], [-100000, -150000]),
+               base="usd",
+           )
+
+        """
+        if isinstance(value, (float, int)):
+            value = Dual(value)
+        base = self.base if base is None else base.lower()
+        _ = np.array(
+            [0 if ccy != base else float(value) for ccy in self.currencies_list]
+        )  # this is an NPV so is assumed to be immediate settlement
+
+        if isinstance(self.fx_rates, list):
+            fx_rates = self.fx_rates
+        else:
+            fx_rates = [self.fx_rates]
+
+        dates = list({fxr.settlement for fxr in fx_rates})
+        if self.immediate not in dates:
+            dates.insert(0, self.immediate)
+        df = DataFrame(0., index=self.currencies_list, columns=dates)
+        df.loc[base, self.immediate] = float(value)
+        for pair in value.vars:
+            if pair[:3] == "fx_":
+                dom_, for_ = pair[3:6], pair[6:9]
+                for fxr in fx_rates:
+                    if dom_ in fxr.currencies_list and for_ in fxr.currencies_list:
+                        delta = value.gradient(pair)[0]
+                        _ = fxr._get_positions_from_delta(delta, pair[3:], base)
+                        _ = Series(_, index=fxr.currencies_list, name=fxr.settlement)
+                        df = df.add(_.to_frame(), fill_value=0.)
+
+        if aggregate:
+            return df.sum(axis=1)
+        else:
+            return df.sort_index(axis=1)
+
+    def convert(
+        self,
+        value: Union[Dual, float],
+        domestic: str,
+        foreign: Optional[str] = None,
+        settlement: Optional[datetime] = None,
+        value_date: Optional[datetime] = None,
+        on_error: str = "ignore"
+    ):
+        """
+        Convert an amount of a domestic currency, as of a settlement date
+        into a foreign currency, valued on another date.
+
+        Parameters
+        ----------
+        value : float or Dual
+            The amount of the domestic currency to convert.
+        domestic : str
+            The domestic currency (3-digit code).
+        foreign : str, optional
+            The foreign currency to convert to (3-digit code). Uses instance
+            ``base`` if not given.
+        settlement : datetime, optional
+            The date of the assumed domestic currency cashflow. If not given is
+            assumed to be ``immediate`` settlement.
+        value_date : datetime, optional
+            The date for which the domestic cashflow is to be projected to. If not
+            given is assumed to be equal to the ``settlement``.
+        on_error : str in {"ignore", "warn", "raise"}
+            The action taken if either ``domestic`` or ``foreign`` are not contained
+            in the FX framework. `"ignore"` and `"warn"` will still return `None`.
+
+        Returns
+        -------
+        Dual or None
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+           fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+           fxf = FXForwards(
+               fx_rates=[fxr1, fxr2],
+               fx_curves={
+                   "usdusd": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "eureur": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "cadcad": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "usdeur": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+                   "cadusd": Curve({dt(2022, 1, 1):1.0, dt(2022, 2, 1): 0.999}),
+               }
+           )
+           fxf.convert(1000, "usd", "cad")
+
+        """
+        foreign = self.base if foreign is None else foreign.lower()
+        domestic = domestic.lower()
+        for ccy in [domestic, foreign]:
+            if ccy not in self.currencies:
+                if on_error == "ignore":
+                    return None
+                elif on_error == "warn":
+                    warnings.warn(
+                        f"'{ccy}' not in FXForwards.currencies: returning None.",
+                        UserWarning
+                    )
+                    return None
+                else:
+                    raise ValueError(f"'{ccy}' not in FXForwards.currencies.")
+
+        if settlement is None:
+            settlement = self.immediate
+        if value_date is None:
+            value_date = settlement
+
+        fx_rate = self.rate(domestic + foreign, settlement)
+        if value_date == settlement:
+            return fx_rate * value
+        else:
+            crv = self.curve(foreign, foreign)
+            return fx_rate * value * crv[settlement] / crv[value_date]
+
+    def convert_positions(
+        self,
+        array: Union[np.array, list, DataFrame, Series],
+        base: Optional[str] = None,
+    ):
+        """
+        Convert an input of currency cash positions into a single base currency value.
+
+        Parameters
+        ----------
+        array : list, 1d ndarray of floats, or Series, or DataFrame
+            The cash positions to simultaneously convert in the base currency. **Must**
+            be ordered by currency as defined in the attribute ``FXRates.currencies``.
+            XX TODO relabel this docstring correctly.
+        base : str, optional
+            The currency to convert to (3-digit code). Uses instance ``base`` if not
+            given.
+
+        Returns
+        -------
+        Dual
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdnok": 8.0})
+           fxr.currencies
+           fxr.convert_positions([0, 1000000], "usd")
+        """
+        base = self.base if base is None else base.lower()
+
+        if isinstance(array, Series):
+            array_ = array.to_frame(name=self.immediate)
+        elif isinstance(array, DataFrame):
+            array_ = array
+        else:
+            array_ = DataFrame(
+                {self.immediate: np.asarray(array)},
+                index=self.currencies_list
+            )
+
+        # j = self.currencies[base]
+        # return np.sum(array_ * self.fx_array[:, j])
+        sum = 0
+        for d in array_.columns:
+            d_sum = 0
+            for ccy in array_.index:
+                d_sum += self.convert(array_.loc[ccy, d], ccy, base, d)
+            if abs(d_sum) < 1e-2:
+                sum += d_sum
+            else:  # only discount if there is a real value
+                sum += self.convert(d_sum, base, base, d, self.immediate)
+        return sum
 
     def swap(
         self,
