@@ -4861,6 +4861,8 @@ class Spread(Sensitivities):
        spread.rate()
        spread.cashflows()
     """
+    _rate_scalar = 1.
+
     def __init__(self, instrument1, instrument2):
         self.instrument1 = instrument1
         self.instrument2 = instrument2
@@ -4964,6 +4966,8 @@ class Fly(Sensitivities):
     --------
     See examples for :class:`Spread` for similar functionality.
     """
+    _rate_scalar = 1.
+
     def __init__(self, instrument1, instrument2, instrument3):
         self.instrument1 = instrument1
         self.instrument2 = instrument2

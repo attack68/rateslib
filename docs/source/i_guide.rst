@@ -44,26 +44,22 @@ We can construct an ``Instrument``: here a short dated RFR interest rate swap
        notional=1000000000,
    )
 
-We can value the IRS in its local currency by default (USD) or in another
-currency by creating an
-:class:`~rateslib.fx.FXRates` object and putting everything together.
+We can value the IRS in its local currency (USD) by default.
 
 .. ipython:: python
 
    irs.npv(curve)
 
-We can obtain basic IR delta risk sensitivity, expressed in local currency,
-for this IRS with the basic :meth:`~rateslib.instruments.IRS.analytic_delta`
-method.
+This is the most basic functionality ``rateslib`` offers, but other features
+that will be explained below are:
 
-.. ipython:: python
-
-   irs.analytic_delta(curve)
-
-We cannot, in this example, obtain more precise (bucket) risk sensitivities of this
-IRS, since, in order to do so,
-we need to configure a risk framework and construct curves from instruments
-using a :class:`~rateslib.solver.Solver`.
+- how to parametrize ``Curves`` and how to calibrate them to market rates
+  using a :class:`~rateslib.solver.Solver`,
+- the various different ``Instruments`` that are offered and the various methods
+  used to explore their construction, e.g. ``cashflows()``.
+- how ``FX`` is handled and how any value can be converted into another currency
+  **preserving fx rate sensitivty**.
+- how **risk sensitivity** is addressed.
 
 Reading the Guide
 ==================

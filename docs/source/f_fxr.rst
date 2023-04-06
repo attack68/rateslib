@@ -43,9 +43,10 @@ to derive all FX rates from the stated FX market are performed internally.
    )
    fxr.rates_table()
 
-The :class:`~rateslib.fx.FXRates` class is also invoked when one has an instrument
-in one currency but the results of calculations are preferred in another. For example,
-below we create a :class:`~rateslib.curves.Curve` and a EUR
+The :class:`~rateslib.fx.FXRates` class is also used when one has an ``Instrument``
+in one currency but the results of calculations are preferred in another, say, when
+accounting currency is something other than the currency of underlying ``Instrument``.
+For example, below we create a :class:`~rateslib.curves.Curve` and a EUR
 :class:`~rateslib.instruments.IRS`, and calculate some metrics expressed in that
 currency.
 
@@ -77,12 +78,14 @@ Or, other currencies too, that are non-base, can also be displayed upon request.
 Sensitivity Management
 ----------------------
 
-This object does not only create an FX rates table, it also performs calculations
+This object does not only create an FX :meth:`~rateslib.fx.FXRates.rates_table`,
+it also performs calculations
 and determines sensitivities, using automatic differentiation, to the FX rates that
 are given as the parameters in the construction. For example, in the above
-construction the EURSEK and NOKSEK rates are given. The EURNOK exchange rate, which
-is derived from those two will demonstrate that dependency, whilst the EURSEK rate
-will demonstrate only direct one-to-one dependency with the given EURSEK rate.
+construction the EURSEK and NOKSEK rates are given, as *majors*.
+The EURNOK exchange rate, is a *cross*, and being derived from those means it
+will demonstrate that dependency to those two, whilst the EURSEK rate
+will demonstrate only direct one-to-one dependency with the quoted EURSEK rate.
 
 .. ipython:: python
 
@@ -98,7 +101,29 @@ number specification.
    sek_value = fxr.convert(100, "eur", "sek")
    sek_value
 
-By interpreting values with FX sensitivities the underlying positions are maintained.
+Interpreting Dual Values
+************************
+
+The above value has an *"fx_eursek"* dual value of 100 (SEK). This means that for the
+EURSEK rate to increase by 1.0 from 10.85 to 11.85 the base (SEK) value would
+increase by 100, from 1,085 SEK to 1,185 SEK. In this case this is exact, but the
+figure of *"100"* represents an instantaneous derivative. When dealing with reverse
+exposures this becomes apparent.
+
+.. ipython:: python
+
+   eur_value = fxr.convert(1085, "sek", "eur")
+   eur_value
+
+Now when EURSEK increases to 11.85 the new *"eur_value"* would actually be 91.56 EUR.
+This is **not** (100-9.2166=) 90.78. But this sensitivity is applicable on an
+infinitesimal basis.
+
+Conversion Methods
+******************
+
+By interpreting and storing values with FX sensitivities the underlying true positions
+are maintained.
 A 100 EUR cash position *valued* as 1,085 SEK, is not the same as a 1,085 SEK
 cash position when considering financial risk exposures. Therefore the methods
 :meth:`~rateslib.fx.FXRates.convert`, :meth:`~rateslib.fx.FXRates.convert_positions`
@@ -123,9 +148,12 @@ Updating
 Once an :class:`~rateslib.fx.FXRates` class has been instantiated it may then be
 associated with
 other objects, such as an :class:`~rateslib.fx.FXForwards` class.
-It is **best practice**
-not to create further :class:`~rateslib.fx.FXRates` instances but
-to **update** the existing
-ones instead.
-Please review the documentation for :meth:`~rateslib.fx.FXRates.update` for
-further details.
+
+.. note::
+
+   It is **best practice**
+   not to create further :class:`~rateslib.fx.FXRates` instances but
+   to **update** the existing
+   ones instead.
+   Please review the documentation for :meth:`~rateslib.fx.FXRates.update` for
+   further details.

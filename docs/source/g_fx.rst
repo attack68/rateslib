@@ -10,12 +10,14 @@
 FX
 ************
 
-The ``rateslib.fx`` module is also integral to a fixed income library.
-It allows PVs and IR
-risk sensitivities calculations to be expressed in chosen currencies - to provide
-consistency across multi-currency portfolios. The ability to measure FX rate risk
-sensitivities is also provided. Additionally the construction of multi-currency
-instruments and multi-currency curves requires FX forward rate calculation.
+The ``rateslib.fx`` module provides ``FX`` functionality. This is a necessary
+part of a fixed income library because it allows:
+
+- consistent treatment of cashflows and values expressed in one currency relative
+  to another,
+- the construction of multi-currency derivatives, and of FX forward rates,
+- valuation of derivatives with CSAs priced in non-local currencies,
+- stored FX rate sensitivity calculations via automatic differentiation.
 
 The two main classes provided are distinct.
 

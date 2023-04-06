@@ -757,8 +757,8 @@ def test_fxforwards_positions_when_immediate_aligns_with_settlement():
     result = fxf.positions(pv, base="usd")
     expected = DataFrame(
         index=["cad", "eur", "usd"],
-        columns=[dt(2022, 1, 1), dt(2022, 1, 2), dt(2022, 1, 3)],
-        data=[[0., 181500., 0.], [0., 0., -100000.], [100000, -165000, 105000]]
+        columns=[dt(2022, 1, 1)],
+        data=[[181500.], [-100000.], [40000]]
     )
     assert_frame_equal(result, expected)
 
