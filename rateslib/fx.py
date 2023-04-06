@@ -1185,6 +1185,7 @@ class FXForwards:
         foreign: Optional[str] = None,
         settlement: Optional[datetime] = None,
         value_date: Optional[datetime] = None,
+        collateral: Optional[str] = None,
         on_error: str = "ignore"
     ):
         """
@@ -1206,6 +1207,10 @@ class FXForwards:
         value_date : datetime, optional
             The date for which the domestic cashflow is to be projected to. If not
             given is assumed to be equal to the ``settlement``.
+        collateral : str, optional
+            The collateral currency to project the cashflow if ``value_date`` is
+            different to ``settlement``. If they are the same this is not needed.
+            If not given defaults to ``domestic``.
         on_error : str in {"ignore", "warn", "raise"}
             The action taken if either ``domestic`` or ``foreign`` are not contained
             in the FX framework. `"ignore"` and `"warn"` will still return `None`.
@@ -1236,6 +1241,7 @@ class FXForwards:
         """
         foreign = self.base if foreign is None else foreign.lower()
         domestic = domestic.lower()
+        collateral = domestic if collateral is None else collateral.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
                 if on_error == "ignore":
@@ -1258,7 +1264,7 @@ class FXForwards:
         if value_date == settlement:
             return fx_rate * value
         else:
-            crv = self.curve(foreign, foreign)
+            crv = self.curve(foreign, collateral)
             return fx_rate * value * crv[settlement] / crv[value_date]
 
     def convert_positions(
