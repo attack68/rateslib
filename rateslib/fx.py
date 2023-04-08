@@ -349,10 +349,15 @@ class FXRates:
         domestic, foreign = pair[:3], pair[3:]
         d_idx, f_idx = self.currencies[domestic], self.currencies[foreign]
         _ = np.zeros(self.q)
-        f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx, f_idx])**2
-        _[f_idx] = f_val
-        _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
-        return _
+
+        # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx, f_idx])**2
+        # _[f_idx] = f_val
+        # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
+        # return _
+        f_val = delta * float(self.fx_array[b_idx, f_idx])
+        _[d_idx] = f_val
+        _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
+        return _  # calculation is more efficient from a domestic pov than foreign
 
     def rate(self, pair: str):
         """
