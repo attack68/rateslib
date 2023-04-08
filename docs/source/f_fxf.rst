@@ -40,7 +40,7 @@ Thus the :class:`~rateslib.fx.FXForwards` class requires this information for
 instantiation. The ``fx_rates`` argument is available to supply the first item.
 The ``fx_curves`` argument requires a dict of labelled curves. This has a specific
 structure where each curve is labelled as a cash-collateral curve. The first 3 digits
-represent the currency of the cashflow and the latter there the currency in which
+represent the currency of the cashflow and the latter 3 represent the currency in which
 that cashflow is collateralized.
 
 Just for the first example,
@@ -181,7 +181,7 @@ not provided at initialisation, nor is the "eurgbp" curve.
 
 In these circumstances the :meth:`~rateslib.fx.FXForwards.curve` method will derive the
 combination of existing curves that can be combined to yield required DFs on-the-fly.
-This creates a ``~rateslib.fx.ProxyCurve``.
+This creates a :class:`~rateslib.fx.ProxyCurve`.
 
 In the above framework GBP is the cheapest to deliver collateral, and USD is the
 most expensive. We can observe this

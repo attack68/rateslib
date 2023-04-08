@@ -482,7 +482,17 @@ class FloatPeriod(BasePeriod):
 
     **Fixings**
 
-    Providing ``fixings`` as a ``Series`` is best practice. If an *"ibor"* ``fixing
+    .. warning::
+
+       Providing ``fixings`` as a ``Series`` is **best practice**.
+
+       But, **RFR** and **IBOR** fixings provided as datetime indexed ``Series`` require
+       **different formats**:
+
+       - IBOR fixings are indexed by publication date and fixing value.
+       - RFR fixings are indexed by reference value date and fixing value.
+
+    If an *"ibor"* ``fixing
     method`` is given the series should index the published IBOR rates by
     **publication date**, which usually lags the reference value dates.
     For example, EURIBOR lags its
@@ -492,10 +502,14 @@ class FloatPeriod(BasePeriod):
 
     .. ipython:: python
 
-       ibor_curve = Curve({dt(2023, 3, 6): 1.0, dt(2024, 3, 6): 0.96}, calendar="bus")
-       fixings = Series([1.00, 2.801, 1.00, 1.00], index=[
-           dt(2023, 3, 1), dt(2023, 3, 2), dt(2023, 3, 3), dt(2023, 3, 6)
-       ])
+       ibor_curve = Curve(
+           nodes={dt(2023, 3, 6): 1.0, dt(2024, 3, 6): 0.96},
+           calendar="bus"
+       )
+       fixings = Series(
+           [1.00, 2.801, 1.00, 1.00],
+           index=[dt(2023, 3, 1), dt(2023, 3, 2), dt(2023, 3, 3), dt(2023, 3, 6)]
+       )
        float_period = FloatPeriod(
            start=dt(2023, 3, 6),
            end=dt(2023, 6, 6),
@@ -517,10 +531,14 @@ class FloatPeriod(BasePeriod):
 
     .. ipython:: python
 
-       rfr_curve = Curve({dt(2023, 3, 3): 1.0, dt(2024, 3, 3): 0.96}, calendar="bus")
-       fixings = Series([1.00, 1.00, 2.399], index=[
-           dt(2023, 2, 28), dt(2023, 3, 1), dt(2023, 3, 2),
-       ])
+       rfr_curve = Curve(
+           nodes={dt(2023, 3, 3): 1.0, dt(2024, 3, 3): 0.96},
+           calendar="bus"
+       )
+       fixings = Series(
+           [1.00, 1.00, 2.399],
+           index=[dt(2023, 2, 28), dt(2023, 3, 1), dt(2023, 3, 2)]
+       )
        float_period = FloatPeriod(
            start=dt(2023, 3, 2),
            end=dt(2023, 3, 3),

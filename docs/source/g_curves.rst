@@ -13,21 +13,20 @@
 Curves
 ************
 
+
+
 A misconception in finance is that interest rate curves are defined by par swap rates,
 for example, a SOFR curve might be defined by the par SOFR rates:
 {1M, 2M, 3M, 6M, 1Y, 2Y, 3Y, etc. }. This is **not** true. Whilst that information *is*
-sufficient to create a SOFR curve it is a very narrow subset of the possibilities
-permissible for creating curves,
-and it exemplifies a misunderstanding of the **generalised process** for constructing
-curves. It also excludes sets of other curves such as bond credit curves.
+sufficient to create a SOFR curve (and probably likely to lead to a
+**bootstrapping** method, which ``rateslib`` does not perform) it is a very narrow
+subset of the possibilities permissible for creating curves.
 
 In ``rateslib`` **defining curves** and then **solving them with calibrating
-instruments** are two separate processes. There
-needs to be weak mathematical association between them (for the solver to be successful)
-but it certainly does not need to be as strong as ensuring the nodes on the curve
-and the rates supplied are one-to-one equivalent.
-The following pages of the guide aim to explain the individual components and their
-parameters.
+instruments** are two separate processes. This provides maximal flexibility whilst
+providing a process that is fully generalised and consistent throughout.
+
+The following pages describe these two processes.
 
 .. toctree::
     :maxdepth: 0
@@ -36,9 +35,13 @@ parameters.
     c_curves.rst
     c_solver.rst
 
-The basic SOFR curve above, exhibiting strong one-to-one association between nodes
-and instruments would be created as follows, with the distinct classes as
-associated objects.
+The below provides a basic introduction, exemplifying how the above SOFR curve,
+which might otherwise be bootstrapped, can be constructed in ``rateslib`` using the
+generalised process of:
+
+- **defining the** ``Curves``,
+- **defining the calibrating** ``Instruments``,
+- **combining** in the :class:`~rateslib.solver.Solver` with target market prices.
 
 .. ipython:: python
 

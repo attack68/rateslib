@@ -24,6 +24,8 @@ environment.
 
    pip install rateslib
 
+``Conda`` support is coming soon, but not available yet.
+
 Introduction to Rateslib
 -------------------------
 

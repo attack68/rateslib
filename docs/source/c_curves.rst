@@ -28,7 +28,8 @@ and :ref:`dual<dual-doc>`.
    rateslib.curves.interpolate
    rateslib.curves.index_left
 
-Each curve type has ``rate``, ``plot``, ``shift``, ``roll`` and ``translate`` methods.
+Each curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` and
+``translate()`` methods.
 
 .. autosummary::
    rateslib.curves.Curve.rate
@@ -121,8 +122,10 @@ connecting lines between values.
 Initial Node Date
 -----------------
 
-The initial node date is important because it is is implied to be the date of the
-construction of the curve. Any net present values (NPVs) may assume other features
+The initial node date for either curve type is important because it is implied
+to be the date of the
+construction of the curve (i.e. today's date). Any net present
+values (NPVs) may assume other features
 from this initial node, e.g. the regular settlement date of securities or the value of
 cashflows on derivatives. This is the reason the initial discount factor should also
 be exactly 1.0 on a :class:`~rateslib.curves.Curve`.
@@ -130,17 +133,21 @@ be exactly 1.0 on a :class:`~rateslib.curves.Curve`.
 Get Item
 --------
 
-Curves have a get item method so that valid DFs or values can easily be extracted
+``Curves`` have a get item method so that DFs from a :class:`~rateslib.curves.Curve`
+or values from a :class:`~rateslib.curves.LineCurve` can easily be extracted
 under the curve's specified interpolation scheme.
 
 .. note::
 
-   `Curve` DFs (and `LineCurve` values), before the curve's initial node date return
+   :class:`~rateslib.curves.Curve` DFs (and
+   :class:`~rateslib.curves.LineCurve` values), before the curve's initial node
+   date return
    **zero**, in order to value historical cashflows at zero.
 
 .. warning::
 
-   `Curve` DFs, and `LineCurve` values, after the curve's final node date will
+   :class:`~rateslib.curves.Curve` DFs, and
+   :class:`~rateslib.curves.LineCurve` values, after the curve's final node date will
    return a value that is an **extrapolation**.
    This may not be a sensible or well constrained value depending upon the
    interpolation.
@@ -173,7 +180,11 @@ and :class:`~rateslib.curves.LineCurve`.
 .. ipython:: python
    :okwarning:
 
-   curve.plot("1D", comparators=[linecurve], labels=["Curve", "LineCurve"])
+   curve.plot(
+       "1D",
+       comparators=[linecurve],
+       labels=["Curve", "LineCurve"]
+   )
 
 .. plot::
 
@@ -340,11 +351,12 @@ If applying spline interpolation to a :class:`~rateslib.curves.Curve` then it is
 applied logarithmically resulting in a log-cubic spline over DFs.
 
 If it is applied to a :class:`~rateslib.curves.LineCurve` then it results in a
-standard cubic spline.
+standard cubic spline over values.
 
 In order to instruct this mode of interpolation a **knot sequence** is required
 as the ``t`` argument. This is a list of datetimes and follows the
-appropriate convention for such sequences (see :ref:`pp splines<splines-doc>`).
+appropriate mathematical convention for such sequences
+(see :ref:`pp splines<splines-doc>`).
 
 Mixed Interpolation
 -------------------

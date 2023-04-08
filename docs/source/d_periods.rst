@@ -52,6 +52,12 @@ When the ``payment`` date
 does not align with the accrual ``end`` date, which is common for many derivatives
 with lagged payment schedules this allows for direct specification.
 
+.. note::
+
+   A positive ``notional`` is interpreted in ``rateslib`` as **paying** a ``Period``
+   or a ``Leg``.
+   This means that the associated cashflow for that period is negative.
+
 .. ipython:: python
 
    fixed_period = FixedPeriod(
@@ -78,8 +84,12 @@ Cashflow
 
 :class:`~rateslib.periods.Cashflow` allows fixed payment amounts to be similarly
 defined explicitly,
-as a specific ``notional`` amount on a ``payment`` date with no other dependencies. For
-this reason its ``analytic_delta`` is zero.
+as a specific ``notional`` amount on a ``payment`` date with **no other dependencies**.
+For this reason its ``analytic_delta`` is zero.
+This definition allows the ``analytic_delta``
+of composited legs, which might contain both :class:`~rateslib.periods.Cashflow` and
+:class:`~rateslib.periods.FixedPeriod` s to correctly identify a sensitivity
+to the change in fixed rate, which would not impact the notional cashflows.
 
 .. ipython:: python
 
@@ -105,21 +115,24 @@ For example,
 
 .. ipython:: python
 
-   curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, "log_linear", id="SONIA")
+   curve = Curve(
+       nodes={dt(2021,1,1): 1.00, dt(2025,1,1): 0.83},
+       interpolation="log_linear",
+       id="sonia"
+   )
    float_period = FloatPeriod(
        start=dt(2021,1,1),
        end=dt(2021,7,1),
        payment=dt(2021,7,2),
        frequency="S",
        notional=1000000,
-       currency="GBP",
+       currency="gbp",
        convention="Act360",
        fixing_method="rfr_payment_delay",
    )
    float_period.cashflows(curve, fx=1.25)
    float_period.npv(curve)
    float_period.analytic_delta(curve)
-
 
 
 .. .. autoclass:: rateslib.periods.BasePeriod

@@ -64,6 +64,8 @@ from rateslib.calendars import (
 )
 
 from rateslib.splines import (
+    bsplev_single,
+    bspldnev_single,
     PPSpline
 )
 
@@ -78,73 +80,136 @@ from rateslib.curves import (
     index_left
 )
 
-# from rateslib.fx import (
-#     FXRates,
-#     FXForwards
-# )
-#
-# from rateslib.solver import (
-#     Solver
-# )
-#
-# from rateslib.periods import (
-#     FixedPeriod,
-#     FloatPeriod,
-#     Cashflow
-# )
-#
-# from rateslib.legs import (
-#     FixedLeg,
-#     FixedLegExchange,
-#     FixedLegExchangeMtm,
-#     FloatLeg,
-#     FloatLegExchange,
-#     FloatLegExchangeMtm,
-#     CustomLeg
-# )
-#
-# from rateslib.instruments import (
-#     Value,
-#     Bill,
-#     FixedRateBond,
-#     FloatRateBond,
-#     IRS,
-#     FRA,
-#     Swap,
-#     SBS,
-#     FXSwap,
-#     NonMtmXCS,
-#     XCS,
-#     Spread,
-#     Fly,
-# )
-#
-# # module level doc-string
-# __doc__ = """
-# RatesLib - An efficient and interconnected fixed income library for Python
-# ==========================================================================
-#
-# **rateslib** is a Python package providing fast, flexible, and accurate
-# fixed income instrument configuration and calculation.
-# It aims to be the fundamental high-level building block for practical analysis of
-# fixed income securities, derivatives, FX representation and curve construction
-# in Python.
-#
-# Main Features
-# -------------
-# Here are just a few of the things that pandas does well:
-#
-#   - Easy handling of missing data in floating point as well as non-floating
-#     point data.
-# """
-#
-# # Use __all__ to let type checkers know what is part of the public API.
-# # Rateslib is not (yet) a py.typed library: the public API is determined
-# # based on the documentation.
-# __all__ = [
-#     "dt",
-#     "Curve",
-#     "FixedRateBond",
-#     "FloatRateBond",
-#     "FRA",
-# ]
+from rateslib.fx import (
+    FXRates,
+    FXForwards,
+    ProxyCurve,
+)
+
+from rateslib.solver import (
+    Solver
+)
+
+from rateslib.periods import (
+    FixedPeriod,
+    FloatPeriod,
+    Cashflow
+)
+
+from rateslib.legs import (
+    FixedLeg,
+    FixedLegExchange,
+    FixedLegExchangeMtm,
+    FloatLeg,
+    FloatLegExchange,
+    FloatLegExchangeMtm,
+    CustomLeg
+)
+
+from rateslib.instruments import (
+    Value,
+    Bill,
+    FixedRateBond,
+    FloatRateBond,
+    IRS,
+    FRA,
+    Swap,
+    SBS,
+    FXSwap,
+    NonMtmXCS,
+    NonMtmFixedFixedXCS,
+    NonMtmFixedFloatXCS,
+    XCS,
+    FixedFixedXCS,
+    FixedFloatXCS,
+    FloatFixedXCS,
+    Spread,
+    Fly,
+)
+
+# module level doc-string
+__doc__ = """
+RatesLib - An efficient and interconnected fixed income library for Python
+==========================================================================
+
+**rateslib** is a Python package providing fast, flexible, and accurate
+fixed income instrument configuration and calculation.
+It aims to be the fundamental high-level building block for practical analysis of
+fixed income securities, derivatives, FX representation and curve construction
+in Python.
+
+Main Features
+-------------
+Here are just a few of the things that pandas does well:
+
+  - Easy handling of missing data in floating point as well as non-floating
+    point data.
+"""
+
+# Use __all__ to let type checkers know what is part of the public API.
+# Rateslib is not (yet) a py.typed library: the public API is determined
+# based on the documentation.
+__all__ = [
+    "dt",
+    "defaults",
+    # dual.py
+    "Dual",
+    "Dual2",
+    "dual_log",
+    "dual_exp",
+    "dual_solve",
+    # splines.py
+    "bsplev_single",
+    "bspldnev_single",
+    "PPSpline",
+    # calendars.py
+    "create_calendar",
+    "get_calendar",
+    "add_tenor",
+    "dcf",
+    # scheduling.py
+    "Schedule",
+    # curves.py
+    "Curve",
+    "LineCurve",
+    "interpolate",
+    "index_left",
+    # solver.py
+    "Solver",
+    # fx.py
+    "FXRates",
+    "FXForwards",
+    "ProxyCurve",
+    # periods.py,
+    "FixedPeriod",
+    "FloatPeriod",
+    "Cashflow",
+    # legs.py
+    "FixedLeg",
+    "FloatLeg",
+    "FixedLegExchange",
+    "FixedLegExchangeMtm",
+    "FloatLegExchange",
+    "FloatLegExchangeMtm",
+    "CustomLeg",
+    # instruments.py
+    "FixedRateBond",
+    "FloatRateBond",
+    "FRA",
+    "Value",
+    "Bill",
+    "IRS",
+    "Swap",
+    "SBS",
+    "FXSwap",
+    "NonMtmXCS",
+    "NonMtmFixedFixedXCS",
+    "NonMtmFixedFloatXCS",
+    "XCS",
+    "FixedFixedXCS",
+    "FixedFloatXCS",
+    "FloatFixedXCS",
+    "XCS",
+    "Spread",
+    "Fly",
+]
