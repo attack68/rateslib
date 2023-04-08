@@ -420,3 +420,78 @@ the curve. This is common practice for interest rate curves usually with a
    )
    fig, ax, line = curve.plot("1D", comparators=[mixed_curve], labels=["log-linear", "log-cubic-mix"])
    plt.show()
+
+
+IBOR or RFR
+************
+
+The different :ref:`Instruments<instruments-toc-doc>` in ``rateslib`` may require
+different interest rate index types, be it IBOR or RFR based. These are
+fundamentally different and require care dependent on
+which curve type: :class:`~rateslib.curves.Curve` or
+:class:`~rateslib.curves.LineCurve` is used. This is also similar to ``fixing`` input
+for :class:`~rateslib.periods.FloatPeriod` (see :ref:`here<float fixings>`).
+
+.. list-table::
+   :widths: 10 45 45
+   :header-rows: 1
+
+   * - Curve Type
+     - RFR Based
+     - IBOR Based
+   * - :class:`~rateslib.curves.Curve`
+     - DFs are value date based. For an RFR rate applicable between a start and end
+       date, the start and end date DFs will reflect this rate, regardless of the
+       publication timeframe of the rate.
+     - DFs are value date based. For an IBOR rate applicable between a start and end
+       date, the start and end date DFs will reflect this rate, regardless of the
+       publication timeframe of the rate.
+   * - :class:`~rateslib.curves.LineCurve`
+     - Rates are labelled by **reference value date**, **not** publication date.
+     - Rates are labelled by **publication date**, **not** reference value date.
+
+Since DF based curves behave similarly for each index type we will give an example
+of constructing an :class:`~rateslib.instruments.IRS` under the different methods.
+
+For an RFR curve the ``nodes`` values are by reference date. The 3.0% value which
+is applicable between the reference date of 2nd Jan '22 and end date 3rd Jan '22,
+is indexed according to the 2nd Jan '22.
+
+.. ipython:: python
+
+   rfr_curve = LineCurve(
+       nodes={
+           dt(2022, 1, 1): 2.0,
+           dt(2022, 1, 2): 3.0,
+           dt(2022, 1, 3): 4.0
+       }
+   )
+   irs = IRS(
+       dt(2022, 1, 2),
+       "1d",
+       "A",
+       leg2_fixing_method="rfr_payment_delay"
+   )
+   irs.rate(rfr_curve)
+
+For an IBOR curve the ``nodes`` values are by publication date. The curve below has a
+lag of 2 business days. and the publication on 1st Jan '22 is applicable to the
+reference value date of 3rd Jan.
+
+.. ipython:: python
+
+   ibor_curve = LineCurve(
+       nodes={
+           dt(2022, 1, 1): 2.5,
+           dt(2022, 1, 2): 3.5,
+           dt(2022, 1, 3): 4.5
+       }
+   )
+   irs = IRS(
+       dt(2022, 1, 3),
+       "3m",
+       "A",
+       leg2_fixing_method="ibor",
+       leg2_method_param=2
+   )
+   irs.rate(ibor_curve)

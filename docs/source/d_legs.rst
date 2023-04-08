@@ -123,8 +123,12 @@ the option of also being exchanged at the start too.
 
 The arguments are the same as the previous :class:`~rateslib.legs.FixedLeg`
 and :class:`~rateslib.legs.FloatLeg` classes, except there are now the
-additional arguments ``initial_exchange`` and ``payment_lag_exchange``.
-The ``payment_lag_exchange`` argument allows to configure separate lags
+additional arguments:
+
+- ``initial_exchange``,
+- ``payment_lag_exchanged``,
+
+The ``payment_lag_exchange`` argument allows configuration of separate lags
 for notional exchanges and regular period flows, which is common practice
 on ``CrossCurrencySwaps`` for example.
 
@@ -154,10 +158,19 @@ on ``CrossCurrencySwaps`` for example.
 
 Mark-to-Market Exchanged Legs
 -----------------------------
-MTM ``Legs`` are common on ``CrossCurrencySwaps``. They require
-a domestic, ``alt_notional`` argument from which the leg ``notional`` is
-derived based on ``fx_fixings`` that take place during the settlement
-of the ``Leg``. Otherwise, the arguments are the same as the
+MTM ``Legs`` are common on ``CrossCurrencySwaps``.
+Whilst the other leg types are technically indifferent regarding the ``currency``
+they are created in, MTM ``Legs`` **require** a domestic currency and an alternative
+currency against which MTM calculations can be measured. The ``notional`` of the
+``MtmLeg`` is variable according to the fixed ``alt_notional`` and the forward
+FX rates. Thus the additional arguments in this leg are:
+
+- ``alt_notional``
+- ``alt_currency``
+- ``fx_fixings``
+- ``notional`` is not used in this leg type and is overwritten.
+
+Otherwise, the arguments are the same as the
 previous :class:`~rateslib.legs.FixedLegExchange`
 and :class:`~rateslib.legs.FloatLegExchange`.
 

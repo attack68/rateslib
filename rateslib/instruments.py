@@ -549,7 +549,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
         fixed_rate: Optional[float] = None,
         ex_div: int = 0,
         settle: int = 1,
+        curves: Optional[Union[list, str, Curve]] = None,
     ):
+        self.curves = curves
         if frequency.lower() == "z":
             raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is None:
@@ -940,7 +942,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
     def rate(
         self,
-        curves: Union[Curve, str, list],
+        curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
@@ -995,7 +997,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
     def cashflows(
         self,
-        curves: Union[Curve, str, list],
+        curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
@@ -1050,7 +1052,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
     def npv(
         self,
-        curves: Union[Curve, str, list],
+        curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
@@ -1218,6 +1220,39 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
 
 class Bill(FixedRateBond):
+    """
+    Create a discount security.
+
+    Parameters
+    ----------
+    effective : datetime
+        The adjusted or unadjusted effective date.
+    termination : datetime or str
+        The adjusted or unadjusted termination date. If a string, then a tenor must be
+        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
+    frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
+        The frequency of the schedule. "Z" is not permitted.
+    modifier : str, optional
+        The modification rule, in {"F", "MF", "P", "MP"}
+    calendar : calendar or str, optional
+        The holiday calendar object to use. If str, looks up named calendar from
+        static data.
+    payment_lag : int, optional
+        The number of business days to lag payments by.
+    notional : float, optional
+        The leg notional, which is applied to each period.
+    currency : str, optional
+        The currency of the leg (3-digit code).
+    convention: str, optional
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.calendars.dcf`.
+    settle : int
+        The number of business days for regular settlement time, i.e, 1 is T+1.
+
+    Attributes
+    ----------
+    leg1 : FixedLegExchange
+    """
 
     def __init__(
             self,
@@ -1455,7 +1490,9 @@ class FloatRateBond(Sensitivities, BaseMixin):
         spread_compound_method: Optional[str] = None,
         ex_div: int = 0,
         settle: int = 1,
+        curves: Optional[Union[list, str, Curve]] = None,
     ):
+        self.curves = curves
         if frequency.lower() == "z":
             raise ValueError("FloatRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is None:
@@ -2323,7 +2360,7 @@ class IRS(BaseDerivative):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]]=None,
+        curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,

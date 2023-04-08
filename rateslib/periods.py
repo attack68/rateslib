@@ -480,6 +480,8 @@ class FloatPeriod(BasePeriod):
     :download:`Swap Compounding Formulae<_static/SSRN-id3882163(compounding).pdf>` and
     :download:`ISDA Compounding Memo (2009)<_static/isda-compounding-memo.pdf>`.
 
+    .. _float fixings:
+
     **Fixings**
 
     .. warning::

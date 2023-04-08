@@ -49,6 +49,7 @@ html_theme_options = {
 html_logo = "_static/rateslib_logo4.gif"
 html_css_files = [
     'css/getting_started.css',
+    'css/overwrites.css',
 ]
 
 # The name of the Pygments (syntax highlighting) style to use.

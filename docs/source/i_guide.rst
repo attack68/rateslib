@@ -19,7 +19,7 @@ here by direct specification of discount factors (DFs).
 .. ipython:: python
 
    from rateslib.curves import Curve
-   curve = Curve(
+   usd_curve = Curve(
        nodes={
            dt(2022, 1, 1): 1.0,
            dt(2022, 7, 1): 0.98,
@@ -28,7 +28,7 @@ here by direct specification of discount factors (DFs).
        calendar="nyc",
    )
 
-We can construct an ``Instrument``: here a short dated RFR interest rate swap
+We can construct an :ref:`Instrument<instruments-toc-doc>`: here a short dated RFR interest rate swap
 (:class:`~rateslib.instruments.IRS`).
 
 .. ipython:: python
@@ -48,7 +48,7 @@ We can value the IRS in its local currency (USD) by default.
 
 .. ipython:: python
 
-   irs.npv(curve)
+   irs.npv(usd_curve)
 
 This is the most basic functionality ``rateslib`` offers, but other features
 that will be explained below are:
@@ -70,32 +70,52 @@ FX
 --
 
 First, start with :ref:`FX<fx-doc>`, since this gives a nice introduction
-of a class that can be used independently.
+of classes that can be used independently.
 
 .. toctree::
+    :hidden:
     :maxdepth: 0
     :titlesonly:
 
     g_fx.rst
 
-FX objects allow the expression of values converted from one currency to another.
+:class:`~rateslib.fx.FXRates` objects allow the expression of values
+converted from one currency to another.
 
 .. ipython:: python
 
-   from rateslib.fx import FXRates
+   from rateslib.fx import FXRates, FXForwards
    fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
-   irs.npv(curve, None, fxr, "eur")
+   irs.npv(usd_curve, None, fxr, "eur")
+
+With a bit more construction, :class:`~rateslib.fx.FXForwards` objects allow the
+calculation of FX forward rates under no arbitrage cash-collateral consistent
+framework.
+
+.. ipython:: python
+
+   eur_curve = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.98})
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={
+           "usdusd": usd_curve,
+           "eureur": eur_curve,
+           "eurusd": eur_curve,
+       }
+   )
+   fxf.rate("eurusd", settlement=dt(2023, 1, 1))
 
 Instruments
 -----------
 
-Next move on to reviewing the :ref:`instruments<instruments-toc-doc>`. This gives
+Next move on to reviewing the :ref:`Instruments<instruments-toc-doc>`. This gives
 an overview of the financial products that ``rateslib`` can currently price. It is
-recommended to review :ref:`periods<periods-doc>` and then :ref:`legs<legs-doc>`, since
+recommended to review :ref:`Periods<periods-doc>` and then :ref:`Legs<legs-doc>`, since
 these building blocks and their documentation provides technical descriptions of the
 parameters that can be used.
 
 .. toctree::
+    :hidden:
     :maxdepth: 0
     :titlesonly:
 
@@ -112,6 +132,7 @@ creates are simple to exemplify other features. The documentation here explains 
 nuances of curves.
 
 .. toctree::
+    :hidden:
     :maxdepth: 0
     :titlesonly:
 
@@ -131,6 +152,7 @@ detailed instructions of the way in which the associations can be constructed in
 :ref:`mechanisms<mechanisms-doc>`.
 
 .. toctree::
+    :hidden:
     :maxdepth: 0
     :titlesonly:
 
@@ -150,6 +172,7 @@ referenced in other guides as they come up and can also be linked to from those
 sections.
 
 .. toctree::
+    :hidden:
     :maxdepth: 0
     :titlesonly:
 

@@ -42,7 +42,13 @@ effective and termination dates are actually the 3rd and 2nd.
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2022,1,1), dt(2023,1,1), "S", calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2022,1,1),
+       termination=dt(2023,1,1),
+       frequency="S",
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
 
 If the same schedule is created with the adjusted dates input as the effective and
@@ -51,7 +57,13 @@ schedule to the above.
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2022,1,3), dt(2023,1,2), "S", calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2022,1,3),
+       termination=dt(2023,1,2),
+       frequency="S",
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
 
 The original schedule can be obtained by directly specifying the roll day and not
@@ -59,7 +71,14 @@ relying on roll day inference.
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2022,1,3), dt(2023,1,2), "S", roll=1, calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2022,1,3),
+       termination=dt(2023,1,2),
+       frequency="S",
+       roll=1,
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
 
 Defined Stubs
@@ -69,7 +88,15 @@ A schedule with specifically defined stubs.
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2021,1,1), dt(2021,10,1), "Q", front_stub=dt(2021, 2, 26), back_stub=dt(2021, 8, 29), calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2021,1,1),
+       termination=dt(2021,10,1),
+       frequency="Q",
+       front_stub=dt(2021, 2, 26),
+       back_stub=dt(2021, 8, 29),
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
 
 Note that the above schedule must have a **regular swap** defined between stub dates.
@@ -87,13 +114,31 @@ between stub dates) raise errors.
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2021, 1, 1), dt(2021, 10, 1), "Q", front_stub=dt(2021, 2, 26), stub="FRONTLONGBACK", roll=30, calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2021, 1, 1),
+       termination=dt(2021, 10, 1),
+       frequency="Q",
+       front_stub=dt(2021, 2, 26),
+       stub="FRONTLONGBACK",
+       roll=30,
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
 
 .. ipython:: python
 
    try:
-       Schedule(dt(2021, 1, 1), dt(2021, 10, 1), "Q", front_stub=dt(2021, 2, 26), stub="FRONTLONGBACK", roll=25, calendar="bus", payment_lag=1)
+       Schedule(
+           effective=dt(2021, 1, 1),
+           termination=dt(2021, 10, 1),
+           frequency="Q",
+           front_stub=dt(2021, 2, 26),
+           stub="FRONTLONGBACK",
+           roll=25,
+           calendar="bus",
+           payment_lag=1
+       )
    except ValueError as e:
        print(e)
 
@@ -104,10 +149,24 @@ One-sided stub inference can also be made if no stub dates are defined.
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2021, 1, 1), dt(2021, 7, 15), "Q", stub="SHORTFRONT", calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2021, 1, 1),
+       termination=dt(2021, 7, 15),
+       frequency="Q",
+       stub="SHORTFRONT",
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
 
 .. ipython:: python
 
-   schedule = Schedule(dt(2021, 1, 1), dt(2021, 7, 15), "Q", stub="LONGBACK", calendar="bus", payment_lag=1)
+   schedule = Schedule(
+       effective=dt(2021, 1, 1),
+       termination=dt(2021, 7, 15),
+       frequency="Q",
+       stub="LONGBACK",
+       calendar="bus",
+       payment_lag=1
+   )
    schedule
