@@ -5,7 +5,7 @@ from itertools import combinations
 from uuid import uuid4
 from time import time
 import numpy as np
-from pandas import DataFrame, MultiIndex
+from pandas import DataFrame, MultiIndex, concat
 
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
 from rateslib.fx import FXForwards
@@ -688,7 +688,7 @@ class Solver:
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
-    def delta(self, npv):
+    def delta(self, npv, base=None, fx=None):
         """
         Calculate the delta risk sensitivity of an instrument's NPV.
 
@@ -702,18 +702,50 @@ class Solver:
         DataFrame
         """
         # if no pre_solvers this reduces to solving without the 'pre'
-        grad_s_P = np.matmul(self.grad_s_vT_pre, npv.gradient(self.pre_variables))
+        if base is not None:
+            if fx is None and self.fx is None:
+                raise ValueError(
+                    "`base` is given but `fx` is not and Solver does not "
+                    "contain an attached FXForwards object."
+                )
+            elif fx is None:
+                fx = self.fx
 
-        # if len(self.pre_solvers) == 0:
-        #     idx = self.instrument_labels
-        # else:
-        #     idx = MultiIndex.from_tuples(self.pre_instrument_labels)
         idx = MultiIndex.from_tuples(self.pre_instrument_labels)
-
-        fx_vars = [var for var in npv.vars if "fx_" in var]
-
+        if len(self.pre_solvers) == 0:
+            idx = idx.get_level_values(level=1)
+        df = DataFrame(None, index=idx)
+        dfx = DataFrame(None)
         scalar = np.array(self.pre_rate_scalars)
-        return DataFrame({"Delta": grad_s_P * scalar / 100}, index=idx)
+        for ccy in npv:
+            if base is None:
+                value = npv[ccy]
+            else:
+                value = npv[ccy] * fx.rate(f"{ccy}{base}")
+            grad_s_P = np.matmul(
+                self.grad_s_vT_pre, value.gradient(self.pre_variables)
+            )
+
+            if base is None:
+                df[ccy] = grad_s_P * scalar / 100
+            else:
+                df[f"{ccy}({base})"] = grad_s_P * scalar / 100
+
+            fx_vars = [var for var in value.vars if "fx_" in var]
+            for fx_var in fx_vars:
+                if base is None:
+                    dfx.loc[fx_var[3:], ccy] = value.gradient(fx_var)[0] / 10000
+                else:
+                    dfx.loc[fx_var[3:], f"{ccy}({base})"] = value.gradient(fx_var)[0] / 10000
+
+        if dfx.empty:
+            ret = df
+        else:
+            ret = concat([df, dfx], keys=["Rates", "FX"])
+
+        if base is not None:
+            ret[f"total({base})"] = ret.sum(axis=1)
+        return ret
 
     def gamma(self, npv):
         if self._ad != 2:

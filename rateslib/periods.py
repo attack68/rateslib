@@ -46,7 +46,10 @@ def _get_fx_and_base(
 ):
     if isinstance(fx, (FXRates, FXForwards)):
         base = fx.base if base is None else base.lower()
-        fx = fx.rate(pair=f"{currency}{base}")
+        if base == currency:
+            fx = 1.0
+        else:
+            fx = fx.rate(pair=f"{currency}{base}")
     elif fx is None:
         fx = 1.0
     return fx, base
@@ -289,6 +292,7 @@ class BasePeriod(metaclass=ABCMeta):
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Return the NPV of the period object.
@@ -313,10 +317,13 @@ class BasePeriod(metaclass=ABCMeta):
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
             :class:`~rateslib.fx.FXForwards` object.
+        local : bool, optional
+            If `True` will ignore the ``base`` request and return a dict identifying
+            local currency NPV.
 
         Returns
         -------
-        float, Dual, Dual2
+        float, Dual, Dual2, or dict of such
 
         Examples
         --------
@@ -368,12 +375,18 @@ class FixedPeriod(BasePeriod):
         curve: Curve,
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None
+        base: Optional[str] = None,
+        local: bool = False
     ):
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        return fx * (self.fixed_rate / 100 * self.dcf *
-                     disc_curve[self.payment] * -self.notional)
+        value = (
+            self.fixed_rate / 100 * self.dcf * disc_curve[self.payment] * -self.notional
+        )
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
 
     def cashflows(
         self,
@@ -771,12 +784,17 @@ class FloatPeriod(BasePeriod):
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
-
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        return fx * ((self.rate(curve)) / 100 * self.dcf
-                     * disc_curve[self.payment] * -self.notional)
+        value = (
+            self.rate(curve)/100 * self.dcf * disc_curve[self.payment] * -self.notional
+        )
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
 
     def rate(self, curve: Union[Curve, LineCurve]):
         """
@@ -1293,10 +1311,15 @@ class Cashflow:
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        return fx * (self.cashflow * disc_curve[self.payment])
+        value = (self.cashflow * disc_curve[self.payment])
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
 
     def cashflows(
         self,

@@ -212,9 +212,15 @@ class BaseLeg(metaclass=ABCMeta):
         Dual
         """
         sum = 0
-        for period in self.periods:
-            sum += period.npv(*args, **kwargs)
-        return sum
+        _is_local = (len(args) == 5 and args[4]) or kwargs.get("local", False)
+        if _is_local:
+            for period in self.periods:
+                sum += period.npv(*args, **kwargs)[self.currency]
+            return {self.currency: sum}
+        else:
+            for period in self.periods:
+                sum += period.npv(*args, **kwargs)
+            return sum
 
     @property
     def _is_linear(self):
@@ -1098,8 +1104,9 @@ class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):
     def _set_periods(self, fx):
         fx_fixings = self._get_fx_fixings(fx)
         self.notional = fx_fixings[0] * self.alt_notional
-        notionals = [self.notional / fx_fixings[0] * fx_fixings[i]
-                     for i in range(len(fx_fixings))]
+        notionals = [
+            self.alt_notional * fx_fixings[i] for i in range(len(fx_fixings))
+        ]
 
         # initial exchange
         self.periods = [Cashflow(
@@ -1166,6 +1173,7 @@ class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Return the NPV of the leg object via summing all periods.
@@ -1182,11 +1190,11 @@ class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):
 
         Returns
         -------
-        Dual
+        float, Dual, Dual2 or dict of such
         """
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
-        ret = super().npv(curve, disc_curve, fx, base)
+        ret = super().npv(curve, disc_curve, fx, base, local)
         # self._is_set_periods_fx = False
         return ret
 

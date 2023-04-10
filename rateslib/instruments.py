@@ -159,7 +159,7 @@ class Sensitivities:
         self,
         curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        fx: Optional[Union[FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ):
         """
@@ -196,8 +196,8 @@ class Sensitivities:
         """
         if solver is None:
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base)
-        return solver.delta(npv)
+        npv = self.npv(curves, solver, fx, base, local=True)
+        return solver.delta(npv, base, fx)
 
     def gamma(
         self,
@@ -1056,6 +1056,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Return the NPV of the security by summing cashflow valuations.
@@ -1079,10 +1080,13 @@ class FixedRateBond(Sensitivities, BaseMixin):
         base : str, optional
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        local : bool, optional
+            If `True` will ignore the ``base`` request and return a dict identifying
+            local currency NPV.
 
         Returns
         -------
-        float or Dual
+        float, Dual, Dual2 or dict of such
 
         Notes
         -----
@@ -1100,6 +1104,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
         settlement = add_tenor(
             curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
+        base = self.currency if local else base
         npv = self.leg1.npv(curves[0], curves[1], fx, base)
         if self.ex_div(settlement):
             # deduct the next coupon which has otherwise been included in valuation
@@ -1111,7 +1116,10 @@ class FixedRateBond(Sensitivities, BaseMixin):
             npv -= self.leg1.periods[current_period].npv(
                 curves[0], curves[1], fx, base
             )
-        return npv
+        if local:
+            return {self.currency: npv}
+        else:
+            return npv
 
     def analytic_delta(
         self,
@@ -1726,7 +1734,7 @@ class FloatRateBond(Sensitivities, BaseMixin):
         TODO
         """
         curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
-        npv = self.npv(curves, solver, fx, base, settlement)
+        npv = self.npv(curves, solver, fx, base, False, settlement)
 
         # scale price to par 100 and make a fwd adjustment according to curve
         dirty_price = npv * 100 / (-self.leg1.notional * curves[1][settlement])
@@ -1756,7 +1764,9 @@ class FloatRateBond(Sensitivities, BaseMixin):
                     _fx = None if fx is None else fx._ad
                     fx._set_ad_order(2)
 
-                npv = self.npv([fore_curve, disc_curve], None, fx, base, settlement)
+                npv = self.npv(
+                    [fore_curve, disc_curve], None, fx, base, False, settlement
+                )
                 b = npv.gradient("spread_z", order=1)[0]
                 a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
                 c = npv + self.leg1.notional
@@ -1818,7 +1828,8 @@ class FloatRateBond(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-        settlement: datetime = None
+        local: bool = False,
+        settlement: datetime = None,
     ):
         """
         TODO
@@ -1826,6 +1837,7 @@ class FloatRateBond(Sensitivities, BaseMixin):
         curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
         if settlement is None:
             settlement = curves[1].node_dates[0]
+        base = self.currency if local else base
         npv = self.leg1.npv(curves[0], curves[1], fx, base)
         if self.ex_div(settlement):
             # deduct the next coupon which has otherwise been included in valuation
@@ -1837,7 +1849,10 @@ class FloatRateBond(Sensitivities, BaseMixin):
             npv -= self.leg1.periods[current_period].npv(
                 curves[0], curves[1], fx, base
             )
-        return npv
+        if local:
+            return {self.currency: npv}
+        else:
+            return npv
 
     def analytic_delta(self, *args, **kwargs):
         # TODO make this ex-div compliant
@@ -2107,6 +2122,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Return the NPV of the derivative object by summing legs.
@@ -2137,10 +2153,14 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
             :class:`~rateslib.fx.FXForwards` object. If not given defaults
             to ``fx.base``.
+        local : bool, optional
+            If `True` will return a dict identifying NPV by local currencies on each
+            leg. Useful for multi-currency derivatives and for ensuring risk
+            sensitivities are allocated to local currencies without conversion.
 
         Returns
         -------
-        float, Dual or Dual2
+        float, Dual or Dual2, or dict of such.
 
         Notes
         -----
@@ -2162,9 +2182,13 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
            irs.npv([curve], None, fxr, "gbp")
         """
         curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
-        leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base)
-        leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base)
-        return leg1_npv + leg2_npv
+        leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
+        leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
+        if local:
+            return {k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
+                    for k in set(leg1_npv) | set(leg2_npv)}
+        else:
+            return leg1_npv + leg2_npv
 
     @abc.abstractmethod
     def rate(self, *args, **kwargs):
@@ -2335,6 +2359,7 @@ class IRS(BaseDerivative):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Return the NPV of the derivative by summing legs.
@@ -2356,7 +2381,7 @@ class IRS(BaseDerivative):
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = mid_market_rate.real
-        return super().npv(curves, solver, fx, base)
+        return super().npv(curves, solver, fx, base, local)
 
     def rate(
         self,
@@ -2696,6 +2721,7 @@ class SBS(BaseDerivative):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Return the NPV of the derivative object by summing legs.
@@ -2708,7 +2734,7 @@ class SBS(BaseDerivative):
 
            sbs.npv([forecasting_curve, discounting_curve, forecasting_curve2])
         """
-        return super().npv(curves, solver, fx, base)
+        return super().npv(curves, solver, fx, base, local)
 
     def rate(
         self,
@@ -2947,6 +2973,7 @@ class FRA(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False
     ):
         """
         Return the NPV of the derivative.
@@ -2966,7 +2993,11 @@ class FRA(Sensitivities, BaseMixin):
         """
         curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        return fx * self.cashflow(curves[0]) * curves[1][self.payment]
+        value = self.cashflow(curves[0]) * curves[1][self.payment]
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
 
     def rate(
         self,
@@ -3186,6 +3217,7 @@ class BaseXCS(BaseDerivative):
         solver: Optional[Solver] = None,
         fx: Optional[FXForwards] = None,
         base: Optional[str] = None,
+        local: bool = False
     ):
         """
         Return the NPV of the derivative by summing legs.
@@ -3213,7 +3245,7 @@ class BaseXCS(BaseDerivative):
                 mid_market_rate = self.rate(curves, solver, fx, leg=2)
             self.leg2.fixed_rate = mid_market_rate
 
-        ret = super().npv(curves, solver, fx, base)
+        ret = super().npv(curves, solver, fx, base, local)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = False  # reset for next calculation
         return ret
@@ -4923,7 +4955,11 @@ class Spread(Sensitivities):
         """
         leg1_npv = self.instrument1.npv(*args, **kwargs)
         leg2_npv = self.instrument2.npv(*args, **kwargs)
-        return leg1_npv + leg2_npv
+        if kwargs.get("local", False):
+            return {k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
+                    for k in set(leg1_npv) | set(leg2_npv)}
+        else:
+            return leg1_npv + leg2_npv
 
     # def npv(self, *args, **kwargs):
     #     if len(args) == 0:
@@ -5030,7 +5066,11 @@ class Fly(Sensitivities):
         leg1_npv = self.instrument1.npv(*args, **kwargs)
         leg2_npv = self.instrument2.npv(*args, **kwargs)
         leg3_npv = self.instrument3.npv(*args, **kwargs)
-        return leg1_npv + leg2_npv + leg3_npv
+        if kwargs.get("local", False):
+            return {k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
+                    for k in set(leg1_npv) | set(leg2_npv)}
+        else:
+            return leg1_npv + leg2_npv + leg3_npv
 
     def rate(self, *args, **kwargs):
         """
@@ -5103,10 +5143,21 @@ class Portfolio(Sensitivities):
 
     def npv(self, *args, **kwargs):
         # TODO do not permit a mixing of currencies.
-        _ = 0
-        for instrument in self.instruments:
-            _ += instrument.npv(*args, **kwargs)
-        return _
+        if kwargs.get("local", False):
+            ret = {}
+            for instrument in self.instruments:
+                i_npv = instrument.npv(*args, **kwargs)
+                for ccy in i_npv:
+                    if ccy in ret:
+                        ret[ccy] += i_npv[ccy]
+                    else:
+                        ret[ccy] = i_npv[ccy]
+        else:
+            ret = 0
+            for instrument in self.instruments:
+                ret += instrument.npv(*args, **kwargs)
+
+        return ret
 
 
 def forward_fx(
