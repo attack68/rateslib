@@ -9,9 +9,9 @@
    from datetime import datetime as dt
    import numpy as np
 
-************
-Curves
-************
+********************
+Constructing Curves
+********************
 
 
 

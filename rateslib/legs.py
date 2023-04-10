@@ -32,7 +32,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve
-from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow
+from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, _validate_float_args
 from rateslib.dual import Dual, Dual2, set_order
 from rateslib.fx import FXForwards, FXRates
 
@@ -391,36 +391,6 @@ class FloatLegMixin:
     :class:`~rateslib.periods.FloatPeriod` s and a :meth:`fixings_table`.
     """
 
-    def _set_float_args(
-        self,
-        fixing_method,
-        method_param,
-        spread_compound_method
-    ):
-        self.fixing_method = (
-            defaults.fixing_method if fixing_method is None else fixing_method.lower()
-        )
-        if self.fixing_method not in [
-            "ibor",
-            "rfr_payment_delay",
-            "rfr_observation_shift",
-            "rfr_lockout",
-            "rfr_lookback",
-        ]:
-            raise ValueError(
-                "`fixing_method` must be in {'rfr_payment_delay', "
-                "'rfr_observation_shift', 'rfr_lockout', 'rfr_lookback', 'ibor'}."
-            )
-        self.method_param = (
-            defaults.fixing_method_param[self.fixing_method] if method_param is None
-            else method_param
-        )
-        if spread_compound_method is None:
-            self.spread_compound_method = defaults.spread_compound_method
-        else:
-            self.spread_compound_method = spread_compound_method.lower()
-        return None
-
     def _set_fixings(
         self,
         fixings,
@@ -621,7 +591,8 @@ class FloatLeg(BaseLeg, FloatLegMixin):
         **kwargs
     ):
         self._float_spread = float_spread
-        self._set_float_args(fixing_method, method_param, spread_compound_method)
+        self.fixing_method, self.method_param, self.spread_compound_method = \
+            _validate_float_args(fixing_method, method_param, spread_compound_method)
 
         super().__init__(*args, **kwargs)
 
@@ -909,7 +880,8 @@ class FloatLegExchange(BaseLegExchange, FloatLegMixin):
         **kwargs
     ):
         self._float_spread = float_spread
-        self._set_float_args(fixing_method, method_param, spread_compound_method)
+        self.fixing_method, self.method_param, self.spread_compound_method = \
+            _validate_float_args(fixing_method, method_param, spread_compound_method)
 
         super().__init__(*args, **kwargs)
 
@@ -1438,7 +1410,8 @@ class FloatLegExchangeMtm(BaseLegExchangeMtm, FloatLegMixin):
         **kwargs
     ):
         self._float_spread = float_spread
-        self._set_float_args(fixing_method, method_param, spread_compound_method)
+        self.fixing_method, self.method_param, self.spread_compound_method = \
+            _validate_float_args(fixing_method, method_param, spread_compound_method)
         # self._initialised = False  # flag for not calling fx_fixings in super()
 
         super().__init__(

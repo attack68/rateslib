@@ -88,9 +88,10 @@ converted from one currency to another.
    fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
    irs.npv(usd_curve, None, fxr, "eur")
 
-With a bit more construction, :class:`~rateslib.fx.FXForwards` objects allow the
-calculation of FX forward rates under no arbitrage cash-collateral consistent
-framework.
+With a little more construction, :class:`~rateslib.fx.FXForwards` objects allow the
+calculation of FX forward rates under a no arbitrage, cash-collateral consistent
+framework. These objects are required to price mark-to-market (MTM) multi-currency
+derivatives.
 
 .. ipython:: python
 
@@ -111,7 +112,7 @@ Instruments
 Next move on to reviewing the :ref:`Instruments<instruments-toc-doc>`. This gives
 an overview of the financial products that ``rateslib`` can currently price. It is
 recommended to review :ref:`Periods<periods-doc>` and then :ref:`Legs<legs-doc>`, since
-these building blocks and their documentation provides technical descriptions of the
+the documentation for these building blocks provides technical descriptions of the
 parameters that can be used.
 
 .. toctree::
@@ -124,11 +125,12 @@ parameters that can be used.
 Curves and Solver
 ------------------
 
-The guide for :ref:`curves<curves-doc>` introduces the two main curve classes,
+The guide for :ref:`Constructing Curves<curves-doc>` introduces the two main
+curve classes,
 :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`. It gives
-examples of their parametrisation and different interpolation structures. A
+examples of their parametrization and different interpolation structures. A
 simple curve was created above, and often in many ``rateslib`` examples the curves
-creates are simple to exemplify other features. The documentation here explains the
+created are simple to exemplify other features. The documentation here explains the
 nuances of curves.
 
 .. toctree::
@@ -162,7 +164,15 @@ detailed instructions of the way in which the associations can be constructed in
 Risk Sensitivities
 -------------------
 
-TBD
+TODO
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 0
+    :titlesonly:
+
+    g_risk.rst
 
 Utilities
 ----------
@@ -181,7 +191,7 @@ sections.
 Coverage
 --------
 
-The current test coverage status of ``rateslib`` is shown at XXXXXX %.
+The current test coverage status of ``rateslib`` is shown at TODO %.
 
 .. toctree::
     :hidden:

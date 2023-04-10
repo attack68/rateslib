@@ -53,8 +53,8 @@ class Defaults:
     fixing_method_param = {
         "rfr_payment_delay": 0,  # no observation shift - use payment_delay param
         "rfr_observation_shift": 2,
-        "rfr_lockout": 5,
-        "rfr_lookback": 5,
+        "rfr_lockout": 2,
+        "rfr_lookback": 2,
         "ibor": 2,
     }
     spread_compound_method = "none_simple"

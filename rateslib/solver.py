@@ -120,8 +120,8 @@ class Solver:
         id: Optional[str] = None,
         pre_solvers: list[Solver] = [],
         max_iter: int = 100,
-        func_tol: float = 1e-10,
-        conv_tol: float = 1e-13,
+        func_tol: float = 1e-11,
+        conv_tol: float = 1e-14,
     ) -> None:
         self.algorithm, self.m = algorithm, len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
@@ -711,7 +711,6 @@ class Solver:
         idx = MultiIndex.from_tuples(self.pre_instrument_labels)
 
         fx_vars = [var for var in npv.vars if "fx_" in var]
-
 
         scalar = np.array(self.pre_rate_scalars)
         return DataFrame({"Delta": grad_s_P * scalar / 100}, index=idx)

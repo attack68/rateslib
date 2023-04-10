@@ -1460,6 +1460,16 @@ class TestFloatRateBond:
         with pytest.raises(TypeError, match="`fixings` are not available for RFR"):
             result = bond.accrued(dt(2010, 3, 11))
 
+        with pytest.raises(ValueError, match="For RFR FRNs `ex_div` must be less than"):
+            bond = FloatRateBond(
+                effective=dt(2009, 9, 16),
+                termination=dt(2017, 3, 16),
+                frequency="Q",
+                ex_div=4,
+                fixing_method="rfr_observation_shift",
+                method_param=3,
+            )
+
     def test_accrued_no_fixings_in_period(self):
         bond = FloatRateBond(
             effective=dt(2010, 3, 16),

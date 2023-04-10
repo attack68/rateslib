@@ -404,6 +404,66 @@ class FixedPeriod(BasePeriod):
         }
 
 
+def _validate_float_args(
+    fixing_method: Optional[str],
+    method_param: Optional[int],
+    spread_compound_method: Optional[str]
+):
+    """
+    Validate the argument input to float periods.
+
+    Returns
+    -------
+    tuple
+    """
+    fixing_method_: str = (
+        defaults.fixing_method if fixing_method is None else fixing_method.lower()
+    )
+    if fixing_method_ not in [
+        "ibor",
+        "rfr_payment_delay",
+        "rfr_observation_shift",
+        "rfr_lockout",
+        "rfr_lookback",
+    ]:
+        raise ValueError(
+            "`fixing_method` must be in {'rfr_payment_delay', "
+            "'rfr_observation_shift', 'rfr_lockout', 'rfr_lookback', 'ibor'}, "
+            f"got '{fixing_method_}'."
+        )
+
+    method_param_ = (
+        defaults.fixing_method_param[fixing_method_] if method_param is None
+        else method_param
+    )
+    if method_param_ != 0 and fixing_method_ == "rfr_payment_delay":
+        raise ValueError(
+            "`method_param` should not be used (or a value other than 0) when "
+            f"using a `fixing_method` of 'rfr_payment_delay', got {method_param_}. "
+            f"Configure the `payment_lag` option instead to have the "
+            f"appropriate effect."
+        )
+    elif fixing_method_ == "rfr_lockout" and method_param_ < 1:
+        raise ValueError(
+            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, '
+            f'got {method_param_}'
+        )
+
+    if spread_compound_method is None:
+        spread_compound_method_:str = defaults.spread_compound_method
+    else:
+        spread_compound_method_ = spread_compound_method.lower()
+    if spread_compound_method_ not in [
+        "none_simple", "isda_compounding", "isda_flat_compounding"
+    ]:
+        raise ValueError(
+            "`spread_compound_method` must be in {'none_simple', "
+            "'isda_compounding', 'isda_flat_compounding'}, "
+            f"got {spread_compound_method_}"
+        )
+    return fixing_method_, method_param_, spread_compound_method_
+
+
 class FloatPeriod(BasePeriod):
     """
     Create a period defined with a floating rate index.
@@ -444,7 +504,9 @@ class FloatPeriod(BasePeriod):
     The available options provided here are:
 
     - **"rfr_payment_delay"**: this is the standard convention adopted by interbank
-      RFR derivative trades, such as SOFR, SONIA, and ESTR OIS etc.
+      RFR derivative trades, such as SOFR, SONIA, and ESTR OIS etc. ``method_param``
+      is not used for this method and defaults to zero, ``payment_lag`` serves as the
+      appropriate parameter for this method.
     - **"rfr_observation_shift"**: typical conventions of FRNs. The ``method_param``
       is the integer number of business days by which both the observation
       rates and the DCFs are shifted.
@@ -635,39 +697,10 @@ class FloatPeriod(BasePeriod):
         **kwargs
     ):
         self.float_spread = 0 if float_spread is None else float_spread
-        self.spread_compound_method = (
-            defaults.spread_compound_method if
-            spread_compound_method is None else spread_compound_method.lower()
-        )
-        if self.spread_compound_method not in [
-            "none_simple", "isda_compounding", "isda_flat_compounding"
-        ]:
-            raise ValueError(
-                "`spread_compound_method` must be in {'none_simple', "
-                "'isda_compounding', 'isda_flat_compounding'}."
-            )
-        self.fixing_method = (
-            defaults.fixing_method if fixing_method is None else fixing_method.lower()
-        )
-        if self.fixing_method not in [
-            "ibor",
-            "rfr_payment_delay",
-            "rfr_observation_shift",
-            "rfr_lockout",
-            "rfr_lookback",
-        ]:
-            raise ValueError(
-                "`fixing_method` must be in {'rfr_payment_delay', "
-                "'rfr_observation_shift', 'rfr_lockout', 'rfr_lookback', 'ibor'}."
-            )
-        self.method_param = (
-            defaults.fixing_method_param[self.fixing_method] if method_param is None
-            else method_param
-        )
-        if self.fixing_method == "rfr_lockout" and self.method_param < 1:
-            raise ValueError(
-                '`method_param` must be >0 for "rfr_lockout" `fixing_method`.'
-            )
+
+        self.fixing_method, self.method_param, self.spread_compound_method = \
+            _validate_float_args(fixing_method, method_param, spread_compound_method)
+
         self.fixings = fixings
         if isinstance(self.fixings, list) and self.fixing_method == "ibor":
             raise ValueError(

@@ -332,7 +332,7 @@ class TestFloatPeriod:
         rfr_curve = curve if curve_type == "curve" else line_curve
 
         period = FloatPeriod(dt(2022, 1, 5), dt(2022, 1, 11), dt(2022, 1, 11), "Q",
-                             fixing_method=method, method_param=2, convention="act365f",
+                             fixing_method=method, convention="act365f",
                              notional=-1000000)
         rate, table = period._rfr_fixings_array(
             curve=rfr_curve, fixing_exposure=True
@@ -344,18 +344,17 @@ class TestFloatPeriod:
 
     def test_rfr_fixings_array_raises(self, rfr_curve):
         period = FloatPeriod(dt(2022, 1, 5), dt(2022, 1, 11), dt(2022, 1, 11), "Q",
-                             fixing_method="rfr_payment_delay", method_param=2,
-                             notional=-1000000)
+                             fixing_method="rfr_payment_delay", notional=-1000000)
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
             period._rfr_fixings_array(rfr_curve)
 
-    @pytest.mark.parametrize("method, expected", [
-        ("rfr_payment_delay", 1000000),
-        ("rfr_observation_shift", 1000000 / 3),
-        ("rfr_lookback", 1000000 / 3)
+    @pytest.mark.parametrize("method, param, expected", [
+        ("rfr_payment_delay", 0, 1000000),
+        ("rfr_observation_shift", 1, 1000000 / 3),
+        ("rfr_lookback", 1, 1000000 / 3)
     ])
-    def test_rfr_fixings_array_single_period(self, method, expected):
+    def test_rfr_fixings_array_single_period(self, method, param, expected):
         rfr_curve = Curve(
             nodes={dt(2022, 1, 3): 1.0, dt(2022, 1, 15): 0.9995},
             interpolation="log_linear",
@@ -363,7 +362,7 @@ class TestFloatPeriod:
             calendar="bus",
         )
         period = FloatPeriod(dt(2022, 1, 10), dt(2022, 1, 11), dt(2022, 1, 11), "Q",
-                             fixing_method=method, method_param=1,
+                             fixing_method=method, method_param=param,
                              notional=-1000000, convention="act365f")
         result = period.fixings_table(rfr_curve)
         assert abs(result["notional"][0] - expected) < 1
