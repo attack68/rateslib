@@ -741,7 +741,9 @@ class Solver:
         if dfx.empty:
             ret = df
         else:
-            ret = concat([df, dfx], keys=["Rates", "FX"])
+            if isinstance(df.index, MultiIndex):
+                dfx.index = MultiIndex.from_tuples([("fx", v) for v in dfx.index])
+            ret = concat([df, dfx], keys=["rates", "fx"])
 
         if base is not None:
             ret[f"total({base})"] = ret.sum(axis=1)
