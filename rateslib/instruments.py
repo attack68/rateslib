@@ -242,7 +242,7 @@ class Sensitivities:
             raise ValueError("`solver` is required for delta/gamma methods.")
         _ = solver._ad  # store original order
         solver._set_ad_order(2)
-        npv = self.npv(curves, solver, fx, base)
+        npv = self.npv(curves, solver, fx, base, local=True)
         grad_s_sT_P = solver.gamma(npv)
         solver._set_ad_order(_)  # reset original order
         return grad_s_sT_P

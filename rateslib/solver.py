@@ -105,6 +105,7 @@ class Solver:
     pre_n : int
         The total number of curve variables solved for, including those in pre-solvers.
     """
+
     _grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
     _grad_s_vT_final_iteration_algo = "gauss_newton_final"
 
@@ -179,7 +180,9 @@ class Solver:
                     "specified as a variable in one solver."
                 )
         self.pre_variables.extend(self.variables)
-        self.pre_instrument_labels.extend([(self.id, lbl) for lbl in self.instrument_labels])
+        self.pre_instrument_labels.extend(
+            [(self.id, lbl) for lbl in self.instrument_labels]
+        )
 
         # Final elements
         self._ad = 1
@@ -234,9 +237,9 @@ class Solver:
                     "args[dict])."
                 )
             ret0, ret1, ret2 = value[0], tuple(), {"solver": self, "fx": self.fx}
-            if not(value[1] is None or value[1] == ()):
+            if not (value[1] is None or value[1] == ()):
                 ret1 = value[1]
-            if not(value[2] is None or value[2] == {}):
+            if not (value[2] is None or value[2] == {}):
                 ret2 = {**ret2, **value[2]}
             return (ret0, ret1, ret2)
 
@@ -270,16 +273,16 @@ class Solver:
             self._f = None  # depends on self.x, self.weights
             self._J = None  # depends on self.r
             self._grad_s_vT = None  # final_iter_dual: depends on self.s and iteration
-                                    # fixed_point_iter: depends on self.f
-                                    # final_iter_anal: depends on self.J
+            # fixed_point_iter: depends on self.f
+            # final_iter_anal: depends on self.J
             self._grad_s_vT_pre = None  # depends on self.grad_s_vT and pre_solvers.
 
-        self._J2 = None      # defines its own self.r under dual2
+        self._J2 = None  # defines its own self.r under dual2
         self._J2_pre = None  # depends on self.r and pre_solvers
         self._grad_s_s_vT = None  # final_iter: depends on self.J2 and self.grad_s_vT
-                                  # finite_diff: TODO update comment
+        # finite_diff: TODO update comment
         self._grad_s_s_vT_pre = None  # final_iter: depends pre versions of above
-                                      # finite_diff: TODO update comment
+        # finite_diff: TODO update comment
 
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
@@ -294,7 +297,7 @@ class Solver:
         if self._v is None:
             _ = []
             for id, curve in self.curves.items():
-                _.extend([v for v in list(curve.nodes.values())[curve._ini_solve:]])
+                _.extend([v for v in list(curve.nodes.values())[curve._ini_solve :]])
             self._v = np.array(_)
         return self._v
 
@@ -307,10 +310,8 @@ class Solver:
         Depends on ``self.pre_curves`` and ``self.instruments``.
         """
         if self._r is None:
-            self._r = np.array([
-                _[0].rate(*_[1], **_[2]) for _ in self.instruments
-                # solver is passed in order to extract curves as string
-            ])
+            self._r = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
+            # solver and fx are passed by default via parse_args to get string curves
         return self._r
 
     @property
@@ -404,13 +405,15 @@ class Solver:
             J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
             i, j = 0, 0
             for pre_slvr in self.pre_solvers:
-                J2[i:pre_slvr.pre_n, i:pre_slvr.pre_n, j:pre_slvr.pre_m] = pre_slvr.J2_pre
+                J2[
+                    i : pre_slvr.pre_n, i : pre_slvr.pre_n, j : pre_slvr.pre_m
+                ] = pre_slvr.J2_pre
                 i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
             # solver is passed in order to extract curves as string
             _ = np.array([r.gradient(self.pre_variables, order=2) for r in rates])
-            J2[:, :, -self.m:] = np.transpose(_, (1, 2, 0))
+            J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
             self._J2_pre = J2
         return self._J2_pre
 
@@ -460,7 +463,7 @@ class Solver:
 
     def _update_fx(self):
         if self.fx is not None:
-            self.fx.update() # note: with no variables this does nothing.
+            self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
         """
@@ -490,7 +493,10 @@ class Solver:
             f_val = self.f.real
             self.f_list.append(f_val)
             # TODO check whether less than or equal to is correct in below condition
-            if self.f.real < self.f_prev and (self.f_prev - self.f.real) < self.conv_tol:
+            if (
+                self.f.real < self.f_prev
+                and (self.f_prev - self.f.real) < self.conv_tol
+            ):
                 print(
                     f"SUCCESS: `conv_tol` reached after {i} iterations "
                     f"({self.algorithm}), `f_val`: {self.f.real}, "
@@ -508,7 +514,7 @@ class Solver:
             v_1 = self._update_step_(self.algorithm)
             _ = 0
             for id, curve in self.curves.items():
-                for k in curve.node_dates[curve._ini_solve:]:
+                for k in curve.node_dates[curve._ini_solve :]:
                     curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars)
                     _ += 1
                 curve.csolve()
@@ -531,9 +537,9 @@ class Solver:
         if self.fx is not None:
             self.fx._set_ad_order(order)
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @property
     def grad_s_vT(self):
@@ -569,16 +575,16 @@ class Solver:
 
                 # create the right column dependencies
                 grad_v_r = np.array(
-                   [r.gradient(pre_solver.pre_variables) for r in self.r]
+                    [r.gradient(pre_solver.pre_variables) for r in self.r]
                 ).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i:m, -self.m:] = block
+                grad_s_vT[i:m, -self.m :] = block
 
                 i, j = i + m, j + n
 
             # create bottom right block
-            grad_s_vT[-self.m:, -self.m:] = self.grad_s_vT
+            grad_s_vT[-self.m :, -self.m :] = self.grad_s_vT
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
@@ -610,8 +616,8 @@ class Solver:
         self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
         s_vars = [f"s{i}" for i in range(self.m)]
         grad2 = self.f.gradient(self.variables + s_vars, order=2)
-        grad_v_vT_f = grad2[:self.n, :self.n]
-        grad_s_vT_f = grad2[self.n:, :self.n]
+        grad_v_vT_f = grad2[: self.n, : self.n]
+        grad_s_vT_f = grad2[self.n :, : self.n]
         grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
 
         self.s = _s
@@ -711,68 +717,89 @@ class Solver:
             elif fx is None:
                 fx = self.fx
 
-        idx = MultiIndex.from_tuples(self.pre_instrument_labels)
-        if len(self.pre_solvers) == 0:
-            idx = idx.get_level_values(level=1)
-        df = DataFrame(None, index=idx)
-        dfx = DataFrame(None)
+        ridx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        cidx = MultiIndex.from_tuples([], names=["local ccy", "display ccy"])
+        # if len(self.pre_solvers) == 0:
+        #     idx = idx.get_level_values(level=1)
+        df = DataFrame(None, index=ridx, columns=cidx)
+        dfx = DataFrame(None, columns=cidx)
         scalar = np.array(self.pre_rate_scalars)
         for ccy in npv:
             if base is None:
                 value = npv[ccy]
             else:
                 value = npv[ccy] * fx.rate(f"{ccy}{base}")
-            grad_s_P = np.matmul(
-                self.grad_s_vT_pre, value.gradient(self.pre_variables)
-            )
+            grad_s_P = np.matmul(self.grad_s_vT_pre, value.gradient(self.pre_variables))
 
             if base is None:
-                df[ccy] = grad_s_P * scalar / 100
+                df[(ccy, ccy)] = grad_s_P * scalar / 100
             else:
-                df[f"{ccy}({base})"] = grad_s_P * scalar / 100
+                df[(ccy, base)] = grad_s_P * scalar / 100
 
             fx_vars = [var for var in value.vars if "fx_" in var]
             for fx_var in fx_vars:
                 if base is None:
-                    dfx.loc[fx_var[3:], ccy] = value.gradient(fx_var)[0] / 10000
+                    dfx.loc[fx_var[3:], (ccy, ccy)] = value.gradient(fx_var)[0] / 10000
                 else:
-                    dfx.loc[fx_var[3:], f"{ccy}({base})"] = value.gradient(fx_var)[0] / 10000
+                    dfx.loc[fx_var[3:], (ccy, base)] = value.gradient(fx_var)[0] / 10000
 
         if dfx.empty:
             ret = df
         else:
             if isinstance(df.index, MultiIndex):
                 dfx.index = MultiIndex.from_tuples([("fx", v) for v in dfx.index])
-            ret = concat([df, dfx], keys=["rates", "fx"])
+            ret = concat(
+                [df, dfx], keys=["instruments", "fx"], names=["type", "solver", "label"]
+            )
 
         if base is not None:
-            ret[f"total({base})"] = ret.sum(axis=1)
+            ret[("all", base)] = ret.sum(axis=1)
         return ret
 
-    def gamma(self, npv):
+    def gamma(self, npv, base=None, fx=None):
         if self._ad != 2:
-            raise ValueError( "`Solver` must be in ad order 2 to use `gamma` method.")
+            raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
 
-        grad_s_sT_P = np.matmul(
-            self.grad_s_vT_pre, np.matmul(
-                npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
-            )
-        )
-        grad_s_sT_P += np.matmul(
-            self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
-        )[:, :, 0]
+        if base is not None:
+            if fx is None and self.fx is None:
+                raise ValueError(
+                    "`base` is given but `fx` is not and Solver does not "
+                    "contain an attached FXForwards object."
+                )
+            elif fx is None:
+                fx = self.fx
 
-        # if len(self.pre_solvers) == 0:
-        #     idx = self.instrument_labels
-        # else:
-        #     idx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        # labels = [
+        #     (ccy,) + lbl
+        #     for ccy in npv.keys()
+        #     for lbl in self.pre_instrument_labels
+        # ]
         idx = MultiIndex.from_tuples(self.pre_instrument_labels)
+        # if len(self.pre_solvers) == 0:
+        #     idx = idx.get_level_values(level=1)
 
+        dfx = DataFrame(None)
         scalar = np.matmul(
             np.array(self.pre_rate_scalars)[:, np.newaxis],
             np.array(self.pre_rate_scalars)[np.newaxis, :],
         )
-        return DataFrame(grad_s_sT_P * scalar / 10000, columns=idx, index=idx)
+        ret = {}
+        for ccy in npv:
+            value = npv[ccy]
+
+            grad_s_sT_P = np.matmul(
+                self.grad_s_vT_pre,
+                np.matmul(
+                    value.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
+                ),
+            )
+            grad_s_sT_P += np.matmul(
+                self.grad_s_s_vT_pre, value.gradient(self.pre_variables)[:, None]
+            )[:, :, 0]
+
+            ret[ccy] = DataFrame(grad_s_sT_P * scalar / 10000, index=idx, columns=idx)
+
+        return ret
 
     def jacobian(self, solver: Solver):
         """
@@ -787,22 +814,21 @@ class Solver:
         -------
         DataFrame
         """
-        self.s = np.array([
-            _[0].rate(*_[1], **{**_[2], "solver": solver}) for _ in self.instruments
-        ])
+        self.s = np.array(
+            [_[0].rate(*_[1], **{**_[2], "solver": solver}) for _ in self.instruments]
+        )
         self._reset_properties_()
         self.iterate()
-        rates = np.array([
-            _[0].rate(*_[1], **{"solver": self, **_[2]}) for _ in solver.instruments
-        ])
-        grad_v_rT = np.array([
-            _.gradient(self.variables) for _ in rates
-        ]).T
+        rates = np.array(
+            [_[0].rate(*_[1], **{"solver": self, **_[2]}) for _ in solver.instruments]
+        )
+        grad_v_rT = np.array([_.gradient(self.variables) for _ in rates]).T
         return DataFrame(
             np.matmul(self.grad_s_vT, grad_v_rT),
             index=self.instrument_labels,
             columns=solver.instrument_labels,
         )
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
