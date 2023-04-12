@@ -91,10 +91,10 @@ def test_no_type_crossing_on_ops(x_1, y_1, op):
 
 def test_dual_repr(x_1, y_2):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, ['v0', 'v1'], [1 2]>"
+    assert result == "<Dual: 1.000000, ('v0', 'v1'), [1 2]>"
 
     result = y_2.__repr__()
-    assert result == "<Dual2: 1.000000, ['v0', 'v1'], [1 2], [[...]]>"
+    assert result == "<Dual2: 1.000000, ('v0', 'v1'), [1 2], [[...]]>"
 
 
 def test_dual_str(x_1, y_2):
@@ -108,6 +108,7 @@ def test_dual_str(x_1, y_2):
                      "dv0dv0 = 2.000000\n" \
                      "dv0dv1 = 2.000000\n" \
                      "dv1dv1 = 2.000000\n"
+
 
 @pytest.mark.parametrize("vars, expected", [
     ("v0", 1.00),
@@ -468,7 +469,7 @@ def test_dual2_log_exp():
 def test_combined_vars_sorted(y_3):
     x = Dual2(2, vars=["a", "v0", "z"], dual=np.array([1, 1, 1]))
     result = x * y_3
-    assert result.vars == ["a", "v0", "v2", "z"]
+    assert result.vars == ("a", "v0", "v2", "z")
 
 
 @pytest.mark.parametrize("x", [
@@ -506,33 +507,34 @@ def test_downcast_vars():
              vars=["x", "y", "z"],
              dual=np.array([0, 1, 1]),
              )
-    assert w.__downcast_vars__().vars == ["y", "z"]
+    assert w.__downcast_vars__().vars == ("y", "z")
 
     x = Dual2(2,
               vars=["x", "y", "z"],
               dual=np.array([0, 1, 1]),
               dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]])
               )
-    assert x.__downcast_vars__().vars == ["y", "z"]
+    assert x.__downcast_vars__().vars == ("y", "z")
 
     y = Dual2(2,
               vars=["x", "y", "z"],
               dual=np.array([0, 0, 1]),
               dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]])
               )
-    assert y.__downcast_vars__().vars == ["z"]
+    assert y.__downcast_vars__().vars == ("z",)
 
     z = Dual2(2,
               vars=["x", "y", "z"],
               dual=np.array([0, 0, 1]),
               dual2=np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1]])
               )
-    assert z.__downcast_vars__().vars == ["y", "z"]
+    assert z.__downcast_vars__().vars == ("y", "z")
 
 
 def test_gradient_of_non_present_vars(x_1):
     result = x_1.gradient()
     assert np.all(np.isclose(result, np.array([1, 2])))
+
 
 @pytest.mark.parametrize("base, exponent", [(1, 1), (1, 0), (0, 1), (0, 0)])
 def test_powers_bad_type(base, exponent, x_1, y_1):

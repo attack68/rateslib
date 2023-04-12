@@ -77,7 +77,7 @@ class DualBase:
 
         Parameters
         ----------
-        vars : str, list, optional
+        vars : str, tuple, list optional
             Name of the variables which to return gradients for. If not given
             defaults to all vars attributed to the instance.
         order : {1, 2}
@@ -127,7 +127,7 @@ class Dual2(DualBase):
     ----------
     real : float, int
         The real coefficient of the dual number
-    vars : list of str
+    vars : str, or list or tuple of str
         The labels of the variables for which to record derivatives.
     dual : 1d ndarray
         First derivative information contained as coefficient of linear manifold.
@@ -140,7 +140,7 @@ class Dual2(DualBase):
     Attributes
     ----------
     real : float, int
-    vars : list of str, optional
+    vars : tuple of str, optional
     dual : 1d ndarray, optional
     dual2 : 2d ndarray, optional
 
@@ -149,8 +149,11 @@ class Dual2(DualBase):
     Dual : Dual number data type to perform first derivative automatic differentiation.
     """
 
-    def __init__(self, real, vars=[], dual=None, dual2=None):
-        self.vars = [vars] if isinstance(vars, str) else vars
+    def __init__(self, real, vars=(), dual=None, dual2=None):
+        if isinstance(vars, str):
+            self.vars = (vars,)
+        else:
+            self.vars = tuple(vars)
         n = len(self.vars)
         self.real = real
         self.dual = np.asarray(dual.copy()) if dual is not None else np.ones(n)
@@ -339,9 +342,12 @@ class Dual(DualBase):
     Dual2 : Dual number data type to perform second derivative automatic differentiation.
     """
 
-    def __init__(self, real, vars=[], dual=None):
+    def __init__(self, real, vars=(), dual=None):
         self.real = real
-        self.vars = [vars] if isinstance(vars, str) else vars
+        if isinstance(vars, str):
+            self.vars = (vars,)
+        else:
+            self.vars = tuple(vars)
         n = len(self.vars)
         self.dual = np.asarray(dual.copy()) if dual is not None else np.ones(n)
 
