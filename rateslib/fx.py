@@ -837,7 +837,8 @@ class FXForwards:
                 "currencies_list",
                 "transform",
                 "base",
-                "fx_rates_immediate"
+                "fx_rates_immediate",
+                "pairs",
             ]:
                 setattr(self, attr, getattr(acyclic_fxf, attr))
         else:
@@ -848,6 +849,7 @@ class FXForwards:
                 self.q, self.currencies, self.fx_curves
             )
             self.base = self.fx_rates.base if base is None else base
+            self.pairs = self.fx_rates.pairs
             self.fx_rates_immediate = self._update_fx_rates_immediate()
 
     def __init__(
@@ -1007,7 +1009,7 @@ class FXForwards:
         pair: str,
         settlement: Optional[datetime] = None,
         path: Optional[list[dict]] = None,
-        return_path : bool = False,
+        return_path: bool = False,
     ):
         """
         Return the fx forward rate for a currency pair.

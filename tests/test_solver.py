@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime as dt
-from pandas import DataFrame
+from pandas import DataFrame, MultiIndex
 from pandas.testing import assert_frame_equal
 import numpy as np
 from numpy.testing import assert_allclose
@@ -12,6 +12,7 @@ from rateslib.curves import Curve, index_left, LineCurve
 from rateslib.solver import Solver
 from rateslib.dual import Dual
 from rateslib.instruments import IRS, Value, FloatRateBond
+from rateslib.fx import FXRates, FXForwards
 
 
 @pytest.mark.parametrize("algo", [
@@ -495,6 +496,24 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
     assert_frame_equal(gamma_sim, gamma_pre)
 
 
+def test_nonmutable_presolver_defaults():
+    estr_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0})
+    estr_instruments = [
+        (IRS(dt(2022, 1, 1), "10Y", "A"), (estr_curve,), {}),
+    ]
+    estr_s = [2.0]
+    estr_labels = ["10ye"]
+    estr_solver = Solver(
+        [estr_curve],
+        estr_instruments,
+        estr_s,
+        id="estr",
+        instrument_labels=estr_labels,
+    )
+    with pytest.raises(AttributeError, match="'tuple' object has no attribute"):
+        estr_solver.pre_solvers.extend([1, 2, 3])
+
+
 def test_solver_grad_s_vT_methods_equivalent():
     curve = Curve(nodes={
         dt(2022, 1, 1): 1.0,
@@ -662,5 +681,114 @@ def test_gamma_raises():
     with pytest.raises(ValueError, match="`Solver` must be in ad order 2"):
         solver.gamma(100)
 
+
+def test_delta_irs_guide():
+    # this mirrors the delta user guide page
+    usd_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 2, 1): 1.0,
+            dt(2022, 4, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+        },
+        id="sofr",
+    )
+    instruments = [
+        IRS(dt(2022, 1, 1), "1m", "A", curves="sofr"),
+        IRS(dt(2022, 1, 1), "3m", "A", curves="sofr"),
+        IRS(dt(2022, 1, 1), "1y", "A", curves="sofr"),
+    ]
+    usd_solver = Solver(
+        curves=[usd_curve],
+        id="usd_sofr",
+        instruments=instruments,
+        s=[2.5, 3.25, 4.0],
+        instrument_labels=["1m", "3m", "1y"],
+    )
+    irs = IRS(
+        effective=dt(2022, 1, 1),
+        termination="6m",
+        frequency="A",
+        currency="usd",
+        fixed_rate=6.0,
+        curves="sofr",
+    )
+    result = irs.delta(solver=usd_solver)
+    expected = DataFrame(
+        [[0], [16.77263], [32.60487]],
+        index=MultiIndex.from_product([["instruments"], ["usd_sofr"], ["1m", "3m", "1y"]], names=["type", "solver", "label"]),
+        columns=MultiIndex.from_tuples([("usd", "usd")], names=["local_ccy", "display_ccy"])
+    )
+    assert_frame_equal(result, expected)
+
+
+def test_delta_irs_guide_fx_base():
+    # this mirrors the delta user guide page
+    usd_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 2, 1): 1.0,
+            dt(2022, 4, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+        },
+        id="sofr",
+    )
+    instruments = [
+        IRS(dt(2022, 1, 1), "1m", "A", curves="sofr"),
+        IRS(dt(2022, 1, 1), "3m", "A", curves="sofr"),
+        IRS(dt(2022, 1, 1), "1y", "A", curves="sofr"),
+    ]
+    usd_solver = Solver(
+        curves=[usd_curve],
+        id="usd_sofr",
+        instruments=instruments,
+        s=[2.5, 3.25, 4.0],
+        instrument_labels=["1m", "3m", "1y"],
+    )
+    irs = IRS(
+        effective=dt(2022, 1, 1),
+        termination="6m",
+        frequency="A",
+        currency="usd",
+        fixed_rate=6.0,
+        curves="sofr",
+    )
+    fxr = FXRates({"eurusd": 1.1})
+    result = irs.delta(solver=usd_solver, base="eur", fx=fxr)
+    expected = DataFrame(
+        [[0, 0, 0],
+         [16.772632, 15.247847, 15.247847],
+         [32.60487, 29.640788, 29.640788],
+         [0.0, 0.926514, 0.926514]],
+        index=MultiIndex.from_tuples([
+                ("instruments", "usd_sofr", "1m"),
+                ("instruments", "usd_sofr", "3m"),
+                ("instruments", "usd_sofr", "1y"),
+                ("fx", "fx", "eurusd"),
+            ],
+            names=["type", "solver", "label"]),
+        columns=MultiIndex.from_tuples([
+            ("usd", "usd"), ("usd", "eur"), ("all", "eur")],
+            names=["local_ccy", "display_ccy"])
+    )
+    assert_frame_equal(result, expected)
+
+
+def test_irs_delta_curves_undefined():
+    # the IRS is not constructed under best practice.
+    # The delta solver does not know how to price the irs
+    curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.99, dt(2032, 1, 1): 0.98},
+                  id="sonia")
+    instruments = [
+        IRS(dt(2022, 1, 1), "5y", "A", curves="sonia"),
+        IRS(dt(2027, 1, 1), "5y", "A", curves="sonia"),
+    ]
+    solver = Solver(
+        curves=[curve],
+        instruments=instruments,
+        s=[2.0, 2.5],
+    )
+    irs = IRS(dt(2022, 1, 1), "10y", "S", fixed_rate=2.38)
+    irs.delta(solver=solver)
 
 

@@ -5,6 +5,7 @@ from itertools import combinations
 from uuid import uuid4
 from time import time
 import numpy as np
+import warnings
 from pandas import DataFrame, MultiIndex, concat
 
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
@@ -111,15 +112,15 @@ class Solver:
 
     def __init__(
         self,
-        curves: list = [],
-        instruments: list[tuple] = [],
+        curves: Union[list, tuple] = (),
+        instruments: Union[tuple[tuple], list[tuple]] = (),
         s: list[float] = [],
         weights: Optional[list] = None,
         algorithm: str = "gauss_newton",
         fx: Optional[FXForwards] = None,
-        instrument_labels: Optional[list[str]] = None,
+        instrument_labels: Optional[tuple[str], list[str]] = None,
         id: Optional[str] = None,
-        pre_solvers: list[Solver] = [],
+        pre_solvers: Union[tuple[Solver], list[Solver]] = (),
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
@@ -127,7 +128,7 @@ class Solver:
         self.algorithm, self.m = algorithm, len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
-        self.pre_solvers = pre_solvers
+        self.pre_solvers = tuple(pre_solvers)
         if len(s) != len(instruments):
             raise ValueError("`instrument_rates` must be same length as `instruments`.")
         self.s = np.asarray(s)
@@ -135,9 +136,9 @@ class Solver:
             if self.m != len(instrument_labels):
                 raise ValueError("`instrument_labels` must have length `instruments`.")
             else:
-                self.instrument_labels = instrument_labels
+                self.instrument_labels = tuple(instrument_labels)
         else:
-            self.instrument_labels = [f"{self.id}{i}" for i in range(self.m)]
+            self.instrument_labels = (f"{self.id}{i}" for i in range(self.m))
 
         if weights is None:
             self.weights = np.ones(len(instruments))
@@ -148,23 +149,25 @@ class Solver:
         self.W = np.diag(self.weights)
 
         self.curves = {curve.id: curve for curve in curves}
-        self.variables = []
+        self.variables = ()
         for curve in self.curves.values():
             curve._set_ad_order(1)  # solver uses gradients in optimisation
-            curve_vars = [f"{curve.id}{i}" for i in range(curve._ini_solve, curve.n)]
-            self.variables.extend(curve_vars)
+            curve_vars = tuple(
+                (f"{curve.id}{i}" for i in range(curve._ini_solve, curve.n))
+            )
+            self.variables += curve_vars
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
         self.pre_curves = {}
-        self.pre_variables = []
-        self.pre_instrument_labels = []
+        self.pre_variables = ()
+        self.pre_instrument_labels = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
         curve_collection = []
         for pre_solver in self.pre_solvers:
-            self.pre_variables.extend(pre_solver.pre_variables)
-            self.pre_instrument_labels.extend(pre_solver.pre_instrument_labels)
+            self.pre_variables += pre_solver.pre_variables
+            self.pre_instrument_labels += pre_solver.pre_instrument_labels
             self.pre_rate_scalars.extend(pre_solver.pre_rate_scalars)
             self.pre_m += pre_solver.pre_m
             self.pre_n += pre_solver.pre_n
@@ -179,17 +182,15 @@ class Solver:
                     "pre-solvers as part of a dependency chain a curve can only be "
                     "specified as a variable in one solver."
                 )
-        self.pre_variables.extend(self.variables)
-        self.pre_instrument_labels.extend(
-            [(self.id, lbl) for lbl in self.instrument_labels]
-        )
+        self.pre_variables += self.variables
+        self.pre_instrument_labels += tuple((self.id, lbl) for lbl in self.instrument_labels)
 
         # Final elements
         self._ad = 1
         self.fx = fx
-        self.instruments = [self._parse_instrument(inst) for inst in instruments]
-        self.rate_scalars = [inst[0]._rate_scalar for inst in self.instruments]
-        self.pre_rate_scalars.extend(self.rate_scalars)
+        self.instruments = tuple((self._parse_instrument(inst) for inst in instruments))
+        self.rate_scalars = tuple((inst[0]._rate_scalar for inst in self.instruments))
+        self.pre_rate_scalars += self.rate_scalars
 
         # TODO need to check curves associated with fx object and set order.
         # self._reset_properties_()  performed in iterate
@@ -541,6 +542,34 @@ class Solver:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+    def grad_f_vT_pre(self, fx_vars):
+        """
+        Return the derivative of curve variables with respect to FX rates.
+
+        Parameters
+        ----------
+        fx_vars : list or tuple of str
+            The variable name tags for the FX rate sensitivities
+        """
+        # FX sensitivity requires reverting through all pre-solvers rates.
+        rates_pre = []
+        for solver in self.pre_solvers:
+            rates_pre += [rate for rate in solver.r]
+        rates_pre += [rate for rate in self.r]
+        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
+        return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
+
+    def _grad_f_f(self, f, fx_vars):
+        """
+        Return the total derivative of FX loc:bas rate
+        w.r.t. fx vars.
+        """
+        grad_f_f = f.gradient(fx_vars)
+        grad_f_f += np.matmul(
+            self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables)
+        )
+        return grad_f_f
+
     @property
     def grad_s_vT(self):
         """
@@ -614,7 +643,7 @@ class Solver:
         self._reset_properties_()
         _s = self.s
         self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
-        s_vars = [f"s{i}" for i in range(self.m)]
+        s_vars = tuple(f"s{i}" for i in range(self.m))
         grad2 = self.f.gradient(self.variables + s_vars, order=2)
         grad_v_vT_f = grad2[: self.n, : self.n]
         grad_s_vT_f = grad2[self.n :, : self.n]
@@ -688,105 +717,380 @@ class Solver:
         else:
             J2, grad_s_vT = self.J2, self.grad_s_vT
 
+        #
+        _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
+        _ = np.tensordot(grad_s_vT, _, (1, 0))  #  dv_z /ds * d2v / dv_zdv
+        X = -np.tensordot(grad_s_vT, _, (1, 1))  #  dv_h /ds * d2v /dvdv_h
+        # return _ * -1.0
+
         _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
         grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
-        return grad_s_s_vT
+        return grad_s_s_vT  # * 2.0 TODO: check the equations
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
+    def _delta_inst_arr_local(self, npv):
+        """
+        Calculate the block,
+
+        .. math::
+
+           \\nabla_\mathbf{s} P^{loc} = \\nabla_\mathbf{s}\mathbf{v^T} \\nabla_\mathbf{v} P^{loc}
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+        """
+        grad_s_P = np.matmul(self.grad_s_vT_pre, npv.gradient(self.pre_variables))
+        return grad_s_P
+
+    def _delta_inst_arr_base(self, npv, grad_s_P, f):
+        """
+        Calculate the block,
+
+        .. math::
+
+           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_s_P : ndarray
+                The local currency delta risks w.r.t. calibrating instruments.
+            f : Dual or Dual2
+                The local:base FX rate.
+        """
+        grad_s_Pbas = float(npv) * np.matmul(
+            self.grad_s_vT_pre, f.gradient(self.pre_variables)
+        )
+        grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
+        return grad_s_Pbas
+
+    def _delta_fx_arr_local(self, npv, fx_vars):
+        """
+        Calculate the block,
+
+        .. math::
+
+           \\nabla_\mathbf{f} P^{loc}(\mathbf{v(s, f), f}) = \\nabla_\mathbf{f} P^{loc}(\mathbf{v, f})+  \\nabla_\mathbf{f} \mathbf{v^T} \\nabla_\mathbf{v} P^{loc}(\mathbf{v, f})
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        grad_f_P = npv.gradient(fx_vars)
+        grad_f_P += np.matmul(
+            self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables)
+        )
+        return grad_f_P
+
+    def _delta_fx_arr_base(self, npv, grad_f_P, f, fx_vars):
+        """
+        Calculate the block,
+
+        .. math::
+
+           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_f_P : ndarray
+                The local currency delta risks w.r.t. FX pair variables.
+            f : Dual or Dual2
+                The local:base FX rate.
+        """
+        ret = grad_f_P * float(f)  #  <- use float here to cast float array not Dual
+        ret += float(npv) * self._grad_f_f(f, fx_vars)
+        return ret
+
     def delta(self, npv, base=None, fx=None):
         """
-        Calculate the delta risk sensitivity of an instrument's NPV.
+        Calculate the delta risk sensitivity of an instrument's NPV to the
+        calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
+        FX rates.
 
         Parameters
         ----------
         npv : Dual,
             The NPV of the instrument or composition of instruments to risk.
+        base : str, optional
+            The currency (3-digit code) to report risk metrics in. If not given will
+            default to the local currency of the cashflows.
+        fx : FXRates, FXForwards, optional
+            The FX object to use to convert risk metrics. If needed but not given
+            will default to the ``fx`` object associated with the
+            :class:`~rateslib.solver.Solver`. It is not recommended to use this
+            argument with multi-currency instruments, see notes.
 
         Returns
         -------
         DataFrame
+
+        Notes
+        -----
+
+        **Output Structure**
+
+        .. note::
+
+           *Instrument* values are scaled to 1bp (1/10000th of a unit) when they are
+           rate based. *FX* values are scaled to pips (1/10000th of an FX rate unit).
+
+        The output ``DataFrame`` has the following structure:
+
+        - A 3-level index by *'type'*, *'solver'*, and *'label'*;
+
+          - **type** is either *'instruments'* or *'fx'*, and fx exposures are only
+            calculated and displayed in some cases where genuine FX exposure arises.
+          - **solver** lists the different solver ``id`` s to identify between
+            different instruments in dependency chains from ``pre_solvers``.
+          - **label** lists the given instrument names in each solver using the
+            ``instrument_labels``.
+
+        - A 2-level column header index by *'local_ccy'* and *'display_ccy'*;
+
+          - **local_ccy** displays the currency for which cashflows are payable, and
+            therefore the local currency risk sensitivity amount.
+          - **display_ccy** displays the currency which the local currency risk
+            sensitivity has been converted to via an FX transformation.
+
+        Converting a delta from a local currency to another ``base`` currency also
+        introduces FX risk to the NPV of the instrument, which is included in the
+        output.
+
+        **Best Practice**
+
+        The ``fx`` option is provided to allow tactical and fast conversion of
+        delta risks to ``Instruments``. When constructing and pricing multi-currency
+        instruments it is likely that the :class:`~rateslib.solver.Solver` used is
+        associated with an :class:`~rateslib.fx.FXForwards` object to consistently
+        produce FX forward rates within an aribitrage free framework. In that case
+        it is more consistent to re-use those FX associations. If such an
+        association exists and a direct ``fx`` object is supplied a warning may be
+        emitted if they are not the same object.
         """
-        # if no pre_solvers this reduces to solving without the 'pre'
+        if base is not None and self.fx is None and fx is None:
+            raise ValueError(
+                "`base` is given but `fx` is not and Solver does not "
+                "contain an attached FXForwards object."
+            )
+        elif fx is None:
+            fx = self.fx
+        elif fx is not None and self.fx is not None:
+            if id(fx) != id(self.fx):
+                warnings.warn(
+                    "Solver contains an `fx` attribute but an `fx` argument has been "
+                    "supplied which is not the same. This can lead to risk sensitivity "
+                    "inconsistencies, mathematically.", UserWarning)
         if base is not None:
-            if fx is None and self.fx is None:
-                raise ValueError(
-                    "`base` is given but `fx` is not and Solver does not "
-                    "contain an attached FXForwards object."
-                )
-            elif fx is None:
-                fx = self.fx
+            base = base.lower()
 
-        ridx = MultiIndex.from_tuples(self.pre_instrument_labels)
-        cidx = MultiIndex.from_tuples([], names=["local ccy", "display ccy"])
-        # if len(self.pre_solvers) == 0:
-        #     idx = idx.get_level_values(level=1)
-        df = DataFrame(None, index=ridx, columns=cidx)
-        dfx = DataFrame(None, columns=cidx)
-        scalar = np.array(self.pre_rate_scalars)
+        fx_vars = []
+        if fx is not None:
+            fx_vars = [f"fx_{pair}" for pair in fx.pairs]
+
+        inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
+        fx_scalar = 0.0001
+        container = {}
         for ccy in npv:
-            if base is None:
-                value = npv[ccy]
-            else:
-                value = npv[ccy] * fx.rate(f"{ccy}{base}")
-            grad_s_P = np.matmul(self.grad_s_vT_pre, value.gradient(self.pre_variables))
-
-            if base is None:
-                df[(ccy, ccy)] = grad_s_P * scalar / 100
-            else:
-                df[(ccy, base)] = grad_s_P * scalar / 100
-
-            fx_vars = [var for var in value.vars if "fx_" in var]
-            for fx_var in fx_vars:
-                if base is None:
-                    dfx.loc[fx_var[3:], (ccy, ccy)] = value.gradient(fx_var)[0] / 10000
-                else:
-                    dfx.loc[fx_var[3:], (ccy, base)] = value.gradient(fx_var)[0] / 10000
-
-        if dfx.empty:
-            ret = df
-        else:
-            if isinstance(df.index, MultiIndex):
-                dfx.index = MultiIndex.from_tuples([("fx", v) for v in dfx.index])
-            ret = concat(
-                [df, dfx], keys=["instruments", "fx"], names=["type", "solver", "label"]
+            container[("instruments", ccy, ccy)] = (
+                self._delta_inst_arr_local(npv[ccy]) * inst_scalar
+            )
+            container[("fx", ccy, ccy)] = (
+                self._delta_fx_arr_local(npv[ccy], fx_vars) * fx_scalar
             )
 
+            if base is not None and base != ccy:
+                # extend the derivatives
+                f = fx.rate(f"{ccy}{base}")
+                container[("instruments", ccy, base)] = self._delta_inst_arr_base(
+                    npv[ccy], container[("instruments", ccy, ccy)] / inst_scalar, f
+                ) * inst_scalar
+                container[("fx", ccy, base)] = self._delta_fx_arr_base(
+                    npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars
+                ) * fx_scalar
+
+        # construct the DataFrame from container with hierarchical indexes
+        inst_idx = MultiIndex.from_tuples(
+            [("instruments",) + label for label in self.pre_instrument_labels],
+            names=["type", "solver", "label"]
+        )
+        fx_idx = MultiIndex.from_tuples(
+            [("fx", "fx", f[3:]) for f in fx_vars],
+            names=["type", "solver", "label"]
+        )
+        indexes = {
+            "instruments": inst_idx,
+            "fx": fx_idx
+        }
+        r_idx = inst_idx.append(fx_idx)
+        c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
+        df = DataFrame(None, index=r_idx, columns=c_idx)
+        for key, array in container.items():
+            df.loc[indexes[key[0]], (key[1], key[2])] = array
+
         if base is not None:
-            ret[("all", base)] = ret.sum(axis=1)
-        return ret
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
-    def gamma(self, npv, base=None, fx=None):
-        if self._ad != 2:
-            raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
+        sorted_cols = df.columns.sort_values()
+        return df.loc[:, sorted_cols]
 
-        if base is not None:
-            if fx is None and self.fx is None:
-                raise ValueError(
-                    "`base` is given but `fx` is not and Solver does not "
-                    "contain an attached FXForwards object."
-                )
-            elif fx is None:
-                fx = self.fx
+    # def _delta_depr(self, npv, base=None, fx=None):
+    #     """
+    #     Calculate the delta risk sensitivity of an instrument's NPV to the
+    #     calibrating instruments of the :class:`~rateslib.solver.Solver`.
+    #
+    #     Parameters
+    #     ----------
+    #     npv : Dual,
+    #         The NPV of the instrument or composition of instruments to risk.
+    #     base : str, optional
+    #         The currency (3-digit code) to report risk metrics in. If not given will
+    #         default to the local currency of the cashflows.
+    #     fx : FXRates, FXForwards, optional
+    #         The FX object to use to convert risk metrics. If needed but not given
+    #         will default to the ``fx`` object associated with the
+    #         :class:`~rateslib.solver.Solver`.
+    #
+    #     Returns
+    #     -------
+    #     DataFrame
+    #
+    #     Notes
+    #     -----
+    #     .. note::
+    #
+    #        *Instrument* values are scaled to 1bp (1/10000th of a unit) when they are
+    #        rate based. *FX* values are scaled to pips (1/10000th of an FX unit).
+    #
+    #     The output ``DataFrame`` has the following structure:
+    #
+    #     - A 3-level index by *'type'*, *'solver'*, and *'label'*;
+    #
+    #       - **type** is either *'instruments'* or *'fx'*, and fx exposures are only
+    #         calculated and displayed in some cases where genuine FX exposure arises.
+    #       - **solver** lists the different solver ``id`` s to identify between
+    #         different instruments in dependency chains from ``pre_solvers``.
+    #       - **label** lists the given instrument names in each solver using the
+    #         ``instrument_labels``.
+    #
+    #     - A 2-level column header index by *'local_ccy'* and *'display_ccy'*;
+    #
+    #       - **local_ccy** displays the currency for which cashflows are payable, and
+    #         therefore the local currency risk sensitivity amount.
+    #       - **display_ccy** displays the currency which the local currency risk
+    #         sensitivity has been converted to via an FX transformation.
+    #
+    #     Converting a delta from a local currency to another ``base`` currency also
+    #     introduces FX risk to the NPV of the instrument, which is included in the
+    #     output.
+    #     """
+    #     # if no pre_solvers this reduces to solving without the 'pre'
+    #     if base is not None:
+    #         if fx is None and self.fx is None:
+    #             raise ValueError(
+    #                 "`base` is given but `fx` is not and Solver does not "
+    #                 "contain an attached FXForwards object."
+    #             )
+    #         elif fx is None:
+    #             fx = self.fx
+    #
+    #     ridx = MultiIndex.from_tuples([
+    #         ("instruments",) + label for label in self.pre_instrument_labels
+    #     ], names=["type", "solver", "label"])
+    #     cidx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
+    #     # if len(self.pre_solvers) == 0:
+    #     #     idx = idx.get_level_values(level=1)
+    #     df = DataFrame(None, index=ridx, columns=cidx)
+    #     if base is not None:
+    #         df_base = DataFrame(None, index=ridx, columns=cidx)
+    #     dfx = DataFrame(None, columns=cidx)
+    #     scalar = np.array(self.pre_rate_scalars)
+    #
+    #     for ccy in npv:
+    #
+    #         # populate the df with local currency instrument delta risks
+    #         value = npv[ccy]
+    #         grad_s_P = np.matmul(self.grad_s_vT_pre, value.gradient(self.pre_variables))
+    #         df[(ccy, ccy)] = grad_s_P * scalar / 100
+    #
+    #         if base is not None and base != ccy:
+    #             # populate df_base with base instrument delta risks if base is diff ccy
+    #             value_base = npv[ccy] * fx.rate(f"{ccy}{base}")
+    #             grad_s_P_base = np.matmul(
+    #                 self.grad_s_vT_pre, value_base.gradient(self.pre_variables)
+    #             )
+    #             df_base[(ccy, base)] = grad_s_P_base * scalar / 100
+    #
+    #         fx_vars = [var for var in value.vars if "fx_" in var]
+    #         for fx_var in fx_vars:
+    #             dfx.loc[fx_var[3:], (ccy, ccy)] = value.gradient(fx_var)[0] / 10000
+    #         if base is not None and base != ccy:
+    #             fx_vars_base = [var for var in value_base.vars if "fx_" in var]
+    #             for fx_var in fx_vars_base:
+    #                 dfx.loc[fx_var[3:], (ccy, base)] = \
+    #                     value_base.gradient(fx_var)[0] / 10000
+    #
+    #     if base is not None:
+    #         # sum over all ccy columns expressed in base
+    #         df_base[("all", base)] = df_base.sum(axis=1)
+    #         df = concat([df, df_base], axis=1)
+    #         sorted_idx = df.columns.sortlevel()[0]
+    #         df = df.loc[:, sorted_idx]
+    #
+    #     if dfx.empty:
+    #         ret = df
+    #     else:
+    #         dfx.index = MultiIndex.from_tuples(
+    #             [("fx", "fx", v) for v in dfx.index], names=["type", "solver", "label"]
+    #         )
+    #         ret = concat([df, dfx])
+    #
+    #     return ret
 
-        # labels = [
-        #     (ccy,) + lbl
-        #     for ccy in npv.keys()
-        #     for lbl in self.pre_instrument_labels
-        # ]
-        idx = MultiIndex.from_tuples(self.pre_instrument_labels)
-        # if len(self.pre_solvers) == 0:
-        #     idx = idx.get_level_values(level=1)
+    def _gamma_local(self, npv):
+        """
+        Calculate cross-gamma without concern for base currency conversion.
+        """
+        ccys = list(npv.keys())
+        rccys, cccys = ccys.copy(), ccys.copy()
 
-        dfx = DataFrame(None)
+        outer_index = MultiIndex.from_tuples(
+            [
+                (ccy, "instruments") + label
+                for ccy in rccys
+                for label in self.pre_instrument_labels
+            ],
+            names=["local_ccy", "type", "solver", "label"]
+        )
+        outer_columns = MultiIndex.from_tuples(
+            [
+                (ccy, "instruments") + label
+                for ccy in cccys
+                for label in self.pre_instrument_labels
+            ],
+            names=["display_ccy", "type", "solver", "label"]
+        )
+        inner_index = MultiIndex.from_tuples([
+            ("instruments",) + label for label in self.pre_instrument_labels
+        ], names=["type", "solver", "label"])
+
+        df = DataFrame(None, index=outer_index, columns=outer_columns)
+
+        dfx = DataFrame(None, columns=outer_columns)
+
         scalar = np.matmul(
             np.array(self.pre_rate_scalars)[:, np.newaxis],
             np.array(self.pre_rate_scalars)[np.newaxis, :],
         )
-        ret = {}
+
         for ccy in npv:
             value = npv[ccy]
 
+            # instrument-instrument cross gamma:
             grad_s_sT_P = np.matmul(
                 self.grad_s_vT_pre,
                 np.matmul(
@@ -797,9 +1101,162 @@ class Solver:
                 self.grad_s_s_vT_pre, value.gradient(self.pre_variables)[:, None]
             )[:, :, 0]
 
-            ret[ccy] = DataFrame(grad_s_sT_P * scalar / 10000, index=idx, columns=idx)
+            ridx = MultiIndex.from_tuples(
+                [(ccy,) + label for label in inner_index]
+            )
+            df.loc[ridx, ridx] = grad_s_sT_P * scalar / 10000
 
-        return ret
+        return df
+
+    def gamma(self, npv, base=None, fx=None):
+        """
+        Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
+        calibrating instruments of the :class:`~rateslib.solver.Solver`.
+
+        Parameters
+        ----------
+        npv : Dual,
+            The NPV of the instrument or composition of instruments to risk.
+        base : str, optional
+            The currency (3-digit code) to report risk metrics in. If not given will
+            default to the local currency of the cashflows.
+        fx : FXRates, FXForwards, optional
+            The FX object to use to convert risk metrics. If needed but not given
+            will default to the ``fx`` object associated with the
+            :class:`~rateslib.solver.Solver`.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        .. note::
+
+           *Instrument* values are scaled to 1bp (1/10000th of a unit) when they are
+           rate based. *FX* values are scaled to pips (1/10000th of an FX unit).
+
+        The output ``DataFrame`` has the following structure:
+
+        - A 4-level index by *'local_ccy'*, *'type'*, *'solver'*, and *'label'*;
+
+          - **local_ccy** displays the currency for which cashflows are payable, and
+            therefore the local currency risk sensitivity amount.
+          - **type** is either *'instruments'* or *'fx'*, and fx exposures are only
+            calculated and displayed in some cases where genuine FX exposure arises.
+          - **solver** lists the different solver ``id`` s to identify between
+            different instruments in dependency chains from ``pre_solvers``.
+          - **label** lists the given instrument names in each solver using the
+            ``instrument_labels``.
+
+        - A 4-level column header index by *'display_ccy'*, *'type'*, *'solver'*,
+          and *'label'*;
+
+          - **local_ccy** displays the currency for which cashflows are payable, and
+            therefore the local currency risk sensitivity amount.
+          - **display_ccy** displays the currency which the local currency risk
+            sensitivity has been converted to via an FX transformation.
+
+        Converting a delta from a local currency to another ``base`` currency also
+        introduces FX risk to the NPV of the instrument, which is included in the
+        output.
+        """
+        if self._ad != 2:
+            raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
+
+        return self._gamma_local(npv)
+
+        if base is not None:
+            if fx is None and self.fx is None:
+                raise ValueError(
+                    "`base` is given but `fx` is not and Solver does not "
+                    "contain an attached FXForwards object."
+                )
+            elif fx is None:
+                fx = self.fx
+
+        ccys = list(npv.keys())
+        rccys, cccys = ccys.copy(), ccys.copy()
+        if base is not None:
+            if base not in ccys:
+                cccys += [base]
+            rccys += ["all"]
+
+        outer_index = MultiIndex.from_tuples(
+            [
+                (ccy, "instruments") + label
+                for ccy in rccys
+                for label in self.pre_instrument_labels
+            ],
+            names=["local_ccy", "type", "solver", "label"]
+        )
+        outer_columns = MultiIndex.from_tuples(
+            [
+                (ccy, "instruments") + label
+                for ccy in cccys
+                for label in self.pre_instrument_labels
+            ],
+            names=["display_ccy", "type", "solver", "label"]
+        )
+        inner_index = MultiIndex.from_tuples([
+            ("instruments",) + label for label in self.pre_instrument_labels
+        ], names=["type", "solver", "label"])
+
+        df = DataFrame(None, index=outer_index, columns=outer_columns)
+        if base is not None:
+            df_base = DataFrame(None, index=outer_index, columns=outer_columns)
+        dfx = DataFrame(None, columns=outer_columns)
+
+        scalar = np.matmul(
+            np.array(self.pre_rate_scalars)[:, np.newaxis],
+            np.array(self.pre_rate_scalars)[np.newaxis, :],
+        )
+
+        for ccy in npv:
+            value = npv[ccy]
+
+            # instrument-instrument cross gamma:
+            grad_s_sT_P = np.matmul(
+                self.grad_s_vT_pre,
+                np.matmul(
+                    value.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
+                ),
+            )
+            grad_s_sT_P += np.matmul(
+                self.grad_s_s_vT_pre, value.gradient(self.pre_variables)[:, None]
+            )[:, :, 0]
+
+            ridx = MultiIndex.from_tuples(
+                [(ccy,) + label for label in inner_index]
+            )
+            df.loc[ridx, ridx] = grad_s_sT_P * scalar / 10000
+
+            if base is not None and base != ccy:
+                value_base = npv[ccy] * fx.rate(f"{ccy}{base}")
+                grad_s_sT_P_base = np.matmul(
+                    self.grad_s_vT_pre,
+                    np.matmul(
+                        value_base.gradient(self.pre_variables, order=2),
+                        self.grad_s_vT_pre.T
+                    ),
+                )
+                grad_s_sT_P_base += np.matmul(
+                    self.grad_s_s_vT_pre,
+                    value_base.gradient(self.pre_variables)[:, None]
+                )[:, :, 0]
+                cidx = MultiIndex.from_tuples(
+                    [(base,) + label for label in inner_index]
+                )
+                df.loc[ridx, cidx] = grad_s_sT_P_base * scalar / 10000
+
+        if base is not None:
+            # sum over all ccy columns expressed in base
+            df_base[("all", base)] = df_base.sum(axis=1)
+            df = concat([df, df_base], axis=1)
+            sorted_idx = df.columns.sortlevel()[0]
+            df = df.loc[:, sorted_idx]
+
+        return df
 
     def jacobian(self, solver: Solver):
         """
