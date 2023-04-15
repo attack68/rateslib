@@ -263,8 +263,11 @@ as of another date.
 This cashflow does not demonstrate any sensitivity to interest rates even though
 a forward value ought to. This is because the interest rate curves that are
 associated with the :class:`~rateslib.fx.FXForwards` instance are not configured
-with automatic differentiation. We can manually instruct this here and see the
-impact.
+with automatic differentiation. We can manually instruct this here (only for
+purposes of example) and see the
+impact, but note use of this private method is not recommended and is usually called
+only internally.
+
 
 .. ipython:: python
 
