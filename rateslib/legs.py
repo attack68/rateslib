@@ -32,7 +32,13 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve
-from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, _validate_float_args
+from rateslib.periods import (
+    FixedPeriod,
+    FloatPeriod,
+    Cashflow,
+    _validate_float_args,
+    _get_fx_and_base
+)
 from rateslib.dual import Dual, Dual2, set_order
 from rateslib.fx import FXForwards, FXRates
 
@@ -653,6 +659,233 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     #     elif self.fixing_method == "ibor":
     #         return False
     #     return True
+
+
+class ZeroFloatLeg(BaseLeg, FloatLegMixin):
+    """
+    Create a zero coupon floating leg composed of
+    :class:`~rateslib.periods.FloatPeriod` s.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseLeg`.
+    float_spread : float, optional
+        The spread applied to determine cashflows. Can be set to `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    spread_compound_method : str, optional
+        The method to use for adding a floating spread to compounded rates. Available
+        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    fixings : float, list, or Series optional
+        If a float scalar, will be applied as the determined fixing for the first
+        period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    fixing_method : str, optional
+        The method by which floating rates are determined, set by default. See notes.
+    method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    ... warn::
+
+        When floating rates are determined from historical fixings the forecast
+        ``Curve`` ``calendar`` will be used to determine fixing dates.
+        If this calendar does not align with the leg ``calendar`` then
+        spurious results or errors may be generated. Including the curve calendar in
+        the leg is acceptable, i.e. a leg calendar of *"nyc,ldn,tgt"* and a curve
+        calendar of *"ldn"* is valid, whereas only *"nyc,tgt"* may give errors.
+
+    Examples
+    --------
+    TODO
+    """
+    def __init__(
+        self,
+        *args,
+        float_spread: Optional[float] = None,
+        fixings: Optional[Union[float, list, Series]] = None,
+        fixing_method: Optional[str] = None,
+        method_param: Optional[int] = None,
+        spread_compound_method: Optional[str] = None,
+        **kwargs
+    ):
+        self._float_spread = float_spread
+        self.fixing_method, self.method_param, self.spread_compound_method = \
+            _validate_float_args(fixing_method, method_param, spread_compound_method)
+
+        super().__init__(*args, **kwargs)
+        if abs(float(self.amortization)) > 1e-2:
+            raise NotImplementedError("`ZeroFloatLeg` cannot accept `amortization`.")
+
+        self._set_fixings(fixings)
+        self.periods = [
+            FloatPeriod(
+                float_spread=self.float_spread,
+                start=period[defaults.headers["a_acc_start"]],
+                end=period[defaults.headers["a_acc_end"]],
+                payment=period[defaults.headers["payment"]],
+                notional=self.notional - self.amortization * i,
+                currency=self.currency,
+                convention=self.convention,
+                termination=self.schedule.termination,
+                frequency=self.schedule.frequency,
+                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                fixing_method=self.fixing_method,
+                fixings=self.fixings[i],
+                method_param=self.method_param,
+                spread_compound_method=self.spread_compound_method
+            ) for i, period in self.schedule.table.to_dict(orient="index").items()
+        ]
+
+    # @property
+    # def _is_complex(self):
+    #     """
+    #     A complex float leg is one which is RFR based and for which each individual
+    #     RFR fixing is required is order to calculate correctly. This occurs in the
+    #     following cases:
+    #
+    #     1) The ``fixing_method`` is *"lookback"* - since fixing have arbitrary
+    #        weightings misaligned with their standard weightings due to
+    #        arbitrary shifts.
+    #     2) The ``spread_compound_method`` is not *"none_simple"* - this is because the
+    #        float spread is compounded alongside the rates so there is a non-linear
+    #        relationship. Note if spread is zero this is negated and can be ignored.
+    #     3) The ``fixing_method`` is *"lockout"* - technically this could be made semi
+    #        efficient by splitting calculations into two parts. As of now it
+    #        remains within the inefficient complex section.
+    #     4) ``fixings`` are given which need to be incorporated into the calculation.
+    #
+    #
+    #     """
+    #     if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
+    #         if self.fixings is not None:
+    #             return True
+    #         elif abs(self.float_spread) < 1e-9 or \
+    #                 self.spread_compound_method == "none_simple":
+    #             return False
+    #         else:
+    #             return True
+    #     elif self.fixing_method == "ibor":
+    #         return False
+    #     return True
+
+    @property
+    def dcf(self):
+        _ = 0.
+        for period in self.periods:
+            _ += period.dcf
+        return _
+
+    def rate(self, curve):
+        compounded_rate, total_dcf = 1., 0.
+        for period in self.periods:
+            compounded_rate *= 1 + period.dcf * period.rate(curve) / 100
+            total_dcf += period.dcf
+        return 100 * (compounded_rate - 1.) / total_dcf
+
+    def npv(
+        self,
+        curve: Curve,
+        disc_curve: Optional[Curve] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        disc_curve = disc_curve or curve
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        value = (
+                self.rate(curve) / 100 * self.dcf * disc_curve[
+            self.schedule.pschedule[-1]] * -self.notional
+        )
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
+
+    def fixings_table(self, curve: Curve):
+        # TODO: fixing table for ZeroFloatLeg
+        raise NotImplementedError("fixings table on ZeroFloatLeg.")
+
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("analytic delta on ZeroFloatLeg.")
+
+    def cashflows(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Union[float, FXRates, FXForwards] = 1.0,
+        base: Optional[str] = None
+    ):
+        """
+        Return the properties of the period used in calculating cashflows.
+
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object. Not used unless it is set equal to
+            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+            object, converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object. If not given defaults to
+            ``fx.base``.
+
+        Returns
+        -------
+        dict
+
+        Examples
+        --------
+        .. ipython:: python
+
+           period.cashflows(curve, curve, fxr)
+        """
+        disc_curve = disc_curve or curve
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        rate = None if curve is None else float(self.rate(curve))
+        cashflow = None if rate is None else -float(
+            self.notional * self.dcf * rate / 100
+        )
+        if disc_curve is None or rate is None:
+            npv, npv_fx = None, None
+        else:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+        spread = 0. if self.float_spread is None else float(self.float_spread)
+        seq= [{
+            defaults.headers["type"]: type(self).__name__,
+            defaults.headers["stub_type"]: None,
+            defaults.headers["currency"]: self.currency.upper(),
+            defaults.headers["a_acc_start"]: self.schedule.aschedule[0],
+            defaults.headers["a_acc_end"]: self.schedule.aschedule[-1],
+            defaults.headers["payment"]: self.schedule.pschedule[-1],
+            defaults.headers["convention"]: self.convention,
+            defaults.headers["dcf"]: self.dcf,
+            defaults.headers["notional"]: float(self.notional),
+            defaults.headers["df"]: None if disc_curve is None else float(
+                disc_curve[self.schedule.pschedule[-1]]),
+            defaults.headers["rate"]: rate,
+            defaults.headers["spread"]: spread,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx),
+            defaults.headers["npv_fx"]: npv_fx,
+        }]
+        return DataFrame.from_records(seq)
 
 
 class BaseLegExchange(BaseLeg):

@@ -103,6 +103,7 @@ from rateslib.legs import (
     FloatLeg,
     FloatLegExchange,
     FloatLegExchangeMtm,
+    ZeroFloatLeg,
     CustomLeg
 )
 
@@ -112,6 +113,7 @@ from rateslib.instruments import (
     FixedRateBond,
     FloatRateBond,
     IRS,
+    ZCS,
     FRA,
     Swap,
     SBS,
@@ -187,6 +189,7 @@ __all__ = [
     # legs.py
     "FixedLeg",
     "FloatLeg",
+    "ZeroFloatLeg",
     "FixedLegExchange",
     "FixedLegExchangeMtm",
     "FloatLegExchange",
@@ -200,6 +203,7 @@ __all__ = [
     "Bill",
     "IRS",
     "Swap",
+    "ZCS",
     "SBS",
     "FXSwap",
     "NonMtmXCS",
