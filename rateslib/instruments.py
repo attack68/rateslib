@@ -2926,6 +2926,8 @@ class SBS(BaseDerivative):
         self,
         curves: Optional[Union[Curve, str, list]]= None,
         solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
         leg: int = 1,
     ):
         """
