@@ -717,15 +717,14 @@ class Solver:
         else:
             J2, grad_s_vT = self.J2, self.grad_s_vT
 
-        #
         _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
         _ = np.tensordot(grad_s_vT, _, (1, 0))  #  dv_z /ds * d2v / dv_zdv
-        X = -np.tensordot(grad_s_vT, _, (1, 1))  #  dv_h /ds * d2v /dvdv_h
-        # return _ * -1.0
-
-        _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
-        grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
-        return grad_s_s_vT  # * 2.0 TODO: check the equations
+        _ = -np.tensordot(grad_s_vT, _, (1, 1))  #  dv_h /ds * d2v /dvdv_h
+        grad_s_s_vT = _
+        return grad_s_s_vT
+        # _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
+        # grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
+        # return grad_s_s_vT
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
@@ -1051,7 +1050,38 @@ class Solver:
     #
     #     return ret
 
-    def _gamma_local(self, npv):
+    def gamma_inst_arr_local2(self, npv):
+        """
+        Calculate the block,
+
+        TODO math
+
+        Parameters:
+            npv : Dual2
+                A local currency NPV of a period of a leg.
+        """
+        # instrument-instrument cross gamma:
+        _ = np.tensordot(
+            npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1)
+        )
+        _ = np.tensordot(self.grad_s_vT_pre, _, (1, 0))
+
+        _ += np.tensordot(
+            self.grad_s_s_vT_pre, npv.gradient(self.pre_variables), (2, 0)
+        )
+        grad_s_sT_P = _
+        return grad_s_sT_P
+        # grad_s_sT_P = np.matmul(
+        #     self.grad_s_vT_pre,
+        #     np.matmul(
+        #         npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
+        #     ),
+        # )
+        # grad_s_sT_P += np.matmul(
+        #     self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
+        # )[:, :, 0]
+
+    def _gamma_inst_arr_local(self, npv):
         """
         Calculate cross-gamma without concern for base currency conversion.
         """
@@ -1164,7 +1194,7 @@ class Solver:
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
 
-        return self._gamma_local(npv)
+        return self._gamma_inst_arr_local(npv)
 
         if base is not None:
             if fx is None and self.fx is None:
