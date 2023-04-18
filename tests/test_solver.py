@@ -39,7 +39,7 @@ def test_basic_solver(algo):
         s=s,
         algorithm=algo,
     )
-    assert float(solver.f) < 1e-9
+    assert float(solver.g) < 1e-9
     assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
@@ -71,7 +71,7 @@ def test_solver_reiterate(algo):
         s=s,
         algorithm=algo,
     )
-    assert float(solver.f) < 1e-9
+    assert float(solver.g) < 1e-9
 
     solver.s[1] = 1.6
     solver.iterate()
@@ -106,7 +106,7 @@ def test_basic_solver_line_curve(algo):
         s=s,
         algorithm=algo,
     )
-    assert float(solver.f) < 1e-9
+    assert float(solver.g) < 1e-9
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - s[i]) < 1e-6
 
@@ -136,7 +136,7 @@ def test_basic_spline_solver():
         instruments=instruments,
         s=s,
     )
-    assert float(solver.f) < 1e-12
+    assert float(solver.g) < 1e-12
     assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
     expected = [1, 0.98992503575307, 0.9680378584288896, 0.9408478640732281]
     for i, key in enumerate(spline_curve.nodes.keys()):
@@ -188,7 +188,7 @@ def test_basic_solver_weights():
         s=s,
         func_tol=0.00085,
     )
-    assert float(solver.f) < 0.00085
+    assert float(solver.g) < 0.00085
     assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
@@ -297,7 +297,7 @@ def test_max_iterations():
         func_tol=1e-10,
         max_iter=30,
     )
-    assert len(solver.f_list) == 30
+    assert len(solver.g_list) == 30
 
 
 def test_solver_pre_solver_dependency_generates_same_delta():

@@ -17,7 +17,278 @@ from rateslib.fx import FXForwards
 
 
 # TODO: validate solver_id are unique in pre_solver_chain
-class Solver:
+class Gradients:
+    """
+    A catalogue of all the gradients used in optimisation routines and risk
+    sensitivties.
+    """
+
+    @property
+    def J(self):
+        """
+        2d Jacobian array of rates with respect to discount factors, of size (n, m);
+
+        .. math::
+
+           [J]_{i,j} = [\\nabla_\mathbf{v} \mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial v_i}
+
+        Depends on ``self.r``.
+        """
+        if self._J is None:
+            self._J = np.array([rate.gradient(self.variables) for rate in self.r]).T
+        return self._J
+
+    @property
+    def J2(self):
+        """
+        3d array of second differentials of rates with respect to discount factors,
+        of size (n, n, m);
+
+        .. math::
+
+           [J2]_{i,j,k} = [\\nabla_\mathbf{v} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
+
+        Depends on ``self.r``.
+        """
+        if self._J2 is None:
+            if self._ad != 2:
+                raise ValueError(
+                    "Cannot perform second derivative calculations when ad mode is "
+                    "{self._ad}."
+                )
+
+            rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
+            # solver is passed in order to extract curves as string
+            _ = np.array([rate.gradient(self.variables, order=2) for rate in rates])
+            self._J2 = np.transpose(_, (1, 2, 0))
+        return self._J2
+
+    @property
+    def J2_pre(self):
+        """
+        3d array of second differentials of rates with respect to discount factors,
+        of size (n, n, m);
+
+        .. math::
+
+           [J2]_{i,j,k} = [\\nabla_\mathbf{v} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
+
+        Depends on ``self.r`` and ``pre_solvers.J2``.
+        """
+        if len(self.pre_solvers) == 0:
+            return self.J2
+
+        if self._J2_pre is None:
+            if self._ad != 2:
+                raise ValueError(
+                    "Cannot perform second derivative calculations when ad mode is "
+                    "{self._ad}."
+                )
+
+            J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
+            i, j = 0, 0
+            for pre_slvr in self.pre_solvers:
+                J2[
+                    i : pre_slvr.pre_n, i : pre_slvr.pre_n, j : pre_slvr.pre_m
+                ] = pre_slvr.J2_pre
+                i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
+
+            rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
+            # solver is passed in order to extract curves as string
+            _ = np.array([r.gradient(self.pre_variables, order=2) for r in rates])
+            J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
+            self._J2_pre = J2
+        return self._J2_pre
+
+    def grad_f_vT_pre(self, fx_vars):
+        """
+        Return the derivative of curve variables with respect to FX rates.
+
+        Parameters
+        ----------
+        fx_vars : list or tuple of str
+            The variable name tags for the FX rate sensitivities
+        """
+        # FX sensitivity requires reverting through all pre-solvers rates.
+        rates_pre = []
+        for solver in self.pre_solvers:
+            rates_pre += [rate for rate in solver.r]
+        rates_pre += [rate for rate in self.r]
+        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
+        return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
+
+    def _grad_f_f(self, f, fx_vars):
+        """
+        Return the total derivative of FX loc:bas rate
+        w.r.t. fx vars.
+        """
+        grad_f_f = f.gradient(fx_vars)
+        grad_f_f += np.matmul(
+            self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables)
+        )
+        return grad_f_f
+
+    @property
+    def grad_s_vT(self):
+        """
+        2d Jacobian array of DFs with respect to calibrating instruments,
+        of size (m, n);
+
+        .. math::
+
+           [\\nabla_\mathbf{s}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i}
+        """
+        if self._grad_s_vT is None:
+            self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
+        return self._grad_s_vT
+
+    @property
+    def grad_s_vT_pre(self):
+        """
+        2d Jacobian array of DFs with respect to calibrating instruments including all
+        pre solvers attached to the Solver.
+        """
+        if len(self.pre_solvers) == 0:
+            return self.grad_s_vT
+
+        if self._grad_s_vT_pre is None:
+            grad_s_vT = np.zeros(shape=(self.pre_m, self.pre_n))
+
+            i, j = 0, 0
+            for pre_solver in self.pre_solvers:
+                # create the left side block matrix
+                m, n = pre_solver.pre_m, pre_solver.pre_n
+                grad_s_vT[i:m, j:n] = pre_solver.grad_s_vT_pre
+
+                # create the right column dependencies
+                grad_v_r = np.array(
+                    [r.gradient(pre_solver.pre_variables) for r in self.r]
+                ).T
+                block = np.matmul(grad_v_r, self.grad_s_vT)
+                block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
+                grad_s_vT[i:m, -self.m :] = block
+
+                i, j = i + m, j + n
+
+            # create bottom right block
+            grad_s_vT[-self.m :, -self.m :] = self.grad_s_vT
+            self._grad_s_vT_pre = grad_s_vT
+        return self._grad_s_vT_pre
+
+    def _grad_s_vT_final_iteration_dual(self, algorithm: Optional[str] = None):
+        """
+        This is not the ideal method since it requires reset_properties to reassess.
+        """
+        algorithm = algorithm or self._grad_s_vT_final_iteration_algo
+        _s = self.s
+        self.s = np.array([Dual(v, f"s{i}") for i, v in enumerate(self.s)])
+        self._reset_properties_()
+        v_1 = self._update_step_(algorithm)
+        s_vars = [f"s{i}" for i in range(self.m)]
+        grad_s_vT = np.array([v.gradient(s_vars) for v in v_1]).T
+        self.s = _s
+        return grad_s_vT
+
+    def _grad_s_vT_final_iteration_analytical(self):
+        grad_s_vT = np.linalg.pinv(self.J)
+        return grad_s_vT
+
+    def _grad_s_vT_fixed_point_iteration(self):
+        """
+        This is not the ideal method becuase it requires second order and reset props.
+        """
+        self._set_ad_order(2)
+        self._reset_properties_()
+        _s = self.s
+        self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
+        s_vars = tuple(f"s{i}" for i in range(self.m))
+        grad2 = self.g.gradient(self.variables + s_vars, order=2)
+        grad_v_vT_f = grad2[: self.n, : self.n]
+        grad_s_vT_f = grad2[self.n :, : self.n]
+        grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
+
+        self.s = _s
+        self._set_ad_order(1)
+        self._reset_properties_()
+        return grad_s_vT
+
+    @property
+    def grad_s_s_vT(self):
+        """
+        3d array of second differentials of DFs with respect to calibrating instruments,
+        of size (m, m, n);
+
+        .. math::
+
+           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+        """
+        if self._grad_s_s_vT is None:
+            self._grad_s_s_vT = self._grad_s_s_vT_final_iteration_analytical()
+        return self._grad_s_s_vT
+
+    @property
+    def grad_s_s_vT_pre(self):
+        """
+        3d array of second differentials of DFs with respect to calibrating instruments,
+        of size (m, m, n);
+
+        .. math::
+
+           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+        """
+        if len(self.pre_solvers) == 0:
+            return self.grad_s_s_vT
+
+        if self._grad_s_s_vT_pre is None:
+            self._grad_s_s_vT_pre = self._grad_s_s_vT_final_iteration_analytical(
+                use_pre=True
+            )
+        return self._grad_s_s_vT_pre
+
+    def _grad_s_s_vT_fwd_difference_method(self):
+        """Use a numerical method, iterating through changes in s to calculate."""
+        ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
+        grad_s_vT_0 = np.copy(self.grad_s_vT)
+        grad_s_s_vT = np.zeros(shape=(self.m, self.m, self.n))
+
+        for i in range(self.m):
+            self.s[i] += ds
+            self.iterate()
+            grad_s_s_vT[:, i, :] = (self.grad_s_vT - grad_s_vT_0) / ds
+            self.s[i] -= ds
+
+        # ensure exact symmetry (maybe redundant)
+        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
+        self.iterate()
+        # self._grad_s_vT_fixed_point_iteration()  # TODO: returns nothing: what is purpose
+        return grad_s_s_vT
+
+    def _grad_s_s_vT_final_iteration_analytical(self, use_pre=False):
+        """
+        Use an analytical formula and second order AD to calculate.
+
+        Not: must have 2nd order AD set to function, and valid properties set to
+        function
+        """
+        if use_pre:
+            J2, grad_s_vT = self.J2_pre, self.grad_s_vT_pre
+        else:
+            J2, grad_s_vT = self.J2, self.grad_s_vT
+
+        #
+        _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
+        _ = np.tensordot(grad_s_vT, _, (1, 0))  #  dv_z /ds * d2v / dv_zdv
+        X = -np.tensordot(grad_s_vT, _, (1, 1))  #  dv_h /ds * d2v /dvdv_h
+        # return _ * -1.0
+
+        _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
+        grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
+        return grad_s_s_vT  # * 2.0 TODO: check the equations
+
+    # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
+
+
+class Solver(Gradients):
     """
     A numerical solver to determine node values on multiple curves simultaneously.
 
@@ -244,8 +515,6 @@ class Solver:
                 ret2 = {**ret2, **value[2]}
             return (ret0, ret1, ret2)
 
-    # convert to tuple
-
     def _reset_properties_(self, dual2_only=False):
         """
         Set all calculated attributes to `None` requiring re-evaluation.
@@ -271,7 +540,7 @@ class Solver:
             self._v = None  # depends on self.curves
             self._r = None  # depends on self.pre_curves and self.instruments
             self._x = None  # depends on self.r, self.s
-            self._f = None  # depends on self.x, self.weights
+            self._g = None  # depends on self.x, self.weights
             self._J = None  # depends on self.r
             self._grad_s_vT = None  # final_iter_dual: depends on self.s and iteration
             # fixed_point_iter: depends on self.f
@@ -327,96 +596,19 @@ class Solver:
         return self._x
 
     @property
-    def f(self):
+    def g(self):
         """
         Objective function scalar value of the solver;
 
         .. math::
 
-           f = \\mathbf{(r-S)^{T}W(r-S)}
+           g = \\mathbf{(r-S)^{T}W(r-S)}
 
         Depends on ``self.x`` and ``self.weights``.
         """
-        if self._f is None:
-            self._f = np.dot(self.x, self.weights * self.x)
-        return self._f
-
-    @property
-    def J(self):
-        """
-        2d Jacobian array of rates with respect to discount factors, of size (n, m);
-
-        .. math::
-
-           [J]_{i,j} = [\\nabla_\mathbf{v} \mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial v_i}
-
-        Depends on ``self.r``.
-        """
-        if self._J is None:
-            self._J = np.array([rate.gradient(self.variables) for rate in self.r]).T
-        return self._J
-
-    @property
-    def J2(self):
-        """
-        3d array of second differentials of rates with respect to discount factors,
-        of size (n, n, m);
-
-        .. math::
-
-           [J2]_{i,j,k} = [\\nabla_\mathbf{v} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
-
-        Depends on ``self.r``.
-        """
-        if self._J2 is None:
-            if self._ad != 2:
-                raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is "
-                    "{self._ad}."
-                )
-
-            rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
-            # solver is passed in order to extract curves as string
-            _ = np.array([rate.gradient(self.variables, order=2) for rate in rates])
-            self._J2 = np.transpose(_, (1, 2, 0))
-        return self._J2
-
-    @property
-    def J2_pre(self):
-        """
-        3d array of second differentials of rates with respect to discount factors,
-        of size (n, n, m);
-
-        .. math::
-
-           [J2]_{i,j,k} = [\\nabla_\mathbf{v} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
-
-        Depends on ``self.r`` and ``pre_solvers.J2``.
-        """
-        if len(self.pre_solvers) == 0:
-            return self.J2
-
-        if self._J2_pre is None:
-            if self._ad != 2:
-                raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is "
-                    "{self._ad}."
-                )
-
-            J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
-            i, j = 0, 0
-            for pre_slvr in self.pre_solvers:
-                J2[
-                    i : pre_slvr.pre_n, i : pre_slvr.pre_n, j : pre_slvr.pre_m
-                ] = pre_slvr.J2_pre
-                i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
-
-            rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
-            # solver is passed in order to extract curves as string
-            _ = np.array([r.gradient(self.pre_variables, order=2) for r in rates])
-            J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
-            self._J2_pre = J2
-        return self._J2_pre
+        if self._g is None:
+            self._g = np.dot(self.x, self.weights * self.x)
+        return self._g
 
     # def Jkm(self, extra_vars=[]):
     #     """
@@ -427,7 +619,7 @@ class Solver:
 
     def _update_step_(self, algorithm):
         if algorithm == "gradient_descent":
-            grad_v_f = self.f.gradient(self.variables)
+            grad_v_f = self.g.gradient(self.variables)
             y = np.matmul(self.J.transpose(), grad_v_f[:, np.newaxis])[:, 0]
             alpha = np.dot(y, self.weights * self.x) / np.dot(y, self.weights * y)
             v_1 = self.v - grad_v_f * alpha.real
@@ -437,14 +629,14 @@ class Solver:
                 b = -np.array([x.real for x in self.x])[:, np.newaxis]
             else:
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
-                b = -0.5 * self.f.gradient(self.variables)[:, np.newaxis]
+                b = -0.5 * self.g.gradient(self.variables)[:, np.newaxis]
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            self.lambd *= 2 if self.f_prev < self.f.real else 0.25
+            self.lambd *= 2 if self.g_prev < self.g.real else 0.25
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
-            b = -0.5 * self.f.gradient(self.variables)[:, np.newaxis]
+            b = -0.5 * self.g.gradient(self.variables)[:, np.newaxis]
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
@@ -486,32 +678,32 @@ class Solver:
         None
         """
         DualType = Dual if self._ad == 1 else Dual2
-        self.f_prev, self.f_list, self.lambd = 1e10, [], 1000
+        self.g_prev, self.g_list, self.lambd = 1e10, [], 1000
         self._reset_properties_()
         self._update_fx()
         t0 = time()
         for i in range(self.max_iter):
-            f_val = self.f.real
-            self.f_list.append(f_val)
+            g_val = self.g.real
+            self.g_list.append(g_val)
             # TODO check whether less than or equal to is correct in below condition
             if (
-                self.f.real < self.f_prev
-                and (self.f_prev - self.f.real) < self.conv_tol
+                self.g.real < self.g_prev
+                and (self.g_prev - self.g.real) < self.conv_tol
             ):
                 print(
                     f"SUCCESS: `conv_tol` reached after {i} iterations "
-                    f"({self.algorithm}), `f_val`: {self.f.real}, "
+                    f"({self.algorithm}), `f_val`: {self.g.real}, "
                     f"`time`: {time() - t0:.4f}s"
                 )
                 return None
-            elif self.f.real < self.func_tol:
+            elif self.g.real < self.func_tol:
                 print(
                     f"SUCCESS: `func_tol` reached after {i} iterations "
-                    f"({self.algorithm}) , `f_val`: {self.f.real}, "
+                    f"({self.algorithm}) , `f_val`: {self.g.real}, "
                     f"`time`: {time() - t0:.4f}s"
                 )
                 return None
-            self.f_prev = self.f.real
+            self.g_prev = self.g.real
             v_1 = self._update_step_(self.algorithm)
             _ = 0
             for id, curve in self.curves.items():
@@ -523,7 +715,7 @@ class Solver:
             self._update_fx()
         print(
             f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
-            f"`f_val`: {self.f.real}, `time`: {time() - t0:.4f}s"
+            f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"
         )
         return None
         # raise ValueError(f"Max iterations reached, func: {self.f.real}")
@@ -541,193 +733,6 @@ class Solver:
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def grad_f_vT_pre(self, fx_vars):
-        """
-        Return the derivative of curve variables with respect to FX rates.
-
-        Parameters
-        ----------
-        fx_vars : list or tuple of str
-            The variable name tags for the FX rate sensitivities
-        """
-        # FX sensitivity requires reverting through all pre-solvers rates.
-        rates_pre = []
-        for solver in self.pre_solvers:
-            rates_pre += [rate for rate in solver.r]
-        rates_pre += [rate for rate in self.r]
-        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
-        return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
-
-    def _grad_f_f(self, f, fx_vars):
-        """
-        Return the total derivative of FX loc:bas rate
-        w.r.t. fx vars.
-        """
-        grad_f_f = f.gradient(fx_vars)
-        grad_f_f += np.matmul(
-            self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables)
-        )
-        return grad_f_f
-
-    @property
-    def grad_s_vT(self):
-        """
-        2d Jacobian array of DFs with respect to calibrating instruments,
-        of size (m, n);
-
-        .. math::
-
-           [\\nabla_\mathbf{s}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i}
-        """
-        if self._grad_s_vT is None:
-            self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
-        return self._grad_s_vT
-
-    @property
-    def grad_s_vT_pre(self):
-        """
-        2d Jacobian array of DFs with respect to calibrating instruments including all
-        pre solvers attached to the Solver.
-        """
-        if len(self.pre_solvers) == 0:
-            return self.grad_s_vT
-
-        if self._grad_s_vT_pre is None:
-            grad_s_vT = np.zeros(shape=(self.pre_m, self.pre_n))
-
-            i, j = 0, 0
-            for pre_solver in self.pre_solvers:
-                # create the left side block matrix
-                m, n = pre_solver.pre_m, pre_solver.pre_n
-                grad_s_vT[i:m, j:n] = pre_solver.grad_s_vT_pre
-
-                # create the right column dependencies
-                grad_v_r = np.array(
-                    [r.gradient(pre_solver.pre_variables) for r in self.r]
-                ).T
-                block = np.matmul(grad_v_r, self.grad_s_vT)
-                block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i:m, -self.m :] = block
-
-                i, j = i + m, j + n
-
-            # create bottom right block
-            grad_s_vT[-self.m :, -self.m :] = self.grad_s_vT
-            self._grad_s_vT_pre = grad_s_vT
-        return self._grad_s_vT_pre
-
-    def _grad_s_vT_final_iteration_dual(self, algorithm: Optional[str] = None):
-        """
-        This is not the ideal method since it requires reset_properties to reassess.
-        """
-        algorithm = algorithm or self._grad_s_vT_final_iteration_algo
-        _s = self.s
-        self.s = np.array([Dual(v, f"s{i}") for i, v in enumerate(self.s)])
-        self._reset_properties_()
-        v_1 = self._update_step_(algorithm)
-        s_vars = [f"s{i}" for i in range(self.m)]
-        grad_s_vT = np.array([v.gradient(s_vars) for v in v_1]).T
-        self.s = _s
-        return grad_s_vT
-
-    def _grad_s_vT_final_iteration_analytical(self):
-        grad_s_vT = np.linalg.pinv(self.J)
-        return grad_s_vT
-
-    def _grad_s_vT_fixed_point_iteration(self):
-        """
-        This is not the ideal method becuase it requires second order and reset props.
-        """
-        self._set_ad_order(2)
-        self._reset_properties_()
-        _s = self.s
-        self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
-        s_vars = tuple(f"s{i}" for i in range(self.m))
-        grad2 = self.f.gradient(self.variables + s_vars, order=2)
-        grad_v_vT_f = grad2[: self.n, : self.n]
-        grad_s_vT_f = grad2[self.n :, : self.n]
-        grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
-
-        self.s = _s
-        self._set_ad_order(1)
-        self._reset_properties_()
-        return grad_s_vT
-
-    @property
-    def grad_s_s_vT(self):
-        """
-        3d array of second differentials of DFs with respect to calibrating instruments,
-        of size (m, m, n);
-
-        .. math::
-
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
-        """
-        if self._grad_s_s_vT is None:
-            self._grad_s_s_vT = self._grad_s_s_vT_final_iteration_analytical()
-        return self._grad_s_s_vT
-
-    @property
-    def grad_s_s_vT_pre(self):
-        """
-        3d array of second differentials of DFs with respect to calibrating instruments,
-        of size (m, m, n);
-
-        .. math::
-
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
-        """
-        if len(self.pre_solvers) == 0:
-            return self.grad_s_s_vT
-
-        if self._grad_s_s_vT_pre is None:
-            self._grad_s_s_vT_pre = self._grad_s_s_vT_final_iteration_analytical(
-                use_pre=True
-            )
-        return self._grad_s_s_vT_pre
-
-    def _grad_s_s_vT_fwd_difference_method(self):
-        """Use a numerical method, iterating through changes in s to calculate."""
-        ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
-        grad_s_vT_0 = np.copy(self.grad_s_vT)
-        grad_s_s_vT = np.zeros(shape=(self.m, self.m, self.n))
-
-        for i in range(self.m):
-            self.s[i] += ds
-            self.iterate()
-            grad_s_s_vT[:, i, :] = (self.grad_s_vT - grad_s_vT_0) / ds
-            self.s[i] -= ds
-
-        # ensure exact symmetry (maybe redundant)
-        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
-        self.iterate()
-        # self._grad_s_vT_fixed_point_iteration()  # TODO: returns nothing: what is purpose
-        return grad_s_s_vT
-
-    def _grad_s_s_vT_final_iteration_analytical(self, use_pre=False):
-        """
-        Use an analytical formula and second order AD to calculate.
-
-        Not: must have 2nd order AD set to function, and valid properties set to
-        function
-        """
-        if use_pre:
-            J2, grad_s_vT = self.J2_pre, self.grad_s_vT_pre
-        else:
-            J2, grad_s_vT = self.J2, self.grad_s_vT
-
-        #
-        _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
-        _ = np.tensordot(grad_s_vT, _, (1, 0))  #  dv_z /ds * d2v / dv_zdv
-        X = -np.tensordot(grad_s_vT, _, (1, 1))  #  dv_h /ds * d2v /dvdv_h
-        # return _ * -1.0
-
-        _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
-        grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
-        return grad_s_s_vT  # * 2.0 TODO: check the equations
-
-    # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
     def _delta_inst_arr_local(self, npv):
         """
