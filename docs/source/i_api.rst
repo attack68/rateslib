@@ -180,6 +180,7 @@ Instruments
    :skip: FloatLeg
    :skip: FloatLegExchange
    :skip: FloatLegExchangeMtm
+   :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver
 
@@ -188,7 +189,6 @@ Solver
 
 .. automodapi:: rateslib.solver
    :no-heading:
-   :no-inheritance-diagram:
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2

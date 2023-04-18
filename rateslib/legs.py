@@ -823,7 +823,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         base: Optional[str] = None
     ):
         """
-        Return the properties of the period used in calculating cashflows.
+        Return the properties of the leg used in calculating cashflows.
 
         Parameters
         ----------
@@ -846,13 +846,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
         Returns
         -------
-        dict
-
-        Examples
-        --------
-        .. ipython:: python
-
-           period.cashflows(curve, curve, fxr)
+        DataFrame
         """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
