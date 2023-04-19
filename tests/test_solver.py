@@ -11,7 +11,7 @@ from rateslib import defaults, default_context
 from rateslib.curves import Curve, index_left, LineCurve
 from rateslib.solver import Solver
 from rateslib.dual import Dual
-from rateslib.instruments import IRS, Value, FloatRateBond
+from rateslib.instruments import IRS, Value, FloatRateBond, Portfolio
 from rateslib.fx import FXRates, FXForwards
 
 
@@ -757,9 +757,9 @@ def test_delta_irs_guide_fx_base():
     result = irs.delta(solver=usd_solver, base="eur", fx=fxr)
     expected = DataFrame(
         [[0, 0, 0],
-         [16.772632, 15.247847, 15.247847],
-         [32.60487, 29.640788, 29.640788],
-         [0.0, 0.926514, 0.926514]],
+         [15.247847, 15.247847, 16.772632],
+         [29.640788, 29.640788, 32.60487],
+         [0.926514, 0.926514, 0.0]],
         index=MultiIndex.from_tuples([
                 ("instruments", "usd_sofr", "1m"),
                 ("instruments", "usd_sofr", "3m"),
@@ -768,7 +768,8 @@ def test_delta_irs_guide_fx_base():
             ],
             names=["type", "solver", "label"]),
         columns=MultiIndex.from_tuples([
-            ("usd", "usd"), ("usd", "eur"), ("all", "eur")],
+                ("all", "eur"), ("usd", "eur"), ("usd", "usd"),
+            ],
             names=["local_ccy", "display_ccy"])
     )
     assert_frame_equal(result, expected)
@@ -790,5 +791,70 @@ def test_irs_delta_curves_undefined():
     )
     irs = IRS(dt(2022, 1, 1), "10y", "S", fixed_rate=2.38)
     irs.delta(solver=solver)
+
+
+def test_mechanisms_guide_gamma():
+    instruments = [
+        IRS(dt(2022, 1, 1), "4m", "Q", curves="sofr"),
+        IRS(dt(2022, 1, 1), "8m", "Q", curves="sofr"),
+    ]
+    s = [1.85, 2.10]
+    ll_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 5, 1): 1.0,
+            dt(2022, 9, 1): 1.0
+        },
+        interpolation="log_linear",
+        id="sofr"
+    )
+    ll_solver = Solver(curves=[ll_curve], instruments=instruments, s=s,
+                       instrument_labels=["4m", "8m"], id="sofr")
+
+    instruments = [
+        IRS(dt(2022, 1, 1), "3m", "Q", curves="estr"),
+        IRS(dt(2022, 1, 1), "9m", "Q", curves="estr"),
+    ]
+    s = [0.75, 1.65]
+    ll_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 4, 1): 1.0,
+            dt(2022, 10, 1): 1.0
+        },
+        interpolation="log_linear",
+        id="estr",
+    )
+    combined_solver = Solver(
+        curves=[ll_curve],
+        instruments=instruments,
+        s=s,
+        instrument_labels=["3m", "9m"],
+        pre_solvers=[ll_solver],
+        id="estr"
+    )
+
+    irs = IRS(
+        effective=dt(2022, 1, 1),
+        termination="6m",
+        frequency="Q",
+        currency="usd",
+        notional=500e6,
+        fixed_rate=2.0,
+        curves="sofr",
+    )
+    irs2 = IRS(
+        effective=dt(2022, 1, 1),
+        termination="6m",
+        frequency="Q",
+        currency="eur",
+        notional=-300e6,
+        fixed_rate=1.0,
+        curves="estr",
+    )
+    pf = Portfolio([irs, irs2])
+    pf.npv(solver=combined_solver)
+    pf.delta(solver=combined_solver)
+    pf.gamma(solver=combined_solver)
 
 

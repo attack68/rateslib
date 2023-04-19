@@ -204,7 +204,9 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        _ = - np.tensordot(self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1))
+        _ = - np.tensordot(
+            self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)
+        ).swapaxes(1, 2)
         _ = np.tensordot(_, self.grad_s_vT_pre, (2, 0))
         grad_f_s_vT = _
         return grad_f_s_vT
@@ -225,8 +227,9 @@ class Gradients:
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = - np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
-        grad_s_f_vT = self.grad_f_s_vT_pre(fx_vars).swapaxes(0, 1)
-        _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), grad_s_f_vT, (1, 0))
+        _ -= np.tensordot(
+            self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1)
+        )
         grad_f_f_vT = _
         return grad_f_f_vT
 
@@ -564,7 +567,7 @@ class Gradients:
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
-        grad_x_xT_Ploc = npv.gradent(self.pre_variables + tuple(fx_vars), order=2)
+        grad_x_xT_Ploc = npv.gradient(self.pre_variables + tuple(fx_vars), order=2)
         grad_f_vT_Ploc = grad_x_xT_Ploc[self.pre_n :, : self.pre_n]
         return grad_f_vT_Ploc
 
@@ -585,11 +588,12 @@ class Gradients:
         """
         # fx_rate-instrument cross gamma:
         _ = np.tensordot(
-            npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (0, 1)
-        ) + self.gradp_f_vT_Ploc(npv, fx_vars)
-        _ = np.tensordot(self.grad_s_vT, _, (1, 1))
+            self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables, order=2), (1, 0)
+        )
+        _ += self.gradp_f_vT_Ploc(npv, fx_vars)
+        _ = np.tensordot(_, self.grad_s_vT_pre, (1, 1))
         _ += np.tensordot(
-            self.grad_f_s_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 1)
+            self.grad_f_s_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 0)
         )
         grad_f_sT_Ploc = _
         return grad_f_sT_Ploc
@@ -610,22 +614,18 @@ class Gradients:
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
         # fx_rate-instrument cross gamma:
-        _ = npv.gradient(fx_vars, order=2)
-        _ += np.tensordot(
-            self.grad_f_f_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 0)
-        )
         gradp_f_vT_Ploc = self.gradp_f_vT_Ploc(npv, fx_vars)
-        _ += np.tensordot(
-            self.grad_f_vT_pre(fx_vars), gradp_f_vT_Ploc.swapaxes(0, 1), (2, 0)
-        )
-        _ += np.tensordot(
-            gradp_f_vT_Ploc, self.grad_f_vT_pre(fx_vars), (1, 1)
-        )
+        grad_f_vT_pre = self.grad_f_vT_pre(fx_vars)
+        grad_v_Ploc = npv.gradient(self.pre_variables)
+        grad_v_vT_Ploc = npv.gradient(self.pre_variables, order=2)
 
-        __ = np.tensordot(
-            self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables, order=2), (1, 0)
-        )
-        __ = np.tensordot(__, self.grad_f_vT_pre(fx_vars), (1, 1))
+        _ = npv.gradient(fx_vars, order=2)
+        _ += np.tensordot(self.grad_f_f_vT_pre(fx_vars), grad_v_Ploc, (2, 0))
+        _ += np.tensordot(grad_f_vT_pre, gradp_f_vT_Ploc, (1, 1))
+        _ += np.tensordot(gradp_f_vT_Ploc, grad_f_vT_pre, (1, 1))
+
+        __ = np.tensordot(grad_f_vT_pre, grad_v_vT_Ploc, (1, 0))
+        __ = np.tensordot(__, grad_f_vT_pre, (1, 1))
 
         grad_f_f_Ploc = _ + __
         return grad_f_f_Ploc
@@ -894,7 +894,7 @@ class Solver(Gradients):
         self._J2_pre = None  # depends on self.r and pre_solvers
         self._grad_s_s_vT = None  # final_iter: depends on self.J2 and self.grad_s_vT
         # finite_diff: TODO update comment
-        self._grad_s_s_vT_pre = None  # final_iter: depends pre versions of above
+        self._grad_s_s_vT_pre = None  # final_iter: depends on pre versions of above
         # finite_diff: TODO update comment
 
         # self._grad_v_v_f = None
@@ -1072,6 +1072,7 @@ class Solver(Gradients):
         for pre_solver in self.pre_solvers:
             pre_solver._set_ad_order(order=order)
         self._ad = order
+        self._reset_properties_()
         for _, curve in self.curves.items():
             curve._set_ad_order(order)
         if self.fx is not None:
@@ -1147,25 +1148,8 @@ class Solver(Gradients):
         association exists and a direct ``fx`` object is supplied a warning may be
         emitted if they are not the same object.
         """
-        if base is not None and self.fx is None and fx is None:
-            raise ValueError(
-                "`base` is given but `fx` is not and Solver does not "
-                "contain an attached FXForwards object."
-            )
-        elif fx is None:
-            fx = self.fx
-        elif fx is not None and self.fx is not None:
-            if id(fx) != id(self.fx):
-                warnings.warn(
-                    "Solver contains an `fx` attribute but an `fx` argument has been "
-                    "supplied which is not the same. This can lead to risk sensitivity "
-                    "inconsistencies, mathematically.", UserWarning)
-        if base is not None:
-            base = base.lower()
-
-        fx_vars = []
-        if fx is not None:
-            fx_vars = [f"fx_{pair}" for pair in fx.pairs]
+        base, fx = self._get_base_and_fx(base, fx)
+        fx_vars = tuple() if fx is None else fx.variables
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = 0.0001
@@ -1383,6 +1367,24 @@ class Solver(Gradients):
 
         return df
 
+    def _get_base_and_fx(self, base, fx):
+        if base is not None and self.fx is None and fx is None:
+            raise ValueError(
+                "`base` is given but `fx` is not and Solver does not "
+                "contain an attached FXForwards object."
+            )
+        elif fx is None:
+            fx = self.fx
+        elif fx is not None and self.fx is not None:
+            if id(fx) != id(self.fx):
+                warnings.warn(
+                    "Solver contains an `fx` attribute but an `fx` argument has been "
+                    "supplied which is not the same. This can lead to risk sensitivity "
+                    "inconsistencies, mathematically.", UserWarning)
+        if base is not None:
+            base = base.lower()
+        return base, fx
+
     def gamma(self, npv, base=None, fx=None):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
@@ -1413,10 +1415,13 @@ class Solver(Gradients):
 
         The output ``DataFrame`` has the following structure:
 
-        - A 4-level index by *'local_ccy'*, *'type'*, *'solver'*, and *'label'*;
+        - A 5-level index by *'local_ccy'*, *'display_ccy'*, *'type'*, *'solver'*,
+          and *'label'*;
 
           - **local_ccy** displays the currency for which cashflows are payable, and
             therefore the local currency risk sensitivity amount.
+          - **display_ccy** displays the currency which the local currency risk
+            sensitivity has been converted to via an FX transformation.
           - **type** is either *'instruments'* or *'fx'*, and fx exposures are only
             calculated and displayed in some cases where genuine FX exposure arises.
           - **solver** lists the different solver ``id`` s to identify between
@@ -1424,20 +1429,75 @@ class Solver(Gradients):
           - **label** lists the given instrument names in each solver using the
             ``instrument_labels``.
 
-        - A 4-level column header index by *'display_ccy'*, *'type'*, *'solver'*,
-          and *'label'*;
+        - A 5-level column header index as above;
 
-          - **local_ccy** displays the currency for which cashflows are payable, and
-            therefore the local currency risk sensitivity amount.
-          - **display_ccy** displays the currency which the local currency risk
-            sensitivity has been converted to via an FX transformation.
-
-        Converting a delta from a local currency to another ``base`` currency also
+        Converting a gamma/delta from a local currency to another ``base`` currency also
         introduces FX risk to the NPV of the instrument, which is included in the
         output.
         """
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
+
+        # new
+        base, fx = self._get_base_and_fx(base, fx)
+        fx_vars = tuple() if fx is None else fx.variables
+
+        inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
+        fx_scalar = np.ones(len(fx_vars)) * 0.0001
+        container = {}
+        for ccy in npv:
+            container[(ccy, ccy)] = {}
+            container[(ccy, ccy)]["instruments", "instruments"] = (
+                self.grad_s_sT_Ploc(npv[ccy]) *
+                np.matmul(inst_scalar[:, None], inst_scalar[None, :])
+            )
+            container[(ccy, ccy)]["fx", "instruments"] = (
+                self.grad_f_sT_Ploc(npv[ccy], fx_vars) *
+                np.matmul(fx_scalar[:, None], inst_scalar[None, :])
+            )
+            container[(ccy, ccy)]["instruments", "fx"] = (
+                container[(ccy, ccy)][("fx", "instruments")].T
+            )
+            container[(ccy, ccy)]["fx", "fx"] = (
+                self.grad_f_fT_Ploc(npv[ccy], fx_vars) *
+                np.matmul(fx_scalar[:, None], fx_scalar[None, :])
+            )
+
+            if base is not None and base != ccy:
+                # extend the derivatives
+                f = fx.rate(f"{ccy}{base}")
+                raise NotImplementedError("no base option yet")
+
+        # construct the DataFrame from container with hierarchical indexes
+        currencies = list(npv.keys())
+        local_keys = [(ccy, ccy) for ccy in currencies]
+        base_keys = [] if base is None else [(ccy, base) for ccy in currencies]
+        inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
+        fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
+        idx_tuples = [
+            c + l for c in local_keys + base_keys for l in inst_keys + fx_keys
+        ]
+        idx = MultiIndex.from_tuples(
+            [key for key in idx_tuples],
+            names=["local_ccy", "display_ccy", "type", "solver", "label"]
+        )
+        df = DataFrame(None, index=idx, columns=idx)
+        for key, d in container.items():
+            array = np.block([
+                [d[("instruments", "instruments")], d[("instruments", "fx")]],
+                [d[("fx", "instruments")], d[("fx", "fx")]]
+            ])
+            locator = key + (slice(None), slice(None), slice(None))
+            df.loc[locator, locator] = array
+
+        if base is not None:
+            #
+            raise NotImplementedError("no sum for base")
+            # df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+
+        return df
+
+        # end new
 
         return self._gamma_inst_arr_local(npv)
 

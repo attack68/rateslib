@@ -123,6 +123,7 @@ class FXRates:
 
         # find currencies
         self.pairs = [k for k in self.fx_rates.keys()]
+        self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
         self.currencies = {
             k: i for i, k in enumerate(list(
             dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs])
@@ -850,6 +851,7 @@ class FXForwards:
             )
             self.base = self.fx_rates.base if base is None else base
             self.pairs = self.fx_rates.pairs
+            self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
             self.fx_rates_immediate = self._update_fx_rates_immediate()
 
     def __init__(
