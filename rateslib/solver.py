@@ -60,10 +60,9 @@ class Gradients:
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
         """
-        rates_pre, variables_pre = [], []
+        rates_pre = []
         for solver in self.pre_solvers:
             rates_pre += [rate for rate in solver.r]
-            variables_pre += solver.variables
         rates_pre += [rate for rate in self.r]
         grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
         return grad_f_rT
@@ -153,15 +152,13 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        rates_pre, variables_pre = [], []
+        rates_pre= []
         for solver in self.pre_solvers:
             rates_pre += [rate for rate in solver.r]
-            variables_pre += solver.variables
         rates_pre += [rate for rate in self.r]
-        variables_pre += self.variables
 
         all_gradients = np.array(
-            [rate.gradient(variables_pre + tuple(fx_vars), order=2) for rate in rates_pre]
+            [rate.gradient(self.pre_variables + tuple(fx_vars), order=2) for rate in rates_pre]
         ).swapaxes(0, 2)
 
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
@@ -453,8 +450,8 @@ class Gradients:
 
     def grad_f_Ploc(self, npv, fx_vars):
         """
-        1d array of derivatives of local currency PV with respect to calibrating
-        instruments, of size (len(fx_vars)).
+        1d array of derivatives of local currency PV with respect to FX rate variable,
+        of size (len(fx_vars)).
 
         .. math::
 
@@ -471,6 +468,167 @@ class Gradients:
             self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables)
         )
         return grad_f_P
+
+    def grad_s_Pbase(self, npv, grad_s_P, f):
+        """
+        1d array of derivatives of base currency PV with respect to calibrating
+        instruments, of size (pre_m).
+
+        .. math::
+
+           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_s_P : ndarray
+                The local currency delta risks w.r.t. calibrating instruments.
+            f : Dual or Dual2
+                The local:base FX rate.
+        """
+        grad_s_Pbas = float(npv) * np.matmul(
+            self.grad_s_vT_pre, f.gradient(self.pre_variables)
+        )
+        grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
+        return grad_s_Pbas
+
+    def grad_f_Pbase(self, npv, grad_f_P, f, fx_vars):
+        """
+        1d array of derivatives of base currency PV with respect to FX rate variables,
+        of size (len(fx_vars)).
+
+        .. math::
+
+           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_f_P : ndarray
+                The local currency delta risks w.r.t. FX pair variables.
+            f : Dual or Dual2
+                The local:base FX rate.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        ret = grad_f_P * float(f)  #  <- use float here to cast float array not Dual
+        ret += float(npv) * self._grad_f_f(f, fx_vars)
+        return ret
+
+    def grad_s_sT_Ploc(self, npv):
+        """
+        2d array of derivatives of local currency PV with respect to calibrating
+        instruments, of size (pre_m, pre_m).
+
+        .. math::
+
+           \\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} P^{loc}(\mathbf{v, f}) = \\frac{ \\partial^2 P^{loc}(\mathbf{v(s, f)}) }{\\partial s_i \\partial s_j}
+
+        Parameters:
+            npv : Dual2
+                A local currency NPV of a period of a leg.
+        """
+        # instrument-instrument cross gamma:
+        _ = np.tensordot(
+            npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1)
+        )
+        _ = np.tensordot(self.grad_s_vT_pre, _, (1, 0))
+
+        _ += np.tensordot(
+            self.grad_s_s_vT_pre, npv.gradient(self.pre_variables), (2, 0)
+        )
+        grad_s_sT_P = _
+        return grad_s_sT_P
+        # grad_s_sT_P = np.matmul(
+        #     self.grad_s_vT_pre,
+        #     np.matmul(
+        #         npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
+        #     ),
+        # )
+        # grad_s_sT_P += np.matmul(
+        #     self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
+        # )[:, :, 0]
+
+    def gradp_f_vT_Ploc(self, npv, fx_vars):
+        """
+        2d array of (partial) derivatives of local currency PV with respect to
+        FX rate variables and curve variables, of size (len(fx_vars), pre_n).
+
+        .. math::
+
+           \\nabla_\mathbf{f} \\nabla_\mathbf{v}^\mathbf{T} P^{loc}(\mathbf{v, f}) = \\frac{ \\partial ^2 P^{loc}(\mathbf{v, f)}) }{\\partial f_i \\partial v_j}
+
+        Parameters:
+            npv : Dual2
+                A local currency NPV of a period of a leg.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        grad_x_xT_Ploc = npv.gradent(self.pre_variables + tuple(fx_vars), order=2)
+        grad_f_vT_Ploc = grad_x_xT_Ploc[self.pre_n :, : self.pre_n]
+        return grad_f_vT_Ploc
+
+    def grad_f_sT_Ploc(self, npv, fx_vars):
+        """
+        2d array of derivatives of local currency PV with respect to calibrating
+        instruments, of size (pre_m, pre_m).
+
+        .. math::
+
+           \\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} P^{loc}(\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\mathbf{v(s, f), f)}) }{d f_i \\partial s_j}
+
+        Parameters:
+            npv : Dual2
+                A local currency NPV of a period of a leg.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        # fx_rate-instrument cross gamma:
+        _ = np.tensordot(
+            npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (0, 1)
+        ) + self.gradp_f_vT_Ploc(npv, fx_vars)
+        _ = np.tensordot(self.grad_s_vT, _, (1, 1))
+        _ += np.tensordot(
+            self.grad_f_s_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 1)
+        )
+        grad_f_sT_Ploc = _
+        return grad_f_sT_Ploc
+
+    def grad_f_fT_Ploc(self, npv, fx_vars):
+        """
+        2d array of derivatives of local currency PV with respect to FX rate variables,
+        of size (len(fx_vars), len(fx_vars)).
+
+        .. math::
+
+           \\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} P^{loc}(\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\mathbf{v(s, f), f)}) }{d f_i d f_j}
+
+        Parameters:
+            npv : Dual2
+                A local currency NPV of a period of a leg.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        # fx_rate-instrument cross gamma:
+        _ = npv.gradient(fx_vars, order=2)
+        _ += np.tensordot(
+            self.grad_f_f_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 0)
+        )
+        gradp_f_vT_Ploc = self.gradp_f_vT_Ploc(npv, fx_vars)
+        _ += np.tensordot(
+            self.grad_f_vT_pre(fx_vars), gradp_f_vT_Ploc.swapaxes(0, 1), (2, 0)
+        )
+        _ += np.tensordot(
+            gradp_f_vT_Ploc, self.grad_f_vT_pre(fx_vars), (1, 1)
+        )
+
+        __ = np.tensordot(
+            self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables, order=2), (1, 0)
+        )
+        __ = np.tensordot(__, self.grad_f_vT_pre(fx_vars), (1, 1))
+
+        grad_f_f_Ploc = _ + __
+        return grad_f_f_Ploc
 
 
 class Solver(Gradients):
@@ -923,48 +1081,6 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _delta_inst_arr_base(self, npv, grad_s_P, f):
-        """
-        Calculate the block,
-
-        .. math::
-
-           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
-
-        Parameters:
-            npv : Dual or Dual2
-                A local currency NPV of a period of a leg.
-            grad_s_P : ndarray
-                The local currency delta risks w.r.t. calibrating instruments.
-            f : Dual or Dual2
-                The local:base FX rate.
-        """
-        grad_s_Pbas = float(npv) * np.matmul(
-            self.grad_s_vT_pre, f.gradient(self.pre_variables)
-        )
-        grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
-        return grad_s_Pbas
-
-    def _delta_fx_arr_base(self, npv, grad_f_P, f, fx_vars):
-        """
-        Calculate the block,
-
-        .. math::
-
-           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
-
-        Parameters:
-            npv : Dual or Dual2
-                A local currency NPV of a period of a leg.
-            grad_f_P : ndarray
-                The local currency delta risks w.r.t. FX pair variables.
-            f : Dual or Dual2
-                The local:base FX rate.
-        """
-        ret = grad_f_P * float(f)  #  <- use float here to cast float array not Dual
-        ret += float(npv) * self._grad_f_f(f, fx_vars)
-        return ret
-
     def delta(self, npv, base=None, fx=None):
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
@@ -1065,10 +1181,10 @@ class Solver(Gradients):
             if base is not None and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
-                container[("instruments", ccy, base)] = self._delta_inst_arr_base(
+                container[("instruments", ccy, base)] = self.grad_s_Pbase(
                     npv[ccy], container[("instruments", ccy, ccy)] / inst_scalar, f
                 ) * inst_scalar
-                container[("fx", ccy, base)] = self._delta_fx_arr_base(
+                container[("fx", ccy, base)] = self.grad_f_Pbase(
                     npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars
                 ) * fx_scalar
 
@@ -1209,37 +1325,6 @@ class Solver(Gradients):
     #         ret = concat([df, dfx])
     #
     #     return ret
-
-    def gamma_inst_arr_local2(self, npv):
-        """
-        Calculate the block,
-
-        TODO math
-
-        Parameters:
-            npv : Dual2
-                A local currency NPV of a period of a leg.
-        """
-        # instrument-instrument cross gamma:
-        _ = np.tensordot(
-            npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1)
-        )
-        _ = np.tensordot(self.grad_s_vT_pre, _, (1, 0))
-
-        _ += np.tensordot(
-            self.grad_s_s_vT_pre, npv.gradient(self.pre_variables), (2, 0)
-        )
-        grad_s_sT_P = _
-        return grad_s_sT_P
-        # grad_s_sT_P = np.matmul(
-        #     self.grad_s_vT_pre,
-        #     np.matmul(
-        #         npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
-        #     ),
-        # )
-        # grad_s_sT_P += np.matmul(
-        #     self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
-        # )[:, :, 0]
 
     def _gamma_inst_arr_local(self, npv):
         """
