@@ -46,27 +46,6 @@ class Gradients:
         """
         return self.J
 
-    def grad_f_rT_pre(self, fx_vars):
-        """
-        2d Jacobian array of calibrating instrument rates with respect to FX rate
-        variables, of size (len(fx_vars), pre_m);
-
-        .. math::
-
-           [\\nabla_\mathbf{f}\mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial f_i}
-
-        Parameters
-        ----------
-        fx_vars : list or tuple of str
-            The variable name tags for the FX rate sensitivities.
-        """
-        rates_pre = []
-        for solver in self.pre_solvers:
-            rates_pre += [rate for rate in solver.r]
-        rates_pre += [rate for rate in self.r]
-        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
-        return grad_f_rT
-
     @property
     def J2(self):
         """
@@ -98,6 +77,133 @@ class Gradients:
         Alias of ``J2``.
         """
         return self.J2
+
+    @property
+    def grad_s_vT(self):
+        """
+        2d Jacobian array of curve variables with respect to calibrating instruments,
+        of size (m, n);
+
+        .. math::
+
+           [\\nabla_\mathbf{s}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i} = \mathbf{J^+}
+        """
+        if self._grad_s_vT is None:
+            self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
+        return self._grad_s_vT
+
+    def _grad_s_vT_final_iteration_dual(self, algorithm: Optional[str] = None):
+        """
+        This is not the ideal method since it requires reset_properties to reassess.
+        """
+        algorithm = algorithm or self._grad_s_vT_final_iteration_algo
+        _s = self.s
+        self.s = np.array([Dual(v, f"s{i}") for i, v in enumerate(self.s)])
+        self._reset_properties_()
+        v_1 = self._update_step_(algorithm)
+        s_vars = [f"s{i}" for i in range(self.m)]
+        grad_s_vT = np.array([v.gradient(s_vars) for v in v_1]).T
+        self.s = _s
+        return grad_s_vT
+
+    def _grad_s_vT_final_iteration_analytical(self):
+        grad_s_vT = np.linalg.pinv(self.J)
+        return grad_s_vT
+
+    def _grad_s_vT_fixed_point_iteration(self):
+        """
+        This is not the ideal method becuase it requires second order and reset props.
+        """
+        self._set_ad_order(2)
+        self._reset_properties_()
+        _s = self.s
+        self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
+        s_vars = tuple(f"s{i}" for i in range(self.m))
+        grad2 = self.g.gradient(self.variables + s_vars, order=2)
+        grad_v_vT_f = grad2[: self.n, : self.n]
+        grad_s_vT_f = grad2[self.n :, : self.n]
+        grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
+
+        self.s = _s
+        self._set_ad_order(1)
+        self._reset_properties_()
+        return grad_s_vT
+
+    @property
+    def grad_s_s_vT(self):
+        """
+        3d array of second derivatives of curve variables with respect to
+        calibrating instruments, of size (m, m, n);
+
+        .. math::
+
+           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+        """
+        if self._grad_s_s_vT is None:
+            self._grad_s_s_vT = self._grad_s_s_vT_final_iteration_analytical()
+        return self._grad_s_s_vT
+
+    def _grad_s_s_vT_fwd_difference_method(self):
+        """Use a numerical method, iterating through changes in s to calculate."""
+        ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
+        grad_s_vT_0 = np.copy(self.grad_s_vT)
+        grad_s_s_vT = np.zeros(shape=(self.m, self.m, self.n))
+
+        for i in range(self.m):
+            self.s[i] += ds
+            self.iterate()
+            grad_s_s_vT[:, i, :] = (self.grad_s_vT - grad_s_vT_0) / ds
+            self.s[i] -= ds
+
+        # ensure exact symmetry (maybe redundant)
+        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
+        self.iterate()
+        # self._grad_s_vT_fixed_point_iteration()  # TODO: returns nothing: what is purpose
+        return grad_s_s_vT
+
+    def _grad_s_s_vT_final_iteration_analytical(self, use_pre=False):
+        """
+        Use an analytical formula and second order AD to calculate.
+
+        Not: must have 2nd order AD set to function, and valid properties set to
+        function
+        """
+        if use_pre:
+            J2, grad_s_vT = self.J2_pre, self.grad_s_vT_pre
+        else:
+            J2, grad_s_vT = self.J2, self.grad_s_vT
+
+        _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
+        _ = np.tensordot(grad_s_vT, _, (1, 0))  # dv_z /ds * d2v / dv_zdv
+        _ = -np.tensordot(grad_s_vT, _, (1, 1))  # dv_h /ds * d2v /dvdv_h
+        grad_s_s_vT = _
+        return grad_s_s_vT
+        # _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
+        # grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
+        # return grad_s_s_vT
+
+    # _pre versions incorporate all variables of solver and pre_solvers
+
+    def grad_f_rT_pre(self, fx_vars):
+        """
+        2d Jacobian array of calibrating instrument rates with respect to FX rate
+        variables, of size (len(fx_vars), pre_m);
+
+        .. math::
+
+           [\\nabla_\mathbf{f}\mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial f_i}
+
+        Parameters
+        ----------
+        fx_vars : list or tuple of str
+            The variable name tags for the FX rate sensitivities.
+        """
+        rates_pre = []
+        for solver in self.pre_solvers:
+            rates_pre += [rate for rate in solver.r]
+        rates_pre += [rate for rate in self.r]
+        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
+        return grad_f_rT
 
     @property
     def J2_pre(self):
@@ -189,6 +295,32 @@ class Gradients:
         ).swapaxes(0, 2)
         return grad_f_f_rT
 
+    @property
+    def grad_s_s_vT_pre(self):
+        """
+        3d array of second derivatives of curve variables with respect to
+        calibrating instruments, of size (pre_m, pre_m, pre_n);
+
+        .. math::
+
+           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+        """
+        if len(self.pre_solvers) == 0:
+            return self.grad_s_s_vT
+
+        if self._grad_s_s_vT_pre is None:
+            self._grad_s_s_vT_pre = self._grad_s_s_vT_final_iteration_analytical(
+                use_pre=True
+            )
+        return self._grad_s_s_vT_pre
+
+    @property
+    def grad_v_v_rT_pre(self):
+        """
+        Alias of ``J2_pre``.
+        """
+        return self.J2_pre
+
     def grad_f_s_vT_pre(self, fx_vars):
         """
         3d array of second derivatives of curve variables with respect to
@@ -233,13 +365,6 @@ class Gradients:
         grad_f_f_vT = _
         return grad_f_f_vT
 
-    @property
-    def grad_v_v_rT_pre(self):
-        """
-        Alias of ``J2_pre``.
-        """
-        return self.J2_pre
-
     def grad_f_vT_pre(self, fx_vars):
         """
         2d array of the derivatives of curve variables with respect to FX rates, of
@@ -262,30 +387,27 @@ class Gradients:
         grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
         return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
 
-    def _grad_f_f(self, f, fx_vars):
+    def grad_f_f(self, f, fx_vars):
         """
-        Return the total derivative of FX loc:bas rate
-        w.r.t. fx vars.
+        1d array of total derivatives of FX conversion rate with respect to
+        FX rate variables, of size (len(fx_vars));
+
+        .. math::
+
+           [\\nabla_\mathbf{f} f_{loc:bas}]_{i} = \\frac{d f}{d f_i}
+
+        Parameters
+        ----------
+        f : Dual or Dual2
+            The value of the local to base FX conversion rate.
+        fx_vars : list or tuple of str
+            The variable name tags for the FX rate sensitivities
         """
         grad_f_f = f.gradient(fx_vars)
         grad_f_f += np.matmul(
             self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables)
         )
         return grad_f_f
-
-    @property
-    def grad_s_vT(self):
-        """
-        2d Jacobian array of curve variables with respect to calibrating instruments,
-        of size (m, n);
-
-        .. math::
-
-           [\\nabla_\mathbf{s}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i} = \mathbf{J^+}
-        """
-        if self._grad_s_vT is None:
-            self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
-        return self._grad_s_vT
 
     @property
     def grad_s_vT_pre(self):
@@ -324,116 +446,122 @@ class Gradients:
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
-    def _grad_s_vT_final_iteration_dual(self, algorithm: Optional[str] = None):
+    def grad_s_f_pre(self, f):
         """
-        This is not the ideal method since it requires reset_properties to reassess.
-        """
-        algorithm = algorithm or self._grad_s_vT_final_iteration_algo
-        _s = self.s
-        self.s = np.array([Dual(v, f"s{i}") for i, v in enumerate(self.s)])
-        self._reset_properties_()
-        v_1 = self._update_step_(algorithm)
-        s_vars = [f"s{i}" for i in range(self.m)]
-        grad_s_vT = np.array([v.gradient(s_vars) for v in v_1]).T
-        self.s = _s
-        return grad_s_vT
-
-    def _grad_s_vT_final_iteration_analytical(self):
-        grad_s_vT = np.linalg.pinv(self.J)
-        return grad_s_vT
-
-    def _grad_s_vT_fixed_point_iteration(self):
-        """
-        This is not the ideal method becuase it requires second order and reset props.
-        """
-        self._set_ad_order(2)
-        self._reset_properties_()
-        _s = self.s
-        self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
-        s_vars = tuple(f"s{i}" for i in range(self.m))
-        grad2 = self.g.gradient(self.variables + s_vars, order=2)
-        grad_v_vT_f = grad2[: self.n, : self.n]
-        grad_s_vT_f = grad2[self.n :, : self.n]
-        grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
-
-        self.s = _s
-        self._set_ad_order(1)
-        self._reset_properties_()
-        return grad_s_vT
-
-    @property
-    def grad_s_s_vT(self):
-        """
-        3d array of second derivatives of curve variables with respect to
-        calibrating instruments, of size (m, m, n);
+        1d array of FX conversion rate with respect to calibrating instruments,
+        of size (pre_m);
 
         .. math::
 
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
-        """
-        if self._grad_s_s_vT is None:
-            self._grad_s_s_vT = self._grad_s_s_vT_final_iteration_analytical()
-        return self._grad_s_s_vT
+           [\\nabla_\mathbf{s} f_{loc:bas}]_{i} = \\frac{\\partial f}{\\partial s_i}
 
-    @property
-    def grad_s_s_vT_pre(self):
+        Parameters
+        ----------
+        f : Dual or Dual2
+            The value of the local to base FX conversion rate.
         """
-        3d array of second derivatives of curve variables with respect to
-        calibrating instruments, of size (pre_m, pre_m, pre_n);
+        _ = np.tensordot(
+            self.grad_s_vT_pre, f.gradient(self.pre_variables), (1, 0)
+        )
+        grad_s_f = _
+        return grad_s_f
+
+    def grad_s_sT_f_pre(self, f):
+        """
+        2d array of derivatives of FX conversion rate with respect to
+        calibrating instruments, of size (pre_m, pre_m);
 
         .. math::
 
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+           [\\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} f_{loc:bas}]_{i,j} = \\frac{\\partial^2 f}{\\partial s_i \\partial s_j}
+
+        Parameters
+        ----------
+        f : Dual or Dual2
+            The value of the local to base FX conversion rate.
         """
-        if len(self.pre_solvers) == 0:
-            return self.grad_s_s_vT
+        grad_s_vT = self.grad_s_vT_pre
+        grad_v_vT_f = f.gradient(self.pre_variables, order=2)
 
-        if self._grad_s_s_vT_pre is None:
-            self._grad_s_s_vT_pre = self._grad_s_s_vT_final_iteration_analytical(
-                use_pre=True
-            )
-        return self._grad_s_s_vT_pre
+        _ = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))
+        _ = np.tensordot(_, grad_s_vT, (1, 1))
 
-    def _grad_s_s_vT_fwd_difference_method(self):
-        """Use a numerical method, iterating through changes in s to calculate."""
-        ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
-        grad_s_vT_0 = np.copy(self.grad_s_vT)
-        grad_s_s_vT = np.zeros(shape=(self.m, self.m, self.n))
+        grad_s_sT_f = _
+        return grad_s_sT_f
 
-        for i in range(self.m):
-            self.s[i] += ds
-            self.iterate()
-            grad_s_s_vT[:, i, :] = (self.grad_s_vT - grad_s_vT_0) / ds
-            self.s[i] -= ds
-
-        # ensure exact symmetry (maybe redundant)
-        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
-        self.iterate()
-        # self._grad_s_vT_fixed_point_iteration()  # TODO: returns nothing: what is purpose
-        return grad_s_s_vT
-
-    def _grad_s_s_vT_final_iteration_analytical(self, use_pre=False):
+    def grad_f_sT_f_pre(self, f, fx_vars):
         """
-        Use an analytical formula and second order AD to calculate.
+        2d array of derivatives of FX conversion rate with respect to
+        calibrating instruments, of size (pre_m, pre_m);
 
-        Not: must have 2nd order AD set to function, and valid properties set to
-        function
+        .. math::
+
+           [\\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} f_{loc:bas}(\mathbf{v(s, f), f)})]_{i,j} = \\frac{d^2 f}{d f_i \\partial s_j}
+
+        Parameters
+        ----------
+        f : Dual or Dual2
+            The value of the local to base FX conversion rate.
+        fx_vars : list or tuple of str
+            The variable name tags for the FX rate sensitivities
         """
-        if use_pre:
-            J2, grad_s_vT = self.J2_pre, self.grad_s_vT_pre
-        else:
-            J2, grad_s_vT = self.J2, self.grad_s_vT
+        grad_s_vT = self.grad_s_vT_pre
+        grad_v_f = f.gradient(self.pre_variables)
+        grad_f_sT_v = self.grad_f_s_vT_pre(fx_vars)
+        _ = f.gradient(self.pre_variables + tuple(fx_vars), order=2)
+        grad_v_vT_f = _[: self.pre_n,: self.pre_n]
+        grad_f_vT_f = _[self.pre_n :, : self.pre_n]
+        # grad_f_fT_f = _[self.pre_n :, self.pre_n :]
+        grad_f_vT = self.grad_f_vT_pre(fx_vars)
 
-        _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
-        _ = np.tensordot(grad_s_vT, _, (1, 0))  # dv_z /ds * d2v / dv_zdv
-        _ = -np.tensordot(grad_s_vT, _, (1, 1))  # dv_h /ds * d2v /dvdv_h
-        grad_s_s_vT = _
-        return grad_s_s_vT
-        # _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
-        # grad_s_s_vT = -np.tensordot(grad_s_vT, _, (1, 0))
-        # return grad_s_s_vT
+        _ = np.tensordot(grad_f_sT_v, grad_v_f, (2, 0))
+        _ += np.tensordot(grad_f_vT_f, grad_s_vT, (1, 1))
+
+        __ = np.tensordot(grad_f_vT, grad_v_vT_f, (1, 0))
+        __ = np.tensordot(__, grad_s_vT, (1, 1))
+
+        grad_f_sT_f = _ + __
+        return grad_f_sT_f
+
+    def grad_f_fT_f_pre(self, f, fx_vars):
+        """
+        2d array of derivatives of FX conversion rate with respect to
+        calibrating instruments, of size (pre_m, pre_m);
+
+        .. math::
+
+           [\\nabla_\mathbf{f} \\nabla_\mathbf{f}^\mathbf{T} f_{loc:bas}(\mathbf{v(s, f), f)})]_{i,j} = \\frac{d^2 f}{d f_i d f_j}
+
+        Parameters
+        ----------
+        f : Dual or Dual2
+            The value of the local to base FX conversion rate.
+        fx_vars : list or tuple of str
+            The variable name tags for the FX rate sensitivities
+        """
+        # grad_s_vT = self.grad_s_vT_pre
+        grad_v_f = f.gradient(self.pre_variables)
+        # grad_f_sT_v = self.grad_f_s_vT_pre(fx_vars)
+        _ = f.gradient(self.pre_variables + tuple(fx_vars), order=2)
+        grad_v_vT_f = _[: self.pre_n, : self.pre_n]
+        grad_f_vT_f = _[self.pre_n:, : self.pre_n]
+        grad_f_fT_f = _[self.pre_n :, self.pre_n :]
+        grad_f_vT = self.grad_f_vT_pre(fx_vars)
+        grad_f_fT_v = self.grad_f_f_vT_pre(fx_vars)
+
+        _ = grad_f_fT_f
+        _ += 2.0 * np.tensordot(grad_f_vT_f, grad_f_vT, (1, 1))
+        _ += np.tensordot(grad_f_fT_v, grad_v_f, (2, 0))
+
+        __ = np.tensordot(grad_f_vT, grad_v_vT_f, (1, 0))
+        __ = np.tensordot(__, grad_f_vT, (1, 1))
+
+        grad_f_fT_f = _ + __
+        return grad_f_fT_f
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
+
+    # delta and gamma calculations require all solver and pre_solver variables
 
     def grad_s_Ploc(self, npv):
         """
@@ -515,7 +643,7 @@ class Gradients:
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
         ret = grad_f_P * float(f)  #  <- use float here to cast float array not Dual
-        ret += float(npv) * self._grad_f_f(f, fx_vars)
+        ret += float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
     def grad_s_sT_Ploc(self, npv):
@@ -629,6 +757,102 @@ class Gradients:
 
         grad_f_f_Ploc = _ + __
         return grad_f_f_Ploc
+
+    def grad_s_sT_Pbase(self, npv, grad_s_sT_P, f):
+        """
+        2d array of derivatives of base currency PV with respect to calibrating
+        instrument rate variables, of size (pre_m, pre_m).
+
+        .. math::
+
+           \\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} P^{bas}(\mathbf{v(s, f), f})
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_s_sT_P : ndarray
+                The local currency gamma risks w.r.t. calibrating instrument variables.
+            f : Dual or Dual2
+                The local:base FX rate.
+        """
+        grad_s_f = self.grad_s_f_pre(f)
+        grad_s_sT_f = self.grad_s_sT_f_pre(f)
+        grad_s_P = self.grad_s_Ploc(npv)
+
+        _ = float(f) * grad_s_sT_P
+        _ += np.tensordot(grad_s_f[:, None], grad_s_P[None, :], (1, 0))
+        _ += np.tensordot(grad_s_P[:, None], grad_s_f[None, :], (1, 0))
+        _ += float(npv) * grad_s_sT_f  # <- use float to cast float array not Dual
+
+        grad_s_sT_Pbas = _
+        return grad_s_sT_Pbas
+
+    def grad_f_sT_Pbase(self, npv, grad_f_sT_P, f, fx_vars):
+        """
+        2d array of derivatives of base currency PV with respect to FX variables and
+        calibrating instrument rate variables, of size (len(fx_vars), pre_m).
+
+        .. math::
+
+           \\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} P^{bas}(\mathbf{v(s, f), f})
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_f_sT_P : ndarray
+                The local currency gamma risks w.r.t. FX rate variables and
+                calibrating instrument variables.
+            f : Dual or Dual2
+                The local:base FX rate.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        grad_s_f = self.grad_s_f_pre(f)
+        grad_f_f = self.grad_f_f(f, fx_vars)
+        grad_s_P = self.grad_s_Ploc(npv)
+        grad_f_P = self.grad_f_Ploc(npv, fx_vars)
+        grad_f_sT_f = self.grad_f_sT_f_pre(f, fx_vars)
+
+        _ = float(f) * grad_f_sT_P
+        _ += np.tensordot(grad_f_f[:, None], grad_s_P[None, :], (1, 0))
+        _ += np.tensordot(grad_f_P[:, None], grad_s_f[None, :], (1, 0))
+        _ += float(npv) * grad_f_sT_f  # <- use float to cast float array not Dual
+
+        grad_s_sT_Pbas = _
+        return grad_s_sT_Pbas
+
+    def grad_f_fT_Pbase(self, npv, grad_f_fT_P, f, fx_vars):
+        """
+        2d array of derivatives of base currency PV with respect to calibrating
+        instrument rate variables, of size (pre_m, pre_m).
+
+        .. math::
+
+           \\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} P^{bas}(\mathbf{v(s, f), f})
+
+        Parameters:
+            npv : Dual or Dual2
+                A local currency NPV of a period of a leg.
+            grad_f_fT_P : ndarray
+                The local currency gamma risks w.r.t. FX rate variables.
+            f : Dual or Dual2
+                The local:base FX rate.
+            fx_vars : list or tuple of str
+                The variable tags for automatic differentiation of FX rate sensitivity
+        """
+        # grad_s_f = self.grad_s_f_pre(f)
+        grad_f_f = self.grad_f_f(f, fx_vars)
+        # grad_s_P = self.grad_s_Ploc(npv)
+        grad_f_P = self.grad_f_Ploc(npv, fx_vars)
+        grad_f_fT_f = self.grad_f_fT_f_pre(f, fx_vars)
+
+        _ = float(f) * grad_f_fT_P
+        _ += np.tensordot(grad_f_f[:, None], grad_f_P[None, :], (1, 0))
+        _ += np.tensordot(grad_f_P[:, None], grad_f_f[None, :], (1, 0))
+        _ += float(npv) * grad_f_fT_f  # <- use float to cast float array not Dual
+
+        grad_s_sT_Pbas = _
+        return grad_s_sT_Pbas
 
 
 class Solver(Gradients):
@@ -1197,176 +1421,6 @@ class Solver(Gradients):
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols]
 
-    # def _delta_depr(self, npv, base=None, fx=None):
-    #     """
-    #     Calculate the delta risk sensitivity of an instrument's NPV to the
-    #     calibrating instruments of the :class:`~rateslib.solver.Solver`.
-    #
-    #     Parameters
-    #     ----------
-    #     npv : Dual,
-    #         The NPV of the instrument or composition of instruments to risk.
-    #     base : str, optional
-    #         The currency (3-digit code) to report risk metrics in. If not given will
-    #         default to the local currency of the cashflows.
-    #     fx : FXRates, FXForwards, optional
-    #         The FX object to use to convert risk metrics. If needed but not given
-    #         will default to the ``fx`` object associated with the
-    #         :class:`~rateslib.solver.Solver`.
-    #
-    #     Returns
-    #     -------
-    #     DataFrame
-    #
-    #     Notes
-    #     -----
-    #     .. note::
-    #
-    #        *Instrument* values are scaled to 1bp (1/10000th of a unit) when they are
-    #        rate based. *FX* values are scaled to pips (1/10000th of an FX unit).
-    #
-    #     The output ``DataFrame`` has the following structure:
-    #
-    #     - A 3-level index by *'type'*, *'solver'*, and *'label'*;
-    #
-    #       - **type** is either *'instruments'* or *'fx'*, and fx exposures are only
-    #         calculated and displayed in some cases where genuine FX exposure arises.
-    #       - **solver** lists the different solver ``id`` s to identify between
-    #         different instruments in dependency chains from ``pre_solvers``.
-    #       - **label** lists the given instrument names in each solver using the
-    #         ``instrument_labels``.
-    #
-    #     - A 2-level column header index by *'local_ccy'* and *'display_ccy'*;
-    #
-    #       - **local_ccy** displays the currency for which cashflows are payable, and
-    #         therefore the local currency risk sensitivity amount.
-    #       - **display_ccy** displays the currency which the local currency risk
-    #         sensitivity has been converted to via an FX transformation.
-    #
-    #     Converting a delta from a local currency to another ``base`` currency also
-    #     introduces FX risk to the NPV of the instrument, which is included in the
-    #     output.
-    #     """
-    #     # if no pre_solvers this reduces to solving without the 'pre'
-    #     if base is not None:
-    #         if fx is None and self.fx is None:
-    #             raise ValueError(
-    #                 "`base` is given but `fx` is not and Solver does not "
-    #                 "contain an attached FXForwards object."
-    #             )
-    #         elif fx is None:
-    #             fx = self.fx
-    #
-    #     ridx = MultiIndex.from_tuples([
-    #         ("instruments",) + label for label in self.pre_instrument_labels
-    #     ], names=["type", "solver", "label"])
-    #     cidx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
-    #     # if len(self.pre_solvers) == 0:
-    #     #     idx = idx.get_level_values(level=1)
-    #     df = DataFrame(None, index=ridx, columns=cidx)
-    #     if base is not None:
-    #         df_base = DataFrame(None, index=ridx, columns=cidx)
-    #     dfx = DataFrame(None, columns=cidx)
-    #     scalar = np.array(self.pre_rate_scalars)
-    #
-    #     for ccy in npv:
-    #
-    #         # populate the df with local currency instrument delta risks
-    #         value = npv[ccy]
-    #         grad_s_P = np.matmul(self.grad_s_vT_pre, value.gradient(self.pre_variables))
-    #         df[(ccy, ccy)] = grad_s_P * scalar / 100
-    #
-    #         if base is not None and base != ccy:
-    #             # populate df_base with base instrument delta risks if base is diff ccy
-    #             value_base = npv[ccy] * fx.rate(f"{ccy}{base}")
-    #             grad_s_P_base = np.matmul(
-    #                 self.grad_s_vT_pre, value_base.gradient(self.pre_variables)
-    #             )
-    #             df_base[(ccy, base)] = grad_s_P_base * scalar / 100
-    #
-    #         fx_vars = [var for var in value.vars if "fx_" in var]
-    #         for fx_var in fx_vars:
-    #             dfx.loc[fx_var[3:], (ccy, ccy)] = value.gradient(fx_var)[0] / 10000
-    #         if base is not None and base != ccy:
-    #             fx_vars_base = [var for var in value_base.vars if "fx_" in var]
-    #             for fx_var in fx_vars_base:
-    #                 dfx.loc[fx_var[3:], (ccy, base)] = \
-    #                     value_base.gradient(fx_var)[0] / 10000
-    #
-    #     if base is not None:
-    #         # sum over all ccy columns expressed in base
-    #         df_base[("all", base)] = df_base.sum(axis=1)
-    #         df = concat([df, df_base], axis=1)
-    #         sorted_idx = df.columns.sortlevel()[0]
-    #         df = df.loc[:, sorted_idx]
-    #
-    #     if dfx.empty:
-    #         ret = df
-    #     else:
-    #         dfx.index = MultiIndex.from_tuples(
-    #             [("fx", "fx", v) for v in dfx.index], names=["type", "solver", "label"]
-    #         )
-    #         ret = concat([df, dfx])
-    #
-    #     return ret
-
-    def _gamma_inst_arr_local(self, npv):
-        """
-        Calculate cross-gamma without concern for base currency conversion.
-        """
-        ccys = list(npv.keys())
-        rccys, cccys = ccys.copy(), ccys.copy()
-
-        outer_index = MultiIndex.from_tuples(
-            [
-                (ccy, "instruments") + label
-                for ccy in rccys
-                for label in self.pre_instrument_labels
-            ],
-            names=["local_ccy", "type", "solver", "label"]
-        )
-        outer_columns = MultiIndex.from_tuples(
-            [
-                (ccy, "instruments") + label
-                for ccy in cccys
-                for label in self.pre_instrument_labels
-            ],
-            names=["display_ccy", "type", "solver", "label"]
-        )
-        inner_index = MultiIndex.from_tuples([
-            ("instruments",) + label for label in self.pre_instrument_labels
-        ], names=["type", "solver", "label"])
-
-        df = DataFrame(None, index=outer_index, columns=outer_columns)
-
-        dfx = DataFrame(None, columns=outer_columns)
-
-        scalar = np.matmul(
-            np.array(self.pre_rate_scalars)[:, np.newaxis],
-            np.array(self.pre_rate_scalars)[np.newaxis, :],
-        )
-
-        for ccy in npv:
-            value = npv[ccy]
-
-            # instrument-instrument cross gamma:
-            grad_s_sT_P = np.matmul(
-                self.grad_s_vT_pre,
-                np.matmul(
-                    value.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
-                ),
-            )
-            grad_s_sT_P += np.matmul(
-                self.grad_s_s_vT_pre, value.gradient(self.pre_variables)[:, None]
-            )[:, :, 0]
-
-            ridx = MultiIndex.from_tuples(
-                [(ccy,) + label for label in inner_index]
-            )
-            df.loc[ridx, ridx] = grad_s_sT_P * scalar / 10000
-
-        return df
-
     def _get_base_and_fx(self, base, fx):
         if base is not None and self.fx is None and fx is None:
             raise ValueError(
@@ -1392,7 +1446,7 @@ class Solver(Gradients):
 
         Parameters
         ----------
-        npv : Dual,
+        npv : Dual2,
             The NPV of the instrument or composition of instruments to risk.
         base : str, optional
             The currency (3-digit code) to report risk metrics in. If not given will
@@ -1466,16 +1520,47 @@ class Solver(Gradients):
             if base is not None and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
-                raise NotImplementedError("no base option yet")
+                container[(ccy, base)] = {}
+                container[(ccy, base)]["instruments", "instruments"] = (
+                        self.grad_s_sT_Pbase(
+                            npv[ccy],
+                            container[(ccy, ccy)]["instruments", "instruments"]
+                            / np.matmul(inst_scalar[:, None], inst_scalar[None, :]),
+                            f
+                        ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
+                )
+                # TODO fix the zero arrays
+                container[(ccy, base)]["fx", "instruments"] = (
+                        self.grad_f_sT_Pbase(
+                            npv[ccy],
+                            container[(ccy, ccy)]["fx", "instruments"]
+                            / np.matmul(fx_scalar[:, None], inst_scalar[None, :]),
+                            f,
+                            fx_vars
+                        ) * np.matmul(fx_scalar[:, None], inst_scalar[None, :])
+                )
+                container[(ccy, base)]["instruments", "fx"] = (
+                    container[(ccy, base)][("fx", "instruments")].T
+                )
+                container[(ccy, base)]["fx", "fx"] = (
+                        self.grad_f_fT_Pbase(
+                            npv[ccy],
+                            container[(ccy, ccy)]["fx", "fx"]
+                            / np.matmul(fx_scalar[:, None], fx_scalar[None, :]),
+                            f,
+                            fx_vars
+                        ) * np.matmul(fx_scalar[:, None], fx_scalar[None, :])
+                )
 
         # construct the DataFrame from container with hierarchical indexes
         currencies = list(npv.keys())
         local_keys = [(ccy, ccy) for ccy in currencies]
         base_keys = [] if base is None else [(ccy, base) for ccy in currencies]
+        all_keys = sorted(list(set(local_keys+base_keys)))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
         idx_tuples = [
-            c + l for c in local_keys + base_keys for l in inst_keys + fx_keys
+            c + l for c in all_keys for l in inst_keys + fx_keys
         ]
         idx = MultiIndex.from_tuples(
             [key for key in idx_tuples],
@@ -1491,107 +1576,63 @@ class Solver(Gradients):
             df.loc[locator, locator] = array
 
         if base is not None:
-            #
-            raise NotImplementedError("no sum for base")
+            pass
+            # TODO implement a sum
             # df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         return df
 
-        # end new
+    def pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
+        """
+        Calculate PnL from market movements over delta and, optionally, gamma.
 
-        return self._gamma_inst_arr_local(npv)
+        Parameters
+        ----------
+        npv : Dual or Dual2,
+            The initial NPV of the instrument or composition of instruments to value.
+        ds : sequence of float
+            The projected market movements of calibrating instruments of the solver,
+            scaled to the appropriate value amount matching the delta representation.
+        dfx : sequence of float
+            The projected market movements of FX rates,
+            scaled to the appropriate value amount matching the delta representation.
+        base : str, optional
+            The currency (3-digit code) to report risk metrics in. If not given will
+            default to the local currency of the cashflows.
+        fx : FXRates, FXForwards, optional
+            The FX object to use to convert risk metrics. If needed but not given
+            will default to the ``fx`` object associated with the
+            :class:`~rateslib.solver.Solver`.
+        order : int in {1, 2}
+            Whether to return a first order delta PnL explain or a second order one
+            including gamma contribution.
 
-        if base is not None:
-            if fx is None and self.fx is None:
-                raise ValueError(
-                    "`base` is given but `fx` is not and Solver does not "
-                    "contain an attached FXForwards object."
-                )
-            elif fx is None:
-                fx = self.fx
+        Returns
+        -------
+        DataFrame
+        """
+        raise NotImplementedError()
 
-        ccys = list(npv.keys())
-        rccys, cccys = ccys.copy(), ccys.copy()
-        if base is not None:
-            if base not in ccys:
-                cccys += [base]
-            rccys += ["all"]
+    def market_movements(self, s_0, s_1, fx_0, fx_1):
+        """
+        Determine market movement between instrument price arrays properly scaled.
 
-        outer_index = MultiIndex.from_tuples(
-            [
-                (ccy, "instruments") + label
-                for ccy in rccys
-                for label in self.pre_instrument_labels
-            ],
-            names=["local_ccy", "type", "solver", "label"]
-        )
-        outer_columns = MultiIndex.from_tuples(
-            [
-                (ccy, "instruments") + label
-                for ccy in cccys
-                for label in self.pre_instrument_labels
-            ],
-            names=["display_ccy", "type", "solver", "label"]
-        )
-        inner_index = MultiIndex.from_tuples([
-            ("instruments",) + label for label in self.pre_instrument_labels
-        ], names=["type", "solver", "label"])
+        Parameters
+        ----------
+        s_0 : sequence or ndarray
+            The initial instrument prices from which market movements are measured.
+        s_1 : sequence or ndarray
+            The subsequent instrument prices to which market movements are measured.
+        fx_0 : sequence or ndarray
+            The initial prices from which to measure market movements from.
+        fx_1 : sequence or ndarray
+            The initial prices from which to measure market movements from.
 
-        df = DataFrame(None, index=outer_index, columns=outer_columns)
-        if base is not None:
-            df_base = DataFrame(None, index=outer_index, columns=outer_columns)
-        dfx = DataFrame(None, columns=outer_columns)
-
-        scalar = np.matmul(
-            np.array(self.pre_rate_scalars)[:, np.newaxis],
-            np.array(self.pre_rate_scalars)[np.newaxis, :],
-        )
-
-        for ccy in npv:
-            value = npv[ccy]
-
-            # instrument-instrument cross gamma:
-            grad_s_sT_P = np.matmul(
-                self.grad_s_vT_pre,
-                np.matmul(
-                    value.gradient(self.pre_variables, order=2), self.grad_s_vT_pre.T
-                ),
-            )
-            grad_s_sT_P += np.matmul(
-                self.grad_s_s_vT_pre, value.gradient(self.pre_variables)[:, None]
-            )[:, :, 0]
-
-            ridx = MultiIndex.from_tuples(
-                [(ccy,) + label for label in inner_index]
-            )
-            df.loc[ridx, ridx] = grad_s_sT_P * scalar / 10000
-
-            if base is not None and base != ccy:
-                value_base = npv[ccy] * fx.rate(f"{ccy}{base}")
-                grad_s_sT_P_base = np.matmul(
-                    self.grad_s_vT_pre,
-                    np.matmul(
-                        value_base.gradient(self.pre_variables, order=2),
-                        self.grad_s_vT_pre.T
-                    ),
-                )
-                grad_s_sT_P_base += np.matmul(
-                    self.grad_s_s_vT_pre,
-                    value_base.gradient(self.pre_variables)[:, None]
-                )[:, :, 0]
-                cidx = MultiIndex.from_tuples(
-                    [(base,) + label for label in inner_index]
-                )
-                df.loc[ridx, cidx] = grad_s_sT_P_base * scalar / 10000
-
-        if base is not None:
-            # sum over all ccy columns expressed in base
-            df_base[("all", base)] = df_base.sum(axis=1)
-            df = concat([df, df_base], axis=1)
-            sorted_idx = df.columns.sortlevel()[0]
-            df = df.loc[:, sorted_idx]
-
-        return df
+        Returns
+        -------
+        tuple of arrays
+        """
+        raise NotImplementedError()
 
     def jacobian(self, solver: Solver):
         """
@@ -1606,6 +1647,7 @@ class Solver(Gradients):
         -------
         DataFrame
         """
+        raise NotImplementedError()
         self.s = np.array(
             [_[0].rate(*_[1], **{**_[2], "solver": solver}) for _ in self.instruments]
         )

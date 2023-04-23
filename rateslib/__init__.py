@@ -127,6 +127,7 @@ from rateslib.instruments import (
     FloatFixedXCS,
     Spread,
     Fly,
+    Portfolio,
 )
 
 # module level doc-string
@@ -216,4 +217,5 @@ __all__ = [
     "XCS",
     "Spread",
     "Fly",
+    "Portfolio",
 ]

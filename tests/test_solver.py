@@ -11,7 +11,7 @@ from rateslib import defaults, default_context
 from rateslib.curves import Curve, index_left, LineCurve
 from rateslib.solver import Solver
 from rateslib.dual import Dual
-from rateslib.instruments import IRS, Value, FloatRateBond, Portfolio
+from rateslib.instruments import IRS, Value, FloatRateBond, Portfolio, XCS
 from rateslib.fx import FXRates, FXForwards
 
 
@@ -855,6 +855,70 @@ def test_mechanisms_guide_gamma():
     pf = Portfolio([irs, irs2])
     pf.npv(solver=combined_solver)
     pf.delta(solver=combined_solver)
-    pf.gamma(solver=combined_solver)
+    fxr = FXRates({"eurusd": 1.10})
+    fxr._set_ad_order(2)
+    result = pf.gamma(solver=combined_solver, fx=fxr, base="eur")
+    pass
+    assert False # TODO the comparison
 
+
+def test_solver_gamma_pnl_explain():
+    instruments = [
+        IRS(dt(2022, 1, 1), "10y", "A", currency="usd", curves="sofr"),
+        IRS(dt(2032, 1, 1), "10y", "A", currency="usd", curves="sofr"),
+        IRS(dt(2022, 1, 1), "10y", "A", currency="eur", curves="estr"),
+        IRS(dt(2032, 1, 1), "10y", "A", currency="eur", curves="estr"),
+        XCS(dt(2022, 1, 1), "10y", "A", currency="usd", leg2_currency="usd", curves=["estr", "eurusd", "sofr", "sofr"]),
+        XCS(dt(2032, 1, 1), "10y", "A", currency="usd", leg2_currency="eur", curves=["estr", "eurusd", "sofr", "sofr"]),
+    ]
+    s_base = np.array([3.45, 2.85, 2.25, 0.9, -15, -10])
+    sofr = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
+        id="sofr"
+    )
+    estr = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
+        id="estr"
+    )
+    eurusd = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
+        id="eurusd"
+    )
+    fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(fxr, {
+        "eureur": estr,
+        "eurusd": eurusd,
+        "usdusd": sofr
+    })
+    solver= Solver(
+        curves=[sofr, estr, eurusd],
+        instruments=instruments,
+        s=s_base,
+        instrument_labels=["usd 10y", "usd 10y10y", "eur 10y", "eur 10y10y", "xcs 10y", "xcs 10y10y"],
+        id="solver",
+        fx=fxf,
+    )
+
+    pf = Portfolio([
+        IRS(dt(2022, 1, 1), "20Y", "A", currency="eur", fixed_rate=2.0, notional=1e8, curves="estr"),
+    ])
+    npv_base = pf.npv(solver=solver)
+    delta_base = pf.delta(solver=solver)
+    gamma_base = pf.gamma(solver=solver)
+
+    s_new = np.array([3.65, 2.99, 2.10, 0.6, -25, -20])
+    solver.s = s_new
+    solver.iterate()
+    npv_new = pf.npv(solver=solver)
+
+    assert False # TODO comparison
+
+
+
+
+
+def test_gamma_with_fxrates_ad_order_1_raises():
+    # when calculating gamma, AD order 2 is needed, the fx rates object passed
+    # must also be converted. TODO
+    pass
 
