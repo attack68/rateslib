@@ -49,6 +49,12 @@ happened to fall on a weekend. The approach is as follows,
 Loading Existing Calendars
 ***************************
 
+.. warning::
+
+   Use preset calendars at your own risk. Generally the repeated yearly holidays are
+   accurate but a full list of ad-hoc and specialised holidays has not been properly
+   reviewed and is not necessarily upto date.
+
 The :meth:`~rateslib.calendars.get_calendar` method is used internally
 to parse the different
 options a user might provide, e.g. supplying `None` and then generating a

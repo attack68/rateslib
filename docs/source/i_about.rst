@@ -13,7 +13,7 @@ The foundations of *rateslib* is really the code library
 `Book IRDS3 <https://github.com/attack68/book_irds3>`_, which laid down
 basic principles and was a sandbox code environment for the
 publication *Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps
-(2022, 3rd Edition)*. Some of the code and algorithms also date back to the authors
+(2022, 3rd Edition)*. Some of the code and algorithms also date back to the author's
 time trading IRSs as a market-maker between 2006 and 2017.
 
 .. image:: _static/thumb_ptirds3.png
@@ -59,6 +59,15 @@ email contact through **rateslib@gmail.com**.
      - Adding the pricing nuances for inflation swaps.
      - Very likely
      - By end 2023
+   * - Bond futures
+     - Adding method and parameters to define bond futures.
+     - Very likely
+     - By mid 2023
+   * - Defaults
+     - Adding the ability to define parameters by specification, e.g. "sofr irs" or
+       "uk gilt", which set multiple default parameters.
+     - Likely, to improve UI.
+     - By mid 2024
    * - Vanilla Swaptions
      - Adding the instruments priced by a volatility input.
      - Likely

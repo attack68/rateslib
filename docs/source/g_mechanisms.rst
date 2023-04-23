@@ -327,7 +327,10 @@ Setting the option to `"warn"` or `"raise"` enforces a :class:`UserWarning` or a
    :okexcept:
 
    defaults.curve_not_in_solver = "raise"
-   irs.rate(ibor_curve, solver)
+   try:
+       irs.rate(ibor_curve, solver)
+   except Exception as e:
+       print(e)
 
 When referencing objects by ``id`` s this becomes immediately apparent since, the
 below will always fail regardless of the configurable option (the ``solver`` does not
@@ -337,4 +340,7 @@ contain the requested curve and therefore cannot fulfill the request).
    :okexcept:
 
    defaults.curve_not_in_solver = "ignore"
-   irs.rate("ibor", solver)
+   try:
+       irs.rate("ibor", solver)
+   except Exception as e:
+       print(e)

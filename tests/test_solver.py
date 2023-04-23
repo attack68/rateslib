@@ -890,13 +890,30 @@ def test_solver_gamma_pnl_explain():
         "eurusd": eurusd,
         "usdusd": sofr
     })
-    solver= Solver(
-        curves=[sofr, estr, eurusd],
-        instruments=instruments,
-        s=s_base,
-        instrument_labels=["usd 10y", "usd 10y10y", "eur 10y", "eur 10y10y", "xcs 10y", "xcs 10y10y"],
-        id="solver",
+    sofr_solver= Solver(
+        curves=[sofr],
+        instruments=instruments[:2],
+        s=[3.45, 2.85],
+        instrument_labels=["10y", "10y10y"],
+        id="sofr",
+        fx=fxf
+    )
+    estr_solver= Solver(
+        curves=[estr],
+        instruments=instruments[2:4],
+        s=[2.25, 0.90],
+        instrument_labels=["10y", "10y10y"],
+        id="estr",
+        fx=fxf
+    )
+    solver = Solver(
+        curves=[eurusd],
+        instruments=instruments[4:],
+        s=[-10, -15],
+        instrument_labels=["10y", "10y10y"],
+        id="xccy",
         fx=fxf,
+        pre_solvers=[sofr_solver, estr_solver]
     )
 
     pf = Portfolio([
@@ -906,15 +923,12 @@ def test_solver_gamma_pnl_explain():
     delta_base = pf.delta(solver=solver)
     gamma_base = pf.gamma(solver=solver)
 
-    s_new = np.array([3.65, 2.99, 2.10, 0.6, -25, -20])
-    solver.s = s_new
-    solver.iterate()
-    npv_new = pf.npv(solver=solver)
+    # s_new = np.array([3.65, 2.99, 2.10, 0.6, -25, -20])
+    # solver.s = s_new
+    # solver.iterate()
+    # npv_new = pf.npv(solver=solver)
 
     assert False # TODO comparison
-
-
-
 
 
 def test_gamma_with_fxrates_ad_order_1_raises():

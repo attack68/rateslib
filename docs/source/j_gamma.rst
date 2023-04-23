@@ -7,266 +7,117 @@
    from datetime import datetime as dt
 
 *****************
-FX Forward Rates
+Gamma Risk
 *****************
 
-Basic spot :class:`~rateslib.fx.FXRates` are extended using discount factor based
-:class:`~rateslib.curves.Curve` s to derive
-arbitrage free forward FX rates. The basic :class:`~rateslib.fx.FXForwards` class is
-summarised below,
+Calculation
+------------------------
 
-.. autosummary::
-   rateslib.fx.FXForwards
-   rateslib.fx.FXForwards.rate
-   rateslib.fx.FXForwards.swap
-   rateslib.fx.FXForwards.curve
-   rateslib.fx.FXForwards.plot
-   rateslib.fx.FXForwards.convert
-   rateslib.fx.FXForwards.convert_positions
-   rateslib.fx.FXForwards.positions
+Gamma, technically cross-gamma, risks are calculated in *rateslib* in a very similar
+manner to delta, albeit the expression of the result is more complicated, since
+cross-gamma risks are a matrix of values, whereas delta risk is typically a vector.
 
-Introduction
-------------
+The output is a DataFrame indexed with a hierarchical index allowing the information
+to be viewed all at one or sliced using pandas indexing tools.
 
-When calculating forward FX rates the following information is required;
+The below gives a full example of constructing solvers with dependency chains, then
+constructing a multi-currency portfolio and viewing the gamma risks in local and base
+currencies.
 
-- The **spot** or **immediate FX rate** observable in the interbank market.
-- The **interest rates** in each currency to derive an interest rate parity
-  expression.
-- The supply and demand factor, that impacts market **FX swap** or **cross-currency
-  swap** price dynamics.
-
-Thus the :class:`~rateslib.fx.FXForwards` class requires this information for
-instantiation. The ``fx_rates`` argument is available to supply the first item.
-The ``fx_curves`` argument requires a dict of labelled curves. This has a specific
-structure where each curve is labelled as a cash-collateral curve. The first 3 digits
-represent the currency of the cashflow and the latter 3 represent the currency in which
-that cashflow is collateralized.
-
-Just for the first example,
-if we suppose that the third element (the supply and demand factor from tenor
-cross-currency markets) is missing or is zero, then we can instantiate the
-class with information from only the first two elements.
+First we initialise the :class:`~rateslib.curves.Curve` s. A SOFR, ESTR and
+cross-currency curve for valuing EUR cashflows collateralized in USD.
 
 .. ipython:: python
 
-   # This is the spot FX exchange rates
-   fx_rates = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-   # These are the interest rate curves in EUR and USD
-   usd_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965})
-   eur_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985})
-   fx_curves = {
-       "usdusd": usd_curve,
-       "eureur": eur_curve,
-       "eurusd": eur_curve,  #  <- This is the same as "eureur" since no third factor
-   }
-   fxf = FXForwards(fx_rates, fx_curves)
+    sofr = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
+        id="sofr"
+    )
+    estr = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
+        id="estr"
+    )
+    eurusd = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
+        id="eurusd"
+    )
 
-With the class instantiated we can use it to calculate forward FX rates.
-
-.. ipython:: python
-
-   fxf.rate("eurusd", dt(2022, 9,15))
-
-To explicitly verify this we can make this calculation manually with the
-FX interest rate parity formula. The relevant interest rates are extracted
-from the curves.
+Then we define our :class:`~rateslib.fx.FXForwards` object and associations.
 
 .. ipython:: python
 
-   usd_curve.rate(dt(2022, 1, 3), dt(2022, 9, 15))
-   eur_curve.rate(dt(2022, 1, 3), dt(2022, 9, 15))
-   dcf(dt(2022, 1, 3), dt(2022, 9, 15), "act360")
+    fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(fxr, {
+        "eureur": estr,
+        "eurusd": eurusd,
+        "usdusd": sofr
+    })
 
-.. math::
-
-   f_{EURUSD, i} = \frac{1 + d_i r_{USD, i}}{1 + d^*_i r^*_{EUR, i}} f_{EURUSD, i-1} = \frac{1 + 0.708 \times 0.03558}{1+0.708 \times 0.01499} \times 1.05 = 1.06515
-
-
-Cross-Currency Swap and FX Swap Basis
---------------------------------------
-
-In this example we will expand the above by adding the third component.
-Suppose that:
-
-- The **FX rates** are:
-
-  - EURUSD: 1.05,
-  - GBPUSD: 1.20,
-
-- The **interest rates** are:
-
-  - USD: 3.5%,
-  - EUR: 1.5%,
-  - GBP: 2.0%,
-
-- The **cross-currency basis swap rates** are:
-
-  - EUR/USD: -20bps,
-  - GBP/USD: -30bps,
-
-The following configuration gives an approximate representation of this market.
-
-.. ipython:: python
-   :okwarning:
-
-   fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.20}, settlement = dt(2022, 1, 3))
-   fxf = FXForwards(fxr, {
-       "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}, id="uu"),
-       "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}, id="ee"),
-       "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.987}, id="eu"),
-       "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.970}),
-       "gbpusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.973})
-   })
-
-If we compare this to the above section the forward FX rates for EURUSD is slightly
-different now that the third component is accounted for with an amended `"eurusd"`
-discount curve.
+Then we define the instruments that will be
+incorporated into our :class:`~rateslib.solver.Solver` s.
 
 .. ipython:: python
 
-   fxf.rate("eurusd", dt(2022, 9, 15))
+   instruments = [
+        IRS(dt(2022, 1, 1), "10y", "A", currency="usd", curves="sofr"),
+        IRS(dt(2032, 1, 1), "10y", "A", currency="usd", curves="sofr"),
+        IRS(dt(2022, 1, 1), "10y", "A", currency="eur", curves="estr"),
+        IRS(dt(2032, 1, 1), "10y", "A", currency="eur", curves="estr"),
+        XCS(dt(2022, 1, 1), "10y", "A", currency="usd", leg2_currency="usd", curves=["estr", "eurusd", "sofr", "sofr"]),
+        XCS(dt(2032, 1, 1), "10y", "A", currency="usd", leg2_currency="eur", curves=["estr", "eurusd", "sofr", "sofr"]),
+    ]
 
-We can repeat the above manual calculation with the necessary adjustments.
-
-.. ipython:: python
-
-   fxf.fx_curves["eurusd"].rate(dt(2022, 1, 3), dt(2022, 9, 15))
-
-.. math::
-
-   f_{EURUSD, i} = \frac{1 + d_i r_{USDUSD, i}}{1 + d^*_i r^*_{EURUSD, i}} f_{EURUSD, i-1} = \frac{1 + 0.708 \times 0.03558}{1+0.708 \times 0.01297} \times 1.05 = 1.06666
-
-Visualization
---------------
-
-The :meth:`~rateslib.fx.FXForwards.plot` method exists for the
-:class:`~rateslib.fx.FXForwards` class. We can plot the EURUSD
-forward FX rates. Since our curves only contain one flat rate the FX forward rate
-reflects a straight upward line when plotted for all settlement dates in the window.
-
-.. ipython:: python
-   :okwarning:
-
-   fxf.plot("eurusd")
-
-.. plot::
-
-   from rateslib.curves import *
-   from rateslib.fx import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.20}, settlement = dt(2022, 1, 3))
-   fxf = FXForwards(fxr, {
-       "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}, id="uu"),
-       "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}, id="ee"),
-       "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.987}, id="eu"),
-       "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.970}),
-       "gbpusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.973})
-   })
-   fig, ax, line = fxf.plot("eurusd")
-   plt.show()
-
-ProxyCurves and Discounting
-----------------------------
-
-In a multi-currency framework there are often many *intrinsic* discount curves that can
-be constructed that are not necessary for the initial construction of the
-:class:`~rateslib.fx.FXForwards` class. For example, in the above sections,
-the discount curve for
-GBP cashflows discounted under a EUR collateral CSA (credit support annex),
-the "gbpeur" curve is
-not provided at initialisation, nor is the "eurgbp" curve.
-
-In these circumstances the :meth:`~rateslib.fx.FXForwards.curve` method will derive the
-combination of existing curves that can be combined to yield required DFs on-the-fly.
-This creates a :class:`~rateslib.fx.ProxyCurve`.
-
-In the above framework GBP is the cheapest to deliver collateral, and USD is the
-most expensive. We can observe this
-by calculating the curves in any cash currency for all collateral currencies
-and plotting. This is demonstrated below.
+Then we solve the SOFR and ESTR curves independently given local currency swap markets.
 
 .. ipython:: python
 
-   type(fxf.curve("eur", "eur"))
-   type(fxf.curve("eur", "usd"))
-   type(fxf.curve("eur", "gbp"))
-   fxf.curve("eur", "eur").plot(
-       "1d",
-       labels=["eur", "usd", "gbp"],
-       comparators=[
-           fxf.curve("eur", "usd"),
-           fxf.curve("eur", "gbp")
-       ]
-   )
+    sofr_solver= Solver(
+        curves=[sofr],
+        instruments=instruments[:2],
+        s=[3.45, 2.85],
+        instrument_labels=["10y", "10y10y"],
+        id="sofr",
+        fx=fxf
+    )
+    estr_solver= Solver(
+        curves=[estr],
+        instruments=instruments[2:4],
+        s=[2.25, 0.90],
+        instrument_labels=["10y", "10y10y"],
+        id="estr",
+        fx=fxf
+    )
 
-.. plot::
-
-   from rateslib.curves import *
-   from rateslib.fx import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.20}, settlement = dt(2022, 1, 3))
-   fxf = FXForwards(fxr, {
-       "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-       "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-       "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.987}),
-       "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.970}),
-       "gbpusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.973})
-   })
-   fig, ax, line = fxf.curve("eur", "eur").plot("1d", comparators=[fxf.curve("eur", "usd"), fxf.curve("eur", "gbp")], labels=["eur", "usd", "gbp"])
-   plt.show()
-
-Sensitivity Management
-----------------------
-
-The :class:`~rateslib.fx.FXForwards` class functions similarly to the
-:class:`~rateslib.fx.FXRates` class in a sensitivity respect. The same
-:meth:`~rateslib.fx.FXForwards.convert`, :meth:`~rateslib.fx.FXForwards.positions` and
-:meth:`~rateslib.fx.FXForwards.convert_positions` methods exist to transition between
-different representations of cash positions and :class:`~rateslib.dual.Dual` values.
-
-Since :class:`~rateslib.fx.FXForwards` are time sensitive the representation of
-cashflows on specific dates is important. In the below example the EURUSD rate settles
-spot (T+2), and the curves are constructed from the immediate date. FX sensitivity is
-then correctly interpreted as opposite currency cashflows on the appropriate
-settlement date, whereas the fundamental base value is an NPV and is recorded as an
-immediate cash position.
+Finally we solve the cross-currency solver with a dependency to the single currency
+markets, as specified within the ``pre_solvers`` argument.
 
 .. ipython:: python
 
-   positions = fxf.positions(1000, base="usd")
-   positions
+    solver= Solver(
+        curves=[eurusd],
+        instruments=instruments[4:],
+        s=[-10, -15],
+        instrument_labels=["10y", "10y10y"],
+        id="eurusd",
+        fx=fxf,
+        pre_solvers=[sofr_solver, estr_solver],
+    )
+
+Now we create a multi-currency :class:`~rateslib.instruments.Portfolio` and
+calculate its cross-gamma.
 
 .. ipython:: python
 
-   positions = fxf.positions(Dual(1000, "fx_eurusd", [1000]), base="usd")
-   positions
+    pf = Portfolio([
+        IRS(dt(2022, 1, 1), "20Y", "A", currency="eur", fixed_rate=2.0, notional=1e8, curves="estr"),
+        IRS(dt(2022, 1, 1), "20Y", "A", currency="usd", fixed_rate=1.5, notional=-1.1e8, curves="sofr")
+    ])
+    cgamma = pf.gamma(solver=solver)
+    cgamma
 
-Provided a one-to-one correspondence exists, the positions can be accurately converted
-into a base value with dual sensitivities.
-
-.. ipython:: python
-
-   fxf.convert_positions(positions, base="usd")
-
-It is also possible to take a single cashflow and convert it into another value
-as of another date.
+We can slice this to display only the EUR risk.
 
 .. ipython:: python
 
-   fxf.convert(1000, "usd", "eur", dt(2022, 1, 1), dt(2022, 1, 25))
-
-This cashflow does not demonstrate any sensitivity to interest rates even though
-a forward value ought to. This is because the interest rate curves that are
-associated with the :class:`~rateslib.fx.FXForwards` instance are not configured
-with automatic differentiation. We can manually instruct this here and see the
-impact.
-
-.. ipython:: python
-
-   fxf._set_ad_order(1)
-   fxf.convert(1000, "usd", "eur", dt(2022, 1, 1), dt(2022, 1, 25))
+    idx = ("eur", "eur", slice(None), ["estr", "fx"], slice(None))
+    cgamma.loc[idx, idx]

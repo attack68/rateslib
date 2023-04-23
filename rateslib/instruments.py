@@ -385,7 +385,8 @@ class BaseMixin:
         else:
             try:
                 curves_ = tuple(
-                    _get_curve_from_solver(curve, solver) for curve in curves)
+                    _get_curve_from_solver(curve, solver) for curve in curves
+                )
             except KeyError:
                 raise ValueError(
                     "`curves` must contain str curve `id` s existing in `solver` "

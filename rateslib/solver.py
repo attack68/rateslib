@@ -232,7 +232,7 @@ class Gradients:
             i, j = 0, 0
             for pre_slvr in self.pre_solvers:
                 J2[
-                    i : pre_slvr.pre_n, i : pre_slvr.pre_n, j : pre_slvr.pre_m
+                    i : i+pre_slvr.pre_n, i : i+pre_slvr.pre_n, j : j+pre_slvr.pre_m
                 ] = pre_slvr.J2_pre
                 i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
 
@@ -429,7 +429,7 @@ class Gradients:
             for pre_solver in self.pre_solvers:
                 # create the left side block matrix
                 m, n = pre_solver.pre_m, pre_solver.pre_n
-                grad_s_vT[i:m, j:n] = pre_solver.grad_s_vT_pre
+                grad_s_vT[i:i+m, j:j+n] = pre_solver.grad_s_vT_pre
 
                 # create the right column dependencies
                 grad_v_r = np.array(
@@ -437,7 +437,7 @@ class Gradients:
                 ).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i:m, -self.m :] = block
+                grad_s_vT[i:i+m, -self.m :] = block
 
                 i, j = i + m, j + n
 
