@@ -7,3 +7,8 @@ code {
 .sig-name {
   color: darkorange;
 }
+
+.table td, .table th {
+  font-size: 0.85em;
+  padding: 0;
+}

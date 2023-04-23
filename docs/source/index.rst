@@ -9,13 +9,132 @@
 
 **This version is pre-release. It may change at any point without notice.**
 
-``Rateslib`` is a state-of-the-art fixed income library designed for Python.
+``Rateslib`` is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
 with a high level, well documented API.
 
-The techniques developed for ``rateslib`` were inspired by the requirements of
-multi-disciplined fixed income teams working, both cooperatively and independently,
-within global investment banks.
+Its design objective is to be able to create a self-consistent, arbitrage free
+framework for pricing all aspects of fixed income trading, such as spot FX, FX forwards,
+single currency securities and derivatives like fixed rate bonds and IRSs, and also
+multi-currency derivatives such as FX swaps and cross-currency swaps. Options,
+swaptions and inflation are also under consideration for future development.
+
+The techniques and object interation within *rateslib* were inspired by
+the requirements of multi-disciplined fixed income teams working, both cooperatively
+and independently, within global investment banks.
+
+Highlights
+==========
+
+.. raw:: html
+
+    <div class="container">
+    <div id="accordion" class="shadow tutorial-accordion">
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseOneA">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Curve construction is simple with huge flexibility..
+                    </div>
+                </div>
+            </div>
+            <div id="collapseOneA" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+Multiple interpolation modes are offered by default and the generalised process for curve
+solving means very peculiar pricing artefacts can be accurately modelled with the
+correct formulations.
+
+.. raw:: html
+
+                </div>
+            </div>
+        </div>
+
+.. raw:: html
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseTwoA">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        API is designed from a UI perspective, and is well documented..
+                    </div>
+                </div>
+            </div>
+            <div id="collapseTwoA" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+Although the library uses extensive mathematical processes and models the API has been
+carefully designed to provide a workflow that is very simple. In the case of using it
+for small scale learning items often few parameters and arguments are required.
+For larger series of curves and more complicated object oriented
+associations the API signature does not materially change.
+
+The API is also fully documented with examples and advice for best practice.
+
+.. raw:: html
+
+                </div>
+            </div>
+        </div>
+
+.. raw:: html
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseThreeA">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Wide range of securities and derivatives are included..
+                    </div>
+                </div>
+            </div>
+            <div id="collapseThreeA" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+The initial beta release of *rateslib* includes all of the standard single currency and
+multi-currency instruments. The large array of input parameters for these gives scope
+to fully capture the nuances of these products across sectors and geographic regions,
+capturing aspects like trading calendars, day count conventions, payment delays, etc.
+
+.. raw:: html
+
+                </div>
+            </div>
+        </div>
+
+.. raw:: html
+
+        <div class="card tutorial-card">
+            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseFourA">
+                <div class="d-flex flex-row tutorial-card-header-1">
+                    <div class="d-flex flex-row tutorial-card-header-2">
+                        <button class="btn btn-dark btn-sm"></button>
+                        Limited software dependencies and transparent workflow..
+                    </div>
+                </div>
+            </div>
+            <div id="collapseFourA" class="collapse" data-parent="#accordion">
+                <div class="card-body">
+
+The dependencies are to **NumPy**, **Pandas**, **Matplotlib** and (to a very minor
+degree) **SciPy**. *Rateslib* does not have any dependencies to any automatic
+differentiation libraries, such as PyAudi or JAX, preferring initially to use its
+own forward mode module.
+
+The test coverage is very high.
+
+.. raw:: html
+
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
 
 Licence
 =======
@@ -111,54 +230,24 @@ author at **rateslib@gmail.com**.
     </div>
     </div>
 
-Highlights
-==========
 
-Constructing curves is easy:
+Get Started
+===========
 
-- Specify them directly with nodes.
-- Import them pre-constructed from a server or database via JSON.
-- Solve their node values with through an optimisation algorithm.
-
-API designed with a UI focus
-
-Fully documented, with extended documentation in book form.
-
-Code test coverage of 100%.
-
-Limited software dependencies:
-
-- NumPy
-- Pandas
-- Scipy
-- Matplotlib
-
-Automatic differentiation library is internal requiring no external libraries.
-
-
-Contents
-========
+Move on to the next page to :ref:`Get Started<pricing-doc>`
 
 .. toctree::
     :maxdepth: 0
     :titlesonly:
-
-    i_licence.rst
-    i_about.rst
-    i_get_started.rst
-    i_guide.rst
-
-:ref:`API Reference<api-doc>`
-
-.. toctree::
     :hidden:
 
+    i_get_started.rst
+    i_licence.rst
+    i_guide.rst
+    i_about.rst
     i_api.rst
 
 
-Indices and tables
-==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+
+

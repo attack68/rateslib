@@ -7,6 +7,13 @@ API Reference
 .. Global imports for iPython are executed in the doc string for add_tenor which is the
    first function indexed alphabetically by automodapi.
 
+Indices and tables
+------------------
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
 Defaults
 ---------
 

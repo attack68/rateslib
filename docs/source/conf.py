@@ -51,6 +51,7 @@ html_css_files = [
     'css/getting_started.css',
     'css/overwrites.css',
 ]
+html_favicon = '_static/favicon.ico'
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"

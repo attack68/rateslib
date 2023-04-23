@@ -1,4 +1,5 @@
 .. RatesLib documentation master file,
+.. _guide-doc:
 
 ==========
 User Guide

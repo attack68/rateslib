@@ -16,7 +16,7 @@ Get Started
 Installation
 ------------
 
-``Rateslib`` can be installed directly from
+*Rateslib* can be installed directly from
 `PyPI <https://pypi.org/project/rateslib/#description>`_ using ``pip`` into your Python
 environment.
 
@@ -25,6 +25,39 @@ environment.
    pip install rateslib
 
 ``Conda`` support is coming soon, but not available yet.
+
+**Minimum Dependencies**
+
+.. list-table::
+   :widths: 20 20 20 40
+   :header-rows: 1
+
+
+   * - Package Name
+     - Recommended Min Version
+     - Earliest Tested
+     - Comment
+   * - Python
+     - 3.11
+     - 3.9
+     -
+   * - NumPy
+     - 1.23.5
+     - 1.21.5
+     -
+   * - Pandas
+     - 1.5.3
+     - 1.4.1
+     - (2.0 is currently untested)
+   * - Matplotlib
+     - 3.6.3
+     - 3.5.1
+     - (used for plotting curves)
+   * - SciPy
+     - 1.9.3
+     - 1.8.0
+     - (used for `brentq` algorithm in bond yield solving)
+
 
 Introduction to Rateslib
 -------------------------
@@ -230,7 +263,7 @@ handle over-specified curves or under-specified curves.
 Imports and Defaults
 --------------------
 
-``Rateslib`` classes and methods are publicly exposed meaning anything can
+*Rateslib* classes and methods are publicly exposed meaning anything can
 be imported and used from the top level.
 
 .. code-block::
@@ -254,7 +287,7 @@ in any of theses importing methods, and all are valid.
    from rateslib.fx import FXRates
    from rateslib.instruments import IRS
 
-The ``defaults`` object from ``rateslib`` is sets
+The ``defaults`` object from *rateslib* sets
 parameters and settings that are used when otherwise not set by the user.
 This object can only be imported, and changed, from the top level.
 
@@ -267,3 +300,10 @@ This object can only be imported, and changed, from the top level.
 
    import rateslib as rl
    rl.defaults.base_currency = "eur"
+
+How to Use Rateslib
+-------------------
+
+The best way to learn *rateslib* is to follow the
+tutorials and examples in the :ref:`User Guide<guide-doc>`.
+This systematically introduces the main objects and concepts.
