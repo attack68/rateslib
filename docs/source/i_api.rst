@@ -202,3 +202,4 @@ Solver
    :skip: FXForwards
    :skip: combinations
    :skip: MultiIndex
+   :skip: Series

@@ -473,3 +473,40 @@ example we establish a new cash-collateral discount curve and use
    fig, ax, lines = estr_curve.plot("1D", comparators=[eurusd], labels=["Eur:eur", "Eur:usd"])
    plt.show()
    plt.close()
+
+
+Calibration Instrument Error
+*****************************
+
+Depending upon the hyper parameters, parameters and calibrating instrument choices,
+the optimized solution may well lead to curves that do not completely reprice the
+calibrating instruments. Sometimes this is representative of errors in the construction
+process, and at other times this is completely desirable.
+
+When the :class:`~rateslib.solver.Solver` is initialised and iterates it will print
+an output to console indicating a success or failure and the value of the
+objective function. If this value is very small, that already indicates that there is
+no error in any instruments. However for cases where the curve is over-specified, error
+is to be expected.
+
+.. ipython:: python
+
+   solver_with_error = Solver(
+       curves=[
+           Curve(
+               nodes={dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0, dt(2023, 1, 1): 1.0},
+               id="curve1"
+           )
+       ],
+       instruments=[
+           IRS(dt(2022, 1, 1), "1M", "A", curves="curve1"),
+           IRS(dt(2022, 1, 1), "2M", "A", curves="curve1"),
+           IRS(dt(2022, 1, 1), "3M", "A", curves="curve1"),
+           IRS(dt(2022, 1, 1), "4M", "A", curves="curve1"),
+           IRS(dt(2022, 1, 1), "8M", "A", curves="curve1"),
+           IRS(dt(2022, 1, 1), "12M", "A", curves="curve1"),
+       ],
+       s=[2.0, 2.2, 2.3, 2.4, 2.45, 2.55],
+       instrument_labels=["1m", "2m", "3m", "4m", "8m", "12m"],
+   )
+   solver_with_error.error

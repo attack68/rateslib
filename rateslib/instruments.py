@@ -3192,6 +3192,8 @@ class FRA(Sensitivities, BaseMixin):
         self,
         curves: Optional[Union[str, list, Curve]] = None,
         solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
     ):
         """
         Return the mid-market rate of the FRA.
@@ -3209,6 +3211,8 @@ class FRA(Sensitivities, BaseMixin):
         solver : Solver, optional
             The numerical :class:`~rateslib.solver.Solver` that
             constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+        fx : unused
+        base : unused
 
         Returns
         -------

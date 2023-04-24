@@ -120,4 +120,4 @@ We can slice this to display only the EUR risk.
 .. ipython:: python
 
     idx = ("eur", "eur", slice(None), ["estr", "fx"], slice(None))
-    cgamma.loc[idx, idx]
+    cgamma.loc[idx, (slice(None), ["estr", "fx"], slice(None))]

@@ -51,7 +51,7 @@ We can value the IRS in its local currency (USD) by default.
 
    irs.npv(usd_curve)
 
-This is the most basic functionality ``rateslib`` offers, but other features
+This is the most basic functionality *rateslib* offers, but other features
 that will be explained below are:
 
 - how to parametrize ``Curves`` and how to calibrate them to market rates
@@ -111,7 +111,7 @@ Instruments
 -----------
 
 Next move on to reviewing the :ref:`Instruments<instruments-toc-doc>`. This gives
-an overview of the financial products that ``rateslib`` can currently price. It is
+an overview of the financial products that *rateslib* can currently price. It is
 recommended to review :ref:`Periods<periods-doc>` and then :ref:`Legs<legs-doc>`, since
 the documentation for these building blocks provides technical descriptions of the
 parameters that can be used.
@@ -130,7 +130,7 @@ The guide for :ref:`Constructing Curves<curves-doc>` introduces the two main
 curve classes,
 :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`. It gives
 examples of their parametrization and different interpolation structures. A
-simple curve was created above, and often in many ``rateslib`` examples the curves
+simple curve was created above, and often in many *rateslib* examples the curves
 created are simple to exemplify other features. The documentation here explains the
 nuances of curves.
 
@@ -150,7 +150,7 @@ given a set of mid-market prices.
 Pricing Mechanisms
 -------------------
 
-Since ``rateslib`` is an object oriented library with object associations we give
+Since *rateslib* is an object oriented library with object associations we give
 detailed instructions of the way in which the associations can be constructed in
 :ref:`mechanisms<mechanisms-doc>`.
 
@@ -165,7 +165,9 @@ detailed instructions of the way in which the associations can be constructed in
 Risk Sensitivities
 -------------------
 
-TODO
+Probably *rateslib's* main objective is to capture delta and gamma risks in a
+generalised and holistic mathematical framework. See the
+:ref:`risk framework<risk-toc-doc>` notes.
 
 
 .. toctree::
@@ -178,7 +180,7 @@ TODO
 Utilities
 ----------
 
-``rateslib`` could not function without some utility libraries. These are often
+*Rateslib* could not function without some utility libraries. These are often
 referenced in other guides as they come up and can also be linked to from those
 sections.
 
@@ -192,7 +194,7 @@ sections.
 Coverage
 --------
 
-The current test coverage status of ``rateslib`` is shown at TODO %.
+The current test coverage status of *rateslib* is shown at around 97%.
 
 .. toctree::
     :hidden:

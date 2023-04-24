@@ -6,7 +6,7 @@ from uuid import uuid4
 from time import time
 import numpy as np
 import warnings
-from pandas import DataFrame, MultiIndex, concat
+from pandas import DataFrame, MultiIndex, concat, Series
 
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
 from rateslib.fx import FXForwards
@@ -62,7 +62,7 @@ class Gradients:
             if self._ad != 2:
                 raise ValueError(
                     "Cannot perform second derivative calculations when ad mode is "
-                    "{self._ad}."
+                    f"{self._ad}."
                 )
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
@@ -225,7 +225,7 @@ class Gradients:
             if self._ad != 2:
                 raise ValueError(
                     "Cannot perform second derivative calculations when ad mode is "
-                    "{self._ad}."
+                    f"{self._ad}."
                 )
 
             J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
@@ -976,7 +976,7 @@ class Solver(Gradients):
             else:
                 self.instrument_labels = tuple(instrument_labels)
         else:
-            self.instrument_labels = (f"{self.id}{i}" for i in range(self.m))
+            self.instrument_labels = tuple(f"{self.id}{i}" for i in range(self.m))
 
         if weights is None:
             self.weights = np.ones(len(instruments))
@@ -1165,6 +1165,41 @@ class Solver(Gradients):
         if self._x is None:
             self._x = self.r - self.s
         return self._x
+
+    @property
+    def error(self):
+        """
+        Return the error in calibrating instruments, including ``pre_solvers``, scaled
+        to the risk representation factor.
+
+        Returns
+        -------
+        Series
+        """
+        s = None
+        for pre_solver in self.pre_solvers:
+            _ = Series(
+                pre_solver.x.astype(float) * 100 / self.rate_scalars,
+                index=MultiIndex.from_tuples(
+                    [(pre_solver.id, inst) for inst in pre_solver.instrument_labels]
+                )
+            )
+            if s is None:
+                s = _
+            else:
+                s = concat([s, _])
+
+        _ = Series(
+            self.x.astype(float) * 100 / self.rate_scalars,
+            index=MultiIndex.from_tuples(
+                [(self.id, inst) for inst in self.instrument_labels]
+            )
+        )
+        if s is None:
+            s = _
+        else:
+            s = concat([s, _])
+        return s
 
     @property
     def g(self):
@@ -1483,7 +1518,7 @@ class Solver(Gradients):
           - **label** lists the given instrument names in each solver using the
             ``instrument_labels``.
 
-        - A 5-level column header index as above;
+        - A 3-level column header index using the last three levels of the above;
 
         Converting a gamma/delta from a local currency to another ``base`` currency also
         introduces FX risk to the NPV of the instrument, which is included in the
@@ -1562,18 +1597,22 @@ class Solver(Gradients):
         idx_tuples = [
             c + l for c in all_keys for l in inst_keys + fx_keys
         ]
-        idx = MultiIndex.from_tuples(
+        ridx = MultiIndex.from_tuples(
             [key for key in idx_tuples],
             names=["local_ccy", "display_ccy", "type", "solver", "label"]
         )
-        df = DataFrame(None, index=idx, columns=idx)
+        cidx = MultiIndex.from_tuples(
+            [l for l in inst_keys + fx_keys],
+            names=["type", "solver", "label"]
+        )
+        df = DataFrame(None, index=ridx, columns=cidx)
         for key, d in container.items():
             array = np.block([
                 [d[("instruments", "instruments")], d[("instruments", "fx")]],
                 [d[("fx", "instruments")], d[("fx", "fx")]]
             ])
             locator = key + (slice(None), slice(None), slice(None))
-            df.loc[locator, locator] = array
+            df.loc[locator, :] = array
 
         if base is not None:
             pass
@@ -1582,7 +1621,7 @@ class Solver(Gradients):
 
         return df
 
-    def pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
+    def _pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
 
@@ -1613,7 +1652,7 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
-    def market_movements(self, s_0, s_1, fx_0, fx_1):
+    def _market_movements(self, s_0, s_1, fx_0, fx_1):
         """
         Determine market movement between instrument price arrays properly scaled.
 
@@ -1634,7 +1673,7 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
-    def jacobian(self, solver: Solver):
+    def _jacobian(self, solver: Solver):
         """
         Calculate the Jacobian with respect to another ``Solver`` instruments.
 

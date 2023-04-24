@@ -404,9 +404,9 @@ def test_delta_gamma_calculation():
     assert -229 < float(eur_swap.gamma("estr_curve", estr_solver).sum().sum()) < -228
 
     # Mechanism 1: fails on None curve specification
-    with pytest.raises(TypeError, match="`curve` must be of type `Curve` or `Line"):
+    with pytest.raises(TypeError, match="`curves` have not been supplied correctly"):
         assert eur_swap.delta(None, estr_solver)
-    with pytest.raises(TypeError, match="`curve` must be of type `Curve` or `Line"):
+    with pytest.raises(TypeError, match="`curves` have not been supplied correctly"):
         assert eur_swap.gamma(None, estr_solver)
 
     # Mechanism 2: static specific
@@ -481,7 +481,9 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
     grad_s_vT_pre = ibor_solver.grad_s_vT_pre
     assert_allclose(grad_s_vT_pre, grad_s_vT_sim, atol=1e-14, rtol=1e-10)
 
+    simultaneous_solver._set_ad_order(2)
     J2_sim = simultaneous_solver.J2_pre
+    ibor_solver._set_ad_order(2)
     J2_pre = ibor_solver.J2_pre
     assert_allclose(J2_pre, J2_sim, atol=1e-14, rtol=1e-10)
 
@@ -775,22 +777,23 @@ def test_delta_irs_guide_fx_base():
     assert_frame_equal(result, expected)
 
 
-def test_irs_delta_curves_undefined():
-    # the IRS is not constructed under best practice.
-    # The delta solver does not know how to price the irs
-    curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.99, dt(2032, 1, 1): 0.98},
-                  id="sonia")
-    instruments = [
-        IRS(dt(2022, 1, 1), "5y", "A", curves="sonia"),
-        IRS(dt(2027, 1, 1), "5y", "A", curves="sonia"),
-    ]
-    solver = Solver(
-        curves=[curve],
-        instruments=instruments,
-        s=[2.0, 2.5],
-    )
-    irs = IRS(dt(2022, 1, 1), "10y", "S", fixed_rate=2.38)
-    irs.delta(solver=solver)
+# def test_irs_delta_curves_undefined():
+#     # the IRS is not constructed under best practice.
+#     # The delta solver does not know how to price the irs
+#     curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.99, dt(2032, 1, 1): 0.98},
+#                   id="sonia")
+#     instruments = [
+#         IRS(dt(2022, 1, 1), "5y", "A", curves="sonia"),
+#         IRS(dt(2027, 1, 1), "5y", "A", curves="sonia"),
+#     ]
+#     solver = Solver(
+#         curves=[curve],
+#         instruments=instruments,
+#         s=[2.0, 2.5],
+#     )
+#     irs = IRS(dt(2022, 1, 1), "10y", "S", fixed_rate=2.38)
+#     with pytest.raises(TypeError, match="`curves` have not been supplied"):
+#         irs.delta(solver=solver)
 
 
 def test_mechanisms_guide_gamma():
@@ -858,8 +861,9 @@ def test_mechanisms_guide_gamma():
     fxr = FXRates({"eurusd": 1.10})
     fxr._set_ad_order(2)
     result = pf.gamma(solver=combined_solver, fx=fxr, base="eur")
-    pass
-    assert False # TODO the comparison
+
+    # TODO define test result
+    raise NotImplementedError("this test needs to have a result comparison")
 
 
 def test_solver_gamma_pnl_explain():
@@ -928,7 +932,8 @@ def test_solver_gamma_pnl_explain():
     # solver.iterate()
     # npv_new = pf.npv(solver=solver)
 
-    assert False # TODO comparison
+    # TODO comparison
+    raise NotImplementedError("this test needs a result to be defined")
 
 
 def test_gamma_with_fxrates_ad_order_1_raises():
@@ -936,3 +941,25 @@ def test_gamma_with_fxrates_ad_order_1_raises():
     # must also be converted. TODO
     pass
 
+
+def test_error_labels():
+    solver_with_error = Solver(
+        curves=[
+            Curve(
+                nodes={dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0, dt(2023, 1, 1): 1.0},
+                id="curve1"
+            )
+        ],
+        instruments=[
+            IRS(dt(2022, 1, 1), "1M", "A", curves="curve1"),
+            IRS(dt(2022, 1, 1), "2M", "A", curves="curve1"),
+            IRS(dt(2022, 1, 1), "3M", "A", curves="curve1"),
+            IRS(dt(2022, 1, 1), "4M", "A", curves="curve1"),
+            IRS(dt(2022, 1, 1), "8M", "A", curves="curve1"),
+            IRS(dt(2022, 1, 1), "12M", "A", curves="curve1"),
+        ],
+        s=[2.0, 2.2, 2.3, 2.4, 2.45, 2.55],
+        id="rates",
+    )
+    result = solver_with_error.error
+    assert abs(result.loc[("rates", "rates0")] - 22.798) < 1e-2

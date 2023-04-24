@@ -557,9 +557,9 @@ def test_delta_risk_equivalence():
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
-    assert result1.vars == [
+    assert result1.vars == (
         'ee0', 'ee1', 'eu0', 'eu1', 'fx_eurnok', 'fx_usdeur', 'ne0', 'ne1', 'uu0', 'uu1'
-    ]
+    )
     assert result1 == result2
 
 

@@ -379,6 +379,10 @@ class FixedPeriod(BasePeriod):
         local: bool = False
     ):
         disc_curve = disc_curve or curve
+        if disc_curve is None:
+            raise TypeError(
+                "`curves` have not been supplied correctly. NoneType has been detected."
+            )
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.fixed_rate / 100 * self.dcf * disc_curve[self.payment] * -self.notional
@@ -787,6 +791,10 @@ class FloatPeriod(BasePeriod):
         local: bool = False,
     ):
         disc_curve = disc_curve or curve
+        if disc_curve is None or curve is None:
+            raise TypeError(
+                "`curves` have not been supplied correctly. NoneType has been detected."
+            )
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)/100 * self.dcf * disc_curve[self.payment] * -self.notional
@@ -1314,6 +1322,10 @@ class Cashflow:
         local: bool = False,
     ):
         disc_curve = disc_curve or curve
+        if disc_curve is None:
+            raise TypeError(
+                "`curves` have not been supplied correctly. NoneType has been detected."
+            )
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (self.cashflow * disc_curve[self.payment])
         if local:
