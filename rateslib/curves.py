@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional, Union, Callable, Any
 from pandas.tseries.offsets import CustomBusinessDay
+from pandas.tseries.holiday import Holiday
 from uuid import uuid4
 import numpy as np
 import json
@@ -66,7 +67,7 @@ class Serialize:
                     "weekmask": self.calendar.weekmask,
                     "holidays": [
                         d.item().strftime("%Y-%m-%d")  # numpy/pandas timestamp to py
-                        for d in self.calendar.calendar.holidays
+                        for d in self.calendar.holidays
                     ]
                 }
             })
@@ -95,11 +96,13 @@ class Serialize:
 
         if serial["calendar_type"] == "custom":
             # must load and construct a custom holiday calendar from serial dates
+            parse = lambda d: Holiday("", year=d.year, month=d.month, day=d.day)
+            dates = [
+                parse(datetime.strptime(d, "%Y-%m-%d"))
+                for d in serial["calendar"]["holidays"]
+            ]
             serial["calendar"] = create_calendar(
-                rules=[
-                    datetime.strptime(d, "%Y-%m-%d")
-                    for d in serial["calendar"]["holidays"]
-                ],
+                rules=dates,
                 weekmask=serial["calendar"]["weekmask"]
             )
 
