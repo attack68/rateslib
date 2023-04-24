@@ -13,4 +13,3 @@ The modules below are utility modules that provide underlying functionality to t
     scheduling.rst
     splines.rst
     dual.rst
-    cookbook.rst

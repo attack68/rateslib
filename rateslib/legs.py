@@ -692,14 +692,14 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     Notes
     -----
-    ... warn::
+    .. warning::
 
-        When floating rates are determined from historical fixings the forecast
-        ``Curve`` ``calendar`` will be used to determine fixing dates.
-        If this calendar does not align with the leg ``calendar`` then
-        spurious results or errors may be generated. Including the curve calendar in
-        the leg is acceptable, i.e. a leg calendar of *"nyc,ldn,tgt"* and a curve
-        calendar of *"ldn"* is valid, whereas only *"nyc,tgt"* may give errors.
+       When floating rates are determined from historical fixings the forecast
+       ``Curve`` ``calendar`` will be used to determine fixing dates.
+       If this calendar does not align with the leg ``calendar`` then
+       spurious results or errors may be generated. Including the curve calendar in
+       the leg is acceptable, i.e. a leg calendar of *"nyc,ldn,tgt"* and a curve
+       calendar of *"ldn"* is valid, whereas only *"nyc,tgt"* may give errors.
 
     Examples
     --------
@@ -783,6 +783,18 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         return _
 
     def rate(self, curve):
+        """
+        Calculating the floating rate for the zero coupon leg.
+
+        Parameters
+        ----------
+        curve : Curve, LineCurve
+            The forecasting curve object.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
         compounded_rate, total_dcf = 1., 0.
         for period in self.periods:
             compounded_rate *= 1 + period.dcf * period.rate(curve) / 100

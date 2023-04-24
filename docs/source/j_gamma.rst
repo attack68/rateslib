@@ -18,7 +18,7 @@ manner to delta, albeit the expression of the result is more complicated, since
 cross-gamma risks are a matrix of values, whereas delta risk is typically a vector.
 
 The output is a DataFrame indexed with a hierarchical index allowing the information
-to be viewed all at one or sliced using pandas indexing tools.
+to be viewed all at once or sliced using pandas indexing tools.
 
 The below gives a full example of constructing solvers with dependency chains, then
 constructing a multi-currency portfolio and viewing the gamma risks in local and base
@@ -112,7 +112,7 @@ calculate its cross-gamma.
         IRS(dt(2022, 1, 1), "20Y", "A", currency="eur", fixed_rate=2.0, notional=1e8, curves="estr"),
         IRS(dt(2022, 1, 1), "20Y", "A", currency="usd", fixed_rate=1.5, notional=-1.1e8, curves="sofr")
     ])
-    cgamma = pf.gamma(solver=solver)
+    cgamma = pf.gamma(solver=solver, base="eur")
     cgamma
 
 We can slice this to display only the EUR risk.

@@ -33,7 +33,7 @@ No-Derivatives 4.0 International Licence**.
      which will be used in a commercial capacity.
 
 If you would like to discuss licensing, under very reasonable terms, please contact the
-author at hamish dot darbyshire at gmail dot com.
+author at **rateslib@gmail.com**.
 
 
 Creative Commons Attribution, Non-Commercial, No-Derivatives 4.0 International Public License

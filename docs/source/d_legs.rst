@@ -36,6 +36,7 @@ following ``Legs`` are provided:
    rateslib.legs.BaseLeg
    rateslib.legs.FixedLeg
    rateslib.legs.FloatLeg
+   rateslib.legs.ZeroFloatLeg
    rateslib.legs.BaseLegExchange
    rateslib.legs.FixedLegExchange
    rateslib.legs.FloatLegExchange
