@@ -565,9 +565,6 @@ class Curve(Serialize, PlotCurve):
            plt.show()
 
         """
-
-        # TODO test whether need to lower AD order before adding spread
-
         v1v2 = [1.0] * (self.n - 1)
         n = [0] * (self.n - 1)
         d = 1/365 if self.convention.upper() != "ACT360" else 1/360
@@ -1051,7 +1048,6 @@ class LineCurve(Curve):
            plt.show()
 
         """
-        # TODO test whether need to lower AD order before adding spread
         _ = LineCurve(
             nodes={k: v + spread/100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,

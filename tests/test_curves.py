@@ -380,7 +380,61 @@ def test_index_left_raises():
         index_left([1], 1, 100)
 
 
-def test_curve_shift():
+# def test_curve_shift():
+#     curve = Curve(
+#         nodes={
+#             dt(2022, 1, 1): 1.0,
+#             dt(2023, 1, 1): 0.988,
+#             dt(2024, 1, 1): 0.975,
+#             dt(2025, 1, 1): 0.965,
+#             dt(2026, 1, 1): 0.955,
+#             dt(2027, 1, 1): 0.9475
+#         },
+#         t=[
+#             dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+#             dt(2025, 1, 1),
+#             dt(2026, 1, 1),
+#             dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+#         ],
+#     )
+#     result_curve = curve.shift(25)
+#     diff = np.array([
+#         result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
+#             dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+#         ]
+#     ])
+#     assert np.all(np.abs(diff) < 1e-7)
+
+
+@pytest.mark.parametrize("ad_order", [0, 1, 2])
+def test_curve_shift_ad_order(ad_order):
+    curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.988,
+            dt(2024, 1, 1): 0.975,
+            dt(2025, 1, 1): 0.965,
+            dt(2026, 1, 1): 0.955,
+            dt(2027, 1, 1): 0.9475
+        },
+        t=[
+            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+        ],
+        ad=ad_order,
+    )
+    result_curve = curve.shift(25)
+    diff = np.array([
+        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
+            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+        ]
+    ])
+    assert np.all(np.abs(diff) < 1e-7)
+
+
+def test_curve_shift_dual_input():
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -397,7 +451,7 @@ def test_curve_shift():
             dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(Dual(25, "z"))
     diff = np.array([
         result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
             dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
@@ -406,7 +460,35 @@ def test_curve_shift():
     assert np.all(np.abs(diff) < 1e-7)
 
 
-def test_linecurve_shift():
+@pytest.mark.parametrize("ad_order", [0, 1, 2])
+def test_linecurve_shift(ad_order):
+    curve = LineCurve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.988,
+            dt(2024, 1, 1): 0.975,
+            dt(2025, 1, 1): 0.965,
+            dt(2026, 1, 1): 0.955,
+            dt(2027, 1, 1): 0.9475,
+        },
+        t=[
+            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+        ],
+        ad=ad_order
+    )
+    result_curve = curve.shift(25)
+    diff = np.array([
+        result_curve[_] - curve[_] - 0.25 for _ in [
+            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+        ]
+    ])
+    assert np.all(np.abs(diff) < 1e-7)
+
+
+def test_linecurve_shift_dual_input():
     curve = LineCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -423,7 +505,7 @@ def test_linecurve_shift():
             dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(Dual(25, "z"))
     diff = np.array([
         result_curve[_] - curve[_] - 0.25 for _ in [
             dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
