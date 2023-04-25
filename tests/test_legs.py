@@ -10,6 +10,7 @@ from rateslib.legs import (
     FixedLeg,
     FloatLeg,
     FloatPeriod,
+    ZeroFloatLeg,
     FixedPeriod,
     CustomLeg,
     FloatLegExchange,
@@ -315,6 +316,106 @@ class TestFloatLeg:
     def test_spread_compound_method_raises(self):
         with pytest.raises(ValueError, match="`spread_compound_method`"):
             FloatLeg(dt(2022, 2, 1), "9M", "Q", spread_compound_method="bad")
+
+
+class TestZeroFloatLeg:
+
+    def test_zero_float_leg_set_float_spread(self, curve):
+        float_leg = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        assert float_leg.float_spread is None
+        assert float_leg.periods[0].float_spread == 0
+
+        float_leg.float_spread = 2.0
+        assert float_leg.float_spread == 2.0
+        assert float_leg.periods[0].float_spread == 2.0
+
+    def test_zero_float_leg_amort_raise(self):
+        with pytest.raises(NotImplementedError, match="`ZeroFloatLeg` cannot accept"):
+            float_leg = ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="Act360",
+                frequency="Q",
+                amortization=1,
+            )
+
+    def test_zero_float_leg_dcf(self):
+        ftl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        result = ftl.dcf
+        expected = ftl.periods[0].dcf + ftl.periods[1].dcf
+        assert result == expected
+
+    def test_zero_float_leg_rate(self, curve):
+        ftl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            float_spread=500,
+        )
+        result = ftl.rate(curve)
+        expected = (1+ftl.periods[0].dcf * ftl.periods[0].rate(curve)/100)
+        expected *= (1+ftl.periods[1].dcf * ftl.periods[1].rate(curve)/100)
+        expected = (expected - 1) / ftl.dcf * 100
+        assert result == expected
+
+    def test_zero_float_leg_cashflows(self, curve):
+        ftl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            float_spread=500,
+        )
+        result = ftl.cashflows(curve)
+        expected = DataFrame(
+            {
+                "Type": ["ZeroFloatLeg"],
+                 "Acc Start": [dt(2022, 1, 1)],
+                 "Acc End": [dt(2022, 6, 1)],
+                 "DCF": [0.419444444444444],
+                 "Spread": [500.]
+             }
+        )
+        assert_frame_equal(
+            result[["Type", "Acc Start", "Acc End", "DCF", "Spread"]],
+            expected
+        )
+
+    def test_zero_float_leg_npv(self, curve):
+        ftl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        result = ftl.npv(curve)
+        expected = 16710778.891147703
+        assert abs(result - expected) < 1e-2
+        result2 = ftl.npv(curve, local=True)
+        assert abs(result2["usd"] - expected) < 1e-2
 
 
 class TestFloatLegExchange:

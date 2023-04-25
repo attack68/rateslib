@@ -743,38 +743,6 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             ) for i, period in self.schedule.table.to_dict(orient="index").items()
         ]
 
-    # @property
-    # def _is_complex(self):
-    #     """
-    #     A complex float leg is one which is RFR based and for which each individual
-    #     RFR fixing is required is order to calculate correctly. This occurs in the
-    #     following cases:
-    #
-    #     1) The ``fixing_method`` is *"lookback"* - since fixing have arbitrary
-    #        weightings misaligned with their standard weightings due to
-    #        arbitrary shifts.
-    #     2) The ``spread_compound_method`` is not *"none_simple"* - this is because the
-    #        float spread is compounded alongside the rates so there is a non-linear
-    #        relationship. Note if spread is zero this is negated and can be ignored.
-    #     3) The ``fixing_method`` is *"lockout"* - technically this could be made semi
-    #        efficient by splitting calculations into two parts. As of now it
-    #        remains within the inefficient complex section.
-    #     4) ``fixings`` are given which need to be incorporated into the calculation.
-    #
-    #
-    #     """
-    #     if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
-    #         if self.fixings is not None:
-    #             return True
-    #         elif abs(self.float_spread) < 1e-9 or \
-    #                 self.spread_compound_method == "none_simple":
-    #             return False
-    #         else:
-    #             return True
-    #     elif self.fixing_method == "ibor":
-    #         return False
-    #     return True
-
     @property
     def dcf(self):
         _ = 0.
