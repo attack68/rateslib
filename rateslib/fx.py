@@ -1287,9 +1287,12 @@ class FXForwards:
         Parameters
         ----------
         array : list, 1d ndarray of floats, or Series, or DataFrame
-            The cash positions to simultaneously convert in the base currency. **Must**
-            be ordered by currency as defined in the attribute ``FXRates.currencies``.
-            XX TODO relabel this docstring correctly.
+            The cash positions to simultaneously convert to base currency value.
+            If a DataFrame, must be indexed by currencies (3-digit lowercase) and the
+            column headers must be settlement dates.
+            If a Series, must be indexed by currencies (3-digit lowercase).
+            If a 1d array or sequence, must
+            be ordered by currency as defined in the attribute ``FXForward.currencies``.
         base : str, optional
             The currency to convert to (3-digit code). Uses instance ``base`` if not
             given.
@@ -1303,9 +1306,24 @@ class FXForwards:
 
         .. ipython:: python
 
-           fxr = FXRates({"usdnok": 8.0})
-           fxr.currencies
-           fxr.convert_positions([0, 1000000], "usd")
+           fxr = FXRates({"usdnok": 8.0}, settlement=dt(2022, 1, 1))
+           usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+           noknok = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
+           fxf = FXForwards(fxr, {"usdusd": usdusd, "noknok": noknok, "nokusd": noknok})
+           fxf.currencies
+           fxf.convert_positions([0, 1000000], "usd")
+
+        .. ipython:: python
+
+           fxr.convert_positions(Series([1000000, 0], index=["nok", "usd"]), "usd")
+
+        .. ipython:: python
+
+           positions = DataFrame(index=["usd", "nok"], data={
+               dt(2022, 6, 2): [0, 1000000],
+               dt(2022, 9, 7): [0, -1000000],
+           })
+           fxf.convert_positions(positions, "usd")
         """
         base = self.base if base is None else base.lower()
 
