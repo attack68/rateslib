@@ -967,9 +967,22 @@ class Solver(Gradients):
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         self.pre_solvers = tuple(pre_solvers)
+
+        # validate `id`s so that DataFrame indexing does not share duplicated keys.
+        if len(
+            set([self.id] + [p.id for p in self.pre_solvers])
+        ) < 1 + len(self.pre_solvers):
+            raise ValueError(
+                "Solver `id`s must be unique when supplying `pre_solvers`, "
+                f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}"
+            )
+
+        # validate `s` and `instruments` with a naive length comparison
         if len(s) != len(instruments):
             raise ValueError("`instrument_rates` must be same length as `instruments`.")
         self.s = np.asarray(s)
+
+        # validate `instrument_labels` if given is same length as `m`
         if instrument_labels is not None:
             if self.m != len(instrument_labels):
                 raise ValueError("`instrument_labels` must have length `instruments`.")

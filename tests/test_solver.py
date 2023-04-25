@@ -963,3 +963,22 @@ def test_error_labels():
     )
     result = solver_with_error.error
     assert abs(result.loc[("rates", "rates0")] - 22.798) < 1e-2
+
+
+def test_solver_non_unique_id_raises():
+    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
+    solver = Solver(
+        curves=[curve],
+        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+        s=[1],
+        id="bad"
+    )
+    curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="B")
+    with pytest.raises(ValueError, match="Solver `id`s must be unique"):
+        solver2 = Solver(
+            curves=[curve2],
+            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve2,), {})],
+            s=[1],
+            id="bad",
+            pre_solvers=[solver]
+        )
