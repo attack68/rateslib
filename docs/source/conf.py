@@ -45,7 +45,7 @@ html_theme_options = {
   "external_links": [
       {"name": "Supplemental", "url": "https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538"},
   ],
-  "check_switcher": False,
+  "check_switcher": True,
   "switcher": {
       "json_url": "https://rateslib.readthedocs.io/en/latest/_static/switcher.json",
       "version_match": release,

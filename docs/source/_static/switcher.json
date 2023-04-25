@@ -2,11 +2,11 @@
     {
         "name": "dev",
         "version": "dev",
-        "url": "https://rateslib.readthedocs.io/en/latest/index.html"
+        "url": "https://rateslib.readthedocs.io/en/latest/"
     },
     {
         "name": "0.1.0",
         "version": "0.1.0",
-        "url": "https://rateslib.readthedocs.io/en/stable/index.html"
+        "url": "https://rateslib.readthedocs.io/en/stable/"
     }
 ]
