@@ -96,6 +96,7 @@ Curves
    :skip: PPSpline
    :skip: datetime
    :skip: timedelta
+   :skip: Holiday
 
 
 FX

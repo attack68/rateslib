@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'RatesLib'
 copyright = '2022, JHM Darbyshire'
 author = 'JHM Darbyshire'
-release = '0.0.1'
+release = 'dev'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -44,7 +44,15 @@ html_static_path = ['_static']
 html_theme_options = {
   "external_links": [
       {"name": "Supplemental", "url": "https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538"},
-  ]
+  ],
+  "check_switcher": False,
+  "switcher": {
+      "json_url": "https://rateslib.readthedocs.io/en/latest/_static/switcher.json",
+      "version_match": release,
+  },
+  "navbar_start": ["navbar-logo"],
+  "navbar_center": ["navbar-nav"],
+  "navbar_end": ["navbar-icon-links", "version-switcher"],
 }
 html_logo = "_static/rateslib_logo4.gif"
 html_css_files = [
