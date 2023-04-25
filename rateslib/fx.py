@@ -1749,16 +1749,3 @@ class ProxyCurve(Curve):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-#####
-
-# TODO:
-
-# 1) PERFORMANCE:
-# Profiling shows that dual_solve for the determination of fx_vector is quite slow
-# due to the structure and sparsity of the matrix it should be possible to use a
-# more direct algorithm to determine the dual gradients of the fx vector components.
-
-# 2) UTILITY:
-# Consider allowing a to_json method for proxy curves to mediate exchange of info.
-# Or better yet just configure a to_json method for an FXForwards object.
