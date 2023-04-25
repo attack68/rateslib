@@ -1004,10 +1004,6 @@ class FloatPeriod(BasePeriod):
                     "`fixings` should be of type scalar, None, list or Series."
                 )
 
-        # TODO document the difference between LineCurves for RFR and IBOR where an
-        # IBOR curve should return rates by publication date and RFR curves should
-        # return rates by reference value date.
-
         # reindex the rates series getting missing values from the curves
         rates = Series({
             k: curve.rate(k, "1b") if isna(v) else v for k, v in rates.items()

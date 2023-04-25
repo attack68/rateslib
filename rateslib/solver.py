@@ -16,7 +16,6 @@ from rateslib.fx import FXForwards
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-# TODO: validate solver_id are unique in pre_solver_chain
 class Gradients:
     """
     A catalogue of all the gradients used in optimisation routines and risk
@@ -1577,7 +1576,6 @@ class Solver(Gradients):
                             f
                         ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
                 )
-                # TODO fix the zero arrays
                 container[(ccy, base)]["fx", "instruments"] = (
                         self.grad_f_sT_Pbase(
                             npv[ccy],
