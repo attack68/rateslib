@@ -1363,6 +1363,7 @@ class TestFloatRateBond:
             frequency="S",
             convention="Act365f",
             ex_div=0,
+            settle=0,
             float_spread=float_spd,
             spread_compound_method=method,
         )
@@ -1374,7 +1375,6 @@ class TestFloatRateBond:
         disc_curve = curve.shift(curve_spd)
         result = bond.rate(
             [curve, disc_curve],
-            settlement=dt(2007, 1, 1),
             metric="spread"
         )
         assert abs(result - expected) < 1e-4

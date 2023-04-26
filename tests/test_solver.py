@@ -614,12 +614,12 @@ def test_solver_float_rate_bond():
     f_c = d_c.copy()
     f_c.id = "rfr"
     instruments = [
-        (FloatRateBond(dt(2022, 1, 1), "6M", "Q", spread_compound_method="isda_compounding"),
-         ([f_c, d_c],), {"metric": "spread", "settlement": dt(2022, 1, 3)}),
-        (FloatRateBond(dt(2022, 1, 1), "1y", "Q", spread_compound_method="isda_compounding"),
-         ([f_c, d_c],), {"metric": "spread", "settlement": dt(2022, 1, 3)}),
-        (FloatRateBond(dt(2022, 1, 1), "18m", "Q", spread_compound_method="isda_compounding"),
-         ([f_c, d_c],), {"metric": "spread", "settlement": dt(2022, 1, 3)}),
+        (FloatRateBond(dt(2022, 1, 1), "6M", "Q", spread_compound_method="isda_compounding", settle=2),
+         ([f_c, d_c],), {"metric": "spread"}),
+        (FloatRateBond(dt(2022, 1, 1), "1y", "Q", spread_compound_method="isda_compounding", settle=2),
+         ([f_c, d_c],), {"metric": "spread"}),
+        (FloatRateBond(dt(2022, 1, 1), "18m", "Q", spread_compound_method="isda_compounding", settle=2),
+         ([f_c, d_c],), {"metric": "spread"}),
     ]
     solver = Solver([d_c], instruments, [25, 25, 25])
     result = d_c.rate(dt(2022, 7, 1), "1D")
