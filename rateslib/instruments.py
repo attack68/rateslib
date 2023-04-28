@@ -1155,7 +1155,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
         -------
         float, Dual, Dual2
         """
-        # TODO make this ex-div compliant
         disc_curve = disc_curve or curve
         settlement = add_tenor(
             disc_curve.node_dates[0], f"{self.settle}B", None,
@@ -1174,20 +1173,34 @@ class FixedRateBond(Sensitivities, BaseMixin):
             )
         return a_delta
 
-    def forward_price(self, price, settlement, forward_settlement, disc_curve):
+    def forward_price(
+        self,
+        forward_settlement,
+        disc_curve,
+        price,
+        dirty: bool = True,
+        settlement: Optional[datetime] = None,
+        repo_rate: Optional[Union[float, Dual, Dual2]] = None,
+        convention: Optional[str] = None,
+        method: str = "curve",
+    ):
         """
         Calculate the forward price of the security.
 
         Parameters
         ----------
-        price : float, Dual, Dual2
-            The initial price of the security.
-        settlement : datetime
-            The settlement date associated with the ``price``.
         forward_settlement : datetime
             The forward settlement date for which to determine the price.
         disc_curve : Curve
             The rate which to discount cashflows, usually termed the repo rate.
+        price : float, Dual, Dual2
+            The initial price of the security at ``settlement``.
+        dirty : bool, optional
+            Whether the prices are provided and returned dirty or clean.
+        settlement : datetime, optional
+            The initial settlement date of the security.
+        method : str, optional
+            The method that this function will use. See notes.
 
         Returns
         -------
@@ -1195,10 +1208,39 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
         Notes
         -----
-        This calculation only rolls a bond price forward accroding to the repo rate.
-        It does **not** account for cashflows or ex-dividend periods.
+        There are different ``methods`` to calculate a forward price on a bond.
+
+        **"curve"**
+
+        If the method *"curve"* is selected this will define the repo rate between
+        two dates, the initial settlement and final settlement. The parameters that
+        are then necessary when using this method are:
+
+        - ``disc_curve``
+        - ``forward_settlement``
+
+        The optional parameters available when using this method are:
+
+        - ``price``
+        - ``dirty``
+
+
+
         """
         # TODO make this calculation accounting for forward historic coupons
+        raise NotImplementedError("method not coded")
+
+        if method.lower() == "curve":
+            if disc_curve is None:
+                raise ValueError("`disc_curve` must be supplied under method: 'curve'")
+            if settlement is None:
+                settlement = add_tenor(
+                    disc_curve.node_dates[0], f"{self.settle}B", None,
+                    self.leg1.schedule.calendar
+                )
+            if price is None:
+                pass
+
         multiplier = disc_curve[settlement] / disc_curve[forward_settlement]
         return price * multiplier
 
@@ -1953,9 +1995,30 @@ class FloatRateBond(Sensitivities, BaseMixin):
         else:
             return npv
 
-    def analytic_delta(self, *args, **kwargs):
-        # TODO make this ex-div compliant
-        return self.leg1.analytic_delta(*args, **kwargs)
+    def analytic_delta(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Union[float, FXRates, FXForwards] = 1.0,
+        base: Optional[str] = None,
+    ):
+        disc_curve = disc_curve or curve
+        settlement = add_tenor(
+            disc_curve.node_dates[0], f"{self.settle}B", None,
+            self.leg1.schedule.calendar
+        )
+        a_delta = self.leg1.analytic_delta(curve, disc_curve, fx, base)
+        if self.ex_div(settlement):
+            # deduct the next coupon which has otherwise been included in valuation
+            current_period = index_left(
+                self.leg1.schedule.aschedule,
+                self.leg1.schedule.n_periods + 1,
+                settlement,
+            )
+            a_delta -= self.leg1.periods[current_period].analytic_delta(
+                curve, disc_curve, fx, base
+            )
+        return a_delta
 
 
 ### Single currency derivatives

@@ -793,6 +793,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         raise NotImplementedError("fixings table on ZeroFloatLeg.")
 
     def analytic_delta(self, *args, **kwargs):
+        # TODO: a delta for ZeroFloatLeg
         raise NotImplementedError("analytic delta on ZeroFloatLeg.")
 
     def cashflows(

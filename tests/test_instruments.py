@@ -1487,6 +1487,31 @@ class TestFloatRateBond:
         result = bond.accrued(dt(2010, 3, 16))
         assert result == 0.
 
+    def test_float_rate_bond_analytic_delta(self):
+        frn = FloatRateBond(
+            effective=dt(2010, 6, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            float_spread=100,
+            notional=-1000000,
+            settle=0,
+            fixing_method="ibor",
+            fixings=2.0
+        )
+        curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 1.0})
+        result = frn.analytic_delta(curve)
+        expected = -550.0
+        assert abs(result - expected) < 1e-6
+
+        frn.settle = 1
+        result = frn.analytic_delta(curve)  # bond is ex div on settle 26th Nov 2010
+        expected = -500.0  # bond has dropped a 6m coupon payment
+        assert abs(result - expected) < 1e-6
+
 
 class TestPricingMechanism:
 
