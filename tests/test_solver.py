@@ -552,6 +552,42 @@ def test_solver_grad_s_vT_methods_equivalent():
     assert_allclose(grad_s_vT_final_iter_dual, grad_s_vT_fixed_point_iter, atol=1e-12)
 
 
+def test_solver_grad_s_vT_methods_equivalent_overspecified_curve():
+    curve = Curve(nodes={
+        dt(2022, 1, 1): 1.0,
+        dt(2023, 1, 1): 1.0,
+        dt(2024, 1, 1): 1.0,
+        dt(2025, 1, 1): 1.0,
+        # dt(2026, 1, 1): 1.0,
+        dt(2027, 1, 1): 1.0,
+    })
+    instruments = [
+        (IRS(dt(2022, 1, 1), "2Y", "A"), (curve,), {}),
+        (IRS(dt(2023, 1, 1), "1Y", "A"), (curve,), {}),
+        (IRS(dt(2023, 1, 1), "2Y", "A"), (curve,), {}),
+        (IRS(dt(2022, 5, 1), "4Y", "A"), (curve,), {}),
+        (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
+    ]
+    s = [1.2, 1.4, 1.6, 1.7, 1.9]
+    solver = Solver([curve], instruments, s)
+
+    solver._grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
+    grad_s_vT_final_iter_anal = solver.grad_s_vT
+
+    solver._grad_s_vT_method = "_grad_s_vT_final_iteration_dual"
+    solver._grad_s_vT_final_iteration_algo = "gauss_newton_final"
+    solver._reset_properties_()
+    grad_s_vT_final_iter_dual = solver.grad_s_vT
+
+    solver._grad_s_vT_method = "_grad_s_vT_fixed_point_iteration"
+    solver._reset_properties_()
+    grad_s_vT_fixed_point_iter = solver.grad_s_vT
+
+    assert_allclose(grad_s_vT_final_iter_dual, grad_s_vT_final_iter_anal, atol=1e-6)
+    assert_allclose(grad_s_vT_fixed_point_iter, grad_s_vT_final_iter_anal, atol=1e-6)
+    assert_allclose(grad_s_vT_final_iter_dual, grad_s_vT_fixed_point_iter, atol=1e-6)
+
+
 def test_solver_second_order_vars_raise_on_first_order():
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
     solver = Solver(

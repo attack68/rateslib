@@ -43,7 +43,7 @@ class Gradients:
         """
         Alias of ``J``.
         """
-        return self.J
+        return self.J  # pragma: no cover
 
     @property
     def J2(self):
@@ -75,7 +75,7 @@ class Gradients:
         """
         Alias of ``J2``.
         """
-        return self.J2
+        return self.J2  # pragma: no cover
 
     @property
     def grad_s_vT(self):
@@ -318,7 +318,7 @@ class Gradients:
         """
         Alias of ``J2_pre``.
         """
-        return self.J2_pre
+        return self.J2_pre  # pragma: no cover
 
     def grad_f_s_vT_pre(self, fx_vars):
         """
@@ -1264,8 +1264,13 @@ class Solver(Gradients):
         #     v_1 = self.v - 2 * alpha * _[:, 0]
         elif algorithm == "gauss_newton_final":
             # TODO deal with square and not square matrices here.
-            A = self.J.transpose()
-            b = -self.x[:, np.newaxis]
+            if self.J.shape[0] == self.J.shape[1]:  # square system
+                A = self.J.transpose()
+                b = -self.x[:, np.newaxis]
+            else:
+                A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
+                b = -np.matmul(np.matmul(self.J, self.W), self.x[:, np.newaxis])
+
             delta = dual_solve(A, b)[:, 0]
             v_1 = self.v + delta
         else:
@@ -1612,6 +1617,10 @@ class Solver(Gradients):
             [key for key in idx_tuples],
             names=["local_ccy", "display_ccy", "type", "solver", "label"]
         )
+        if base is not None:
+            ridx = ridx.append(
+                MultiIndex.from_tuples([("all", base) + l for l in inst_keys + fx_keys])
+            )
         cidx = MultiIndex.from_tuples(
             [l for l in inst_keys + fx_keys],
             names=["type", "solver", "label"]
@@ -1626,9 +1635,14 @@ class Solver(Gradients):
             df.loc[locator, :] = array
 
         if base is not None:
-            pass
+            gdf = (
+                df.loc[(currencies, base, slice(None), slice(None), slice(None)), :]
+                .groupby(level=[2, 3, 4]).sum()
+            )
+            gdf.index = MultiIndex.from_tuples([("all", base) + l for l in gdf.index])
+
+            df.loc[("all", base, slice(None), slice(None), slice(None))] = gdf
             # TODO implement a sum
-            # df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         return df
 
