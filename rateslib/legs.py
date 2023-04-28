@@ -1212,7 +1212,7 @@ class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):
             raise ValueError(
                 "`amortization` cannot be supplied to a `FixedLegExchangeMtm` type."
             )
-        self.fx_fixings = fx_fixings  # calls the setter and sets self.periods
+        self.fx_fixings = fx_fixings  # calls the setter
 
     @property
     def notional(self):
@@ -1639,8 +1639,6 @@ class FloatLegExchangeMtm(BaseLegExchangeMtm, FloatLegMixin):
         )
 
         self._set_fixings(fixings)
-
-        # TODO check the ordering here of the next two lines: periods are not set here but will be at price time
         self.fx_fixings = fx_fixings  # sets fx_fixings and periods after initialising
         # self._initialised = True  # once rates fixings are set can set periods
 
