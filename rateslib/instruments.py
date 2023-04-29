@@ -984,10 +984,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
         settlement = add_tenor(
             curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
-        npv = self.npv(curves, solver, fx, base)
-
-        # scale price to par 100 and make a fwd adjustment according to curve
-        dirty_price = npv * 100 / (-self.leg1.notional * curves[1][settlement])
+        npv = self._npv_local(curves[0], curves[1], fx, base, settlement, settlement)
+        # scale price to par 100 (npv is already projected forward to settlement)
+        dirty_price = npv * 100 / -self.leg1.notional
 
         if metric == "dirty_price":
             return dirty_price
@@ -1102,26 +1101,83 @@ class FixedRateBond(Sensitivities, BaseMixin):
         curve on both legs and the discounting curve is used as the discounting
         curve for both legs.
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curvs, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
         settlement = add_tenor(
-            curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
+            curvs[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
         base = self.currency if local else base
-        npv = self.leg1.npv(curves[0], curves[1], fx, base)
-        if self.ex_div(settlement):
-            # deduct the next coupon which has otherwise been included in valuation
-            current_period = index_left(
-                self.leg1.schedule.aschedule,
-                self.leg1.schedule.n_periods + 1,
-                settlement,
-            )
-            npv -= self.leg1.periods[current_period].npv(
-                curves[0], curves[1], fx, base
-            )
+        npv = self._npv_local(curvs[0], curvs[1], fx, base, settlement, None)
         if local:
             return {self.currency: npv}
         else:
             return npv
+
+    def _npv_local(
+        self,
+        curve: Union[Curve, LineCurve],
+        disc_curve: Curve,
+        fx: Optional[Union[float, FXRates, FXForwards]],
+        base: Optional[str],
+        settlement: datetime,
+        projection: datetime
+    ):
+        """
+        Return the NPV (local) of the security by summing cashflow valuations.
+
+        Parameters
+        ----------
+        curve : Curve or LineCurve
+            A curve used for projecting cashflows of floating rates.
+        disc_curve : Curve, str or list of such
+            A single :class:`Curve` for discounting cashflows.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        settlement : datetime
+            The date of settlement of the bond which declares which cashflows are
+            unpaid and therefore valid for the calculation.
+        projection : datetime, optional
+           Curves discount cashflows to the initial node of the Curve. This parameter
+           allows the NPV to be projected forward to a future date under the appropriate
+           discounting mechanism. If *None* is not projected forward.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        npv = self.leg1.npv(curve, disc_curve, fx, base)
+
+        # now must systematically deduct any cashflow between the initial node date
+        # and the settlement date, including the cashflow after settlement if ex_div.
+
+        initial_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            disc_curve.node_dates[0],
+        )
+        settle_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+
+        for period_idx in range(initial_idx, settle_idx):
+            # deduct coupon period
+            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
+
+        if self.ex_div(settlement):
+            # deduct coupon after settlement which is also unpaid
+            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
+
+        if projection is None:
+            return npv
+        else:
+            return npv / disc_curve[projection]
 
     def analytic_delta(
         self,
@@ -1244,6 +1300,15 @@ class FixedRateBond(Sensitivities, BaseMixin):
         multiplier = disc_curve[settlement] / disc_curve[forward_settlement]
         return price * multiplier
 
+    # def _total_forward_price_from_curve(
+    #     self,
+    #     disc_curve: Curve,
+    #     forward_settlement: datetime,
+    # ):
+    #     npv = self.npv(disc_curve, None, None, None)
+    #     # scale price to par 100 and make a fwd adjustment according to curve
+    #     dirty_price = npv * 100 / (-self.leg1.notional * disc_curve[forward_settlement])
+    #     return dirty_price
 
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
     #     """

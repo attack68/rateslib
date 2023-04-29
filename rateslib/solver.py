@@ -1307,7 +1307,9 @@ class Solver(Gradients):
         for i in range(self.max_iter):
             g_val = self.g.real
             self.g_list.append(g_val)
-            # TODO check whether less than or equal to is correct in below condition
+            # condition is set to less than to avoid the case where a null update
+            # results in the same solution and this is erroneously categorised
+            # as a converged solution.
             if (
                 self.g.real < self.g_prev
                 and (self.g_prev - self.g.real) < self.conv_tol

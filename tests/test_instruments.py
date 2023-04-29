@@ -1156,6 +1156,31 @@ class TestFixedRateBond:
         expected = 109.229489312983  # bond has dropped a coupon payment of 4.
         assert abs(result - expected) < 1e-6
 
+    def test_fixed_rate_bond_npv_private(self):
+        # this test shadows 'fixed_rate_bond_npv' but extends it for projection
+        curve = Curve({
+            dt(2004, 11, 25): 1.0,
+            dt(2010, 11, 25): 1.0,
+            dt(2015, 12, 7): 0.75}
+        )
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            notional=-100,
+            settle=0,
+        )
+        result = gilt._npv_local(
+            None, curve, None, None, dt(2010, 11, 26), dt(2010, 11, 25)
+        )
+        expected = 109.229489312983  # npv should match associated test
+        assert abs(result - expected) < 1e-6
+
     def test_fixed_rate_bond_analytic_delta(self):
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
