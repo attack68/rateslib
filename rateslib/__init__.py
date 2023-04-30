@@ -1,7 +1,7 @@
 __docformat__ = "restructuredtext"
 
 # Let users know if they're missing any of our hard dependencies
-_hard_dependencies = ("pandas", "scipy", "matplotlib", "numpy")
+_hard_dependencies = ("pandas", "matplotlib", "numpy")
 _missing_dependencies = []
 
 for _dependency in _hard_dependencies:

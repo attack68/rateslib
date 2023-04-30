@@ -53,10 +53,6 @@ environment.
      - 3.6.3
      - 3.5.1
      - (used for plotting curves)
-   * - SciPy
-     - 1.9.3
-     - 1.8.0
-     - (used for `brentq` algorithm in bond yield solving)
 
 
 Introduction to Rateslib
