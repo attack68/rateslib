@@ -992,7 +992,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
             raise NotImplementedError(
                 "method for forward price not available with amortization"
             )
-        total_rtn = d_price * (1 + repo_rate * dcf_ /100) * -self.leg1.notional / 100
+        total_rtn = d_price * (1 + repo_rate * dcf_ / 100) * -self.leg1.notional / 100
 
         # now systematically deduct coupons paid between settle and forward settle
         settlement_idx = index_left(
@@ -1244,7 +1244,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
         # now must systematically deduct any cashflow between the initial node date
         # and the settlement date, including the cashflow after settlement if ex_div.
-
         initial_idx = index_left(
             self.leg1.schedule.aschedule,
             self.leg1.schedule.n_periods + 1,
@@ -2088,7 +2087,8 @@ class FloatRateBond(Sensitivities, BaseMixin):
         local: bool = False,
     ):
         """
-        Return the NPV of the security by summing cashflow valuations.
+        Return the NPV of the security by summing cashflow valuations, valued at the
+        initial node date of the discounting curve.
 
         Parameters
         ----------
