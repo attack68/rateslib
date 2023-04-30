@@ -636,10 +636,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
             frac * self.leg1.periods[acc_idx].cashflow / -self.leg1.notional * 100
         )
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
     def _accrued_frac(self, settlement: datetime):
         """
         Return the accrual fraction of period between last coupon and settlement and
@@ -655,6 +651,12 @@ class FixedRateBond(Sensitivities, BaseMixin):
             (self.leg1.schedule.aschedule[acc_idx+1] -
              self.leg1.schedule.aschedule[acc_idx])
         ), acc_idx
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+    # Analogue Methods
 
     def _price_from_ytm(self, ytm: float, settlement: datetime, dirty: bool = False):
         """
@@ -941,6 +943,94 @@ class FixedRateBond(Sensitivities, BaseMixin):
             )
         else:
             return x
+
+    def fwd_from_repo(
+        self,
+        price: Union[float, Dual, Dual2],
+        settlement: datetime,
+        forward_settlement: datetime,
+        repo_rate : Union[float, Dual, Dual2],
+        convention : Optional[str] = None,
+        dirty: bool = False,
+    ):
+        """
+        Return a forward price implied by a given repo rate.
+
+        Parameters
+        ----------
+        price : float, Dual, or Dual2
+            The initial price of the security at ``settlement``.
+        settlement : datetime
+            The settlement date of the bond
+        forward_settlement : datetime
+            The forward date for which to calculate the forward price.
+        repo_rate : float, Dual or Dual2
+            The rate which is used to calculate values.
+        convention : str, optional
+            The day count convention applied to the rate. If not given uses default
+            values.
+        dirty : bool, optional
+            Whether the input and output price are specified including accrued interest.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        Any intermediate (non ex-dividend) cashflows between ``settlement`` and
+        ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
+        """
+        convention = defaults.convention if convention is None else convention
+        dcf_ = dcf(settlement, forward_settlement, convention)
+        if not dirty:
+            d_price = price + self.accrued(settlement)
+        else:
+            d_price = price
+        # TODO this method of calculation is not suitable for amortising bonds
+        if self.leg1.amortization != 0:
+            raise NotImplementedError(
+                "method for forward price not available with amortization"
+            )
+        total_rtn = d_price * (1 + repo_rate * dcf_ /100) * -self.leg1.notional / 100
+
+        # now systematically deduct coupons paid between settle and forward settle
+        settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+        fwd_settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            forward_settlement,
+        )
+
+        # do not accrue a coupon not received
+        settlement_idx += 1 if self.ex_div(settlement) else 0
+        # deduct final coupon if received within period
+        fwd_settlement_idx += 1 if self.ex_div(forward_settlement) else 0
+
+        for p_idx in range(settlement_idx, fwd_settlement_idx):
+            # deduct accrued coupon from dirty price
+            dcf_ = dcf(
+                self.leg1.periods[p_idx].payment,
+                forward_settlement,
+                convention
+            )
+            accrued_coup = (
+                self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
+            )
+            total_rtn -= accrued_coup
+
+        forward_price = total_rtn / -self.leg1.notional * 100
+        if dirty:
+            return forward_price
+        else:
+            return forward_price - self.accrued(forward_settlement)
+
+
+    # Digital Methods
 
     def rate(
         self,

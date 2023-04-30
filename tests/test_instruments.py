@@ -1261,6 +1261,50 @@ class TestFixedRateBond:
                 amortization=100
             )
 
+    @pytest.mark.parametrize("f_s, exp", [
+        (dt(2001, 12, 31), 99.997513754),  # compounding of mid year coupon
+        (dt(2002, 1, 1), 99.9975001688)  # this is now ex div on last coupon
+    ])
+    def test_fixed_rate_bond_forward_price_analogue(self, f_s, exp):
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination=dt(2002, 1, 1),
+            frequency="S",
+            calendar=None,
+            currency="gbp",
+            convention="Act365f",
+            ex_div=0,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        result = gilt.fwd_from_repo(
+            100.0, dt(2001, 1, 1), f_s, 1.0, "act365f"
+        )
+        assert abs(result - exp) < 1e-6
+
+    @pytest.mark.parametrize("s, f_s, exp", [
+        (dt(2010, 11, 25), dt(2011, 11, 25), 99.9975000187),
+        (dt(2010, 11, 28), dt(2011, 11, 28), 99.9975000187),
+        (dt(2010, 11, 28), dt(2011, 11, 25), 99.997419419),
+        (dt(2010, 11, 25), dt(2011, 11, 28), 99.997579958),
+    ])
+    def test_fixed_rate_bond_forward_price_analogue_ex_div(self, s, f_s, exp):
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="act365f",
+            ex_div=7,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        result = gilt.fwd_from_repo(100.0, s, f_s, 1.0, "act365f")
+        assert abs(result - exp) < 1e-6
+
 
 class TestBill:
 
