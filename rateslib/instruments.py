@@ -922,7 +922,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added
-            # back below, see PRx
+            # back below, see PR GH3
             return self._price_from_ytm(y, settlement, dirty) - float(price)
         # x = brentq(root, -99, 10000)  # remove dependence to scipy brentq
         x, iters = _brents(root, -99, 10000)
