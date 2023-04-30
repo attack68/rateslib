@@ -120,8 +120,8 @@ capturing aspects like trading calendars, day count conventions, payment delays,
             <div id="collapseFourA" class="collapse" data-parent="#accordion">
                 <div class="card-body">
 
-The dependencies are to **NumPy**, **Pandas**, **Matplotlib** and (to a very minor
-degree) **SciPy**. *Rateslib* does not have any dependencies to any automatic
+The dependencies are to **NumPy**, **Pandas**, and **Matplotlib**. *Rateslib* does
+not have any dependencies to any automatic
 differentiation libraries, such as PyAudi or JAX, preferring initially to use its
 own forward mode module.
 
