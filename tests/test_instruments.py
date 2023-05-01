@@ -8,7 +8,7 @@ import context
 from rateslib import defaults, default_context
 from rateslib.instruments import (
     IRS, forward_fx, SBS, FXSwap, NonMtmXCS, FixedRateBond, Bill, Value,
-    _get_curve_from_solver, BaseMixin, FloatRateBond, FRA,
+    _get_curve_from_solver, BaseMixin, FloatRateBond, FRA, BondFuture,
     NonMtmFixedFloatXCS, NonMtmFixedFixedXCS, XCS, FixedFloatXCS, FixedFixedXCS, FloatFixedXCS,
     Portfolio, Spread, Fly
 )
@@ -1283,6 +1283,28 @@ class TestFixedRateBond:
         )
         assert abs(result - exp) < 1e-6
 
+    @pytest.mark.parametrize("f_s, exp", [
+        (dt(2001, 12, 31), 100.49888361793),  # compounding of mid year coupon
+        (dt(2002, 1, 1), 99.9975001688)  # this is now ex div on last coupon
+    ])
+    def test_fixed_rate_bond_forward_price_analogue_dirty(self, f_s, exp):
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination=dt(2002, 1, 1),
+            frequency="S",
+            calendar=None,
+            currency="gbp",
+            convention="Act365f",
+            ex_div=0,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        result = gilt.fwd_from_repo(
+            100.0, dt(2001, 1, 1), f_s, 1.0, "act365f", dirty=True
+        )
+        assert abs(result - exp) < 1e-6
+
     @pytest.mark.parametrize("s, f_s, exp", [
         (dt(2010, 11, 25), dt(2011, 11, 25), 99.9975000187),
         (dt(2010, 11, 28), dt(2011, 11, 28), 99.9975000187),
@@ -1580,6 +1602,70 @@ class TestFloatRateBond:
         result = frn.analytic_delta(curve)  # bond is ex div on settle 26th Nov 2010
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
+
+
+class TestBondFuture:
+
+    @pytest.mark.parametrize("delivery, mat, coupon, exp", [
+        (dt(2023, 6, 12), dt(2032, 2, 15), 0.0, 0.603058),
+        (dt(2023, 6, 12), dt(2032, 8, 15), 1.7, 0.703125),
+        (dt(2023, 6, 12), dt(2033, 2, 15), 2.3, 0.733943),
+        (dt(2023, 9, 11), dt(2032, 8, 15), 1.7, 0.709321),
+        (dt(2023, 9, 11), dt(2033, 2, 15), 2.3, 0.739087),
+        (dt(2023, 12, 11), dt(2032, 8, 15), 1.7, 0.715464),
+        (dt(2023, 12, 11), dt(2033, 2, 15), 2.3, 0.744390),
+    ])
+    def test_conversion_factors_eurex_bund(self, delivery, mat, coupon, exp):
+        # The expected results are downloaded from the EUREX website
+        # regarding precalculated conversion factors.
+        # this test allows for an error in the cf < 1e-4.
+        kwargs = dict(
+            effective=dt(2020, 1, 1),
+            stub="ShortFront",
+            frequency="A",
+            calendar="tgt",
+            currency="eur",
+            convention="ActActICMA"
+        )
+        bond1 = FixedRateBond(termination=mat, fixed_rate=coupon, **kwargs)
+
+        fut = BondFuture(
+            delivery=delivery,
+            coupon=6.0,
+            basket=[bond1]
+        )
+        result = fut.conversion_factors()
+        assert abs(result[0]-exp) < 1e-4
+
+    @pytest.mark.parametrize("mat, coupon, exp", [
+        (dt(2032, 6, 7), 4.25, 1.0187757),
+        (dt(2033, 7, 31), 0.875, 0.7410593),
+        (dt(2034, 9, 7), 4.5, 1.0449380),
+        (dt(2035, 7, 31), 0.625, 0.6773884),
+        (dt(2036, 3, 7), 4.25, 1.0247516),
+    ])
+    def test_conversion_factors_ice_gilt(self, mat, coupon, exp):
+        # The expected results are downloaded from the ICE LIFFE website
+        # regarding precalculated conversion factors.
+        # this test allows for an error in the cf < 1e-6.
+        kwargs = dict(
+            effective=dt(2020, 1, 1),
+            stub="ShortFront",
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+        )
+        bond1 = FixedRateBond(termination=mat, fixed_rate=coupon, **kwargs)
+
+        fut = BondFuture(
+            delivery=(dt(2023, 6, 1), dt(2023, 6, 30)),
+            coupon=4.0,
+            basket=[bond1]
+        )
+        result = fut.conversion_factors()
+        assert abs(result[0] - exp) < 1e-6
 
 
 class TestPricingMechanism:
