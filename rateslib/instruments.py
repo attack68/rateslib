@@ -1240,6 +1240,14 @@ class FixedRateBond(Sensitivities, BaseMixin):
         Returns
         -------
         float, Dual, Dual2
+
+        Notes
+        -----
+        The cashflows for determination (excluding an ``ex_div`` cashflow) are
+        evaluated by ``settlement``.
+
+        The date for which the PV is returned is by ``projection``, and not the
+        initial node date of the ``disc_curve``.
         """
         npv = self.leg1.npv(curve, disc_curve, fx, base)
 
@@ -2178,6 +2186,107 @@ class FloatRateBond(Sensitivities, BaseMixin):
 
 
 ### Single currency derivatives
+
+
+class BondFuture():
+    """
+    Create a bond future derivative.
+
+    Parameters
+    ----------
+    coupon: float
+        The nominal coupon rate set on the contract specifications.
+    delivery: datetime or 2-tuple of datetimes
+        The delivery window first and last delivery day, or a single delivery day.
+    basket: tuple of FixedRateBond
+        The bonds that are available as deliverables.
+    last_trading: int, optional
+        The number of business days before the final delivery day when trading
+        will cease.
+    nominal: float, optional
+        The nominal amount of the contract.
+    calendar: str, optional
+        The calendar to define delivery days within the delivery window.
+    """
+
+    def __init__(
+        self,
+        coupon: float,
+        delivery: Union[datetime, tuple[datetime, datetime]],
+        basket: tuple[FixedRateBond],
+        last_trading: Optional[int] = None,
+        nominal: Optional[float] = None,
+        calendar: Optional[str] = None,
+    ):
+        self.coupon = coupon
+        if isinstance(delivery, datetime):
+            self.delivery = (delivery, delivery)
+        else:
+            self.delivery = tuple(delivery)
+        self.basket = tuple(basket)
+        self.calendar = get_calendar(calendar)
+        # self.last_trading = delivery[1] if last_trading is None else
+        self.nominal = defaults.notional if nominal is None else nominal
+
+    def conversion_factors(self):
+        """
+        Return the conversion factors for each bond in the ordered ``basket``.
+
+        Returns
+        -------
+        tuple
+
+        Notes
+        -----
+        This method uses the traditional calculation of obtaining a clean price
+        for each bond on the **first delivery date** assuming the **yield-to-maturity**
+        is set as the nominal coupon of the bond future, and scaled to 100.
+
+        .. warning::
+
+           Some exchanges, such as EUREX, specify their own conversion factors' formula
+           which differs slightly in the definition of yield-to-maturity than the
+           implementation offered by *rateslib*. This results in small differences and
+           is *potentially* explained in the way dates, holidays and DCFs are handled
+           by each calculator.
+
+        For ICE-LIFFE and gilt futures the methods between the exchange and *rateslib*
+        align which results in accurate values. Official values can be validated
+        against the document
+        :download:`ICE-LIFFE Jun23 Long Gilt<_static/long_gilt_initial_jun23.pdf>`.
+
+        For an equivalent comparison with values which do not exactly align see
+        :download:`EUREX Jun23 Bond Futures<_static/eurex_bond_conversion_factors.csv>`.
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           gilt_kws = dict(
+               effective=dt(2020, 1, 1),
+               stub="ShortFront",
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               settle=1,
+           )
+           bonds = [
+               FixedRateBond(termination=dt(2032, 6, 7), fixed_rate=4.25, **gilt_kws),
+               FixedRateBond(termination=dt(2033, 7, 31), fixed_rate=0.875, **gilt_kws),
+               FixedRateBond(termination=dt(2034, 9, 7), fixed_rate=4.5, **gilt_kws),
+               FixedRateBond(termination=dt(2035, 7, 31), fixed_rate=0.625, **gilt_kws),
+               FixedRateBond(termination=dt(2036, 3, 7), fixed_rate=4.25, **gilt_kws),
+           ]
+           future = BondFuture(delivery=dt(2023, 6, 1), coupon=4.0, basket=bonds)
+           future.conversion_factors()
+
+        """
+        return tuple(
+            bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket
+        )
 
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
