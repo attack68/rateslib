@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import Optional, Union
 import abc
 import warnings
+from math import sqrt
 
 import numpy as np
 from pandas.tseries.offsets import CustomBusinessDay
@@ -924,8 +925,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
             return self._price_from_ytm(y, settlement, dirty) - float(price)
-        # x = brentq(root, -99, 10000)  # remove dependence to scipy brentq
-        x, iters = _brents(root, -99, 10000)
+        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
+        # x, iters = _brents(root, -99, 10000)  # use own local brents code
+        x = _ytm_quadratic_converger(root, -3, 2, 12)  # use specialised quad interp
 
         if isinstance(price, Dual):
             # use the inverse function theorem to express x as a Dual
@@ -951,8 +953,8 @@ class FixedRateBond(Sensitivities, BaseMixin):
         price: Union[float, Dual, Dual2],
         settlement: datetime,
         forward_settlement: datetime,
-        repo_rate : Union[float, Dual, Dual2],
-        convention : Optional[str] = None,
+        repo_rate: Union[float, Dual, Dual2],
+        convention: Optional[str] = None,
         dirty: bool = False,
     ):
         """
@@ -5466,6 +5468,44 @@ def forward_fx(
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def _ytm_quadratic_converger(f, y0, y1, y2, tol=1e-12):
+    """
+    Convert a price from yield function `f` into a quadratic approximation and
+    determine the root, yield, which matches the target price.
+    """
+
+    _A = np.array([[y0**2, y0, 1], [y1**2, y1, 1], [y2**2, y2, 1]])
+    _b = np.array([f(y0), f(y1), f(y2)])[:, None]
+
+    # check tolerance from previous recursive estimations
+    if abs(_b[1]) < tol:
+        return y1
+
+    c = np.linalg.solve(_A, _b)
+
+    yield1 = ((-c[1] + sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
+    yield2 = ((-c[1] - sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
+    z1, z2 = f(yield1), f(yield2)
+
+    # make a linear guess at new quadratic solution
+    approx_yield = yield1 - (yield2 - yield1) * z1 / (z2 - z1)
+    if abs(z1) < abs(z2):
+        soln_yield = yield1
+        if abs(z1) < tol:
+            return soln_yield
+    else:
+        soln_yield = yield2
+        if abs(z2) < tol:
+            return soln_yield
+    return _ytm_quadratic_converger(
+        f,
+        approx_yield - max(10 * (approx_yield - soln_yield), 0.001),
+        approx_yield,
+        approx_yield + max(10 * (approx_yield - soln_yield), 0.001),
+        tol
+    )
 
 
 def _brents(f, x0, x1, max_iter=50, tolerance=1e-12):

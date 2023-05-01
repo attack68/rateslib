@@ -11,4 +11,6 @@ code {
 .table td, .table th {
   font-size: 0.85em;
   padding: 0;
+  padding-left: 10px;
+  padding-right: 10px;
 }

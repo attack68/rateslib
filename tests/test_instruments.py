@@ -1322,7 +1322,7 @@ class TestBill:
         assert bill.discount_rate(99.93777, dt(2004, 1, 22)) == 0.8000999999999543
         assert bill.price(0.800, dt(2004, 1, 22)) == 99.93777777777778
         # this YTM is equivalent to the FixedRateBond ytm with coupon of 0.0
-        assert bill.ytm(99.937778, dt(2004, 1, 22)) == 0.8034566609543146
+        assert abs(bill.ytm(99.937778, dt(2004, 1, 22)) - 0.8034566609543146) < 1e-9
 
         d = dcf(dt(2004, 1, 22), dt(2004, 2, 19), "Act360")
         expected = 100 * (1 / (1-0.0080009999999*d) - 1) / d  # floating point truncation
