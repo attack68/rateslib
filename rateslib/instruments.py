@@ -28,6 +28,7 @@ import warnings
 from math import sqrt
 
 import numpy as np
+from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, date_range, Series
 
@@ -688,7 +689,8 @@ class FixedRateBond(Sensitivities, BaseMixin):
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
         """
-        Calculate the price of the security per nominal value of 100.
+        Calculate the price of the security per nominal value of 100, given
+        yield-to-maturity.
 
         Parameters
         ----------
@@ -927,7 +929,7 @@ class FixedRateBond(Sensitivities, BaseMixin):
             return self._price_from_ytm(y, settlement, dirty) - float(price)
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger(root, -3, 2, 12)  # use specialised quad interp
+        x = _ytm_quadratic_converger2(root, -3., 2., 12.)  # use specialised quad interp
 
         if isinstance(price, Dual):
             # use the inverse function theorem to express x as a Dual
@@ -5579,97 +5581,140 @@ def forward_fx(
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def _ytm_quadratic_converger(f, y0, y1, y2, tol=1e-12):
+# def _ytm_quadratic_converger(f, y0, y1, y2, tol=1e-9):
+#     """
+#     Convert a price from yield function `f` into a quadratic approximation and
+#     determine the root, yield, which matches the target price.
+#     """
+#     _A = np.array([[y0**2, y0, 1], [y1**2, y1, 1], [y2**2, y2, 1]])
+#     _b = np.array([f(y0), f(y1), f(y2)])[:, None]
+#
+#     # check tolerance from previous recursive estimations
+#     if abs(_b[1, 0]) < tol:
+#         return y1
+#
+#     c = np.linalg.solve(_A, _b)
+#
+#     yield1 = ((-c[1] + sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
+#     yield2 = ((-c[1] - sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
+#     z1, z2 = f(yield1), f(yield2)
+#
+#     # make a linear guess at new quadratic solution
+#     approx_yield = yield1 - (yield2 - yield1) * z1 / (z2 - z1)
+#     if abs(z1) < abs(z2):
+#         soln_yield = yield1
+#         if abs(z1) < tol:
+#             return soln_yield
+#     else:
+#         soln_yield = yield2
+#         if abs(z2) < tol:
+#             return soln_yield
+#     return _ytm_quadratic_converger(
+#         f,
+#         approx_yield - max(10 * (approx_yield - soln_yield), 0.001),
+#         approx_yield,
+#         approx_yield + max(10 * (approx_yield - soln_yield), 0.001),
+#         tol
+#     )
+
+
+def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
     """
     Convert a price from yield function `f` into a quadratic approximation and
     determine the root, yield, which matches the target price.
     """
+    # allow function values to be passed recursively to avoid re-calculation
+    f0 = f(y0) if f0 is None else f0
+    f1 = f(y1) if f1 is None else f1
+    f2 = f(y2) if f2 is None else f2
 
-    _A = np.array([[y0**2, y0, 1], [y1**2, y1, 1], [y2**2, y2, 1]])
-    _b = np.array([f(y0), f(y1), f(y2)])[:, None]
+    if f0 < 0 and f1 < 0 and f2 < 0:
+        # reassess initial values
+        return _ytm_quadratic_converger2(f, 2*y0-y2, y1-y2+y0, y0, None, None, f0, tol)
+    elif f0 > 0 and f1 > 0 and f2 > 0:
+        return _ytm_quadratic_converger2(f, y2, y1+1*(y2-y0), y2+2*(y2-y0), f2, None, None, tol)
 
+    _b = np.array([y0, y1, y2])[:, None]
     # check tolerance from previous recursive estimations
-    if abs(_b[1]) < tol:
-        return y1
+    for i, f_ in enumerate([f0, f1, f2]):
+        if abs(f_) < tol:
+            return _b[i, 0]
 
+    _A = np.array([[f0 ** 2, f0, 1], [f1 ** 2, f1, 1], [f2 ** 2, f2, 1]])
     c = np.linalg.solve(_A, _b)
+    y = c[2, 0]
+    f_ = f(y)
 
-    yield1 = ((-c[1] + sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
-    yield2 = ((-c[1] - sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
-    z1, z2 = f(yield1), f(yield2)
-
-    # make a linear guess at new quadratic solution
-    approx_yield = yield1 - (yield2 - yield1) * z1 / (z2 - z1)
-    if abs(z1) < abs(z2):
-        soln_yield = yield1
-        if abs(z1) < tol:
-            return soln_yield
-    else:
-        soln_yield = yield2
-        if abs(z2) < tol:
-            return soln_yield
-    return _ytm_quadratic_converger(
-        f,
-        approx_yield - max(10 * (approx_yield - soln_yield), 0.001),
-        approx_yield,
-        approx_yield + max(10 * (approx_yield - soln_yield), 0.001),
-        tol
-    )
-
-
-def _brents(f, x0, x1, max_iter=50, tolerance=1e-12):
-    fx0 = f(x0)
-    fx1 = f(x1)
-
-    if float(fx0 * fx1) > 0:
-        raise ValueError(
-            "`brents` must initiate from function values with opposite signs.")
-
-    if abs(fx0) < abs(fx1):
-        x0, x1 = x1, x0
-        fx0, fx1 = fx1, fx0
-
-    x2, fx2 = x0, fx0
-
-    mflag = True
-    steps_taken = 0
-
-    while steps_taken < max_iter and abs(x1 - x0) > tolerance:
-        fx0 = f(x0)
-        fx1 = f(x1)
-        fx2 = f(x2)
-
-        if fx0 != fx2 and fx1 != fx2:
-            L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
-            L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
-            L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
-            new = L0 + L1 + L2
-
+    pad = min(tol*1e8, 0.0001, abs(f_*1e4))  # avoids singular matrix error
+    if y <= y0:
+        return _ytm_quadratic_converger2(f, 2*y-y0-pad, y, y0+pad, None, f_, None, tol)
+    elif y0 < y <= y1:
+        if (y-y0) < (y1-y):
+            return _ytm_quadratic_converger2(f, y0-pad, y, 2*y-y0+pad, None, f_, None, tol)
         else:
-            new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
-
-        if ((float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1)) or
-                (mflag == True and (abs(new - x1)) >= (abs(x1 - x2) / 2)) or
-                (mflag == False and (abs(new - x1)) >= (abs(x2 - d) / 2)) or
-                (mflag == True and (abs(x1 - x2)) < tolerance) or
-                (mflag == False and (abs(x2 - d)) < tolerance)):
-            new = (x0 + x1) / 2
-            mflag = True
-
+            return _ytm_quadratic_converger2(f, 2*y-y1-pad, y, y1+pad, None, f_, None, tol)
+    elif y1 < y <= y2:
+        if (y-y1) < (y2-y):
+            return _ytm_quadratic_converger2(f, y1-pad, y, 2*y-y1+pad, None, f_, None, tol)
         else:
-            mflag = False
+            return _ytm_quadratic_converger2(f, 2*y-y2-pad, y, y2+pad, None, f_, None, tol)
+    else: # y2 < y:
+        return _ytm_quadratic_converger2(f, y2-pad, y, 2*y-y2+pad, None, f_, None, tol)
 
-        fnew = f(new)
-        d, x2 = x2, x1
 
-        if float(fx0 * fnew) < 0:
-            x1 = new
-        else:
-            x0 = new
-
-        if abs(fx0) < abs(fx1):
-            x0, x1 = x1, x0
-
-        steps_taken += 1
-
-    return x1, steps_taken
+# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
+#     fx0 = f(x0)
+#     fx1 = f(x1)
+#
+#     if float(fx0 * fx1) > 0:
+#         raise ValueError(
+#             "`brents` must initiate from function values with opposite signs.")
+#
+#     if abs(fx0) < abs(fx1):
+#         x0, x1 = x1, x0
+#         fx0, fx1 = fx1, fx0
+#
+#     x2, fx2 = x0, fx0
+#
+#     mflag = True
+#     steps_taken = 0
+#
+#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+#         fx0 = f(x0)
+#         fx1 = f(x1)
+#         fx2 = f(x2)
+#
+#         if fx0 != fx2 and fx1 != fx2:
+#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+#             new = L0 + L1 + L2
+#
+#         else:
+#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+#
+#         if ((float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1)) or
+#                 (mflag == True and (abs(new - x1)) >= (abs(x1 - x2) / 2)) or
+#                 (mflag == False and (abs(new - x1)) >= (abs(x2 - d) / 2)) or
+#                 (mflag == True and (abs(x1 - x2)) < tolerance) or
+#                 (mflag == False and (abs(x2 - d)) < tolerance)):
+#             new = (x0 + x1) / 2
+#             mflag = True
+#
+#         else:
+#             mflag = False
+#
+#         fnew = f(new)
+#         d, x2 = x2, x1
+#
+#         if float(fx0 * fnew) < 0:
+#             x1 = new
+#         else:
+#             x0 = new
+#
+#         if abs(fx0) < abs(fx1):
+#             x0, x1 = x1, x0
+#
+#         steps_taken += 1
+#
+#     return x1, steps_taken

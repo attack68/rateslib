@@ -1019,6 +1019,16 @@ class TestFixedRateBond:
         assert bond.ytm(108., dt(1999, 5, 18), True) - 5.0413308 < 1e-6
         assert bond.ytm(108., dt(1999, 5, 26), True) - 5.0652248 < 1e-6
 
+    def test_fixed_rate_bond_yield_domains(self):
+        bond = FixedRateBond(dt(1995, 1, 1), dt(2015, 12, 7), "S",
+                             convention="ActActICMA",
+                             fixed_rate=8, ex_div=7, calendar="ldn")
+        assert bond.ytm(500., dt(1999, 5, 24), True) + 5.86484231333 < 1e-8
+        assert bond.ytm(200, dt(1999, 5, 24), True) - 1.4366895440550 < 1e-8
+        assert bond.ytm(100, dt(1999, 5, 24), True) - 8.416909601459 < 1e-8
+        assert bond.ytm(50, dt(1999, 5, 24), True) - 18.486840866431 < 1e-6
+        assert bond.ytm(1, dt(1999, 5, 24), True) - 13421775210.82037 < 1e-3
+
     def test_fixed_rate_bond_ytm_duals(self):
         bond = FixedRateBond(dt(1995, 1, 1), dt(2015, 12, 7), "S", convention="ActActICMA",
                              fixed_rate=8, ex_div=7, calendar="ldn")
