@@ -2385,9 +2385,112 @@ class BondFuture():
             bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket
         )
 
+    def dlv(
+        self,
+        future_price: Union[float, Dual, Dual2],
+        prices: list[float, Dual, Dual2],
+        repo_rate: Union[float, Dual, Dual2, list, tuple],
+        settlement: datetime,
+        delivery: Optional[datetime] = None,
+        convention: Optional[str] = None,
+        dirty: bool = False,
+    ):
+        """
+        Return an aggregated DataFrame of metrics similar to the Bloomberg DLV function.
+
+        Parameters
+        ----------
+        future_price: float, Dual, Dual2
+            The price of the future.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        repo_rate: float, Dual, Dual2 or list/tuple of such
+            The repo rates of the bonds to delivery.
+        settlement: datetime
+            The settlement date of the bonds, required only if ``dirty`` is *True*.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        convention: str, optional
+            The day count convention applied to the repo rates.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
+
+        Returns
+        -------
+        DataFrame
+
+        Examples
+        --------
+        This example replicates the Bloomberg screen print in the publication
+        *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
+        that publication exactly no calendar has been provided. A more modern
+        tool should consider the London business day calendar and this would affect the
+        metrics of the third bond to a small degree.
+
+        .. ipython:: python
+
+           kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+           bonds = [
+               FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+           ]
+           future = BondFuture(
+               delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
+           )
+           future.dlv(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               repo_rate=6.24,
+               settlement=dt(2000, 3, 16),
+               convention="Act365f",
+           )
+        """
+        if dirty:
+            prices_ = [
+                prices[i] - bond.accrued(settlement)
+                for i, bond in enumerate(self.basket)
+            ]
+        else:
+            prices_ = prices
+
+        if not isinstance(repo_rate, (tuple, list)):
+            r_ = (repo_rate,) * len(self.basket)
+        else:
+            r_ = repo_rate
+
+        df = DataFrame(
+            columns=[
+                "Bond", "Price", "YTM", "C.Factor", "Gross Basis",
+                "Implied Repo", "Actual Repo", "Net Basis"
+            ],
+            index=range(len(self.basket))
+        )
+        df["Price"] = prices_
+        df["YTM"] = [
+            bond.ytm(prices_[i], settlement) for i, bond in enumerate(self.basket)
+        ]
+        df["C.Factor"] = self.cfs
+        df["Gross Basis"] = self.gross_basis(future_price, prices_, settlement)
+        df["Implied Repo"] = self.implied_repo(
+            future_price, prices_, settlement, delivery, convention
+        )
+        df["Actual Repo"] = r_
+        df["Net Basis"] = self.net_basis(
+            future_price, prices_, r_, settlement, delivery, convention
+        )
+        df["Bond"] = [
+            f"{bond.fixed_rate:,.3f}% " \
+            f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+            for bond in self.basket
+        ]
+        return df
+
     def gross_basis(
         self,
-        price: Union[float, Dual, Dual2],
+        future_price: Union[float, Dual, Dual2],
         prices: list[float, Dual, Dual2],
         settlement: datetime = None,
         dirty: bool = False
@@ -2398,7 +2501,7 @@ class BondFuture():
 
         Parameters
         ----------
-        price: float, Dual, Dual2
+        future_price: float, Dual, Dual2
             The price of the future.
         prices: sequence of float, Dual, Dual2
             The prices of the bonds in the deliverable basket (ordered).
@@ -2425,11 +2528,13 @@ class BondFuture():
             )
         else:
             prices_ = prices
-        return tuple(prices_[i] - self.cfs[i] * price for i in range(len(self.basket)))
+        return tuple(
+            prices_[i] - self.cfs[i] * future_price for i in range(len(self.basket))
+        )
 
     def net_basis(
         self,
-        price: Union[float, Dual, Dual2],
+        future_price: Union[float, Dual, Dual2],
         prices: list[float, Dual, Dual2],
         repo_rate: Union[float, Dual, Dual2, list, tuple],
         settlement: Optional[datetime] = None,
@@ -2443,7 +2548,7 @@ class BondFuture():
 
         Parameters
         ----------
-        price: float, Dual, Dual2
+        future_price: float, Dual, Dual2
             The price of the future.
         prices: sequence of float, Dual, Dual2
             The prices of the bonds in the deliverable basket (ordered).
@@ -2490,14 +2595,14 @@ class BondFuture():
 
         net_basis_ = tuple(
             bond.fwd_from_repo(prices_[i], settlement, f_settlement, r_[i], convention)
-            - self.cfs[i] * price
+            - self.cfs[i] * future_price
             for i, bond in enumerate(self.basket)
         )
         return net_basis_
 
     def implied_repo(
         self,
-        price: Union[float, Dual, Dual2],
+        future_price: Union[float, Dual, Dual2],
         prices: list[float, Dual, Dual2],
         settlement: datetime,
         delivery: Optional[datetime] = None,
@@ -2510,7 +2615,7 @@ class BondFuture():
 
         Parameters
         ----------
-        price: float, Dual, Dual2
+        future_price: float, Dual, Dual2
             The price of the future.
         prices: sequence of float, Dual, Dual2
             The prices of the bonds in the deliverable basket (ordered).
@@ -2543,7 +2648,7 @@ class BondFuture():
             f_settlement = delivery
         implied_repos = tuple()
         for i, bond in enumerate(self.basket):
-            invoice_price = price * self.cfs[i]
+            invoice_price = future_price * self.cfs[i]
             implied_repos += (
                 bond.repo_from_fwd(
                     price=prices[i],
@@ -2558,7 +2663,7 @@ class BondFuture():
 
     def ytm(
         self,
-        price: Union[float, Dual, Dual2],
+        future_price: Union[float, Dual, Dual2],
         delivery: Optional[datetime] = None,
     ):
         """
@@ -2566,8 +2671,8 @@ class BondFuture():
 
         Parameters
         ----------
-        price : float, Dual, Dual2
-            The price of the future
+        future_price : float, Dual, Dual2
+            The price of the future.
         delivery : datetime, optional
             The future delivery day on which to calculate the yield. If not given aligns
             with the first delivery day specified on the future.
@@ -2587,7 +2692,7 @@ class BondFuture():
             settlement = self.delivery[0]
         else:
             settlement = delivery
-        adjusted_prices = [price * cf for cf in self.cfs]
+        adjusted_prices = [future_price * cf for cf in self.cfs]
         yields = [
             bond.ytm(adjusted_prices[i], settlement)
             for i, bond in enumerate(self.basket)
