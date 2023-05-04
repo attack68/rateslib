@@ -1035,6 +1035,86 @@ class FixedRateBond(Sensitivities, BaseMixin):
         else:
             return forward_price - self.accrued(forward_settlement)
 
+    def repo_from_fwd(
+        self,
+        price: Union[float, Dual, Dual2],
+        settlement: datetime,
+        forward_settlement: datetime,
+        forward_price: Union[float, Dual, Dual2],
+        convention: Optional[str] = None,
+        dirty: bool = False,
+    ):
+        """
+        Return an implied repo rate from a forward price.
+
+        Parameters
+        ----------
+        price : float, Dual, or Dual2
+            The initial price of the security at ``settlement``.
+        settlement : datetime
+            The settlement date of the bond
+        forward_settlement : datetime
+            The forward date for which to calculate the forward price.
+        forward_price : float, Dual or Dual2
+            The forward price which iplies the repo rate
+        convention : str, optional
+            The day count convention applied to the rate. If not given uses default
+            values.
+        dirty : bool, optional
+            Whether the input and output price are specified including accrued interest.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        Any intermediate (non ex-dividend) cashflows between ``settlement`` and
+        ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
+        """
+        convention = defaults.convention if convention is None else convention
+        # forward price from repo is linear in repo_rate so reverse calculate with AD
+        if not dirty:
+            p_t = forward_price + self.accrued(forward_settlement)
+            p_0 = price + self.accrued(settlement)
+        else:
+            p_t, p_0 = forward_price, price
+
+        dcf_ = dcf(settlement, forward_settlement, convention)
+        numerator = p_t - p_0
+        denominator = p_0 * dcf_
+
+        # now systematically deduct coupons paid between settle and forward settle
+        settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+        fwd_settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            forward_settlement,
+        )
+
+        # do not accrue a coupon not received
+        settlement_idx += 1 if self.ex_div(settlement) else 0
+        # deduct final coupon if received within period
+        fwd_settlement_idx += 1 if self.ex_div(forward_settlement) else 0
+
+        for p_idx in range(settlement_idx, fwd_settlement_idx):
+            # deduct accrued coupon from dirty price
+            dcf_ = dcf(
+                self.leg1.periods[p_idx].payment,
+                forward_settlement,
+                convention
+            )
+            numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+            denominator -= (
+                100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+            )
+
+        return numerator / denominator * 100
+
     # Digital Methods
 
     def rate(
@@ -2220,6 +2300,7 @@ class BondFuture():
         basket: tuple[FixedRateBond],
         last_trading: Optional[int] = None,
         nominal: Optional[float] = None,
+        contracts: Optional[int] = None,
         calendar: Optional[str] = None,
     ):
         self.coupon = coupon
@@ -2231,8 +2312,11 @@ class BondFuture():
         self.calendar = get_calendar(calendar)
         # self.last_trading = delivery[1] if last_trading is None else
         self.nominal = defaults.notional if nominal is None else nominal
+        self.contracts = 1 if contracts is None else contracts
+        self._cfs = None
 
-    def conversion_factors(self):
+    @property
+    def cfs(self):
         """
         Return the conversion factors for each bond in the ordered ``basket``.
 
@@ -2284,13 +2368,231 @@ class BondFuture():
                FixedRateBond(termination=dt(2035, 7, 31), fixed_rate=0.625, **gilt_kws),
                FixedRateBond(termination=dt(2036, 3, 7), fixed_rate=4.25, **gilt_kws),
            ]
-           future = BondFuture(delivery=dt(2023, 6, 1), coupon=4.0, basket=bonds)
-           future.conversion_factors()
+           future = BondFuture(
+               delivery=(dt(2023, 6, 1), dt(2023, 6, 30)),
+               coupon=4.0,
+               basket=bonds
+           )
+           future.cfs
 
         """
+        if self._cfs is None:
+            self._cfs = self._conversion_factors()
+        return self._cfs
+
+    def _conversion_factors(self):
         return tuple(
             bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket
         )
+
+    def gross_basis(
+        self,
+        price: Union[float, Dual, Dual2],
+        prices: list[float, Dual, Dual2],
+        settlement: datetime = None,
+        dirty: bool = False
+    ):
+        """
+        Calculate the implied repo of each bond in the basket using the proceeds
+        method.
+
+        Parameters
+        ----------
+        price: float, Dual, Dual2
+            The price of the future.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds, required only if ``dirty`` is *True*.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
+
+        Returns
+        -------
+        tuple
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           future.gross_basis(112.50, [109.90, 81.40, 114.25, 75.90, 113.20])
+        """
+        if dirty:
+            prices_ = tuple(
+                prices[i] - bond.accrued(settlement)
+                for i, bond in enumerate(self.basket)
+            )
+        else:
+            prices_ = prices
+        return tuple(prices_[i] - self.cfs[i] * price for i in range(len(self.basket)))
+
+    def net_basis(
+        self,
+        price: Union[float, Dual, Dual2],
+        prices: list[float, Dual, Dual2],
+        repo_rate: Union[float, Dual, Dual2, list, tuple],
+        settlement: Optional[datetime] = None,
+        delivery: Optional[datetime] = None,
+        convention: Optional[str] = None,
+        dirty: bool = False,
+    ):
+        """
+        Calculate the implied repo of each bond in the basket using the proceeds
+        method.
+
+        Parameters
+        ----------
+        price: float, Dual, Dual2
+            The price of the future.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        repo_rate: float, Dual, Dual2 or list/tuple of such
+            The repo rates of the bonds to delivery.
+        settlement: datetime
+            The settlement date of the bonds, required only if ``dirty`` is *True*.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        convention: str, optional
+            The day count convention applied to the repo rates.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
+
+        Returns
+        -------
+        tuple
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           future.gross_basis(112.50, [109.90, 81.40, 114.25, 75.90, 113.20])
+        """
+        if delivery is None:
+            f_settlement = self.delivery[1]
+        else:
+            f_settlement = delivery
+
+        if not isinstance(repo_rate, (list, tuple)):
+            r_ = (repo_rate,) * len(self.basket)
+        else:
+            r_ = repo_rate
+
+        if dirty:
+            prices_ = tuple(
+                prices[i] - bond.accrued(settlement)
+                for i, bond in enumerate(self.basket)
+            )
+        else:
+            prices_ = prices
+
+        net_basis_ = tuple(
+            bond.fwd_from_repo(prices_[i], settlement, f_settlement, r_[i], convention)
+            - self.cfs[i] * price
+            for i, bond in enumerate(self.basket)
+        )
+        return net_basis_
+
+    def implied_repo(
+        self,
+        price: Union[float, Dual, Dual2],
+        prices: list[float, Dual, Dual2],
+        settlement: datetime,
+        delivery: Optional[datetime] = None,
+        convention: Optional[str] = None,
+        dirty: bool = False
+    ):
+        """
+        Calculate the implied repo of each bond in the basket using the proceeds
+        method.
+
+        Parameters
+        ----------
+        price: float, Dual, Dual2
+            The price of the future.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        convention: str, optional
+            The day count convention used in the rate.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
+
+        Returns
+        -------
+        tuple
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           future.implied_repo(
+               112.50, [109.90, 81.40, 114.25, 75.90, 113.20], dt(2023, 5, 15)
+           )
+        """
+        if delivery is None:
+            f_settlement = self.delivery[1]
+        else:
+            f_settlement = delivery
+        implied_repos = tuple()
+        for i, bond in enumerate(self.basket):
+            invoice_price = price * self.cfs[i]
+            implied_repos += (
+                bond.repo_from_fwd(
+                    price=prices[i],
+                    settlement=settlement,
+                    forward_settlement=f_settlement,
+                    forward_price=invoice_price,
+                    convention=convention,
+                    dirty=dirty
+                ),
+            )
+        return implied_repos
+
+    def ytm(
+        self,
+        price: Union[float, Dual, Dual2],
+        delivery: Optional[datetime] = None,
+    ):
+        """
+        Calculate the yield-to-maturity of the bond future.
+
+        Parameters
+        ----------
+        price : float, Dual, Dual2
+            The price of the future
+        delivery : datetime, optional
+            The future delivery day on which to calculate the yield. If not given aligns
+            with the first delivery day specified on the future.
+
+        Returns
+        -------
+        list
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           future.ytm(112.50)
+        """
+        if delivery is None:
+            settlement = self.delivery[0]
+        else:
+            settlement = delivery
+        adjusted_prices = [price * cf for cf in self.cfs]
+        yields = [
+            bond.ytm(adjusted_prices[i], settlement)
+            for i, bond in enumerate(self.basket)
+        ]
+        return yields
 
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):

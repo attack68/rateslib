@@ -1288,9 +1288,7 @@ class TestFixedRateBond:
             notional=-100,
             settle=0,
         )
-        result = gilt.fwd_from_repo(
-            100.0, dt(2001, 1, 1), f_s, 1.0, "act365f"
-        )
+        result = gilt.fwd_from_repo(100.0, dt(2001, 1, 1), f_s, 1.0, "act365f")
         assert abs(result - exp) < 1e-6
 
     @pytest.mark.parametrize("f_s, exp", [
@@ -1336,6 +1334,48 @@ class TestFixedRateBond:
         )
         result = gilt.fwd_from_repo(100.0, s, f_s, 1.0, "act365f")
         assert abs(result - exp) < 1e-6
+
+    @pytest.mark.parametrize("f_s, f_p", [
+        (dt(2001, 12, 31), 99.997513754),  # compounding of mid year coupon
+        (dt(2002, 1, 1), 99.9975001688)  # this is now ex div on last coupon
+    ])
+    def test_fixed_rate_bond_implied_repo(self, f_s, f_p):
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination=dt(2002, 1, 1),
+            frequency="S",
+            calendar=None,
+            currency="gbp",
+            convention="Act365f",
+            ex_div=0,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        result = gilt.repo_from_fwd(100.0, dt(2001, 1, 1), f_s, f_p, "act365f")
+        assert abs(result - 1.00) < 1e-8
+
+    @pytest.mark.parametrize("f_s, f_p", [
+        (dt(2001, 12, 31), 100.49888361793),  # compounding of mid year coupon
+        (dt(2002, 1, 1), 99.9975001688)  # this is now ex div on last coupon
+    ])
+    def test_fixed_rate_bond_implied_repo_analogue_dirty(self, f_s, f_p):
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination=dt(2002, 1, 1),
+            frequency="S",
+            calendar=None,
+            currency="gbp",
+            convention="Act365f",
+            ex_div=0,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        result = gilt.repo_from_fwd(
+            100.0, dt(2001, 1, 1), f_s, f_p, "act365f", dirty=True
+        )
+        assert abs(result - 1.0) < 1e-8
 
 
 class TestBill:
@@ -1644,7 +1684,7 @@ class TestBondFuture:
             coupon=6.0,
             basket=[bond1]
         )
-        result = fut.conversion_factors()
+        result = fut.cfs
         assert abs(result[0]-exp) < 1e-4
 
     @pytest.mark.parametrize("mat, coupon, exp", [
@@ -1674,7 +1714,7 @@ class TestBondFuture:
             coupon=4.0,
             basket=[bond1]
         )
-        result = fut.conversion_factors()
+        result = fut.cfs
         assert abs(result[0] - exp) < 1e-6
 
 
