@@ -179,6 +179,30 @@ def test_eq_ne(x_1, y_1, y_2):
     )
 
 
+def test_lt():
+    assert Dual(1, "x") < Dual(2, "y")
+    assert Dual2(1, "z") < Dual2(2, "x")
+    assert Dual(1, "x") < 10
+    assert not Dual(1, "x") < 0
+
+
+def test_lt_raises():
+    with pytest.raises(TypeError, match="Cannot compare"):
+        assert Dual(1, "x") < Dual2(2, "y")
+
+
+def test_gt():
+    assert Dual(2, "x") > Dual(1, "y")
+    assert Dual2(2, "z") > Dual2(1, "x")
+    assert Dual(1, "x") > 0
+    assert not Dual(1, "x") > 10
+
+
+def test_gt_raises():
+    with pytest.raises(TypeError, match="Cannot compare"):
+        assert Dual(2, "x") > Dual2(1, "y")
+
+
 def test_dual2_abs_float(x_1, y_1, y_2):
     assert abs(x_1) == 1
     assert abs(y_1) == 1

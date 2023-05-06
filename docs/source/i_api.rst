@@ -158,6 +158,7 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :skip: sqrt
    :skip: abstractmethod
    :skip: add_tenor
    :skip: brentq

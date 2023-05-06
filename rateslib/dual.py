@@ -22,6 +22,26 @@ class DualBase:
     def __abs__(self):
         return abs(self.real)
 
+    def __lt__(self, argument):
+        """Compare an argument by evaluating the size of the real."""
+        if not isinstance(argument, type(self)):
+            if not isinstance(argument, (*FLOATS, *INTS)):
+                raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
+            argument = type(self)(argument)
+        if float(self) < float(argument):
+            return True
+        return False
+
+    def __gt__(self, argument):
+        """Compare an argument by evaluating the size of the real."""
+        if not isinstance(argument, type(self)):
+            if not isinstance(argument, (*FLOATS, *INTS)):
+                raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
+            argument = type(self)(argument)
+        if float(self) > float(argument):
+            return True
+        return False
+
     def __eq__(self, argument):
         """Compare an argument with a Dual number for equality."""
         if not isinstance(argument, type(self)):
