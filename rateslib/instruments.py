@@ -81,6 +81,93 @@ def _get_curve_from_solver(curve, solver):
                     raise ValueError("`curve` must be in `solver`.")
 
 
+def _get_curves_and_fx_maybe_from_solver(
+    curves_attr: Optional[Union[Curve, str, list]],
+    solver: Optional[Solver],
+    curves: Optional[Union[Curve, str, list]],
+    fx: Optional[Union[float, FXRates, FXForwards]],
+):
+    """
+    Parses the ``solver``, ``curves`` and ``fx`` arguments in combination.
+
+    Parameters
+    ----------
+    curves_attr
+        The curves attribute attached to the class.
+    solver
+        The solver argument passed in the outer method.
+    curves
+        The curves argument passed in the outer method.
+    fx
+        The fx argument agrument passed in the outer method.
+
+    Returns
+    -------
+    tuple : (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting), fx
+
+    Notes
+    -----
+    If only one curve is given this is used as all four curves.
+
+    If two curves are given the forecasting curve is used as the forecasting
+    curve on both legs and the discounting curve is used as the discounting
+    curve for both legs.
+
+    If three curves are given the single discounting curve is used as the
+    discounting curve for both legs.
+    """
+    if fx is None:
+        if solver is None:
+            fx_ = None
+            # fx_ = 1.0
+        elif solver is not None:
+            if solver.fx is None:
+                fx_ = None
+                # fx_ = 1.0
+            else:
+                fx_ = solver.fx
+    else:
+        fx_ = fx
+
+    if curves is None and curves_attr is None:
+        return (None, None, None, None), fx_
+    elif curves is None:
+        curves = curves_attr
+
+    if isinstance(curves, (Curve, str)):
+        curves = [curves]
+    if solver is None:
+        def check_curve(curve):
+            if isinstance(curve, str):
+                raise ValueError(
+                    "`curves` must contain Curve, not str, if `solver` not given."
+                )
+            return curve
+
+        curves_ = tuple(check_curve(curve) for curve in curves)
+    else:
+        try:
+            curves_ = tuple(
+                _get_curve_from_solver(curve, solver) for curve in curves
+            )
+        except KeyError:
+            raise ValueError(
+                "`curves` must contain str curve `id` s existing in `solver` "
+                "(or its associated `pre_solvers`)"
+            )
+
+    if len(curves_) == 1:
+        curves_ *= 4
+    elif len(curves_) == 2:
+        curves_ *= 2
+    elif len(curves_) == 3:
+        curves_ += (curves_[1],)
+    elif len(curves_) > 4:
+        raise ValueError("Can only supply a maximum of 4 `curves`.")
+
+    return curves_, fx_
+
+
 # def _get_curves_and_fx_maybe_from_solver(
 #     solver: Optional[Solver],
 #     curves: Union[Curve, str, list],
@@ -330,81 +417,6 @@ class BaseMixin:
         self._leg2_float_spread = value
         self.leg2.float_spread = value
 
-    def _get_curves_and_fx_maybe_from_solver(
-        self,
-        solver: Optional[Solver],
-        curves: Optional[Union[Curve, str, list]],
-        fx: Optional[Union[float, FXRates, FXForwards]],
-    ):
-        """
-        Parses the ``solver``, ``curves`` and ``fx`` arguments in combination.
-
-        Returns
-        -------
-        tuple : (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting), fx
-
-        Notes
-        -----
-        If only one curve is given this is used as all four curves.
-
-        If two curves are given the forecasting curve is used as the forecasting
-        curve on both legs and the discounting curve is used as the discounting
-        curve for both legs.
-
-        If three curves are given the single discounting curve is used as the
-        discounting curve for both legs.
-        """
-        if fx is None:
-            if solver is None:
-                fx_ = None
-                # fx_ = 1.0
-            elif solver is not None:
-                if solver.fx is None:
-                    fx_ = None
-                    # fx_ = 1.0
-                else:
-                    fx_ = solver.fx
-        else:
-            fx_ = fx
-
-        if curves is None and getattr(self, "curves", None) is None:
-            return (None, None, None, None), fx_
-        elif curves is None:
-            curves = self.curves
-
-        if isinstance(curves, (Curve, str)):
-            curves = [curves]
-        if solver is None:
-            def check_curve(curve):
-                if isinstance(curve, str):
-                    raise ValueError(
-                        "`curves` must contain Curve, not str, if `solver` not given."
-                    )
-                return curve
-
-            curves_ = tuple(check_curve(curve) for curve in curves)
-        else:
-            try:
-                curves_ = tuple(
-                    _get_curve_from_solver(curve, solver) for curve in curves
-                )
-            except KeyError:
-                raise ValueError(
-                    "`curves` must contain str curve `id` s existing in `solver` "
-                    "(or its associated `pre_solvers`)"
-                )
-
-        if len(curves_) == 1:
-            curves_ *= 4
-        elif len(curves_) == 2:
-            curves_ *= 2
-        elif len(curves_) == 3:
-            curves_ += (curves_[1],)
-        elif len(curves_) > 4:
-            raise ValueError("Can only supply a maximum of 4 `curves`.")
-
-        return curves_, fx_
-
 
 class Value(BaseMixin):
     """
@@ -463,7 +475,9 @@ class Value(BaseMixin):
         :class:`~rateslib.curves.LineCurve` value on the ``effective`` date of the
         instrument.
         """
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, None
+        )
         return curves[0][self.effective]
 
 
@@ -1155,7 +1169,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
         -------
         float, Dual, Dual2
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         settlement = add_tenor(
             curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
@@ -1209,7 +1225,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
         -------
         DataFrame
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         if settlement is None:
             settlement = add_tenor(
                 curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
@@ -1276,7 +1294,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
         curve on both legs and the discounting curve is used as the discounting
         curve for both legs.
         """
-        curvs, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         settlement = add_tenor(
             curvs[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
@@ -1627,7 +1647,9 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         settlement = add_tenor(
             curves[1].node_dates[0], f"{self.settle}B", None,
             self.leg1.schedule.calendar
@@ -2051,7 +2073,9 @@ class FloatRateBond(Sensitivities, BaseMixin):
         float, Dual, Dual2
 
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         settlement = add_tenor(
             curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
@@ -2153,7 +2177,9 @@ class FloatRateBond(Sensitivities, BaseMixin):
         -------
         DataFrame
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         if settlement is None:
             settlement = add_tenor(
                 curves[1].node_dates[0], f"{self.settle}B", None,
@@ -2222,7 +2248,9 @@ class FloatRateBond(Sensitivities, BaseMixin):
         curve on both legs and the discounting curve is used as the discounting
         curve for both legs.
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         settlement = add_tenor(
             curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
         )
@@ -2946,7 +2974,9 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
 
            irs.cashflows([curve], None, fxr)
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         return concat([
             self.leg1.cashflows(curves[0], curves[1], fx, base),
             self.leg2.cashflows(curves[2], curves[3], fx, base),
@@ -3019,7 +3049,9 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
            irs.npv([curve], None, fxr)
            irs.npv([curve], None, fxr, "gbp")
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
         leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
         if local:
@@ -3263,7 +3295,9 @@ class IRS(BaseDerivative):
 
            irs.rate([forecasting_curve, discounting_curve])
         """
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
         return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
         # leg1_analytic_delta = self.leg1.analytic_delta(curves[0], curves[1])
@@ -3373,7 +3407,9 @@ class IRS(BaseDerivative):
         """
         irs_npv = self.npv(curves, solver)
         specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
         # leg2_analytic_delta = self.leg2.analytic_delta(curves[2], curves[3])
         # return irs_npv / leg2_analytic_delta + specified_spd
@@ -3542,7 +3578,9 @@ class ZCS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
         """
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
         return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
         # leg1_analytic_delta = self.leg1.analytic_delta(curves[0], curves[1])
@@ -3797,7 +3835,9 @@ class SBS(BaseDerivative):
            sbs.rate([forecasting_curve, discounting_curve, forecasting_curve2], leg=2)
         """
         irs_npv = self.npv(curves, solver)
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         if leg == 1:
             leg_obj, args = self.leg1, (curves[0], curves[1])
         else:
@@ -4016,7 +4056,9 @@ class FRA(Sensitivities, BaseMixin):
            fxr = FXRates({"gbpusd": 2.0})
            fra.npv([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = self.cashflow(curves[0]) * curves[1][self.payment]
         if local:
@@ -4060,7 +4102,9 @@ class FRA(Sensitivities, BaseMixin):
 
            fra.rate(forecasting_curve)
         """
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         return self.leg2.rate(curves[0])
 
     def cashflow(self, curve: Union[Curve, LineCurve]):
@@ -4118,7 +4162,9 @@ class FRA(Sensitivities, BaseMixin):
            fxr = FXRates({"gbpusd": 2.0})
            fra.cashflows([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
-        curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         fx, base = _get_fx_and_base(self.currency, fx, base)
         cf = float(self.cashflow(curves[0]))
         npv_local = self.cashflow(curves[0]) * curves[1][self.payment]
@@ -4258,7 +4304,9 @@ class BaseXCS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         base = self.leg1.currency if base is None else base
         self._set_fx_fixings(fx)
         if self._is_mtm:
@@ -4326,7 +4374,9 @@ class BaseXCS(BaseDerivative):
         Examples
         --------
         """
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
 
         if leg == 1:
             tgt_fore_curve, tgt_disc_curve = curves[0], curves[1]
@@ -4404,7 +4454,9 @@ class BaseXCS(BaseDerivative):
         fx: Optional[FXForwards] = None,
         base: Optional[str] = None,
     ):
-        curves, fx = self._get_curves_and_fx_maybe_from_solver(solver, curves, fx)
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
         self._set_fx_fixings(fx)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True

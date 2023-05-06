@@ -10,7 +10,7 @@ from rateslib.instruments import (
     IRS, forward_fx, SBS, FXSwap, NonMtmXCS, FixedRateBond, Bill, Value,
     _get_curve_from_solver, BaseMixin, FloatRateBond, FRA, BondFuture,
     NonMtmFixedFloatXCS, NonMtmFixedFixedXCS, XCS, FixedFloatXCS, FixedFixedXCS, FloatFixedXCS,
-    Portfolio, Spread, Fly
+    Portfolio, Spread, Fly, _get_curves_and_fx_maybe_from_solver
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
@@ -110,9 +110,8 @@ def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, 
     ) if solver else None
     curve = curve if crv else None
 
-    a = BaseMixin()
-    crv_result, fx_result = a._get_curves_and_fx_maybe_from_solver(
-        solver, curve, fx
+    crv_result, fx_result = _get_curves_and_fx_maybe_from_solver(
+        None, solver, curve, fx
     )
 
     # check the fx results. If fx is specified directly it is returned
@@ -133,19 +132,18 @@ def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, 
 def test_get_curves_and_fx_from_solver_raises():
     from rateslib.solver import Solver
 
-    a = BaseMixin()
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
     inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
     solver = Solver([curve], inst, [0.975])
 
     with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
-        a._get_curves_and_fx_maybe_from_solver(None, "tagged", None)
+        _get_curves_and_fx_maybe_from_solver(None, None, "tagged", None)
 
     with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
-        a._get_curves_and_fx_maybe_from_solver(solver, "bad_id", None)
+        _get_curves_and_fx_maybe_from_solver(None, solver, "bad_id", None)
 
     with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
-        a._get_curves_and_fx_maybe_from_solver(solver, ["tagged"] * 5, None)
+        _get_curves_and_fx_maybe_from_solver(None, solver, ["tagged"] * 5, None)
 
 
 @pytest.mark.parametrize("num", [1, 2, 3, 4])
@@ -155,8 +153,7 @@ def test_get_curves_from_solver_multiply(num):
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
     inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
     solver = Solver([curve], inst, [0.975])
-    a = BaseMixin()
-    result, _ = a._get_curves_and_fx_maybe_from_solver(solver, ["tagged"] * num, None)
+    result, _ = _get_curves_and_fx_maybe_from_solver(None, solver, ["tagged"] * num, None)
     assert result == (curve, curve, curve, curve)
 
 
