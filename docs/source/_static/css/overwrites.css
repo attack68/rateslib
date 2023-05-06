@@ -14,3 +14,7 @@ code {
   padding-left: 10px;
   padding-right: 10px;
 }
+
+.highlight {
+  font-size: 0.8em;
+}
