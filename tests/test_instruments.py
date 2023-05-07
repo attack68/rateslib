@@ -1861,7 +1861,12 @@ class TestBondFuture:
         prices = [102.732, 131.461, 107.877, 134.455]
         assert future.ctd_index(112.98, prices, dt(2000, 3, 16)) == 0
 
-    def test_futures_rates(self):
+    @pytest.mark.parametrize("metric, expected", [
+        ("future_price", 112.98),
+        ("ytm", 5.301975)
+    ])
+    @pytest.mark.parametrize("delivery", [None, dt(2000, 6, 30)])
+    def test_futures_rates(self, metric, expected, delivery):
         curve = Curve(
             nodes={
                 dt(2000, 3, 15): 1.0,
@@ -1900,9 +1905,113 @@ class TestBondFuture:
             delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
             basket=bonds,
         )
-        result = future.rate(None, solver)
-        expected = 112.98
+        result = future.rate(None, solver, metric=metric, delivery=delivery)
         assert abs(result - expected) < 1e-3
+
+    def test_future_rate_raises(self):
+        kws = dict(
+            ex_div=7,
+            frequency="S",
+            convention="ActActICMA",
+            calendar=None,
+            settle=1,
+            curves="gilt_curve",
+        )
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        future = BondFuture(
+            coupon=7.0,
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+            basket=bonds,
+        )
+        with pytest.raises(ValueError, match="`metric`"):
+            result = future.rate(metric="badstr")
+
+    def test_futures_npv(self):
+        curve = Curve(
+            nodes={
+                dt(2000, 3, 15): 1.0,
+                dt(2000, 6, 30): 1.0,
+                dt(2009,  12, 7): 1.0,
+                dt(2010, 11, 25): 1.0,
+                dt(2011, 7, 12): 1.0,
+                dt(2012, 8, 6): 1.0
+            },
+            id="gilt_curve",
+            convention="act365f",
+        )
+        kws = dict(
+            ex_div=7,
+            frequency="S",
+            convention="ActActICMA",
+            calendar=None,
+            settle=1,
+            curves="gilt_curve",
+            currency="gbp",
+        )
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        solver = Solver(
+            curves=[curve],
+            instruments=[
+                IRS(dt(2000, 3, 15), dt(2000, 6, 30), "A", convention="act365f", curves="gilt_curve")
+            ] + bonds,
+            s=[7.381345, 102.732, 131.461, 107.877, 134.455],
+        )  # note the repo rate as defined by 'gilt_curve' is set to analogue implied
+        future = BondFuture(
+            coupon=7.0,
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+            basket=bonds,
+            nominal=100000,
+            contracts=10,
+            currency="gbp",
+        )
+        result = future.npv(None, solver, local=False)
+        expected = 1129798.770872
+        assert abs(result - expected) < 1e-5
+
+        result2 = future.npv(None, solver, local=True)
+        assert abs(result2["gbp"] - expected) < 1e-5
+
+    @pytest.mark.parametrize("delivery", [None, dt(2000, 6, 30)])
+    def test_futures_duration_and_convexity(self, delivery):
+        kws = dict(
+            ex_div=7,
+            frequency="S",
+            convention="ActActICMA",
+            calendar=None,
+            settle=1,
+            curves="gilt_curve",
+        )
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        future = BondFuture(
+            coupon=7.0,
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+            basket=bonds,
+        )
+        result = future.duration(112.98, delivery=delivery)[0]
+        expected = 8.20178546111
+        assert abs(result - expected) < 1e-3
+
+        expected = (
+            future.duration(112.98, delivery=delivery)[0]
+            - future.duration(112.98-result/100, delivery=delivery)[0]
+        )
+        result2 = future.convexity(112.98, delivery=delivery)[0]
+        assert abs(result2 - expected*100) < 1e-3
 
 
 class TestPricingMechanism:

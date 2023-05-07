@@ -2711,6 +2711,10 @@ class BondFuture(Sensitivities):
         -------
         float
 
+        See Also
+        --------
+        FixedRateBond.duration: Calculation the risk of a FixedRateBond.
+
         Example
         -------
         .. ipython:: python
@@ -2741,7 +2745,56 @@ class BondFuture(Sensitivities):
                 _ += bond.duration(ytm, f_settlement, metric),
         return _
 
-    # TODO convexity for BondFuture
+    def convexity(
+        self,
+        future_price: float,
+        delivery: Optional[datetime] = None,
+    ):
+        """
+        Return the second derivative of ``price`` w.r.t. ``ytm``.
+
+        Parameters
+        ----------
+        future_price : float
+            The price of the future.
+        delivery : datetime, optional
+            The delivery date of the contract. If not given uses the last delivery day
+            in the delivery window.
+
+        Returns
+        -------
+        float
+
+        See Also
+        --------
+        FixedRateBond.convexity: Calculate the convexity of a FixedRateBond.
+
+        Example
+        -------
+        .. ipython:: python
+
+           risk = future.duration(112.98)
+           convx = future.convexity(112.98)
+           convx
+
+        Observe the change in risk duration when the prices is increased by 1bp.
+
+        .. ipython:: python
+
+           future.duration(112.98)
+           future.duration(112.98 + risk[0] / 100)
+        """
+        if delivery is None:
+            f_settlement = self.delivery[1]
+        else:
+            f_settlement = delivery
+
+        _ = ()
+        for i, bond in enumerate(self.basket):
+            invoice_price = future_price * self.cfs[i]
+            ytm = bond.ytm(invoice_price, f_settlement)
+            _ += bond.convexity(ytm, f_settlement) / self.cfs[i],
+        return _
 
     def ctd_index(
         self,
@@ -2828,6 +2881,10 @@ class BondFuture(Sensitivities):
         This method determines the *'futures_price'* and *'ytm'*  by assuming a net
         basis of zero and pricing from the cheapest to delivery (CTD).
         """
+        metric = metric.lower()
+        if metric not in ["future_price", "ytm"]:
+            raise ValueError("`metric` must be in {'future_price', 'ytm'}.")
+
         if delivery is None:
             f_settlement = self.delivery[1]
         else:
@@ -2848,7 +2905,6 @@ class BondFuture(Sensitivities):
             return self.basket[ctd_index].ytm(
                 future_price * self.cfs[ctd_index], f_settlement
             )
-        raise ValueError("`metric` must be in {'future_price', 'ytm'}.")
 
     def npv(
         self,
@@ -2860,7 +2916,7 @@ class BondFuture(Sensitivities):
     ):
         future_price = self.rate(curves, solver, fx, base, "future_price")
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        npv_ = future_price / 100 * self.notional
+        npv_ = future_price / 100 * -self.notional
         if local:
             return {self.currency: npv_}
         else:
