@@ -28,7 +28,7 @@ import warnings
 from math import sqrt
 
 import numpy as np
-from scipy.optimize import brentq
+# from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, date_range, Series
 
@@ -1920,7 +1920,6 @@ class FloatRateBond(Sensitivities, BaseMixin):
            frn.accrued(dt(2000, 3, 27))
            frn.accrued(dt(2000, 6, 4))
         """
-        # TODO validate against effective and termination?
         if self.leg1.fixing_method == "ibor":
             frac, acc_idx = self._accrued_frac(settlement)
             if self.ex_div(settlement):
@@ -1996,7 +1995,7 @@ class FloatRateBond(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-        metric="dirty_price",
+        metric="clean_price",
     ):
         """
         Return various pricing metrics of the security calculated from

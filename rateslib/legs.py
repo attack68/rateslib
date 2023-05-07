@@ -840,7 +840,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
         spread = 0. if self.float_spread is None else float(self.float_spread)
-        seq= [{
+        seq = [{
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: None,
             defaults.headers["currency"]: self.currency.upper(),
