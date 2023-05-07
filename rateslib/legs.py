@@ -287,13 +287,12 @@ class BaseLeg(metaclass=ABCMeta):
             a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
             return -target_npv / a_delta
         else:
-            # raise NotImplementedError("needs development XXXXX")
             # This method creates a dual2 variable for float spread.
             _fs = self.float_spread
             self.float_spread = Dual2(0. if _fs is None else float(_fs), "spread_z")
 
             # This method uses ad-hoc AD to solve a specific problem for which
-            # there is no close form solution. Calculating NPV is very inefficient
+            # there is no closed form solution. Calculating NPV is very inefficient
             # so, we only do this once as opposed to using a root solver algo
             # which would otherwise converge to the exact solution but is
             # practically not workable.

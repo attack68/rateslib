@@ -1125,20 +1125,24 @@ class TestFixedRateBond:
             fixed_rate=8.0,
             settle=0,
         )
-        curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.50})
-        dirty_price = gilt.rate(curve)
-
-        assert (
-            gilt.rate(curve, metric="clean_price")
-            ==
-            dirty_price - gilt.accrued(dt(1998, 12, 7))
+        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
+        clean_price = gilt.rate(curve, metric="clean_price")
+        result = gilt.rate(
+            curve, metric="fwd_clean_price", forward_settlement=dt(1998, 12, 9)
         )
+        assert abs(result - clean_price) < 1e-8
 
-        assert (
-            gilt.rate(curve, metric="ytm")
-            ==
-            gilt.ytm(dirty_price, dt(1998, 12, 7), True)
+        result = gilt.rate(curve, metric="dirty_price")
+        expected = clean_price + gilt.accrued(dt(1998, 12, 9))
+        assert result == expected
+        result = gilt.rate(
+            curve, metric="fwd_dirty_price", forward_settlement=dt(1998, 12, 9)
         )
+        assert abs(result - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
+
+        result = gilt.rate(curve, metric="ytm")
+        expected = gilt.ytm(clean_price, dt(1998, 12, 9), False)
+        assert abs(result - expected) < 1e-8
 
     def test_fixed_rate_bond_npv(self):
         gilt = FixedRateBond(
@@ -1162,6 +1166,9 @@ class TestFixedRateBond:
         result = gilt.npv(curve)  # bond is ex div on settlement 26th Nov 2010
         expected = 109.229489312983  # bond has dropped a coupon payment of 4.
         assert abs(result - expected) < 1e-6
+
+        result = gilt.npv(curve, local=True)
+        assert abs(result["gbp"] - expected) < 1e-6
 
     def test_fixed_rate_bond_npv_private(self):
         # this test shadows 'fixed_rate_bond_npv' but extends it for projection
@@ -1252,6 +1259,9 @@ class TestFixedRateBond:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.50})
         with pytest.raises(ValueError, match="`metric` must be in"):
             gilt.rate(curve, metric="bad_metric")
+
+        with pytest.raises(ValueError, match="`forward_settlement` needed to"):
+            gilt.rate(curve, metric="fwd_clean_price")
 
     def test_fixed_rate_bond_no_amortization(self):
         with pytest.raises(NotImplementedError, match="`amortization` for"):
@@ -1539,6 +1549,24 @@ class TestFloatRateBond:
         expected = 0.5019275497883  # approx 2 / 12 * 3%
         assert abs(result - expected) < 1e-8
 
+    def test_float_rate_bond_accrued_ibor(self):
+        fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        bond = FloatRateBond(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=100,
+            fixing_method="ibor",
+            fixings=fixings,
+            method_param=2,
+            spread_compound_method="none_simple",
+        )
+        result = bond.accrued(dt(2010, 3, 3))
+        expected = 0.501369863013698  # approx 2 / 12 * 3%
+        assert abs(result - expected) < 1e-8
+
     def test_float_rate_bond_raise_frequency(self):
         with pytest.raises(ValueError, match="FloatRateBond `frequency`"):
             bond = FloatRateBond(
@@ -1713,6 +1741,165 @@ class TestBondFuture:
         )
         result = fut.cfs
         assert abs(result[0] - exp) < 1e-6
+
+    def test_dlv_screen_print(self):
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        future = BondFuture(
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
+        )
+        result = future.dlv(
+            future_price=112.98,
+            prices=[102.732, 131.461, 107.877, 134.455],
+            repo_rate=6.24,
+            settlement=dt(2000, 3, 16),
+            convention="Act365f",
+        )
+        expected = DataFrame({
+            "Bond": [
+                "5.750% 07-12-2009",
+                "9.000% 12-07-2011",
+                "6.250% 25-11-2010",
+                "9.000% 06-08-2012",
+            ],
+            "Price": [102.732, 131.461, 107.877, 134.455],
+            "YTM": [5.384243, 5.273217, 5.275481, 5.193851],
+            "C.Factor": [0.914225, 1.152571, 0.944931, 1.161956],
+            "Gross Basis": [-0.557192, 1.243582, 1.118677, 3.177230],
+            "Implied Repo": [7.381345, 3.564685, 2.199755, -1.414670],
+            "Actual Repo": [6.24, 6.24, 6.24, 6.24],
+            "Net Basis": [-0.343654, 1.033668, 1.275866, 3.010371],
+        })
+        assert_frame_equal(result, expected)
+
+        result2 = future.dlv(
+            future_price=112.98,
+            prices=[102.732, 131.461, 107.877, 134.455],
+            repo_rate=[6.24, 6.24, 6.24, 6.24],  # test individual repo input
+            settlement=dt(2000, 3, 16),
+            convention="Act365f",
+        )
+        assert_frame_equal(result2, expected)
+
+    def test_notional(self):
+        future = BondFuture(
+            coupon=0,
+            delivery=dt(2000, 6, 1),
+            basket=[],
+            nominal=100000,
+            contracts=10
+        )
+        assert future.notional == -1e6
+
+    def test_dirty_in_methods(self):
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        future = BondFuture(
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
+        )
+        prices = [102.732, 131.461, 107.877, 134.455]
+        dirty_prices = [
+            price + future.basket[i].accrued(dt(2000, 3, 16))
+            for i, price in enumerate(prices)
+        ]
+        result = future.gross_basis(112.98, dirty_prices, dt(2000, 3, 16), True)
+        expected = future.gross_basis(112.98, prices, dt(2000, 3, 16), False)
+        assert result == expected
+
+    def test_delivery_in_methods(self):
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        future = BondFuture(
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
+        )
+        prices = [102.732, 131.461, 107.877, 134.455]
+        expected = future.net_basis(112.98, prices, 6.24, dt(2000, 3, 16))
+        result = future.net_basis(112.98, prices, 6.24, dt(2000, 3, 16), delivery=dt(2000, 6, 30))
+        assert result == expected
+
+        expected = future.implied_repo(112.98, prices, dt(2000, 3, 16))
+        result = future.implied_repo(112.98, prices, dt(2000, 3, 16), delivery=dt(2000, 6, 30))
+        assert result == expected
+
+        expected = future.ytm(112.98)
+        result = future.ytm(112.98, delivery=dt(2000, 6, 30))
+        assert result == expected
+
+        expected = future.duration(112.98)
+        result = future.duration(112.98, delivery=dt(2000, 6, 30))
+        assert result == expected
+
+    def test_ctd_index(self):
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        future = BondFuture(
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
+        )
+        prices = [102.732, 131.461, 107.877, 134.455]
+        assert future.ctd_index(112.98, prices, dt(2000, 3, 16)) == 0
+
+    def test_futures_rates(self):
+        curve = Curve(
+            nodes={
+                dt(2000, 3, 15): 1.0,
+                dt(2000, 6, 30): 1.0,
+                dt(2009,  12, 7): 1.0,
+                dt(2010, 11, 25): 1.0,
+                dt(2011, 7, 12): 1.0,
+                dt(2012, 8, 6): 1.0
+            },
+            id="gilt_curve",
+            convention="act365f",
+        )
+        kws = dict(
+            ex_div=7,
+            frequency="S",
+            convention="ActActICMA",
+            calendar=None,
+            settle=1,
+            curves="gilt_curve",
+        )
+        bonds = [
+            FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+            FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+        ]
+        solver = Solver(
+            curves=[curve],
+            instruments=[
+                IRS(dt(2000, 3, 15), dt(2000, 6, 30), "A", convention="act365f", curves="gilt_curve")
+            ] + bonds,
+            s=[7.381345, 102.732, 131.461, 107.877, 134.455],
+        )  # note the repo rate as defined by 'gilt_curve' is set to analogue implied
+        future = BondFuture(
+            coupon=7.0,
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+            basket=bonds,
+        )
+        result = future.rate(None, solver)
+        expected = 112.98
+        assert abs(result - expected) < 1e-3
 
 
 class TestPricingMechanism:

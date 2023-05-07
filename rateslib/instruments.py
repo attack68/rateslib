@@ -597,6 +597,9 @@ class FixedRateBond(Sensitivities, BaseMixin):
             initial_exchange=False,
         )
         if self.leg1.amortization != 0:
+            # Note if amortization is added to FixedRateBonds must systematically
+            # go through and update all methods. Many rely on the quantity
+            # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
     def ex_div(self, settlement: datetime):
@@ -1007,9 +1010,8 @@ class FixedRateBond(Sensitivities, BaseMixin):
             d_price = price + self.accrued(settlement)
         else:
             d_price = price
-        # TODO this method of calculation is not suitable for amortising bonds
         if self.leg1.amortization != 0:
-            raise NotImplementedError(
+            raise NotImplementedError(  # pragma: no cover
                 "method for forward price not available with amortization"
             )
         total_rtn = d_price * (1 + repo_rate * dcf_ / 100) * -self.leg1.notional / 100
@@ -1137,7 +1139,8 @@ class FixedRateBond(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-        metric="dirty_price",
+        metric: str = "clean_price",
+        forward_settlement: Optional[datetime] = None,
     ):
         """
         Return various pricing metrics of the security calculated from
@@ -1162,8 +1165,12 @@ class FixedRateBond(Sensitivities, BaseMixin):
         base : str, optional
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        metric : str in {"dirty_price", "clean_price", "ytm"}, optional
-            Metric returned by the method.
+        metric : str, optional
+            Metric returned by the method. Available options are {"clean_price",
+            "dirty_price", "ytm", "fwd_clean_price", "fwd_dirty_price"}
+        forward_settlement : datetime
+            The forward settlement date, required if the metric is in
+            {"fwd_clean_price", "fwd_dirty_price"}.
 
         Returns
         -------
@@ -1172,20 +1179,46 @@ class FixedRateBond(Sensitivities, BaseMixin):
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
-        settlement = add_tenor(
-            curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
-        )
-        npv = self._npv_local(curves[0], curves[1], fx, base, settlement, settlement)
-        # scale price to par 100 (npv is already projected forward to settlement)
-        dirty_price = npv * 100 / -self.leg1.notional
 
-        if metric == "dirty_price":
-            return dirty_price
-        elif metric == "clean_price":
-            return dirty_price - self.accrued(settlement)
-        elif metric == "ytm":
-            return self.ytm(dirty_price, settlement, True)
-        raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'ytm'}.")
+        metric = metric.lower()
+        if metric in ["clean_price", "dirty_price", "ytm"]:
+            settlement = add_tenor(
+                curves[1].node_dates[0],
+                f"{self.settle}B",
+                None,
+                self.leg1.schedule.calendar
+            )
+            npv = self._npv_local(
+                curves[0], curves[1], fx, base, settlement, settlement
+            )
+            # scale price to par 100 (npv is already projected forward to settlement)
+            dirty_price = npv * 100 / -self.leg1.notional
+
+            if metric == "dirty_price":
+                return dirty_price
+            elif metric == "clean_price":
+                return dirty_price - self.accrued(settlement)
+            elif metric == "ytm":
+                return self.ytm(dirty_price, settlement, True)
+
+        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
+            if forward_settlement is None:
+                raise ValueError(
+                    "`forward_settlement` needed to determine forward price."
+                )
+            npv = self._npv_local(
+                curves[0], curves[1], fx, base, forward_settlement, forward_settlement
+            )
+            dirty_price = npv / -self.leg1.notional * 100
+            if metric == "fwd_dirty_price":
+                return dirty_price
+            elif metric == "fwd_clean_price":
+                return dirty_price - self.accrued(forward_settlement)
+
+        raise ValueError(
+            "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
+            "'fwd_clean_price', 'fwd_dirty_price'}."
+        )
 
     def cashflows(
         self,
@@ -1298,12 +1331,15 @@ class FixedRateBond(Sensitivities, BaseMixin):
             self.curves, solver, curves, fx
         )
         settlement = add_tenor(
-            curvs[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
+            curves[1].node_dates[0],
+            f"{self.settle}B",
+            None,
+            self.leg1.schedule.calendar
         )
-        base = self.currency if local else base
-        npv = self._npv_local(curvs[0], curvs[1], fx, base, settlement, None)
+        base = self.leg1.currency if local else base
+        npv = self._npv_local(curves[0], curves[1], fx, base, settlement, None)
         if local:
-            return {self.currency: npv}
+            return {self.leg1.currency: npv}
         else:
             return npv
 
@@ -1431,86 +1467,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
             )
         return a_delta
 
-    def forward_price(
-        self,
-        forward_settlement,
-        disc_curve,
-        price,
-        dirty: bool = True,
-        settlement: Optional[datetime] = None,
-        repo_rate: Optional[Union[float, Dual, Dual2]] = None,
-        convention: Optional[str] = None,
-        method: str = "curve",
-    ):
-        """
-        Calculate the forward price of the security.
-
-        Parameters
-        ----------
-        forward_settlement : datetime
-            The forward settlement date for which to determine the price.
-        disc_curve : Curve
-            The rate which to discount cashflows, usually termed the repo rate.
-        price : float, Dual, Dual2
-            The initial price of the security at ``settlement``.
-        dirty : bool, optional
-            Whether the prices are provided and returned dirty or clean.
-        settlement : datetime, optional
-            The initial settlement date of the security.
-        method : str, optional
-            The method that this function will use. See notes.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        There are different ``methods`` to calculate a forward price on a bond.
-
-        **"curve"**
-
-        If the method *"curve"* is selected this will define the repo rate between
-        two dates, the initial settlement and final settlement. The parameters that
-        are then necessary when using this method are:
-
-        - ``disc_curve``
-        - ``forward_settlement``
-
-        The optional parameters available when using this method are:
-
-        - ``price``
-        - ``dirty``
-
-
-
-        """
-        # TODO make this calculation accounting for forward historic coupons
-        raise NotImplementedError("method not coded")
-
-        if method.lower() == "curve":
-            if disc_curve is None:
-                raise ValueError("`disc_curve` must be supplied under method: 'curve'")
-            if settlement is None:
-                settlement = add_tenor(
-                    disc_curve.node_dates[0], f"{self.settle}B", None,
-                    self.leg1.schedule.calendar
-                )
-            if price is None:
-                pass
-
-        multiplier = disc_curve[settlement] / disc_curve[forward_settlement]
-        return price * multiplier
-
-    # def _total_forward_price_from_curve(
-    #     self,
-    #     disc_curve: Curve,
-    #     forward_settlement: datetime,
-    # ):
-    #     npv = self.npv(disc_curve, None, None, None)
-    #     # scale price to par 100 and make a fwd adjustment according to curve
-    #     dirty_price = npv * 100 / (-self.leg1.notional * disc_curve[forward_settlement])
-    #     return dirty_price
 
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
     #     """
@@ -2300,7 +2256,7 @@ class FloatRateBond(Sensitivities, BaseMixin):
 ### Single currency derivatives
 
 
-class BondFuture():
+class BondFuture(Sensitivities):
     """
     Create a bond future derivative.
 
@@ -2326,11 +2282,13 @@ class BondFuture():
         coupon: float,
         delivery: Union[datetime, tuple[datetime, datetime]],
         basket: tuple[FixedRateBond],
-        last_trading: Optional[int] = None,
+        # last_trading: Optional[int] = None,
         nominal: Optional[float] = None,
         contracts: Optional[int] = None,
         calendar: Optional[str] = None,
+        currency: Optional[str] = None,
     ):
+        self.currency = defaults.base_currency if currency is None else currency.lower()
         self.coupon = coupon
         if isinstance(delivery, datetime):
             self.delivery = (delivery, delivery)
@@ -2342,6 +2300,17 @@ class BondFuture():
         self.nominal = defaults.notional if nominal is None else nominal
         self.contracts = 1 if contracts is None else contracts
         self._cfs = None
+
+    @property
+    def notional(self):
+        """
+        Return the notional as number of contracts multiplied by contract nominal.
+
+        Returns
+        -------
+        float
+        """
+        return self.nominal * self.contracts * -1  # long positions is negative notn
 
     @property
     def cfs(self):
@@ -2379,8 +2348,7 @@ class BondFuture():
 
         .. ipython:: python
 
-           gilt_kws = dict(
-               effective=dt(2020, 1, 1),
+           kws = dict(
                stub="ShortFront",
                frequency="S",
                calendar="ldn",
@@ -2390,16 +2358,13 @@ class BondFuture():
                settle=1,
            )
            bonds = [
-               FixedRateBond(termination=dt(2032, 6, 7), fixed_rate=4.25, **gilt_kws),
-               FixedRateBond(termination=dt(2033, 7, 31), fixed_rate=0.875, **gilt_kws),
-               FixedRateBond(termination=dt(2034, 9, 7), fixed_rate=4.5, **gilt_kws),
-               FixedRateBond(termination=dt(2035, 7, 31), fixed_rate=0.625, **gilt_kws),
-               FixedRateBond(termination=dt(2036, 3, 7), fixed_rate=4.25, **gilt_kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+               FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
            ]
            future = BondFuture(
-               delivery=(dt(2023, 6, 1), dt(2023, 6, 30)),
-               coupon=4.0,
-               basket=bonds
+               delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
            )
            future.cfs
 
@@ -2453,8 +2418,9 @@ class BondFuture():
         This example replicates the Bloomberg screen print in the publication
         *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
         that publication exactly no calendar has been provided. A more modern
-        tool should consider the London business day calendar and this would affect the
-        metrics of the third bond to a small degree.
+        Bloomberg would probably consider the London business day calendar and
+        this would affect the metrics of the third bond to a small degree (i.e.
+        set `calendar="ldn"`)
 
         .. ipython:: python
 
@@ -2476,18 +2442,10 @@ class BondFuture():
                convention="Act365f",
            )
         """
-        if dirty:
-            prices_ = [
-                prices[i] - bond.accrued(settlement)
-                for i, bond in enumerate(self.basket)
-            ]
-        else:
-            prices_ = prices
-
         if not isinstance(repo_rate, (tuple, list)):
             r_ = (repo_rate,) * len(self.basket)
         else:
-            r_ = repo_rate
+            r_ = tuple(repo_rate)
 
         df = DataFrame(
             columns=[
@@ -2496,18 +2454,21 @@ class BondFuture():
             ],
             index=range(len(self.basket))
         )
-        df["Price"] = prices_
+        df["Price"] = prices
         df["YTM"] = [
-            bond.ytm(prices_[i], settlement) for i, bond in enumerate(self.basket)
+            bond.ytm(prices[i], settlement, dirty=dirty)
+            for i, bond in enumerate(self.basket)
         ]
         df["C.Factor"] = self.cfs
-        df["Gross Basis"] = self.gross_basis(future_price, prices_, settlement)
+        df["Gross Basis"] = self.gross_basis(
+            future_price, prices, settlement, dirty=dirty
+        )
         df["Implied Repo"] = self.implied_repo(
-            future_price, prices_, settlement, delivery, convention
+            future_price, prices, settlement, delivery, convention, dirty=dirty
         )
         df["Actual Repo"] = r_
         df["Net Basis"] = self.net_basis(
-            future_price, prices_, r_, settlement, delivery, convention
+            future_price, prices, r_, settlement, delivery, convention, dirty=dirty
         )
         df["Bond"] = [
             f"{bond.fixed_rate:,.3f}% " \
@@ -2547,7 +2508,7 @@ class BondFuture():
 
         .. ipython:: python
 
-           future.gross_basis(112.50, [109.90, 81.40, 114.25, 75.90, 113.20])
+           future.gross_basis(112.98, [102.732, 131.461, 107.877, 134.455])
         """
         if dirty:
             prices_ = tuple(
@@ -2565,7 +2526,7 @@ class BondFuture():
         future_price: Union[float, Dual, Dual2],
         prices: list[float, Dual, Dual2],
         repo_rate: Union[float, Dual, Dual2, list, tuple],
-        settlement: Optional[datetime] = None,
+        settlement: datetime,
         delivery: Optional[datetime] = None,
         convention: Optional[str] = None,
         dirty: bool = False,
@@ -2601,7 +2562,14 @@ class BondFuture():
 
         .. ipython:: python
 
-           future.gross_basis(112.50, [109.90, 81.40, 114.25, 75.90, 113.20])
+           future.net_basis(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               repo_rate=6.24,
+               settlement=dt(2000, 3, 16),
+               delivery=dt(2000, 6, 30),
+               convention="Act365f"
+           )
         """
         if delivery is None:
             f_settlement = self.delivery[1]
@@ -2613,16 +2581,10 @@ class BondFuture():
         else:
             r_ = repo_rate
 
-        if dirty:
-            prices_ = tuple(
-                prices[i] - bond.accrued(settlement)
-                for i, bond in enumerate(self.basket)
-            )
-        else:
-            prices_ = prices
-
         net_basis_ = tuple(
-            bond.fwd_from_repo(prices_[i], settlement, f_settlement, r_[i], convention)
+            bond.fwd_from_repo(
+                prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty
+            )
             - self.cfs[i] * future_price
             for i, bond in enumerate(self.basket)
         )
@@ -2667,13 +2629,14 @@ class BondFuture():
         .. ipython:: python
 
            future.implied_repo(
-               112.50, [109.90, 81.40, 114.25, 75.90, 113.20], dt(2023, 5, 15)
+               112.98, [102.732, 131.461, 107.877, 134.455], dt(2000, 3, 16)
            )
         """
         if delivery is None:
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
+
         implied_repos = tuple()
         for i, bond in enumerate(self.basket):
             invoice_price = future_price * self.cfs[i]
@@ -2703,29 +2666,206 @@ class BondFuture():
             The price of the future.
         delivery : datetime, optional
             The future delivery day on which to calculate the yield. If not given aligns
-            with the first delivery day specified on the future.
+            with the last delivery day specified on the future.
 
         Returns
         -------
-        list
+        tuple
 
         Examples
         --------
 
         .. ipython:: python
 
-           future.ytm(112.50)
+           future.ytm(112.98)
         """
         if delivery is None:
-            settlement = self.delivery[0]
+            settlement = self.delivery[1]
         else:
             settlement = delivery
         adjusted_prices = [future_price * cf for cf in self.cfs]
-        yields = [
+        yields = tuple(
             bond.ytm(adjusted_prices[i], settlement)
             for i, bond in enumerate(self.basket)
-        ]
+        )
         return yields
+
+    def duration(
+        self,
+        future_price: float,
+        metric: str = "risk",
+        delivery: Optional[datetime] = None,
+    ):
+        """
+        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
+
+        Parameters
+        ----------
+        future_price : float
+            The price of the future.
+        metric : str
+            The specific duration calculation to return. See notes.
+        delivery : datetime, optional
+            The delivery date of the contract.
+
+        Returns
+        -------
+        float
+
+        Example
+        -------
+        .. ipython:: python
+
+           risk = future.duration(112.98)
+           risk
+
+        The difference in yield is shown to be 1bp for the CTD (index: 0)
+        when the futures price is adjusted by the risk amount.
+
+        .. ipython:: python
+
+           future.ytm(112.98)
+           future.ytm(112.98 + risk[0] / 100)
+        """
+        if delivery is None:
+            f_settlement = self.delivery[1]
+        else:
+            f_settlement = delivery
+
+        _ = ()
+        for i, bond in enumerate(self.basket):
+            invoice_price = future_price * self.cfs[i]
+            ytm = bond.ytm(invoice_price, f_settlement)
+            if metric == "risk":
+                _ += bond.duration(ytm, f_settlement, "risk") / self.cfs[i],
+            else:
+                _ += bond.duration(ytm, f_settlement, metric),
+        return _
+
+    # TODO convexity for BondFuture
+
+    def ctd_index(
+        self,
+        future_price: float,
+        prices: Union[list, tuple],
+        settlement: datetime,
+        delivery: Optional[datetime] = None,
+        dirty: bool = False,
+    ):
+        """
+        Determine the index of the CTD in the basket from implied repo rate.
+
+        Parameters
+        ----------
+        future_price : float
+            The price of the future.
+        prices : list or tuple of float, Dual, Dual2, optional
+            The prices of the bonds to determine the CTD. Not used is ``ctd_index``
+            is given.
+        settlement : datetime
+            The settlement date of the bonds' ``prices``. Only required if ``prices``
+            are given.
+        delivery : datetime, optional
+            The delivery date of the contract.
+        dirty : bool
+            Whether the ``prices`` given include accrued interest or not.
+
+        Returns
+        -------
+        int
+        """
+        implied_repo = self.implied_repo(
+            future_price, prices, settlement, delivery, "Act365F", dirty
+        )
+        ctd_index_ = implied_repo.index(max(implied_repo))
+        return ctd_index_
+
+    # Digital Methods
+
+    def rate(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        metric: str ="future_price",
+        delivery: Optional[datetime] = None
+    ):
+        """
+        Return various pricing metrics of the security calculated from
+        :class:`~rateslib.curves.Curve` s.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`Curve` or id or a list of such. A list defines the
+            following curves in the order:
+
+              - Forecasting :class:`Curve` for ``leg1``.
+              - Discounting :class:`Curve` for ``leg1``.
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        metric : str in {"future_price", "ytm"}, optional
+            Metric returned by the method.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        This method determines the *'futures_price'* and *'ytm'*  by assuming a net
+        basis of zero and pricing from the cheapest to delivery (CTD).
+        """
+        if delivery is None:
+            f_settlement = self.delivery[1]
+        else:
+            f_settlement = delivery
+        prices_ = [
+            bond.rate(curves, solver, fx, base, "fwd_clean_price", f_settlement)
+            for bond in self.basket
+        ]
+        future_prices_ = [
+            price / self.cfs[i] for i, price in enumerate(prices_)
+        ]
+        future_price = min(future_prices_)
+        ctd_index = future_prices_.index(min(future_prices_))
+
+        if metric == "future_price":
+            return future_price
+        elif metric == "ytm":
+            return self.basket[ctd_index].ytm(
+                future_price * self.cfs[ctd_index], f_settlement
+            )
+        raise ValueError("`metric` must be in {'future_price', 'ytm'}.")
+
+    def npv(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False
+    ):
+        future_price = self.rate(curves, solver, fx, base, "future_price")
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        npv_ = future_price / 100 * self.notional
+        if local:
+            return {self.currency: npv_}
+        else:
+            return npv_ * fx
 
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
@@ -6117,7 +6257,7 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
             return _ytm_quadratic_converger2(f, y1-pad, y, 2*y-y1+pad, None, f_, None, tol)
         else:
             return _ytm_quadratic_converger2(f, 2*y-y2-pad, y, y2+pad, None, f_, None, tol)
-    else: # y2 < y:
+    else:  # y2 < y:
         return _ytm_quadratic_converger2(f, y2-pad, y, 2*y-y2+pad, None, f_, None, tol)
 
 
