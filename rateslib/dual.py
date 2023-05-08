@@ -139,6 +139,7 @@ class DualBase:
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+
 class Dual2(DualBase):
     """
     Dual number data type to perform second derivative automatic differentiation.
@@ -228,19 +229,19 @@ class Dual2(DualBase):
                     self.real * argument,
                     self.vars,
                     self.dual * argument,
-                    self.dual2 * argument
+                    self.dual2 * argument,
                 )
             raise TypeError("Dual2 operations defined between float, int or Dual2.")
 
         if self.vars == argument.vars:
             dual2 = self.dual2 * argument.real + argument.dual2 * self.real
-            _ = np.einsum('i,j', self.dual, argument.dual)
+            _ = np.einsum("i,j", self.dual, argument.dual)
             dual2 += (_ + _.T) / 2
             return Dual2(
                 self.real * argument.real,
                 self.vars,
                 self.dual * argument.real + argument.dual * self.real,
-                dual2
+                dual2,
             )
         else:
             self_, argument = self.__upcast_combined__(argument)
@@ -257,7 +258,7 @@ class Dual2(DualBase):
                     self.real / argument,
                     self.vars,
                     self.dual / argument,
-                    self.dual2 / argument
+                    self.dual2 / argument,
                 )
             raise TypeError("Dual2 operations defined between float, int or Dual2.")
 
@@ -279,10 +280,10 @@ class Dual2(DualBase):
             coeff = power * self.real ** (power - 1)
             coeff2 = power * (power - 1) * self.real ** (power - 2) * 0.5
             return Dual2(
-                self.real ** power,
+                self.real**power,
                 self.vars,
                 self.dual * coeff,
-                self.dual2 * coeff + np.einsum("i,j", self.dual, self.dual) * coeff2
+                self.dual2 * coeff + np.einsum("i,j", self.dual, self.dual) * coeff2,
             )
         elif isinstance(power, np.ndarray):
             return power.__rpow__(self)
@@ -294,7 +295,7 @@ class Dual2(DualBase):
             const,
             self.vars,
             self.dual * const,
-            const * (self.dual2 + np.einsum("i,j", self.dual, self.dual) * 0.5 )
+            const * (self.dual2 + np.einsum("i,j", self.dual, self.dual) * 0.5),
         )
 
     def __log__(self):
@@ -302,7 +303,8 @@ class Dual2(DualBase):
             math.log(self.real),
             self.vars,
             self.dual / self.real,
-            self.dual2 / self.real - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2
+            self.dual2 / self.real
+            - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2,
         )
 
     def __upcast_vars__(self, new_vars):
@@ -315,12 +317,12 @@ class Dual2(DualBase):
     def __downcast_vars__(self):
         """removes variables where first and second order sensitivity is zero"""
         ix_ = np.where(np.isclose(self.dual, 0, atol=PRECISION) == False)[0]
-        ix2_ = np.where(np.isclose(self.dual2.sum(axis=0), 0, atol=PRECISION) == False)[0]
+        ix2_ = np.where(np.isclose(self.dual2.sum(axis=0), 0, atol=PRECISION) == False)[
+            0
+        ]
         ixu = np.union1d(ix_, ix2_)
         new_vars = [self.vars[i] for i in ixu]
-        return Dual2(
-            self.real, new_vars, self.dual[ixu], self.dual2[np.ix_(ixu, ixu)]
-        )
+        return Dual2(self.real, new_vars, self.dual[ixu], self.dual2[np.ix_(ixu, ixu)])
 
     def _set_order(self, order):
         if order == 1:
@@ -334,6 +336,7 @@ class Dual2(DualBase):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 
 class Dual(DualBase):
     """
@@ -383,11 +386,7 @@ class Dual(DualBase):
             raise TypeError("Dual operations defined between float, int or Dual.")
 
         if self.vars == argument.vars:
-            return Dual(
-                self.real + argument.real,
-                self.vars,
-                self.dual + argument.dual
-            )
+            return Dual(self.real + argument.real, self.vars, self.dual + argument.dual)
         else:
             self_, argument = self.__upcast_combined__(argument)
             return self_ + argument
@@ -412,7 +411,7 @@ class Dual(DualBase):
             return Dual(
                 self.real * argument.real,
                 self.vars,
-                self.dual * argument.real + argument.dual * self.real
+                self.dual * argument.real + argument.dual * self.real,
             )
         else:
             self_, argument = self.__upcast_combined__(argument)
@@ -442,9 +441,9 @@ class Dual(DualBase):
     def __pow__(self, power):
         if isinstance(power, (*FLOATS, *INTS)):
             return Dual(
-                self.real ** power,
+                self.real**power,
                 self.vars,
-                self.dual * power * self.real ** (power - 1)
+                self.dual * power * self.real ** (power - 1),
             )
         elif isinstance(power, np.ndarray):
             return power.__rpow__(self)
@@ -502,6 +501,7 @@ def dual_exp(x):
         return x.__exp__()
     return math.exp(x)
 
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -524,7 +524,7 @@ def dual_log(x, base=None):
     """
     if isinstance(x, (Dual, Dual2)):
         val = x.__log__()
-        return val if base is None else val * (1/math.log(base))
+        return val if base is None else val * (1 / math.log(base))
     return math.log(x) if base is None else math.log(x, base)
 
 
@@ -559,6 +559,7 @@ def _pivot_matrix(A, method=1):
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+
 def _plu_decomp(A, method=1):
     """Performs an LU Decomposition of A (which must be square)
     into PA = LU. The function returns P, L and U. Uses Doolittle algorithm.
@@ -581,7 +582,7 @@ def _plu_decomp(A, method=1):
             L[j, j] = 1.0
 
             # LaTeX: u_{ij} = a_{ij} - \sum_{k=1}^{i-1} u_{kj} l_{ik}
-            for i in range(j+1):
+            for i in range(j + 1):
                 sx = np.matmul(L[i, :i], U[:i, j])
                 # s1 = sum(U[k][j] * L[i][k] for k in range(i))
                 U[i, j] = PA[i, j] - sx
@@ -592,7 +593,7 @@ def _plu_decomp(A, method=1):
                 # s2 = sum(U[k][j] * L[i][k] for k in range(j))
                 L[i, j] = (PA[i, j] - sy) / U[j, j]
     except ZeroDivisionError:
-        return _plu_decomp(A, method+1)  # retry with altered pivoting technique
+        return _plu_decomp(A, method + 1)  # retry with altered pivoting technique
 
     return P, L, U
 
@@ -676,6 +677,7 @@ def set_order(val, order):
         return val
     elif isinstance(val, (Dual, Dual2)):
         return val._set_order(order)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
