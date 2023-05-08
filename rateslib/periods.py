@@ -39,6 +39,7 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+
 def _get_fx_and_base(
     currency: str,
     fx: Optional[Union[float, FXRates, FXForwards]] = None,
@@ -116,8 +117,10 @@ class BasePeriod(metaclass=ABCMeta):
         self.stub = stub
 
     def __repr__(self):
-        return f"<{type(self).__name__}: {self.start.strftime('%Y-%m-%d')}->" \
-               f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
+        return (
+            f"<{type(self).__name__}: {self.start.strftime('%Y-%m-%d')}->"
+            f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
+        )
 
     @property
     def dcf(self):
@@ -130,7 +133,7 @@ class BasePeriod(metaclass=ABCMeta):
             self.convention,
             self.termination,
             self.freq_months,
-            self.stub
+            self.stub,
         )
 
     @abstractmethod
@@ -236,7 +239,7 @@ class BasePeriod(metaclass=ABCMeta):
         curve: Optional[Curve] = None,
         disc_curve: Optional[Curve] = None,
         fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None
+        base: Optional[str] = None,
     ):
         """
         Return the properties of the period used in calculating cashflows.
@@ -281,8 +284,9 @@ class BasePeriod(metaclass=ABCMeta):
             defaults.headers["convention"]: self.convention,
             defaults.headers["dcf"]: self.dcf,
             defaults.headers["notional"]: float(self.notional),
-            defaults.headers["df"]: None if disc_curve is None else float(
-                disc_curve[self.payment]),
+            defaults.headers["df"]: None
+            if disc_curve is None
+            else float(disc_curve[self.payment]),
         }
 
     @abstractmethod
@@ -363,12 +367,15 @@ class FixedPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        return None if self.fixed_rate is None \
+        return (
+            None
+            if self.fixed_rate is None
             else -self.notional * self.dcf * self.fixed_rate / 100
+        )
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def npv(
         self,
@@ -376,7 +383,7 @@ class FixedPeriod(BasePeriod):
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-        local: bool = False
+        local: bool = False,
     ):
         disc_curve = disc_curve or curve
         if disc_curve is None:
@@ -397,7 +404,7 @@ class FixedPeriod(BasePeriod):
         curve: Optional[Curve] = None,
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None
+        base: Optional[str] = None,
     ):
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
@@ -424,7 +431,7 @@ class FixedPeriod(BasePeriod):
 def _validate_float_args(
     fixing_method: Optional[str],
     method_param: Optional[int],
-    spread_compound_method: Optional[str]
+    spread_compound_method: Optional[str],
 ):
     """
     Validate the argument input to float periods.
@@ -450,7 +457,8 @@ def _validate_float_args(
         )
 
     method_param_ = (
-        defaults.fixing_method_param[fixing_method_] if method_param is None
+        defaults.fixing_method_param[fixing_method_]
+        if method_param is None
         else method_param
     )
     if method_param_ != 0 and fixing_method_ == "rfr_payment_delay":
@@ -463,15 +471,17 @@ def _validate_float_args(
     elif fixing_method_ == "rfr_lockout" and method_param_ < 1:
         raise ValueError(
             f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, '
-            f'got {method_param_}'
+            f"got {method_param_}"
         )
 
     if spread_compound_method is None:
-        spread_compound_method_:str = defaults.spread_compound_method
+        spread_compound_method_: str = defaults.spread_compound_method
     else:
         spread_compound_method_ = spread_compound_method.lower()
     if spread_compound_method_ not in [
-        "none_simple", "isda_compounding", "isda_flat_compounding"
+        "none_simple",
+        "isda_compounding",
+        "isda_flat_compounding",
     ]:
         raise ValueError(
             "`spread_compound_method` must be in {'none_simple', "
@@ -711,12 +721,15 @@ class FloatPeriod(BasePeriod):
         fixing_method: Optional[str] = None,
         method_param: Optional[int] = None,
         spread_compound_method: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         self.float_spread = 0 if float_spread is None else float_spread
 
-        self.fixing_method, self.method_param, self.spread_compound_method = \
-            _validate_float_args(fixing_method, method_param, spread_compound_method)
+        (
+            self.fixing_method,
+            self.method_param,
+            self.spread_compound_method,
+        ) = _validate_float_args(fixing_method, method_param, spread_compound_method)
 
         self.fixings = fixings
         if isinstance(self.fixings, list) and self.fixing_method == "ibor":
@@ -728,9 +741,9 @@ class FloatPeriod(BasePeriod):
         # self.modifier = modifier
         super().__init__(*args, **kwargs)
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def analytic_delta(
         self,
@@ -758,7 +771,7 @@ class FloatPeriod(BasePeriod):
         curve: Optional[Curve] = None,
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None
+        base: Optional[str] = None,
     ):
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
@@ -769,8 +782,9 @@ class FloatPeriod(BasePeriod):
         else:
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
-        cashflow = None if rate is None else -float(
-            self.notional * self.dcf * rate / 100)
+        cashflow = (
+            None if rate is None else -float(self.notional * self.dcf * rate / 100)
+        )
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
@@ -797,7 +811,11 @@ class FloatPeriod(BasePeriod):
             )
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
-            self.rate(curve)/100 * self.dcf * disc_curve[self.payment] * -self.notional
+            self.rate(curve)
+            / 100
+            * self.dcf
+            * disc_curve[self.payment]
+            * -self.notional
         )
         if local:
             return {self.currency: value}
@@ -825,13 +843,19 @@ class FloatPeriod(BasePeriod):
         """
         if isinstance(self.fixings, (float, Dual, Dual2)):
             # if fixings is a single value then return that value (curve unused)
-            if self.spread_compound_method in [
-                "isda_compounding", "isda_flat_compounding"
-            ] and self.float_spread != 0 and "rfr" in self.fixing_method:
-                warnings.warn("Unless the RFR period is a 1-day tenor, "
-                              "a single scalar fixing will not be compounded correctly"
-                              "with the given `spread_compound_method`, and "
-                              "`float_spread`", UserWarning)
+            if (
+                self.spread_compound_method
+                in ["isda_compounding", "isda_flat_compounding"]
+                and self.float_spread != 0
+                and "rfr" in self.fixing_method
+            ):
+                warnings.warn(
+                    "Unless the RFR period is a 1-day tenor, "
+                    "a single scalar fixing will not be compounded correctly"
+                    "with the given `spread_compound_method`, and "
+                    "`float_spread`",
+                    UserWarning,
+                )
 
             # this ignores spread_compound_type
             return self.fixings + self.float_spread / 100
@@ -900,9 +924,9 @@ class FloatPeriod(BasePeriod):
         return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
 
     def _rfr_fixings_array(
-            self,
-            curve: Union[Curve, LineCurve],
-            fixing_exposure: bool = False,
+        self,
+        curve: Union[Curve, LineCurve],
+        fixing_exposure: bool = False,
     ):
         """
         Calculate the rate of a period via extraction and combination of every fixing.
@@ -942,8 +966,9 @@ class FloatPeriod(BasePeriod):
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = start_obs, end_obs
         elif self.fixing_method == "rfr_lookback":
-            start_obs = add_tenor(self.start, f"-{self.method_param}b", "P",
-                                  curve.calendar)
+            start_obs = add_tenor(
+                self.start, f"-{self.method_param}b", "P", curve.calendar
+            )
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = self.start, self.end
         else:
@@ -952,16 +977,16 @@ class FloatPeriod(BasePeriod):
                 "'rfr_lookback', 'rfr_observation_shift'}"
             )
 
-        obs_dates = Series(date_range(  # dates of the fixing observation period
-            start=start_obs,
-            end=end_obs,
-            freq=curve.calendar
-        ))
-        dcf_dates = Series(date_range(  # dates for the dcf weights period
-            start=start_dcf,
-            end=end_dcf,
-            freq=curve.calendar
-        ))
+        obs_dates = Series(
+            date_range(  # dates of the fixing observation period
+                start=start_obs, end=end_obs, freq=curve.calendar
+            )
+        )
+        dcf_dates = Series(
+            date_range(  # dates for the dcf weights period
+                start=start_dcf, end=end_dcf, freq=curve.calendar
+            )
+        )
         if len(dcf_dates) != len(obs_dates):
             # this should never be true since dates should be adjusted under the
             # curve calendar which is consistent in all above execution statements.
@@ -969,23 +994,25 @@ class FloatPeriod(BasePeriod):
                 "Observation and dcf dates do not align, possible `calendar` issue."
             )
 
-        dcf_vals = Series([  # calculate the dcf values from the dcf dates
-            dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
-            for i in range(len(dcf_dates.index) - 1)
-        ])
+        dcf_vals = Series(
+            [  # calculate the dcf values from the dcf dates
+                dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
+                for i in range(len(dcf_dates.index) - 1)
+            ]
+        )
 
         rates = Series(NA, index=obs_dates[:-1])
         if self.fixings is not None:
             # then fixings will be a list or Series, scalars are already processed.
             if isinstance(self.fixings, list):
-                rates.iloc[:len(self.fixings)] = self.fixings
+                rates.iloc[: len(self.fixings)] = self.fixings
             elif isinstance(self.fixings, Series):
                 if not self.fixings.index.is_monotonic_increasing:
                     raise ValueError(
                         "`fixings` as a Series must have a monotonically increasing "
                         "datetimeindex."
                     )
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0]:obs_dates.iloc[-2]]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]
                 rates.loc[fixing_rates.index] = fixing_rates
 
                 # basic error checking for missing fixings and provide warning.
@@ -993,10 +1020,13 @@ class FloatPeriod(BasePeriod):
                     first_forecast_date = rates[isna(rates)].index[0]
                     if rates[~isna(rates)].index[-1] > first_forecast_date:
                         # then a missing fixing exists
-                        warnings.warn(f"`fixings` has missed a calendar value "
-                                      f"({first_forecast_date}) which "
-                                      "has been inferred from the curve. Subsequent "
-                                      "fixings have been detected", UserWarning)
+                        warnings.warn(
+                            f"`fixings` has missed a calendar value "
+                            f"({first_forecast_date}) which "
+                            "has been inferred from the curve. Subsequent "
+                            "fixings have been detected",
+                            UserWarning,
+                        )
                 except (KeyError, IndexError):
                     pass
             else:
@@ -1005,42 +1035,54 @@ class FloatPeriod(BasePeriod):
                 )
 
         # reindex the rates series getting missing values from the curves
-        rates = Series({
-            k: curve.rate(k, "1b") if isna(v) else v for k, v in rates.items()
-        })
+        rates = Series(
+            {k: curve.rate(k, "1b") if isna(v) else v for k, v in rates.items()}
+        )
 
         if fixing_exposure:
             # need to calculate the dcfs associated with the rates (unshifted)
             if self.fixing_method in [
-                "rfr_payment_delay", "rfr_observation_shift", "rfr_lockout"
+                "rfr_payment_delay",
+                "rfr_observation_shift",
+                "rfr_lockout",
             ]:  # for all these methods there is no shift
                 dcf_of_r = dcf_vals.copy()
             elif self.fixing_method == "rfr_lookback":
-                dcf_of_r = Series([
-                    dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
-                    for i in range(len(dcf_dates.index) - 1)
-                ])
+                dcf_of_r = Series(
+                    [
+                        dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
+                        for i in range(len(dcf_dates.index) - 1)
+                    ]
+                )
 
         if self.fixing_method == "rfr_lockout":
             # adjust the final rates values of the lockout arrays according to param
             try:
-                rates.iloc[-self.method_param:] = rates.iloc[-self.method_param - 1]
+                rates.iloc[-self.method_param :] = rates.iloc[-self.method_param - 1]
             except IndexError:
                 raise ValueError(
                     "period has too few dates for `rfr_lockout` param to function."
                 )
 
         if fixing_exposure:
-            rates_dual = Series([
-                Dual(float(r), f"fixing_{i}") for i, (k, r) in enumerate(rates.items())
-            ], index=rates.index)
+            rates_dual = Series(
+                [
+                    Dual(float(r), f"fixing_{i}")
+                    for i, (k, r) in enumerate(rates.items())
+                ],
+                index=rates.index,
+            )
             if self.fixing_method == "rfr_lockout":
-                rates_dual.iloc[-self.method_param:] = \
-                    rates_dual.iloc[-self.method_param - 1]
+                rates_dual.iloc[-self.method_param :] = rates_dual.iloc[
+                    -self.method_param - 1
+                ]
             rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
-            notional_exposure = Series([
-                rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index)-1)
-            ])
+            notional_exposure = Series(
+                [
+                    rate.gradient(f"fixing_{i}")[0]
+                    for i in range(len(dcf_dates.index) - 1)
+                ]
+            )
             notional_exposure *= -self.notional * self.dcf / dcf_of_r
             extra_cols = {
                 "obs_dcf": dcf_of_r,
@@ -1057,13 +1099,15 @@ class FloatPeriod(BasePeriod):
                 "the `method_param` adjustment?"
             )
 
-        return rate, DataFrame({
-            "obs_dates": obs_dates,
-            "dcf_dates": dcf_dates,
-            "dcf": dcf_vals,
-            "rates": rates.apply(float, convert_dtype=float).reset_index(drop=True),
-            **extra_cols
-        })
+        return rate, DataFrame(
+            {
+                "obs_dates": obs_dates,
+                "dcf_dates": dcf_dates,
+                "dcf": dcf_vals,
+                "rates": rates.apply(float, convert_dtype=float).reset_index(drop=True),
+                **extra_cols,
+            }
+        )
 
     def _isda_compounded_rate_with_spread(self, rates, dcf_vals):
         """
@@ -1083,19 +1127,18 @@ class FloatPeriod(BasePeriod):
         dcf_vals = dcf_vals.set_axis(rates.index)
         if self.float_spread == 0 or self.spread_compound_method == "none_simple":
             return (
-                ((1 + dcf_vals * rates / 100).prod() - 1) * 100
-                / dcf_vals.sum()
-                + self.float_spread / 100
-            )
+                (1 + dcf_vals * rates / 100).prod() - 1
+            ) * 100 / dcf_vals.sum() + self.float_spread / 100
         elif self.spread_compound_method == "isda_compounding":
             return (
                 ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1)
-                * 100 / dcf_vals.sum()
+                * 100
+                / dcf_vals.sum()
             )
         elif self.spread_compound_method == "isda_flat_compounding":
             sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
             for i in range(1, len(sub_cashflows)):
-                k, k_ = rates.index[i], rates.index[i-1]
+                k, k_ = rates.index[i], rates.index[i - 1]
                 sub_cashflows[k] += sub_cashflows[k_] * rates[k] / 100 * dcf_vals[k]
             total_cashflow = sub_cashflows.sum()
             return total_cashflow * 100 / dcf_vals.sum()
@@ -1106,9 +1149,9 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}."
             )
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @property
     def _is_complex(self):
@@ -1130,8 +1173,7 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
             if self.fixings is not None:
                 return True
-            elif self.float_spread == 0 or \
-                    self.spread_compound_method == "none_simple":
+            elif self.float_spread == 0 or self.spread_compound_method == "none_simple":
                 return False
             else:
                 return True
@@ -1253,17 +1295,21 @@ class FloatPeriod(BasePeriod):
         if "rfr" in self.fixing_method:
             rate, table = self._rfr_fixings_array(curve, fixing_exposure=True)
             table = table.iloc[:-1]
-            return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
+            return table[["obs_dates", "notional", "dcf", "rates"]].set_index(
+                "obs_dates"
+            )
         elif "ibor" in self.fixing_method:
             fixing_date = add_tenor(
                 self.start, f"-{self.method_param}b", "P", curve.calendar
             )
-            return DataFrame({
-                "obs_dates": [fixing_date],
-                "notional": -self.notional,
-                "dcf": [None],
-                "rates": [self.rate(curve)],
-            }).set_index("obs_dates")
+            return DataFrame(
+                {
+                    "obs_dates": [fixing_date],
+                    "notional": -self.notional,
+                    "dcf": [None],
+                    "rates": [self.rate(curve)],
+                }
+            ).set_index("obs_dates")
 
 
 class Cashflow:
@@ -1323,7 +1369,7 @@ class Cashflow:
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        value = (self.cashflow * disc_curve[self.payment])
+        value = self.cashflow * disc_curve[self.payment]
         if local:
             return {self.currency: value}
         else:
@@ -1334,7 +1380,7 @@ class Cashflow:
         curve: Optional[Curve] = None,
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None
+        base: Optional[str] = None,
     ) -> dict:
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
@@ -1355,8 +1401,9 @@ class Cashflow:
             defaults.headers["convention"]: None,
             defaults.headers["dcf"]: None,
             defaults.headers["notional"]: float(self.notional),
-            defaults.headers["df"]: None if disc_curve is None else float(
-                disc_curve[self.payment]),
+            defaults.headers["df"]: None
+            if disc_curve is None
+            else float(disc_curve[self.payment]),
             defaults.headers["rate"]: self.rate,
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: float(self.cashflow),
@@ -1377,6 +1424,7 @@ class Cashflow:
         base: Optional[str] = None,
     ):
         return 0
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
