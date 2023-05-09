@@ -27,10 +27,12 @@ from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+
 class Serialize:
     """
     Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
     """
+
     def to_json(self):
         """
         Convert the parameters of the curve to JSON format.
@@ -46,7 +48,9 @@ class Serialize:
 
         container = {
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
+            "interpolation": self.interpolation
+            if isinstance(self.interpolation, str)
+            else None,
             "t": t,
             "c": self.spline.c if self.c_init else None,
             "id": self.id,
@@ -63,15 +67,19 @@ class Serialize:
         elif "named: " in self.calendar_type:
             container.update({"calendar": self.calendar_type[7:]})
         else:  # calendar type is custom
-            container.update({
-                "calendar": {
-                    "weekmask": self.calendar.weekmask,
-                    "holidays": [
-                        d.item().strftime("%Y-%m-%d")  # numpy/pandas timestamp to py
-                        for d in self.calendar.holidays
-                    ]
+            container.update(
+                {
+                    "calendar": {
+                        "weekmask": self.calendar.weekmask,
+                        "holidays": [
+                            d.item().strftime(
+                                "%Y-%m-%d"
+                            )  # numpy/pandas timestamp to py
+                            for d in self.calendar.holidays
+                        ],
+                    }
                 }
-            })
+            )
 
         return json.dumps(container, default=str)
 
@@ -103,8 +111,7 @@ class Serialize:
                 for d in serial["calendar"]["holidays"]
             ]
             serial["calendar"] = create_calendar(
-                rules=dates,
-                weekmask=serial["calendar"]["weekmask"]
+                rules=dates, weekmask=serial["calendar"]["weekmask"]
             )
 
         if serial["t"] is not None:
@@ -150,8 +157,10 @@ class Serialize:
             self.ad, DualType = 2, Dual2
         else:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
-        self.nodes = {k: DualType(float(v), f"{self.id}{i}")
-                      for i, (k, v) in enumerate(self.nodes.items())}
+        self.nodes = {
+            k: DualType(float(v), f"{self.id}{i}")
+            for i, (k, v) in enumerate(self.nodes.items())
+        }
         self.csolve()
         return None
 
@@ -160,6 +169,7 @@ class PlotCurve:
     """
     Methods mixin for plotting :class:`Curve` or :class:`LineCurve` s.
     """
+
     def plot(
         self,
         tenor: str,
@@ -198,7 +208,7 @@ class PlotCurve:
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
         if left is None:
-            left_ : datetime = self.node_dates[0]
+            left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
             left_ = add_tenor(self.node_dates[0], left, None, None)
         elif isinstance(left, datetime):
@@ -207,7 +217,7 @@ class PlotCurve:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
         if right is None:
-            right_ : datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, None)
+            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, None)
         elif isinstance(right, str):
             right_ = add_tenor(self.node_dates[0], right, None, None)
         elif isinstance(right, datetime):
@@ -215,7 +225,7 @@ class PlotCurve:
         else:
             raise ValueError("`right` must be supplied as datetime or tenor string.")
 
-        points : int = (right_ - left_).days
+        points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
         rates = [self.rate(_, tenor) for _ in x]
         if not difference:
@@ -242,6 +252,7 @@ class PlotCurve:
         """
         Debugging method?
         """
+
         def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
             _ = self[date] / curve_foreign[date]
             if fx_settlement is not None:
@@ -301,6 +312,7 @@ class Curve(Serialize, PlotCurve):
         :class:`~rateslib.dual.Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
     """
+
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
     _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
@@ -318,14 +330,16 @@ class Curve(Serialize, PlotCurve):
         calendar: Optional[Union[CustomBusinessDay, str]] = None,
         index_base: Optional[float] = None,
         ad: int = 0,
-        **kwargs
+        **kwargs,
     ):
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         self.index_base = index_base
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
-        self.interpolation = interpolation or defaults.interpolation[type(self).__name__]
+        self.interpolation = (
+            interpolation or defaults.interpolation[type(self).__name__]
+        )
 
         # Parameters for the rate derivation
         self.convention = convention or defaults.convention
@@ -363,15 +377,15 @@ class Curve(Serialize, PlotCurve):
         else:
             return self._op_exp(self.spline.ppev_single(date))
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def _local_interp_(self, date: datetime):
         if date < self.node_dates[0]:
             return 0  # then date is in the past and DF is zero
         l_index = index_left(self.node_dates, self.n, date)
-        node_left, node_right = self.node_dates[l_index], self.node_dates[l_index+1]
+        node_left, node_right = self.node_dates[l_index], self.node_dates[l_index + 1]
         return interpolate(
             date,
             node_left,
@@ -379,7 +393,7 @@ class Curve(Serialize, PlotCurve):
             node_right,
             self.nodes[node_right],
             self.interpolation,
-            self.node_dates[0]
+            self.node_dates[0],
         )
 
     # def plot(self, *args, **kwargs):
@@ -573,14 +587,14 @@ class Curve(Serialize, PlotCurve):
         """
         v1v2 = [1.0] * (self.n - 1)
         n = [0] * (self.n - 1)
-        d = 1/365 if self.convention.upper() != "ACT360" else 1/360
+        d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
         v_new = [1.0] * (self.n)
         for i, (k, v) in enumerate(self.nodes.items()):
             if i == 0:
                 continue
-            n[i-1] = (k - self.node_dates[i-1]).days
-            v1v2[i-1] = (self.nodes[self.node_dates[i-1]] / v) ** (1 / n[i-1])
-            v_new[i] = v_new[i-1] / (v1v2[i-1] + d * spread / 10000) ** n[i-1]
+            n[i - 1] = (k - self.node_dates[i - 1]).days
+            v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
+            v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
 
         nodes = self.nodes.copy()
         for i, (k, v) in enumerate(nodes.items()):
@@ -597,15 +611,13 @@ class Curve(Serialize, PlotCurve):
             modifier=self.modifier,
             calendar=self.calendar,
             index_base=self.index_base,
-            ad=self.ad
+            ad=self.ad,
         )
         return _
 
     def _translate_nodes(self, start: datetime):
         scalar = 1 / self[start]
-        new_nodes = {
-            k: scalar * v for k, v in self.nodes.items()
-        }
+        new_nodes = {k: scalar * v for k, v in self.nodes.items()}
 
         # re-organise the nodes on the new curve
         if start == self.node_dates[1]:
@@ -802,15 +814,12 @@ class Curve(Serialize, PlotCurve):
             k + timedelta(days=days): v * scalar for k, v in self.nodes.items()
         }
         if tenor > self.node_dates[0]:
-            new_nodes = {
-                self.node_dates[0]: 1.0,
-                **new_nodes
-            }
+            new_nodes = {self.node_dates[0]: 1.0, **new_nodes}
         return new_nodes
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def roll(self, tenor: Union[datetime, str]):
         """
@@ -913,7 +922,7 @@ class Curve(Serialize, PlotCurve):
             convention=self.convention,
             id=None,
             # TODO: design how to adjust the index_base on a rolled curve.
-            ad=self.ad
+            ad=self.ad,
         )
         if tenor > self.node_dates[0]:
             return new_curve
@@ -1005,8 +1014,13 @@ class LineCurve(Curve):
         values to float, :class:`Dual` or :class:`Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
     """
-    _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
-    _op_log = staticmethod(lambda x: x)  # LineCurve spline is not log based so no log needed
+
+    _op_exp = staticmethod(
+        lambda x: x
+    )  # LineCurve spline is not log based so no exponent needed
+    _op_log = staticmethod(
+        lambda x: x
+    )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
 
     def __init__(
@@ -1109,7 +1123,7 @@ class LineCurve(Curve):
 
         """
         _ = LineCurve(
-            nodes={k: v + spread/100 for k, v in self.nodes.items()},
+            nodes={k: v + spread / 100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,
             t=self.t,
             c=None,
@@ -1118,7 +1132,7 @@ class LineCurve(Curve):
             convention=self.convention,
             modifier=self.modifier,
             calendar=self.calendar,
-            ad=self.ad
+            ad=self.ad,
         )
         return _
 
@@ -1132,9 +1146,9 @@ class LineCurve(Curve):
             new_nodes = {start: self[start], **new_nodes}
         return new_nodes
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def translate(self, start: datetime, t: bool = False):
         """
@@ -1264,14 +1278,9 @@ class LineCurve(Curve):
         return super().translate(start, t)
 
     def _roll_nodes(self, tenor: datetime, days: int):
-        new_nodes = {
-            k + timedelta(days=days): v for k, v in self.nodes.items()
-        }
+        new_nodes = {k + timedelta(days=days): v for k, v in self.nodes.items()}
         if tenor > self.node_dates[0]:
-            new_nodes = {
-                self.node_dates[0]: self[self.node_dates[0]],
-                **new_nodes
-            }
+            new_nodes = {self.node_dates[0]: self[self.node_dates[0]], **new_nodes}
         return new_nodes
 
     def roll(self, tenor: Union[datetime, str]):
@@ -1497,15 +1506,15 @@ def index_left(
     if list_length == 2:
         return left_count
 
-    split = floor((list_length-1)/2)
+    split = floor((list_length - 1) / 2)
     if list_length == 3 and value == list_input[split]:
         return left_count
 
     if value <= list_input[split]:
-        return index_left(list_input[:split+1], split+1, value, left_count)
+        return index_left(list_input[: split + 1], split + 1, value, left_count)
     else:
         return index_left(
-            list_input[split:], list_length-split, value, left_count + split
+            list_input[split:], list_length - split, value, left_count + split
         )
 
 
