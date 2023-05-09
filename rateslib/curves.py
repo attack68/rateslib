@@ -54,6 +54,7 @@ class Serialize:
             "endpoints": self.spline_endpoints,
             "modifier": self.modifier,
             "calendar_type": self.calendar_type,
+            "index_base": self.index_base,
             "ad": self.ad,
         }
 
@@ -291,6 +292,9 @@ class Curve(Serialize, PlotCurve):
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data. Used for determining rates.
+    index_base : float, optional
+        Set the initial, known value of the index. For typical use with RFR indexes and
+        inflation indexes, and if the :meth:`Curve.index_value` method is to be used.
     ad : int in {0, 1, 2}, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`~rateslib.dual.Dual` or
@@ -312,10 +316,12 @@ class Curve(Serialize, PlotCurve):
         convention: Optional[str] = None,
         modifier: Optional[Union[str, bool]] = False,
         calendar: Optional[Union[CustomBusinessDay, str]] = None,
+        index_base: Optional[float] = None,
         ad: int = 0,
         **kwargs
     ):
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.index_base = index_base
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
@@ -590,6 +596,7 @@ class Curve(Serialize, PlotCurve):
             convention=self.convention,
             modifier=self.modifier,
             calendar=self.calendar,
+            index_base=self.index_base,
             ad=self.ad
         )
         return _
@@ -768,7 +775,8 @@ class Curve(Serialize, PlotCurve):
             calendar=self.calendar,
             convention=self.convention,
             id=None,
-            ad=self.ad
+            ad=self.ad,
+            index_base=self.index_value(start),
         )
         return new_curve
 
@@ -904,12 +912,51 @@ class Curve(Serialize, PlotCurve):
             calendar=self.calendar,
             convention=self.convention,
             id=None,
+            # TODO: design how to adjust the index_base on a rolled curve.
             ad=self.ad
         )
         if tenor > self.node_dates[0]:
             return new_curve
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
+
+    def index_value(self, date: datetime):
+        """
+        Calculate the accrued value of the index **if** ``index_base`` was given,
+        otherwise return *None*.
+
+        Parameters
+        ----------
+        date : datetime
+            The date for which the index value will be returned.
+
+        Returns
+        -------
+        None, float, Dual, Dual2
+
+        Examples
+        --------
+        The SWESTR rate, for reference value date 6th Sep 2021, was published as
+        2.375% and the RFR index for that date was 100.73350964. Below we calculate
+        the value that was published for the RFR index on 7th Sep 2021 by the Riksbank.
+
+        .. ipython:: python
+
+           curve = Curve(
+               nodes={
+                   dt(2021, 9, 6): 1.0,
+                   dt(2021, 9, 7): 1 / (1 + 2.375/36000)
+               },
+               index_base=100.73350964,
+               convention="Act360",
+           )
+           curve.rate(dt(2021, 9, 6), "1d")
+           curve.index_value(dt(2021, 9, 7))
+        """
+        if self.index_base is None:
+            return None
+        else:
+            return self.index_base * 1 / self[date]
 
 
 class LineCurve(Curve):
@@ -935,11 +982,24 @@ class LineCurve(Curve):
     c : list[float], optional
         The B-spline coefficients used to define the cubic spline. If not given
         will use :meth:`csolve`.
+    endpoints : str or list, optional
+        The left and right endpoint constraint for the spline solution. Valid values are
+        in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
+        right endpoint.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional,
-        This parameter is not used. It is included for signature consistency with
-        :class:`Curve`.
+        **This parameter is not used by :class:`LineCurve`**. It is included for
+        signature consistency with :class:`Curve`.
+    modifier : str, optional
+        **This parameter is not used by :class:`LineCurve`**. It is included for
+        signature consistency with :class:`Curve`.
+    calendar : calendar or str, optional
+        **This parameter is not used by :class:`LineCurve`**. It is included for
+        signature consistency with :class:`Curve`.
+    index_base : float, optional
+        **This parameter is not used by :class:`LineCurve`**. It is included for
+        signature consistency with :class:`Curve`.
     ad : int in {0, 1, 2}, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`Dual` or :class:`Dual2`. It is advised against
@@ -1297,6 +1357,9 @@ class LineCurve(Curve):
 
         """
         return super().roll(tenor)
+
+    def index_value(self, date: datetime):
+        return None
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
