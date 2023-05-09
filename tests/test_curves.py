@@ -116,7 +116,7 @@ def test_serialization(curve):
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
         '"interpolation": "linear", "t": null, "c": null, "id": "v", '
         '"convention": "Act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
-        '"calendar_type": "null", "ad": 1, "calendar": null}'
+        '"calendar_type": "null", "index_base": null, "ad": 1, "calendar": null}'
     )
     result = curve.to_json()
     assert result == expected
@@ -660,6 +660,21 @@ def test_curve_translate_knots_raises(curve):
     )
     with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
         curve.translate(dt(2022, 12, 15))
+
+
+def test_curve_index_interp(curve):
+    curve = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
+        interpolation="linear_index",
+        index_base=200.0,
+    )
+    result = curve.index_value(dt(2022, 1, 5))
+    expected = 200.020002002
+    assert abs(result - expected) < 1e-7
+
+    result = curve.index_value(dt(2022, 1, 3))
+    expected = 200.010001001  # value is linearly interpolated between index values.
+    assert abs(result - expected) < 1e-7
 
 
 class TestPlotCurve:

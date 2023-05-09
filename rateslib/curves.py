@@ -1412,6 +1412,9 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
     """
     if interpolation == "linear":
         op = lambda z: z
+    elif interpolation == "linear_index":
+        op = lambda z: 1 / z
+        y_1, y_2 = 1 / y_1, 1 / y_2
     elif interpolation == "log_linear":
         op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)
     elif interpolation == "linear_zero_rate":

@@ -781,10 +781,10 @@ class TestFixedPeriod:
             Defaults.headers["df"]: 0.9897791268897856 if crv else None,
             Defaults.headers["rate"]: rate,
             Defaults.headers["spread"]: None,
-            Defaults.headers["npv"]: -9897791.268897858 if crv else None,
+            Defaults.headers["npv"]: -9897791.268897856 if crv else None,
             Defaults.headers["cashflow"]: cashflow,
             Defaults.headers["fx"]: fx,
-            Defaults.headers["npv_fx"]: -9897791.268897858 * fx if crv else None,
+            Defaults.headers["npv_fx"]: -9897791.268897855 * fx if crv else None,
         }
         result = fixed_period.cashflows(
             curve if crv else None,

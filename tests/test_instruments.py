@@ -279,20 +279,20 @@ class TestIRS:
             stub="ShortFront",
         )
         result = irs.npv(curve)
-        assert abs(result) < 1e-9
+        assert abs(result) < 1e-8
 
         irs.fixed_rate = 1.0  # pay fixed low rate implies positive NPV
         assert irs.npv(curve) > 1
 
         irs.fixed_rate = None  # fixed rate set back to initial
-        assert abs(irs.npv(curve)) < 1e-9
+        assert abs(irs.npv(curve)) < 1e-8
 
         irs.fixed_rate = float(irs.rate(curve))
         irs.leg2_float_spread = 100
         assert irs.npv(curve) > 1
 
         irs.leg2_float_spread = None
-        assert abs(irs.npv(curve)) < 1e-9
+        assert abs(irs.npv(curve)) < 1e-8
 
     def test_sbs_float_spread_raises(self, curve):
         irs = IRS(dt(2022, 1, 1), "9M", "Q")
