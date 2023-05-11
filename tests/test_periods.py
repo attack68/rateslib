@@ -712,6 +712,17 @@ class TestFloatPeriod:
                 fixings=[1.00]
             )
 
+        with pytest.raises(ValueError, match="`method_param` should not be used"):
+            float_period = FloatPeriod(
+                start=dt(2022, 1, 4),
+                end=dt(2022, 4, 4),
+                payment=dt(2022, 4, 4),
+                frequency="Q",
+                fixing_method="rfr_payment_delay",
+                method_param=2,
+                fixings=[1.00]
+            )
+
 
 class TestFixedPeriod:
 
@@ -731,7 +742,6 @@ class TestFixedPeriod:
 
         result = fixed_period.analytic_delta(curve, curve, fxr, "nok")
         assert abs(result - 247444.78172244584) < 1e-7
-
 
     def test_fixed_period_analytic_delta_fxr_base(self, curve, fxr):
         fixed_period = FixedPeriod(
@@ -811,13 +821,27 @@ class TestFixedPeriod:
         result = fixed_period.npv(curve, curve, fxr, "nok")
         assert abs(result + 98977912.68897833) < 1e-6
 
+    def test_fixed_period_npv_raises(self):
+        fixed_period = FixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+        with pytest.raises(TypeError, match="`curves` have not been"):
+            fixed_period.npv(None)
+
 
 class TestCashflow:
 
     def test_cashflow_analytic_delta(self, curve):
         cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
         assert cashflow.analytic_delta(curve) == 0
-
 
     @pytest.mark.parametrize("crv, fx", [
         (True, 2.0),
@@ -853,6 +877,18 @@ class TestCashflow:
         )
         assert result == expected
 
+    def test_cashflow_npv_raises(self, curve):
+        with pytest.raises(TypeError, match="`curves` have not been supplied"):
+            cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
+            cashflow.npv(None)
+        cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
+        assert cashflow.analytic_delta(curve) == 0
+
+    def test_cashflow_npv_local(self, curve):
+        cashflow = Cashflow(notional=1e9, payment=dt(2022, 4, 3), currency="nok")
+        result = cashflow.npv(curve, local=True)
+        expected = {"nok": -989779126.8897856}
+        assert result == expected
 
 
 def test_base_period_dates_raise():
