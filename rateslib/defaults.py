@@ -14,6 +14,7 @@ class Defaults:
     stub = "SHORTFRONT"
     stub_length = "SHORT"
     modifier = "MF"
+    index_lag = 3
     payment_lag = 2
     payment_lag_exchange = 0
     payment_lag_specific = {
@@ -38,6 +39,7 @@ class Defaults:
     interpolation = {
         "Curve": "log_linear",
         "LineCurve": "linear",
+        "IndexCurve": "linear_index",
     }
     endpoints = "natural"
     frequency_months = {

@@ -58,9 +58,13 @@ class Serialize:
             "endpoints": self.spline_endpoints,
             "modifier": self.modifier,
             "calendar_type": self.calendar_type,
-            "index_base": self.index_base,
             "ad": self.ad,
         }
+        if type(self) is IndexCurve:
+            container.update({
+                "index_base": self.index_base,
+                "index_lag": self.index_lag}
+            )
 
         if self.calendar_type == "null":
             container.update({"calendar": None})
@@ -328,12 +332,10 @@ class Curve(Serialize, PlotCurve):
         convention: Optional[str] = None,
         modifier: Optional[Union[str, bool]] = False,
         calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        index_base: Optional[float] = None,
         ad: int = 0,
         **kwargs,
     ):
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
-        self.index_base = index_base
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
@@ -600,7 +602,13 @@ class Curve(Serialize, PlotCurve):
         for i, (k, v) in enumerate(nodes.items()):
             nodes[k] = v_new[i]
 
-        _ = Curve(
+        kwargs = {}
+        if type(self) is IndexCurve:
+            kwargs = {
+                "index_base": self.index_base,
+                "index_lag": self.index_lag
+            }
+        _ = type(self)(
             nodes=nodes,
             interpolation=self.interpolation,
             t=self.t,
@@ -610,8 +618,8 @@ class Curve(Serialize, PlotCurve):
             convention=self.convention,
             modifier=self.modifier,
             calendar=self.calendar,
-            index_base=self.index_base,
             ad=self.ad,
+            **kwargs
         )
         return _
 
@@ -777,6 +785,12 @@ class Curve(Serialize, PlotCurve):
                 "Cannot translate spline knots for given `start`, review the docs."
             )
 
+        kwargs = {}
+        if type(self) is IndexCurve:
+            kwargs = {
+                "index_base": self.index_value(start),
+                "index_lag": self.index_lag
+            }
         new_curve = type(self)(
             nodes=new_nodes,
             interpolation=self.interpolation,
@@ -788,7 +802,7 @@ class Curve(Serialize, PlotCurve):
             convention=self.convention,
             id=None,
             ad=self.ad,
-            index_base=self.index_value(start),
+            **kwargs
         )
         return new_curve
 
@@ -928,44 +942,6 @@ class Curve(Serialize, PlotCurve):
             return new_curve
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
-
-    def index_value(self, date: datetime):
-        """
-        Calculate the accrued value of the index **if** ``index_base`` was given,
-        otherwise return *None*.
-
-        Parameters
-        ----------
-        date : datetime
-            The date for which the index value will be returned.
-
-        Returns
-        -------
-        None, float, Dual, Dual2
-
-        Examples
-        --------
-        The SWESTR rate, for reference value date 6th Sep 2021, was published as
-        2.375% and the RFR index for that date was 100.73350964. Below we calculate
-        the value that was published for the RFR index on 7th Sep 2021 by the Riksbank.
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes={
-                   dt(2021, 9, 6): 1.0,
-                   dt(2021, 9, 7): 1 / (1 + 2.375/36000)
-               },
-               index_base=100.73350964,
-               convention="Act360",
-           )
-           curve.rate(dt(2021, 9, 6), "1d")
-           curve.index_value(dt(2021, 9, 7))
-        """
-        if self.index_base is None:
-            return None
-        else:
-            return self.index_base * 1 / self[date]
 
 
 class LineCurve(Curve):
@@ -1367,8 +1343,82 @@ class LineCurve(Curve):
         """
         return super().roll(tenor)
 
-    def index_value(self, date: datetime):
-        return None
+
+class IndexCurve(Curve):
+    """
+    A :class:`Curve` designed for use with inflation secuities and derivatives.
+
+    Parameters
+    ----------
+    args : tuple
+        Position arguments required by :class:`Curve`.
+    inf_lag : int
+        Number of months of inflation lag this curve adopts. For example if the initial
+        curve node date is 1st Sep 2021 based on the inflation index published
+        17th June 2023 then the lag is 3 months.
+    kwargs : dict
+        Keyword arguments required by :class:`Curve`.
+    """
+
+    def __init__(
+        self,
+        *args,
+        index_base: Optional[float] = None,
+        index_lag: Optional[int] = None,
+        **kwargs
+    ):
+        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_base = index_base
+        if self.index_base is None:
+            raise ValueError("`index_base` must be given for IndexCurve.")
+        super().__init__(*args, **kwargs)
+
+    def index_value(self, date: datetime, interpolation: str = "daily"):
+        """
+        Calculate the accrued value of the index from the ``index_base``.
+
+        Parameters
+        ----------
+        date : datetime
+            The date for which the index value will be returned.
+        interpolation : str in {"monthly", "daily"}
+            The method for returning the index value. Monthly returns the index value
+            for the start of the month and daily returns a value based on the
+            interpolation between nodes (which is recommended *"linear_index*) for
+            :class:`InflationCurve`.
+
+        Returns
+        -------
+        None, float, Dual, Dual2
+
+        Examples
+        --------
+        The SWESTR rate, for reference value date 6th Sep 2021, was published as
+        2.375% and the RFR index for that date was 100.73350964. Below we calculate
+        the value that was published for the RFR index on 7th Sep 2021 by the Riksbank.
+
+        .. ipython:: python
+
+           index_curve = IndexCurve(
+               nodes={
+                   dt(2021, 9, 6): 1.0,
+                   dt(2021, 9, 7): 1 / (1 + 2.375/36000)
+               },
+               index_base=100.73350964,
+               convention="Act360",
+           )
+           index_curve.rate(dt(2021, 9, 6), "1d")
+           index_curve.index_value(dt(2021, 9, 7))
+        """
+        if interpolation.lower() == "daily":
+            date_ = date
+        elif interpolation.lower() == "monthly":
+            date_ = datetime(date.year, date.month, 1)
+        else:
+            raise ValueError(
+                "`interpolation` for `index_value` must be in {'daily', 'monthly'}."
+            )
+        return self.index_base * 1 / self[date_]
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):

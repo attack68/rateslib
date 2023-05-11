@@ -1,16 +1,17 @@
 import pytest
 from datetime import datetime as dt
+from datetime import timedelta
 from pandas.testing import assert_frame_equal
 from pandas import DataFrame, Series
 import numpy as np
 
 import context
 from rateslib.periods import (
-    Cashflow, FixedPeriod, FloatPeriod,
+    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod
 )
 from rateslib.fx import FXRates
 from rateslib.defaults import Defaults
-from rateslib.curves import Curve, LineCurve
+from rateslib.curves import Curve, LineCurve, IndexCurve
 
 
 @pytest.fixture()
@@ -889,6 +890,58 @@ class TestCashflow:
         result = cashflow.npv(curve, local=True)
         expected = {"nok": -989779126.8897856}
         assert result == expected
+
+
+class TestIndexFixedPeriod:
+
+    @pytest.mark.parametrize("method, expected", [
+        ("daily", 201.00502512562812), ("monthly", 200.98317675333183)
+    ])
+    def test_period_rate(self, method, expected):
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+            index_method=method,
+        )
+        index_curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.,
+        )
+        result = index_period.rate(index_curve)
+        assert abs(result - expected) < 1e-8
+
+    def test_period_cashflow(self):
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+        )
+        index_curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.,
+        )
+        result = index_period.real_cashflow
+        expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
+        assert abs(result - expected) < 1e-8
+
+        result = index_period.cashflow(index_curve)
+        expected = expected * index_curve.index_value(dt(2022, 4, 3)) / 100.
+        assert abs(result - expected) < 1e-8
 
 
 def test_base_period_dates_raise():

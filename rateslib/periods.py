@@ -25,12 +25,13 @@ from datetime import datetime
 from typing import Optional, Union
 import warnings
 
+import numpy as np
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf
-from rateslib.curves import Curve, LineCurve
+from rateslib.curves import Curve, LineCurve, IndexCurve
 from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates
 
@@ -391,9 +392,7 @@ class FixedPeriod(BasePeriod):
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        value = (
-            self.fixed_rate / 100 * self.dcf * disc_curve[self.payment] * -self.notional
-        )
+        value = self.cashflow * disc_curve[self.payment]
         if local:
             return {self.currency: value}
         else:
@@ -1429,3 +1428,173 @@ class Cashflow:
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+class IndexFixedPeriod(FixedPeriod):
+    """
+    Create a period defined with a real rate adjusted by an index.
+
+    When used with inflation products this defines a real coupon period with a
+    cashflow adjusted upwards by the inflation index.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`FixedPeriod`.
+    index_base : float or None, optional
+        The base index to determine the cashflow.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the whole
+        period. If a datetime indexed ``Series`` will use the
+        fixings that are available in that object, and derive the rest from the
+        ``curve``.
+    kwargs : dict
+        Required keyword arguments to :class:`FixedPeriod`.
+    """
+
+    def __init__(
+        self,
+        *args,
+        index_base: Optional[float] = None,
+        index_fixings: Optional[Union[float, Series]] = None,
+        index_method: Optional[str] = "daily",
+        **kwargs,
+    ):
+        self.index_base = index_base
+        self.index_fixings = index_fixings
+        self.index_method = index_method.lower()
+        super().__init__(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        return super().analytic_delta(*args, **kwargs)
+
+    @property
+    def real_cashflow(self):
+        """
+        float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
+        """
+        return (
+            None
+            if self.fixed_rate is None
+            else -self.notional * self.dcf * self.fixed_rate / 100
+        )
+
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+    def cashflow(self, curve: IndexCurve):
+        """
+        float, Dual or Dual2 : The calculated value from rate, dcf and notional,
+        adjusted for the index.
+        """
+        _ = (
+            self.real_cashflow *
+            curve.index_value(self.payment, self.index_method) / self.index_base
+        )
+        return _
+
+    def rate(self, curve: IndexCurve):
+        """
+        Project an index rate for the cashflow payment date.
+
+        Parameters
+        ----------
+        curve : IndexCurve
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        if self.index_fixings is None:
+            # forecast inflation index from curve
+            return curve.index_value(self.payment, self.index_method)
+        else:
+            if isinstance(self.index_fixings, Series):
+                try:
+                    return self.index_fixings[self.payment]
+                except KeyError:
+                    s = self.index_fixings.copy()
+                    s.loc[self.payment] = np.NaN
+                    return s.sort_index().interpolate[self.payment]
+            else:
+                return self.index_fixings
+
+    def npv(
+        self,
+        curve: IndexCurve,
+        disc_curve: Optional[Curve] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        disc_curve = disc_curve or curve
+        if disc_curve is None:
+            raise TypeError(
+                "`curves` have not been supplied correctly. NoneType has been detected."
+            )
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        value = self.cashflow(curve) * disc_curve[self.payment]
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
+
+    def cashflows(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        disc_curve = disc_curve or curve
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+
+        if disc_curve is None or self.fixed_rate is None:
+            npv = None
+            npv_fx = None
+        else:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+
+        cashflow = None if self.cashflow is None else float(self.cashflow)
+        return {
+            **super().cashflows(curve, disc_curve, fx, base),
+            defaults.headers["rate"]: self.fixed_rate,
+            defaults.headers["spread"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx),
+            defaults.headers["npv_fx"]: npv_fx,
+        }
+
+
+class IndexCashflow(Cashflow):
+
+    def __init__(
+        self,
+        *args,
+        index_base: Optional[float] = None,
+        index_fixings: Optional[Union[float, Series]] = None,
+        index_method: Optional[str] = "daily",
+        **kwargs,
+    ):
+        self.index_base = index_base
+        self.index_fixings = index_fixings
+        self.index_method = index_method.lower()
+        super().__init__(*args, **kwargs)
+
+    @property
+    def real_cashflow(self):
+        return -self.notional
+
+    def cashflow(self, curve: IndexCurve):
+        """
+        float, Dual or Dual2 : The calculated value from rate, dcf and notional,
+        adjusted for the index.
+        """
+        _ = (
+            self.real_cashflow *
+            curve.index_value(self.payment, self.index_method) / self.index_base
+        )
+        return _

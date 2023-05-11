@@ -5,7 +5,7 @@ import numpy as np
 from math import log, exp
 
 import context
-from rateslib.curves import Curve, LineCurve, index_left, interpolate
+from rateslib.curves import Curve, LineCurve, index_left, interpolate, IndexCurve
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
 
@@ -34,6 +34,20 @@ def line_curve():
         interpolation="linear",
         id="v",
         ad=1,
+    )
+
+
+@pytest.fixture()
+def index_curve():
+    return IndexCurve(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.999,
+        },
+        interpolation="linear_index",
+        id="v",
+        ad=1,
+        index_base=110.0,
     )
 
 
@@ -116,13 +130,13 @@ def test_serialization(curve):
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
         '"interpolation": "linear", "t": null, "c": null, "id": "v", '
         '"convention": "Act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
-        '"calendar_type": "null", "index_base": null, "ad": 1, "calendar": null}'
+        '"calendar_type": "null", "ad": 1, "calendar": null}'
     )
     result = curve.to_json()
     assert result == expected
 
 
-def test_serialization_round_trip(curve, line_curve):
+def test_serialization_round_trip(curve, line_curve, index_curve):
     serial = curve.to_json()
     constructed = Curve.from_json(serial)
     assert constructed == curve
@@ -130,6 +144,10 @@ def test_serialization_round_trip(curve, line_curve):
     serial = line_curve.to_json()
     constructed = LineCurve.from_json(serial)
     assert constructed == line_curve
+
+    serial = index_curve.to_json()
+    constructed = IndexCurve.from_json(serial)
+    assert constructed == index_curve
 
 
 def test_serialization_round_trip_spline():
@@ -514,6 +532,66 @@ def test_linecurve_shift_dual_input():
     assert np.all(np.abs(diff) < 1e-7)
 
 
+@pytest.mark.parametrize("ad_order", [0, 1, 2])
+def test_indexcurve_shift(ad_order):
+    curve = IndexCurve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.988,
+            dt(2024, 1, 1): 0.975,
+            dt(2025, 1, 1): 0.965,
+            dt(2026, 1, 1): 0.955,
+            dt(2027, 1, 1): 0.9475,
+        },
+        t=[
+            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+        ],
+        ad=ad_order,
+        index_base=110.,
+        interpolation="log_linear",
+    )
+    result_curve = curve.shift(25)
+    diff = np.array([
+        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
+            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+        ]
+    ])
+    assert np.all(np.abs(diff) < 1e-7)
+    assert result_curve.index_base == curve.index_base
+
+
+def test_indexcurve_shift_dual_input():
+    curve = IndexCurve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.988,
+            dt(2024, 1, 1): 0.975,
+            dt(2025, 1, 1): 0.965,
+            dt(2026, 1, 1): 0.955,
+            dt(2027, 1, 1): 0.9475,
+        },
+        t=[
+            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+        ],
+        index_base=110.0,
+        interpolation="log_linear",
+    )
+    result_curve = curve.shift(Dual(25, "z"))
+    diff = np.array([
+        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
+            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+        ]
+    ])
+    assert np.all(np.abs(diff) < 1e-7)
+    assert result_curve.index_base == curve.index_base
+
+
 @pytest.mark.parametrize("crv, t, tol", [
     (Curve(
         nodes={
@@ -530,6 +608,23 @@ def test_linecurve_shift_dual_input():
             dt(2026, 1, 1),
             dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
         ],
+    ), False, 1e-8),
+    (IndexCurve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.988,
+            dt(2024, 1, 1): 0.975,
+            dt(2025, 1, 1): 0.965,
+            dt(2026, 1, 1): 0.955,
+            dt(2027, 1, 1): 0.9475
+        },
+        t=[
+            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+        ],
+        index_base=110.,
     ), False, 1e-8),
     (LineCurve(
         nodes={
@@ -574,6 +669,8 @@ def test_curve_translate(crv, t, tol):
         ]
     ])
     assert np.all(np.abs(diff) < tol)
+    if type(crv) is IndexCurve:
+        assert result_curve.index_base == crv.index_value(dt(2023, 1, 1))
 
 
 @pytest.mark.parametrize("crv", [
@@ -662,10 +759,9 @@ def test_curve_translate_knots_raises(curve):
         curve.translate(dt(2022, 12, 15))
 
 
-def test_curve_index_interp(curve):
-    curve = Curve(
+def test_curve_index_linear_daily_interp():
+    curve = IndexCurve(
         nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
-        interpolation="linear_index",
         index_base=200.0,
     )
     result = curve.index_value(dt(2022, 1, 5))
@@ -675,6 +771,11 @@ def test_curve_index_interp(curve):
     result = curve.index_value(dt(2022, 1, 3))
     expected = 200.010001001  # value is linearly interpolated between index values.
     assert abs(result - expected) < 1e-7
+
+
+def test_indexcurve_raises():
+    with pytest.raises(ValueError, match="`index_base` must be given"):
+        curve = IndexCurve({dt(2022, 1, 1): 1.0})
 
 
 class TestPlotCurve:
