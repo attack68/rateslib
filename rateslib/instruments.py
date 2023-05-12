@@ -484,7 +484,299 @@ class Value(BaseMixin):
 ### Securities
 
 
-class FixedRateBond(Sensitivities, BaseMixin):
+class BondMixin:
+
+    def ex_div(self, settlement: datetime):
+        """
+        Return a boolean whether the security is ex-div on the settlement.
+
+        Parameters
+        ----------
+        settlement : datetime
+             The settlement date to test.
+
+        Returns
+        -------
+        bool
+        """
+        prev_a_idx = index_left(
+            self.leg1.schedule.aschedule,
+            len(self.leg1.schedule.aschedule),
+            settlement,
+        )
+        ex_div_date = add_tenor(
+            self.leg1.schedule.aschedule[prev_a_idx+1],
+            f"{-self.ex_div_days}B",
+            None,  # modifier not required for business day tenor
+            self.leg1.schedule.calendar,
+        )
+        return True if settlement >= ex_div_date else False
+
+    def _accrued_frac(self, settlement: datetime):
+        """
+        Return the accrual fraction of period between last coupon and settlement and
+        coupon period left index
+        """
+        acc_idx = index_left(
+            self.leg1.schedule.aschedule,
+            len(self.leg1.schedule.aschedule),
+            settlement,
+        )
+        return (
+            (settlement - self.leg1.schedule.aschedule[acc_idx]) /
+            (self.leg1.schedule.aschedule[acc_idx+1] -
+             self.leg1.schedule.aschedule[acc_idx])
+        ), acc_idx
+
+    def _npv_local(
+        self,
+        curve: Union[Curve, LineCurve],
+        disc_curve: Curve,
+        fx: Optional[Union[float, FXRates, FXForwards]],
+        base: Optional[str],
+        settlement: datetime,
+        projection: datetime
+    ):
+        """
+        Return the NPV (local) of the security by summing cashflow valuations.
+
+        Parameters
+        ----------
+        curve : Curve or LineCurve
+            A curve used for projecting cashflows of floating rates.
+        disc_curve : Curve, str or list of such
+            A single :class:`Curve` for discounting cashflows.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        settlement : datetime
+            The date of settlement of the bond which declares which cashflows are
+            unpaid and therefore valid for the calculation.
+        projection : datetime, optional
+           Curves discount cashflows to the initial node of the Curve. This parameter
+           allows the NPV to be projected forward to a future date under the appropriate
+           discounting mechanism. If *None* is not projected forward.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        The cashflows for determination (excluding an ``ex_div`` cashflow) are
+        evaluated by ``settlement``.
+
+        The date for which the PV is returned is by ``projection``, and not the
+        initial node date of the ``disc_curve``.
+        """
+        npv = self.leg1.npv(curve, disc_curve, fx, base)
+
+        # now must systematically deduct any cashflow between the initial node date
+        # and the settlement date, including the cashflow after settlement if ex_div.
+        initial_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            disc_curve.node_dates[0],
+        )
+        settle_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+
+        for period_idx in range(initial_idx, settle_idx):
+            # deduct coupon period
+            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
+
+        if self.ex_div(settlement):
+            # deduct coupon after settlement which is also unpaid
+            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
+
+        if projection is None:
+            return npv
+        else:
+            return npv / disc_curve[projection]
+
+    def npv(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        """
+        Return the NPV of the security by summing cashflow valuations.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`Curve` or id or a list of such. A list defines the
+            following curves in the order:
+
+              - Forecasting :class:`Curve` for ``leg1``.
+              - Discounting :class:`Curve` for ``leg1``.
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        local : bool, optional
+            If `True` will ignore the ``base`` request and return a dict identifying
+            local currency NPV.
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such
+
+        Notes
+        -----
+        The ``settlement`` date of the bond is inferred from the objects ``settle``
+        days parameter and the initial date of the supplied ``curves``.
+        The NPV returned is for immediate settlement.
+
+        If **only one curve** is given this is used as all four curves.
+
+        If **two curves** are given the forecasting curve is used as the forecasting
+        curve on both legs and the discounting curve is used as the discounting
+        curve for both legs.
+        """
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        settlement = add_tenor(
+            curves[1].node_dates[0],
+            f"{self.settle}B",
+            None,
+            self.leg1.schedule.calendar
+        )
+        base = self.leg1.currency if local else base
+        npv = self._npv_local(curves[0], curves[1], fx, base, settlement, None)
+        if local:
+            return {self.leg1.currency: npv}
+        else:
+            return npv
+
+    def analytic_delta(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Union[float, FXRates, FXForwards] = 1.0,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the analytic delta of the security via summing all periods.
+
+        Parameters
+        ----------
+        curve : Curve
+            The forecasting curve object. Not used unless it is set equal to
+            ``disc_curve``.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+            object, converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        disc_curve = disc_curve or curve
+        settlement = add_tenor(
+            disc_curve.node_dates[0], f"{self.settle}B", None,
+            self.leg1.schedule.calendar
+        )
+        a_delta = self.leg1.analytic_delta(curve, disc_curve, fx, base)
+        if self.ex_div(settlement):
+            # deduct the next coupon which has otherwise been included in valuation
+            current_period = index_left(
+                self.leg1.schedule.aschedule,
+                self.leg1.schedule.n_periods + 1,
+                settlement,
+            )
+            a_delta -= self.leg1.periods[current_period].analytic_delta(
+                curve, disc_curve, fx, base
+            )
+        return a_delta
+
+    def cashflows(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        settlement: datetime = None
+    ):
+        """
+        Return the properties of the security used in calculating cashflows.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`Curve` or id or a list of such. A list defines the
+            following curves in the order:
+
+              - Forecasting :class:`Curve` for ``leg1``.
+              - Discounting :class:`Curve` for ``leg1``.
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx_rate`` is an ``FXRates`` or ``FXForwards`` object.
+        settlement : datetime, optional
+            The settlement date of the security. If *None* adds the regular ``settle``
+            time to the initial node date of the given discount ``curves``.
+
+        Returns
+        -------
+        DataFrame
+        """
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        if settlement is None:
+            settlement = add_tenor(
+                curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
+            )
+        cashflows = self.leg1.cashflows(curves[0], curves[1], fx, base)
+        if self.ex_div(settlement):
+            # deduct the next coupon which has otherwise been included in valuation
+            current_period = index_left(
+                self.leg1.schedule.aschedule,
+                self.leg1.schedule.n_periods + 1,
+                settlement,
+            )
+            cashflows.loc[current_period, defaults.headers["npv"]] = 0
+            cashflows.loc[current_period, defaults.headers["npv_fx"]] = 0
+        return cashflows
+
+
+class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # TODO ensure calculations work for amortizing bonds.
     """
     Create a fixed rate bond security.
@@ -602,32 +894,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
-    def ex_div(self, settlement: datetime):
-        """
-        Return a boolean whether the security is ex-div on the settlement.
-
-        Parameters
-        ----------
-        settlement : datetime
-             The settlement date to test.
-
-        Returns
-        -------
-        bool
-        """
-        prev_a_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
-            settlement,
-        )
-        ex_div_date = add_tenor(
-            self.leg1.schedule.aschedule[prev_a_idx+1],
-            f"{-self.ex_div_days}B",
-            None,  # modifier not required for business day tenor
-            self.leg1.schedule.calendar,
-        )
-        return True if settlement >= ex_div_date else False
-
     def accrued(self, settlement: datetime):
         """
         Calculate the accrued amount per nominal par value of 100.
@@ -653,22 +919,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
         return (
             frac * self.leg1.periods[acc_idx].cashflow / -self.leg1.notional * 100
         )
-
-    def _accrued_frac(self, settlement: datetime):
-        """
-        Return the accrual fraction of period between last coupon and settlement and
-        coupon period left index
-        """
-        acc_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
-            settlement,
-        )
-        return (
-            (settlement - self.leg1.schedule.aschedule[acc_idx]) /
-            (self.leg1.schedule.aschedule[acc_idx+1] -
-             self.leg1.schedule.aschedule[acc_idx])
-        ), acc_idx
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1220,253 +1470,6 @@ class FixedRateBond(Sensitivities, BaseMixin):
             "'fwd_clean_price', 'fwd_dirty_price'}."
         )
 
-    def cashflows(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        settlement: datetime = None
-    ):
-        """
-        Return the properties of the security used in calculating cashflows.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`Curve` or id or a list of such. A list defines the
-            following curves in the order:
-
-              - Forecasting :class:`Curve` for ``leg1``.
-              - Discounting :class:`Curve` for ``leg1``.
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an ``FXRates`` or ``FXForwards`` object.
-        settlement : datetime, optional
-            The settlement date of the security. If *None* adds the regular ``settle``
-            time to the initial node date of the given discount ``curves``.
-
-        Returns
-        -------
-        DataFrame
-        """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
-        )
-        if settlement is None:
-            settlement = add_tenor(
-                curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
-            )
-        cashflows = self.leg1.cashflows(curves[0], curves[1], fx, base)
-        if self.ex_div(settlement):
-            # deduct the next coupon which has otherwise been included in valuation
-            current_period = index_left(
-                self.leg1.schedule.aschedule,
-                self.leg1.schedule.n_periods + 1,
-                settlement,
-            )
-            cashflows.loc[current_period, defaults.headers["npv"]] = 0
-            cashflows.loc[current_period, defaults.headers["npv_fx"]] = 0
-        return cashflows
-
-    def npv(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        local: bool = False,
-    ):
-        """
-        Return the NPV of the security by summing cashflow valuations.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`Curve` or id or a list of such. A list defines the
-            following curves in the order:
-
-              - Forecasting :class:`Curve` for ``leg1``.
-              - Discounting :class:`Curve` for ``leg1``.
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        local : bool, optional
-            If `True` will ignore the ``base`` request and return a dict identifying
-            local currency NPV.
-
-        Returns
-        -------
-        float, Dual, Dual2 or dict of such
-
-        Notes
-        -----
-        The ``settlement`` date of the bond is inferred from the objects ``settle``
-        days parameter and the initial date of the supplied ``curves``.
-        The NPV returned is for immediate settlement.
-
-        If **only one curve** is given this is used as all four curves.
-
-        If **two curves** are given the forecasting curve is used as the forecasting
-        curve on both legs and the discounting curve is used as the discounting
-        curve for both legs.
-        """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
-        )
-        settlement = add_tenor(
-            curves[1].node_dates[0],
-            f"{self.settle}B",
-            None,
-            self.leg1.schedule.calendar
-        )
-        base = self.leg1.currency if local else base
-        npv = self._npv_local(curves[0], curves[1], fx, base, settlement, None)
-        if local:
-            return {self.leg1.currency: npv}
-        else:
-            return npv
-
-    def _npv_local(
-        self,
-        curve: Union[Curve, LineCurve],
-        disc_curve: Curve,
-        fx: Optional[Union[float, FXRates, FXForwards]],
-        base: Optional[str],
-        settlement: datetime,
-        projection: datetime
-    ):
-        """
-        Return the NPV (local) of the security by summing cashflow valuations.
-
-        Parameters
-        ----------
-        curve : Curve or LineCurve
-            A curve used for projecting cashflows of floating rates.
-        disc_curve : Curve, str or list of such
-            A single :class:`Curve` for discounting cashflows.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        settlement : datetime
-            The date of settlement of the bond which declares which cashflows are
-            unpaid and therefore valid for the calculation.
-        projection : datetime, optional
-           Curves discount cashflows to the initial node of the Curve. This parameter
-           allows the NPV to be projected forward to a future date under the appropriate
-           discounting mechanism. If *None* is not projected forward.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        The cashflows for determination (excluding an ``ex_div`` cashflow) are
-        evaluated by ``settlement``.
-
-        The date for which the PV is returned is by ``projection``, and not the
-        initial node date of the ``disc_curve``.
-        """
-        npv = self.leg1.npv(curve, disc_curve, fx, base)
-
-        # now must systematically deduct any cashflow between the initial node date
-        # and the settlement date, including the cashflow after settlement if ex_div.
-        initial_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            disc_curve.node_dates[0],
-        )
-        settle_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            settlement,
-        )
-
-        for period_idx in range(initial_idx, settle_idx):
-            # deduct coupon period
-            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
-
-        if self.ex_div(settlement):
-            # deduct coupon after settlement which is also unpaid
-            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
-
-        if projection is None:
-            return npv
-        else:
-            return npv / disc_curve[projection]
-
-    def analytic_delta(
-        self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
-    ):
-        """
-        Return the analytic delta of the security via summing all periods.
-
-        Parameters
-        ----------
-        curve : Curve
-            The forecasting curve object. Not used unless it is set equal to
-            ``disc_curve``.
-        disc_curve : Curve, optional
-            The discounting curve object used in calculations.
-            Set equal to ``curve`` if not given.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
-            object, converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-        disc_curve = disc_curve or curve
-        settlement = add_tenor(
-            disc_curve.node_dates[0], f"{self.settle}B", None,
-            self.leg1.schedule.calendar
-        )
-        a_delta = self.leg1.analytic_delta(curve, disc_curve, fx, base)
-        if self.ex_div(settlement):
-            # deduct the next coupon which has otherwise been included in valuation
-            current_period = index_left(
-                self.leg1.schedule.aschedule,
-                self.leg1.schedule.n_periods + 1,
-                settlement,
-            )
-            a_delta -= self.leg1.periods[current_period].analytic_delta(
-                curve, disc_curve, fx, base
-            )
-        return a_delta
-
 
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
     #     """
@@ -1652,12 +1655,13 @@ class Bill(FixedRateBond):
         dcf = (1 - self._accrued_frac(settlement)[0]) * self.leg1.periods[0].dcf
         return 100 - discount_rate * dcf
 
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatRateBond(Sensitivities, BaseMixin):
+class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
     """
     Create a floating rate bond security.
 
@@ -1809,48 +1813,6 @@ class FloatRateBond(Sensitivities, BaseMixin):
                     "determined due to unknown fixings."
                 )
 
-    def ex_div(self, settlement: datetime):
-        """
-        Return a boolean whether the security is ex-div on the settlement.
-
-        Parameters
-        ----------
-        settlement : datetime
-             The settlement date to test.
-
-        Returns
-        -------
-        bool
-        """
-        prev_a_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
-            settlement,
-        )
-        ex_div_date = add_tenor(
-            self.leg1.schedule.aschedule[prev_a_idx+1],
-            f"{-self.ex_div_days}B",
-            None,  # modifier not required for business day tenor
-            self.leg1.schedule.calendar,
-        )
-        return True if settlement >= ex_div_date else False
-
-    def _accrued_frac(self, settlement: datetime):
-        """
-        Return the accrual fraction of period between last coupon and settlement and
-        coupon period left index
-        """
-        acc_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
-            settlement,
-        )
-        return (
-            (settlement - self.leg1.schedule.aschedule[acc_idx]) /
-            (self.leg1.schedule.aschedule[acc_idx+1] -
-             self.leg1.schedule.aschedule[acc_idx])
-        ), acc_idx
-
     def accrued(self, settlement: datetime):
         """
         Calculate the accrued amount per nominal par value of 100.
@@ -1996,6 +1958,7 @@ class FloatRateBond(Sensitivities, BaseMixin):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
         metric="clean_price",
+        forward_settlement: Optional[datetime] = None,
     ):
         """
         Return various pricing metrics of the security calculated from
@@ -2020,8 +1983,12 @@ class FloatRateBond(Sensitivities, BaseMixin):
         base : str, optional
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        metric : str in {"dirty_price", "clean_price", "spread"}, optional
-            Metric returned by the method.
+        metric : str, optional
+            Metric returned by the method. Available options are {"clean_price",
+            "dirty_price", "spread", "fwd_clean_price", "fwd_dirty_price"}
+        forward_settlement : datetime
+            The forward settlement date, required if the metric is in
+            {"fwd_clean_price", "fwd_dirty_price"}.
 
         Returns
         -------
@@ -2031,225 +1998,91 @@ class FloatRateBond(Sensitivities, BaseMixin):
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
-        settlement = add_tenor(
-            curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
-        )
-        npv = self.npv(curves, solver, fx, base, False)
 
-        # scale price to par 100 and make a fwd adjustment according to curve
-        dirty_price = npv * 100 / (-self.leg1.notional * curves[1][settlement])
+        metric = metric.lower()
+        if metric in ["clean_price", "dirty_price", "spread"]:
+            settlement = add_tenor(
+                curves[1].node_dates[0],
+                f"{self.settle}B",
+                None,
+                self.leg1.schedule.calendar
+            )
+            npv = self._npv_local(
+                curves[0], curves[1], fx, base, settlement, settlement
+            )
+            # scale price to par 100 (npv is already projected forward to settlement)
+            dirty_price = npv * 100 / -self.leg1.notional
 
-        if metric == "dirty_price":
-            return dirty_price
-        elif metric == "clean_price":
-            return dirty_price - self.accrued(settlement)
-        elif metric == "spread":
-            if "rfr" in self.leg1.fixing_method and \
-                    self.leg1.spread_compound_method != "none_simple":
-                # This code replicates BaseLeg._spread for an FRN accounting for ex-div
-                # via FRN.npv().
+            if metric == "dirty_price":
+                return dirty_price
+            elif metric == "clean_price":
+                return dirty_price - self.accrued(settlement)
+            elif metric == "spread":
+                if "rfr" in self.leg1.fixing_method and \
+                        self.leg1.spread_compound_method != "none_simple":
+                    # This code replicates BaseLeg._spread for an FRN accounting for ex-div
+                    # via FRN.npv().
 
-                _fs = self.float_spread
-                self.float_spread = Dual2(0. if _fs is None else float(_fs), "spread_z")
+                    _fs = self.float_spread
+                    self.float_spread = Dual2(0. if _fs is None else float(_fs),
+                                              "spread_z")
 
-                fore_curve, disc_curve = curves[0], curves[1]
+                    fore_curve, disc_curve = curves[0], curves[1]
 
-                fore_ad = fore_curve.ad
-                fore_curve._set_ad_order(2)
+                    fore_ad = fore_curve.ad
+                    fore_curve._set_ad_order(2)
 
-                disc_ad = disc_curve.ad
-                disc_curve._set_ad_order(2)
+                    disc_ad = disc_curve.ad
+                    disc_curve._set_ad_order(2)
 
-                if isinstance(fx, (FXRates, FXForwards)):
-                    _fx = None if fx is None else fx._ad
-                    fx._set_ad_order(2)
+                    if isinstance(fx, (FXRates, FXForwards)):
+                        _fx = None if fx is None else fx._ad
+                        fx._set_ad_order(2)
 
-                npv = self.npv([fore_curve, disc_curve], None, fx, base, False)
-                b = npv.gradient("spread_z", order=1)[0]
-                a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
-                c = npv + self.leg1.notional
+                    npv = self.npv([fore_curve, disc_curve], None, fx, base, False)
+                    b = npv.gradient("spread_z", order=1)[0]
+                    a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
+                    c = npv + self.leg1.notional
 
-                _1 = -c / b
-                if abs(a) > 1e-14:
-                    _2 = (-b - (b**2 - 4*a*c)**0.5) / (2*a)
-                    # _2a = (-b + (b**2 - 4*a*c)**0.5) / (2*a)  # alt quadratic soln
-                    _ = _2
+                    _1 = -c / b
+                    if abs(a) > 1e-14:
+                        _2 = (-b - (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)
+                        # _2a = (-b + (b**2 - 4*a*c)**0.5) / (2*a)  # alt quadratic soln
+                        _ = _2
+                    else:
+                        _ = _1
+                    _ += 0. if _fs is None else _fs
+
+                    self.float_spread = _fs
+                    fore_curve._set_ad_order(fore_ad)
+                    disc_curve._set_ad_order(disc_ad)
+                    if isinstance(fx, (FXRates, FXForwards)):
+                        fx._set_ad_order(_fx)
+                    return set_order(_, disc_ad)  # use disc_ad: cred spd from disc crv
                 else:
-                    _ = _1
-                _ += 0. if _fs is None else _fs
+                    # NPV calc is efficient and requires no additional ingenuity.
+                    _ = (npv + self.leg1.notional) / \
+                        self.analytic_delta(curves[0], curves[1], fx, base)
+                    _ += self.float_spread
+                    return _
 
-                self.float_spread = _fs
-                fore_curve._set_ad_order(fore_ad)
-                disc_curve._set_ad_order(disc_ad)
-                if isinstance(fx, (FXRates, FXForwards)):
-                    fx._set_ad_order(_fx)
-                return set_order(_, disc_ad)  # use disc_ad: cred spread from disc curve
-            else:
-                # NPV calc is efficient and requires no additional ingenuity.
-                _ = (npv + self.leg1.notional) / \
-                    self.analytic_delta(curves[0], curves[1], fx, base)
-                _ += self.float_spread
-                return _
+        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
+            if forward_settlement is None:
+                raise ValueError(
+                    "`forward_settlement` needed to determine forward price."
+                )
+            npv = self._npv_local(
+                curves[0], curves[1], fx, base, forward_settlement, forward_settlement
+            )
+            dirty_price = npv / -self.leg1.notional * 100
+            if metric == "fwd_dirty_price":
+                return dirty_price
+            elif metric == "fwd_clean_price":
+                return dirty_price - self.accrued(forward_settlement)
+
         raise ValueError(
             "`metric` must be in {'dirty_price', 'clean_price', 'spread'}."
         )
-
-    def cashflows(
-        self,
-        curves: Union[Curve, str, list],
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        settlement: datetime = None,
-    ):
-        """
-        Return the properties of the security used in calculating cashflows.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`Curve` or id or a list of such. A list defines the
-            following curves in the order:
-
-              - Forecasting :class:`Curve` for ``leg1``.
-              - Discounting :class:`Curve` for ``leg1``.
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an ``FXRates`` or ``FXForwards`` object.
-        settlement : datetime, optional
-            The settlement date of the security. If *None* adds the regular ``settle``
-            time to the initial node date of the given discount ``curves``.
-
-        Returns
-        -------
-        DataFrame
-        """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
-        )
-        if settlement is None:
-            settlement = add_tenor(
-                curves[1].node_dates[0], f"{self.settle}B", None,
-                self.leg1.schedule.calendar
-            )
-        cashflows = self.leg1.cashflows(curves[0], curves[1], fx, base)
-        if self.ex_div(settlement):
-            # deduct the next coupon which has otherwise been included in valuation
-            current_period = index_left(
-                self.leg1.schedule.aschedule,
-                self.leg1.schedule.n_periods + 1,
-                settlement,
-            )
-            cashflows.loc[current_period, defaults.headers["npv"]] = 0
-            cashflows.loc[current_period, defaults.headers["npv_fx"]] = 0
-        return cashflows
-
-    def npv(
-        self,
-        curves: Union[Curve, str, list],
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        local: bool = False,
-    ):
-        """
-        Return the NPV of the security by summing cashflow valuations, valued at the
-        initial node date of the discounting curve.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`Curve` or id or a list of such. A list defines the
-            following curves in the order:
-
-              - Forecasting :class:`Curve` for ``leg1``.
-              - Discounting :class:`Curve` for ``leg1``.
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        local : bool, optional
-            If `True` will ignore the ``base`` request and return a dict identifying
-            local currency NPV.
-
-        Returns
-        -------
-        float, Dual, Dual2 or dict of such
-
-        Notes
-        -----
-        The ``settlement`` date of the bond is inferred from the objects ``settle``
-        days parameter and the initial date of the supplied ``curves``.
-        The NPV returned is for immediate settlement.
-
-        If **only one curve** is given this is used as all four curves.
-
-        If **two curves** are given the forecasting curve is used as the forecasting
-        curve on both legs and the discounting curve is used as the discounting
-        curve for both legs.
-        """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
-        )
-        settlement = add_tenor(
-            curves[1].node_dates[0], f"{self.settle}B", None, self.leg1.schedule.calendar
-        )
-        base = self.currency if local else base
-        npv = self.leg1.npv(curves[0], curves[1], fx, base)
-        if self.ex_div(settlement):
-            # deduct the next coupon which has otherwise been included in valuation
-            current_period = index_left(
-                self.leg1.schedule.aschedule,
-                self.leg1.schedule.n_periods + 1,
-                settlement,
-            )
-            npv -= self.leg1.periods[current_period].npv(
-                curves[0], curves[1], fx, base
-            )
-        if local:
-            return {self.currency: npv}
-        else:
-            return npv
-
-    def analytic_delta(
-        self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
-    ):
-        disc_curve = disc_curve or curve
-        settlement = add_tenor(
-            disc_curve.node_dates[0], f"{self.settle}B", None,
-            self.leg1.schedule.calendar
-        )
-        a_delta = self.leg1.analytic_delta(curve, disc_curve, fx, base)
-        if self.ex_div(settlement):
-            # deduct the next coupon which has otherwise been included in valuation
-            current_period = index_left(
-                self.leg1.schedule.aschedule,
-                self.leg1.schedule.n_periods + 1,
-                settlement,
-            )
-            a_delta -= self.leg1.periods[current_period].analytic_delta(
-                curve, disc_curve, fx, base
-            )
-        return a_delta
 
 
 ### Single currency derivatives

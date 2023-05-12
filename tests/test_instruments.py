@@ -1549,6 +1549,34 @@ class TestFloatRateBond:
         expected = 0.5019275497883  # approx 2 / 12 * 3%
         assert abs(result - expected) < 1e-8
 
+    @pytest.mark.parametrize("metric", [
+        "clean_price",
+        "dirty_price"
+    ])
+    def test_float_rate_bond_rate_metric(self, metric):
+        fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        bond = FloatRateBond(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=100,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+            method_param=5,
+            spread_compound_method="none_simple",
+            settle=2
+        )
+        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0})
+        disc_curve = curve.shift(100)
+
+        result = bond.rate(curves=[curve, disc_curve], metric=metric)
+
+        result = bond.accrued(dt(2010, 3, 3))
+        expected = 0.5019275497883  # approx 2 / 12 * 3%
+        assert abs(result - expected) < 1e-8
+
     @pytest.mark.parametrize("settlement, expected", [
         (dt(2010, 3, 3), 0.501369863013698),
         (dt(2010, 12, 30), -0.005479452054)
