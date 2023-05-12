@@ -7,7 +7,7 @@ import numpy as np
 
 import context
 from rateslib.periods import (
-    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod
+    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod, IndexCashflow
 )
 from rateslib.fx import FXRates
 from rateslib.defaults import Defaults
@@ -942,6 +942,168 @@ class TestIndexFixedPeriod:
         result = index_period.cashflow(index_curve)
         expected = expected * index_curve.index_value(dt(2022, 4, 3)) / 100.
         assert abs(result - expected) < 1e-8
+
+    def test_period_analytic_delta(self, fxr, curve):
+        index_curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.,
+        )
+        fixed_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            index_base=200.0,
+            index_fixings=300.0,
+        )
+        result = fixed_period.analytic_delta(index_curve, curve)
+        assert abs(result - 24744.478172244584 * 300. / 200.) < 1e-7
+
+        result = fixed_period.analytic_delta(index_curve, curve, fxr, "nok")
+        assert abs(result - 247444.78172244584 * 300. / 200.) < 1e-7
+
+    @pytest.mark.parametrize("fixings, method", [
+        (300.0, "daily"),
+        (
+            Series([1, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
+            "daily",
+        ),
+        (Series([100., 500], index=[dt(2022, 4, 2), dt(2022, 4, 4)]), "daily"),
+        (Series([300., 500], index=[dt(2022, 4, 1), dt(2022, 4, 5)]), "monthly"),
+    ])
+    def test_period_fixings_series(self, fixings, method, curve):
+        fixed_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            index_base=200.0,
+            index_fixings=fixings,
+            index_method=method,
+        )
+        result = fixed_period.analytic_delta(None, curve)
+        assert abs(result - 24744.478172244584 * 300. / 200.) < 1e-7
+
+    def test_period_raises(self):
+        with pytest.raises(ValueError, match="`index_method` must be "):
+            fixed_period = IndexFixedPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                currency="usd",
+                index_base=200.0,
+                index_method="BAD",
+            )
+
+    def test_period_npv(self, curve):
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+        )
+        index_curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.,
+        )
+        result = index_period.npv(index_curve, curve)
+        expected = -19895057.826930363
+        assert abs(result - expected) < 1e-8
+
+        result = index_period.npv(index_curve, curve, local=True)
+        assert abs(result["usd"] - expected) < 1e-8
+
+    def test_period_npv_raises(self):
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+        )
+        with pytest.raises(TypeError, match="`curves` have not been supplied"):
+            index_period.npv(None)
+
+    @pytest.mark.parametrize("curve_", [True, False])
+    def test_period_cashflows(self, curve, curve_):
+        curve = curve if curve_ else None
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+            index_fixings=200.,
+        )
+        result = index_period.cashflows(curve)
+        expected = {
+            "Type": "IndexFixedPeriod",
+            "Period": "Regular",
+            "Ccy": "USD",
+            "Acc Start": dt(2022, 1, 1),
+            "Acc End": dt(2022, 4, 1),
+            "Payment": dt(2022, 4, 3),
+            "Convention": "Act360",
+            "DCF": 0.25,
+            "DF": 0.9897791268897856 if curve_ else None,
+            "Notional": 1e9,
+            "Rate": 4.0,
+            "Spread": None,
+            "Cashflow": -20000000.0,
+            "NPV": -19795582.53779571 if curve_ else None,
+            "FX Rate": 1.0,
+            "NPV Ccy": -19795582.53779571 if curve_ else None,
+        }
+        assert result == expected
+
+
+class TestIndexCashflow:
+
+    def test_cashflow_analytic_delta(self, curve):
+        cashflow = IndexCashflow(notional=1e6, payment=dt(2022, 1, 1))
+        assert cashflow.analytic_delta(curve) == 0
+
+    def test_index_cashflow(self):
+        cf = IndexCashflow(
+            notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=200
+        )
+        assert cf.real_cashflow == -1e6
+
+        assert cf.cashflow(None) == -2e6
+
+    def test_index_cashflow_npv(self, curve):
+        cf = IndexCashflow(
+            notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=200
+        )
+        assert abs(cf.npv(curve) + 2e6) < 1e-6
 
 
 def test_base_period_dates_raise():

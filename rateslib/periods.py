@@ -1352,7 +1352,10 @@ class Cashflow:
         self.notional, self.payment = notional, payment
         self.currency = defaults.base_currency if currency is None else currency.lower()
         self.stub_type = stub_type
-        self.rate = rate if rate is None else float(rate)
+        self.rate_ = rate if rate is None else float(rate)
+
+    def rate(self):
+        return self.rate_
 
     def npv(
         self,
@@ -1403,7 +1406,7 @@ class Cashflow:
             defaults.headers["df"]: None
             if disc_curve is None
             else float(disc_curve[self.payment]),
-            defaults.headers["rate"]: self.rate,
+            defaults.headers["rate"]: self.rate(),
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: float(self.cashflow),
             defaults.headers["npv"]: npv,
@@ -1430,7 +1433,70 @@ class Cashflow:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class IndexFixedPeriod(FixedPeriod):
+class IndexMixin:
+
+    def cashflow(self, curve: IndexCurve):
+        """
+        float, Dual or Dual2 : The calculated value from rate, dcf and notional,
+        adjusted for the index.
+        """
+        _ = self.real_cashflow * self.rate(curve) / self.index_base
+        return _
+
+    def rate(self, curve: IndexCurve):
+        """
+        Project an index rate for the cashflow payment date.
+
+        Parameters
+        ----------
+        curve : IndexCurve
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        if self.index_fixings is None:
+            # forecast inflation index from curve
+            return curve.index_value(self.payment, self.index_method)
+        else:
+            if isinstance(self.index_fixings, Series):
+                if self.index_method == "daily":
+                    adj_date = self.payment
+                else:  # index_method == "monthly"
+                    adj_date = datetime(self.payment.year, self.payment.month, 1)
+
+                try:
+                    return self.index_fixings[adj_date]
+                except KeyError:
+                    s = self.index_fixings.copy()
+                    s.loc[adj_date] = np.NaN
+                    return s.sort_index().interpolate("linear")[adj_date]
+
+            else:
+                return self.index_fixings
+
+    def npv(
+        self,
+        curve: IndexCurve,
+        disc_curve: Optional[Curve] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        disc_curve = disc_curve or curve
+        if disc_curve is None:
+            raise TypeError(
+                "`curves` have not been supplied correctly. NoneType has been detected."
+            )
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        value = self.cashflow(curve) * disc_curve[self.payment]
+        if local:
+            return {self.currency: value}
+        else:
+            return fx * value
+
+
+class IndexFixedPeriod(IndexMixin, FixedPeriod):
     """
     Create a period defined with a real rate adjusted by an index.
 
@@ -1463,10 +1529,19 @@ class IndexFixedPeriod(FixedPeriod):
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = index_method.lower()
+        if self.index_method not in ["daily", "monthly"]:
+            raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs):
-        return super().analytic_delta(*args, **kwargs)
+    def analytic_delta(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Union[float, FXRates, FXForwards] = 1.0,
+        base: Optional[str] = None,
+    ):
+        real_a_delta = super().analytic_delta(curve, disc_curve, fx, base)
+        return real_a_delta * self.rate(curve) / self.index_base
 
     @property
     def real_cashflow(self):
@@ -1481,68 +1556,11 @@ class IndexFixedPeriod(FixedPeriod):
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def cashflow(self, curve: IndexCurve):
-        """
-        float, Dual or Dual2 : The calculated value from rate, dcf and notional,
-        adjusted for the index.
-        """
-        _ = (
-            self.real_cashflow *
-            curve.index_value(self.payment, self.index_method) / self.index_base
-        )
-        return _
-
-    def rate(self, curve: IndexCurve):
-        """
-        Project an index rate for the cashflow payment date.
-
-        Parameters
-        ----------
-        curve : IndexCurve
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-        if self.index_fixings is None:
-            # forecast inflation index from curve
-            return curve.index_value(self.payment, self.index_method)
-        else:
-            if isinstance(self.index_fixings, Series):
-                try:
-                    return self.index_fixings[self.payment]
-                except KeyError:
-                    s = self.index_fixings.copy()
-                    s.loc[self.payment] = np.NaN
-                    return s.sort_index().interpolate[self.payment]
-            else:
-                return self.index_fixings
-
-    def npv(
-        self,
-        curve: IndexCurve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        local: bool = False,
-    ):
-        disc_curve = disc_curve or curve
-        if disc_curve is None:
-            raise TypeError(
-                "`curves` have not been supplied correctly. NoneType has been detected."
-            )
-        fx, base = _get_fx_and_base(self.currency, fx, base)
-        value = self.cashflow(curve) * disc_curve[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            return fx * value
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
+        curve: Optional[IndexCurve] = None,
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
@@ -1557,9 +1575,9 @@ class IndexFixedPeriod(FixedPeriod):
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
 
-        cashflow = None if self.cashflow is None else float(self.cashflow)
+        cashflow = None if self.cashflow(curve) is None else float(self.cashflow(curve))
         return {
-            **super().cashflows(curve, disc_curve, fx, base),
+            **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -1569,7 +1587,7 @@ class IndexFixedPeriod(FixedPeriod):
         }
 
 
-class IndexCashflow(Cashflow):
+class IndexCashflow(IndexMixin, Cashflow):
 
     def __init__(
         self,
@@ -1582,19 +1600,8 @@ class IndexCashflow(Cashflow):
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = index_method.lower()
-        super().__init__(*args, **kwargs)
+        super(IndexMixin, self).__init__(*args, **kwargs)
 
     @property
     def real_cashflow(self):
         return -self.notional
-
-    def cashflow(self, curve: IndexCurve):
-        """
-        float, Dual or Dual2 : The calculated value from rate, dcf and notional,
-        adjusted for the index.
-        """
-        _ = (
-            self.real_cashflow *
-            curve.index_value(self.payment, self.index_method) / self.index_base
-        )
-        return _
