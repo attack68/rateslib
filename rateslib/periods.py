@@ -808,6 +808,8 @@ class FloatPeriod(BasePeriod):
             raise TypeError(
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
+        if self.payment < disc_curve.node_dates[0]:
+            return 0.  # payment date is in the past avoid issues with fixings or rates
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)
