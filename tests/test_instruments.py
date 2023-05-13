@@ -1531,6 +1531,38 @@ class TestFloatRateBond:
         validate = bond.npv([curve, disc_curve])
         assert abs(validate + bond.leg1.notional) < 0.30 * abs(curve_spd)
 
+    @pytest.mark.parametrize("curve_spd, method, float_spd, expected", [
+        (10, "isda_compounding", 0, 10.00000120),
+    ])
+    def test_float_rate_bond_rate_spread_fx(self, curve_spd, method, float_spd, expected):
+        bond = FloatRateBond(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=0,
+            settle=0,
+            float_spread=float_spd,
+            spread_compound_method=method,
+        )
+        curve = Curve({
+            dt(2007, 1, 1): 1.0,
+            dt(2017, 1, 1): 0.9
+        }, convention="Act365f"
+        )
+        disc_curve = curve.shift(curve_spd)
+        fxr = FXRates({"usdnok": 10.0}, settlement=dt(2007, 1, 1))
+        result = bond.rate(
+            [curve, disc_curve],
+            metric="spread",
+            fx=fxr,
+        )
+        assert abs(result - expected) < 1e-4
+
+        bond.float_spread = result
+        validate = bond.npv([curve, disc_curve], fx=fxr)
+        assert abs(validate + bond.leg1.notional) < 0.30 * abs(curve_spd)
+
     def test_float_rate_bond_accrued(self):
         fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
         bond = FloatRateBond(
@@ -1708,25 +1740,27 @@ class TestFloatRateBond:
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
 
-    @pytest.mark.parametrize("metric, exp", [
-        ("fwd_clean_price", 100),
-        ("fwd_dirty_price", 100),
+    @pytest.mark.parametrize("metric, spd, exp", [
+        ("fwd_clean_price", 0., 100),
+        ("fwd_dirty_price", 0., 100),
+        ("fwd_clean_price", 50., 99.99602155150806),
+        ("fwd_dirty_price", 50., 100.03848730493272),
     ])
-    def test_float_rate_bond_forward_prices(self, metric, exp):
+    def test_float_rate_bond_forward_prices(self, metric, spd, exp):
         bond = FloatRateBond(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
             convention="Act365f",
             ex_div=3,
-            float_spread=0,
+            float_spread=spd,
             fixing_method="rfr_observation_shift",
             method_param=5,
             spread_compound_method="none_simple",
             settle=2
         )
         curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
-        disc_curve = curve.shift(0)
+        disc_curve = curve.shift(spd)
 
         result = bond.rate(
             curves=[curve, disc_curve],
@@ -1748,11 +1782,30 @@ class TestFloatRateBond:
             spread_compound_method="none_simple",
             settle=2
         )
-        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
+        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 0.9}, convention="act365f")
         disc_curve = curve.shift(0)
-        result = bond.accrued(dt(2010, 8, 1))
-        expected = 1.
+        result = bond.accrued(dt(2010, 8, 1), forecast=True, curve=curve)
+        expected = 0.13083715795372267
         assert abs(result - expected) < 1e-8
+
+    def test_rate_raises(self):
+        bond = FloatRateBond(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=0.,
+            fixing_method="rfr_observation_shift",
+            method_param=5,
+            spread_compound_method="none_simple",
+            settle=2
+        )
+        with pytest.raises(ValueError, match="`forward_settlement` needed to "):
+            bond.rate(None, metric="fwd_clean_price", forward_settlement=None)
+
+        with pytest.raises(ValueError, match="`metric` must be in"):
+            bond.rate(None, metric="BAD")
 
 
 class TestBondFuture:

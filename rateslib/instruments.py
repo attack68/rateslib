@@ -1813,7 +1813,12 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                     "determined due to unknown fixings."
                 )
 
-    def accrued(self, settlement: datetime):
+    def accrued(
+        self,
+        settlement: datetime,
+        forecast: bool = False,
+        curve: Curve = None,
+    ):
         """
         Calculate the accrued amount per nominal par value of 100.
 
@@ -1821,25 +1826,43 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         ----------
         settlement : datetime
             The settlement date which to measure accrued interest against.
+        forecast : bool, optional
+            Whether to use a curve to forecast future fixings.
+        curve : Curve, optional
+            If ``forecast`` is *True* and fixings are future based then must provide
+            a forecast curve.
 
         Notes
         -----
+        The settlement of an FRN will always be a definite amount. The
+        ``fixing_method``, ``method_param`` and ``ex_div`` will contain a
+        valid combination of parameters such that when payments need to be
+        cleared these definitive amounts can be calculated
+        via previously published fixings.
+
         If the coupon is IBOR based then the accrued
         fractionally apportions the coupon payment based on calendar days, including
-        negative accrued during ex div periods.
+        negative accrued during ex div periods. This rarely poses a problem since
+        IBOR is fixed well in advance of settlement.
 
         .. math::
 
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
-        If the coupon is based in RFR rates then the accrued is calculated upto the
-        settlement date by compounding known fixing rates. Negative accrued is
-        extrapolated by evaluating the number of remaining days in the ex div period
-        and comparing them to the number of days in the existing accrual period.
-        Negative accrued **may need to be forecast** if fixings within the ex-div
-        period are unpublished (i.e. when a combination of ``settle``, ``ex_div`` days
-        and ``method_param`` are sufficient). If a forecast is required the last known
-        given fixing is repeated.
+        With RFR rates, however, and since ``settlement`` typically occurs
+        in the future, e.g. T+2, it may be
+        possible, particularly if the bond is *ex-div* that some fixings are not known
+        today, but they will be known by ``settlement``. This is also true if we
+        wish to calculate the forward dirty price of a bond and need to forecast
+        the accrued amount (and also for a forecast IBOR period).
+
+        Thus, there are two options:
+
+        - In the analogue mode where very few fixings might be missing, and we require
+          these values to calculate negative accrued in an ex-div period we do not
+          require a ``curve`` but repeat the last historic fixing.
+        - In the digital mode where the ``settlement`` may be well in the future we
+          use a ``curve`` to forecast rates,
 
         Examples
         --------
@@ -1886,18 +1909,21 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             frac, acc_idx = self._accrued_frac(settlement)
             if self.ex_div(settlement):
                 frac = (frac - 1)  # accrued is negative in ex-div period
-            rate = self.leg1.periods[acc_idx].rate(
-                Curve({
+
+            if forecast:
+                curve = curve
+            else:
+                curve = Curve({  # create a dummy curve. rate() will return the fixing
                     self.leg1.periods[acc_idx].start: 1.0,
                     self.leg1.periods[acc_idx].end: 1.0
                 })
+            rate = self.leg1.periods[acc_idx].rate(curve)
+
+            cashflow = (
+                -self.leg1.periods[acc_idx].notional *
+                self.leg1.periods[acc_idx].dcf * rate / 100
             )
-            cashflow = -self.leg1.periods[acc_idx].notional * \
-                       self.leg1.periods[acc_idx].dcf * \
-                       rate / 100
-            return (
-                frac * cashflow / -self.leg1.notional * 100
-            )
+            return frac * cashflow / -self.leg1.notional * 100
         else:  # is "rfr"
             acc_idx = index_left(
                 self.leg1.schedule.aschedule,
@@ -1921,31 +1947,43 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                 spread_compound_method=self.leg1.spread_compound_method
             )
 
-            # For negative accrued in ex-div we need to forecast unpublished rates.
-            # Build a curve which replicates the last known fixing value from fixings
-            try:
-                last_fixing = p.fixings[-1]
-            except TypeError:
-                # then rfr fixing cannot be fetched from attribute
-                if acc_idx == 0 and p.start == self.leg1.schedule.aschedule[0]:
-                    # bond settles on issue date of bond, fixing may not be available.
-                    accrued_to_settle = 0.
-                else:
-                    raise TypeError(
-                        "`fixings` are not available for RFR float period. Must be a "
-                        f"Series or list, {p.fixings} was given."
-                    )
+            if forecast:
+                curve = curve
             else:
-                _crv = LineCurve({
+                try:
+                    last_fixing = p.fixings[-1]
+                    # For negative accr in ex-div we need to forecast unpublished rates.
+                    # Build a curve which replicates the last fixing value from fixings.
+                except TypeError:
+                    # then rfr fixing cannot be fetched from attribute
+
+                    # if acc_idx == 0 and p.start == self.leg1.schedule.aschedule[0]:
+                    #     # bond settles on issue date of bond, fixing may not be available.
+                    #     accrued_to_settle = 0.
+
+                    if p.dcf < 1e-10:
+                        # then settlement is same as period.start so no rate necessary
+                        # create a dummy curve
+                        last_fixing = 0.
+                    else:
+                        raise TypeError(
+                            "`fixings` are not available for RFR float period. Must be a "
+                            f"Series or list, {p.fixings} was given."
+                        )
+                curve = LineCurve({
                     self.leg1.periods[acc_idx].start: last_fixing,
                     self.leg1.periods[acc_idx].end: last_fixing,
                 })
-                # Otherwise rate to settle is determined fully by known fixings.
-                rate_to_settle = float(p.rate(_crv))
-                accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
+
+            # Otherwise rate to settle is determined fully by known fixings.
+            if p.dcf < 1e-10:
+                rate_to_settle = 0.  # there are no fixings in the period.
+            else:
+                rate_to_settle = float(p.rate(curve))
+            accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
 
             if self.ex_div(settlement):
-                rate_to_end = self.leg1.periods[acc_idx].rate(_crv)
+                rate_to_end = self.leg1.periods[acc_idx].rate(curve)
                 accrued_to_end = 100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
                 return accrued_to_settle - accrued_to_end
             else:
@@ -2086,7 +2124,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             if metric == "fwd_dirty_price":
                 return dirty_price
             elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement)
+                return dirty_price - self.accrued(forward_settlement, True, curves[0])
 
         raise ValueError(
             "`metric` must be in {'dirty_price', 'clean_price', 'spread'}."
