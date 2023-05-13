@@ -1,4 +1,6 @@
 from math import isclose
+from abc import abstractmethod, ABCMeta
+from typing import Union, Optional
 import math
 import numpy as np
 
@@ -11,10 +13,17 @@ INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class DualBase:
+class DualBase(metaclass=ABCMeta):
     """
     Base class for dual number implementation.
     """
+
+    dual: np.ndarray = np.zeros(0)
+    dual2: np.ndarray = np.zeros(0)
+
+    def __init__(self, real: float, vars: tuple[str, ...] = tuple()):
+        self.real: float = real
+        self.vars: tuple[str, ...] = vars
 
     def __float__(self):
         return float(self.real)
@@ -60,9 +69,11 @@ class DualBase:
             return False
         elif not np.all(np.isclose(self.dual, argument.dual, atol=PRECISION)):
             return False
-        elif getattr(self, "dual2", None) is not None:
+        if type(self) is Dual2 and type(argument) is Dual2:
             if not np.all(np.isclose(self.dual2, argument.dual2, atol=PRECISION)):
                 return False
+        elif type(self) is Dual2 or type(argument) is Dual2:
+            return False  # cannot compare Dual with Dual2
         return True
 
     def __upcast_combined__(self, arg):
@@ -72,24 +83,9 @@ class DualBase:
         new_arg = arg if new_vars == arg.vars else arg.__upcast_vars__(new_vars)
         return new_self, new_arg
 
-    def __repr__(self):
-        dual2 = getattr(self, "dual2", None)
-        if dual2 is None:
-            name, final = "Dual", ""
-        else:
-            name, final = "Dual2", f", [[...]]"
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
-
-    def __str__(self):
-        output = f" val = {self.real:.8f}\n"
-        for i, tag in enumerate(self.vars):
-            output += f"  d{tag} = {self.dual[i]:.6f}\n"
-        if getattr(self, "dual2", None) is not None:
-            for i, ltag in enumerate(self.vars):
-                for j, rtag in enumerate(self.vars):
-                    if j >= i:
-                        output += f"d{ltag}d{rtag} = {2 * self.dual2[i,j]:.6f}\n"
-        return output
+    @abstractmethod
+    def __upcast_vars__(self, new_vars: list[str]):
+        pass
 
     def gradient(self, vars=None, order=1, keep_manifold=False):
         """
@@ -179,6 +175,20 @@ class Dual2(DualBase):
         self.real = real
         self.dual = np.asarray(dual.copy()) if dual is not None else np.ones(n)
         self.dual2 = np.asarray(dual2.copy()) if dual2 is not None else np.zeros((n, n))
+
+    def __repr__(self):
+        name, final = "Dual2", f", [[...]]"
+        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+
+    def __str__(self):
+        output = f" val = {self.real:.8f}\n"
+        for i, tag in enumerate(self.vars):
+            output += f"  d{tag} = {self.dual[i]:.6f}\n"
+        for i, ltag in enumerate(self.vars):
+            for j, rtag in enumerate(self.vars):
+                if j >= i:
+                    output += f"d{ltag}d{rtag} = {2 * self.dual2[i,j]:.6f}\n"
+        return output
 
     def __neg__(self):
         return Dual2(-self.real, self.vars, -self.dual, -self.dual2)
@@ -346,7 +356,7 @@ class Dual(DualBase):
     ----------
     real : float, int
         The real coefficient of the dual number
-    vars : list of str, optional
+    vars : tuple of str, optional
         The labels of the variables for which to record derivatives. If not given
         the dual number represents a constant, equivalent to an int or float.
     dual : 1d ndarray, optional
@@ -357,7 +367,7 @@ class Dual(DualBase):
     Attributes
     ----------
     real : float, int
-    vars : str, list of str
+    vars : str, tuple of str
     dual : 1d ndarray
 
     See Also
@@ -365,14 +375,35 @@ class Dual(DualBase):
     Dual2 : Dual number data type to perform second derivative automatic differentiation.
     """
 
-    def __init__(self, real, vars=(), dual=None):
-        self.real = real
+    def __init__(
+        self,
+        real: float,
+        vars: tuple[str, ...] = (),
+        dual: Optional[np.ndarray] = None,
+    ):
+        self.real: float = real
         if isinstance(vars, str):
-            self.vars = (vars,)
+            self.vars: tuple[str, ...] = (vars,)
         else:
             self.vars = tuple(vars)
         n = len(self.vars)
-        self.dual = np.asarray(dual.copy()) if dual is not None else np.ones(n)
+        self.dual: np.ndarray = (
+            np.asarray(dual.copy()) if dual is not None else np.ones(n)
+        )
+
+    @property
+    def dual2(self):
+        raise ValueError("`Dual` variable cannot possess `dual2` attribute")
+
+    def __repr__(self):
+        name, final = "Dual", ""
+        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+
+    def __str__(self):
+        output = f" val = {self.real:.8f}\n"
+        for i, tag in enumerate(self.vars):
+            output += f"  d{tag} = {self.dual[i]:.6f}\n"
+        return output
 
     def __neg__(self):
         return Dual(-self.real, self.vars, -self.dual)
@@ -466,7 +497,7 @@ class Dual(DualBase):
     def __downcast_vars__(self):
         """removes variables where first order sensitivity is zero"""
         ix_ = np.where(np.isclose(self.dual, 0, atol=PRECISION) == False)[0]
-        new_vars = [self.vars[i] for i in ix_]
+        new_vars = tuple(self.vars[i] for i in ix_)
         return Dual(self.real, new_vars, self.dual[ix_])
 
     def _set_order(self, order):
@@ -682,3 +713,5 @@ def set_order(val, order):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+DualTypes = Union[float, Dual, Dual2]
