@@ -63,15 +63,19 @@ def bsplev_single(x, i, k, t, org_k=None):
 
     ## Recursion
     if k == 1:
-        if t[i] <= x < t[i+1]:
+        if t[i] <= x < t[i + 1]:
             return 1
         return 0
     else:
         left, right = 0, 0
-        if t[i] != t[i+k-1]:
-            left = (x - t[i]) / (t[i+k-1] - t[i]) * bsplev_single(x, i, k-1, t)
-        if t[i+1] != t[i+k]:
-            right = (t[i+k] - x) / (t[i+k] - t[i+1]) * bsplev_single(x, i+1, k-1, t)
+        if t[i] != t[i + k - 1]:
+            left = (x - t[i]) / (t[i + k - 1] - t[i]) * bsplev_single(x, i, k - 1, t)
+        if t[i + 1] != t[i + k]:
+            right = (
+                (t[i + k] - x)
+                / (t[i + k] - t[i + 1])
+                * bsplev_single(x, i + 1, k - 1, t)
+            )
         return left + right
 
 
@@ -155,7 +159,7 @@ def bspldnev_single(x, i, k, t, m, org_k=None):
         return 0
 
     org_k = org_k or k
-    r, div1, div2 = 0, t[i+k-1] - t[i], t[i+k] - t[i+1]
+    r, div1, div2 = 0, t[i + k - 1] - t[i], t[i + k] - t[i + 1]
     if isinstance(div1, timedelta):
         div1 = div1 / timedelta(days=1)
     if isinstance(div2, timedelta):
@@ -210,9 +214,9 @@ class PPSpline:
     piecewise polynomial.
     """
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def __init__(self, k, t, c=None):
         self.t = t
@@ -237,8 +241,9 @@ class PPSpline:
                 return False
         if self.c is None and other.c is None:
             return True
-        elif (self.c is None and other.c is not None) or \
-                (self.c is not None and other.c is None):
+        elif (self.c is None and other.c is not None) or (
+            self.c is not None and other.c is None
+        ):
             return False
         elif not all(self.c == other.c):
             return False
@@ -389,9 +394,9 @@ class PPSpline:
         self.c = c[:, 0]
         return None
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def ppev_single(self, x):
         """

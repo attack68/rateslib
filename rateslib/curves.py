@@ -61,9 +61,8 @@ class Serialize:
             "ad": self.ad,
         }
         if type(self) is IndexCurve:
-            container.update({
-                "index_base": self.index_base,
-                "index_lag": self.index_lag}
+            container.update(
+                {"index_base": self.index_base, "index_lag": self.index_lag}
             )
 
         if self.calendar_type == "null":
@@ -604,10 +603,7 @@ class Curve(Serialize, PlotCurve):
 
         kwargs = {}
         if type(self) is IndexCurve:
-            kwargs = {
-                "index_base": self.index_base,
-                "index_lag": self.index_lag
-            }
+            kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
         _ = type(self)(
             nodes=nodes,
             interpolation=self.interpolation,
@@ -619,7 +615,7 @@ class Curve(Serialize, PlotCurve):
             modifier=self.modifier,
             calendar=self.calendar,
             ad=self.ad,
-            **kwargs
+            **kwargs,
         )
         return _
 
@@ -789,7 +785,7 @@ class Curve(Serialize, PlotCurve):
         if type(self) is IndexCurve:
             kwargs = {
                 "index_base": self.index_value(start),
-                "index_lag": self.index_lag
+                "index_lag": self.index_lag,
             }
         new_curve = type(self)(
             nodes=new_nodes,
@@ -802,7 +798,7 @@ class Curve(Serialize, PlotCurve):
             convention=self.convention,
             id=None,
             ad=self.ad,
-            **kwargs
+            **kwargs,
         )
         return new_curve
 
@@ -1365,7 +1361,7 @@ class IndexCurve(Curve):
         *args,
         index_base: Optional[float] = None,
         index_lag: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         self.index_base = index_base

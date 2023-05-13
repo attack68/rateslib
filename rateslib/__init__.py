@@ -13,9 +13,12 @@ for _dependency in _hard_dependencies:
 from datetime import datetime as dt
 
 from rateslib.defaults import Defaults
+
 defaults = Defaults()
 
 from contextlib import ContextDecorator
+
+
 class default_context(ContextDecorator):
     """
     Context manager to temporarily set options in the `with` statement context.
@@ -48,37 +51,15 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.dual import (
-    Dual,
-    Dual2,
-    dual_log,
-    dual_exp,
-    dual_solve
-)
+from rateslib.dual import Dual, Dual2, dual_log, dual_exp, dual_solve
 
-from rateslib.calendars import (
-    create_calendar,
-    get_calendar,
-    add_tenor,
-    dcf
-)
+from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 
-from rateslib.splines import (
-    bsplev_single,
-    bspldnev_single,
-    PPSpline
-)
+from rateslib.splines import bsplev_single, bspldnev_single, PPSpline
 
-from rateslib.scheduling import (
-    Schedule
-)
+from rateslib.scheduling import Schedule
 
-from rateslib.curves import (
-    Curve,
-    LineCurve,
-    interpolate,
-    index_left
-)
+from rateslib.curves import Curve, LineCurve, interpolate, index_left
 
 from rateslib.fx import (
     FXRates,
@@ -86,15 +67,9 @@ from rateslib.fx import (
     ProxyCurve,
 )
 
-from rateslib.solver import (
-    Solver
-)
+from rateslib.solver import Solver
 
-from rateslib.periods import (
-    FixedPeriod,
-    FloatPeriod,
-    Cashflow
-)
+from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow
 
 from rateslib.legs import (
     FixedLeg,
@@ -104,7 +79,7 @@ from rateslib.legs import (
     FloatLegExchange,
     FloatLegExchangeMtm,
     ZeroFloatLeg,
-    CustomLeg
+    CustomLeg,
 )
 
 from rateslib.instruments import (

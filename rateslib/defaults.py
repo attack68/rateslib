@@ -9,6 +9,7 @@ class Defaults:
     """
     Test docs
     """
+
     convention = "ACT360"
     notional = 1.0e6
     stub = "SHORTFRONT"
@@ -87,9 +88,9 @@ class Defaults:
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def reset_defaults(self):
         base = Defaults()
@@ -100,16 +101,17 @@ class Defaults:
 def plot(x, y: list, labels=[]):
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+
     fig, ax = plt.subplots(1, 1)
     lines = []
     for _y in y:
-        line, = ax.plot(x, _y)
+        (line,) = ax.plot(x, _y)
         lines.append(line)
     if labels and len(labels) == len(lines):
         ax.legend(lines, labels)
     years = mdates.YearLocator()  # every year
     months = mdates.MonthLocator()  # every month
-    yearsFmt = mdates.DateFormatter('%Y')
+    yearsFmt = mdates.DateFormatter("%Y")
     ax.xaxis.set_major_locator(years)
     ax.xaxis.set_major_formatter(yearsFmt)
     ax.xaxis.set_minor_locator(months)

@@ -16,101 +16,129 @@ from pandas.tseries.offsets import CustomBusinessDay, Easter, Day
 
 
 # Generic holidays
-Epiphany = Holiday('Epiphany', month=1, day=6)
+Epiphany = Holiday("Epiphany", month=1, day=6)
 GoodFriday = Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)])
 EasterMonday = Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)])
-AscentionDay = Holiday('Ascention Day', month=1, day=1, offset=[Easter(), Day(39)])
+AscentionDay = Holiday("Ascention Day", month=1, day=1, offset=[Easter(), Day(39)])
 ChristmasEve = Holiday("Christmas Eve", month=12, day=24)
-ChristmasDay = Holiday('Christmas Day', month=12, day=25)
-ChristmasDayHoliday = Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday_or_tuesday)
-BoxingDay = Holiday('Boxing Day', month=12, day=26)
-BoxingDayHoliday = Holiday("Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday)
+ChristmasDay = Holiday("Christmas Day", month=12, day=25)
+ChristmasDayHoliday = Holiday(
+    "Christmas Day Holiday", month=12, day=25, observance=next_monday_or_tuesday
+)
+BoxingDay = Holiday("Boxing Day", month=12, day=26)
+BoxingDayHoliday = Holiday(
+    "Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday
+)
 NewYearsEve = Holiday("New Year's Eve", month=12, day=31)
 NewYearsDay = Holiday("New Year's Day", month=1, day=1)
-NewYearsDayHoliday = Holiday("New Year's Day Holiday", month=1, day=1, observance=next_monday)
+NewYearsDayHoliday = Holiday(
+    "New Year's Day Holiday", month=1, day=1, observance=next_monday
+)
 
 # US based
-USMartinLutherKingJr = Holiday('Dr. Martin Luther King Jr.', start_date=datetime(1986, 1, 1), month=1, day=1, offset=DateOffset(weekday=MO(3)))
-USPresidentsDay = Holiday('US President''s Day', month=2, day=1, offset=DateOffset(weekday=MO(3)))
-USMemorialDay = Holiday('US Memorial Day', month=5, day=31, offset=DateOffset(weekday=MO(-1)))
+USMartinLutherKingJr = Holiday(
+    "Dr. Martin Luther King Jr.",
+    start_date=datetime(1986, 1, 1),
+    month=1,
+    day=1,
+    offset=DateOffset(weekday=MO(3)),
+)
+USPresidentsDay = Holiday(
+    "US President" "s Day", month=2, day=1, offset=DateOffset(weekday=MO(3))
+)
+USMemorialDay = Holiday(
+    "US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1))
+)
 USIndependenceDay = Holiday("US Independence Day", month=7, day=4)
-USLabourDay = Holiday('US Labour Day', month=9, day=1, offset=DateOffset(weekday=MO(1)))
-USColumbusDay = Holiday('US Columbus Day', month=10, day=1, offset=DateOffset(weekday=MO(2)))
-USThanksgivingDay = Holiday('US Thanksgiving', month=11, day=1, offset=DateOffset(weekday=TH(4)))
+USLabourDay = Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))
+USColumbusDay = Holiday(
+    "US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2))
+)
+USThanksgivingDay = Holiday(
+    "US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4))
+)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 # UK based
-UKEarlyMayBankHoliday = Holiday("UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1)))
-UKSpringBankHoliday = Holiday("UK Spring Bank Holiday", month=5, day=31, offset=DateOffset(weekday=MO(-1)))
-UKSummerBankHoliday = Holiday("UK Summer Bank Holiday", month=8, day=31, offset=DateOffset(weekday=MO(-1)))
+UKEarlyMayBankHoliday = Holiday(
+    "UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1))
+)
+UKSpringBankHoliday = Holiday(
+    "UK Spring Bank Holiday", month=5, day=31, offset=DateOffset(weekday=MO(-1))
+)
+UKSummerBankHoliday = Holiday(
+    "UK Summer Bank Holiday", month=8, day=31, offset=DateOffset(weekday=MO(-1))
+)
 
 # EUR based
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
-SwedenNational = Holiday('Sweden National Day', month=6, day=6)
-MidsummerFriday = Holiday('Swedish Midsummer', month=6, day=25, offset=DateOffset(weekday=FR(-1)))
+SwedenNational = Holiday("Sweden National Day", month=6, day=6)
+MidsummerFriday = Holiday(
+    "Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1))
+)
 
 CALENDAR_RULES = {
     "bus": [],
     "tgt": [
-      NewYearsDay,
-      GoodFriday,
-      EasterMonday,
-      EULabourDay,
-      ChristmasDay,
-      BoxingDay,
+        NewYearsDay,
+        GoodFriday,
+        EasterMonday,
+        EULabourDay,
+        ChristmasDay,
+        BoxingDay,
     ],
     "ldn": [
-      NewYearsDayHoliday,
-      GoodFriday,
-      EasterMonday,
-      UKEarlyMayBankHoliday,
-      UKSpringBankHoliday,
-      UKSummerBankHoliday,
-      ChristmasDayHoliday,
-      BoxingDayHoliday,
+        NewYearsDayHoliday,
+        GoodFriday,
+        EasterMonday,
+        UKEarlyMayBankHoliday,
+        UKSpringBankHoliday,
+        UKSummerBankHoliday,
+        ChristmasDayHoliday,
+        BoxingDayHoliday,
     ],
     "nyc": [
-      NewYearsDayHoliday,
-      GoodFriday,
-      EasterMonday,
-      UKEarlyMayBankHoliday,
-      UKSpringBankHoliday,
-      UKSummerBankHoliday,
-      ChristmasDayHoliday,
-      BoxingDayHoliday,
+        NewYearsDayHoliday,
+        GoodFriday,
+        EasterMonday,
+        UKEarlyMayBankHoliday,
+        UKSpringBankHoliday,
+        UKSummerBankHoliday,
+        ChristmasDayHoliday,
+        BoxingDayHoliday,
     ],
     "stk": [
-      NewYearsDay,
-      Epiphany,
-      GoodFriday,
-      EasterMonday,
-      EULabourDay,
-      AscentionDay,
-      SwedenNational,
-      MidsummerFriday,
-      ChristmasEve,
-      ChristmasDay,
-      BoxingDay,
-      NewYearsEve,
-     ],
+        NewYearsDay,
+        Epiphany,
+        GoodFriday,
+        EasterMonday,
+        EULabourDay,
+        AscentionDay,
+        SwedenNational,
+        MidsummerFriday,
+        ChristmasEve,
+        ChristmasDay,
+        BoxingDay,
+        NewYearsEve,
+    ],
     "osl": [
-      NewYearsDay,
-      Epiphany,
-      GoodFriday,
-      EasterMonday,
-      EULabourDay,
-      AscentionDay,
-      SwedenNational,
-      MidsummerFriday,
-      ChristmasEve,
-      ChristmasDay,
-      BoxingDay,
-      NewYearsEve,
-     ],
-  }
+        NewYearsDay,
+        Epiphany,
+        GoodFriday,
+        EasterMonday,
+        EULabourDay,
+        AscentionDay,
+        SwedenNational,
+        MidsummerFriday,
+        ChristmasEve,
+        ChristmasDay,
+        BoxingDay,
+        NewYearsEve,
+    ],
+}
 
 
 def create_calendar(rules: list, weekmask: str = None):
@@ -142,7 +170,10 @@ def create_calendar(rules: list, weekmask: str = None):
 
     """
     weekmask = "Mon Tue Wed Thu Fri" if weekmask is None else weekmask
-    return CustomBusinessDay(calendar=AbstractHolidayCalendar(rules=rules), weekmask=weekmask)
+    return CustomBusinessDay(
+        calendar=AbstractHolidayCalendar(rules=rules), weekmask=weekmask
+    )
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -193,7 +224,7 @@ def get_calendar(calendar: Optional[Union[CustomBusinessDay, str]], kind: bool =
                 create_calendar(
                     CALENDAR_RULES[calendars[0]], weekmask="Mon Tue Wed Thu Fri"
                 ),
-                "named"
+                "named",
             )
         else:
             rules = []
@@ -230,7 +261,7 @@ def _is_holiday(date: datetime, calendar: CustomBusinessDay):
 def _adjust_date(
     date: datetime,
     modifier: Optional[str],
-    calendar: Optional[Union[CustomBusinessDay, str]]
+    calendar: Optional[Union[CustomBusinessDay, str]],
 ) -> datetime:
     """
     Modify a date under specific rule.
@@ -264,6 +295,7 @@ def _adjust_date(
     if adjusted_date.month != date.month and "M" in modifier:
         adjusted_date = getattr(calendar, mod_op)(date)
     return adjusted_date.to_pydatetime()
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -368,6 +400,7 @@ def _add_days(
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+
 def _is_imm(date: datetime, hmuz=False) -> bool:
     """
     Test whether a given date is an IMM date, defined as third wednesday in month.
@@ -440,6 +473,7 @@ def _get_eom(month: int, year: int) -> datetime:
     """
     return datetime(year, month, calendar_mod.monthrange(year, month)[1])
 
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -466,7 +500,9 @@ def dcf(
     end: datetime,
     convention: str,
     termination: Optional[datetime] = None,  # required for 30E360ISDA and ActActICMA
-    frequency_months: Optional[int] = None,  # required for ActActICMA = ActActISMA = ActActBond
+    frequency_months: Optional[
+        int
+    ] = None,  # required for ActActICMA = ActActISMA = ActActBond
     stub: Optional[bool] = None,  # required for ActActICMA = ActActISMA = ActActBond
 ):
     """
@@ -576,7 +612,11 @@ def dcf(
             return False
 
         ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
-        de = 30 if (end.day == 31 or (_is_end_feb(end) and end != termination)) else end.day
+        de = (
+            30
+            if (end.day == 31 or (_is_end_feb(end) and end != termination))
+            else end.day
+        )
         y, m = end.year - start.year, (end.month - start.month) / 12
         return y + m + (de - ds) / 360
     elif convention in ["ACTACT", "ACTACTISDA"]:
@@ -593,7 +633,7 @@ def dcf(
         total_sum += (datetime(start.year + 1, 1, 1) - start_date).days / year_1_diff
         total_sum += (end_date - datetime(end.year, 1, 1)).days / year_2_diff
         return total_sum
-    elif convention in ['ACTACTICMA', 'ACTACTISMA', 'ACTACTBOND']:
+    elif convention in ["ACTACTICMA", "ACTACTISMA", "ACTACTBOND"]:
         if frequency_months is None:
             raise ValueError(
                 "`frequency_months` must be supplied with specified `convention`."
@@ -613,25 +653,30 @@ def dcf(
                 if end > fwd_end:  # stub is LONG
                     fraction += 1
                     fraction += (end - fwd_end) / (
-                                _add_months(start, 2*frequency_months,
-                                                         None, None) - fwd_end)
+                        _add_months(start, 2 * frequency_months, None, None) - fwd_end
+                    )
                 else:
-                    fraction += (end - start) / (fwd_end-start)
+                    fraction += (end - start) / (fwd_end - start)
                 return fraction * frequency_months / 12
             else:  # stub is a FRONT stub
                 prev_start = _add_months(end, -frequency_months, None, None)
                 fraction = 0
                 if start < prev_start:  # stub is LONG
                     fraction += 1
-                    fraction += (prev_start - start) / (prev_start - _add_months(end, -2*frequency_months, None, None))
+                    fraction += (prev_start - start) / (
+                        prev_start - _add_months(end, -2 * frequency_months, None, None)
+                    )
                 else:
                     fraction += (end - start) / (end - prev_start)
                 return fraction * frequency_months / 12
     else:
-        raise ValueError("`convention` must be in {'Act365f', '1', 'Act360', "
-                         "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
-                         "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
-                         "'ActActISMA', 'ActActBond'}")
+        raise ValueError(
+            "`convention` must be in {'Act365f', '1', 'Act360', "
+            "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
+            "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
+            "'ActActISMA', 'ActActBond'}"
+        )
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

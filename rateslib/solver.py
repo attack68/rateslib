@@ -231,7 +231,9 @@ class Gradients:
             i, j = 0, 0
             for pre_slvr in self.pre_solvers:
                 J2[
-                    i : i+pre_slvr.pre_n, i : i+pre_slvr.pre_n, j : j+pre_slvr.pre_m
+                    i : i + pre_slvr.pre_n,
+                    i : i + pre_slvr.pre_n,
+                    j : j + pre_slvr.pre_m,
                 ] = pre_slvr.J2_pre
                 i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
 
@@ -257,13 +259,16 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        rates_pre= []
+        rates_pre = []
         for solver in self.pre_solvers:
             rates_pre += [rate for rate in solver.r]
         rates_pre += [rate for rate in self.r]
 
         all_gradients = np.array(
-            [rate.gradient(self.pre_variables + tuple(fx_vars), order=2) for rate in rates_pre]
+            [
+                rate.gradient(self.pre_variables + tuple(fx_vars), order=2)
+                for rate in rates_pre
+            ]
         ).swapaxes(0, 2)
 
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
@@ -335,7 +340,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        _ = - np.tensordot(
+        _ = -np.tensordot(
             self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)
         ).swapaxes(1, 2)
         _ = np.tensordot(_, self.grad_s_vT_pre, (2, 0))
@@ -357,7 +362,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        _ = - np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
+        _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(
             self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1)
         )
@@ -428,7 +433,7 @@ class Gradients:
             for pre_solver in self.pre_solvers:
                 # create the left side block matrix
                 m, n = pre_solver.pre_m, pre_solver.pre_n
-                grad_s_vT[i:i+m, j:j+n] = pre_solver.grad_s_vT_pre
+                grad_s_vT[i : i + m, j : j + n] = pre_solver.grad_s_vT_pre
 
                 # create the right column dependencies
                 grad_v_r = np.array(
@@ -436,7 +441,7 @@ class Gradients:
                 ).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i:i+m, -self.m :] = block
+                grad_s_vT[i : i + m, -self.m :] = block
 
                 i, j = i + m, j + n
 
@@ -459,9 +464,7 @@ class Gradients:
         f : Dual or Dual2
             The value of the local to base FX conversion rate.
         """
-        _ = np.tensordot(
-            self.grad_s_vT_pre, f.gradient(self.pre_variables), (1, 0)
-        )
+        _ = np.tensordot(self.grad_s_vT_pre, f.gradient(self.pre_variables), (1, 0))
         grad_s_f = _
         return grad_s_f
 
@@ -508,7 +511,7 @@ class Gradients:
         grad_v_f = f.gradient(self.pre_variables)
         grad_f_sT_v = self.grad_f_s_vT_pre(fx_vars)
         _ = f.gradient(self.pre_variables + tuple(fx_vars), order=2)
-        grad_v_vT_f = _[: self.pre_n,: self.pre_n]
+        grad_v_vT_f = _[: self.pre_n, : self.pre_n]
         grad_f_vT_f = _[self.pre_n :, : self.pre_n]
         # grad_f_fT_f = _[self.pre_n :, self.pre_n :]
         grad_f_vT = self.grad_f_vT_pre(fx_vars)
@@ -543,7 +546,7 @@ class Gradients:
         # grad_f_sT_v = self.grad_f_s_vT_pre(fx_vars)
         _ = f.gradient(self.pre_variables + tuple(fx_vars), order=2)
         grad_v_vT_f = _[: self.pre_n, : self.pre_n]
-        grad_f_vT_f = _[self.pre_n:, : self.pre_n]
+        grad_f_vT_f = _[self.pre_n :, : self.pre_n]
         grad_f_fT_f = _[self.pre_n :, self.pre_n :]
         grad_f_vT = self.grad_f_vT_pre(fx_vars)
         grad_f_fT_v = self.grad_f_f_vT_pre(fx_vars)
@@ -715,7 +718,9 @@ class Gradients:
         """
         # fx_rate-instrument cross gamma:
         _ = np.tensordot(
-            self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables, order=2), (1, 0)
+            self.grad_f_vT_pre(fx_vars),
+            npv.gradient(self.pre_variables, order=2),
+            (1, 0),
         )
         _ += self.gradp_f_vT_Ploc(npv, fx_vars)
         _ = np.tensordot(_, self.grad_s_vT_pre, (1, 1))
@@ -968,9 +973,9 @@ class Solver(Gradients):
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
-        if len(
-            set([self.id] + [p.id for p in self.pre_solvers])
-        ) < 1 + len(self.pre_solvers):
+        if len(set([self.id] + [p.id for p in self.pre_solvers])) < 1 + len(
+            self.pre_solvers
+        ):
             raise ValueError(
                 "Solver `id`s must be unique when supplying `pre_solvers`, "
                 f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}"
@@ -1033,7 +1038,9 @@ class Solver(Gradients):
                     "specified as a variable in one solver."
                 )
         self.pre_variables += self.variables
-        self.pre_instrument_labels += tuple((self.id, lbl) for lbl in self.instrument_labels)
+        self.pre_instrument_labels += tuple(
+            (self.id, lbl) for lbl in self.instrument_labels
+        )
 
         # Final elements
         self._ad = 1
@@ -1194,7 +1201,7 @@ class Solver(Gradients):
                 pre_solver.x.astype(float) * 100 / self.rate_scalars,
                 index=MultiIndex.from_tuples(
                     [(pre_solver.id, inst) for inst in pre_solver.instrument_labels]
-                )
+                ),
             )
             if s is None:
                 s = _
@@ -1205,7 +1212,7 @@ class Solver(Gradients):
             self.x.astype(float) * 100 / self.rate_scalars,
             index=MultiIndex.from_tuples(
                 [(self.id, inst) for inst in self.instrument_labels]
-            )
+            ),
         )
         if s is None:
             s = _
@@ -1436,32 +1443,34 @@ class Solver(Gradients):
                 self.grad_s_Ploc(npv[ccy]) * inst_scalar
             )
             container[("fx", ccy, ccy)] = (
-                    self.grad_f_Ploc(npv[ccy], fx_vars) * fx_scalar
+                self.grad_f_Ploc(npv[ccy], fx_vars) * fx_scalar
             )
 
             if base is not None and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
-                container[("instruments", ccy, base)] = self.grad_s_Pbase(
-                    npv[ccy], container[("instruments", ccy, ccy)] / inst_scalar, f
-                ) * inst_scalar
-                container[("fx", ccy, base)] = self.grad_f_Pbase(
-                    npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars
-                ) * fx_scalar
+                container[("instruments", ccy, base)] = (
+                    self.grad_s_Pbase(
+                        npv[ccy], container[("instruments", ccy, ccy)] / inst_scalar, f
+                    )
+                    * inst_scalar
+                )
+                container[("fx", ccy, base)] = (
+                    self.grad_f_Pbase(
+                        npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars
+                    )
+                    * fx_scalar
+                )
 
         # construct the DataFrame from container with hierarchical indexes
         inst_idx = MultiIndex.from_tuples(
             [("instruments",) + label for label in self.pre_instrument_labels],
-            names=["type", "solver", "label"]
+            names=["type", "solver", "label"],
         )
         fx_idx = MultiIndex.from_tuples(
-            [("fx", "fx", f[3:]) for f in fx_vars],
-            names=["type", "solver", "label"]
+            [("fx", "fx", f[3:]) for f in fx_vars], names=["type", "solver", "label"]
         )
-        indexes = {
-            "instruments": inst_idx,
-            "fx": fx_idx
-        }
+        indexes = {"instruments": inst_idx, "fx": fx_idx}
         r_idx = inst_idx.append(fx_idx)
         c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
         df = DataFrame(None, index=r_idx, columns=c_idx)
@@ -1469,7 +1478,9 @@ class Solver(Gradients):
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
         if base is not None:
-            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(
+                axis=1
+            )
 
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols]
@@ -1487,7 +1498,9 @@ class Solver(Gradients):
                 warnings.warn(
                     "Solver contains an `fx` attribute but an `fx` argument has been "
                     "supplied which is not the same. This can lead to risk sensitivity "
-                    "inconsistencies, mathematically.", UserWarning)
+                    "inconsistencies, mathematically.",
+                    UserWarning,
+                )
         if base is not None:
             base = base.lower()
         return base, fx
@@ -1554,84 +1567,78 @@ class Solver(Gradients):
         container = {}
         for ccy in npv:
             container[(ccy, ccy)] = {}
-            container[(ccy, ccy)]["instruments", "instruments"] = (
-                self.grad_s_sT_Ploc(npv[ccy]) *
-                np.matmul(inst_scalar[:, None], inst_scalar[None, :])
-            )
-            container[(ccy, ccy)]["fx", "instruments"] = (
-                self.grad_f_sT_Ploc(npv[ccy], fx_vars) *
-                np.matmul(fx_scalar[:, None], inst_scalar[None, :])
-            )
-            container[(ccy, ccy)]["instruments", "fx"] = (
-                container[(ccy, ccy)][("fx", "instruments")].T
-            )
-            container[(ccy, ccy)]["fx", "fx"] = (
-                self.grad_f_fT_Ploc(npv[ccy], fx_vars) *
-                np.matmul(fx_scalar[:, None], fx_scalar[None, :])
-            )
+            container[(ccy, ccy)]["instruments", "instruments"] = self.grad_s_sT_Ploc(
+                npv[ccy]
+            ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
+            container[(ccy, ccy)]["fx", "instruments"] = self.grad_f_sT_Ploc(
+                npv[ccy], fx_vars
+            ) * np.matmul(fx_scalar[:, None], inst_scalar[None, :])
+            container[(ccy, ccy)]["instruments", "fx"] = container[(ccy, ccy)][
+                ("fx", "instruments")
+            ].T
+            container[(ccy, ccy)]["fx", "fx"] = self.grad_f_fT_Ploc(
+                npv[ccy], fx_vars
+            ) * np.matmul(fx_scalar[:, None], fx_scalar[None, :])
 
             if base is not None and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[(ccy, base)] = {}
-                container[(ccy, base)]["instruments", "instruments"] = (
-                        self.grad_s_sT_Pbase(
-                            npv[ccy],
-                            container[(ccy, ccy)]["instruments", "instruments"]
-                            / np.matmul(inst_scalar[:, None], inst_scalar[None, :]),
-                            f
-                        ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
+                container[(ccy, base)][
+                    "instruments", "instruments"
+                ] = self.grad_s_sT_Pbase(
+                    npv[ccy],
+                    container[(ccy, ccy)]["instruments", "instruments"]
+                    / np.matmul(inst_scalar[:, None], inst_scalar[None, :]),
+                    f,
+                ) * np.matmul(
+                    inst_scalar[:, None], inst_scalar[None, :]
                 )
-                container[(ccy, base)]["fx", "instruments"] = (
-                        self.grad_f_sT_Pbase(
-                            npv[ccy],
-                            container[(ccy, ccy)]["fx", "instruments"]
-                            / np.matmul(fx_scalar[:, None], inst_scalar[None, :]),
-                            f,
-                            fx_vars
-                        ) * np.matmul(fx_scalar[:, None], inst_scalar[None, :])
-                )
-                container[(ccy, base)]["instruments", "fx"] = (
-                    container[(ccy, base)][("fx", "instruments")].T
-                )
-                container[(ccy, base)]["fx", "fx"] = (
-                        self.grad_f_fT_Pbase(
-                            npv[ccy],
-                            container[(ccy, ccy)]["fx", "fx"]
-                            / np.matmul(fx_scalar[:, None], fx_scalar[None, :]),
-                            f,
-                            fx_vars
-                        ) * np.matmul(fx_scalar[:, None], fx_scalar[None, :])
-                )
+                container[(ccy, base)]["fx", "instruments"] = self.grad_f_sT_Pbase(
+                    npv[ccy],
+                    container[(ccy, ccy)]["fx", "instruments"]
+                    / np.matmul(fx_scalar[:, None], inst_scalar[None, :]),
+                    f,
+                    fx_vars,
+                ) * np.matmul(fx_scalar[:, None], inst_scalar[None, :])
+                container[(ccy, base)]["instruments", "fx"] = container[(ccy, base)][
+                    ("fx", "instruments")
+                ].T
+                container[(ccy, base)]["fx", "fx"] = self.grad_f_fT_Pbase(
+                    npv[ccy],
+                    container[(ccy, ccy)]["fx", "fx"]
+                    / np.matmul(fx_scalar[:, None], fx_scalar[None, :]),
+                    f,
+                    fx_vars,
+                ) * np.matmul(fx_scalar[:, None], fx_scalar[None, :])
 
         # construct the DataFrame from container with hierarchical indexes
         currencies = list(npv.keys())
         local_keys = [(ccy, ccy) for ccy in currencies]
         base_keys = [] if base is None else [(ccy, base) for ccy in currencies]
-        all_keys = sorted(list(set(local_keys+base_keys)))
+        all_keys = sorted(list(set(local_keys + base_keys)))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
-        idx_tuples = [
-            c + l for c in all_keys for l in inst_keys + fx_keys
-        ]
+        idx_tuples = [c + l for c in all_keys for l in inst_keys + fx_keys]
         ridx = MultiIndex.from_tuples(
             [key for key in idx_tuples],
-            names=["local_ccy", "display_ccy", "type", "solver", "label"]
+            names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
         if base is not None:
             ridx = ridx.append(
                 MultiIndex.from_tuples([("all", base) + l for l in inst_keys + fx_keys])
             )
         cidx = MultiIndex.from_tuples(
-            [l for l in inst_keys + fx_keys],
-            names=["type", "solver", "label"]
+            [l for l in inst_keys + fx_keys], names=["type", "solver", "label"]
         )
         df = DataFrame(None, index=ridx, columns=cidx)
         for key, d in container.items():
-            array = np.block([
-                [d[("instruments", "instruments")], d[("instruments", "fx")]],
-                [d[("fx", "instruments")], d[("fx", "fx")]]
-            ])
+            array = np.block(
+                [
+                    [d[("instruments", "instruments")], d[("instruments", "fx")]],
+                    [d[("fx", "instruments")], d[("fx", "fx")]],
+                ]
+            )
             locator = key + (slice(None), slice(None), slice(None))
             df.loc[locator, :] = array
 
@@ -1639,7 +1646,8 @@ class Solver(Gradients):
             # sum over all the base rows to aggregate
             gdf = (
                 df.loc[(currencies, base, slice(None), slice(None), slice(None)), :]
-                .groupby(level=[2, 3, 4]).sum()
+                .groupby(level=[2, 3, 4])
+                .sum()
             )
             gdf.index = MultiIndex.from_tuples([("all", base) + l for l in gdf.index])
             df.loc[("all", base, slice(None), slice(None), slice(None))] = gdf

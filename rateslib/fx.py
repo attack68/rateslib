@@ -12,6 +12,7 @@ from rateslib.dual import Dual, dual_solve, set_order
 from rateslib.defaults import plot
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve
+
 """
 .. ipython:: python
    :suppress:
@@ -24,6 +25,7 @@ from rateslib.curves import Curve, LineCurve
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 
 class FXRates:
     """
@@ -107,7 +109,7 @@ class FXRates:
         self,
         fx_rates: dict,
         settlement: Optional[datetime] = None,
-        base: Optional[str] = None
+        base: Optional[str] = None,
     ):
         self._ad = 1
         self.settlement = settlement
@@ -117,17 +119,21 @@ class FXRates:
             if isinstance(v, Dual):
                 return v
             return Dual(v, f"fx_{k.lower()}")
-        self.fx_rates = {
-            k.lower(): _convert_dual(k, v) for k, v in fx_rates.items()
-        }
+
+        self.fx_rates = {k.lower(): _convert_dual(k, v) for k, v in fx_rates.items()}
 
         # find currencies
         self.pairs = [k for k in self.fx_rates.keys()]
         self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
         self.currencies = {
-            k: i for i, k in enumerate(list(
-            dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs])
-        ))
+            k: i
+            for i, k in enumerate(
+                list(
+                    dict.fromkeys(
+                        [p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]
+                    )
+                )
+            )
         }
         self.currencies_list = list(self.currencies.keys())
         if base is None:
@@ -156,16 +162,16 @@ class FXRates:
         for i, pair in enumerate(self.pairs):
             domestic_idx = self.currencies[pair[:3]]
             foreign_idx = self.currencies[pair[3:]]
-            A[i+1, domestic_idx] = -1.0
-            A[i+1, foreign_idx] = 1 / self.fx_rates[pair]
-            b[i+1] = 0
+            A[i + 1, domestic_idx] = -1.0
+            A[i + 1, foreign_idx] = 1 / self.fx_rates[pair]
+            b[i + 1] = 0
         x = dual_solve(A, b[:, np.newaxis])[:, 0]
         self.fx_vector = x
 
         # solve fx_rates array
         self.fx_array = np.eye(self.q, dtype="object")
         for i in range(self.q):
-            for j in range(i+1, self.q):
+            for j in range(i + 1, self.q):
                 self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
@@ -202,9 +208,11 @@ class FXRates:
             return self.copy()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
-            {pair: self.rate(pair) if keep_ad else self.rate(pair).real
-             for pair in pairs},
-            self.settlement
+            {
+                pair: self.rate(pair) if keep_ad else self.rate(pair).real
+                for pair in pairs
+            },
+            self.settlement,
         )
         return restated_fx_rates
 
@@ -213,7 +221,7 @@ class FXRates:
         value: Union[Dual, float],
         domestic: str,
         foreign: Optional[str] = None,
-        on_error: str = "ignore"
+        on_error: str = "ignore",
     ):
         """
         Convert an amount of a domestic currency into a foreign currency.
@@ -254,7 +262,7 @@ class FXRates:
                 elif on_error == "warn":
                     warnings.warn(
                         f"'{ccy}' not in FXRates.currencies: returning None.",
-                        UserWarning
+                        UserWarning,
                     )
                     return None
                 else:
@@ -339,12 +347,7 @@ class FXRates:
                 _ += self._get_positions_from_delta(delta, pair[3:], base)
         return Series(_, index=self.currencies_list)
 
-    def _get_positions_from_delta(
-        self,
-        delta: float,
-        pair: str,
-        base: str
-    ):
+    def _get_positions_from_delta(self, delta: float, pair: str, base: str):
         """Return an array of cash positions determined from an FX pair delta risk."""
         b_idx = self.currencies[base]
         domestic, foreign = pair[:3], pair[3:]
@@ -493,7 +496,7 @@ class FXRates:
         # solve fx_rates array
         self.fx_array = np.eye(self.q, dtype="object")
         for i in range(self.q):
-            for j in range(i+1, self.q):
+            for j in range(i + 1, self.q):
                 self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
         for k, v in self.fx_rates.items():
             self.fx_rates[k] = set_order(v, order)
@@ -529,9 +532,9 @@ class FXRates:
         }
         return json.dumps(container, default=str)
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @classmethod
     def from_json(cls, fx_rates, **kwargs):
@@ -584,9 +587,7 @@ class FXRates:
 
     def copy(self):
         return FXRates(
-            fx_rates=self.fx_rates.copy(),
-            settlement=self.settlement,
-            base=self.base
+            fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base
         )
 
 
@@ -655,6 +656,7 @@ class FXForwards:
     base : str
     fx_rates_immediate : FXRates
     """
+
     def update(
         self,
         fx_rates: Optional[Union[FXRates, list[FXRates]]] = None,
@@ -808,7 +810,8 @@ class FXForwards:
                     # calculate additional FX rates from previous objects
                     # in the same settlement frame.
                     pre_currencies = [
-                        ccy for ccy in acyclic_fxf.currencies_list
+                        ccy
+                        for ccy in acyclic_fxf.currencies_list
                         if ccy not in fx_rates_obj.currencies_list
                     ]
                     pre_rates = {
@@ -819,14 +822,13 @@ class FXForwards:
                     }
                     combined_fx_rates = FXRates(
                         fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
-                        settlement=fx_rates_obj.settlement
+                        settlement=fx_rates_obj.settlement,
                     )
                     sub_curves = self._get_curves_for_currencies(
                         self.fx_curves, fx_rates_obj.currencies_list + pre_currencies
                     )
                     acyclic_fxf = FXForwards(
-                        fx_rates=combined_fx_rates,
-                        fx_curves=sub_curves
+                        fx_rates=combined_fx_rates, fx_curves=sub_curves
                     )
 
             if base is not None:
@@ -866,7 +868,9 @@ class FXForwards:
     @staticmethod
     def _get_curves_for_currencies(fx_curves, currencies):
         ps = product(currencies, currencies)
-        ret = {p[0]+p[1]: fx_curves[p[0]+p[1]] for p in ps if p[0]+p[1] in fx_curves}
+        ret = {
+            p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves
+        }
         return ret
 
     @staticmethod
@@ -959,7 +963,7 @@ class FXForwards:
             recursive_path.append({"col": search_idx})
             return True, recursive_path
 
-        for (axis, paths) in [("row", row_paths), ("col", col_paths)]:
+        for axis, paths in [("row", row_paths), ("col", col_paths)]:
             for path_idx in paths:
                 if path_idx == start_idx:
                     pass
@@ -974,9 +978,9 @@ class FXForwards:
 
         return False, recursive_path
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def _update_fx_rates_immediate(self):
         """
@@ -999,9 +1003,9 @@ class FXForwards:
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
                 pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update({
-                   pair: self.fx_rates.fx_array[row, col] * v_i / w_i
-                })
+                fx_rates_immediate.update(
+                    {pair: self.fx_rates.fx_array[row, col] * v_i / w_i}
+                )
 
         fx_rates_immediate = FXRates(fx_rates_immediate, self.immediate)
         return fx_rates_immediate.restate(self.fx_rates.pairs, keep_ad=True)
@@ -1055,6 +1059,7 @@ class FXForwards:
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
         """
+
         def _get_d_f_idx_and_path(pair, path: dict):
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx = self.fx_rates_immediate.currencies[domestic]
@@ -1075,8 +1080,10 @@ class FXForwards:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
                 return rate_, path
             return rate_
-        elif isinstance(self.fx_rates, FXRates) and \
-                settlement == self.fx_rates.settlement:
+        elif (
+            isinstance(self.fx_rates, FXRates)
+            and settlement == self.fx_rates.settlement
+        ):
             rate_ = self.fx_rates.rate(pair)
             if return_path:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
@@ -1108,12 +1115,7 @@ class FXForwards:
             return rate_, path
         return rate_
 
-    def positions(
-        self,
-        value,
-        base: Optional[str] = None,
-        aggregate: bool = False
-    ):
+    def positions(self, value, base: Optional[str] = None, aggregate: bool = False):
         """
         Convert a base value with FX rate sensitivities into an array of cash positions
         by settlement date.
@@ -1170,7 +1172,7 @@ class FXForwards:
         dates = list({fxr.settlement for fxr in fx_rates})
         if self.immediate not in dates:
             dates.insert(0, self.immediate)
-        df = DataFrame(0., index=self.currencies_list, columns=dates)
+        df = DataFrame(0.0, index=self.currencies_list, columns=dates)
         df.loc[base, self.immediate] = float(value)
         for pair in value.vars:
             if pair[:3] == "fx_":
@@ -1180,7 +1182,7 @@ class FXForwards:
                         delta = value.gradient(pair)[0]
                         _ = fxr._get_positions_from_delta(delta, pair[3:], base)
                         _ = Series(_, index=fxr.currencies_list, name=fxr.settlement)
-                        df = df.add(_.to_frame(), fill_value=0.)
+                        df = df.add(_.to_frame(), fill_value=0.0)
 
         if aggregate:
             return df.sum(axis=1)
@@ -1195,7 +1197,7 @@ class FXForwards:
         settlement: Optional[datetime] = None,
         value_date: Optional[datetime] = None,
         collateral: Optional[str] = None,
-        on_error: str = "ignore"
+        on_error: str = "ignore",
     ):
         """
         Convert an amount of a domestic currency, as of a settlement date
@@ -1258,7 +1260,7 @@ class FXForwards:
                 elif on_error == "warn":
                     warnings.warn(
                         f"'{ccy}' not in FXForwards.currencies: returning None.",
-                        UserWarning
+                        UserWarning,
                     )
                     return None
                 else:
@@ -1333,8 +1335,7 @@ class FXForwards:
             array_ = array
         else:
             array_ = DataFrame(
-                {self.immediate: np.asarray(array)},
-                index=self.currencies_list
+                {self.immediate: np.asarray(array)}, index=self.currencies_list
             )
 
         # j = self.currencies[base]
@@ -1412,16 +1413,17 @@ class FXForwards:
         days = (end - self.immediate).days
         nodes = {
             k: (
-                self.rate(f"{cash_ccy}{coll_ccy}", k, path=path) /
-                self.fx_rates_immediate.fx_array[cash_idx, coll_idx] *
-                self.fx_curves[f"{coll_ccy}{coll_ccy}"][k]
-            ) for k in [self.immediate + timedelta(days=i) for i in range(days+1)]
+                self.rate(f"{cash_ccy}{coll_ccy}", k, path=path)
+                / self.fx_rates_immediate.fx_array[cash_idx, coll_idx]
+                * self.fx_curves[f"{coll_ccy}{coll_ccy}"][k]
+            )
+            for k in [self.immediate + timedelta(days=i) for i in range(days + 1)]
         }
         return Curve(nodes)
 
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def curve(
         self,
@@ -1535,14 +1537,14 @@ class FXForwards:
         else:
             raise ValueError("`right` must be supplied as datetime or tenor string.")
 
-        points : int = (right_ - left_).days
+        points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
         _, path = self.rate(pair, x[0], return_path=True)
         rates = [self.rate(pair, _, path=path) for _ in x]
         if not fx_swap:
             y = [rates]
         else:
-            y = [(rate - rates[0])*10000 for rate in rates]
+            y = [(rate - rates[0]) * 10000 for rate in rates]
         return plot(x, y)
 
     def _set_ad_order(self, order):
@@ -1565,7 +1567,7 @@ class FXForwards:
         container = {
             "base": self.base,
             "fx_rates": fx_rates,
-            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()}
+            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},
         }
         return json.dumps(container, default=str)
 
@@ -1683,6 +1685,7 @@ class ProxyCurve(Curve):
     efficiently from the combination of curves and FX rates that are available within
     the given :class:`FXForwards` instance.
     """
+
     def __init__(
         self,
         cashflow: str,
@@ -1705,15 +1708,21 @@ class ProxyCurve(Curve):
         self.path = self.fx_forwards._get_recursive_chain(
             self.fx_forwards.transform, self.coll_idx, self.cash_idx
         )[1]
-        self.terminal = list(
-            self.fx_forwards.fx_curves[self.cash_pair].nodes.keys()
-        )[-1]
+        self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[
+            -1
+        ]
 
         default_curve = Curve(
             {},
-            convention=self.fx_forwards.fx_curves[self.cash_pair].convention if convention is None else convention,
-            modifier=self.fx_forwards.fx_curves[self.cash_pair].modifier if modifier is False else modifier,
-            calendar=self.fx_forwards.fx_curves[self.cash_pair].calendar if calendar is False else calendar,
+            convention=self.fx_forwards.fx_curves[self.cash_pair].convention
+            if convention is None
+            else convention,
+            modifier=self.fx_forwards.fx_curves[self.cash_pair].modifier
+            if modifier is False
+            else modifier,
+            calendar=self.fx_forwards.fx_curves[self.cash_pair].calendar
+            if calendar is False
+            else calendar,
         )
         self.convention = default_curve.convention
         self.modifier = default_curve.modifier
@@ -1722,9 +1731,9 @@ class ProxyCurve(Curve):
 
     def __getitem__(self, date: datetime):
         return (
-            self.fx_forwards.rate(self.pair, date, path=self.path) /
-            self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx] *
-            self.fx_forwards.fx_curves[self.coll_pair][date]
+            self.fx_forwards.rate(self.pair, date, path=self.path)
+            / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
+            * self.fx_forwards.fx_curves[self.coll_pair][date]
         )
 
     def to_json(self):  # pragma: no cover
@@ -1745,6 +1754,7 @@ class ProxyCurve(Curve):
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         return NotImplementedError("`set_ad_order` not available on proxy curve.")
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
