@@ -36,7 +36,7 @@ class DualBase(metaclass=ABCMeta):
         if not isinstance(argument, type(self)):
             if not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
-            argument = type(self)(argument)
+            argument = type(self)(float(argument))
         if float(self) < float(argument):
             return True
         return False
@@ -46,7 +46,7 @@ class DualBase(metaclass=ABCMeta):
         if not isinstance(argument, type(self)):
             if not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
-            argument = type(self)(argument)
+            argument = type(self)(float(argument))
         if float(self) > float(argument):
             return True
         return False
@@ -56,7 +56,7 @@ class DualBase(metaclass=ABCMeta):
         if not isinstance(argument, type(self)):
             if not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
-            argument = type(self)(argument)
+            argument = type(self)(float(argument))
         if self.vars == argument.vars:
             return self.__eq_coeffs__(argument)
         else:
@@ -413,7 +413,7 @@ class Dual(DualBase):
             if isinstance(argument, np.ndarray):
                 return argument + self
             elif isinstance(argument, (*FLOATS, *INTS)):
-                return Dual(self.real + argument, self.vars, self.dual)
+                return Dual(self.real + float(argument), self.vars, self.dual)
             raise TypeError("Dual operations defined between float, int or Dual.")
 
         if self.vars == argument.vars:
@@ -435,7 +435,9 @@ class Dual(DualBase):
             if isinstance(argument, np.ndarray):
                 return argument * self
             elif isinstance(argument, (*FLOATS, *INTS)):
-                return Dual(self.real * argument, self.vars, self.dual * argument)
+                return Dual(
+                    self.real * float(argument), self.vars, self.dual * float(argument)
+                )
             raise TypeError("Dual operations defined between float, int or Dual.")
 
         if self.vars == argument.vars:
@@ -456,7 +458,9 @@ class Dual(DualBase):
                 return argument.__rtruediv__(self)
             if not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError("Dual operations defined between float, int or Dual.")
-            return Dual(self.real / argument, self.vars, self.dual / argument)
+            return Dual(
+                self.real / float(argument), self.vars, self.dual / float(argument)
+            )
         if self.vars == argument.vars:
             return self * argument**-1
         else:
@@ -466,15 +470,16 @@ class Dual(DualBase):
     def __rtruediv__(self, argument):
         if not isinstance(argument, (*FLOATS, *INTS)):
             raise TypeError("Dual operations defined between float, int or Dual.")
-        numerator = Dual(argument)
+        numerator = Dual(float(argument))
         return numerator / self
 
     def __pow__(self, power):
         if isinstance(power, (*FLOATS, *INTS)):
+            pow: float = float(power)
             return Dual(
-                self.real**power,
+                self.real**pow,
                 self.vars,
-                self.dual * power * self.real ** (power - 1),
+                self.dual * pow * self.real ** (pow - 1),
             )
         elif isinstance(power, np.ndarray):
             return power.__rpow__(self)

@@ -99,8 +99,8 @@ class Defaults:
 
 
 def plot(x, y: list, labels=[]):
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt  # type: ignore[import]
+    import matplotlib.dates as mdates  # type: ignore[import]
 
     fig, ax = plt.subplots(1, 1)
     lines = []

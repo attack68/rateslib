@@ -359,7 +359,7 @@ def add_tenor(
         return _add_days(start, int(tenor[:-1]), modifier, calendar)
     elif "B" in tenor:
         calendar_: CustomBusinessDay = get_calendar(calendar)  # type: ignore[assignment]
-        return (start + int(float(tenor[:-1])) * calendar_).to_pydatetime()
+        return (start + int(float(tenor[:-1])) * calendar_).to_pydatetime()  # type: ignore[attr-defined]
     elif "Y" in tenor:
         return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar)
     elif "M" in tenor:

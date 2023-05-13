@@ -32,7 +32,7 @@ from pandas import DataFrame, date_range, Series, NA, isna
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf
 from rateslib.curves import Curve, LineCurve, IndexCurve
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -230,9 +230,9 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        return fx * self.notional * self.dcf * disc_curve[self.payment] / 10000
+        return fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
 
     @abstractmethod
     def cashflows(
@@ -746,7 +746,7 @@ class FloatPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: Curve,
+        curve: Optional[Curve] = None,
         disc_curve: Optional[Curve] = None,
         fx: Union[float, FXRates, FXForwards] = 1.0,
         base: Optional[str] = None,
@@ -754,14 +754,17 @@ class FloatPeriod(BasePeriod):
         if self.spread_compound_method == "none_simple" or self.float_spread == 0:
             # then analytic_delta is not impacted by float_spread compounding
             dr_dz = 1.0
-
-        else:
+        elif isinstance(curve, Curve):
             _ = self.float_spread
             DualType = Dual if curve.ad in [0, 1] else Dual2
             self.float_spread = DualType(float(_), "z_float_spread")
             rate = self.rate(curve)
             dr_dz = rate.gradient("z_float_spread")[0] * 100
             self.float_spread = _
+        else:
+            raise TypeError(
+                "`curve` must be supplied for given `spread_compound_method`"
+            )
 
         return dr_dz * super().analytic_delta(curve, disc_curve, fx, base)
 
@@ -1013,7 +1016,7 @@ class FloatPeriod(BasePeriod):
                         "`fixings` as a Series must have a monotonically increasing "
                         "datetimeindex."
                     )
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
                 rates.loc[fixing_rates.index] = fixing_rates
 
                 # basic error checking for missing fixings and provide warning.
@@ -1437,8 +1440,14 @@ class Cashflow:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class IndexMixin:
-    def cashflow(self, curve: IndexCurve):
+class IndexMixin(metaclass=ABCMeta):
+    index_base: float = 0.0
+    index_method: str = ""
+    index_fixings: Optional[Union[float, Series]] = None
+    payment: datetime = datetime(1990, 1, 1)
+    currency: str = ""
+
+    def cashflow(self, curve: IndexCurve) -> DualTypes:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
@@ -1446,7 +1455,7 @@ class IndexMixin:
         _ = self.real_cashflow * self.rate(curve) / self.index_base
         return _
 
-    def rate(self, curve: IndexCurve):
+    def rate(self, curve: IndexCurve) -> DualTypes:
         """
         Project an index rate for the cashflow payment date.
 
@@ -1472,9 +1481,8 @@ class IndexMixin:
                     return self.index_fixings[adj_date]
                 except KeyError:
                     s = self.index_fixings.copy()
-                    s.loc[adj_date] = np.NaN
+                    s.loc[adj_date] = np.NaN  # type: ignore[call-overload]
                     return s.sort_index().interpolate("linear")[adj_date]
-
             else:
                 return self.index_fixings
 
@@ -1498,8 +1506,13 @@ class IndexMixin:
         else:
             return fx * value
 
+    @property
+    @abstractmethod
+    def real_cashflow(self):
+        pass
 
-class IndexFixedPeriod(IndexMixin, FixedPeriod):
+
+class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     """
     Create a period defined with a real rate adjusted by an index.
 
@@ -1524,9 +1537,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
     def __init__(
         self,
         *args,
-        index_base: Optional[float] = None,
+        index_base: float,
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = "daily",
+        index_method: str = "daily",
         **kwargs,
     ):
         self.index_base = index_base
@@ -1534,7 +1547,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         self.index_method = index_method.lower()
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
-        super().__init__(*args, **kwargs)
+        super(IndexMixin, self).__init__(*args, **kwargs)
 
     def analytic_delta(
         self,
@@ -1590,13 +1603,13 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         }
 
 
-class IndexCashflow(IndexMixin, Cashflow):
+class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def __init__(
         self,
         *args,
-        index_base: Optional[float] = None,
+        index_base: float,
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = "daily",
+        index_method: str = "daily",
         **kwargs,
     ):
         self.index_base = index_base
