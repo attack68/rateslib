@@ -2046,11 +2046,19 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
 
                     _1 = -c / b
                     if abs(a) > 1e-14:
-                        _2 = (-b - (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)
-                        # _2a = (-b + (b**2 - 4*a*c)**0.5) / (2*a)  # alt quadratic soln
-                        _ = _2
-                    else:
+                        _2a = (-b - (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)
+                        _2b = (-b + (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)  # alt soln
+                        if abs(_1 - _2a) < abs(_1 - _2b):
+                            _ = _2a
+                        else:
+                            _ = _2b  # select quadratic soln
+                    else:  # pragma: no cover
+                        # this is to avoid div by zero err and return an approximation
                         _ = _1
+                        warnings.warn(
+                            "Divide by zero encountered and the spread is approximated "
+                            "to first order.", UserWarning
+                        )
                     _ += 0. if _fs is None else _fs
 
                     self.float_spread = _fs

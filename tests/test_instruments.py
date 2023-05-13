@@ -1708,6 +1708,52 @@ class TestFloatRateBond:
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
 
+    @pytest.mark.parametrize("metric, exp", [
+        ("fwd_clean_price", 100),
+        ("fwd_dirty_price", 100),
+    ])
+    def test_float_rate_bond_forward_prices(self, metric, exp):
+        bond = FloatRateBond(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=0,
+            fixing_method="rfr_observation_shift",
+            method_param=5,
+            spread_compound_method="none_simple",
+            settle=2
+        )
+        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
+        disc_curve = curve.shift(0)
+
+        result = bond.rate(
+            curves=[curve, disc_curve],
+            metric=metric,
+            forward_settlement=dt(2010, 8, 1)
+        )
+        assert abs(result - exp) < 1e-8
+
+    def test_float_rate_bond_forward_accrued(self):
+        bond = FloatRateBond(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=0,
+            fixing_method="rfr_observation_shift",
+            method_param=5,
+            spread_compound_method="none_simple",
+            settle=2
+        )
+        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
+        disc_curve = curve.shift(0)
+        result = bond.accrued(dt(2010, 8, 1))
+        expected = 1.
+        assert abs(result - expected) < 1e-8
+
 
 class TestBondFuture:
 
