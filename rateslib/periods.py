@@ -809,7 +809,7 @@ class FloatPeriod(BasePeriod):
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
         if self.payment < disc_curve.node_dates[0]:
-            return 0.  # payment date is in the past avoid issues with fixings or rates
+            return 0.0  # payment date is in the past avoid issues with fixings or rates
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)
@@ -1436,7 +1436,6 @@ class Cashflow:
 
 
 class IndexMixin:
-
     def cashflow(self, curve: IndexCurve):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
@@ -1590,7 +1589,6 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
 
 class IndexCashflow(IndexMixin, Cashflow):
-
     def __init__(
         self,
         *args,
