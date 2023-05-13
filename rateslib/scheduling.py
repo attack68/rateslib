@@ -228,12 +228,14 @@ class Schedule:
 
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination = add_tenor(effective, termination, None, None)
+            termination_: datetime = add_tenor(effective, termination, None, None)
+        else:
+            termination_ = termination
 
-        if termination <= effective:
+        if termination_ <= effective:
             raise ValueError("`termination` must be after `effective`.")
         self.effective: datetime = effective
-        self.termination: datetime = termination
+        self.termination: datetime = termination_
 
         if frequency == "Z":
             self.ueffective = None
@@ -265,7 +267,7 @@ class Schedule:
                 else:
                     valid, parsed_args = _infer_stub_date(
                         effective,
-                        termination,
+                        termination_,
                         frequency,
                         stub,
                         front_stub,
@@ -287,7 +289,7 @@ class Schedule:
                 if back_stub is None:
                     valid, parsed_args = _infer_stub_date(
                         effective,
-                        termination,
+                        termination_,
                         frequency,
                         stub,
                         front_stub,
@@ -320,7 +322,7 @@ class Schedule:
                         raise ValueError("date, stub and roll inputs are invalid")
                     else:
                         self.ueffective = effective
-                        self.utermination = termination
+                        self.utermination = termination_
                         self.front_stub = parsed_args["ueffective"]
                         self.back_stub = parsed_args["utermination"]
                         self.roll = parsed_args["roll"]
@@ -329,7 +331,7 @@ class Schedule:
                 if back_stub is None:
                     valid, parsed_args = _infer_stub_date(
                         effective,
-                        termination,
+                        termination_,
                         frequency,
                         stub,
                         front_stub,
@@ -354,7 +356,7 @@ class Schedule:
                     # check regular swap and populate attibutes
                     valid, parsed_args = _check_regular_swap(
                         front_stub,
-                        termination,
+                        termination_,
                         frequency,
                         self.modifier,
                         eom,
@@ -377,7 +379,7 @@ class Schedule:
                 if back_stub is None:
                     valid, parsed_args = _infer_stub_date(
                         effective,
-                        termination,
+                        termination_,
                         frequency,
                         stub,
                         front_stub,
@@ -410,7 +412,7 @@ class Schedule:
                         raise ValueError("date, stub and roll inputs are invalid")
                     else:
                         self.ueffective = parsed_args["ueffective"]
-                        self.utermination = termination
+                        self.utermination = termination_
                         self.front_stub = None
                         self.back_stub = parsed_args["utermination"]
                         self.roll = parsed_args["roll"]
@@ -721,7 +723,7 @@ def _check_regular_swap(
     modifier: Optional[str],
     eom: bool,
     roll: Optional[Union[str, int]],
-    calendar: Optional[CustomBusinessDay],
+    calendar: CustomBusinessDay,
 ):
     """
     Tests whether the given the parameters define a regular leg schedule without stubs.
@@ -803,7 +805,7 @@ def _infer_stub_date(
     modifier: Optional[str],
     eom: bool,
     roll: Optional[Union[str, int]],
-    calendar: Optional[CustomBusinessDay],
+    calendar: CustomBusinessDay,
 ) -> tuple[bool, Any]:
     """
     Attempts to infer either a front or back stub in an unspecified schedule.
@@ -849,6 +851,7 @@ def _infer_stub_date(
     """
     if "FRONT" in stub and "BACK" in stub:  # stub is dual sided
         if front_stub is None:
+            assert isinstance(back_stub, datetime)
             valid, parsed_args = _check_regular_swap(
                 effective, back_stub, frequency, modifier, eom, roll, calendar
             )
@@ -1186,7 +1189,7 @@ def _generate_regular_schedule_unadjusted(
 
 
 def _get_unadjusted_date_alternatives(
-    date: datetime, modifier: str, cal: CustomBusinessDay
+    date: datetime, modifier: Optional[str], cal: CustomBusinessDay
 ):
     """
     Return all possible unadjusted dates that result in given date under modifier/cal.
@@ -1195,7 +1198,7 @@ def _get_unadjusted_date_alternatives(
     ----------
     date : Datetime
         Date to test.
-    modifier : str
+    modifier : str, optional
         |modifier|
     calendar : Calendar
         |calendar|
@@ -1267,6 +1270,7 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
         date = _get_imm(month, year)
     else:
         try:
+            assert isinstance(roll, int)
             date = datetime(year, month, roll)
         except ValueError:  # day is out of range for month, i.e. 30 or 31
             date = _get_eom(month, year)

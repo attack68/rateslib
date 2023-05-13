@@ -6,7 +6,7 @@ from pandas.testing import assert_index_equal
 from datetime import datetime as dt
 
 import context
-from rateslib.defaults import Defaults
+from rateslib.default import Defaults
 from rateslib.calendars import create_calendar
 from rateslib.scheduling import (
     _check_unadjusted_regular_swap,

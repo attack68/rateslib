@@ -20,7 +20,7 @@ from rateslib.legs import (
     Cashflow,
 )
 from rateslib.fx import FXRates, FXForwards
-from rateslib.defaults import Defaults
+from rateslib.default import Defaults
 from rateslib.curves import Curve
 
 

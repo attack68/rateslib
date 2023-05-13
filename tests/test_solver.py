@@ -7,7 +7,7 @@ from numpy.testing import assert_allclose
 from math import log, exp
 
 import context
-from rateslib import defaults, default_context
+from rateslib import default_context
 from rateslib.curves import Curve, index_left, LineCurve
 from rateslib.solver import Solver
 from rateslib.dual import Dual

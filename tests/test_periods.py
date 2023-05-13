@@ -10,7 +10,7 @@ from rateslib.periods import (
     Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod, IndexCashflow
 )
 from rateslib.fx import FXRates
-from rateslib.defaults import Defaults
+from rateslib.default import Defaults
 from rateslib.curves import Curve, LineCurve, IndexCurve
 
 

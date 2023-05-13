@@ -9,7 +9,7 @@ import json
 
 from rateslib import defaults
 from rateslib.dual import Dual, dual_solve, set_order
-from rateslib.defaults import plot
+from rateslib.default import plot
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve
 

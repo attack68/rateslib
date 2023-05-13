@@ -1335,7 +1335,6 @@ class Cashflow:
     notional : float
     payment : Datetime
     stub_type : str
-    rate : float
 
     Notes
     -----
@@ -1357,6 +1356,9 @@ class Cashflow:
         self.rate_ = rate if rate is None else float(rate)
 
     def rate(self):
+        """
+        The rate of the cashflow (nominal only - not used in calculations)
+        """
         return self.rate_
 
     def npv(

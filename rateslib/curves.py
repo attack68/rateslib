@@ -19,7 +19,7 @@ from math import floor
 from rateslib import defaults
 from rateslib.dual import Dual, Dual2, dual_log, dual_exp
 from rateslib.splines import PPSpline
-from rateslib.defaults import plot
+from rateslib.default import plot
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 
 

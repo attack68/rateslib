@@ -17,7 +17,7 @@ Indices and tables
 Defaults
 ---------
 
-.. automodapi:: rateslib.defaults
+.. automodapi:: rateslib.default
    :no-heading:
    :no-inheritance-diagram:
    :skip: plot
@@ -121,6 +121,7 @@ Periods
 .. automodapi:: rateslib.periods
    :no-heading:
    :skip: ABCMeta
+   :skip: IndexCurve
    :skip: Curve
    :skip: CustomBusinessDay
    :skip: DataFrame
@@ -162,7 +163,6 @@ Instruments
    :skip: sqrt
    :skip: abstractmethod
    :skip: add_tenor
-   :skip: brentq
    :skip: concat
    :skip: date_range
    :skip: dcf

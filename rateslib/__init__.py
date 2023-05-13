@@ -12,7 +12,7 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.defaults import Defaults
+from rateslib.default import Defaults
 
 defaults = Defaults()
 
