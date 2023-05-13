@@ -3538,7 +3538,6 @@ class Swap(IRS):
 
 
 class ZCS(BaseDerivative):
-
     _fixed_rate_mixin = True
     _leg2_float_spread_mixin = True
 
@@ -4520,7 +4519,6 @@ class BaseXCS(BaseDerivative):
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
         if tgt_leg._is_linear:
-
             if not _is_float_tgt_leg and getattr(self, f"{tgt_str}fixed_rate") is None:
                 # set the target fixed leg to a null fixed rate for calculation
                 tgt_leg.fixed_rate = 0.0
