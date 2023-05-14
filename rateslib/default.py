@@ -84,6 +84,9 @@ class Defaults:
         "cashflow": "Cashflow",
         "fx": "FX Rate",
         "npv_fx": "NPV Ccy",
+        "real_cashflow": "Real Cashflow",
+        "index_value": "Index Val",
+        "index_ratio": "Index Ratio",
     }
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"

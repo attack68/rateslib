@@ -73,6 +73,8 @@ Dual (for AD)
 .. automodapi:: rateslib.dual
    :no-heading:
    :skip: isclose
+   :skip: abstractmethod
+   :skip: ABCMeta
 
 Curves
 ------
@@ -152,6 +154,8 @@ Legs
    :skip: FixedPeriod
    :skip: FloatPeriod
    :skip: Schedule
+   :skip: IndexCashflow
+   :skip: IndexFixedPeriod
 
 Instruments
 -----------

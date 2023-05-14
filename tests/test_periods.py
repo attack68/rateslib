@@ -1078,6 +1078,9 @@ class TestIndexFixedPeriod:
             "Rate": 4.0,
             "Spread": None,
             "Cashflow": -20000000.0,
+            "Real Cashflow": -10e6,
+            "Index Val": 200.0,
+            "Index Ratio": 2.0,
             "NPV": -19795582.53779571 if curve_ else None,
             "FX Rate": 1.0,
             "NPV Ccy": -19795582.53779571 if curve_ else None,
@@ -1088,7 +1091,9 @@ class TestIndexFixedPeriod:
 class TestIndexCashflow:
 
     def test_cashflow_analytic_delta(self, curve):
-        cashflow = IndexCashflow(notional=1e6, payment=dt(2022, 1, 1))
+        cashflow = IndexCashflow(
+            notional=1e6, payment=dt(2022, 1, 1), index_base=100
+        )
         assert cashflow.analytic_delta(curve) == 0
 
     def test_index_cashflow(self):

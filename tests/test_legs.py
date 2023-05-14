@@ -15,13 +15,14 @@ from rateslib.legs import (
     CustomLeg,
     FloatLegExchange,
     FixedLegExchange,
+    IndexFixedLegExchange,
     FloatLegExchangeMtm,
     FixedLegExchangeMtm,
     Cashflow,
 )
 from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
-from rateslib.curves import Curve
+from rateslib.curves import Curve, IndexCurve
 
 
 @pytest.fixture()
@@ -564,56 +565,67 @@ class TestFixedLeg:
         assert fixed_leg.periods[0].fixed_rate == 2.0
 
 
-class TestFixedLegExchange:
+class TestIndexFixedLegExchange:
 
-    def test_fixed_leg_exchange_notional_setter(self):
-        fixed_leg_exc = FixedLegExchange(
-            effective=dt(2022, 1, 1),
-            termination=dt(2022, 6, 1),
-            payment_lag=2,
-            notional=-1e9,
-            convention="Act360",
+    @pytest.mark.parametrize("i_fixings", [
+        None,
+    ])
+    def test_idx_leg_cashflows(self, i_fixings):
+        leg = IndexFixedLegExchange(
+            effective=dt(2022, 3, 15),
+            termination="9M",
             frequency="Q",
+            convention="ActActICMA",
+            payment_lag=0,
+            notional=40e6,
+            fixed_rate=5.0,
+            index_base=200.0,
+            index_fixings=i_fixings,
+            initial_exchange=False,
         )
-        fixed_leg_exc.notional = 200
-        assert fixed_leg_exc.notional == 200
-
-    def test_fixed_leg_exchange_amortization_setter(self):
-        fixed_leg_exc = FixedLegExchange(
-            effective=dt(2022, 1, 1),
-            termination=dt(2022, 10, 1),
-            payment_lag=2,
-            notional=-1000,
-            convention="Act360",
-            frequency="Q",
+        index_curve = IndexCurve(
+            nodes={
+                dt(2022, 3, 15): 1.0,
+                dt(2022, 6, 15): 1.0 / 1.05,
+                dt(2022, 9, 15): 1.0 / 1.10,
+                dt(2022, 12, 15): 1.0 / 1.15,
+            },
+            index_base=200.0
         )
-        fixed_leg_exc.amortization = -200
+        disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
+        flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
 
-        cashflows = [2, 4, 6]
-        cash_notionals = [None, -200, None, -200, None, -600]
-        fixed_notionals = [None, -1000, None, -800, None, -600]
-        for i in cashflows:
-            assert isinstance(fixed_leg_exc.periods[i], Cashflow)
-            assert fixed_leg_exc.periods[i].notional == cash_notionals[i - 1]
+        def equals_with_tol(a, b):
+            if isinstance(a, str):
+                return a == b
+            else:
+                return abs(a-b) < 1e-7
 
-            assert isinstance(fixed_leg_exc.periods[i - 1], FixedPeriod)
-            assert fixed_leg_exc.periods[i - 1].notional == fixed_notionals[i - 1]
+        expected = {
+            "Type": "IndexFixedPeriod",
+            "DCF": 0.250,
+            "Notional": 40e6,
+            "Rate": 5.0,
+            "Real Cashflow": -500e3,
+            "Index Val": 230.0,
+            "Index Ratio": 1.15,
+            "Cashflow": -575000,
+        }
+        flow = flows.iloc[2].to_dict()
+        for key in set(expected.keys()) & set(flow.keys()):
+            assert equals_with_tol(expected[key], flow[key])
 
-    def test_fixed_leg_exchange_set_fixed_rate(self):
-        fixed_leg_exc = FixedLegExchange(
-            effective=dt(2022, 1, 1),
-            termination=dt(2022, 10, 1),
-            payment_lag=2,
-            notional=-1000,
-            convention="Act360",
-            frequency="Q",
-        )
-        assert fixed_leg_exc.fixed_rate is None
-        fixed_leg_exc.fixed_rate = 2.0
-        assert fixed_leg_exc.fixed_rate == 2.0
-        for period in fixed_leg_exc.periods:
-            if isinstance(period, FixedPeriod):
-                period.fixed_rate == 2.0
+        final_flow = flows.iloc[3].to_dict()
+        expected = {
+            "Type": "IndexCashflow",
+            "Notional": 40e6,
+            "Real Cashflow": -40e6,
+            "Index Val": 230.0,
+            "Index Ratio": 1.15,
+            "Cashflow": -46e6,
+        }
+        for key in set(expected.keys()) & set(final_flow.keys()):
+            assert equals_with_tol(expected[key], final_flow[key])
 
 
 class TestFloatLegExchangeMtm:

@@ -232,7 +232,8 @@ class BasePeriod(metaclass=ABCMeta):
         """
         disc_curve_: Curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        return fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
+        _ = fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
+        return _
 
     @abstractmethod
     def cashflows(
@@ -1400,6 +1401,11 @@ class Cashflow:
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
 
+        try:
+            cashflow_ = float(self.cashflow)
+        except TypeError:  # cashflow in superclass not a property
+            cashflow_ = None
+
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: self.stub_type,
@@ -1415,7 +1421,7 @@ class Cashflow:
             else float(disc_curve[self.payment]),
             defaults.headers["rate"]: self.rate(),
             defaults.headers["spread"]: None,
-            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -1447,15 +1453,17 @@ class IndexMixin(metaclass=ABCMeta):
     payment: datetime = datetime(1990, 1, 1)
     currency: str = ""
 
-    def cashflow(self, curve: IndexCurve) -> DualTypes:
+    def cashflow(self, curve: IndexCurve) -> Optional[DualTypes]:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
         """
+        if self.real_cashflow is None:
+            return None
         _ = self.real_cashflow * self.rate(curve) / self.index_base
         return _
 
-    def rate(self, curve: IndexCurve) -> DualTypes:
+    def rate(self, curve: Optional[IndexCurve] = None) -> Optional[DualTypes]:
         """
         Project an index rate for the cashflow payment date.
 
@@ -1468,6 +1476,8 @@ class IndexMixin(metaclass=ABCMeta):
         float, Dual, Dual2
         """
         if self.index_fixings is None:
+            if curve is None:
+                return None
             # forecast inflation index from curve
             return curve.index_value(self.payment, self.index_method)
         else:
@@ -1530,6 +1540,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         period. If a datetime indexed ``Series`` will use the
         fixings that are available in that object, and derive the rest from the
         ``curve``.
+    index_method : str
+        Whether the indexing uses a daily measure for settlement or the most recently
+        monthly data taken from the first day of month.
     kwargs : dict
         Required keyword arguments to :class:`FixedPeriod`.
     """
@@ -1557,7 +1570,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         base: Optional[str] = None,
     ):
         real_a_delta = super().analytic_delta(curve, disc_curve, fx, base)
-        return real_a_delta * self.rate(curve) / self.index_base
+        _ = real_a_delta * self.rate(curve) / self.index_base
+        return _
 
     @property
     def real_cashflow(self):
@@ -1591,12 +1605,23 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
 
-        cashflow = None if self.cashflow(curve) is None else float(self.cashflow(curve))
+        cashflow_ = self.cashflow(curve)
+        cashflow_ = None if cashflow_ is None else float(cashflow_)
+
+        index_ = self.rate(curve)
+        if index_ is None:
+            index_ratio_ = None
+        else:
+            index_ratio_ = index_ /self.index_base
+
         return {
             **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
-            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["real_cashflow"]: self.real_cashflow,
+            defaults.headers["index_value"]: index_,
+            defaults.headers["index_ratio"]: index_ratio_,
+            defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -1604,6 +1629,29 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
 
 
 class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
+    """
+    Create a cashflow defined with a real rate adjusted by an index.
+
+    When used with inflation products this defines a real redemption with a
+    cashflow adjusted upwards by the inflation index.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`Cashflow`.
+    index_base : float or None, optional
+        The base index to determine the cashflow.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the whole
+        period. If a datetime indexed ``Series`` will use the
+        fixings that are available in that object, and derive the rest from the
+        ``curve``.
+    index_method : str
+        Whether the indexing uses a daily measure for settlement or the most recently
+        monthly data taken from the first day of month.
+    kwargs : dict
+        Required keyword arguments to :class:`Cashflow`.
+    """
     def __init__(
         self,
         *args,
@@ -1620,3 +1668,25 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     @property
     def real_cashflow(self):
         return -self.notional
+
+    def cashflows(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ) -> dict:
+
+        index_ = self.rate(curve)
+        if index_ is None:
+            index_ratio_ = None
+        else:
+            index_ratio_ = index_ / self.index_base
+
+        return {
+            **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
+            defaults.headers["real_cashflow"]: self.real_cashflow,
+            defaults.headers["index_value"]: index_,
+            defaults.headers["index_ratio"]: index_ratio_,
+            defaults.headers["cashflow"]: self.cashflow(curve),
+        }

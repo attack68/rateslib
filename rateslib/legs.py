@@ -33,9 +33,11 @@ from rateslib.calendars import add_tenor
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve
 from rateslib.periods import (
+    IndexFixedPeriod,
     FixedPeriod,
     FloatPeriod,
     Cashflow,
+    IndexCashflow,
     _validate_float_args,
     _get_fx_and_base,
 )
@@ -954,7 +956,7 @@ class BaseLegExchange(BaseLeg):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FixedLegExchange(BaseLegExchange, FixedLegMixin):
+class FixedLegExchange(FixedLegMixin, BaseLegExchange):
     """
     Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial and final
     :class:`~rateslib.periods.Cashflow` s.
@@ -984,12 +986,12 @@ class FixedLegExchange(BaseLegExchange, FixedLegMixin):
     :class:`~rateslib.legs.FloatLegExchange`.
     """
 
-    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
+    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs) -> None:
         self._fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
         self._set_periods()
 
-    def _set_periods(self):
+    def _set_periods(self) -> None:
         # initial exchange
         self.periods = (
             [
@@ -1054,6 +1056,173 @@ class FixedLegExchange(BaseLegExchange, FixedLegMixin):
                 ),
                 self.currency,
                 "Exchange",
+            )
+        )
+
+
+class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
+    """
+    Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
+    final :class:`~rateslib.periods.IndexCashflow` s.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseLegExchange`.
+    index_base : float or None, optional
+        The base index to determine the cashflow.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the whole
+        period. If a datetime indexed ``Series`` will use the
+        fixings that are available in that object, and derive the rest from the
+        ``curve``.
+    index_method : str
+        Whether the indexing uses a daily measure for settlement or the most recently
+        monthly data taken from the first day of month.
+    fixed_rate : float or None
+        The fixed rate applied to determine cashflows. Can be set to `None` and
+        designated later, perhaps after a mid-market rate for all periods has been
+        calculated.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLegExchange`.
+
+    Notes
+    -----
+    The initial cashflow notional is set as the negative of the notional. The payment
+    date is set equal to the accrual start date adjusted by
+    the ``payment_lag_exchange``.
+
+    The final cashflow notional is set as the notional. The payment date is set equal
+    to the final accrual date adjusted by ``payment_lag_exchange``.
+
+    If ``amortization`` is specified an exchanged notional equivalent to the
+    amortization amount is added to the list of periods. For similar examples see
+    :class:`~rateslib.legs.FloatLegExchange`.
+    """
+
+    def __init__(
+        self,
+        *args,
+        index_base: float,
+        index_fixings: Optional[Union[float, Series]] = None,
+        index_method: str = "daily",
+        fixed_rate: Optional[float] = None,
+        **kwargs
+    ) -> None:
+        self._fixed_rate = fixed_rate
+        self.index_base = index_base
+        self.index_method = index_method.lower()
+        if self.index_method not in ["daily", "monthly"]:
+            raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
+        super().__init__(*args, **kwargs)
+        self._set_index_fixings(index_fixings)
+        self._set_periods()
+
+    def _set_index_fixings(self, index_fixings) -> None:
+        """
+        Re-organises the ``index_fixings`` input to list structure for each period.
+        Requires a ``schedule`` object and ``index_args``.
+        """
+        if index_fixings is None:
+            index_fixings_: list = []
+        elif isinstance(index_fixings, Series):
+            last_fixing = index_fixings.index[-1]
+            required_day = self.schedule.pschedule[:self.schedule.n_periods]
+            if self.fixing_method == "monthly":
+                required_day = [
+                    datetime(d.year, d.month, 1) for d in required_day
+                ]
+            index_fixings_ = [
+                index_fixings if last_fixing >= d else None for d in required_day
+            ]
+        elif not isinstance(index_fixings, list):
+            index_fixings_ = [index_fixings]
+
+        self.index_fixings = (
+            index_fixings_ + [None] * (self.schedule.n_periods - len(index_fixings_))
+        )
+        return None
+
+    def _set_periods(self) -> None:
+        # initial exchange
+        self.periods = (
+            [
+                IndexCashflow(
+                    notional=-self.notional,
+                    payment=add_tenor(
+                        self.schedule.aschedule[0],
+                        f"{self.payment_lag_exchange}B",
+                        None,
+                        self.schedule.calendar,
+                    ),
+                    currency=self.currency,
+                    stub_type="Exchange",
+                    rate=None,
+                    index_base=self.index_base,
+                    index_fixings=self.index_fixings[0],
+                    index_method=self.index_method
+                )
+            ]
+            if self.initial_exchange
+            else []
+        )
+
+        regular_periods = [
+            IndexFixedPeriod(
+                fixed_rate=self.fixed_rate,
+                start=period[defaults.headers["a_acc_start"]],
+                end=period[defaults.headers["a_acc_end"]],
+                payment=period[defaults.headers["payment"]],
+                notional=self.notional - self.amortization * i,
+                convention=self.convention,
+                currency=self.currency,
+                termination=self.schedule.termination,
+                frequency=self.schedule.frequency,
+                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                index_base=self.index_base,
+                index_method=self.index_method,
+                index_fixings=self.index_fixings[i]
+            )
+            for i, period in self.schedule.table.to_dict(orient="index").items()
+        ]
+        if self.amortization != 0:
+            amortization = [
+                IndexCashflow(
+                    notional=self.amortization,
+                    payment=self.schedule.pschedule[1 + i],
+                    currency=self.currency,
+                    stub_type="Amortization",
+                    rate=None,
+                    index_base=self.index_base,
+                    index_fixings=self.index_fixings[1 + i],
+                    index_method=self.index_method
+                )
+                for i in range(self.schedule.n_periods - 1)
+            ]
+            interleaved_periods = [
+                val for pair in zip(regular_periods, amortization) for val in pair
+            ]
+            interleaved_periods.append(regular_periods[-1])  # add last regular period
+        else:
+            interleaved_periods = regular_periods
+        self.periods.extend(interleaved_periods)
+
+        # final cashflow
+        self.periods.append(
+            IndexCashflow(
+                notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
+                payment=add_tenor(
+                    self.schedule.aschedule[-1],
+                    f"{self.payment_lag_exchange}B",
+                    None,
+                    self.schedule.calendar,
+                ),
+                currency=self.currency,
+                stub_type="Exchange",
+                rate=None,
+                index_base=self.index_base,
+                index_fixings=self.index_fixings[-1],
+                index_method=self.index_method
             )
         )
 
