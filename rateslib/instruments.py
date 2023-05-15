@@ -2818,6 +2818,16 @@ class BondFuture(Sensitivities):
         base: Optional[str] = None,
         local: bool = False,
     ):
+        """
+        Determine the monetary value of the bond future position.
+
+        This method is mainly included to calculate risk sensitivities. The
+        monetary value of bond futures is not usually a metric worth considering.
+        The profit or loss of a position based on entry level is a more common
+        metric, however the initial value of the position does not affect the risk.
+
+        See :meth:`BaseDerivative.npv`.
+        """
         future_price = self.rate(curves, solver, fx, base, "future_price")
         fx, base = _get_fx_and_base(self.currency, fx, base)
         npv_ = future_price / 100 * -self.notional
