@@ -1118,7 +1118,10 @@ class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
         self._set_index_fixings(index_fixings)
         self._set_periods()
 
-    def _set_index_fixings(self, index_fixings) -> None:
+    def _set_index_fixings(
+        self,
+        index_fixings: Optional[Union[float, list, Series]]
+    ) -> None:
         """
         Re-organises the ``index_fixings`` input to list structure for each period.
         Requires a ``schedule`` object and ``index_args``.
@@ -1128,7 +1131,7 @@ class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
         elif isinstance(index_fixings, Series):
             last_fixing = index_fixings.index[-1]
             required_day = self.schedule.pschedule[:self.schedule.n_periods]
-            if self.fixing_method == "monthly":
+            if self.index_method == "monthly":
                 required_day = [
                     datetime(d.year, d.month, 1) for d in required_day
                 ]
@@ -1137,6 +1140,8 @@ class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
             ]
         elif not isinstance(index_fixings, list):
             index_fixings_ = [index_fixings]
+        else:
+            index_fixings_ = index_fixings
 
         self.index_fixings = (
             index_fixings_ + [None] * (self.schedule.n_periods - len(index_fixings_))

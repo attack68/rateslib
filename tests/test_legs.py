@@ -418,6 +418,19 @@ class TestZeroFloatLeg:
         result2 = ftl.npv(curve, local=True)
         assert abs(result2["usd"] - expected) < 1e-2
 
+    def test_cashflows_none(self):
+        ftl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        result = ftl.cashflows()
+        assert result.iloc[0].to_dict()[Defaults.headers["npv"]] is None
+        assert result.iloc[0].to_dict()[Defaults.headers["npv_fx"]] is None
+
 
 class TestFloatLegExchange:
 
@@ -569,6 +582,12 @@ class TestIndexFixedLegExchange:
 
     @pytest.mark.parametrize("i_fixings", [
         None,
+        [2.1, 2.2, 2.3],
+        2.1,
+        Series(
+            [2.1, 2.2, 2.3],
+            index=[dt(2022, 6, 15), dt(2022, 9, 15), dt(2022, 12, 15)]
+        )
     ])
     def test_idx_leg_cashflows(self, i_fixings):
         leg = IndexFixedLegExchange(
@@ -626,6 +645,16 @@ class TestIndexFixedLegExchange:
         }
         for key in set(expected.keys()) & set(final_flow.keys()):
             assert equals_with_tol(expected[key], final_flow[key])
+
+    def test_args_raises(self):
+        with pytest.raises(ValueError, match="`index_method` must be in"):
+            leg = IndexFixedLegExchange(
+                effective=dt(2022, 3, 15),
+                termination="9M",
+                frequency="Q",
+                index_base=200.0,
+                index_method="BAD"
+            )
 
 
 class TestFloatLegExchangeMtm:

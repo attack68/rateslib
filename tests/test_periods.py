@@ -724,6 +724,19 @@ class TestFloatPeriod:
                 fixings=[1.00]
             )
 
+    def test_analytic_delta_no_curve_raises(self):
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 2),
+            payment=dt(2023, 1, 2),
+            frequency="M",
+            fixings=[1.19, 1.19, -8.81],
+            spread_compound_method="isda_compounding",
+            float_spread=1.0
+        )
+        with pytest.raises(TypeError, match="`curve` must be supplied"):
+            float_period.analytic_delta()
+
 
 class TestFixedPeriod:
 
@@ -1087,6 +1100,28 @@ class TestIndexFixedPeriod:
         }
         assert result == expected
 
+    def test_cashflow_returns_none(self):
+        i_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 2, 1),
+            payment=dt(2022, 2, 1),
+            frequency="M",
+            index_base=100.0,
+        )
+        assert i_period.cashflow() is None
+        assert i_period.real_cashflow is None
+
+    def test_cashflow_no_index_rate(self):
+        i_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 2, 1),
+            payment=dt(2022, 2, 1),
+            frequency="M",
+            index_base=100.0,
+        )
+        result = i_period.cashflows()
+        assert result[Defaults.headers["index_ratio"]] is None
+
 
 class TestIndexCashflow:
 
@@ -1109,6 +1144,15 @@ class TestIndexCashflow:
             notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=200
         )
         assert abs(cf.npv(curve) + 2e6) < 1e-6
+
+    def test_cashflow_no_index_rate(self):
+        i_period = IndexCashflow(
+            notional=200.0,
+            payment=dt(2022, 2, 1),
+            index_base=100.0,
+        )
+        result = i_period.cashflows()
+        assert result[Defaults.headers["index_ratio"]] is None
 
 
 def test_base_period_dates_raise():

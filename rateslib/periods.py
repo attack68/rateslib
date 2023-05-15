@@ -1453,12 +1453,14 @@ class IndexMixin(metaclass=ABCMeta):
     payment: datetime = datetime(1990, 1, 1)
     currency: str = ""
 
-    def cashflow(self, curve: IndexCurve) -> Optional[DualTypes]:
+    def cashflow(self, curve: Optional[IndexCurve] = None) -> Optional[DualTypes]:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
         """
         if self.real_cashflow is None:
+            return None
+        if self.rate(curve) is None:
             return None
         _ = self.real_cashflow * self.rate(curve) / self.index_base
         return _
@@ -1519,7 +1521,7 @@ class IndexMixin(metaclass=ABCMeta):
     @property
     @abstractmethod
     def real_cashflow(self):
-        pass
+        pass  # pragma: no cover
 
 
 class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
