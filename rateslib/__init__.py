@@ -59,7 +59,7 @@ from rateslib.splines import bsplev_single, bspldnev_single, PPSpline
 
 from rateslib.scheduling import Schedule
 
-from rateslib.curves import Curve, LineCurve, interpolate, index_left
+from rateslib.curves import Curve, LineCurve, interpolate, index_left, IndexCurve
 
 from rateslib.fx import (
     FXRates,
@@ -69,7 +69,13 @@ from rateslib.fx import (
 
 from rateslib.solver import Solver
 
-from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow
+from rateslib.periods import (
+    FixedPeriod,
+    FloatPeriod,
+    Cashflow,
+    IndexFixedPeriod,
+    IndexCashflow,
+)
 
 from rateslib.legs import (
     FixedLeg,
@@ -87,6 +93,7 @@ from rateslib.instruments import (
     Bill,
     FixedRateBond,
     FloatRateBond,
+    BondFuture,
     IRS,
     ZCS,
     FRA,
@@ -115,13 +122,6 @@ fixed income instrument configuration and calculation.
 It aims to be the fundamental high-level building block for practical analysis of
 fixed income securities, derivatives, FX representation and curve construction
 in Python.
-
-Main Features
--------------
-Here are just a few of the things that pandas does well:
-
-  - Easy handling of missing data in floating point as well as non-floating
-    point data.
 """
 
 # Use __all__ to let type checkers know what is part of the public API.
@@ -150,6 +150,7 @@ __all__ = [
     # curves.py
     "Curve",
     "LineCurve",
+    "IndexCurve",
     "interpolate",
     "index_left",
     # solver.py
@@ -162,6 +163,8 @@ __all__ = [
     "FixedPeriod",
     "FloatPeriod",
     "Cashflow",
+    "IndexCashflow",
+    "IndexFixedPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",
@@ -174,6 +177,7 @@ __all__ = [
     # instruments.py
     "FixedRateBond",
     "FloatRateBond",
+    "BondFuture",
     "FRA",
     "Value",
     "Bill",
