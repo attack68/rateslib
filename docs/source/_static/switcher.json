@@ -7,6 +7,11 @@
     {
         "name": "0.1.x",
         "version": "0.1.x",
+        "url": "https://rateslib.readthedocs.io/en/0.1.x/"
+    },
+    {
+        "name": "0.2.x",
+        "version": "0.2.x",
         "url": "https://rateslib.readthedocs.io/en/stable/"
     }
 ]
