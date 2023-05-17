@@ -1417,6 +1417,191 @@ class IndexCurve(Curve):
         return self.index_base * 1 / self[date_]
 
 
+class CompositeCurve(PlotCurve):
+    """
+    Create a new curve by dynamically compositing a sequence of curves together.
+
+    .. note::
+       Can only composite curves of the same type: :class:`Curve`, :class:`IndexCurve`
+       or :`LineCurve`. Other curve parameters such as ``modifier``, ``calendar``
+       and ``convention`` must also match.
+
+    Parameters
+    ----------
+    curves : sequence of curves
+        The curves to be composited.
+
+    Examples
+    --------
+    Composite two :class:`LineCurve` s. Simulating the effect of adding quarter-end
+    turns to a cubic spline interpolator, which is otherwise difficult to
+    mathematically derive.
+
+    .. ipython:: python
+
+       from rateslib.curves import LineCurve, CompositeCurve
+       line_curve1 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 2.5,
+               dt(2023, 1, 1): 3.5,
+               dt(2024, 1, 1): 3.0,
+           },
+           t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
+              dt(2023, 1, 1),
+              dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1)],
+       )
+       line_curve2 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 0,
+               dt(2022, 3, 31): -0.2,
+               dt(2022, 4, 1): 0,
+               dt(2022, 6, 30): -0.2,
+               dt(2022, 7, 1): 0,
+               dt(2022, 9, 30): -0.2,
+               dt(2022, 10, 1): 0,
+               dt(2022, 12, 31): -0.2,
+               dt(2023, 1, 1): 0,
+               dt(2023, 3, 31): -0.2,
+               dt(2023, 4, 1): 0,
+               dt(2023, 6, 30): -0.2,
+               dt(2023, 7, 1): 0,
+               dt(2023, 9, 30): -0.2,
+           },
+           interpolation="flat_forward",
+       )
+       curve = CompositeCurve([line_curve1, line_curve2])
+       curve.plot("1d")
+
+    .. plot::
+
+       from rateslib.curves import LineCurve, CompositeCurve
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       line_curve1 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 2.5,
+               dt(2023, 1, 1): 3.5,
+               dt(2024, 1, 1): 3.0,
+           },
+           t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
+              dt(2023, 1, 1),
+              dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1)],
+       )
+       line_curve2 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 0,
+               dt(2022, 3, 31): -0.2,
+               dt(2022, 4, 1): 0,
+               dt(2022, 6, 30): -0.2,
+               dt(2022, 7, 1): 0,
+               dt(2022, 9, 30): -0.2,
+               dt(2022, 10, 1): 0,
+               dt(2022, 12, 31): -0.2,
+               dt(2023, 1, 1): 0,
+               dt(2023, 3, 31): -0.2,
+               dt(2023, 4, 1): 0,
+               dt(2023, 6, 30): -0.2,
+               dt(2023, 7, 1): 0,
+               dt(2023, 9, 30): -0.2,
+           },
+           interpolation="flat_forward",
+       )
+       curve = CompositeCurve([line_curve1, line_curve2])
+       fig, ax, line = curve.plot("1D")
+       plt.show()
+
+    """
+
+    def __init__(self, curves: Union[list, tuple]) -> None:
+        # validate
+        self.curve_type = type(curves[0]).__name__
+        for i in range(1, len(curves)):
+            if not isinstance(curves[i], type(curves[0])):
+                raise TypeError(
+                    "`curves` must be a list of similar type curves, got "
+                    f"{type(curves[0])} and {type(curves[i])}"
+                )
+
+        if self.curve_type in ["Curve", "IndexCurve"]:
+            for attr in ["modifier", "calendar", "convention"]:
+                for curve in curves:
+                    if getattr(curve, attr, None) != getattr(curves[0], attr, None):
+                        raise ValueError(
+                            "Cannot composite curves with different attributes, "
+                            f"got {attr}s, '{getattr(curve, attr, None)}' and "
+                            f"'{getattr(curves[0], attr, None)}'."
+                        )
+                self.modifier = curves[0].modifier
+                self.calendar = curves[0].calendar
+                self.convention = curves[0].convention
+
+        self.curves = tuple(curves)
+        self.node_dates = self.curves[0].node_dates
+
+    def rate(
+        self,
+        effective: datetime,
+        termination: Optional[Union[datetime, str]] = None,
+        modifier: Optional[Union[str, bool]] = False,
+    ):
+        """
+        Calculate the rate on the `Curve` using DFs.
+
+        If rates are sought for dates prior to the initial node of the curve `None`
+        will be returned.
+
+        Parameters
+        ----------
+        effective : datetime
+            The start date of the period for which to calculate the rate.
+        termination : datetime or str
+            The end date of the period for which to calculate the rate.
+        modifier : str, optional
+            The day rule if determining the termination from tenor. If `False` is
+            determined from the `Curve` modifier.
+        # calendar : CustomBusinessDay, str, None, optional
+        #     The business day calendar to determine valid business days from which to
+        #     determine rates. If `False` is determined from the `Curve` calendar.
+        # convention : str, optional
+        #     The day count convention used for calculating rates. If `None` is
+        #     determined from the `Curve` convention.
+
+        Returns
+        -------
+        Dual, Dual2 or float
+
+        Notes
+        -----
+        Calculating rates from a curve implies that the conventions attached to the
+        specific index, e.g. USD SOFR, or GBP SONIA, are applicable and these should
+        be set at initialisation of the ``Curve``.
+
+        ``modifier`` is only used if a tenor is given as the termination.
+
+        Major indexes, such as legacy IBORs, and modern RFRs typically use a
+        ``convention`` which is either `"Act365F"` or `"Act360"`. These conventions
+        do not need additional parameters, such as the `termination` of a leg,
+        the `frequency` or a leg or whether it is a `stub` to calculate a DCF.
+        """
+        if self.curve_type == "LineCurve":
+            _ = 0.0
+            for i in range(0, len(self.curves)):
+                _ += self.curves[i].rate(effective, termination, modifier)
+            return _
+        else:
+            modifier = self.modifier if modifier is False else modifier
+            if isinstance(termination, str):
+                termination = add_tenor(effective, termination, modifier, self.calendar)
+
+            raise NotImplementedError("need to approximate additions")
+            # try:
+            #     df_ratio = self[effective] / self[termination]
+            # except ZeroDivisionError:
+            #     return None
+            # rate = (df_ratio - 1) / dcf(effective, termination, self.convention)
+            # return rate * 100
+
+
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
     """
     Perform local interpolation between two data points.
