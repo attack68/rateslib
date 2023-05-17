@@ -945,9 +945,9 @@ class TestFXSwap:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2}
         )
         fxs = FXSwap(dt(2022, 2, 1), "8M", "M",
-                            currency="usd", leg2_currency="nok",
-                            payment_lag_exchange=0, notional=1e6,
-                            )
+            currency="usd", leg2_currency="nok",
+            payment_lag_exchange=0, notional=1e6,
+        )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
         result = fxs.rate([None, curve, None, curve2], None, fxf)
         assert result == expected

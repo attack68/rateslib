@@ -5788,7 +5788,7 @@ class FXSwap(BaseXCS):
         # fwd_fx = (cf + self.leg2.notional) / -self.leg1.notional
         # ini_fx = self.leg2.notional / -self.leg1.notional
         ## TODO decide how to price mid-market rates when ini fx is struck but
-        ## there is no fixed points, i,e the FXswap is sem-determined, which is
+        ## there is no fixed points, i,e the FXswap is semi-determined, which is
         ## not a real instrument.
         return (cf / -self.leg1.notional) * 10000
 
