@@ -1433,8 +1433,8 @@ class CompositeCurve(PlotCurve):
 
     Examples
     --------
-    Composite two :class:`LineCurve` s. Simulating the effect of adding quarter-end
-    turns to a cubic spline interpolator, which is otherwise difficult to
+    Composite two :class:`LineCurve` s. Here, simulating the effect of adding
+    quarter-end turns to a cubic spline interpolator, which is otherwise difficult to
     mathematically derive.
 
     .. ipython:: python
@@ -1510,7 +1510,7 @@ class CompositeCurve(PlotCurve):
        fig, ax, line = curve.plot("1D")
        plt.show()
 
-    We can also composite :class:`Curve` s by using a fast approximation or an
+    We can also composite DF based curves by using a fast approximation or an
     exact match.
 
     .. ipython:: python
@@ -1582,9 +1582,10 @@ class CompositeCurve(PlotCurve):
        fig, ax, line = curve.plot("1D", comparators=[curve1, curve2], labels=["Composite", "C1", "C2"])
        plt.show()
 
-    For a composite curve composed of either :class:`Curve` or :class:`IndexCurve` s
-    the :meth:`~rateslib.curves.CompositeCurve.rate` method
-    accepts an ``approximate`` argument, which uses a geometric mean approximation.
+    The :meth:`~rateslib.curves.CompositeCurve.rate` method of a :class:`CompositeCurve`
+    composed of either :class:`Curve` or :class:`IndexCurve` s
+    accepts an ``approximate`` argument. When *True* by default it used a geometric mean
+    approximation to determine composite period rates.
     Below we demonstrate this is more than 1000x faster and within 1e-8 of the true
     value.
 
@@ -1604,7 +1605,7 @@ class CompositeCurve(PlotCurve):
         # validate
         self.curve_type = type(curves[0]).__name__
         for i in range(1, len(curves)):
-            if not isinstance(curves[i], type(curves[0])):
+            if not type(curves[0]) == type(curves[i]):
                 raise TypeError(
                     "`curves` must be a list of similar type curves, got "
                     f"{type(curves[0])} and {type(curves[i])}"
@@ -1612,16 +1613,16 @@ class CompositeCurve(PlotCurve):
 
         if self.curve_type in ["Curve", "IndexCurve"]:
             for attr in ["modifier", "calendar", "convention"]:
-                for curve in curves:
-                    if getattr(curve, attr, None) != getattr(curves[0], attr, None):
+                for i in range(1, len(curves)):
+                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
                         raise ValueError(
                             "Cannot composite curves with different attributes, "
-                            f"got {attr}s, '{getattr(curve, attr, None)}' and "
+                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
                             f"'{getattr(curves[0], attr, None)}'."
                         )
-                self.modifier = curves[0].modifier
-                self.calendar = curves[0].calendar
-                self.convention = curves[0].convention
+            self.modifier = curves[0].modifier
+            self.calendar = curves[0].calendar
+            self.convention = curves[0].convention
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates

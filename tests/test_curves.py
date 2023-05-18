@@ -744,45 +744,50 @@ def test_curve_translate_raises(curve):
         curve.translate(dt(2022, 4, 1))
 
 
-def test_curve_translate_knots_raises(curve):
-    curve = Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2023, 1, 1): 0.988,
-            dt(2024, 1, 1): 0.975,
-            dt(2025, 1, 1): 0.965,
-            dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
-        },
-        t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-           dt(2022, 12, 1),
-           dt(2024, 1, 1),
-           dt(2025, 1, 1),
-           dt(2026, 1, 1),
-           dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-    )
-    with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
-        curve.translate(dt(2022, 12, 15))
+class TestIndexCurve:
 
+    def test_curve_translate_knots_raises(self, curve):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.988,
+                dt(2024, 1, 1): 0.975,
+                dt(2025, 1, 1): 0.965,
+                dt(2026, 1, 1): 0.955,
+                dt(2027, 1, 1): 0.9475
+            },
+            t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
+               dt(2022, 12, 1),
+               dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            ],
+        )
+        with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
+            curve.translate(dt(2022, 12, 15))
 
-def test_curve_index_linear_daily_interp():
-    curve = IndexCurve(
-        nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
-        index_base=200.0,
-    )
-    result = curve.index_value(dt(2022, 1, 5))
-    expected = 200.020002002
-    assert abs(result - expected) < 1e-7
+    def test_curve_index_linear_daily_interp(self):
+        curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
+            index_base=200.0,
+        )
+        result = curve.index_value(dt(2022, 1, 5))
+        expected = 200.020002002
+        assert abs(result - expected) < 1e-7
 
-    result = curve.index_value(dt(2022, 1, 3))
-    expected = 200.010001001  # value is linearly interpolated between index values.
-    assert abs(result - expected) < 1e-7
+        result = curve.index_value(dt(2022, 1, 3))
+        expected = 200.010001001  # value is linearly interpolated between index values.
+        assert abs(result - expected) < 1e-7
 
+    def test_indexcurve_raises(self):
+        with pytest.raises(ValueError, match="`index_base` must be given"):
+            curve = IndexCurve({dt(2022, 1, 1): 1.0})
 
-def test_indexcurve_raises():
-    with pytest.raises(ValueError, match="`index_base` must be given"):
-        curve = IndexCurve({dt(2022, 1, 1): 1.0})
+    def test_index_value_raises(self):
+        curve = IndexCurve({dt(2022, 1, 1): 1.0}, index_base=100.0)
+        with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
+            curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
 
 class TestCompositeCurve:
@@ -832,6 +837,31 @@ class TestCompositeCurve:
         result = curve.rate(dt(2022, 6, 1), "1Y")
         expected = curve.rate(dt(2022, 6, 1), "1Y", approximate=False)
         assert abs(result - expected) < 1e-4
+
+    def test_isinstance_raises(self):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+        line_curve = LineCurve({dt(2022, 1, 1): 10.0, dt(2023, 1, 1): 12.0})
+        with pytest.raises(TypeError, match="`curves` must be a list of"):
+            CompositeCurve([curve, line_curve])
+
+    @pytest.mark.parametrize("attribute, val",[
+        ("modifier", ["MF", "MP"]),
+        ("calendar", ["ldn", "tgt"]),
+        ("convention", ["act360", "act365f"])
+    ])
+    def test_attribute_error_raises(self, attribute, val):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, **{attribute: val[0]})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, **{attribute: val[1]})
+        with pytest.raises(ValueError, match="Cannot composite curves with dif"):
+            CompositeCurve([c1, c2])
+
+    def test_line_based(self):
+        c1 = LineCurve({dt(2022, 1, 1): 1.5, dt(2022, 1, 3): 1.0})
+        c2 = LineCurve({dt(2022, 1, 1): 2.0, dt(2022, 1, 3): 3.0})
+        cc = CompositeCurve([c1, c2])
+        expected = 3.75
+        result = cc.rate(dt(2022, 1, 2))
+        assert abs(result - expected) < 1e-8
 
 
 class TestPlotCurve:
