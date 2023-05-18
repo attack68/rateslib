@@ -1423,7 +1423,7 @@ class CompositeCurve(PlotCurve):
 
     .. note::
        Can only composite curves of the same type: :class:`Curve`, :class:`IndexCurve`
-       or :`LineCurve`. Other curve parameters such as ``modifier``, ``calendar``
+       or :class:`LineCurve`. Other curve parameters such as ``modifier``, ``calendar``
        and ``convention`` must also match.
 
     Parameters
@@ -1510,6 +1510,94 @@ class CompositeCurve(PlotCurve):
        fig, ax, line = curve.plot("1D")
        plt.show()
 
+    We can also composite :class:`Curve` s by using a fast approximation or an
+    exact match.
+
+    .. ipython:: python
+
+       from rateslib.curves import Curve, CompositeCurve
+       curve1 = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.98,
+               dt(2024, 1, 1): 0.965,
+               dt(2025, 1, 1): 0.955
+           },
+           t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+              dt(2024, 1, 1),
+              dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+       )
+       curve2 =Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2022, 6, 30): 1.0,
+               dt(2022, 7, 1): 0.999992,
+               dt(2022, 12, 31): 0.999992,
+               dt(2023, 1, 1): 0.999984,
+               dt(2023, 6, 30): 0.999984,
+               dt(2023, 7, 1): 0.999976,
+               dt(2023, 12, 31): 0.999976,
+               dt(2024, 1, 1): 0.999968,
+               dt(2024, 6, 30): 0.999968,
+               dt(2024, 7, 1): 0.999960,
+               dt(2025, 1, 1): 0.999960,
+           },
+       )
+       curve = CompositeCurve([curve1, curve2])
+       curve.plot("1D", comparators=[curve1, curve2], labels=["Composite", "C1", "C2"])
+
+    .. plot::
+
+       from rateslib.curves import Curve, CompositeCurve
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       curve1 = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.98,
+               dt(2024, 1, 1): 0.965,
+               dt(2025, 1, 1): 0.955
+           },
+           t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+              dt(2024, 1, 1),
+              dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+       )
+       curve2 =Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2022, 6, 30): 1.0,
+               dt(2022, 7, 1): 0.999992,
+               dt(2022, 12, 31): 0.999992,
+               dt(2023, 1, 1): 0.999984,
+               dt(2023, 6, 30): 0.999984,
+               dt(2023, 7, 1): 0.999976,
+               dt(2023, 12, 31): 0.999976,
+               dt(2024, 1, 1): 0.999968,
+               dt(2024, 6, 30): 0.999968,
+               dt(2024, 7, 1): 0.999960,
+               dt(2025, 1, 1): 0.999960,
+           },
+       )
+       curve = CompositeCurve([curve1, curve2])
+       fig, ax, line = curve.plot("1D", comparators=[curve1, curve2], labels=["Composite", "C1", "C2"])
+       plt.show()
+
+    For a composite curve composed of either :class:`Curve` or :class:`IndexCurve` s
+    the :meth:`~rateslib.curves.CompositeCurve.rate` method
+    accepts an ``approximate`` argument, which uses a geometric mean approximation.
+    Below we demonstrate this is more than 1000x faster and within 1e-8 of the true
+    value.
+
+    .. ipython:: python
+
+       curve.rate(dt(2022, 6, 1), "1y")
+       %timeit curve.rate(dt(2022, 6, 1), "1y")
+
+    .. ipython:: python
+
+       curve.rate(dt(2022, 6, 1), "1y", approximate=False)
+       %timeit curve.rate(dt(2022, 6, 1), "1y", approximate=False)
+
     """
 
     def __init__(self, curves: Union[list, tuple]) -> None:
@@ -1543,9 +1631,10 @@ class CompositeCurve(PlotCurve):
         effective: datetime,
         termination: Optional[Union[datetime, str]] = None,
         modifier: Optional[Union[str, bool]] = False,
+        approximate: bool = True,
     ):
         """
-        Calculate the rate on the `Curve` using DFs.
+        Calculate the composited rate on the curve.
 
         If rates are sought for dates prior to the initial node of the curve `None`
         will be returned.
@@ -1559,29 +1648,14 @@ class CompositeCurve(PlotCurve):
         modifier : str, optional
             The day rule if determining the termination from tenor. If `False` is
             determined from the `Curve` modifier.
-        # calendar : CustomBusinessDay, str, None, optional
-        #     The business day calendar to determine valid business days from which to
-        #     determine rates. If `False` is determined from the `Curve` calendar.
-        # convention : str, optional
-        #     The day count convention used for calculating rates. If `None` is
-        #     determined from the `Curve` convention.
+        approximate : bool, optional
+            When compositing :class:`Curve` or :class:`IndexCurve` calculating many
+            individual rates is expensive. This uses an approximation typically with
+            error less than 1/100th of basis point.
 
         Returns
         -------
         Dual, Dual2 or float
-
-        Notes
-        -----
-        Calculating rates from a curve implies that the conventions attached to the
-        specific index, e.g. USD SOFR, or GBP SONIA, are applicable and these should
-        be set at initialisation of the ``Curve``.
-
-        ``modifier`` is only used if a tenor is given as the termination.
-
-        Major indexes, such as legacy IBORs, and modern RFRs typically use a
-        ``convention`` which is either `"Act365F"` or `"Act360"`. These conventions
-        do not need additional parameters, such as the `termination` of a leg,
-        the `frequency` or a leg or whether it is a `stub` to calculate a DCF.
         """
         if self.curve_type == "LineCurve":
             _ = 0.0
@@ -1593,13 +1667,31 @@ class CompositeCurve(PlotCurve):
             if isinstance(termination, str):
                 termination = add_tenor(effective, termination, modifier, self.calendar)
 
-            raise NotImplementedError("need to approximate additions")
-            # try:
-            #     df_ratio = self[effective] / self[termination]
-            # except ZeroDivisionError:
-            #     return None
-            # rate = (df_ratio - 1) / dcf(effective, termination, self.convention)
-            # return rate * 100
+            d = 1.0 / 360 if "360" in self.convention else 1.0 / 365
+            if approximate:
+                # calculates the geometric mean overnight rates in periods and adds
+                _ = 0.0
+                for curve_ in self.curves:
+                    r = curve_.rate(effective, termination)
+                    n = (termination - effective).days
+                    _ += ((1 + r * n * d / 100) ** (1 / n) - 1) / d
+
+                _ = ((1 + d * _) ** n - 1) * 100 / (d * n)
+
+            else:
+                _, dcf_ = 1.0, 0.0
+                date_ = effective
+                while date_ < termination:
+                    term_ = add_tenor(date_, "1B", None, self.calendar)
+                    __, d_ = 0.0, (term_ - date_).days * d
+                    dcf_ += d_
+                    for curve in self.curves:
+                        __ += curve.rate(date_, term_)
+                    _ *= (1 + d_ * __ / 100)
+                    date_ = term_
+                _ = 100 * (_ - 1) / dcf_
+
+            return _
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):

@@ -5,7 +5,14 @@ import numpy as np
 from math import log, exp
 
 import context
-from rateslib.curves import Curve, LineCurve, index_left, interpolate, IndexCurve
+from rateslib.curves import (
+    Curve,
+    LineCurve,
+    index_left,
+    interpolate,
+    IndexCurve,
+    CompositeCurve,
+)
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
 
@@ -776,6 +783,55 @@ def test_curve_index_linear_daily_interp():
 def test_indexcurve_raises():
     with pytest.raises(ValueError, match="`index_base` must be given"):
         curve = IndexCurve({dt(2022, 1, 1): 1.0})
+
+
+class TestCompositeCurve:
+
+    def test_curve_df_based(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955
+            },
+            t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+               dt(2024, 1, 1),
+               dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        curve = CompositeCurve([curve1, curve2])
+
+        result1 = curve.rate(dt(2022, 12, 30), "1d")
+        result2 = curve.rate(dt(2022, 12, 31), "1d")
+        result3 = curve.rate(dt(2023, 1, 1), "1d")
+
+        expected1 = curve.rate(dt(2022, 12, 30), "1d", approximate=False)
+        expected2 = curve.rate(dt(2022, 12, 31), "1d", approximate=False)
+        expected3 = curve.rate(dt(2023, 1, 1), "1d", approximate=False)
+
+        assert abs(result1 - expected1) < 1e-9
+        assert abs(result2 - expected2) < 1e-9
+        assert abs(result3 - expected3) < 1e-9
+
+        result = curve.rate(dt(2022, 6, 1), "1Y")
+        expected = curve.rate(dt(2022, 6, 1), "1Y", approximate=False)
+        assert abs(result - expected) < 1e-4
 
 
 class TestPlotCurve:
