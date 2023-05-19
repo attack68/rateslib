@@ -1428,8 +1428,10 @@ class CompositeCurve(PlotCurve):
 
     Parameters
     ----------
-    curves : sequence of curves
+    curves : sequence of :class:`Curve`, :class:`LineCurve` or :class:`IndexCurve`
         The curves to be composited.
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multicurve framework.
 
     Examples
     --------
@@ -1601,7 +1603,12 @@ class CompositeCurve(PlotCurve):
 
     """
 
-    def __init__(self, curves: Union[list, tuple]) -> None:
+    def __init__(
+        self,
+        curves: Union[list, tuple],
+        id: Optional[str] = None,
+    ) -> None:
+        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         # validate
         self.curve_type = type(curves[0]).__name__
         for i in range(1, len(curves)):
