@@ -1206,16 +1206,10 @@ class Solver(Gradients):
         """
         s = None
         for pre_solver in self.pre_solvers:
-            _ = Series(
-                pre_solver.x.astype(float) * 100 / self.rate_scalars,
-                index=MultiIndex.from_tuples(
-                    [(pre_solver.id, inst) for inst in pre_solver.instrument_labels]
-                ),
-            )
             if s is None:
-                s = _
+                s = pre_solver.error
             else:
-                s = concat([s, _])
+                s = concat([pre_solver.error, s])
 
         _ = Series(
             self.x.astype(float) * 100 / self.rate_scalars,
@@ -1540,7 +1534,9 @@ class Solver(Gradients):
         .. note::
 
            *Instrument* values are scaled to 1bp (1/10000th of a unit) when they are
-           rate based. *FX* values are scaled to pips (1/10000th of an FX unit).
+           rate based.
+
+           *FX* values are scaled to pips (1/10000th of an FX unit).
 
         The output ``DataFrame`` has the following structure:
 
@@ -1563,6 +1559,81 @@ class Solver(Gradients):
         Converting a gamma/delta from a local currency to another ``base`` currency also
         introduces FX risk to the NPV of the instrument, which is included in the
         output.
+
+        Examples
+        --------
+        This example replicates the analytical calculations demonstrated in
+        *Pricing and Trading Interest Rate Derivatives (2022)*, derived from
+        first principles.
+        The results are stated in the cross-gamma grid in figure 22.1.
+
+        .. ipython:: python
+
+           curve_r = Curve(
+               nodes={
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 0.99,
+                   dt(2024, 1, 1): 0.98,
+                   dt(2025, 1, 1): 0.97,
+                   dt(2026, 1, 1): 0.96,
+                   dt(2027, 1, 1): 0.95,
+               },
+               id="r"
+           )
+           curve_z = Curve(
+               nodes={
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 0.99,
+                   dt(2024, 1, 1): 0.98,
+                   dt(2025, 1, 1): 0.97,
+                   dt(2026, 1, 1): 0.96,
+                   dt(2027, 1, 1): 0.95,
+               },
+               id="z"
+           )
+           curve_s = Curve(
+               nodes={
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 0.99,
+                   dt(2024, 1, 1): 0.98,
+                   dt(2025, 1, 1): 0.97,
+                   dt(2026, 1, 1): 0.96,
+                   dt(2027, 1, 1): 0.95,
+               },
+               id="s"
+           )
+           args = dict(termination="1Y", frequency="A", fixing_method="ibor", leg2_fixing_method="ibor")
+           instruments = [
+               SBS(dt(2022, 1, 1), curves=["r", "s", "s", "s"], **args),
+               SBS(dt(2023, 1, 1), curves=["r", "s", "s", "s"], **args),
+               SBS(dt(2024, 1, 1), curves=["r", "s", "s", "s"], **args),
+               SBS(dt(2025, 1, 1), curves=["r", "s", "s", "s"], **args),
+               SBS(dt(2026, 1, 1), curves=["r", "s", "s", "s"], **args),
+               SBS(dt(2022, 1, 1), curves=["r", "s", "z", "s"], **args),
+               SBS(dt(2023, 1, 1), curves=["r", "s", "z", "s"], **args),
+               SBS(dt(2024, 1, 1), curves=["r", "s", "z", "s"], **args),
+               SBS(dt(2025, 1, 1), curves=["r", "s", "z", "s"], **args),
+               SBS(dt(2026, 1, 1), curves=["r", "s", "z", "s"], **args),
+               IRS(dt(2022, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+               IRS(dt(2023, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+               IRS(dt(2024, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+               IRS(dt(2025, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+               IRS(dt(2026, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+           ]
+           solver = Solver(
+               curves=[curve_r, curve_s, curve_z],
+               instruments=instruments,
+               s=[0.]*5 + [0.]*5 + [1.5]*5,
+               id="sonia",
+               instrument_labels=[
+                   "s1", "s2", "s3", "s4", "s5",
+                   "z1", "z2", "z3", "z4", "z5",
+                   "r1", "r2", "r3", "r4", "r5",
+               ],
+           )
+           irs = IRS(dt(2022, 1, 1), "5Y", "A", notional=-8.3e8, curves=["z", "s"], leg2_fixing_method="ibor", fixed_rate=25.0)
+           irs.delta(solver=solver)
+           irs.gamma(solver=solver)
         """
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")

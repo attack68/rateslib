@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime as dt
 from pandas import DataFrame, MultiIndex
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_series_equal
 import numpy as np
 from numpy.testing import assert_allclose
 from math import log, exp
@@ -457,7 +457,7 @@ def test_solver_pre_solver_dependency_generates_same_delta():
 
     Build an ESTR and IBOR curve simultaneously inside the same solver3.
 
-    :return:
+    Test the delta and the instrument calibration error
     """
     eur_disc_curve = Curve(
         nodes={
@@ -527,6 +527,10 @@ def test_solver_pre_solver_dependency_generates_same_delta():
     delta_pre = eur_swap.delta([eur_ibor_curve, eur_disc_curve], eur_solver2)
     delta_pre.index = delta_sim.index
     assert_frame_equal(delta_sim, delta_pre)
+
+    error_sim = eur_solver_sim.error
+    error_pre = eur_solver2.error
+    assert_series_equal(error_pre, error_sim, check_index=False, rtol=1e-5, atol=1e-3)
 
 
 def test_delta_gamma_calculation():
@@ -982,7 +986,6 @@ def test_delta_irs_guide_fx_base():
 #         irs.delta(solver=solver)
 
 
-# @pytest.mark.skip(reason="This test needs to a result specified for comparison")
 def test_mechanisms_guide_gamma():
     instruments = [
         IRS(dt(2022, 1, 1), "4m", "Q", curves="sofr"),
