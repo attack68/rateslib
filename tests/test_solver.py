@@ -8,11 +8,87 @@ from math import log, exp
 
 import context
 from rateslib import default_context
-from rateslib.curves import Curve, index_left, LineCurve
-from rateslib.solver import Solver
-from rateslib.dual import Dual
+from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
+from rateslib.solver import Solver, Gradients
+from rateslib.dual import Dual, Dual2
 from rateslib.instruments import IRS, Value, FloatRateBond, Portfolio, XCS
 from rateslib.fx import FXRates, FXForwards
+
+
+class TestGradients:
+
+    @classmethod
+    def setup_class(cls):
+        class Inst:
+            def __init__(self, rate):
+                self._rate = rate
+
+            def rate(self, *args, **kwargs):
+                return self._rate
+
+        class SolverProxy(Gradients):
+            variables = ["v1", "v2", "v3"]
+            r = [
+                Dual(1.0, "v1"),
+                Dual(3.0, ["v1", "v2", "v3"], [2.0, 1.0, -2.0])
+            ]
+            _J = None
+            instruments = [
+                [Inst(Dual2(1.0, "v1", [1.], [[4.]])), tuple(), {}],
+                [Inst(Dual2(
+                    3.0,
+                    ["v1", "v2", "v3"],
+                    [2.0, 1.0, -2.0],
+                    [[-2.0, 1.0, 1.0],
+                     [1.0, -3.0, 2.0],
+                     [1.0, 2.0, -4.0]]
+                )), tuple(), {}]
+            ]
+            _J2 = None
+            _ad = 2
+            _grad_s_vT = np.array([
+                [1., 2.0, 3.0],
+                [2.0, 3.0, 4.0],
+            ])
+
+        setattr(cls, "solver", SolverProxy())
+
+    def test_J(self):
+        expected = np.array([
+            [1., 2.],
+            [0., 1.],
+            [0., -2.0],
+        ])
+        result = self.solver.J
+        assert_allclose(result, expected)
+
+    def test_grad_v_rT(self):
+        assert_allclose(self.solver.J, self.solver.grad_v_rT)
+
+    def test_J2(self):
+        expected = np.array([[
+            [8.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ], [
+            [-4.0, 2.0, 2.0],
+            [2.0, -6.0, 4.0],
+            [2.0, 4.0, -8.0],
+        ]])
+        expected = np.transpose(expected, (1, 2, 0))
+        result = self.solver.J2
+        assert_allclose(expected, result)
+
+    def test_grad_v_v_rT(self):
+        assert_allclose(self.solver.J2, self.solver.grad_v_v_rT)
+
+    def test_grad_s_vT(self):
+        expected = np.array([
+            [1.0, 2.0, 3.0],
+            [2.0, 3.0, 4.0],
+        ])
+        result = self.solver.grad_s_vT
+        assert_allclose(expected, result)
 
 
 @pytest.mark.parametrize("algo", [
@@ -248,6 +324,80 @@ def test_solver_independent_curve():
             float(instrument[0].rate(*instrument[1], **instrument[2]) - s[i])
         ) < 1e-7
     assert independent_curve == expected
+
+
+class TestSolverCompositeCurve:
+
+    def test_solver_composite_curve(self):
+        # this test creates a solver with a composite curve
+        # for the purpose of adding a turn
+        c_base = Curve({
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2025, 1, 1): 1.0
+        }, id="sek_base")
+        c_turns = Curve({
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 12, 30): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2025, 1, 1): 1.0,
+        }, id="sek_turns")
+        composite_curve = CompositeCurve([c_base, c_turns], id="sek")
+
+        instruments_turns = [
+            IRS(dt(2022, 1, 1), "1d", "A", curves="sek_turns"),
+            IRS(dt(2022, 12, 30), "1d", "A", curves="sek_turns"),
+            IRS(dt(2023, 1, 1), "1d", "A", curves="sek_turns"),
+        ]
+        s_turns = [0.0, -0.50, 0.0]
+        labels_turns = ["NA1", "Turn1", "NA2"]
+
+        instruments_base = [
+            IRS(dt(2022, 1, 1), "1Y", "A", curves="sek"),
+            IRS(dt(2022, 1, 1), "2Y", "A", curves="sek"),
+            IRS(dt(2022, 1, 1), "3Y", "A", curves="sek"),
+        ]
+        s_base = [2.0, 2.3, 2.4]
+        labels_base = ["1Y", "2Y", "3Y"]
+
+        solver = Solver(
+            curves=[c_base, c_turns, composite_curve],
+            instruments=instruments_turns+instruments_base,
+            s=s_turns+s_base,
+            instrument_labels=labels_turns+labels_base,
+            id="solv"
+        )
+
+        test_irs = IRS(dt(2022, 6, 1), "15M", "A", notional=1e6, curves="sek")
+
+        expected = 2.31735564
+        result = test_irs.rate(solver=solver)
+        assert (result - expected) < 1e-8
+
+        delta = test_irs.delta(solver=solver)
+        expected = DataFrame(
+            data=[
+                -0.226074787,
+                0.2257131776,
+                0.0003616069,
+                -9.159037835,
+                131.75543312,
+                0.0033383280
+            ],
+            columns=MultiIndex.from_tuples(
+                [("usd", "usd")], names=["local_ccy", "display_ccy"]
+            ),
+            index=MultiIndex.from_tuples([
+                ("instruments", "solv", "NA1"),
+                ("instruments", "solv", "Turn1"),
+                ("instruments", "solv", "NA2"),
+                ("instruments", "solv", "1Y"),
+                ("instruments", "solv", "2Y"),
+                ("instruments", "solv", "3Y"),
+            ], names=["type", "solver", "label"]),
+        )
+        assert_frame_equal(delta, expected)
 
 
 def test_non_unique_curves():
@@ -832,6 +982,7 @@ def test_delta_irs_guide_fx_base():
 #         irs.delta(solver=solver)
 
 
+# @pytest.mark.skip(reason="This test needs to a result specified for comparison")
 def test_mechanisms_guide_gamma():
     instruments = [
         IRS(dt(2022, 1, 1), "4m", "Q", curves="sofr"),
@@ -897,9 +1048,60 @@ def test_mechanisms_guide_gamma():
     fxr = FXRates({"eurusd": 1.10})
     fxr._set_ad_order(2)
     result = pf.gamma(solver=combined_solver, fx=fxr, base="eur")
-
-    # TODO define test result
-    raise NotImplementedError("this test needs to have a result comparison")
+    expected = DataFrame(
+        data=[
+            [0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0.],
+            [0., 0., 0.13769, 0.28088, 0.],
+            [0., 0., 0.28088, 0.44493, 0.],
+            [0., 0., 0., 0., 0.],
+            [-0.28930, -0.45081, 0., 0., -0.68937],
+            [-0.45081, -0.47449, 0., 0., -1.37372],
+            [0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0.],
+            [-0.68937, -1.37372, 0., 0., 0.00064],
+            [-0.31823, -0.49590, 0., 0., 0.],
+            [-0.49590, -0.52194, 0., 0., 0.],
+            [0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0.],
+            [-0.28930, -0.45081, 0., 0., -0.68937],
+            [-0.45081, -0.47449, 0., 0., -1.37372],
+            [0., 0., 0.13770, 0.28088, 0.],
+            [0., 0., 0.28088, 0.44493, 0.],
+            [-0.68937, -1.37372, 0., 0., 0.00064],
+        ],
+        index=MultiIndex.from_tuples([
+            ("eur", "eur", "instruments", "sofr", "4m"),
+            ("eur", "eur", "instruments", "sofr", "8m"),
+            ("eur", "eur", "instruments", "estr", "3m"),
+            ("eur", "eur", "instruments", "estr", "9m"),
+            ("eur", "eur", "fx", "fx", "eurusd"),
+            ("usd", "eur", "instruments", "sofr", "4m"),
+            ("usd", "eur", "instruments", "sofr", "8m"),
+            ("usd", "eur", "instruments", "estr", "3m"),
+            ("usd", "eur", "instruments", "estr", "9m"),
+            ("usd", "eur", "fx", "fx", "eurusd"),
+            ("usd", "usd", "instruments", "sofr", "4m"),
+            ("usd", "usd", "instruments", "sofr", "8m"),
+            ("usd", "usd", "instruments", "estr", "3m"),
+            ("usd", "usd", "instruments", "estr", "9m"),
+            ("usd", "usd", "fx", "fx", "eurusd"),
+            ("all", "eur", "instruments", "sofr", "4m"),
+            ("all", "eur", "instruments", "sofr", "8m"),
+            ("all", "eur", "instruments", "estr", "3m"),
+            ("all", "eur", "instruments", "estr", "9m"),
+            ("all", "eur", "fx", "fx", "eurusd"),
+        ], names=["local_ccy", "display_ccy", "type", "solver", "label"]),
+        columns=MultiIndex.from_tuples([
+            ("instruments", "sofr", "4m"),
+            ("instruments", "sofr", "8m"),
+            ("instruments", "estr", "3m"),
+            ("instruments", "estr", "9m"),
+            ("fx", "fx", "eurusd"),
+        ], names=["type", "solver", "label"])
+    )
+    assert_frame_equal(result, expected, atol=1e-2, rtol=1e-4)
 
 
 def test_solver_gamma_pnl_explain():
@@ -930,7 +1132,7 @@ def test_solver_gamma_pnl_explain():
         "eurusd": eurusd,
         "usdusd": sofr
     })
-    sofr_solver= Solver(
+    sofr_solver = Solver(
         curves=[sofr],
         instruments=instruments[:2],
         s=[3.45, 2.85],
@@ -959,17 +1161,70 @@ def test_solver_gamma_pnl_explain():
     pf = Portfolio([
         IRS(dt(2022, 1, 1), "20Y", "A", currency="eur", fixed_rate=2.0, notional=1e8, curves="estr"),
     ])
-    npv_base = pf.npv(solver=solver)
-    delta_base = pf.delta(solver=solver)
+
+    npv_base = pf.npv(solver=solver, base="eur")
+    expected_npv = -6230451.035973
+    assert (npv_base - expected_npv) < 1e-5
+
+    delta_base = pf.delta(solver=solver, base="usd")
+    # this expectation is directly input from reviewed output.
+    expected_delta = DataFrame(
+        data=[
+            [3.51021, 0.0, 3.51021],
+            [-0.00005, 0.0, -0.00005],
+            [101841.37433, 97001.98184, 101841.37433],
+            [85750.45235, 81672.83139, 85750.45235],
+            [-3.55593, 0.0, -3.55593],
+            [0.00004, 0.0, 0.00004],
+            [-623.00136, 0.0, -623.00136],
+        ],
+        index=MultiIndex.from_tuples([
+            ("instruments", "sofr", "10y"),
+            ("instruments", "sofr", "10y10y"),
+            ("instruments", "estr", "10y"),
+            ("instruments", "estr", "10y10y"),
+            ("instruments", "xccy", "10y"),
+            ("instruments", "xccy", "10y10y"),
+            ("fx", "fx", "eurusd"),
+        ], names=["type", "solver", "label"]),
+        columns=MultiIndex.from_tuples(
+            [("all", "usd"), ("eur", "eur"), ("eur", "usd")],
+            names=["local_ccy", "display_ccy"]
+        )
+    )
+    assert_frame_equal(delta_base, expected_delta, atol=1e-2, rtol=1e-4)
+
     gamma_base = pf.gamma(solver=solver)
-
-    # s_new = np.array([3.65, 2.99, 2.10, 0.6, -25, -20])
-    # solver.s = s_new
-    # solver.iterate()
-    # npv_new = pf.npv(solver=solver)
-
-    # TODO comparison
-    raise NotImplementedError("this test needs a result to be defined")
+    expected_gamma = DataFrame(
+        data=[
+            [0., 0., 0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0., 0., 0.],
+            [0., 0., -102.972447, -81.00807888, 0., 0., 0.],
+            [0., 0., -81.00807888, -87.84105303, 0., 0., 0.],
+            [0., 0., 0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0., 0., 0.],
+            [0., 0., 0., 0., 0., 0., 0.]
+        ],
+        index=MultiIndex.from_tuples([
+            ("eur", "eur", "instruments", "sofr", "10y"),
+            ("eur", "eur", "instruments", "sofr", "10y10y"),
+            ("eur", "eur", "instruments", "estr", "10y"),
+            ("eur", "eur", "instruments", "estr", "10y10y"),
+            ("eur", "eur", "instruments", "xccy", "10y"),
+            ("eur", "eur", "instruments", "xccy", "10y10y"),
+            ("eur", "eur", "fx", "fx", "eurusd"),
+        ], names=["local_ccy", "display_ccy", "type", "solver", "label"]),
+        columns=MultiIndex.from_tuples([
+            ("instruments", "sofr", "10y"),
+            ("instruments", "sofr", "10y10y"),
+            ("instruments", "estr", "10y"),
+            ("instruments", "estr", "10y10y"),
+            ("instruments", "xccy", "10y"),
+            ("instruments", "xccy", "10y10y"),
+            ("fx", "fx", "eurusd"),
+        ], names=["type", "solver", "label"]),
+    )
+    assert_frame_equal(gamma_base, expected_gamma, atol=1e-2, rtol=1e-4)
 
 
 def test_gamma_with_fxrates_ad_order_1_raises():
