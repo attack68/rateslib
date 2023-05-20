@@ -319,6 +319,7 @@ class Curve(Serialize, PlotCurve):
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
     _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
+    _base_type = "dfs"
 
     def __init__(
         self,
@@ -994,6 +995,7 @@ class LineCurve(Curve):
         lambda x: x
     )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
+    _base_type = "values"
 
     def __init__(
         self,
@@ -1610,15 +1612,20 @@ class CompositeCurve(PlotCurve):
     ) -> None:
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         # validate
-        self.curve_type = type(curves[0]).__name__
+        self._base_type = curves[0]._base_type
         for i in range(1, len(curves)):
             if not type(curves[0]) == type(curves[i]):
                 raise TypeError(
                     "`curves` must be a list of similar type curves, got "
-                    f"{type(curves[0])} and {type(curves[i])}"
+                    f"{type(curves[0])} and {type(curves[i])}."
+                )
+            if not curves[0].node_dates[0] == curves[i].node_dates[0]:
+                raise ValueError(
+                    "`curves` must share the same initial node date, got "
+                    f"{curves[0].node_dates[0]} and {curves[i].node_dates[0]}"
                 )
 
-        if self.curve_type in ["Curve", "IndexCurve"]:
+        if self._base_type == "dfs":
             for attr in ["modifier", "calendar", "convention"]:
                 for i in range(1, len(curves)):
                     if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
@@ -1665,12 +1672,12 @@ class CompositeCurve(PlotCurve):
         -------
         Dual, Dual2 or float
         """
-        if self.curve_type == "LineCurve":
+        if self._base_type == "values":
             _ = 0.0
             for i in range(0, len(self.curves)):
                 _ += self.curves[i].rate(effective, termination, modifier)
             return _
-        else:
+        elif self._base_type == "dfs":
             modifier = self.modifier if modifier is False else modifier
             if isinstance(termination, str):
                 termination = add_tenor(effective, termination, modifier, self.calendar)
@@ -1698,8 +1705,36 @@ class CompositeCurve(PlotCurve):
                     _ *= (1 + d_ * __ / 100)
                     date_ = term_
                 _ = 100 * (_ - 1) / dcf_
+        else:
+            raise TypeError(  # pragma: no cover
+                f"Base curve type is unrecognised: {self._base_type}"
+            )
 
+        return _
+
+    def __getitem__(self, date: datetime):
+        if self._base_type == "dfs":
+            # will return a composited discount factor
+            days = (date - self.curves[0].node_dates[0]).days
+            d = 1.0/360 if self.convention == "ACT360" else 1.0/365
+            total_rate = 0.0
+            for curve in self.curves:
+                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
+                total_rate += avg_rate
+            _ = 1.0 / (1 + total_rate * d) ** days
             return _
+
+        elif self._base_type == "values":
+            # will return a composited rate
+            _ = 0.0
+            for curve in self.curves:
+                _ += curve[date]
+            return _
+
+        else:
+            raise TypeError(  # pragma: no cover
+                f"Base curve type is unrecognised: {self._base_type}"
+            )
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):

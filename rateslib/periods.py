@@ -866,18 +866,20 @@ class FloatPeriod(BasePeriod):
             return self.fixings + self.float_spread / 100
         # else next calculations made based on fixings in (None, list, Series)
 
-        if type(curve) is Curve:
+        if curve._base_type == "dfs":
             if "rfr" in self.fixing_method:
                 return self._rfr_rate_from_df_curve(curve)
             elif "ibor" in self.fixing_method:
                 return self._ibor_rate_from_df_curve(curve)
-        elif type(curve) is LineCurve:
+        elif curve._base_type == "values":
             if "rfr" in self.fixing_method:
                 return self._rfr_rate_from_line_curve(curve)
             elif "ibor" in self.fixing_method:
                 return self._ibor_rate_from_line_curve(curve)
         else:
-            raise TypeError("`curve` must be of type `Curve` or `LineCurve`.")
+            raise TypeError(  # pragma: no cover
+                f"Base curve type is unrecognised: {curve._base_type}"
+            )
 
     def _rfr_rate_from_df_curve(self, curve: Curve):
         if self.fixing_method == "rfr_payment_delay" and not self._is_complex:
@@ -1469,6 +1471,9 @@ class IndexMixin(metaclass=ABCMeta):
         """
         Project an index rate for the cashflow payment date.
 
+        If ``index_fixings`` are set on the period this will be used instead of
+        the ``curve``.
+
         Parameters
         ----------
         curve : IndexCurve
@@ -1538,10 +1543,11 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     index_base : float or None, optional
         The base index to determine the cashflow.
     index_fixings : float, or Series, optional
-        If a float scalar, will be applied as the index fixing for the whole
-        period. If a datetime indexed ``Series`` will use the
-        fixings that are available in that object, and derive the rest from the
-        ``curve``.
+        If a float scalar, will be applied as the index fixing for the settlement, or
+        payment, date.
+        If a datetime indexed ``Series`` will use the
+        fixings that are available in that object, using linear interpolation if
+        necessary.
     index_method : str
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month.
@@ -1614,7 +1620,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         if index_ is None:
             index_ratio_ = None
         else:
-            index_ratio_ = index_ /self.index_base
+            index_ratio_ = index_ / self.index_base
 
         return {
             **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),

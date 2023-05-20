@@ -9,7 +9,8 @@ import warnings
 from pandas import DataFrame, MultiIndex, concat, Series
 
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
-from rateslib.fx import FXForwards
+from rateslib.fx import FXForwards, ProxyCurve
+from rateslib.curves import CompositeCurve
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -43,7 +44,7 @@ class Gradients:
         """
         Alias of ``J``.
         """
-        return self.J  # pragma: no cover
+        return self.J
 
     @property
     def J2(self):
@@ -1003,7 +1004,11 @@ class Solver(Gradients):
             self.weights = np.asarray(weights)
         self.W = np.diag(self.weights)
 
-        self.curves = {curve.id: curve for curve in curves}
+        self.curves = {
+            curve.id: curve for curve in curves
+            if not type(curve) in [ProxyCurve, CompositeCurve]
+            # Proxy and Composite curves have no parameters of their own
+        }
         self.variables = ()
         for curve in self.curves.values():
             curve._set_ad_order(1)  # solver uses gradients in optimisation
@@ -1029,6 +1034,10 @@ class Solver(Gradients):
             self.pre_curves.update(pre_solver.pre_curves)
             curve_collection.extend(pre_solver.pre_curves.values())
         self.pre_curves.update(self.curves)
+        self.pre_curves.update({
+            curve.id: curve for curve in curves
+            if type(curve) in [ProxyCurve, CompositeCurve]
+        })
         curve_collection.extend(curves)
         for curve1, curve2 in combinations(curve_collection, 2):
             if curve1.id == curve2.id:
@@ -1483,7 +1492,7 @@ class Solver(Gradients):
             )
 
         sorted_cols = df.columns.sort_values()
-        return df.loc[:, sorted_cols]
+        return df.loc[:, sorted_cols].astype("float64")
 
     def _get_base_and_fx(self, base, fx):
         if base is not None and self.fx is None and fx is None:
@@ -1652,7 +1661,7 @@ class Solver(Gradients):
             gdf.index = MultiIndex.from_tuples([("all", base) + l for l in gdf.index])
             df.loc[("all", base, slice(None), slice(None), slice(None))] = gdf
 
-        return df
+        return df.astype("float64")
 
     def _pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
         """

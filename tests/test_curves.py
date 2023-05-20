@@ -863,6 +863,15 @@ class TestCompositeCurve:
         result = cc.rate(dt(2022, 1, 2))
         assert abs(result - expected) < 1e-8
 
+        result = cc[dt(2022, 1, 2)]
+        assert abs(result - expected) < 1e-8
+
+    def test_initial_node_raises(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+        c2 = Curve({dt(2022, 1, 2): 1.0, dt(2023, 1, 1): 0.99})
+        with pytest.raises(ValueError, match="`curves` must share the same ini"):
+            CompositeCurve([c1, c2])
+
 
 class TestPlotCurve:
 

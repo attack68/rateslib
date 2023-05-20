@@ -287,6 +287,7 @@ class Sensitivities:
         if solver is None:
             raise ValueError("`solver` is required for delta/gamma methods.")
         npv = self.npv(curves, solver, fx, base, local=True)
+        _, fx = _get_curves_and_fx_maybe_from_solver(None, solver, None, fx)
         return solver.delta(npv, base, fx)
 
     def gamma(
@@ -330,11 +331,24 @@ class Sensitivities:
         """
         if solver is None:
             raise ValueError("`solver` is required for delta/gamma methods.")
-        _ = solver._ad  # store original order
+        _, fx_ = _get_curves_and_fx_maybe_from_solver(None, solver, None, fx)
+
+        # store original order
+        if fx_ is not None:
+            _ad2 = fx_._ad
+            fx_._set_ad_order(2)
+
+        _ad1 = solver._ad
         solver._set_ad_order(2)
-        npv = self.npv(curves, solver, fx, base, local=True)
-        grad_s_sT_P = solver.gamma(npv, base, fx)
-        solver._set_ad_order(_)  # reset original order
+
+        npv = self.npv(curves, solver, fx_, base, local=True)
+        grad_s_sT_P = solver.gamma(npv, base, fx_)
+
+        # reset original order
+        if fx_ is not None:
+            fx_._set_ad_order(_ad2)
+        solver._set_ad_order(_ad1)
+
         return grad_s_sT_P
 
 

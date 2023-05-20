@@ -1071,11 +1071,12 @@ class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
         Required positional args to :class:`BaseLegExchange`.
     index_base : float or None, optional
         The base index to determine the cashflow.
-    index_fixings : float, or Series, optional
-        If a float scalar, will be applied as the index fixing for the whole
-        period. If a datetime indexed ``Series`` will use the
-        fixings that are available in that object, and derive the rest from the
-        ``curve``.
+    index_fixings : float, list or Series, optional
+        If a float scalar, will be applied as the index fixing for the first period.
+        If a datetime indexed ``Series``, will use the fixings that are available
+        in that object for relevant periods, and derive the rest from the ``curve``.
+        If a list, will apply those values as the fixings for the first set of periods
+        and derive the rest from the ``curve``.
     index_method : str
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month.
@@ -1115,6 +1116,13 @@ class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)
+        if self.initial_exchange:
+            raise NotImplementedError(
+                "Cannot construct `IndexFixedLegExchange` with `initial_exchange` "
+                "due to not implemented `index_fixings` input argument applicable to "
+                "the indexing-up the initial exchange."
+            )
+
         self._set_index_fixings(index_fixings)
         self._set_periods()
 

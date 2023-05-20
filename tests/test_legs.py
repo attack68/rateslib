@@ -582,10 +582,10 @@ class TestIndexFixedLegExchange:
 
     @pytest.mark.parametrize("i_fixings", [
         None,
-        [2.1, 2.2, 2.3],
-        2.1,
+        [210, 220, 230],
+        210,
         Series(
-            [2.1, 2.2, 2.3],
+            [210, 220, 230],
             index=[dt(2022, 6, 15), dt(2022, 9, 15), dt(2022, 12, 15)]
         )
     ])
@@ -626,11 +626,11 @@ class TestIndexFixedLegExchange:
             "Notional": 40e6,
             "Rate": 5.0,
             "Real Cashflow": -500e3,
-            "Index Val": 230.0,
-            "Index Ratio": 1.15,
-            "Cashflow": -575000,
+            "Index Val": 210.0,
+            "Index Ratio": 1.05,
+            "Cashflow": -525000,
         }
-        flow = flows.iloc[2].to_dict()
+        flow = flows.iloc[0].to_dict()
         for key in set(expected.keys()) & set(flow.keys()):
             assert equals_with_tol(expected[key], flow[key])
 

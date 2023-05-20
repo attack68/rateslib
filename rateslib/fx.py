@@ -1685,6 +1685,8 @@ class ProxyCurve(Curve):
     the given :class:`FXForwards` instance.
     """
 
+    _base_type = "dfs"
+
     def __init__(
         self,
         cashflow: str,
