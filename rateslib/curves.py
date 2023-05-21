@@ -704,6 +704,7 @@ class Curve(Serialize, PlotCurve):
                    dt(2026, 1, 1),
                    dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
                ],
+               interpolation="log_linear",
            )
            translated_curve = curve.translate(dt(2022, 12, 1))
            fig, ax, line = curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12, 1))
@@ -1369,7 +1370,7 @@ class IndexCurve(Curve):
         self.index_base = index_base
         if self.index_base is None:
             raise ValueError("`index_base` must be given for IndexCurve.")
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **{**{"interpolation": "linear_index"}, **kwargs})
 
     def index_value(self, date: datetime, interpolation: str = "daily"):
         """
