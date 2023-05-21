@@ -3258,6 +3258,77 @@ class IRS(BaseDerivative):
         A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    .. ipython:: python
+
+       usd = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.965,
+               dt(2024, 1, 1): 0.94
+           },
+           id="usd"
+       )
+
+    Create the IRS, and demonstrate the :meth:`~rateslib.instruments.IRS.rate`,
+    :meth:`~rateslib.instruments.IRS.npv`,
+    :meth:`~rateslib.instruments.IRS.analytic_delta`, and
+    :meth:`~rateslib.instruments.IRS.spread`.
+
+    .. ipython:: python
+
+       irs = IRS(
+           effective=dt(2022, 1, 1),
+           termination="18M",
+           frequency="A",
+           calendar="nyc",
+           currency="usd",
+           fixed_rate=2.20,
+           convention="Act360",
+           notional=100e6,
+           curves=["usd"],
+       )
+       irs.rate(curves=usd)
+       irs.npv(curves=usd)
+       irs.analytic_delta(curve=usd)
+       irs.spread(curves=usd)
+
+    A DataFrame of :meth:`~rateslib.instruments.IRS.cashflows`.
+
+    .. ipython:: python
+
+       irs.cashflows(curves=usd)
+
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.IRS.delta`
+    and :meth:`~rateslib.instruments.IRS.gamma`, construct a curve model.
+
+    .. ipython:: python
+
+       sofr_kws = dict(
+           effective=dt(2022, 1, 1),
+           frequency="A",
+           convention="Act360",
+           calendar="nyc",
+           currency="usd",
+           curves=["usd"]
+       )
+       instruments = [
+           IRS(termination="1Y", **sofr_kws),
+           IRS(termination="2Y", **sofr_kws),
+       ]
+       solver = Solver(
+           curves=[usd],
+           instruments=instruments,
+           s=[3.65, 3.20],
+           instrument_labels=["1Y", "2Y"],
+           id="sofr",
+       )
+       irs.delta(solver=solver)
+       irs.gamma(solver=solver)
     """
 
     _fixed_rate_mixin = True
@@ -3323,29 +3394,6 @@ class IRS(BaseDerivative):
         Return the analytic delta of a leg of the derivative object.
 
         See :meth:`BaseDerivative.analytic_delta`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           forecasting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-           discounting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985})
-
-        .. ipython:: python
-
-           irs = IRS(
-               effective=dt(2022, 2, 15),
-               termination=dt(2022, 8, 15),
-               frequency="Q",
-               convention="30e360",
-               leg2_convention="Act360",
-               leg2_fixing_method="rfr_payment_delay",
-               payment_lag=2,
-               fixed_rate=2.50,
-               notional=1e9,
-               currency="gbp",
-           )
-           irs.analytic_delta(forecasting_curve, discounting_curve, leg=1)
         """
         return super().analytic_delta(*args, **kwargs)
 
@@ -3361,17 +3409,6 @@ class IRS(BaseDerivative):
         Return the NPV of the derivative by summing legs.
 
         See :meth:`BaseDerivative.npv`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           irs.npv([forecasting_curve, discounting_curve])
-
-        .. ipython:: python
-
-           fxr = FXRates({"gbpusd": 2.0})
-           irs.npv([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
@@ -3414,12 +3451,6 @@ class IRS(BaseDerivative):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           irs.rate([forecasting_curve, discounting_curve])
         """
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
@@ -3440,13 +3471,6 @@ class IRS(BaseDerivative):
         Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fxr = FXRates({"gbpusd": 2.0})
-           irs.cashflows([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
         return super().cashflows(curves, solver, fx, base)
 
@@ -3783,6 +3807,107 @@ class SBS(BaseDerivative):
         A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct curves to price the example.
+
+    .. ipython:: python
+
+       eur3m = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.965,
+               dt(2024, 1, 1): 0.94
+           },
+           id="eur3m",
+       )
+       eur6m = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.962,
+               dt(2024, 1, 1): 0.936
+           },
+           id="eur6m",
+       )
+
+    Create the SBS, and demonstrate the :meth:`~rateslib.instruments.SBS.rate`,
+    :meth:`~rateslib.instruments.SBS.npv`,
+    :meth:`~rateslib.instruments.SBS.analytic_delta`, and
+    :meth:`~rateslib.instruments.SBS.spread`.
+
+    .. ipython:: python
+
+       sbs = SBS(
+           effective=dt(2022, 1, 1),
+           termination="18M",
+           frequency="Q",
+           leg2_frequency="S",
+           calendar="tgt",
+           currency="eur",
+           fixing_method="ibor",
+           method_param=2,
+           convention="Act360",
+           leg2_float_spread=-5.0,
+           notional=100e6,
+           curves=["eur3m", "eur3m", "eur6m", "eur3m"],
+       )
+       sbs.rate(curves=[eur3m, eur3m, eur6m, eur3m])
+       sbs.npv(curves=[eur3m, eur3m, eur6m, eur3m])
+       sbs.analytic_delta(curve=eur6m, disc_curve=eur3m, leg=2)
+       sbs.spread(curves=[eur3m, eur3m, eur6m, eur3m], leg=2)
+
+    A DataFrame of :meth:`~rateslib.instruments.SBS.cashflows`.
+
+    .. ipython:: python
+
+       sbs.cashflows(curves=[eur3m, eur3m, eur6m, eur3m])
+
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.SBS.delta`
+    and :meth:`~rateslib.instruments.SBS.gamma`, construct a curve model.
+
+    .. ipython:: python
+
+       irs_kws = dict(
+           effective=dt(2022, 1, 1),
+           frequency="A",
+           leg2_frequency="Q",
+           convention="30E360",
+           leg2_convention="Act360",
+           leg2_fixing_method="ibor",
+           leg2_method_param=2,
+           calendar="tgt",
+           currency="eur",
+           curves=["eur3m", "eur3m"],
+       )
+       sbs_kws = dict(
+           effective=dt(2022, 1, 1),
+           frequency="Q",
+           leg2_frequency="S",
+           convention="Act360",
+           fixing_method="ibor",
+           method_param=2,
+           leg2_convention="Act360",
+           calendar="tgt",
+           currency="eur",
+           curves=["eur3m", "eur3m", "eur6m", "eur3m"]
+       )
+       instruments = [
+           IRS(termination="1Y", **irs_kws),
+           IRS(termination="2Y", **irs_kws),
+           SBS(termination="1Y", **sbs_kws),
+           SBS(termination="2Y", **sbs_kws),
+       ]
+       solver = Solver(
+           curves=[eur3m, eur6m],
+           instruments=instruments,
+           s=[1.55, 1.6, 5.5, 6.5],
+           instrument_labels=["1Y", "2Y", "1Y 3s6s", "2Y 3s6s"],
+           id="eur",
+       )
+       sbs.delta(solver=solver)
+       sbs.gamma(solver=solver)
+
     """
 
     _float_spread_mixin = True
@@ -3857,28 +3982,6 @@ class SBS(BaseDerivative):
         Return the analytic delta of a leg of the derivative object.
 
         See :meth:`BaseDerivative.analytic_delta`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           forecasting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-           forecasting_curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
-           discounting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985})
-
-        .. ipython:: python
-
-           sbs = SBS(
-               effective=dt(2022, 2, 15),
-               termination=dt(2022, 8, 15),
-               frequency="Q",
-               leg2_frequency="S",
-               leg2_float_spread=-50.0,
-               convention="Act360",
-               payment_lag=2,
-               notional=1e9,
-           )
-           sbs.analytic_delta(forecasting_curve, discounting_curve, leg=1)
         """
         return super().analytic_delta(*args, **kwargs)
 
@@ -3893,12 +3996,6 @@ class SBS(BaseDerivative):
         Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           sbs.cashflows([forecasting_curve, discounting_curve, forecasting_curve2])
         """
         return super().cashflows(curves, solver, fx, base)
 
@@ -3914,12 +4011,6 @@ class SBS(BaseDerivative):
         Return the NPV of the derivative object by summing legs.
 
         See :meth:`BaseDerivative.npv`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           sbs.npv([forecasting_curve, discounting_curve, forecasting_curve2])
         """
         return super().npv(curves, solver, fx, base, local)
 
