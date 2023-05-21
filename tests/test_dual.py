@@ -178,6 +178,9 @@ def test_eq_ne(x_1, y_1, y_2):
         1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)) * 2
     )
 
+    # non-matching types
+    assert Dual(2.0, ["x", "y"], [1., 2.]) != Dual2(2.0, ["x", "y"], [1., 2.])
+
 
 def test_lt():
     assert Dual(1, "x") < Dual(2, "y")
@@ -225,6 +228,11 @@ def test_dual2_immutable(y_1, y_2, op):
 def test_dual_immutable(x_1, op):
     _ = getattr(x_1, op)(Dual(2, vars=["new"], dual=np.array([4])))
     assert x_1 == Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
+
+
+def test_dual_raises(x_1):
+    with pytest.raises(ValueError, match="`Dual` variable cannot possess `dual2`"):
+        x_1.dual2
 
 
 @pytest.mark.parametrize("op, expected", [

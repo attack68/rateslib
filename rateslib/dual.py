@@ -73,6 +73,7 @@ class DualBase(metaclass=ABCMeta):
             if not np.all(np.isclose(self.dual2, argument.dual2, atol=PRECISION)):
                 return False
         elif type(self) is Dual2 or type(argument) is Dual2:
+            # this line should not be hit TypeError should raise earlier
             return False  # cannot compare Dual with Dual2
         return True
 
@@ -85,7 +86,7 @@ class DualBase(metaclass=ABCMeta):
 
     @abstractmethod
     def __upcast_vars__(self, new_vars: list[str]):
-        pass
+        pass  # pragma: no cover
 
     def gradient(self, vars=None, order=1, keep_manifold=False):
         """
