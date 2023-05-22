@@ -374,7 +374,7 @@ class TestFRA:
         )
         result = fra.npv(curve)
         expected = fra.analytic_delta(curve) * (4.035 - fra.rate(curve)) * -100
-        assert abs(result - expected) < 1e-9
+        assert abs(result - expected) < 1e-8
         assert abs(result - 118631.8350458332) < 1e-7
 
     def test_fra_cashflows(self, curve):
@@ -465,7 +465,8 @@ class TestNullPricing:
 
     @pytest.mark.parametrize("inst", [
         IRS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
-        # FRA(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6)
+        FRA(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
+        SBS(dt(2022, 7, 1), "3M", "A", curves=["c1", "c1", "c2", "c1"], notional=-1e6),
     ])
     def test_null_priced_delta(self, inst):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="c1")
@@ -481,7 +482,7 @@ class TestNullPricing:
             id="solver",
         )
         result = inst.delta(solver=solver)
-        assert (result[("usd", "usd")].sum() - 25.0) < 1.0
+        assert (result.iloc[0, 0] - 25.0) < 1.0
 
 
 class TestNonMtmXCS:

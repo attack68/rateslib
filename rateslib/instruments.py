@@ -3409,7 +3409,7 @@ class IRS(BaseDerivative):
         solver: Optional[Solver] = None,
     ):
         mid_market_rate = self.rate(curves, solver)
-        self.leg1.fixed_rate = mid_market_rate.real
+        self.leg1.fixed_rate = float(mid_market_rate)
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -3998,6 +3998,10 @@ class SBS(BaseDerivative):
             convention=self.leg2_convention,
         )
 
+    def _set_pricing_mid(self, curves, solver):
+        rate = self.rate(curves, solver)
+        self.leg1.float_spread = float(rate)
+
     def analytic_delta(self, *args, **kwargs):
         """
         Return the analytic delta of a leg of the derivative object.
@@ -4033,6 +4037,9 @@ class SBS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
+        if self.float_spread is None and self.leg2_float_spread is None:
+            # set a pricing parameter for the purpose of pricing NPV at zero.
+            self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
@@ -4065,7 +4072,7 @@ class SBS(BaseDerivative):
         -------
         float, Dual or Dual2
         """
-        irs_npv = self.npv(curves, solver)
+        core_npv = super().npv(curves, solver)
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
@@ -4075,7 +4082,7 @@ class SBS(BaseDerivative):
             leg_obj, args = self.leg2, (curves[2], curves[3])
 
         specified_spd = 0 if leg_obj.float_spread is None else leg_obj.float_spread
-        return leg_obj._spread(-irs_npv, *args) + specified_spd
+        return leg_obj._spread(-core_npv, *args) + specified_spd
 
         # irs_npv = self.npv(curves, solver)
         # curves, _ = self._get_curves_and_fx_maybe_from_solver(solver, curves, None)
@@ -4272,8 +4279,16 @@ class FRA(Sensitivities, BaseMixin):
             frequency=frequency,
             stub=False,
             currency=self.currency,
-            notional=self.notional,
+            notional=-self.notional,
         )  # FloatPeriod is used only to access the rate method for calculations.
+
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+    ):
+        mid_market_rate = self.rate(curves, solver)
+        self.leg1.fixed_rate = mid_market_rate.real
 
     def analytic_delta(
         self,
@@ -4354,6 +4369,8 @@ class FRA(Sensitivities, BaseMixin):
            fxr = FXRates({"gbpusd": 2.0})
            fra.npv([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
+        if self.fixed_rate is None:
+            self._set_pricing_mid(curves, solver)
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
@@ -4425,11 +4442,17 @@ class FRA(Sensitivities, BaseMixin):
 
            fra.cashflow(forecasting_curve)
         """
-        if self.fixed_rate is None:
-            return 0  # set the fixed rate = to floating rate netting to zero
-        rate = self.leg2.rate(curve)
-        cf = self.notional * self.leg1.dcf * (rate - self.fixed_rate) / 100
+        cf1 = self.leg1.cashflow
+        cf2 = self.leg2.cashflow(curve)
+        cf = cf1 + cf2
+        rate = None if curve is None else 100 * cf2 / (self.notional * self.leg2.dcf)
         cf /= 1 + self.leg1.dcf * rate / 100
+
+        # if self.fixed_rate is None:
+        #     return 0  # set the fixed rate = to floating rate netting to zero
+        # rate = self.leg2.rate(curve)
+        # cf = self.notional * self.leg1.dcf * (rate - self.fixed_rate) / 100
+        # cf /= 1 + self.leg1.dcf * rate / 100
         return cf
 
     def cashflows(

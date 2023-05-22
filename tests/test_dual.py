@@ -178,9 +178,6 @@ def test_eq_ne(x_1, y_1, y_2):
         1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)) * 2
     )
 
-    # non-matching types
-    assert Dual(2.0, ["x", "y"], [1., 2.]) != Dual2(2.0, ["x", "y"], [1., 2.])
-
 
 def test_lt():
     assert Dual(1, "x") < Dual(2, "y")

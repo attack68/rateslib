@@ -779,15 +779,13 @@ class FloatPeriod(BasePeriod):
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        rate = None if curve is None else float(self.rate(curve))
+        cashflow = None if curve is None else float(self.cashflow(curve))
+        rate = None if curve is None else float(100 * cashflow / (-self.notional * self.dcf))
         if disc_curve is None or rate is None:
             npv, npv_fx = None, None
         else:
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
-        cashflow = (
-            None if rate is None else -float(self.notional * self.dcf * rate / 100)
-        )
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
@@ -826,6 +824,14 @@ class FloatPeriod(BasePeriod):
             return {self.currency: value}
         else:
             return fx * value
+
+    def cashflow(self, curve: Union[Curve, LineCurve]) -> Union[None, DualTypes]:
+        if curve is None:
+            return None
+        else:
+            rate = None if curve is None else self.rate(curve)
+            _ = -self.notional * self.dcf * rate / 100
+            return _
 
     def rate(self, curve: Union[Curve, LineCurve]):
         """
