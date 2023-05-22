@@ -460,6 +460,30 @@ def test_forward_fx_spot_equivalent():
 #     assert abs(npv2) < 1e-9
 
 
+class TestNullPricing:
+    # test instruments can be priced without defining a pricing parameter.
+
+    @pytest.mark.parametrize("inst", [
+        IRS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
+        # FRA(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6)
+    ])
+    def test_null_priced_delta(self, inst):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="c1")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="c2")
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="c1"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="c2")
+        ]
+        solver = Solver(
+            curves=[c1, c2],
+            instruments=ins,
+            s=[1.2, 1.3],
+            id="solver",
+        )
+        result = inst.delta(solver=solver)
+        assert (result[("usd", "usd")].sum() - 25.0) < 1.0
+
+
 class TestNonMtmXCS:
 
     def test_nonmtmxcs_npv(self, curve, curve2):

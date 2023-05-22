@@ -3389,6 +3389,14 @@ class IRS(BaseDerivative):
             convention=self.leg2_convention,
         )
 
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+    ):
+        mid_market_rate = self.rate(curves, solver)
+        self.leg1.fixed_rate = mid_market_rate.real
+
     def analytic_delta(self, *args, **kwargs):
         """
         Return the analytic delta of a leg of the derivative object.
@@ -3412,8 +3420,7 @@ class IRS(BaseDerivative):
         """
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            mid_market_rate = self.rate(curves, solver)
-            self.leg1.fixed_rate = mid_market_rate.real
+            self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
