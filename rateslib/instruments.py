@@ -4043,13 +4043,6 @@ class SBS(BaseDerivative):
         Returns
         -------
         float, Dual or Dual2
-
-        Examples
-        --------
-        .. ipython:: python
-
-           sbs.rate([forecasting_curve, discounting_curve, forecasting_curve2], leg=1)
-           sbs.rate([forecasting_curve, discounting_curve, forecasting_curve2], leg=2)
         """
         irs_npv = self.npv(curves, solver)
         curves, _ = _get_curves_and_fx_maybe_from_solver(
@@ -4096,20 +4089,11 @@ class FRA(Sensitivities, BaseMixin):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-    float_spread : float, optional
-        The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
-        `None` and designated
-        later, perhaps after a mid-market spread for all periods has been calculated.
-    spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
     fixings : float or list, optional
         If a float scalar, will be applied as the determined fixing for the first
         period. If a list of *n* fixings will be used as the fixings for the first *n*
         periods. If any sublist of length *m* is given as the first *m* RFR fixings
         within individual curve and composed into the overall rate.
-    fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
     method_param : int, optional
         A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
@@ -4121,6 +4105,81 @@ class FRA(Sensitivities, BaseMixin):
 
     ``effective`` and ``termination`` are not adjusted prior to initialising
     ``Periods``. Care should be taken to enter these exactly.
+
+    Examples
+    --------
+    Construct curves to price the example.
+
+    .. ipython:: python
+
+       eur3m = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.965,
+               dt(2024, 1, 1): 0.94
+           },
+           id="eur3m",
+       )
+
+    Create the FRA, and demonstrate the :meth:`~rateslib.instruments.FRA.rate`,
+    :meth:`~rateslib.instruments.FRA.npv`,
+    :meth:`~rateslib.instruments.FRA.analytic_delta`.
+
+    .. ipython:: python
+
+       fra = FRA(
+           effective=dt(2023, 2, 15),
+           termination="3M",
+           frequency="Q",
+           calendar="tgt",
+           currency="eur",
+           method_param=2,
+           convention="Act360",
+           notional=100e6,
+           fixed_rate=2.85,
+           curves=["eur3m"],
+       )
+       fra.rate(curves=eur3m)
+       fra.npv(curves=eur3m)
+       fra.analytic_delta(curve=eur3m)
+
+    A DataFrame of :meth:`~rateslib.instruments.FRA.cashflows`.
+
+    .. ipython:: python
+
+       fra.cashflows(curves=eur3m)
+
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.FRA.delta`
+    and :meth:`~rateslib.instruments.FRA.gamma`, construct a curve model.
+
+    .. ipython:: python
+
+       irs_kws = dict(
+           effective=dt(2022, 1, 1),
+           frequency="A",
+           leg2_frequency="Q",
+           convention="30E360",
+           leg2_convention="Act360",
+           leg2_fixing_method="ibor",
+           leg2_method_param=2,
+           calendar="tgt",
+           currency="eur",
+           curves=["eur3m", "eur3m"],
+       )
+       instruments = [
+           IRS(termination="1Y", **irs_kws),
+           IRS(termination="2Y", **irs_kws),
+       ]
+       solver = Solver(
+           curves=[eur3m],
+           instruments=instruments,
+           s=[1.55, 1.6],
+           instrument_labels=["1Y", "2Y"],
+           id="eur",
+       )
+       fra.delta(solver=solver)
+       fra.gamma(solver=solver)
+
     """
 
     _fixed_rate_mixin = True
