@@ -49,7 +49,7 @@ from rateslib.legs import (
     ZeroFloatLeg,
     CustomLeg,
 )
-from rateslib.dual import Dual, Dual2, set_order
+from rateslib.dual import Dual, Dual2, set_order, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -3301,7 +3301,7 @@ class IRS(BaseDerivative):
            frequency="A",
            calendar="nyc",
            currency="usd",
-           fixed_rate=2.20,
+           fixed_rate=3.269,
            convention="Act360",
            notional=100e6,
            curves=["usd"],
@@ -3872,7 +3872,7 @@ class SBS(BaseDerivative):
            fixing_method="ibor",
            method_param=2,
            convention="Act360",
-           leg2_float_spread=-5.0,
+           leg2_float_spread=-22.9,
            notional=100e6,
            curves=["eur3m", "eur3m", "eur6m", "eur3m"],
        )
@@ -4167,7 +4167,7 @@ class FRA(Sensitivities, BaseMixin):
            method_param=2,
            convention="Act360",
            notional=100e6,
-           fixed_rate=2.85,
+           fixed_rate=2.617,
            curves=["eur3m"],
        )
        fra.rate(curves=eur3m)
@@ -4230,7 +4230,7 @@ class FRA(Sensitivities, BaseMixin):
         fixings: Optional[Union[float, Series]] = None,
         currency: Optional[str] = None,
         curves: Optional[Union[str, list, Curve]] = None,
-    ):
+    ) -> None:
         self.curves = curves
         self.currency = defaults.base_currency if currency is None else currency.lower()
 
@@ -4289,7 +4289,7 @@ class FRA(Sensitivities, BaseMixin):
         self,
         curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
-    ):
+    ) -> None:
         mid_market_rate = self.rate(curves, solver)
         self.leg1.fixed_rate = mid_market_rate.real
 
@@ -4299,7 +4299,7 @@ class FRA(Sensitivities, BaseMixin):
         disc_curve: Optional[Curve] = None,
         fx: Union[float, FXRates, FXForwards] = 1.0,
         base: Optional[str] = None,
-    ):
+    ) -> DualTypes:
         """
         Return the analytic delta of the FRA.
 
@@ -4322,25 +4322,6 @@ class FRA(Sensitivities, BaseMixin):
         -------
         flaat, Dual or Dual2
 
-        Examples
-        --------
-        .. ipython:: python
-
-           forecasting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-           discounting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985})
-
-        .. ipython:: python
-
-           fra = FRA(
-               effective=dt(2022, 3, 15),
-               termination=dt(2022, 6, 15),
-               frequency="Q",
-               convention="Act360",
-               fixed_rate=2.50,
-               notional=1000000,
-               currency="gbp"
-           )
-           fra.analytic_delta(forecasting_curve, discounting_curve)
         """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
@@ -4355,22 +4336,11 @@ class FRA(Sensitivities, BaseMixin):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
         local: bool = False,
-    ):
+    ) -> DualTypes:
         """
         Return the NPV of the derivative.
 
         See :meth:`BaseDerivative.npv`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fra.npv([forecasting_curve, discounting_curve])
-
-        .. ipython:: python
-
-           fxr = FXRates({"gbpusd": 2.0})
-           fra.npv([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
         if self.fixed_rate is None:
             self._set_pricing_mid(curves, solver)
@@ -4390,7 +4360,7 @@ class FRA(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market rate of the FRA.
 
@@ -4413,12 +4383,6 @@ class FRA(Sensitivities, BaseMixin):
         Returns
         -------
         float, Dual or Dual2
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fra.rate(forecasting_curve)
         """
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
@@ -4464,7 +4428,7 @@ class FRA(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-    ):
+    ) -> DataFrame:
         """
         Return the properties of the leg used in calculating cashflows.
 

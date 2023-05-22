@@ -365,7 +365,7 @@ class FixedPeriod(BasePeriod):
         return super().analytic_delta(*args, **kwargs)
 
     @property
-    def cashflow(self):
+    def cashflow(self) -> Union[float, None]:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
@@ -386,7 +386,7 @@ class FixedPeriod(BasePeriod):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
         local: bool = False,
-    ):
+    ) -> DualTypes:
         disc_curve = disc_curve or curve
         if disc_curve is None:
             raise TypeError(
