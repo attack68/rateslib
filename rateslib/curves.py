@@ -319,6 +319,7 @@ class Curve(Serialize, PlotCurve):
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
     _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
+    _base_type = "dfs"
 
     def __init__(
         self,
@@ -703,6 +704,7 @@ class Curve(Serialize, PlotCurve):
                    dt(2026, 1, 1),
                    dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
                ],
+               interpolation="log_linear",
            )
            translated_curve = curve.translate(dt(2022, 12, 1))
            fig, ax, line = curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12, 1))
@@ -994,6 +996,7 @@ class LineCurve(Curve):
         lambda x: x
     )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
+    _base_type = "values"
 
     def __init__(
         self,
@@ -1367,7 +1370,7 @@ class IndexCurve(Curve):
         self.index_base = index_base
         if self.index_base is None:
             raise ValueError("`index_base` must be given for IndexCurve.")
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **{**{"interpolation": "linear_index"}, **kwargs})
 
     def index_value(self, date: datetime, interpolation: str = "daily"):
         """
@@ -1415,6 +1418,324 @@ class IndexCurve(Curve):
                 "`interpolation` for `index_value` must be in {'daily', 'monthly'}."
             )
         return self.index_base * 1 / self[date_]
+
+
+class CompositeCurve(PlotCurve):
+    """
+    Create a new curve by dynamically compositing a sequence of curves together.
+
+    .. note::
+       Can only composite curves of the same type: :class:`Curve`, :class:`IndexCurve`
+       or :class:`LineCurve`. Other curve parameters such as ``modifier``, ``calendar``
+       and ``convention`` must also match.
+
+    Parameters
+    ----------
+    curves : sequence of :class:`Curve`, :class:`LineCurve` or :class:`IndexCurve`
+        The curves to be composited.
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multicurve framework.
+
+    Examples
+    --------
+    Composite two :class:`LineCurve` s. Here, simulating the effect of adding
+    quarter-end turns to a cubic spline interpolator, which is otherwise difficult to
+    mathematically derive.
+
+    .. ipython:: python
+
+       from rateslib.curves import LineCurve, CompositeCurve
+       line_curve1 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 2.5,
+               dt(2023, 1, 1): 3.5,
+               dt(2024, 1, 1): 3.0,
+           },
+           t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
+              dt(2023, 1, 1),
+              dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1)],
+       )
+       line_curve2 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 0,
+               dt(2022, 3, 31): -0.2,
+               dt(2022, 4, 1): 0,
+               dt(2022, 6, 30): -0.2,
+               dt(2022, 7, 1): 0,
+               dt(2022, 9, 30): -0.2,
+               dt(2022, 10, 1): 0,
+               dt(2022, 12, 31): -0.2,
+               dt(2023, 1, 1): 0,
+               dt(2023, 3, 31): -0.2,
+               dt(2023, 4, 1): 0,
+               dt(2023, 6, 30): -0.2,
+               dt(2023, 7, 1): 0,
+               dt(2023, 9, 30): -0.2,
+           },
+           interpolation="flat_forward",
+       )
+       curve = CompositeCurve([line_curve1, line_curve2])
+       curve.plot("1d")
+
+    .. plot::
+
+       from rateslib.curves import LineCurve, CompositeCurve
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       line_curve1 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 2.5,
+               dt(2023, 1, 1): 3.5,
+               dt(2024, 1, 1): 3.0,
+           },
+           t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
+              dt(2023, 1, 1),
+              dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1)],
+       )
+       line_curve2 = LineCurve(
+           nodes={
+               dt(2022, 1, 1): 0,
+               dt(2022, 3, 31): -0.2,
+               dt(2022, 4, 1): 0,
+               dt(2022, 6, 30): -0.2,
+               dt(2022, 7, 1): 0,
+               dt(2022, 9, 30): -0.2,
+               dt(2022, 10, 1): 0,
+               dt(2022, 12, 31): -0.2,
+               dt(2023, 1, 1): 0,
+               dt(2023, 3, 31): -0.2,
+               dt(2023, 4, 1): 0,
+               dt(2023, 6, 30): -0.2,
+               dt(2023, 7, 1): 0,
+               dt(2023, 9, 30): -0.2,
+           },
+           interpolation="flat_forward",
+       )
+       curve = CompositeCurve([line_curve1, line_curve2])
+       fig, ax, line = curve.plot("1D")
+       plt.show()
+
+    We can also composite DF based curves by using a fast approximation or an
+    exact match.
+
+    .. ipython:: python
+
+       from rateslib.curves import Curve, CompositeCurve
+       curve1 = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.98,
+               dt(2024, 1, 1): 0.965,
+               dt(2025, 1, 1): 0.955
+           },
+           t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+              dt(2024, 1, 1),
+              dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+       )
+       curve2 =Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2022, 6, 30): 1.0,
+               dt(2022, 7, 1): 0.999992,
+               dt(2022, 12, 31): 0.999992,
+               dt(2023, 1, 1): 0.999984,
+               dt(2023, 6, 30): 0.999984,
+               dt(2023, 7, 1): 0.999976,
+               dt(2023, 12, 31): 0.999976,
+               dt(2024, 1, 1): 0.999968,
+               dt(2024, 6, 30): 0.999968,
+               dt(2024, 7, 1): 0.999960,
+               dt(2025, 1, 1): 0.999960,
+           },
+       )
+       curve = CompositeCurve([curve1, curve2])
+       curve.plot("1D", comparators=[curve1, curve2], labels=["Composite", "C1", "C2"])
+
+    .. plot::
+
+       from rateslib.curves import Curve, CompositeCurve
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       curve1 = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.98,
+               dt(2024, 1, 1): 0.965,
+               dt(2025, 1, 1): 0.955
+           },
+           t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+              dt(2024, 1, 1),
+              dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+       )
+       curve2 =Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2022, 6, 30): 1.0,
+               dt(2022, 7, 1): 0.999992,
+               dt(2022, 12, 31): 0.999992,
+               dt(2023, 1, 1): 0.999984,
+               dt(2023, 6, 30): 0.999984,
+               dt(2023, 7, 1): 0.999976,
+               dt(2023, 12, 31): 0.999976,
+               dt(2024, 1, 1): 0.999968,
+               dt(2024, 6, 30): 0.999968,
+               dt(2024, 7, 1): 0.999960,
+               dt(2025, 1, 1): 0.999960,
+           },
+       )
+       curve = CompositeCurve([curve1, curve2])
+       fig, ax, line = curve.plot("1D", comparators=[curve1, curve2], labels=["Composite", "C1", "C2"])
+       plt.show()
+
+    The :meth:`~rateslib.curves.CompositeCurve.rate` method of a :class:`CompositeCurve`
+    composed of either :class:`Curve` or :class:`IndexCurve` s
+    accepts an ``approximate`` argument. When *True* by default it used a geometric mean
+    approximation to determine composite period rates.
+    Below we demonstrate this is more than 1000x faster and within 1e-8 of the true
+    value.
+
+    .. ipython:: python
+
+       curve.rate(dt(2022, 6, 1), "1y")
+       %timeit curve.rate(dt(2022, 6, 1), "1y")
+
+    .. ipython:: python
+
+       curve.rate(dt(2022, 6, 1), "1y", approximate=False)
+       %timeit curve.rate(dt(2022, 6, 1), "1y", approximate=False)
+
+    """
+
+    def __init__(
+        self,
+        curves: Union[list, tuple],
+        id: Optional[str] = None,
+    ) -> None:
+        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        # validate
+        self._base_type = curves[0]._base_type
+        for i in range(1, len(curves)):
+            if not type(curves[0]) == type(curves[i]):
+                raise TypeError(
+                    "`curves` must be a list of similar type curves, got "
+                    f"{type(curves[0])} and {type(curves[i])}."
+                )
+            if not curves[0].node_dates[0] == curves[i].node_dates[0]:
+                raise ValueError(
+                    "`curves` must share the same initial node date, got "
+                    f"{curves[0].node_dates[0]} and {curves[i].node_dates[0]}"
+                )
+
+        if self._base_type == "dfs":
+            for attr in ["modifier", "calendar", "convention"]:
+                for i in range(1, len(curves)):
+                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
+                        raise ValueError(
+                            "Cannot composite curves with different attributes, "
+                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
+                            f"'{getattr(curves[0], attr, None)}'."
+                        )
+            self.modifier = curves[0].modifier
+            self.calendar = curves[0].calendar
+            self.convention = curves[0].convention
+
+        self.curves = tuple(curves)
+        self.node_dates = self.curves[0].node_dates
+
+    def rate(
+        self,
+        effective: datetime,
+        termination: Optional[Union[datetime, str]] = None,
+        modifier: Optional[Union[str, bool]] = False,
+        approximate: bool = True,
+    ):
+        """
+        Calculate the composited rate on the curve.
+
+        If rates are sought for dates prior to the initial node of the curve `None`
+        will be returned.
+
+        Parameters
+        ----------
+        effective : datetime
+            The start date of the period for which to calculate the rate.
+        termination : datetime or str
+            The end date of the period for which to calculate the rate.
+        modifier : str, optional
+            The day rule if determining the termination from tenor. If `False` is
+            determined from the `Curve` modifier.
+        approximate : bool, optional
+            When compositing :class:`Curve` or :class:`IndexCurve` calculating many
+            individual rates is expensive. This uses an approximation typically with
+            error less than 1/100th of basis point.
+
+        Returns
+        -------
+        Dual, Dual2 or float
+        """
+        if self._base_type == "values":
+            _ = 0.0
+            for i in range(0, len(self.curves)):
+                _ += self.curves[i].rate(effective, termination, modifier)
+            return _
+        elif self._base_type == "dfs":
+            modifier = self.modifier if modifier is False else modifier
+            if isinstance(termination, str):
+                termination = add_tenor(effective, termination, modifier, self.calendar)
+
+            d = 1.0 / 360 if "360" in self.convention else 1.0 / 365
+            if approximate:
+                # calculates the geometric mean overnight rates in periods and adds
+                _ = 0.0
+                for curve_ in self.curves:
+                    r = curve_.rate(effective, termination)
+                    n = (termination - effective).days
+                    _ += ((1 + r * n * d / 100) ** (1 / n) - 1) / d
+
+                _ = ((1 + d * _) ** n - 1) * 100 / (d * n)
+
+            else:
+                _, dcf_ = 1.0, 0.0
+                date_ = effective
+                while date_ < termination:
+                    term_ = add_tenor(date_, "1B", None, self.calendar)
+                    __, d_ = 0.0, (term_ - date_).days * d
+                    dcf_ += d_
+                    for curve in self.curves:
+                        __ += curve.rate(date_, term_)
+                    _ *= (1 + d_ * __ / 100)
+                    date_ = term_
+                _ = 100 * (_ - 1) / dcf_
+        else:
+            raise TypeError(  # pragma: no cover
+                f"Base curve type is unrecognised: {self._base_type}"
+            )
+
+        return _
+
+    def __getitem__(self, date: datetime):
+        if self._base_type == "dfs":
+            # will return a composited discount factor
+            days = (date - self.curves[0].node_dates[0]).days
+            d = 1.0/360 if self.convention == "ACT360" else 1.0/365
+            total_rate = 0.0
+            for curve in self.curves:
+                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
+                total_rate += avg_rate
+            _ = 1.0 / (1 + total_rate * d) ** days
+            return _
+
+        elif self._base_type == "values":
+            # will return a composited rate
+            _ = 0.0
+            for curve in self.curves:
+                _ += curve[date]
+            return _
+
+        else:
+            raise TypeError(  # pragma: no cover
+                f"Base curve type is unrecognised: {self._base_type}"
+            )
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):

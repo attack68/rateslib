@@ -59,7 +59,14 @@ from rateslib.splines import bsplev_single, bspldnev_single, PPSpline
 
 from rateslib.scheduling import Schedule
 
-from rateslib.curves import Curve, LineCurve, interpolate, index_left, IndexCurve
+from rateslib.curves import (
+    Curve,
+    LineCurve,
+    interpolate,
+    index_left,
+    IndexCurve,
+    CompositeCurve,
+)
 
 from rateslib.fx import (
     FXRates,
@@ -151,6 +158,7 @@ __all__ = [
     "Curve",
     "LineCurve",
     "IndexCurve",
+    "CompositeCurve",
     "interpolate",
     "index_left",
     # solver.py
