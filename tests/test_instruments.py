@@ -7,10 +7,10 @@ import numpy as np
 import context
 from rateslib import defaults, default_context
 from rateslib.instruments import (
-    IRS, forward_fx, SBS, FXSwap, NonMtmXCS, FixedRateBond, Bill, Value,
+    IRS, forward_fx, SBS, FXSwap, NonMtmXCS, FixedRateBond, Bill, Value, ZCS,
     _get_curve_from_solver, BaseMixin, FloatRateBond, FRA, BondFuture,
     NonMtmFixedFloatXCS, NonMtmFixedFixedXCS, XCS, FixedFloatXCS, FixedFixedXCS, FloatFixedXCS,
-    Portfolio, Spread, Fly, _get_curves_and_fx_maybe_from_solver
+    Portfolio, Spread, Fly, _get_curves_and_fx_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
@@ -467,6 +467,7 @@ class TestNullPricing:
         IRS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
         FRA(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
         SBS(dt(2022, 7, 1), "3M", "A", curves=["c1", "c1", "c2", "c1"], notional=-1e6),
+        ZCS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
     ])
     def test_null_priced_delta(self, inst):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="c1")

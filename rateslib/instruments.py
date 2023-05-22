@@ -3682,6 +3682,10 @@ class ZCS(BaseDerivative):
         """
         return super().analytic_delta(*args, **kwargs)
 
+    def _set_pricing_mid(self, curves, solver):
+        mid_market_rate = self.rate(curves, solver)
+        self.leg1.fixed_rate = float(mid_market_rate)
+
     def npv(
         self,
         curves: Optional[Union[Curve, str, list]] = None,
@@ -3708,8 +3712,7 @@ class ZCS(BaseDerivative):
         """
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            mid_market_rate = self.rate(curves, solver)
-            self.leg1.fixed_rate = mid_market_rate.real
+            self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
