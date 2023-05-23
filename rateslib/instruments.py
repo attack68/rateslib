@@ -4574,6 +4574,53 @@ class BaseXCS(BaseDerivative):
             self.leg2_amortization = self.leg1.amortization * -fx_arg
             self.leg2.amortization = self.leg2_amortization
 
+    @property
+    def _is_unpriced(self):
+        if self._fixed_rate_mixin and self._leg2_fixed_rate_mixin:
+            # Fixed/Fixed where one leg is unpriced.
+            if self.fixed_rate is None or self.leg2_fixed_rate is None:
+                return True
+            return False
+        elif self._fixed_rate_mixin and self.fixed_rate is None:
+            # Fixed/Float where fixed leg is unpriced
+            return True
+        elif self._float_spread_mixin and self.float_spread is None:
+            pass
+        else:
+            return False
+
+        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is None:
+            pass
+        elif self._leg2_float_spread_mixin and self.leg2_float_spread is None:
+            pass
+        else:
+            return False
+
+        return True
+
+    def _set_pricing_mid(
+            self,
+            curves: Optional[Union[Curve, str, list]] = None,
+            solver: Optional[Solver] = None,
+            fx: Optional[FXForwards] = None,
+    ):
+        leg: int = 1
+        lookup = {
+            1: ["_fixed_rate_mixin", "_float_spread_mixin"],
+            2: ["_leg2_fixed_rate_mixin", "_leg2_float_spread_mixin"]
+        }
+        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is None:
+            # Fixed/Fixed or Float/Fixed
+            leg = 2
+
+        rate = self.rate(curves, solver, fx, leg=leg)
+        if getattr(self, lookup[leg][0]):
+            getattr(self, f"leg{leg}").fixed_rate = float(rate)
+        elif getattr(self, lookup[leg][1]):
+            getattr(self, f"leg{leg}").float_spread = float(rate)
+        else:
+            raise AttributeError("BaseXCS leg1 must be defined fixed or float.")
+
     def npv(
         self,
         curves: Optional[Union[Curve, str, list]] = None,
@@ -4596,19 +4643,13 @@ class BaseXCS(BaseDerivative):
             self.curves, solver, curves, fx
         )
         base = self.leg1.currency if base is None else base
+
+        if self._is_unpriced:
+            self._set_pricing_mid(curves, solver, fx)
+
         self._set_fx_fixings(fx)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
-
-        if "Fixed" in type(self.leg1).__name__ and self.fixed_rate is None:
-            mid_market_rate = self.rate(curves, solver, fx, leg=1)
-            self.leg1.fixed_rate = mid_market_rate
-        if "Fixed" in type(self.leg2).__name__ and self.leg2_fixed_rate is None:
-            if type(self).__name__ == "FXSwap":
-                mid_market_rate = self.rate(curves, solver, fx, fixed_rate=True)
-            else:
-                mid_market_rate = self.rate(curves, solver, fx, leg=2)
-            self.leg2.fixed_rate = mid_market_rate
 
         ret = super().npv(curves, solver, fx, base, local)
         if self._is_mtm:
@@ -4894,6 +4935,15 @@ class NonMtmXCS(BaseXCS):
             convention=self.leg2_convention,
         )
         self._initialise_fx_fixings(fx_fixing)
+
+    # def _set_pricing_mid(
+    #     self,
+    #     curves: Optional[Union[Curve, str, list]] = None,
+    #     solver: Optional[Solver] = None,
+    #     fx: Optional[FXForwards] = None,
+    # ):
+    #     rate = self.rate(curves, solver, fx, leg=1)
+    #     self.leg1.float_spread = float(rate)
 
     def _rate2(
         self,
@@ -5428,26 +5478,14 @@ class XCS(BaseXCS):
             convention=self.leg2_convention,
         )
 
-    def _set_pricing_mid(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-    ):
-        rate = self.rate(curves, solver, fx, leg=1)
-        self.leg1.float_spread = float(rate)
-
-    def npv(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-        base: Optional[str] = None,
-        local: bool = False,
-    ):
-        if self.float_spread is None and self.leg2_float_spread is None:
-            self._set_pricing_mid(curves, solver, fx)
-        return super().npv(curves, solver, fx, base, local)
+    # def _set_pricing_mid(
+    #     self,
+    #     curves: Optional[Union[Curve, str, list]] = None,
+    #     solver: Optional[Solver] = None,
+    #     fx: Optional[FXForwards] = None,
+    # ):
+    #     rate = self.rate(curves, solver, fx, leg=1)
+    #     self.leg1.float_spread = float(rate)
 
     def _npv2(
         self,
@@ -5853,13 +5891,12 @@ class FXSwap(BaseXCS):
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
         implies the notional on leg 2 is 110m USD. If `None` determines this
         dynamically.
+    points : float, optional
+        The pricing parameter for the FX Swap, which will determine the implicit
+        fixed rate on leg2.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
-    leg2_fixed_rate : float or None
-        The fixed rate applied to leg 2.
-        If `None` will be set to mid-market when curves are provided.
-        Must set the ``fixed_rate`` on at least one leg.
     leg2_payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
@@ -5875,15 +5912,18 @@ class FXSwap(BaseXCS):
         self,
         *args,
         fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
+        points: Optional[float] = None,
         payment_lag_exchange: Optional[int] = None,
-        leg2_fixed_rate: Optional[float] = None,
         leg2_payment_lag_exchange: Optional[int] = "inherit",
         **kwargs,
     ):
+        if fx_fixing is None and points is not None:
+            raise ValueError(
+                "Cannot set `points` on FXSwap without giving an `fx_fixing`."
+            )
         super().__init__(*args, **kwargs)
         if leg2_payment_lag_exchange == "inherit":
             leg2_payment_lag_exchange = payment_lag_exchange
-        self._leg2_fixed_rate = leg2_fixed_rate
         self._fixed_rate = 0.0
         self.leg1 = FixedLegExchange(
             fixed_rate=0.0,
@@ -5899,7 +5939,7 @@ class FXSwap(BaseXCS):
             convention=self.convention,
         )
         self.leg2 = FixedLegExchange(
-            fixed_rate=leg2_fixed_rate,
+            fixed_rate=None,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
             frequency="Z",
@@ -5912,10 +5952,32 @@ class FXSwap(BaseXCS):
             convention=self.leg2_convention,
         )
         self._initialise_fx_fixings(fx_fixing)
+        self.points = points
 
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    @property
+    def points(self):
+        return self._points
+
+    @points.setter
+    def points(self, value):
+        self._points = value
+        self._leg2_fixed_rate = None
+        if value is not None:
+            fixed_rate = value * -self.notional / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
+            self.leg2_fixed_rate = fixed_rate
+
+        # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
+    ):
+        points = self.rate(curves, solver, fx)
+        self.points = points
 
     def rate(
         self,
@@ -5943,24 +6005,12 @@ class FXSwap(BaseXCS):
             The FX forwards object that is used to determine the initial FX fixing for
             determining ``leg2_notional``, if not specified at initialisation, and for
             determining mark-to-market exchanges on mtm XCSs.
+        fixed_rate : bool
+            Whether to return the fixed rate for the leg or the FX swap points price.
 
         Returns
         -------
         float, Dual or Dual2
-
-        Notes
-        -----
-        Fixed legs have pricing parameter returned in percentage terms, and
-        float legs have pricing parameter returned in basis point (bp) terms.
-
-        If the ``XCS`` type is specified without a ``fixed_rate`` on any leg then an
-        implied ``float_spread`` will return as its originaly value or zero since
-        the fixed rate used
-        for calculation is the implied mid-market rate including the
-        current ``float_spread`` parameter.
-
-        Examples
-        --------
         """
         leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
         if fixed_rate:

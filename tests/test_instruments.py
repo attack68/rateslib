@@ -464,24 +464,39 @@ class TestNullPricing:
     # test instruments can be priced without defining a pricing parameter.
 
     @pytest.mark.parametrize("inst", [
-        IRS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
-        FRA(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
-        SBS(dt(2022, 7, 1), "3M", "A", curves=["c1", "c1", "c2", "c1"], notional=-1e6),
-        ZCS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
-        XCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=["c1", "c2", "c2", "c2"], notional=-1e6)
+        IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        SBS(dt(2022, 7, 1), "3M", "A", curves=["eureur", "eureur", "eurusd", "eureur"], notional=-1e6),
+        ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        XCS(dt(2022, 7, 1), "3M", "A", currency="usd", leg2_currency="eur", curves=["usdusd", "usdusd", "eureur", "eurusd"], notional=1e6),
+        NonMtmXCS(dt(2022, 7, 1), "3M", "A", currency="usd", leg2_currency="eur", curves=["usdusd", "usdusd", "eureur", "eurusd"], notional=1e6),
+        NonMtmFixedFloatXCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd",  curves=["eureur", "eureur", "usdusd", "usdusd"], notional=1e6),
+        NonMtmFixedFixedXCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd", fixed_rate=1.2, curves=["eureur", "eureur", "usdusd", "usdusd"], notional=1e6),
+        FixedFloatXCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd",  curves=["eureur", "eureur", "usdusd", "usdusd"], notional=1e6),
+        FixedFixedXCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd", leg2_fixed_rate=1.3, curves=["eureur", "eureur", "usdusd", "usdusd"], notional=1e6),
+        FloatFixedXCS(dt(2022, 7, 1), "3M", "A", currency="usd", leg2_currency="eur",  curves=["usdusd", "usdusd", "eureur", "eureur"], notional=-1e6),
+        FXSwap(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdusd"], notional=1e6)
     ])
     def test_null_priced_delta(self, inst):
-        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="c1")
-        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="c2")
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
         ins = [
-            IRS(dt(2022, 1, 1), "1y", "A", curves="c1"),
-            IRS(dt(2022, 1, 1), "1y", "A", curves="c2")
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
         ]
         solver = Solver(
-            curves=[c1, c2],
+            curves=[c1, c2, c3],
             instruments=ins,
-            s=[1.2, 1.3],
+            s=[1.2, 1.3, 1.33],
             id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj."],
+            fx=fxf,
         )
         result = inst.delta(solver=solver)
         assert abs((result.iloc[0, 0] - 25.0)) < 1.0
