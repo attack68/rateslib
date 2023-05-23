@@ -4457,13 +4457,14 @@ class FRA(Sensitivities, BaseMixin):
         cf = float(self.cashflow(curves[0]))
         npv_local = self.cashflow(curves[0]) * curves[1][self.payment]
 
-        _spread = None if self.fixed_rate is None else -float(self.fixed_rate) * 100
+        _fix = None if self.fixed_rate is None else -float(self.fixed_rate)
+        _spd = None if curves[1] is None else -float(self.rate(curves[1])) * 100
         cfs = self.leg1.cashflows(curves[0], curves[1], fx, base)
         cfs[defaults.headers["type"]] = "FRA"
         cfs[defaults.headers["payment"]] = self.payment
         cfs[defaults.headers["cashflow"]] = cf
-        cfs[defaults.headers["rate"]] = float(self.rate(curves[1]))
-        cfs[defaults.headers["spread"]] = _spread
+        cfs[defaults.headers["rate"]] = _fix
+        cfs[defaults.headers["spread"]] = _spd
         cfs[defaults.headers["npv"]] = npv_local
         cfs[defaults.headers["fx"]] = float(fx)
         cfs[defaults.headers["npv_fx"]] = npv_local * float(fx)

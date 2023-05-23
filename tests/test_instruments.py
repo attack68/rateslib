@@ -468,6 +468,7 @@ class TestNullPricing:
         FRA(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
         SBS(dt(2022, 7, 1), "3M", "A", curves=["c1", "c1", "c2", "c1"], notional=-1e6),
         ZCS(dt(2022, 7, 1), "3M", "A", curves="c1", notional=1e6),
+        XCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=["c1", "c2", "c2", "c2"], notional=-1e6)
     ])
     def test_null_priced_delta(self, inst):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="c1")
@@ -483,7 +484,9 @@ class TestNullPricing:
             id="solver",
         )
         result = inst.delta(solver=solver)
-        assert (result.iloc[0, 0] - 25.0) < 1.0
+        assert abs((result.iloc[0, 0] - 25.0)) < 1.0
+        result2 = inst.npv(solver=solver)
+        assert abs(result2) < 1e-3
 
 
 class TestNonMtmXCS:
