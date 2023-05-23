@@ -4680,7 +4680,7 @@ class BaseXCS(BaseDerivative):
 
         _is_float_tgt_leg = "Float" in type(tgt_leg).__name__
         _is_float_alt_leg = "Float" in type(alt_leg).__name__
-        if not _is_float_alt_leg and getattr(self, f"{alt_str}fixed_rate") is None:
+        if not _is_float_alt_leg and getattr(alt_leg, f"fixed_rate") is None:
             raise ValueError(
                 "Cannot solve for a `fixed_rate` or `float_spread` where the "
                 "`fixed_rate` on the non-solvable leg is None."
@@ -4691,7 +4691,7 @@ class BaseXCS(BaseDerivative):
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
         if tgt_leg._is_linear:
-            if not _is_float_tgt_leg and getattr(self, f"{tgt_str}fixed_rate") is None:
+            if not _is_float_tgt_leg and getattr(tgt_leg, f"fixed_rate") is None:
                 # set the target fixed leg to a null fixed rate for calculation
                 tgt_leg.fixed_rate = 0.0
 
@@ -4707,9 +4707,7 @@ class BaseXCS(BaseDerivative):
             )
 
             specified_spd = 0.0
-            if _is_float_tgt_leg and not (
-                getattr(self, f"{tgt_str}float_spread") is None
-            ):
+            if _is_float_tgt_leg and not (getattr(tgt_leg, f"float_spread") is None):
                 specified_spd = tgt_leg.float_spread
             elif not _is_float_tgt_leg:
                 specified_spd = tgt_leg.fixed_rate * 100
@@ -5429,6 +5427,27 @@ class XCS(BaseXCS):
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
         )
+
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
+    ):
+        rate = self.rate(curves, solver, fx, leg=1)
+        self.leg1.float_spread = float(rate)
+
+    def npv(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        if self.float_spread is None and self.leg2_float_spread is None:
+            self._set_pricing_mid(curves, solver, fx)
+        return super().npv(curves, solver, fx, base, local)
 
     def _npv2(
         self,
