@@ -3543,9 +3543,9 @@ class IRS(BaseDerivative):
 
         .. ipython:: python
 
-           irs.spread([forecasting_curve, discounting_curve])
-           irs.leg2_float_spread = 48.867036358702
-           irs.npv([forecasting_curve, discounting_curve])
+           irs.spread(curves=usd)
+           irs.leg2_float_spread = -6.948753
+           irs.npv(curves=usd)
 
         When a non-linear spread compound method is used for float RFR legs this is
         an approximation, via second order Taylor expansion.
@@ -3564,17 +3564,18 @@ class IRS(BaseDerivative):
                fixed_rate=2.50,
                leg2_float_spread=0,
                notional=50000000,
-               currency="gbp",
+               currency="usd",
            )
-           irs.spread([forecasting_curve, discounting_curve])
-           irs.leg2_float_spread = 48.59613590683196
-           irs.npv([forecasting_curve, discounting_curve])
-           irs.spread([forecasting_curve, discounting_curve])
+           irs.spread(curves=usd)
+           irs.leg2_float_spread = -111.060143
+           irs.npv(curves=usd)
+           irs.spread(curves=usd)
 
         The ``leg2_float_spread`` is determined through NPV differences. If the difference
         is small since the defined spread is already quite close to the solution the
         approximation is much more accurate. This is shown above where the second call
-        to ``irs.spread`` is different to the previous call.
+        to ``irs.spread`` is different to the previous call, albeit the difference
+        is 1/10000th of a basis point.
         """
         irs_npv = self.npv(curves, solver)
         specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
@@ -4402,12 +4403,6 @@ class FRA(Sensitivities, BaseMixin):
         Returns
         -------
         float, Dual or Dual2
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fra.cashflow(forecasting_curve)
         """
         cf1 = self.leg1.cashflow
         cf2 = self.leg2.cashflow(curve)
@@ -4442,13 +4437,6 @@ class FRA(Sensitivities, BaseMixin):
         Returns
         -------
         DataFrame
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fxr = FXRates({"gbpusd": 2.0})
-           fra.cashflows([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
