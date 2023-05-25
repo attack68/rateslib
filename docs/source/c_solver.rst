@@ -510,3 +510,117 @@ is to be expected.
        instrument_labels=["1m", "2m", "3m", "4m", "8m", "12m"],
    )
    solver_with_error.error
+
+
+Composite and Proxy Curves
+**************************
+
+:class:`~rateslib.curves.CompositeCurve` and :class:`~rateslib.fx.ProxyCurve` do not
+have their own parameters. These rely on the parameters from other fundamental curves.
+It is possible to create a *Solver* defined with *Instruments* that reference these
+complex curves as pricing curves with the *Solver* updating the underlying
+parameters of the fundamental curves.
+
+This does not require much additional configuration, it simply requires ensuring
+all necessary curves are documented.
+
+Below we will calculate a EUR IRS defined by a *CompositeCurve* and a *Curve*,
+a USD IRS defined just by a *Curve*, and then create an :class:`~rateslib.fx.FXForwards`
+defined with USD collateral, but calibrate a solver by
+:class:`~rateslib.instruments.XCS` instruments priced with EUR collateral.
+
+.. ipython:: python
+
+   eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eureur")
+   eurspd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.999}, id="eurspd")
+   eur3m = CompositeCurve([eureur, eurspd], id="eur3m")
+   usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="usdusd")
+   eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eurusd")
+   fxr = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={
+           "eureur": eureur,
+           "usdusd": usdusd,
+           "eurusd": eurusd,
+       }
+   )
+   usdeur = fxf.curve("usd", "eur", id="usdeur")
+   instruments = [
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
+       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+   ]
+   solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
+
+We can plot all five curves defined above by the 3 fundamental curves,
+*'eureur', 'usdusd', 'eurusd'*.
+
+.. ipython:: python
+
+   eureur.plot("1d", comparators=[eur3m, eurusd], labels=["eureur", "eur3m", "eurusd"])
+   usdusd.plot("1d", comparators=[usdeur], labels=["usdusd", "usdeur"])
+
+.. plot::
+
+   from rateslib.curves import *
+   from rateslib.instruments import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eureur")
+   eurspd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.999}, id="eurspd")
+   eur3m = CompositeCurve([eureur, eurspd], id="eur3m")
+   usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="usdusd")
+   eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eurusd")
+   fxr = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={
+           "eureur": eureur,
+           "usdusd": usdusd,
+           "eurusd": eurusd,
+       }
+   )
+   usdeur = fxf.curve("usd", "eur", id="usdeur")
+   instruments = [
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
+       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+   ]
+   solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
+   fig, ax, lines = eureur.plot("1d", comparators=[eur3m, eurusd], labels=["eureur", "eur3m", "eurusd"])
+   plt.show()
+   plt.close()
+
+.. plot::
+
+   from rateslib.curves import *
+   from rateslib.instruments import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eureur")
+   eurspd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.999}, id="eurspd")
+   eur3m = CompositeCurve([eureur, eurspd], id="eur3m")
+   usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="usdusd")
+   eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eurusd")
+   fxr = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={
+           "eureur": eureur,
+           "usdusd": usdusd,
+           "eurusd": eurusd,
+       }
+   )
+   usdeur = fxf.curve("usd", "eur", id="usdeur")
+   instruments = [
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
+       IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
+       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+   ]
+   solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
+   fig, ax, lines = usdusd.plot("1d", comparators=[usdeur], labels=["usdusd", "usdeur"])
+   plt.show()
+   plt.close()
