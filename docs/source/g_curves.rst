@@ -13,18 +13,32 @@
 Constructing Curves
 ********************
 
+*Rateslib* has five different curve classes. Three of these are fundamental base
+curves of different types and for different purposes. Two are objects which are
+constructed via references to other curves to allow certain combinations.
 
+The three fundamental curve classes are:
 
-A misconception in finance is that interest rate curves are defined by par swap rates,
-for example, a SOFR curve might be defined by the par SOFR rates:
-{1M, 2M, 3M, 6M, 1Y, 2Y, 3Y, etc. }. This is **not** true. Whilst that information *is*
-sufficient to create a SOFR curve (and probably likely to lead to a
-**bootstrapping** method, which ``rateslib`` does not perform) it is a very narrow
-subset of the possibilities permissible for creating curves.
+.. autosummary::
+   rateslib.curves.Curve
+   rateslib.curves.LineCurve
+   rateslib.curves.IndexCurve
 
-In ``rateslib`` **defining curves** and then **solving them with calibrating
+The two, more complex, combination classes are:
+
+.. autosummary::
+   rateslib.curves.CompositeCurve
+   rateslib.fx.ProxyCurve
+
+In *rateslib* **defining curves** and then **solving them with calibrating
 instruments** are two separate processes. This provides maximal flexibility whilst
 providing a process that is fully generalised and consistent throughout.
+
+.. warning::
+   *Rateslib* **does not bootstrap**. Bootstrapping is an analytical process that
+   determines curve parameters sequentially and exactly by solving a series of
+   equations for a well defined set of parameters and instruments. All curves that
+   can be bootstrapped can also be solved by a numerical optimisation routine.
 
 The following pages describe these two processes.
 
@@ -35,8 +49,8 @@ The following pages describe these two processes.
     c_curves.rst
     c_solver.rst
 
-The below provides a basic introduction, exemplifying how the above SOFR curve,
-which might otherwise be bootstrapped, can be constructed in ``rateslib`` using the
+The below provides a basic introduction, exemplifying how a SOFR curve,
+which might otherwise be bootstrapped, can be constructed in *rateslib* using the
 generalised process of:
 
 - **defining the** ``Curves``,

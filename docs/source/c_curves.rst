@@ -13,10 +13,11 @@
 Curves
 ***********
 
-The ``rateslib.curves`` module allows a :class:`~rateslib.curves.Curve` or
-:class:`~rateslib.curves.LineCurve` class
-to be defined with parameters.
-Both of these create curve objects but are inherently different in what they
+The ``rateslib.curves`` module allows the fundamental :class:`~rateslib.curves.Curve`,
+:class:`~rateslib.curves.LineCurve`, or :class:`~rateslib.curves.IndexCurve` class
+to be defined with parameters (for the purpose of the user guide an *IndexCurve*
+can be considered a *Curve* with minor enhancements).
+These curve objects are slightly different in what they
 represent and how they operate.
 
 This module relies on the ultility modules :ref:`splines<splines-doc>`
@@ -25,11 +26,15 @@ and :ref:`dual<dual-doc>`.
 .. autosummary::
    rateslib.curves.Curve
    rateslib.curves.LineCurve
+   rateslib.curves.IndexCurve
+   rateslib.curves.CompositeCurve
+   rateslib.fx.ProxyCurve
    rateslib.curves.interpolate
    rateslib.curves.index_left
 
-Each curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` and
-``translate()`` methods.
+Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` and
+``translate()`` methods. :class:`~rateslib.curves.IndexCurve` can also calculate
+future ``index_value()``.
 
 .. autosummary::
    rateslib.curves.Curve.rate
@@ -42,6 +47,7 @@ Each curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` and
    rateslib.curves.LineCurve.shift
    rateslib.curves.LineCurve.roll
    rateslib.curves.LineCurve.translate
+   rateslib.curves.IndexCurve.index_value
 
 The main parameter that must be supplied to either type of curve is its ``nodes``. This
 provides the curve with its degrees of freedom and represents a dict indexed by
@@ -422,10 +428,12 @@ the curve. This is common practice for interest rate curves usually with a
    plt.show()
 
 
+.. _c-curves-ibor-rfr:
+
 IBOR or RFR
 ************
 
-The different :ref:`Instruments<instruments-toc-doc>` in ``rateslib`` may require
+The different :ref:`Instruments<instruments-toc-doc>` in *rateslib* may require
 different interest rate index types, be it IBOR or RFR based. These are
 fundamentally different and require care dependent on
 which curve type: :class:`~rateslib.curves.Curve` or

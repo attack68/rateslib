@@ -1037,6 +1037,7 @@ class Solver(Gradients):
         self.pre_curves.update({
             curve.id: curve for curve in curves
             if type(curve) in [ProxyCurve, CompositeCurve]
+            # Proxy and Composite curves added to the collection without variables
         })
         curve_collection.extend(curves)
         for curve1, curve2 in combinations(curve_collection, 2):

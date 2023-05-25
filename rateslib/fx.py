@@ -6,6 +6,7 @@ from itertools import product
 import warnings
 from datetime import timedelta, datetime
 import json
+from uuid import uuid4
 
 from rateslib import defaults
 from rateslib.dual import Dual, dual_solve, set_order, DualTypes
@@ -1431,6 +1432,7 @@ class FXForwards:
         convention: Optional[str] = None,
         modifier: Optional[Union[str, bool]] = False,
         calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
+        id: Optional[str] = None,
     ):
         """
         Return a cash collateral curve.
@@ -1452,6 +1454,8 @@ class FXForwards:
             The holiday calendar object to use. If str, lookups named calendar
             from static data. Used for determining rates. If `False` will
             default to the calendar in the local cashflow currency.
+        id : str, optional
+            The identifier attached to any constructed :class:`~rateslib.fx.ProxyCurve`.
 
         Returns
         -------
@@ -1485,6 +1489,7 @@ class FXForwards:
             convention=convention,
             modifier=modifier,
             calendar=calendar,
+            id=id,
         )
 
     def plot(
@@ -1647,8 +1652,8 @@ class FXForwards:
 
 class ProxyCurve(Curve):
     """
-    Create a curve which is defined by other curves and related via
-    :class:`~rateslib.fx.FXForwards`.
+    A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on
+    other curves related via :class:`~rateslib.fx.FXForwards` parity.
 
     Parameters
     ----------
@@ -1670,6 +1675,8 @@ class ProxyCurve(Curve):
         The holiday calendar object to use. If str, lookups named calendar
         from static data. Used for determining rates. If `False` will
         default to the calendar in the local cashflow currency.
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multi-curve framework.
 
     Notes
     -----
@@ -1695,7 +1702,9 @@ class ProxyCurve(Curve):
         convention: Optional[str] = None,
         modifier: Optional[Union[str, bool]] = False,
         calendar: Optional[Union[CalInput, bool]] = False,
+        id: Optional[str]=None,
     ):
+        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self._is_proxy = True
         self.fx_forwards = fx_forwards

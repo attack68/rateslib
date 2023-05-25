@@ -3031,7 +3031,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         --------
         .. ipython:: python
 
-           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, "log_linear", id="SONIA")
+           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, id="SONIA")
            fxr = FXRates({"gbpusd": 1.25}, base="usd")
 
         .. ipython:: python
@@ -3063,7 +3063,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
 
         Parameters
         ----------
-        curves : Curve, LineCurve, str or list of such, optional
+        curves : CurveType, str or list of such, optional
             A single :class:`~rateslib.curves.Curve`,
             :class:`~rateslib.curves.LineCurve` or id or a
             list of such. A list defines the following curves in the order:

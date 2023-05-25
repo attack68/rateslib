@@ -272,14 +272,14 @@ class PlotCurve:
 
 class Curve(Serialize, PlotCurve):
     """
-    Object to return DFs parametrised by DFs at given node dates and interpolation.
+    Curve based on DF parametrisation at given node dates with interpolation.
 
     Parameters
     ----------
     nodes : dict[datetime: float]
-        Degrees of freedom of the curve denoted by a node date and a corresponding
+        Parameters of the curve denoted by a node date and a corresponding
         DF at that point.
-    interpolation : str in {"log_linear", "linear", "linear_zero_rate"} or callable
+    interpolation : str or callable
         The interpolation used in the non-spline section of the curve. That is the part
         of the curve between the first node in ``nodes`` and the first knot in ``t``.
         If a callable, this allows a user-defined interpolation scheme, and this must
@@ -291,8 +291,9 @@ class Curve(Serialize, PlotCurve):
         curve. If *None* all interpolation will be done by the local method specified in
         ``interpolation``.
     c : list[float], optional
-        The B-spline coefficients used to define the log-cubic spline. If not given
-        will use :meth:`csolve`.
+        The B-spline coefficients used to define the log-cubic spline. If not given,
+        which is the expected case, uses :meth:`csolve` to calculate these
+        automatically.
     endpoints : str or list, optional
         The left and right endpoint constraint for the spline solution. Valid values are
         in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
@@ -306,14 +307,81 @@ class Curve(Serialize, PlotCurve):
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data. Used for determining rates.
-    index_base : float, optional
-        Set the initial, known value of the index. For typical use with RFR indexes and
-        inflation indexes, and if the :meth:`Curve.index_value` method is to be used.
     ad : int in {0, 1, 2}, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`~rateslib.dual.Dual` or
         :class:`~rateslib.dual.Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
+
+    Notes
+    -----
+
+    This curve type is **discount factor (DF)** based and is parametrised by a set of
+    (date, DF) pairs set as ``nodes``. The initial node date of the curve is defined
+    to be today and should **always** have a DF of precisely 1.0. The initial DF
+    will **not** be affected by a :class:`~rateslib.solver.Solver`.
+
+    Intermediate DFs are determined through ``interpolation``. If local interpolation
+    is adopted a DF for an arbitrary date is dependent only on its immediately
+    neighbouring nodes via the interpolation routine. Available options are:
+
+    - *"log_linear"* (default for this curve type)
+    - *"linear_index"*
+
+    And also the following which are not recommended for this curve type:
+
+    - *"linear"*,
+    - *"linear_zero_rate"*,
+    - *"flat_forward"*,
+    - *"flat_backward"*,
+
+    Global interpolation in the form of a **log-cubic** spline is also configurable
+    with the parameters ``t``, ``c`` and ``endpoints``. See
+    :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
+    Values before the first knot in ``t`` will be determined through the local
+    interpolation method.
+
+    For defining rates by a given tenor, the ``modifier`` and ``calendar`` arguments
+    will be used. For correct scaling of the rate a ``convention`` is attached to the
+    curve, which is usually one of "Act360" or "Act365F".
+
+    Examples
+    --------
+
+    .. ipython:: python
+
+       curve = Curve(
+           nodes={
+               dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
+               dt(2023,1,1): 0.99,
+               dt(2024,1,1): 0.979,
+               dt(2025,1,1): 0.967,
+               dt(2026,1,1): 0.956,
+               dt(2027,1,1): 0.946,
+           },
+           interpolation="log_linear",
+       )
+       curve.plot("1d")
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       import numpy as np
+       curve = Curve(
+           nodes={
+               dt(2022,1,1): 1.0,
+               dt(2023,1,1): 0.99,
+               dt(2024,1,1): 0.979,
+               dt(2025,1,1): 0.967,
+               dt(2026,1,1): 0.956,
+               dt(2027,1,1): 0.946,
+           },
+           interpolation="log_linear",
+       )
+       fig, ax, line = curve.plot("1D")
+       plt.show()
     """
 
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
@@ -463,17 +531,17 @@ class Curve(Serialize, PlotCurve):
 
     def csolve(self):
         """
-        Solve the coefficients, ``c``, of the :class:`PPSpline`.
-
-        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
-        Only solves if ``c`` not given at ``Curve`` initialisation.
+        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
 
         Returns
         -------
-        Set the coefficients for the PPSpline : None
+        None
 
         Notes
         -----
+        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
+        Only solves if ``c`` not given at curve initialisation.
+
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
         """
@@ -944,12 +1012,12 @@ class Curve(Serialize, PlotCurve):
 
 class LineCurve(Curve):
     """
-    Object to return values parametrised by values at node dates and interpolation.
+    Curve based on value parametrisation at given node dates with interpolation.
 
     Parameters
     ----------
     nodes : dict[datetime: float]
-        Degrees of freedom of the curve denoted by a node date and a corresponding
+        Parameters of the curve denoted by a node date and a corresponding
         value at that point.
     interpolation : str in {"log_linear", "linear"} or callable
         The interpolation used in the non-spline section of the curve. That is the part
@@ -963,30 +1031,107 @@ class LineCurve(Curve):
         curve. If *None* all interpolation will be done by the method specified in
         ``interpolation``.
     c : list[float], optional
-        The B-spline coefficients used to define the cubic spline. If not given
-        will use :meth:`csolve`.
+        The B-spline coefficients used to define the log-cubic spline. If not given,
+        which is the expected case, uses :meth:`csolve` to calculate these
+        automatically.
     endpoints : str or list, optional
         The left and right endpoint constraint for the spline solution. Valid values are
         in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
         right endpoint.
     id : str, optional, set by Default
-        The unique identifier to distinguish between curves in a multicurve framework.
+        The unique identifier to distinguish between curves in a multi-curve framework.
     convention : str, optional,
-        **This parameter is not used by :class:`LineCurve`**. It is included for
+        This argument is **not used** by :class:`LineCurve`. It is included for
         signature consistency with :class:`Curve`.
     modifier : str, optional
-        **This parameter is not used by :class:`LineCurve`**. It is included for
+        This argument is **not used** by :class:`LineCurve`. It is included for
         signature consistency with :class:`Curve`.
     calendar : calendar or str, optional
-        **This parameter is not used by :class:`LineCurve`**. It is included for
-        signature consistency with :class:`Curve`.
-    index_base : float, optional
-        **This parameter is not used by :class:`LineCurve`**. It is included for
+        This argument is **not used** by :class:`LineCurve`. It is included for
         signature consistency with :class:`Curve`.
     ad : int in {0, 1, 2}, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`Dual` or :class:`Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
+
+    Notes
+    -----
+
+    This curve type is **value** based and it is parametrised by a set of
+    (date, value) pairs set as ``nodes``. The initial node date of the curve is defined
+    to be today, and can take a general value. The initial value
+    will be affected by a :class:`~rateslib.solver.Solver`.
+
+    .. note::
+
+       This curve type can only ever be used for **forecasting** rates and projecting
+       cashflow calculations. It cannot be used to discount cashflows becuase it is
+       not DF based and there is no mathematical one-to-one conversion available to
+       imply DFs.
+
+    Intermediate values are determined through ``interpolation``. If local interpolation
+    is adopted a value for an arbitrary date is dependent only on its immediately
+    neighbouring nodes via the interpolation routine. Available options are:
+
+    - *"linear"* (default for this curve type)
+    - *"log_linear"* (useful for values that exponential, e.g. stock indexes or GDP)
+    - *"flat_forward"*, (useful for replicating a DF based log-linear type curve)
+    - *"flat_backward"*,
+
+    And also the following which are not recommended for this curve type:
+
+    - *"linear_index"*
+    - *"linear_zero_rate"*,
+
+    Global interpolation in the form of a **cubic** spline is also configurable
+    with the parameters ``t``, ``c`` and ``endpoints``. See
+    :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
+    Values before the first knot in ``t`` will be determined through the local
+    interpolation method.
+
+    This curve type cannot return arbitrary tenor rates. It will only return a single
+    value which is applicable to that date. It is recommended to review
+    :ref:`RFR and IBOR Indexing<c-curves-ibor-rfr>` to ensure indexing is done in a
+    way that is consistent with internal instrument configuration.
+
+    Examples
+    --------
+
+    .. ipython:: python
+
+       line_curve = LineCurve(
+           nodes={
+               dt(2022,1,1): 0.975,  # <- initial value is general
+               dt(2023,1,1): 1.10,
+               dt(2024,1,1): 1.22,
+               dt(2025,1,1): 1.14,
+               dt(2026,1,1): 1.03,
+               dt(2027,1,1): 1.03,
+           },
+           interpolation="linear",
+       )
+       line_curve.plot("1d")
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       import numpy as np
+       line_curve = LineCurve(
+           nodes={
+               dt(2022,1,1): 0.975,  # <- initial value is general
+               dt(2023,1,1): 1.10,
+               dt(2024,1,1): 1.22,
+               dt(2025,1,1): 1.14,
+               dt(2026,1,1): 1.03,
+               dt(2027,1,1): 1.03,
+           },
+           interpolation="linear",
+       )
+       fig, ax, line = line_curve.plot("1D")
+       plt.show()
+
     """
 
     _op_exp = staticmethod(
@@ -1345,14 +1490,16 @@ class LineCurve(Curve):
 
 class IndexCurve(Curve):
     """
-    A :class:`Curve` designed for use with inflation secuities and derivatives.
+    A subclass of :class:`~rateslib.curves.Curve` with an ``index_base`` value for
+    index calculations.
 
     Parameters
     ----------
     args : tuple
         Position arguments required by :class:`Curve`.
-    inf_lag : int
-        Number of months of inflation lag this curve adopts. For example if the initial
+    index_base: float
+    index_lag : int
+        Number of months of by which the index lags the date. For example if the initial
         curve node date is 1st Sep 2021 based on the inflation index published
         17th June 2023 then the lag is 3 months.
     kwargs : dict
@@ -1422,7 +1569,7 @@ class IndexCurve(Curve):
 
 class CompositeCurve(PlotCurve):
     """
-    Create a new curve by dynamically compositing a sequence of curves together.
+    A dynamic composition of a sequence of other curves.
 
     .. note::
        Can only composite curves of the same type: :class:`Curve`, :class:`IndexCurve`
@@ -1434,7 +1581,7 @@ class CompositeCurve(PlotCurve):
     curves : sequence of :class:`Curve`, :class:`LineCurve` or :class:`IndexCurve`
         The curves to be composited.
     id : str, optional, set by Default
-        The unique identifier to distinguish between curves in a multicurve framework.
+        The unique identifier to distinguish between curves in a multi-curve framework.
 
     Examples
     --------

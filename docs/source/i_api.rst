@@ -210,3 +210,5 @@ Solver
    :skip: combinations
    :skip: MultiIndex
    :skip: Series
+   :skip: CompositeCurve
+   :skip: ProxyCurve
