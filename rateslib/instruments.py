@@ -851,11 +851,68 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
+    curves : CurveType, str or list of such, optional
+        A single *Curve* or string id or a list of such.
+
+        A list defines the following curves in the order:
+
+        - Forecasting *Curve* for ``leg1``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
 
     Attributes
     ----------
     ex_div_days : int
+    settle : int
+    curves : str, list, CurveType
     leg1 : FixedLegExchange
+
+    Examples
+    --------
+    This example is taken from the UK debt management office website.
+    The result should be `141.070132` and the bond is ex-div.
+
+    .. ipython:: python
+
+       gilt = FixedRateBond(
+           effective=dt(1998, 12, 7),
+           termination=dt(2015, 12, 7),
+           frequency="S",
+           calendar="ldn",
+           currency="gbp",
+           convention="ActActICMA",
+           ex_div=7,
+           fixed_rate=8.0
+       )
+       gilt.ex_div(dt(1999, 5, 27))
+       gilt.price(
+           ytm=4.445,
+           settlement=dt(1999, 5, 27),
+           dirty=True
+       )
+
+    This example is taken from the Swedish national debt office website.
+    The result of accrued should, apparently, be `0.210417` and the clean
+    price should be `99.334778`.
+
+    .. ipython:: python
+
+       bond = FixedRateBond(
+           effective=dt(2017, 5, 12),
+           termination=dt(2028, 5, 12),
+           frequency="A",
+           calendar="stk",
+           currency="sek",
+           convention="ActActICMA",
+           ex_div=5,
+           fixed_rate=0.75
+       )
+       bond.ex_div(dt(2017, 8, 23))
+       bond.accrued(dt(2017, 8, 23))
+       bond.price(
+           ytm=0.815,
+           settlement=dt(2017, 8, 23),
+           dirty=False
+       )
     """
     _fixed_rate_mixin = True
 

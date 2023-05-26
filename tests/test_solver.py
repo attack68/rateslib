@@ -1276,3 +1276,29 @@ def test_solver_non_unique_id_raises():
             id="bad",
             pre_solvers=[solver]
         )
+
+
+def test_solving_indirect_parameters_from_proxy_composite():
+    eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eureur")
+    eurspd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.999}, id="eurspd")
+    eur3m = CompositeCurve([eureur, eurspd], id="eur3m")
+    usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="usdusd")
+    eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="eurusd")
+    fxr = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(
+        fx_rates=fxr,
+        fx_curves={
+            "eureur": eureur,
+            "usdusd": usdusd,
+            "eurusd": eurusd,
+        }
+    )
+    usdeur = fxf.curve("usd", "eur", id="usdeur")
+    instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
+        IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
+        XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd",
+            curves=["eureur", "eureur", "usdusd", "usdeur"]),
+    ]
+    solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur],
+                    instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
