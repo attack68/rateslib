@@ -848,9 +848,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     Examples
     --------
-    This example is taken from the UK debt management office website.
-    The resulting dirty price should be `141.070132` and the bond is
-    ex-div at settlement.
+    This example is taken from the UK debt management office (DMO) website. A copy of
+    which is available :download:`here<_static/ukdmoyldconv.pdf>`.
 
     We demonstrate the use of **analogue methods** which do not need *Curves* or
     *Solvers*,
@@ -1631,9 +1630,103 @@ class Bill(FixedRateBond):
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
 
-    Attributes
-    ----------
-    leg1 : FixedLegExchange
+    Examples
+    --------
+    This example is taken from the US Treasury Federal website. A copy of
+    which is available :download:`here<_static/ofcalc6decTbill.pdf>`.
+
+    We demonstrate the use of **analogue methods** which do not need *Curves* or
+    *Solvers*,
+    :meth:`~rateslib.instruments.FixedRateBond.price`,
+    :meth:`~rateslib.instruments.FixedRateBond.ytm`,
+    :meth:`~rateslib.instruments.FixedRateBond.ex_div`,
+    :meth:`~rateslib.instruments.FixedRateBond.accrued`,
+    :meth:`~rateslib.instruments.FixedRateBond.repo_from_fwd`
+    :meth:`~rateslib.instruments.FixedRateBond.fwd_from_repo`
+    :meth:`~rateslib.instruments.FixedRateBond.duration`,
+    :meth:`~rateslib.instruments.FixedRateBond.convexity`.
+
+    .. ipython:: python
+
+       bill = Bill(
+           effective=dt(2004, 1, 22),
+           termination=dt(2004, 2, 19),
+           frequency="M",
+           calendar="nyc",
+           modifier="MF",
+           currency="usd",
+           convention="Act360",
+           settle=1,
+           notional=-1e6,  # negative notional receives fixed, i.e. buys a bill
+           curves="bill_curve",
+       )
+       bill.ex_div(dt(2004, 1, 22))
+       bill.price(discount_rate=0.80, settlement=dt(2004, 1, 22))
+       bill.simple_rate(price=99.937778, settlement=dt(2004, 1, 22))
+       bill.discount_rate(price=99.937778, settlement=dt(2004, 1, 22))
+       bill.ytm(price=99.937778, settlement=dt(2004, 1, 22))
+       bill.accrued(dt(2004, 1, 22))
+       bill.fwd_from_repo(
+           price=99.937778,
+           settlement=dt(2004, 1, 22),
+           forward_settlement=dt(2004, 2, 19),
+           repo_rate=0.8005,
+           convention="Act360",
+       )
+       bill.repo_from_fwd(
+           price=99.937778,
+           settlement=dt(2004, 1, 22),
+           forward_settlement=dt(2004, 2, 19),
+           forward_price=100.00,
+           convention="Act360",
+       )
+       bill.duration(settlement=dt(2004, 1, 22), ytm=0.8005, metric="risk")
+       bill.duration(settlement=dt(2004, 1, 22), ytm=0.8005, metric="modified")
+       bill.convexity(settlement=dt(2004, 1, 22), ytm=0.8005)
+
+
+    The following **digital methods** consistent with the library's ecosystem are
+    also available, :meth:`~rateslib.instruments.FixedRateBond.npv`,
+    :meth:`~rateslib.instruments.FixedRateBond.analytic_delta`,
+    :meth:`~rateslib.instruments.FixedRateBond.rate`,
+    :meth:`~rateslib.instruments.FixedRateBond.npv`,
+    :meth:`~rateslib.instruments.FixedRateBond.cashflows`,
+    :meth:`~rateslib.instruments.FixedRateBond.delta`,
+    :meth:`~rateslib.instruments.FixedRateBond.gamma`,
+
+    .. ipython:: python
+
+       bill_curve = Curve({dt(2004, 1, 21): 1.0, dt(2004, 3, 21): 1.0}, id="bill_curve")
+       instruments = [
+           (bill, (), {"metric": "ytm"}),
+       ]
+       solver = Solver(
+           curves=[bill_curve],
+           instruments=instruments,
+           s=[0.8005],
+           instrument_labels=["Feb04 Tbill"],
+           id="bill_solver",
+       )
+       bill.npv(solver=solver)
+       bill.analytic_delta(disc_curve=bill_curve)
+       bill.rate(solver=solver, metric="price")
+
+    The sensitivities are also available. In this case the *Solver* is calibrated
+    with *instruments* priced in yield terms so sensitivities are measured in basis
+    points (bps).
+
+    .. ipython:: python
+
+       bill.delta(solver=solver)
+       bill.gamma(solver=solver)
+
+    The DataFrame of cashflows.
+
+    .. ipython:: python
+
+       bill.cashflows(solver=solver)
+
+
     """
 
     def __init__(
@@ -1648,6 +1741,7 @@ class Bill(FixedRateBond):
         currency: Optional[str] = None,
         convention: Optional[str] = None,
         settle: int = 1,
+        curves: Optional[Union[list, str, Curve]] = None,
     ):
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
@@ -1670,11 +1764,12 @@ class Bill(FixedRateBond):
             fixed_rate=0,
             ex_div=0,
             settle=settle,
+            curves=curves,
         )
 
     def rate(
         self,
-        curves: Union[Curve, str, list],
+        curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
@@ -1725,7 +1820,7 @@ class Bill(FixedRateBond):
             * 100
             / (-self.leg1.notional * curves[1][settlement])
         )
-        if metric == "price":
+        if metric in ["price", "clean_price"]:
             return price
         elif metric == "discount_rate":
             return self.discount_rate(price, settlement)
@@ -1737,16 +1832,49 @@ class Bill(FixedRateBond):
             "`metric` must be in {'price', 'discount_rate', 'ytm', 'simple_rate'}"
         )
 
-    def simple_rate(self, price, settlement):
+    def simple_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
+        """
+        Return the simple rate of the security from its ``price``.
+
+        Parameters
+        ----------
+        price : float, Dual, or Dual2
+            The price of the security.
+        settlement : datetime
+            The settlement date of the security.
+
+        Returns
+        -------
+        float, Dual, or Dual2
+        """
         dcf = (1 - self._accrued_frac(settlement)[0]) * self.leg1.periods[0].dcf
         return ((100 / price - 1) / dcf) * 100
 
-    def discount_rate(self, price, settlement):
+    def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
+        """
+        Return the discount rate of the security from its ``price``.
+
+        Parameters
+        ----------
+        price : float, Dual, or Dual2
+            The price of the security.
+        settlement : datetime
+            The settlement date of the security.
+
+        Returns
+        -------
+        float, Dual, or Dual2
+        """
         dcf = (1 - self._accrued_frac(settlement)[0]) * self.leg1.periods[0].dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
 
-    def price(self, discount_rate, settlement):
+    def price(
+        self,
+        discount_rate: DualTypes,
+        settlement: datetime,
+        dirty: bool = False
+    ) -> DualTypes:
         """
         Return the price of the bill given the ``discount_rate``.
 
@@ -1756,6 +1884,10 @@ class Bill(FixedRateBond):
             The rate used by the pricing formula.
         settlement : datetime
             The settlement date.
+        dirty : bool, not required
+            Discount securities have no coupon, the concept of clean or dirty is not
+            relevant. Argument is included for signature consistency with
+            :meth:`FixedRateBond.price<rateslib.instruments.FixedRateBond.price>`.
 
         Returns
         -------
