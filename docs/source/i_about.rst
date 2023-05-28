@@ -51,23 +51,23 @@ email contact through **rateslib@gmail.com**.
      - Description
      - Consideration
      - Timeframe
+   * - Bond futures
+     - Adding method and parameters to define bond futures.
+     - Complete
+     - v 0.2.0
    * - Inflation Bonds
      - Adding the pricing nuances for inflation bond markets.
      - Very likely
-     - By end 2023
+     - By mid 2023
    * - Inflation Swaps
      - Adding the pricing nuances for inflation swaps.
      - Very likely
      - By end 2023
-   * - Bond futures
-     - Adding method and parameters to define bond futures.
-     - Very likely
-     - By mid 2023
    * - Defaults
      - Adding the ability to define parameters by specification, e.g. "sofr irs" or
        "uk gilt", which set multiple default parameters.
      - Likely, to improve UI.
-     - By mid 2024
+     - By end 2023
    * - Vanilla Swaptions
      - Adding the instruments priced by a volatility input.
      - Likely
@@ -81,8 +81,8 @@ email contact through **rateslib@gmail.com**.
      - Possible, with dependencies to other developments.
      - By end 2024
    * - Optimization of code
-     - Using C extensions or re-writing certain blocks to improve performance.
-     - Unlikely, depending upon community adoption and contributions.
+     - Using C extensions, or rust, or re-writing certain blocks to improve performance.
+     - Likely to some degree, depending upon community adoption and contributions.
      - no ETA
    * - AD backend
      - Changing the AD implementation to another 3rd party (JAX, PyAudi)

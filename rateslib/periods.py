@@ -144,7 +144,7 @@ class BasePeriod(metaclass=ABCMeta):
         disc_curve: Optional[Curve] = None,
         fx: Union[float, FXRates, FXForwards] = 1.0,
         base: Optional[str] = None,
-    ):
+    ) -> DualTypes:
         """
         Return the analytic delta of the period object.
 
@@ -299,7 +299,7 @@ class BasePeriod(metaclass=ABCMeta):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
         local: bool = False,
-    ):
+    ) -> DualTypes:
         """
         Return the NPV of the period object.
 
@@ -361,7 +361,7 @@ class FixedPeriod(BasePeriod):
         self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args, **kwargs) -> DualTypes:
         return super().analytic_delta(*args, **kwargs)
 
     @property

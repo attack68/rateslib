@@ -165,18 +165,8 @@ class BaseLeg(metaclass=ABCMeta):
         """
         Return the analytic delta of the leg object via summing all periods.
 
-        Parameters
-        ----------
-        args :
-            Positional arguments supplied to
-            :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
-        kwargs :
-            Keyword arguments supplied to
-            :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
-
-        Returns
-        -------
-        float, Dual, Dual2
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         sum = 0
         for period in self.periods:

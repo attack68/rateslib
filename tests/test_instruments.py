@@ -1012,6 +1012,26 @@ class TestFXSwap:
         fxs.leg2_fixed_rate = result
         assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
 
+    def test_fxswap_points_raises(self):
+        with pytest.raises(ValueError, match="Cannot set `points` on FXSwap without"):
+            fxs = FXSwap(
+                dt(2022, 2, 1), "8M", "M", points=1000.0,
+                currency="usd", leg2_currency="nok",
+                payment_lag_exchange=0, notional=1e6,
+            )
+
+    def test_fxswap_fixing_and_points(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2}
+        )
+        fxs = FXSwap(dt(2022, 2, 1), "8M", "M", fx_fixing=11.0, points=1754.56233604,
+              currency="usd", leg2_currency="nok",
+              payment_lag_exchange=0, notional=1e6,
+        )
+        npv = fxs.npv([None, curve, None, curve2], None, fxf)
+        assert abs(npv + 4166.37288388) < 1e-4
+
     # def test_proxy_curve_from_fxf(self, curve, curve2):
     #     # TODO this needs a solver from which to test the proxy curve (line 92)
     #     fxf = FXForwards(

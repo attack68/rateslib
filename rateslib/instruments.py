@@ -694,27 +694,7 @@ class BondMixin:
         """
         Return the analytic delta of the security via summing all periods.
 
-        Parameters
-        ----------
-        curve : Curve
-            The forecasting curve object. Not used unless it is set equal to
-            ``disc_curve``.
-        disc_curve : Curve, optional
-            The discounting curve object used in calculations.
-            Set equal to ``curve`` if not given.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
-            object, converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-
-        Returns
-        -------
-        float, Dual, Dual2
+        For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
         disc_curve = disc_curve or curve
         settlement = add_tenor(
@@ -869,7 +849,19 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     Examples
     --------
     This example is taken from the UK debt management office website.
-    The result should be `141.070132` and the bond is ex-div.
+    The resulting dirty price should be `141.070132` and the bond is
+    ex-div at settlement.
+
+    We demonstrate the use of **analogue methods** which do not need *Curves* or
+    *Solvers*,
+    :meth:`~rateslib.instruments.FixedRateBond.price`,
+    :meth:`~rateslib.instruments.FixedRateBond.ytm`,
+    :meth:`~rateslib.instruments.FixedRateBond.ex_div`,
+    :meth:`~rateslib.instruments.FixedRateBond.accrued`,
+    :meth:`~rateslib.instruments.FixedRateBond.repo_from_fwd`
+    :meth:`~rateslib.instruments.FixedRateBond.fwd_from_repo`
+    :meth:`~rateslib.instruments.FixedRateBond.duration`,
+    :meth:`~rateslib.instruments.FixedRateBond.convexity`.
 
     .. ipython:: python
 
@@ -881,38 +873,77 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            currency="gbp",
            convention="ActActICMA",
            ex_div=7,
-           fixed_rate=8.0
+           settle=1,
+           fixed_rate=8.0,
+           notional=-1e6,  # negative notional receives fixed, i.e. buys a bond
+           curves="gilt_curve",
        )
        gilt.ex_div(dt(1999, 5, 27))
-       gilt.price(
-           ytm=4.445,
+       gilt.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=True)
+       gilt.ytm(price=141.070132, settlement=dt(1999, 5, 27), dirty=True)
+       gilt.accrued(dt(1999, 5, 27))
+       gilt.fwd_from_repo(
+           price=141.070132,
            settlement=dt(1999, 5, 27),
-           dirty=True
+           forward_settlement=dt(2000, 2, 27),
+           repo_rate=4.5,
+           convention="Act365F",
+           dirty=True,
        )
+       gilt.repo_from_fwd(
+           price=141.070132,
+           settlement=dt(1999, 5, 27),
+           forward_settlement=dt(2000, 2, 27),
+           forward_price=141.829943,
+           convention="Act365F",
+           dirty=True,
+       )
+       gilt.duration(settlement=dt(1999, 5, 27), ytm=4.445, metric="risk")
+       gilt.duration(settlement=dt(1999, 5, 27), ytm=4.445, metric="modified")
+       gilt.convexity(settlement=dt(1999, 5, 27), ytm=4.445)
 
-    This example is taken from the Swedish national debt office website.
-    The result of accrued should, apparently, be `0.210417` and the clean
-    price should be `99.334778`.
+
+    The following **digital methods** consistent with the library's ecosystem are
+    also available, :meth:`~rateslib.instruments.FixedRateBond.npv`,
+    :meth:`~rateslib.instruments.FixedRateBond.analytic_delta`,
+    :meth:`~rateslib.instruments.FixedRateBond.rate`,
+    :meth:`~rateslib.instruments.FixedRateBond.npv`,
+    :meth:`~rateslib.instruments.FixedRateBond.cashflows`,
+    :meth:`~rateslib.instruments.FixedRateBond.delta`,
+    :meth:`~rateslib.instruments.FixedRateBond.gamma`,
 
     .. ipython:: python
 
-       bond = FixedRateBond(
-           effective=dt(2017, 5, 12),
-           termination=dt(2028, 5, 12),
-           frequency="A",
-           calendar="stk",
-           currency="sek",
-           convention="ActActICMA",
-           ex_div=5,
-           fixed_rate=0.75
+       gilt_curve = Curve({dt(1999, 5, 26): 1.0, dt(2019, 5, 26): 1.0}, id="gilt_curve")
+       instruments = [
+           (gilt, (), {"metric": "ytm"}),
+       ]
+       solver = Solver(
+           curves=[gilt_curve],
+           instruments=instruments,
+           s=[4.445],
+           instrument_labels=["8% Dec15"],
+           id="gilt_solver",
        )
-       bond.ex_div(dt(2017, 8, 23))
-       bond.accrued(dt(2017, 8, 23))
-       bond.price(
-           ytm=0.815,
-           settlement=dt(2017, 8, 23),
-           dirty=False
-       )
+       gilt.npv(solver=solver)
+       gilt.analytic_delta(disc_curve=gilt_curve)
+       gilt.rate(solver=solver, metric="clean_price")
+
+    The sensitivities are also available. In this case the *Solver* is calibrated
+    with *instruments* priced in yield terms so sensitivities are measured in basis
+    points (bps).
+
+    .. ipython:: python
+
+       gilt.delta(solver=solver)
+       gilt.gamma(solver=solver)
+
+    The DataFrame of cashflows.
+
+    .. ipython:: python
+
+       gilt.cashflows(solver=solver)
+
     """
     _fixed_rate_mixin = True
 
@@ -3713,30 +3744,7 @@ class ZCS(BaseDerivative):
         """
         Return the analytic delta of a leg of the derivative object.
 
-        See :meth:`BaseDerivative.analytic_delta`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           forecasting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-           discounting_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985})
-
-        .. ipython:: python
-
-           irs = IRS(
-               effective=dt(2022, 2, 15),
-               termination=dt(2022, 8, 15),
-               frequency="Q",
-               convention="30e360",
-               leg2_convention="Act360",
-               leg2_fixing_method="rfr_payment_delay",
-               payment_lag=2,
-               fixed_rate=2.50,
-               notional=1e9,
-               currency="gbp",
-           )
-           irs.analytic_delta(forecasting_curve, discounting_curve, leg=1)
+        See :meth:`BaseDerivative.analytic_delta<rateslib.instruments.BaseDerivative.analytic_delta>`.
         """
         return super().analytic_delta(*args, **kwargs)
 
@@ -3756,17 +3764,6 @@ class ZCS(BaseDerivative):
         Return the NPV of the derivative by summing legs.
 
         See :meth:`BaseDerivative.npv`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           irs.npv([forecasting_curve, discounting_curve])
-
-        .. ipython:: python
-
-           fxr = FXRates({"gbpusd": 2.0})
-           irs.npv([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
@@ -3828,13 +3825,6 @@ class ZCS(BaseDerivative):
         Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fxr = FXRates({"gbpusd": 2.0})
-           irs.cashflows([forecasting_curve, discounting_curve], None, fxr, "usd")
         """
         return super().cashflows(curves, solver, fx, base)
 
@@ -4361,25 +4351,7 @@ class FRA(Sensitivities, BaseMixin):
         """
         Return the analytic delta of the FRA.
 
-        Parameters
-        ----------
-        curve : Curve
-            The forecasting curve object.
-        disc_curve : Curve, optional
-            The discounting curve object. Set equal to ``curve`` if not given.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3 digit code), set by default.
-            Only used if ``fx_rate`` is an ``FXRates`` or ``FXForwards`` object.
-
-        Returns
-        -------
-        flaat, Dual or Dual2
-
+        For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
