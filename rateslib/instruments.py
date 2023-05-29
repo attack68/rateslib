@@ -903,13 +903,13 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
 
     The following **digital methods** consistent with the library's ecosystem are
-    also available, :meth:`~rateslib.instruments.FixedRateBond.npv`,
+    also available,
     :meth:`~rateslib.instruments.FixedRateBond.analytic_delta`,
     :meth:`~rateslib.instruments.FixedRateBond.rate`,
     :meth:`~rateslib.instruments.FixedRateBond.npv`,
     :meth:`~rateslib.instruments.FixedRateBond.cashflows`,
     :meth:`~rateslib.instruments.FixedRateBond.delta`,
-    :meth:`~rateslib.instruments.FixedRateBond.gamma`,
+    :meth:`~rateslib.instruments.FixedRateBond.gamma`.
 
     .. ipython:: python
 
@@ -1596,7 +1596,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     -------
     #     float, Dual, Dual2
     #     """
-    #     TODO: calculte this formula.
+    #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
 
@@ -1637,7 +1637,9 @@ class Bill(FixedRateBond):
 
     We demonstrate the use of **analogue methods** which do not need *Curves* or
     *Solvers*,
-    :meth:`~rateslib.instruments.FixedRateBond.price`,
+    :meth:`~rateslib.instruments.Bill.price`,
+    :meth:`~rateslib.instruments.Bill.simple_rate`,
+    :meth:`~rateslib.instruments.Bill.discount_rate`,
     :meth:`~rateslib.instruments.FixedRateBond.ytm`,
     :meth:`~rateslib.instruments.FixedRateBond.ex_div`,
     :meth:`~rateslib.instruments.FixedRateBond.accrued`,
@@ -1686,10 +1688,10 @@ class Bill(FixedRateBond):
 
 
     The following **digital methods** consistent with the library's ecosystem are
-    also available, :meth:`~rateslib.instruments.FixedRateBond.npv`,
-    :meth:`~rateslib.instruments.FixedRateBond.analytic_delta`,
-    :meth:`~rateslib.instruments.FixedRateBond.rate`,
+    also available,
+    :meth:`~rateslib.instruments.Bill.rate`,
     :meth:`~rateslib.instruments.FixedRateBond.npv`,
+    :meth:`~rateslib.instruments.FixedRateBond.analytic_delta`,
     :meth:`~rateslib.instruments.FixedRateBond.cashflows`,
     :meth:`~rateslib.instruments.FixedRateBond.delta`,
     :meth:`~rateslib.instruments.FixedRateBond.gamma`,
@@ -1725,7 +1727,6 @@ class Bill(FixedRateBond):
     .. ipython:: python
 
        bill.cashflows(solver=solver)
-
 
     """
 
@@ -2401,13 +2402,145 @@ class BondFuture(Sensitivities):
         The delivery window first and last delivery day, or a single delivery day.
     basket: tuple of FixedRateBond
         The bonds that are available as deliverables.
-    last_trading: int, optional
-        The number of business days before the final delivery day when trading
-        will cease.
     nominal: float, optional
         The nominal amount of the contract.
+    contracts: int, optional
+        The number of contracts owned or short.
     calendar: str, optional
         The calendar to define delivery days within the delivery window.
+    currency: str, optional
+        The currency (3-digit code) of the settlement contract.
+
+    Examples
+    --------
+    The :meth:`~rateslib.instruments.BondFuture.dlv` method is a summary method which
+    displays many attributes simultaneously in a DataFrame.
+    This example replicates the Bloomberg screen print in the publication
+    *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
+    that publication exactly no calendar has been provided. A more modern
+    Bloomberg would probably consider the London business day calendar and
+    this would affect the metrics of the third bond to a small degree (i.e.
+    set `calendar="ldn"`)
+
+    .. ipython:: python
+
+       kws = dict(
+           frequency="S",
+           ex_div=7,
+           convention="ActActICMA",
+           calendar=None,
+           currency="gbp",
+           settle=1,
+           curves="gilt_curve"
+       )
+       bonds = [
+           FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
+           FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
+           FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
+           FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
+       ]
+       prices=[102.732, 131.461, 107.877, 134.455]
+       ytms=[bond.ytm(price, dt(2000, 3, 16)) for bond, price in zip(bonds, prices)]
+       future = BondFuture(
+           delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+           coupon=7.0,
+           basket=bonds,
+           nominal=100000,
+           contracts=10,
+           currency="gbp",
+       )
+       future.dlv(
+           future_price=112.98,
+           prices=[102.732, 131.461, 107.877, 134.455],
+           repo_rate=6.24,
+           settlement=dt(2000, 3, 16),
+           convention="Act365f",
+       )
+
+    Various other metrics can be extracted in isolation including,
+    ``notional``, and conversion factors (``cfs``),
+    :meth:`~rateslib.instruments.BondFuture.gross_basis`,
+    :meth:`~rateslib.instruments.BondFuture.net_basis`,
+    :meth:`~rateslib.instruments.BondFuture.implied_repo`,
+    :meth:`~rateslib.instruments.BondFuture.ytm`,
+    :meth:`~rateslib.instruments.BondFuture.duration`,
+    :meth:`~rateslib.instruments.BondFuture.convexity`,
+    :meth:`~rateslib.instruments.BondFuture.ctd_index`,
+
+    .. ipython:: python
+
+        future.cfs
+        future.notional
+        future.gross_basis(
+            future_price=112.98,
+            prices=prices,
+        )
+        future.net_basis(
+            future_price=112.98,
+            prices=prices,
+            repo_rate=6.24,
+            settlement=dt(2000, 3, 16),
+            delivery=dt(2000, 6, 30),
+            convention="Act365f"
+        )
+        future.implied_repo(
+            future_price=112.98,
+            prices=prices,
+            settlement=dt(2000, 3, 16)
+        )
+        future.ytm(future_price=112.98)
+        future.duration(future_price=112.98)
+        future.convexity(future_price=112.98)
+        future.ctd_index(
+            future_price=112.98,
+            prices=prices,
+            settlement=dt(2000, 3, 16)
+        )
+
+    As opposed to the **analogue methods** above, we can also use
+    the **digital methods**,
+    :meth:`~rateslib.instruments.BondFuture.npv`,
+    :meth:`~rateslib.instruments.BondFuture.rate`,
+    but we need to create *Curves* and a *Solver* in the usual way.
+
+    .. ipython:: python
+
+       gilt_curve = Curve(
+           nodes={
+               dt(2000, 3, 15): 1.0,
+               dt(2009, 12, 7): 1.0,
+               dt(2010, 11, 25): 1.0,
+               dt(2011, 7, 12): 1.0,
+               dt(2012, 8, 6): 1.0,
+           },
+           id="gilt_curve",
+       )
+       solver = Solver(
+           curves=[gilt_curve],
+           instruments=[(b, (), {"metric": "ytm"}) for b in bonds],
+           s=ytms,
+           id="gilt_solver",
+           instrument_labels=["5.75% '09", "9% '11", "6.25% '10", "9% '12"],
+       )
+
+    Sensitivities are also available;
+    :meth:`~rateslib.instruments.BondFuture.delta`
+    :meth:`~rateslib.instruments.BondFuture.gamma`.
+
+    .. ipython:: python
+
+       future.delta(solver=solver)
+
+    The delta of a *BondFuture* is individually assigned to the CTD. If the CTD changes
+    the delta is reassigned.
+
+    .. ipython:: python
+
+       solver.s = [5.3842, 5.2732, 5.2755, 5.52]
+       solver.iterate()
+       future.delta(solver=solver)
+       future.gamma(solver=solver)
+
     """
 
     def __init__(
@@ -2545,35 +2678,6 @@ class BondFuture(Sensitivities):
         Returns
         -------
         DataFrame
-
-        Examples
-        --------
-        This example replicates the Bloomberg screen print in the publication
-        *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
-        that publication exactly no calendar has been provided. A more modern
-        Bloomberg would probably consider the London business day calendar and
-        this would affect the metrics of the third bond to a small degree (i.e.
-        set `calendar="ldn"`)
-
-        .. ipython:: python
-
-           kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
-           bonds = [
-               FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
-               FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
-               FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
-               FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
-           ]
-           future = BondFuture(
-               delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
-           )
-           future.dlv(
-               future_price=112.98,
-               prices=[102.732, 131.461, 107.877, 134.455],
-               repo_rate=6.24,
-               settlement=dt(2000, 3, 16),
-               convention="Act365f",
-           )
         """
         if not isinstance(repo_rate, (tuple, list)):
             r_ = (repo_rate,) * len(self.basket)
@@ -2624,8 +2728,7 @@ class BondFuture(Sensitivities):
         dirty: bool = False,
     ):
         """
-        Calculate the implied repo of each bond in the basket using the proceeds
-        method.
+        Calculate the gross basis of each bond in the basket.
 
         Parameters
         ----------
@@ -2641,13 +2744,6 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           future.gross_basis(112.98, [102.732, 131.461, 107.877, 134.455])
         """
         if dirty:
             prices_ = tuple(
@@ -2671,8 +2767,8 @@ class BondFuture(Sensitivities):
         dirty: bool = False,
     ):
         """
-        Calculate the implied repo of each bond in the basket using the proceeds
-        method.
+        Calculate the net basis of each bond in the basket via the proceeds
+        method of repo.
 
         Parameters
         ----------
@@ -2695,20 +2791,6 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           future.net_basis(
-               future_price=112.98,
-               prices=[102.732, 131.461, 107.877, 134.455],
-               repo_rate=6.24,
-               settlement=dt(2000, 3, 16),
-               delivery=dt(2000, 6, 30),
-               convention="Act365f"
-           )
         """
         if delivery is None:
             f_settlement = self.delivery[1]
@@ -2761,15 +2843,6 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           future.implied_repo(
-               112.98, [102.732, 131.461, 107.877, 134.455], dt(2000, 3, 16)
-           )
         """
         if delivery is None:
             f_settlement = self.delivery[1]
@@ -2810,13 +2883,6 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           future.ytm(112.98)
         """
         if delivery is None:
             settlement = self.delivery[1]
@@ -2836,7 +2902,7 @@ class BondFuture(Sensitivities):
         delivery: Optional[datetime] = None,
     ):
         """
-        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
+        Return the (negated) derivative of ``price`` w.r.t. ``ytm`` .
 
         Parameters
         ----------
@@ -2891,7 +2957,7 @@ class BondFuture(Sensitivities):
         delivery: Optional[datetime] = None,
     ):
         """
-        Return the second derivative of ``price`` w.r.t. ``ytm``.
+        Return the second derivative of ``price`` w.r.t. ``ytm`` .
 
         Parameters
         ----------
@@ -2959,7 +3025,7 @@ class BondFuture(Sensitivities):
             are given.
         delivery : datetime, optional
             The delivery date of the contract.
-        dirty : bool
+        dirty : bool, optional
             Whether the ``prices`` given include accrued interest or not.
 
         Returns
