@@ -3880,6 +3880,109 @@ class Swap(IRS):
 
 
 class ZCS(BaseDerivative):
+    """
+    Create a zero coupon swap (ZCS) composing a :class:`~rateslib.legs.FixedLeg`
+    with only a single payment, and a :class:`~rateslib.legs.ZeroFloatLeg`.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseDerivative`.
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_float_spread : float, optional
+        The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        The method to use for adding a floating spread to compounded rates. Available
+        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If a float scalar, will be applied as the determined fixing for the first
+        period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        The method by which floating rates are determined, set by default. See notes.
+    leg2_method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    .. ipython:: python
+
+       usd = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2027, 1, 1): 0.85,
+               dt(2032, 1, 1): 0.70,
+           },
+           id="usd"
+       )
+
+    Create the ZCS, and demonstrate the :meth:`~rateslib.instruments.ZCS.rate`,
+    :meth:`~rateslib.instruments.ZCS.npv`,
+    :meth:`~rateslib.instruments.ZCS.analytic_delta`, and
+
+    .. ipython:: python
+
+       zcs = ZCS(
+           effective=dt(2022, 1, 1),
+           termination="10Y",
+           frequency="Q",
+           calendar="nyc",
+           currency="usd",
+           fixed_rate=4.0,
+           convention="Act360",
+           notional=100e6,
+           curves=["usd"],
+       )
+       zcs.rate(curves=usd)
+       zcs.rate(curves=usd, metric="irr")
+       zcs.npv(curves=usd)
+       zcs.analytic_delta(curve=usd)
+
+    A DataFrame of :meth:`~rateslib.instruments.ZCS.cashflows`.
+
+    .. ipython:: python
+
+       zcs.cashflows(curves=usd)
+
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCS.delta`
+    and :meth:`~rateslib.instruments.ZCS.gamma`, construct a curve model.
+
+    .. ipython:: python
+
+       sofr_kws = dict(
+           effective=dt(2022, 1, 1),
+           frequency="A",
+           convention="Act360",
+           calendar="nyc",
+           currency="usd",
+           curves=["usd"]
+       )
+       instruments = [
+           IRS(termination="5Y", **sofr_kws),
+           IRS(termination="10Y", **sofr_kws),
+       ]
+       solver = Solver(
+           curves=[usd],
+           instruments=instruments,
+           s=[3.40, 3.60],
+           instrument_labels=["5Y", "10Y"],
+           id="sofr",
+       )
+       zcs.delta(solver=solver)
+       zcs.gamma(solver=solver)
+    """
+
     _fixed_rate_mixin = True
     _leg2_float_spread_mixin = True
 
@@ -3974,6 +4077,7 @@ class ZCS(BaseDerivative):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        metric: str = "fixed_rate",
     ):
         """
         Return the mid-market rate of the ZCS.
@@ -3994,6 +4098,8 @@ class ZCS(BaseDerivative):
 
                The arguments ``fx`` and ``base`` are unused by single currency
                derivatives rates calculations.
+        metric : str in {"fixed_rate", "irr"}
+            The IRR uses an **exact** DCF
 
         Returns
         -------
@@ -4003,12 +4109,37 @@ class ZCS(BaseDerivative):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
+
+        The *'fixed_rate'* ``metric`` defines a cashflow by:
+
+        .. math::
+
+           -notional \\times fixed_rate \\times dcf
+
+        The *'irr'* ``metric`` defines a cashflow by:
+
+        .. math::
+
+           -notional * ((1 + irr / f)^{f \\times dcf} - 1)
+
+        where :math:`f` is associated with the floating leg frequency.
         """
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
-        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        fixed_rate_ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        if metric == "fixed_rate":
+            return fixed_rate_
+        elif metric == "irr":
+            f = 12 / defaults.frequency_months[self.leg2.schedule.frequency]
+            dcf_ = self.leg1.periods[0].dcf
+            _ = dcf_ * fixed_rate_ / 100 + 1.0
+            _ = _ ** (1 / (f * dcf_))
+            _ = (_ - 1.0) * f * 100
+            return _
+        else:
+            raise ValueError("`metric` must be in {'fixed_rate', 'irr'}")
         # leg1_analytic_delta = self.leg1.analytic_delta(curves[0], curves[1])
         # return leg2_npv / (leg1_analytic_delta * 100)
 
@@ -6091,11 +6222,8 @@ class FloatFixedXCS(BaseXCS):
 
 
 class FXSwap(BaseXCS):
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
-
     """
-    Create n FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
+    Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
 
     Parameters
     ----------
@@ -6111,17 +6239,79 @@ class FXSwap(BaseXCS):
         fixed rate on leg2.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule.
+        the accrual schedule. Defaults to 0 for *FXSwaps*.
     leg2_payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule.
+        the accrual schedule. Defaults to 0 for *FXSwaps*.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
 
     Notes
     -----
-    TODO XXXXXXX
+    ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+    time and the value of ``notional``. The argument value of ``leg2_notional`` does
+    not impact calculations.
+
+    .. note::
+
+       *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
+       represent traded contracts with defined ``fx_fixing`` and ``points`` values.
+       This is usual for valuing *npv* against current market conditions. Unpriced
+       derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
+       calculation should return the mid-market rate and an *npv* of zero.
+
+    Examples
+    --------
+    To value the *FXSwap* we create *Curves* and :class:`~rateslib.fx.FXForwards`
+    objects.
+
+    .. ipython:: python
+
+       usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
+       eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
+       eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.971}, id="eurusd")
+       fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
+       fxf = FXForwards(
+           fx_rates=fxr,
+           fx_curves={"usdusd": usd, "eureur": eur, "eurusd": eurusd},
+       )
+
+    Then we define the *FXSwap*. This in an unpriced instrument.
+
+    .. ipython:: python
+
+       fxs = FXSwap(
+           effective=dt(2022, 1, 17),
+           termination=dt(2022, 4, 19),
+           calendar="nyc",
+           currency="usd",
+           notional=1000000,
+           leg2_currency="eur",
+           curves=["usd", "usd", "eur", "eurusd"],
+       )
+
+    Now demonstrate the :meth:`~rateslib.instruments.FXSwap.npv` and
+    :meth:`~rateslib.instruments.FXSwap.rate` methods:
+
+    .. ipython:: python
+
+       fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
+       fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
+
+    In the case of *FXSwaps*, whose mid-market price is the difference between two
+    forward FX rates we can also derive this quantity using the independent
+    :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
+    the numerical differences are caused by different calculation methods. The
+    difference here equates to a tolerance of 1e-8, or $1 per $100mm.
+
+    .. ipython:: python
+
+       fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
+
     """
+
+    _fixed_rate_mixin = True
+    _leg2_fixed_rate_mixin = True
 
     def __init__(
         self,

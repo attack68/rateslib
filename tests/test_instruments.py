@@ -410,6 +410,36 @@ class TestFRA:
         assert abs(fra.npv(curve)) < 1e-9
 
 
+class TestZCS:
+
+    def test_zcs_rate(self):
+        usd = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2027, 1, 1): 0.85,
+                dt(2032, 1, 1): 0.70
+            },
+            id="usd"
+        )
+        zcs = ZCS(
+            effective=dt(2022, 1, 1),
+            termination="10Y",
+            frequency="Q",
+            calendar="nyc",
+            currency="usd",
+            fixed_rate=4.0,
+            convention="Act360",
+            notional=100e6,
+            curves=["usd"],
+        )
+        result = zcs.rate(usd)
+        expected = 4.22474207536529
+        assert abs(result - expected) < 1e-7
+        result2 = zcs.rate(usd, metric="irr")
+        expected2 = 3.53180596384863
+        assert abs(result2 - expected2) < 1e-7
+
+
 def test_forward_fx_immediate():
     d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
                     interpolation="log_linear")
