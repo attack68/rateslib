@@ -991,6 +991,10 @@ class Curve(Serialize, PlotCurve):
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
         new_t = [_ + timedelta(days=days) for _ in self.t] if self.t else None
+        if type(self) is IndexCurve:
+            xtra = dict(index_lag=self.index_lag, index_base=self.index_base)
+        else:
+            xtra = {}
         new_curve = type(self)(
             nodes=new_nodes,
             interpolation=self.interpolation,
@@ -1001,8 +1005,8 @@ class Curve(Serialize, PlotCurve):
             calendar=self.calendar,
             convention=self.convention,
             id=None,
-            # TODO: design how to adjust the index_base on a rolled curve.
             ad=self.ad,
+            **xtra
         )
         if tenor > self.node_dates[0]:
             return new_curve
@@ -1883,6 +1887,79 @@ class CompositeCurve(PlotCurve):
             raise TypeError(  # pragma: no cover
                 f"Base curve type is unrecognised: {self._base_type}"
             )
+
+    def shift(self, spread: float) -> CompositeCurve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        This curve adjustment preserves the shape of the curve but moves it up or
+        down as a translation.
+        This method is suitable as a way to assess value changes of instruments when
+        a parallel move higher or lower in yields is predicted.
+
+        Parameters
+        ----------
+        spread : float, Dual, Dual2
+            The number of basis points added to the existing curve.
+
+        Returns
+        -------
+        CompositeCurve
+        """
+        curves = (self.curves[0].shift(spread),)
+        curves += self.curves[1:]
+        return CompositeCurve(curves=curves)
+
+    def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
+        """
+        Create a new curve with an initial node date moved forward keeping all else
+        constant.
+
+        This curve adjustment preserves forward curve expectations as time evolves.
+        This method is suitable as a way to create a subsequent *opening* curve from a
+        previous day's *closing* curve.
+
+        Parameters
+        ----------
+        start : datetime
+            The new initial node date for the curve, must be in the domain:
+            (node_date[0], node_date[1]]
+        t : bool
+            Set to *True* if the initial knots of the knot sequence should be
+            translated forward.
+
+        Returns
+        -------
+        CompositeCurve
+        """
+        return CompositeCurve(curves=[
+            curve.translate(start, t) for curve in self.curves
+        ])
+
+    def roll(self, tenor: Union[datetime, str]) -> CompositeCurve:
+        """
+        Create a new curve with its shape translated in time
+
+        This curve adjustment is a simulation of a future state of the market where
+        forward rates are assumed to have moved so that the present day's curve shape
+        is reflected in the future (or the past). This is often used in trade
+        strategy analysis.
+
+        Parameters
+        ----------
+        tenor : datetime or str
+            The date or tenor by which to roll the curve. If a tenor, as str, will
+            derive the datetime as measured from the initial node date. If supplying a
+            negative tenor, or a past datetime, there is a limit to how far back the
+            curve can be rolled - it will first roll backwards and then attempt to
+            :meth:`translate` forward to maintain the initial node date.
+
+        Returns
+        -------
+        CompositeCurve
+        """
+        return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):

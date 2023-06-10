@@ -657,11 +657,11 @@ def _check_unadjusted_regular_swap(
         The unadjusted termination date.
     frequency : str
         The frequency of the leg.
-    roll : int in [1, 31] or str in {"eom", "imm", "som"}, optional
-        The roll day of the schedule. Inferred if not given.
     eom : bool
         Use an end of month preference rather than regular rolls for inference. Set by
         default.
+    roll : int in [1, 31] or str in {"eom", "imm", "som"}, optional
+        The roll day of the schedule. Inferred if not given.
 
     Returns
     -------
