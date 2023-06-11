@@ -565,3 +565,12 @@ def test_schedule_n_periods():
         stub="FRONT",
     )
     assert result.n_periods == 3
+
+
+@pytest.mark.parametrize("ue, ut, exp", [
+    (dt(2023, 3, 17), dt(2023, 12, 20), dt(2023, 9, 20)),  # PR #9
+    (dt(2022, 12, 19), dt(2023, 12, 20), dt(2023, 3, 15))
+])
+def test_get_unadjusted_long_stub_imm(ue, ut, exp):
+    result = _get_unadjusted_stub_date(ue, ut, "Q", "LONGFRONT", False, "imm")
+    assert result == exp

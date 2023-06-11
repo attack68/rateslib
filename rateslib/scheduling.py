@@ -1016,9 +1016,15 @@ def _get_unadjusted_stub_date(
     frequency_months = defaults.frequency_months[frequency]
     if "LONG" in stub:
         if "FRONT" in stub:
-            ueffective = _add_months(ueffective, frequency_months, None, None)
+            _ = _add_months(ueffective, frequency_months, None, None)
+            if roll is not None:
+                _ = _get_roll(_.month, _.year, roll)
+            ueffective = _
         else:  # "BACK" in stub
-            utermination = _add_months(utermination, -frequency_months, None, None)
+            _ = _add_months(utermination, -frequency_months, None, None)
+            if roll is not None:
+                _ = _get_roll(_.month, _.year, roll)
+            utermination = _
 
     return _get_unadjusted_short_stub_date(
         ueffective,
