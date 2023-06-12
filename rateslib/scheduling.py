@@ -1013,26 +1013,19 @@ def _get_unadjusted_stub_date(
     -------
     datetime
     """
-    frequency_months = defaults.frequency_months[frequency]
+    # frequency_months = defaults.frequency_months[frequency]
+    stub_side = "FRONT" if "FRONT" in stub else "BACK"
     if "LONG" in stub:
+        _ = _get_unadjusted_short_stub_date(
+            ueffective, utermination, frequency, stub_side, eom, roll
+        )
         if "FRONT" in stub:
-            _ = _add_months(ueffective, frequency_months, None, None)
-            if roll is not None:
-                _ = _get_roll(_.month, _.year, roll)
-            ueffective = _
+            ueffective = _ + timedelta(days=1)
         else:  # "BACK" in stub
-            _ = _add_months(utermination, -frequency_months, None, None)
-            if roll is not None:
-                _ = _get_roll(_.month, _.year, roll)
-            utermination = _
+            utermination = _ - timedelta(days=1)
 
     return _get_unadjusted_short_stub_date(
-        ueffective,
-        utermination,
-        frequency,
-        "FRONT" if "FRONT" in stub else "BACK",
-        eom,
-        roll,
+        ueffective, utermination, frequency, stub_side, eom, roll,
     )
 
 
@@ -1080,28 +1073,34 @@ def _get_unadjusted_short_stub_date(
         roll = "eom" if (eom and _is_eom(reg_side_dt)) else reg_side_dt.day
 
     frequency_months = defaults.frequency_months[frequency]
-    if (
-        _is_divisible_months(ueffective, utermination, frequency_months)
-        and ueffective.day < utermination.day
-    ):
+
+    if _is_divisible_months(ueffective, utermination, frequency_months):
         if stub_side == "FRONT":
-            stub_date = _get_roll(ueffective.month, ueffective.year, roll)
-        else:
-            stub_date = _get_roll(utermination.month, utermination.year, roll)
-    elif (
-        _is_divisible_months(ueffective, utermination, frequency_months)
-        and ueffective.day >= utermination.day
-    ):
-        stub_date = _add_months(stub_side_dt, frequency_months * direction, None, None)
-        stub_date = _get_roll(stub_date.month, stub_date.year, roll)
+            comparison = _get_roll(ueffective.month, ueffective.year, roll)
+            if ueffective.day > comparison.day:
+                _ = _add_months(ueffective, frequency_months * direction, None, None)
+                _ = _get_roll(_.month, _.year, roll)
+            else:
+                _ = ueffective
+                _ = _get_roll(_.month, _.year, roll)
+
+        else:  # stub_side == "BACK"
+            comparison = _get_roll(utermination.month, utermination.year, roll)
+            if utermination.day < comparison.day:
+                _ = _add_months(utermination, frequency_months * direction, None, None)
+                _ = _get_roll(_.month, _.year, roll)
+            else:
+                _ = utermination
+                _ = _get_roll(_.month, _.year, roll)
+
     else:
         for month_offset in range(1, 12):
             stub_date = _add_months(stub_side_dt, month_offset * direction, None, None)
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
-        stub_date = _get_roll(stub_date.month, stub_date.year, roll)
+        _ = _get_roll(stub_date.month, stub_date.year, roll)
 
-    return stub_date
+    return _
 
 
 # Book coded - This defines all the unadjusted date scheduling - no inference
