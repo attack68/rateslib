@@ -1,13 +1,8 @@
-use std::collections::HashSet;
-
-use indexmap::indexset;
+use indexmap::{indexset, IndexSet};
+use ndarray::array;
 
 fn main() {
-    let set1 = indexset!{"a", "b"};
-    let set2 = indexset!{"b", "c"};
-
-    // // "a" is the first value
-    // assert_eq!(set.iter().next(), Some(&"a"));
-
-    println!("{:?}", set1.union(&set2))
+    let x: IndexSet<String> = IndexSet::from_iter([]);
+    let y: IndexSet<String> = IndexSet::from_iter(["a".to_string()]);
+    println!("{:?}", x.union(&y));
 }
