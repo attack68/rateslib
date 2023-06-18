@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 ndarray = "0.15.6"
 indexmap = "1.9.3"
+ndarray_einsum_beta = "0.7.0"
+num-traits = "0.2.15"
