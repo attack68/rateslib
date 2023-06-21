@@ -1,7 +1,11 @@
 [package]
-name = "rust"
+name = "rateslib_rust"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+name = "rateslib_rust"
+path = "src/lib.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,3 +15,11 @@ indexmap = "1.9.3"
 ndarray_einsum_beta = "0.7.0"
 num-traits = "0.2.15"
 auto_ops = "0.3.0"
+nalgebra = "*"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "my_benchmark"
+harness = false
