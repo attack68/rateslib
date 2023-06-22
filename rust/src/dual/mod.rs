@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array, arr1};
+use ndarray::{Array1, Array, arr1, aview1};
 // use ndarray_einsum_beta::*;
 use num_traits;
 use num_traits::Pow;
@@ -155,8 +155,12 @@ impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}
 impl_op!(+ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
 impl_op!(+ |a: f64, b: Dual| -> Dual { Dual {vars: b.vars, real: b.real + a, dual: b.dual} });
 impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
-    let (x, y) = a.to_combined_vars(b);
-    Dual {real: x.real + y.real, dual: x.dual + y.dual, vars: x.vars}
+    if a.vars.len() == b.vars.len() && a.vars.iter().zip(b.vars.iter()).all(|(a,b)| a==b) {
+        Dual {real: a.real + b.real, dual: &a.dual + &b.dual, vars: a.vars.clone()}
+    } else {
+        let (x, y) = a.to_combined_vars_explicit(b);
+        Dual {real: x.real + y.real, dual: x.dual + y.dual, vars: x.vars}
+    }
 });
 
 impl_op!(- |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real - b, dual: a.dual} });

@@ -15,8 +15,8 @@ fn float_add_bm(a: &f64, b: &f64) -> f64 {
 fn criterion_benchmark(c: &mut Criterion) {
     let dual_ = Array::ones(1000);
     let vars = IndexSet::from_iter((0..1000).map(|x| format!("v{}", x).to_string()));
-    let dual_2 = Array::ones(1001);
-    let vars2 = IndexSet::from_iter((0..1001).map(|x| format!("v{}", x).to_string()));
+    let dual_2 = Array::ones(1000);
+    let vars2 = IndexSet::from_iter((0..1000).map(|x| format!("v{}", x).to_string()));
 
     let a = Dual { real: 2.0, vars: vars, dual: dual_ };
     let b = Dual { real: 3.0, vars: vars2, dual: dual_2 };
