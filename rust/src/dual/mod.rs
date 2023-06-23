@@ -96,7 +96,6 @@ impl Dual {
         Dual {vars: Rc::clone(new_vars), real: self.real, dual}
     }
 
-
     fn is_same_vars(&self, other: &Dual) -> bool {
         // test if the vars of a Dual have the same elements but possibly a different order
         return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
@@ -119,7 +118,7 @@ impl num_traits::identities::Zero for Dual {
     }
 }
 
-impl Pow<f64> for Dual {
+impl num_traits::Pow<f64> for Dual {
     type Output = Dual;
     fn pow(self, power: f64) -> Dual {
         return Dual {
@@ -148,7 +147,6 @@ impl std::ops::MulAssign for Dual {
     }
 }
 
-
 // impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
 
 impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}});
@@ -156,31 +154,79 @@ impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}
 impl_op!(+ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
 impl_op!(+ |a: f64, b: Dual| -> Dual { Dual {vars: b.vars, real: b.real + a, dual: b.dual} });
 impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
-    if a.vars.len() == b.vars.len() && a.vars.iter().zip(b.vars.iter()).all(|(a,b)| a==b) {
+    if Rc::ptr_eq(&a.vars, &b.vars) {
         Dual {real: a.real + b.real, dual: &a.dual + &b.dual, vars: a.vars.clone()}
-    } else {
+    }
+    else {
         let (x, y) = a.to_combined_vars_explicit(b);
-        Dual {real: x.real + y.real, dual: x.dual + y.dual, vars: x.vars}
+        x + y
     }
 });
 
 impl_op!(- |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real - b, dual: a.dual} });
 impl_op!(- |a: f64, b: Dual| -> Dual { Dual {vars: b.vars, real: a - b.real, dual: -b.dual} });
 impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
-    let (x, y) = a.to_combined_vars(b);
-    Dual {real: x.real - y.real, dual: x.dual - y.dual, vars: x.vars}
+    if Rc::ptr_eq(&a.vars, &b.vars) {
+        Dual {real: a.real - b.real, dual: &a.dual - &b.dual, vars: a.vars.clone()}
+    }
+    else {
+        let (x, y) = a.to_combined_vars_explicit(b);
+        x - y
+    }
 });
 
 impl_op!(* |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real * b, dual: a.dual * b} });
 impl_op!(* |a: f64, b: Dual| -> Dual { Dual {vars: b.vars, real: a * b.real, dual: b.dual * a} });
 impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
-    let (x, y) = a.to_combined_vars(b);
-    Dual {real: x.real * y.real, dual: x.dual * y.real + y.dual * x.real, vars: x.vars}
+    if Rc::ptr_eq(&a.vars, &b.vars) {
+        Dual {real: a.real * b.real, dual: &a.dual * b.real + &b.dual * a.real, vars: a.vars.clone()}
+    }
+    else {
+        let (x, y) = a.to_combined_vars_explicit(b);
+        x * y
+    }
 });
 
 impl_op!(/ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real / b, dual: a.dual / b} });
 impl_op!(/ |a: f64, b: Dual| -> Dual { a * b.pow(-1.0) });
-impl_op!(/ |a: Dual, b: Dual| -> Dual { a * b.pow(-1.0) });
+impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
+
+impl PartialEq<f64> for Dual {
+    fn eq(&self, other: &f64) -> bool {
+        return Dual::new(*other, &[], &[]) == *self;
+    }
+}
+
+impl std::iter::Sum for Dual {
+    fn sum<I>(iter: I) -> Self
+    where I: Iterator<Item = Dual> {
+        return iter.fold(Dual::new(0.0, &[], &[]), |acc, x| acc + x)
+    }
+}
+
+impl PartialEq<Dual> for Dual {
+    fn eq(&self, other: &Dual) -> bool {
+        if self.real != other.real {
+            return false
+        }
+        if ! self.is_same_vars(&other) {
+            return false
+        }
+        let another = other.to_new_vars(&self.vars);
+        for (i, elem) in self.dual.iter().enumerate() {
+            if ! is_close(&another.dual[[i]], &elem, None) {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
+    // Consumes two one dimensional arrays and produces a scalar value of their dot product.
+    let z = a1.into_iter().zip(a2.into_iter()).map(|(x, y)| x * y).collect::<Vec<Dual>>();
+    return z.into_iter().sum::<Dual>()
+}
 
 // impl ops::Add<f64> for Dual {
 //     type Output = Dual;
@@ -202,19 +248,6 @@ impl_op!(/ |a: Dual, b: Dual| -> Dual { a * b.pow(-1.0) });
 //         Dual {vars: self.vars, real: self.real * other, dual: self.dual * other}
 //     }
 // }
-
-impl PartialEq<f64> for Dual {
-    fn eq(&self, other: &f64) -> bool {
-        return Dual::new(*other, &[], &[]) == *self;
-    }
-}
-
-impl std::iter::Sum for Dual {
-    fn sum<I>(iter: I) -> Self
-    where I: Iterator<Item = Dual> {
-        return iter.fold(Dual::new(0.0, &[], &[]), |acc, x| acc + x)
-    }
-}
 
 // impl ops::Neg for Dual {
 //     type Output = Dual;
@@ -258,28 +291,3 @@ impl std::iter::Sum for Dual {
 //         }
 //     }
 // }
-
-
-impl PartialEq<Dual> for Dual {
-    fn eq(&self, other: &Dual) -> bool {
-        if self.real != other.real {
-            return false
-        }
-        if ! self.is_same_vars(&other) {
-            return false
-        }
-        let another = other.to_new_vars(&self.vars);
-        for (i, elem) in self.dual.iter().enumerate() {
-            if ! is_close(&another.dual[[i]], &elem, None) {
-                return false
-            }
-        }
-        return true
-    }
-}
-
-pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
-    // Consumes two one dimensional arrays and produces a scalar value of their dot product.
-    let z = a1.into_iter().zip(a2.into_iter()).map(|(x, y)| x * y).collect::<Vec<Dual>>();
-    return z.into_iter().sum::<Dual>()
-}
