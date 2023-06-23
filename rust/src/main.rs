@@ -11,16 +11,17 @@ fn dual_add_bm(a: &Dual, b: &Dual) -> Dual {
 }
 
 fn main() {
-    let dual_ = Array::ones(1000);
-    let vars = IndexSet::from_iter((0..1000).map(|x| format!("v{}", x).to_string()));
-    let dual_2 = Array::ones(1001);
-    let vars2 = IndexSet::from_iter((0..1001).map(|x| format!("v{}", x).to_string()));
+    let dual_ = Array::ones(2);
+    let vars = IndexSet::from_iter((0..2).map(|x| format!("v{}", x).to_string()));
+    let dual_2 = Array::ones(3);
+    let vars2 = IndexSet::from_iter((0..3).map(|x| format!("v{}", x).to_string()));
     let a = Dual { real: 2.0, vars: Rc::new(vars), dual: dual_ };
     let b = Dual { real: 3.0, vars: Rc::new(vars2), dual: dual_2 };
     // for i in 1..50000 {
     //     dual_add_bm(&a, &b);
     // }
-    dual_add_bm(&a, &b);
+    let y = dual_add_bm(&a, &b);
+    println!("{:?}", y);
 
     // let d2 = Dual::new(5.0, &["b", "c"], &[3.0, 1.0]);
     // let d1 = Dual::new(5.0, &["c", "b"], &[1.0, 3.0]);
