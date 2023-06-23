@@ -2,7 +2,8 @@ use ndarray::{Array1, Array, arr1, aview1};
 // use ndarray_einsum_beta::*;
 use num_traits;
 use num_traits::Pow;
-use std::collections::HashSet;
+// use std::collections::HashSet;
+use std::rc::Rc;
 
 // use indexmap::indexset;
 use indexmap::set::IndexSet;
@@ -16,7 +17,7 @@ fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
 #[derive(Clone, Debug)]
 pub struct Dual {
     pub real : f64,
-    pub vars : IndexSet<String>,
+    pub vars : Rc<IndexSet<String>>,
     pub dual : Array1<f64>,
 }
 
@@ -32,7 +33,7 @@ impl Dual {
         }
         Dual{
             real: real,
-            vars: IndexSet::from_iter(vars.iter().map(|x| x.to_string())),
+            vars: Rc::new(IndexSet::from_iter(vars.iter().map(|x| x.to_string()))),
             dual: new_dual,
         }
     }
@@ -60,11 +61,11 @@ impl Dual {
 
     fn to_combined_vars_explicit(&self, other: &Dual) -> (Dual, Dual) {
         // Both Duals assumed to have different vars so combine the vars and recast the Duals
-        let comb_vars = IndexSet::from_iter(self.vars.union(&other.vars).map(|x| x.clone()));
+        let comb_vars = Rc::new(IndexSet::from_iter(self.vars.union(&other.vars).map(|x| x.clone())));
         (self.to_new_vars(&comb_vars), other.to_new_vars(&comb_vars))
     }
 
-    fn to_new_ordered_vars(&self, new_vars: &IndexSet<String>) -> Dual {
+    fn to_new_ordered_vars(&self, new_vars: &Rc<IndexSet<String>>) -> Dual {
         // new vars are the same as self.vars but may have a different order
         if self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
             // vars are identical
@@ -76,7 +77,7 @@ impl Dual {
         }
     }
 
-    fn to_new_vars(&self, new_vars: &IndexSet<String>) -> Dual {
+    fn to_new_vars(&self, new_vars: &Rc<IndexSet<String>>) -> Dual {
         // Take a Dual and redefine its derivatives according to a new set of variable tags.
 
         // let a: HashSet<_> = self.vars.iter().collect();
@@ -92,7 +93,7 @@ impl Dual {
                 None => {}
             }
         }
-        Dual {vars: new_vars.clone(), real: self.real, dual}
+        Dual {vars: Rc::clone(new_vars), real: self.real, dual}
     }
 
 
