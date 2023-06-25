@@ -476,6 +476,8 @@ class Curve(Serialize, PlotCurve):
         modifier: Optional[Union[str, bool]] = False,
         # calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
         # convention: Optional[str] = None,
+        float_spread: float = None,
+        spread_compound_method: str = None,
     ):
         """
         Calculate the rate on the `Curve` using DFs.
@@ -498,6 +500,12 @@ class Curve(Serialize, PlotCurve):
         # convention : str, optional
         #     The day count convention used for calculating rates. If `None` is
         #     determined from the `Curve` convention.
+        float_spread : float, optional
+            A float spread can be added to the rate in certain cases.
+        spread_compound_method : str in {"none_simple", "isda_compounding"}
+            The method if adding a float spread.
+            If *"none_simple"* is used this results in an exact calculation.
+            If *"isda_compounding"* is used this results in an approximation.
 
         Returns
         -------
@@ -515,6 +523,19 @@ class Curve(Serialize, PlotCurve):
         ``convention`` which is either `"Act365F"` or `"Act360"`. These conventions
         do not need additional parameters, such as the `termination` of a leg,
         the `frequency` or a leg or whether it is a `stub` to calculate a DCF.
+
+        **Adding Floating Spreads**
+
+        An optimised method for adding floating spreads to a curve rate is provided.
+        This is quite restrictive and mainly used internally to facilitate other parts
+        of the library.
+
+        - When ``spread_compound_method`` is *"none_simple"* the spread is a simple
+          linear addition.
+        - When using *"isda_compounding"* the curve is assumed to be comprised of RFR
+          rates and an approximation is used to derive to total rate.
+        - The *"isda_flat_compounding"* method is not suitable for this optimisation.
+
         """
         modifier = self.modifier if modifier is False else modifier
         # calendar = self.calendar if calendar is False else calendar
@@ -527,6 +548,19 @@ class Curve(Serialize, PlotCurve):
         except ZeroDivisionError:
             return None
         rate = (df_ratio - 1) / dcf(effective, termination, self.convention)
+
+        if float_spread is not None:
+            if spread_compound_method == "none_simple":
+                return rate * 100 + float_spread / 100
+            elif spread_compound_method == "isda_compounding":
+                # this provides an approximated rate
+                r_bar, d, n = average_rate(effective, termination, self.convention, rate)
+                return 100 * ((1 + (r_bar + float_spread/100) * d)**n -1 ) / (n * d)
+            else:
+                raise ValueError(
+                    "Must supply a valid `spread_compound_method`, when `float_spread` "
+                    " is not `None`.")
+
         return rate * 100
 
     def csolve(self):
@@ -1960,6 +1994,31 @@ class CompositeCurve(PlotCurve):
         CompositeCurve
         """
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
+
+
+def average_rate(effective, termination, convention, rate):
+    """
+    Return the geometric, 1 calendar day, average rate for the rate in a period.
+
+    Parameters
+    ----------
+    effective : datetime
+        The effective date of the rate.
+    termination : datetime
+        The termination date of the rate.
+    convention : str
+        The day count convention of the curve rate.
+    rate : float, Dual, Dual2
+        The rate to decompose to average, in percentage terms, e.g. 0.04 = 4% rate.
+
+    Returns
+    -------
+    tuple : The rate, the 1-day DCF and the number of calendar days
+    """
+    d = 1.0 / 360 if "360" in convention else 1.0 / 365
+    n = (termination - effective).days
+    _ = ((1 + rate / 100 * n * d) ** (1 / n) - 1) / d
+    return _ * 100, d, n
 
 
 def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
