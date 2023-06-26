@@ -4922,6 +4922,8 @@ class BaseXCS(BaseDerivative):
 
     @property
     def _is_unpriced(self):
+        if getattr(self, "_unpriced", None) is True:
+            return True
         if self._fixed_rate_mixin and self._leg2_fixed_rate_mixin:
             # Fixed/Fixed where one leg is unpriced.
             if self.fixed_rate is None or self.leg2_fixed_rate is None:
@@ -6312,6 +6314,7 @@ class FXSwap(BaseXCS):
 
     _fixed_rate_mixin = True
     _leg2_fixed_rate_mixin = True
+    _unpriced = True
 
     def __init__(
         self,
@@ -6365,6 +6368,7 @@ class FXSwap(BaseXCS):
 
     @points.setter
     def points(self, value):
+        self._unpriced = False
         self._points = value
         self._leg2_fixed_rate = None
         if value is not None:
@@ -6383,6 +6387,7 @@ class FXSwap(BaseXCS):
     ):
         points = self.rate(curves, solver, fx)
         self.points = points
+        self._unpriced = True  # setting pricing mid does not define a priced instrument
 
     def rate(
         self,

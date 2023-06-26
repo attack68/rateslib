@@ -211,7 +211,7 @@ class TestFloatPeriod:
         curve = rfr_curve if curve_type == "curve" else line_curve
         period = FloatPeriod(dt(2022, 1, 1), dt(2022, 1, 4), dt(2022, 1, 4), "Q",
                              fixing_method="rfr_lockout", method_param=2)
-        assert period._is_complex == True  # lockout requires all fixings.
+        assert period._is_inefficient == True  # lockout requires all fixings.
         result = period.rate(curve)
         expected = ((1 + 0.01 / 365) * (1 + 0.01 / 365) * (
                     1 + 0.01 / 365) - 1) * 36500 / 3
@@ -397,7 +397,7 @@ class TestFloatPeriod:
             fixing_method="ibor",
             method_param=2,
         )
-        assert period._is_complex == False
+        assert period._is_inefficient == False
         assert period.rate(line_curve) == 3.0
 
     def test_ibor_fixing_table(self, line_curve):

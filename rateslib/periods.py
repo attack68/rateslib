@@ -31,7 +31,7 @@ from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf
-from rateslib.curves import Curve, LineCurve, IndexCurve
+from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
@@ -888,17 +888,16 @@ class FloatPeriod(BasePeriod):
             )
 
     def _rfr_rate_from_df_curve(self, curve: Curve):
-        if self.fixing_method == "rfr_payment_delay" and not self._is_complex:
+        if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve.rate(self.start, self.end) + self.float_spread / 100
 
-        elif self.fixing_method == "rfr_observation_shift" and not self._is_complex:
+        elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
             start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
             end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             return curve.rate(start, end) + self.float_spread / 100
-
             # TODO: semi-efficient method for lockout under certain conditions
         else:
-            # return complex calculation
+            # return inefficient calculation
             return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
 
     def _ibor_rate_from_df_curve(self, curve: Curve):
@@ -940,11 +939,12 @@ class FloatPeriod(BasePeriod):
         self,
         curve: Union[Curve, LineCurve],
         fixing_exposure: bool = False,
+        fixing_exposure_approx : bool = False,
     ):
         """
         Calculate the rate of a period via extraction and combination of every fixing.
 
-        This method of calculation is used when either:
+        This method of calculation is inefficient and used when either:
 
         - known fixings needs to be combined with unknown fixings,
         - the fixing_method is of a type that needs individual fixing data,
@@ -956,6 +956,8 @@ class FloatPeriod(BasePeriod):
             The forecasting curve used to extract the fixing data.
         fixing_exposure : bool
             Whether to calculate sensitivities to the fixings additionally.
+        fixing_exposure_approx : bool
+            Whether to use an approximation, if available, for fixing exposure calcs.
 
         Returns
         -------
@@ -968,7 +970,12 @@ class FloatPeriod(BasePeriod):
         ``start_dcf`` and ``end_dcf`` define the period for day count fractions.
         Unless *"lookback"* is used which mis-aligns the obs and dcf periods these
         will be aligned.
+
+        The ``fixing_exposure_approx`` is available only for ``spread_compound_method``
+        that is either *"none_simple"* or *"isda_compounding"*.
         """
+
+        # Depending upon method get the observation dates and dcf dates
         if self.fixing_method in ["rfr_payment_delay", "rfr_lockout"]:
             start_obs, end_obs = self.start, self.end
             start_dcf, end_dcf = self.start, self.end
@@ -990,15 +997,13 @@ class FloatPeriod(BasePeriod):
                 "'rfr_lookback', 'rfr_observation_shift'}"
             )
 
+        # dates of the fixing observation period
         obs_dates = Series(
-            date_range(  # dates of the fixing observation period
-                start=start_obs, end=end_obs, freq=curve.calendar
-            )
+            date_range(start=start_obs, end=end_obs, freq=curve.calendar)
         )
+        # dates for the dcf weights period
         dcf_dates = Series(
-            date_range(  # dates for the dcf weights period
-                start=start_dcf, end=end_dcf, freq=curve.calendar
-            )
+            date_range(start=start_dcf, end=end_dcf, freq=curve.calendar)
         )
         if len(dcf_dates) != len(obs_dates):
             # this should never be true since dates should be adjusted under the
@@ -1048,9 +1053,19 @@ class FloatPeriod(BasePeriod):
                 )
 
         # reindex the rates series getting missing values from the curves
-        rates = Series(
-            {k: curve.rate(k, "1b") if isna(v) else v for k, v in rates.items()}
-        )
+        if not self._is_inefficient and fixing_exposure_approx:
+            rate = curve.rate(
+                start_obs,
+                end_obs,
+                float_spread=self.float_spread,
+                spread_compound_method=self.spread_compound_method
+            )
+            r_bar, _, _ = average_rate(start_obs, end_obs, curve.convention, rate)
+            rates = Series(r_bar, index=obs_dates[:-1])
+        else:
+            rates = Series(
+                {k: curve.rate(k, "1b") if isna(v) else v for k, v in rates.items()}
+            )
 
         if fixing_exposure:
             # need to calculate the dcfs associated with the rates (unshifted)
@@ -1078,24 +1093,45 @@ class FloatPeriod(BasePeriod):
                 )
 
         if fixing_exposure:
-            rates_dual = Series(
-                [
-                    Dual(float(r), f"fixing_{i}")
-                    for i, (k, r) in enumerate(rates.items())
-                ],
-                index=rates.index,
-            )
-            if self.fixing_method == "rfr_lockout":
-                rates_dual.iloc[-self.method_param :] = rates_dual.iloc[
-                    -self.method_param - 1
-                ]
-            rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
-            notional_exposure = Series(
-                [
-                    rate.gradient(f"fixing_{i}")[0]
-                    for i in range(len(dcf_dates.index) - 1)
-                ]
-            )
+            # approximate fixing exposure is only available for efficient calculations:
+            #  - rfr method is "rfr_payment_delay" or "rfr_observation_shift"
+            #  - compound method is "none_simple" or "isda_compounding"
+            if fixing_exposure_approx and (
+                    self.spread_compound_method == "isda_flat_compounding" or
+                    self.fixing_method in ["rfr_lockout", "rfr_lookback"]
+            ):
+                raise ValueError(
+                    "`fixing_exposure_approx`  not compatible with given "
+                    "`spread_compound_method` or `fixing_method`."
+                )
+
+            if fixing_exposure_approx:
+                rate = self._isda_compounded_rate_with_spread(rates, dcf_vals)
+                r_bar, d, n = average_rate(start_obs, end_obs, curve.convention, rate)
+                if self.spread_compound_method == "none_simple":
+                    rate_gradient = 1/n * (1+ r_bar/100 * d)**(n-1)
+                elif self.spread_compound_method == "isda_compopunding":
+                    rate_gradient = 1/n * (1 + (r_bar/100 + self.float_spread/10000)*d)**(n-1)
+                notional_exposure = dcf_vals * rate_gradient / d
+            else:
+                rates_dual = Series(
+                    [
+                        Dual(float(r), f"fixing_{i}")
+                        for i, (k, r) in enumerate(rates.items())
+                    ],
+                    index=rates.index,
+                )
+                if self.fixing_method == "rfr_lockout":
+                    rates_dual.iloc[-self.method_param :] = rates_dual.iloc[
+                        -self.method_param - 1
+                    ]
+                rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
+                notional_exposure = Series(
+                    [
+                        rate.gradient(f"fixing_{i}")[0]
+                        for i in range(len(dcf_dates.index) - 1)
+                    ]
+                )
             notional_exposure *= -self.notional * self.dcf / dcf_of_r
             extra_cols = {
                 "obs_dcf": dcf_of_r,
@@ -1167,9 +1203,9 @@ class FloatPeriod(BasePeriod):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @property
-    def _is_complex(self):
+    def _is_inefficient(self):
         """
-        A complex float leg is one which is RFR based and for which each individual
+        An inefficient float period is one which is RFR based and for which each individual
         RFR fixing is required is order to calculate correctly. This occurs in the
         following cases:
 
@@ -1192,9 +1228,21 @@ class FloatPeriod(BasePeriod):
                 return True
         elif self.fixing_method == "ibor":
             return False
+        # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def fixings_table(self, curve: Union[Curve, LineCurve]):
+    @property
+    def _is_approximable(self):
+        """
+        Certain fixing methods and
+
+
+        Returns
+        -------
+
+        """
+
+    def fixings_table(self, curve: Union[Curve, LineCurve], approximate=False):
         """
         Return a DataFrame of fixing exposures.
 
@@ -1306,7 +1354,11 @@ class FloatPeriod(BasePeriod):
            period.fixings_table(ibor_curve)
         """
         if "rfr" in self.fixing_method:
-            rate, table = self._rfr_fixings_array(curve, fixing_exposure=True)
+            rate, table = self._rfr_fixings_array(
+                curve,
+                fixing_exposure=True,
+                fixing_exposure_approx=approximate
+            )
             table = table.iloc[:-1]
             return table[["obs_dates", "notional", "dcf", "rates"]].set_index(
                 "obs_dates"

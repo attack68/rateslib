@@ -533,6 +533,12 @@ class TestNullPricing:
         result2 = inst.npv(solver=solver)
         assert abs(result2) < 1e-3
 
+        # test that instruments have not been set by the previous pricing action
+        solver.s = [1.3, 1.4, 1.36]
+        solver.iterate()
+        result3 = inst.npv(solver=solver)
+        assert abs(result3) < 1e-3
+
 
 class TestNonMtmXCS:
 
