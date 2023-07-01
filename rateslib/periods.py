@@ -1019,7 +1019,7 @@ class FloatPeriod(BasePeriod):
 
         # reindex the rates series getting missing values from the curves
         rates = Series(
-            {k: curve.rate(k, "1b") if isna(v) else v for k, v in rates.items()}
+            {k: curve.rate(k, "1b", "F") if isna(v) else v for k, v in rates.items()}
         )
 
         if fixing_exposure:
@@ -1300,6 +1300,7 @@ class FloatPeriod(BasePeriod):
             ).set_index("obs_dates")
 
     def fixings_table_fast(self, curve: Union[Curve, LineCurve]):
+        # TODO this doc string was copied. needs review
         """
         Return a DataFrame of approximate fixing exposures.
 
@@ -1429,25 +1430,34 @@ class FloatPeriod(BasePeriod):
             )
             scalar = dcf_vals.values / obs_vals.values
             if self.fixing_method == "rfr_lockout":
-                scalar[-(self.method_param+1)] = \
-                    scalar[-(self.method_param+1):].sum()
                 scalar[-self.method_param:] = 0.0
+                scalar[-(self.method_param+1)] = (
+                    obs_vals.iloc[-(self.method_param+1):].sum() /
+                    obs_vals.iloc[-(self.method_param+1)]
+                )
 
             # perform an efficient rate approximation
-            scm = "isda_compounding" if self.spread_compound_method == "isda_flat_compounding" else self.spread_compound_method
             rate = curve.rate(
                 effective=obs_dates.iloc[0],
                 termination=obs_dates.iloc[-1],
-                float_spread=self.float_spread,
-                spread_compound_method=scm
+            )
+            r_bar, d, n = average_rate(
+                obs_dates.iloc[0], obs_dates.iloc[-1], curve.convention, rate
             )
             # approximate sensitivity to each fixing
-            # TODO consider the validity of the following statement when measured vs 30e360 for example.
-            d = 1/360 if "360" in curve.convention else 1/365
-            n = (obs_dates.iloc[-1] - obs_dates.iloc[0]).days
-            z = self.float_spread / 10000 if scm != "none_simple" else 0.0
-            # TODO convert rate to the 1d average rate and dont use rate directly
-            drdri = (1 / n) * (1 + (rate / 100 + z) * d) ** (n-1)
+            z = self.float_spread / 10000
+            if self.spread_compound_method == "none_simple":
+                drdri = (1 / n) * (1 + (rate / 100) * d) ** (n-1)
+            elif self.spread_compound_method == "isda_compounding":
+                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n-1)
+            elif self.spread_compound_method == "isda_flat_compounding":
+                dr = d * r_bar / 100
+                drdri = (1 / n) * (
+                    ((1/n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
+                    +
+                    ((r_bar / 100 + z)/n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
+                )
+
             notional_exposure = Series(
                 -self.notional * self.dcf * drdri / d * scalar, index=obs_vals.index
             )

@@ -633,6 +633,41 @@ class TestFloatPeriod:
         result = float_period.fixings_table(curve)
         assert_frame_equal(result, expected)
 
+    @pytest.mark.parametrize("method, param", [
+        ("rfr_payment_delay", None),
+        ("rfr_lookback", 4),
+        ("rfr_lockout", 1),
+        ("rfr_observation_shift", 2),
+    ])
+    @pytest.mark.parametrize("scm, spd", [
+        ("none_simple", 1000.0),
+        ("isda_compounding", 1000.0),
+        ("isda_flat_compounding", 1000.0),
+    ])
+    @pytest.mark.parametrize("crv", [
+        Curve({
+            dt(2022, 1, 1): 1.00,
+            dt(2022, 4, 1): 0.99,
+            dt(2022, 7, 1): 0.98,
+            dt(2022, 10, 1): 0.97,
+            dt(2023, 6, 1): 0.96,
+        }, interpolation="log_linear", calendar="bus"),
+    ])
+    def test_rfr_fixings_table_fast(self, method, param, scm, spd, crv):
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 3),
+            payment=dt(2023, 1, 3),
+            frequency="M",
+            fixing_method=method,
+            method_param=param,
+            spread_compound_method=scm,
+            float_spread=spd,
+        )
+        expected = float_period.fixings_table(crv)
+        result = float_period.fixings_table_fast(crv)
+        assert_frame_equal(result, expected, rtol=1e-2)
+
     def test_rfr_rate_fixings_series_monotonic_error(self):
         nodes = {
             dt(2022, 1, 1): 1.00,

@@ -272,7 +272,10 @@ class BaseLeg(metaclass=ABCMeta):
 
         return _
 
-    def _spread_isda_dual2(self, target_npv, fore_curve, disc_curve, fx=None):
+    def _spread_isda_dual2(
+            self, target_npv, fore_curve, disc_curve, fx=None
+    ):  # pragma: no cover
+        # This method is unused and untested, superseded by _spread_isda_approx_rate
 
         # This method creates a dual2 variable for float spread and obtains derivatives automatically
         _fs = self.float_spread
