@@ -241,6 +241,96 @@ class BaseLeg(metaclass=ABCMeta):
                 return False
         return True
 
+    def _spread_isda_approximated_rate(self, target_npv, fore_curve, disc_curve):
+        """
+        Use approximated derivatives through geometric averaged 1day rates to derive the
+        spread
+        """
+        a, b = 0.0, 0.0
+        for period in self.periods:
+            try:
+                a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
+                a += a_
+                b += b_
+            except AttributeError:
+                pass
+        c = -target_npv
+
+        # perform the quadratic solution
+        _1 = -c / b
+        if abs(a) > 1e-14:
+            _2a = (-b - (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)
+            _2b = (-b + (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
+            if abs(_1 - _2a) < abs(_1 - _2b):
+                _ = _2a
+            else:
+                _ = _2b  # select quadratic soln
+        else:
+            # this is to avoid divide by zero errors and return an approximation
+            # also isda_flat_compounding has a=0
+            _ = _1
+
+        return _
+
+    def _spread_isda_dual2(self, target_npv, fore_curve, disc_curve, fx=None):
+
+        # This method creates a dual2 variable for float spread and obtains derivatives automatically
+        _fs = self.float_spread
+        self.float_spread = Dual2(0.0 if _fs is None else float(_fs), "spread_z")
+
+        # This method uses ad-hoc AD to solve a specific problem for which
+        # there is no closed form solution. Calculating NPV is very inefficient
+        # so, we only do this once as opposed to using a root solver algo
+        # which would otherwise converge to the exact solution but is
+        # practically not workable.
+
+        # This method is more accurate than the 'spread through approximated
+        # derivatives' method, but it is a more costly and less robust method
+        # due to its need to work in second order mode.
+
+        fore_ad = fore_curve.ad
+        fore_curve._set_ad_order(2)
+
+        disc_ad = disc_curve.ad
+        disc_curve._set_ad_order(2)
+
+        if isinstance(fx, (FXRates, FXForwards)):
+            _fx = None if fx is None else fx._ad
+            fx._set_ad_order(2)
+
+        npv = self.npv(fore_curve, disc_curve, fx, self.currency)
+        b = npv.gradient("spread_z", order=1)[0]
+        a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
+        c = -target_npv
+
+        # Perform quadratic solution
+        _1 = -c / b
+        if abs(a) > 1e-14:
+            _2a = (-b - (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)
+            _2b = (-b + (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
+            if abs(_1 - _2a) < abs(_1 - _2b):
+                _ = _2a
+            else:
+                _ = _2b  # select quadratic soln
+        else:  # pragma: no cover
+            # this is to avoid divide by zero errors and return an approximation
+            _ = _1
+            warnings.warn(
+                "Divide by zero encountered and the spread is approximated to "
+                "first order.",
+                UserWarning,
+            )
+
+        # This is required by the Dual2 AD approach to revert to original order.
+        self.float_spread = _fs
+        fore_curve._set_ad_order(fore_ad)
+        disc_curve._set_ad_order(disc_ad)
+        if isinstance(fx, (FXRates, FXForwards)):
+            fx._set_ad_order(_fx)
+        _ = set_order(_, disc_ad)  # use disc_ad: credit spread from disc curve
+
+        return _
+
     def _spread(self, target_npv, fore_curve, disc_curve, fx=None):
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -282,54 +372,9 @@ class BaseLeg(metaclass=ABCMeta):
             a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
             return -target_npv / a_delta
         else:
-            # This method creates a dual2 variable for float spread.
-            _fs = self.float_spread
-            self.float_spread = Dual2(0.0 if _fs is None else float(_fs), "spread_z")
-
-            # This method uses ad-hoc AD to solve a specific problem for which
-            # there is no closed form solution. Calculating NPV is very inefficient
-            # so, we only do this once as opposed to using a root solver algo
-            # which would otherwise converge to the exact solution but is
-            # practically not workable.
-
-            fore_ad = fore_curve.ad
-            fore_curve._set_ad_order(2)
-
-            disc_ad = disc_curve.ad
-            disc_curve._set_ad_order(2)
-
-            if isinstance(fx, (FXRates, FXForwards)):
-                _fx = None if fx is None else fx._ad
-                fx._set_ad_order(2)
-
-            npv = self.npv(fore_curve, disc_curve, fx, self.currency)
-            b = npv.gradient("spread_z", order=1)[0]
-            a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
-            c = -target_npv
-
-            _1 = -c / b
-            if abs(a) > 1e-14:
-                _2a = (-b - (b**2 - 4 * a * c) ** 0.5) / (2 * a)
-                _2b = (-b + (b**2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
-                if abs(_1 - _2a) < abs(_1 - _2b):
-                    _ = _2a
-                else:
-                    _ = _2b  # select quadratic soln
-            else:  # pragma: no cover
-                # this is to avoid divide by zero errors and return an approximation
-                _ = _1
-                warnings.warn(
-                    "Divide by zero encountered and the spread is approximated to "
-                    "first order.",
-                    UserWarning,
-                )
-
-            self.float_spread = _fs
-            fore_curve._set_ad_order(fore_ad)
-            disc_curve._set_ad_order(disc_ad)
-            if isinstance(fx, (FXRates, FXForwards)):
-                fx._set_ad_order(_fx)
-            return set_order(_, disc_ad)  # use disc_ad: credit spread from disc curve
+            _ = self._spread_isda_approximated_rate(target_npv, fore_curve, disc_curve)
+            # _ = self._spread_isda_dual2(target_npv, fore_curve, disc_curve, fx)
+            return _
 
 
 class FixedLegMixin:

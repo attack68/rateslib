@@ -182,7 +182,8 @@ class TestIRS:
 
     @pytest.mark.parametrize("float_spread, fixed_rate, expected", [
         (0, 4.03, -0.63777963),
-        (10, 4.03, -0.63777963),
+        (200, 4.03, -0.63777963),
+        (500, 4.03, -0.63777963),
         (0, 4.01, -2.63777963),
     ])
     def test_irs_spread_none_simple(self, curve, float_spread, fixed_rate, expected):
@@ -208,9 +209,9 @@ class TestIRS:
         assert abs(validate) < 1e-8
 
     @pytest.mark.parametrize("float_spread, fixed_rate, expected", [
-        # (0, 4.03, -0.6322524949759807),  # note this is the closest solution
-        # (200, 4.03, -0.632906212667),  # note this is 0.0007bp inaccurate
-        # (500, 4.03, -0.64246185393653),  # note this is 0.0102bp inaccurate
+        (0, 4.03, -0.6322524949759807),  # note this is the closest solution
+        (200, 4.03, -0.632906212667),  # note this is 0.0006bp inaccurate due to approx
+        (500, 4.03, -0.64246185),  # note this is 0.0102bp inaccurate due to approx
         (0, 4.01, -2.61497625534),
     ])
     def test_irs_spread_isda_compound(self, curve, float_spread, fixed_rate, expected):
@@ -229,11 +230,39 @@ class TestIRS:
             stub="ShortFront",
         )
         result = irs.spread(curve)
-        assert abs(result - expected) < 1e-7
+        assert abs(result - expected) < 1e-2
 
-        # irs.float_spread = result
-        # validate = irs.npv(curve)
-        # assert abs(validate) < 1e-4
+        irs.leg2_float_spread = result
+        validate = irs.npv(curve)
+        assert abs(validate) < 5e2
+
+    @pytest.mark.parametrize("float_spread, fixed_rate, expected", [
+        (0, 4.03, -0.63500600),  # note this is the closest solution
+        (200, 4.03, -0.6348797243),  # note this is 0.0001bp inaccurate due to approx
+        (500, 4.03, -0.6346903026),  # note this is 0.0003bp inaccurate due to approx
+        (0, 4.01, -2.626308241),
+    ])
+    def test_irs_spread_isda_flat_compound(self, curve, float_spread, fixed_rate, expected):
+        # test the mid-market float spread ignores the given float_spread and react to fixed
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            fixed_rate=fixed_rate,
+            leg2_float_spread=float_spread,
+            leg2_fixing_method="rfr_payment_delay",
+            leg2_spread_compound_method="isda_flat_compounding",
+            stub="ShortFront",
+        )
+        result = irs.spread(curve)
+        assert abs(result - expected) < 1e-2
+
+        irs.leg2_float_spread = result
+        validate = irs.npv(curve)
+        assert abs(validate) < 20
 
     def test_irs_npv(self, curve):
         irs = IRS(

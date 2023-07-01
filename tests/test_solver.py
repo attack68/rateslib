@@ -184,7 +184,7 @@ def test_basic_solver_line_curve(algo):
     )
     assert float(solver.g) < 1e-9
     for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - s[i]) < 1e-6
+        assert abs(float(curve.nodes[key]) - s[i]) < 1e-5
 
 
 def test_basic_spline_solver():

@@ -24,6 +24,7 @@ from abc import abstractmethod, ABCMeta
 from datetime import datetime
 from typing import Optional, Union
 import warnings
+from math import comb
 
 import numpy as np
 from pandas.tseries.offsets import CustomBusinessDay
@@ -1119,9 +1120,10 @@ class FloatPeriod(BasePeriod):
             )
         elif self.spread_compound_method == "isda_flat_compounding":
             sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
+            C_i = 0.0
             for i in range(1, len(sub_cashflows)):
-                k, k_ = rates.index[i], rates.index[i - 1]
-                sub_cashflows[k] += sub_cashflows[k_] * rates[k] / 100 * dcf_vals[k]
+                C_i += sub_cashflows.iloc[i-1]
+                sub_cashflows.iloc[i] += C_i * rates.iloc[i] / 100 * dcf_vals.iloc[i]
             total_cashflow = sub_cashflows.sum()
             return total_cashflow * 100 / dcf_vals.sum()
         else:
@@ -1444,6 +1446,7 @@ class FloatPeriod(BasePeriod):
             d = 1/360 if "360" in curve.convention else 1/365
             n = (obs_dates.iloc[-1] - obs_dates.iloc[0]).days
             z = self.float_spread / 10000 if scm != "none_simple" else 0.0
+            # TODO convert rate to the 1d average rate and dont use rate directly
             drdri = (1 / n) * (1 + (rate / 100 + z) * d) ** (n-1)
             notional_exposure = Series(
                 -self.notional * self.dcf * drdri / d * scalar, index=obs_vals.index
@@ -1477,7 +1480,7 @@ class FloatPeriod(BasePeriod):
                 }
             ).set_index("obs_dates")
 
-    def _get_method_dcf_markers(self, curve: Union[Curve, LineCurve]):
+    def _get_method_dcf_markers(self, curve: Union[Curve, LineCurve], endpoints=False):
         # Depending upon method get the observation dates and dcf dates
         if self.fixing_method in ["rfr_payment_delay", "rfr_lockout"]:
             start_obs, end_obs = self.start, self.end
@@ -1500,6 +1503,10 @@ class FloatPeriod(BasePeriod):
                 "'rfr_lookback', 'rfr_observation_shift'}"
             )
 
+        if endpoints:
+            # return just the edges without the computation of creating Series
+            return start_obs, end_obs, start_dcf, end_dcf
+
         # dates of the fixing observation period
         obs_dates = Series(
             date_range(start=start_obs, end=end_obs, freq=curve.calendar)
@@ -1516,6 +1523,35 @@ class FloatPeriod(BasePeriod):
             )
 
         return obs_dates, dcf_dates
+
+    def _get_analytic_delta_quadratic_coeffs(self, fore_curve, disc_curve):
+        """
+        For use in the Leg._spread calculation get the 'a' and 'b' coefficients
+        """
+        os, oe, _, _ = self._get_method_dcf_markers(fore_curve, True)
+        rate = fore_curve.rate(
+            effective=os,
+            termination=oe,
+            float_spread=0.0,
+            spread_compound_method=self.spread_compound_method
+        )
+        r, d, n = average_rate(os, oe, fore_curve.convention, rate)
+        # approximate sensitivity to each fixing
+        z = 0.0 if self.float_spread is None else self.float_spread
+        if self.spread_compound_method == "isda_compounding":
+            d2rdz2 = d * (n - 1) * (1 + (r / 100 + z / 10000) * d) ** (n - 2) / 1e8
+            drdz = (1 + (r / 100 + z / 10000) * d) ** (n - 1) / 1e4
+            Nvd = -self.notional * disc_curve[self.payment] * self.dcf
+            a, b = 0.5 * Nvd * d2rdz2, Nvd * drdz
+        elif self.spread_compound_method == "isda_flat_compounding":
+            # d2rdz2 = 0.0
+            drdz = (
+                1 + comb(n, 2)/n * r/100 * d + comb(n, 3)/n * (r/100 * d) ** 2
+            ) / 1e4
+            Nvd = -self.notional * disc_curve[self.payment] * self.dcf
+            a, b = 0.0, Nvd * drdz
+
+        return a, b
 
 
 class Cashflow:

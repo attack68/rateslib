@@ -15,7 +15,7 @@ from pandas.tseries.holiday import Holiday
 from uuid import uuid4
 import numpy as np
 import json
-from math import floor
+from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, Dual2, dual_log, dual_exp
 from rateslib.splines import PPSpline
@@ -547,21 +547,30 @@ class Curve(Serialize, PlotCurve):
             df_ratio = self[effective] / self[termination]
         except ZeroDivisionError:
             return None
-        rate = (df_ratio - 1) / dcf(effective, termination, self.convention)
+        _ = (df_ratio - 1) / dcf(effective, termination, self.convention) * 100
 
-        if float_spread is not None:
+        if float_spread is not None and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
-                return rate * 100 + float_spread / 100
+                return _ + float_spread / 100
             elif spread_compound_method == "isda_compounding":
                 # this provides an approximated rate
-                r_bar, d, n = average_rate(effective, termination, self.convention, rate)
-                return 100 * ((1 + (r_bar + float_spread/100) * d)**n -1 ) / (n * d)
+                r_bar, d, n = average_rate(effective, termination, self.convention, _)
+                _ = ((1+(r_bar+float_spread/100)/100 * d)**n - 1) / (n * d)
+                return 100 * _
+            elif spread_compound_method == "isda_flat_compounding":
+                # this provides an approximated rate
+                r_bar, d, n = average_rate(effective, termination, self.convention, _)
+                rd = r_bar/100 * d
+                _ = (r_bar + float_spread/100) / n * (
+                        comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2
+                )
+                return _
             else:
                 raise ValueError(
                     "Must supply a valid `spread_compound_method`, when `float_spread` "
                     " is not `None`.")
 
-        return rate * 100
+        return _
 
     def csolve(self):
         """
@@ -2000,6 +2009,8 @@ def average_rate(effective, termination, convention, rate):
     """
     Return the geometric, 1 calendar day, average rate for the rate in a period.
 
+    This is used for approximations usually in combination with floating periods.
+
     Parameters
     ----------
     effective : datetime
@@ -2013,8 +2024,10 @@ def average_rate(effective, termination, convention, rate):
 
     Returns
     -------
-    tuple : The rate, the 1-day DCF and the number of calendar days
+    tuple : The rate, the 1-day DCF, and the number of calendar days
     """
+    # TODO decide if the one-day DCF is properly accounted for here, e.g. 30e360?
+    # maybe just provide a static mapping instead.
     d = 1.0 / 360 if "360" in convention else 1.0 / 365
     n = (termination - effective).days
     _ = ((1 + rate / 100 * n * d) ** (1 / n) - 1) / d

@@ -100,6 +100,17 @@ def test_line_curve_rate(line_curve):
     assert line_curve.rate(effective=dt(2022, 3, 16)) == expected
 
 
+@pytest.mark.parametrize("scm, exp", [
+    ("none_simple", 5.56617834937),
+    ("isda_flat_compounding", 5.57234801943),
+    ("isda_compounding", 5.58359355318),
+])
+def test_curve_rate_floating_spread(scm, exp):
+    curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.9985, dt(2022, 3, 1): 0.995})
+    result = curve.rate(dt(2022, 1, 1), dt(2022, 3, 1), None, 250, scm)
+    assert (result - exp) < 1e-8
+
+
 @pytest.mark.parametrize("li, ll, val, expected", [
     ([0, 1, 2, 3, 4], 5, 0, 0),
     ([0, 1, 2, 3, 4], 5, 0.5, 0),

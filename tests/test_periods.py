@@ -66,7 +66,7 @@ class TestFloatPeriod:
         ("none_simple", 100.0, 24744.478172244584),
         ("isda_compounding", 0.0, 24744.478172244584),
         ("isda_compounding", 100.0, 25053.484941157145),
-        ("isda_flat_compounding", 100.0, 24747.211149828523),
+        ("isda_flat_compounding", 100.0, 24867.852396116967),
     ])
     def test_float_period_analytic_delta(self, curve, spread_method, float_spread, expected):
         float_period = FloatPeriod(
@@ -373,7 +373,7 @@ class TestFloatPeriod:
                 1 + 0.03 / 365) - 1) * 36500 / 3 + 100 / 100),
         ("isda_compounding",
          ((1 + 0.02 / 365) * (1 + 0.03 / 365) * (1 + 0.04 / 365) - 1) * 36500 / 3),
-        ("isda_flat_compounding", 3.000118724464),
+        ("isda_flat_compounding", 3.000173518986841),
     ])
     def test_rfr_compounding_float_spreads(self, method, expected, rfr_curve):
         period = FloatPeriod(
