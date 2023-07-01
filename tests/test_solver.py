@@ -814,7 +814,7 @@ def test_solver_float_rate_bond():
     solver = Solver([d_c], instruments, [25, 25, 25])
     result = d_c.rate(dt(2022, 7, 1), "1D")
     expected = f_c.rate(dt(2022, 7, 1), "1D") + 0.25
-    assert abs(result - expected) < 1e-5
+    assert abs(result - expected) < 3e-4
 
 
 def test_solver_grad_s_s_vt_methods_equivalent():

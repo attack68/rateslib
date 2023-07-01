@@ -2307,66 +2307,9 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "clean_price":
                 return dirty_price - self.accrued(settlement)
             elif metric == "spread":
-                if (
-                    "rfr" in self.leg1.fixing_method
-                    and self.leg1.spread_compound_method != "none_simple"
-                ):
-                    # This code replicates BaseLeg._spread for an FRN accounting for ex-div
-                    # via FRN.npv().
-
-                    _fs = self.float_spread
-                    self.float_spread = Dual2(
-                        0.0 if _fs is None else float(_fs), "spread_z"
-                    )
-
-                    fore_curve, disc_curve = curves[0], curves[1]
-
-                    fore_ad = fore_curve.ad
-                    fore_curve._set_ad_order(2)
-
-                    disc_ad = disc_curve.ad
-                    disc_curve._set_ad_order(2)
-
-                    if isinstance(fx, (FXRates, FXForwards)):
-                        _fx = None if fx is None else fx._ad
-                        fx._set_ad_order(2)
-
-                    npv = self.npv([fore_curve, disc_curve], None, fx, base, False)
-                    b = npv.gradient("spread_z", order=1)[0]
-                    a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
-                    c = npv + self.leg1.notional
-
-                    _1 = -c / b
-                    if abs(a) > 1e-14:
-                        _2a = (-b - (b**2 - 4 * a * c) ** 0.5) / (2 * a)
-                        _2b = (-b + (b**2 - 4 * a * c) ** 0.5) / (2 * a)  # alt soln
-                        if abs(_1 - _2a) < abs(_1 - _2b):
-                            _ = _2a
-                        else:
-                            _ = _2b  # select quadratic soln
-                    else:  # pragma: no cover
-                        # this is to avoid div by zero err and return an approximation
-                        _ = _1
-                        warnings.warn(
-                            "Divide by zero encountered and the spread is approximated "
-                            "to first order.",
-                            UserWarning,
-                        )
-                    _ += 0.0 if _fs is None else _fs
-
-                    self.float_spread = _fs
-                    fore_curve._set_ad_order(fore_ad)
-                    disc_curve._set_ad_order(disc_ad)
-                    if isinstance(fx, (FXRates, FXForwards)):
-                        fx._set_ad_order(_fx)
-                    return set_order(_, disc_ad)  # use disc_ad: cred spd from disc crv
-                else:
-                    # NPV calc is efficient and requires no additional ingenuity.
-                    _ = (npv + self.leg1.notional) / self.analytic_delta(
-                        curves[0], curves[1], fx, base
-                    )
-                    _ += self.float_spread
-                    return _
+                _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
+                z = 0.0 if self.float_spread is None else self.float_spread
+                return _ + z
 
         elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
             if forward_settlement is None:
