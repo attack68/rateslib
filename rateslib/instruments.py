@@ -5079,40 +5079,31 @@ class BaseXCS(BaseDerivative):
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-        if tgt_leg._is_linear:
-            if not _is_float_tgt_leg and getattr(tgt_leg, f"fixed_rate") is None:
-                # set the target fixed leg to a null fixed rate for calculation
-                tgt_leg.fixed_rate = 0.0
+        if not _is_float_tgt_leg and getattr(tgt_leg, f"fixed_rate") is None:
+            # set the target fixed leg to a null fixed rate for calculation
+            tgt_leg.fixed_rate = 0.0
 
-            self._set_fx_fixings(fx)
-            if self._is_mtm:
-                self.leg2._do_not_repeat_set_periods = True
+        self._set_fx_fixings(fx)
+        if self._is_mtm:
+            self.leg2._do_not_repeat_set_periods = True
 
-            tgt_leg_npv = tgt_leg.npv(tgt_fore_curve, tgt_disc_curve, fx, base)
-            alt_leg_npv = alt_leg.npv(alt_fore_curve, alt_disc_curve, fx, base)
-            fx_a_delta = 1.0 if not tgt_leg._is_mtm else fx
-            _ = tgt_leg._spread(
-                -(tgt_leg_npv + alt_leg_npv), tgt_fore_curve, tgt_disc_curve, fx_a_delta
-            )
+        tgt_leg_npv = tgt_leg.npv(tgt_fore_curve, tgt_disc_curve, fx, base)
+        alt_leg_npv = alt_leg.npv(alt_fore_curve, alt_disc_curve, fx, base)
+        fx_a_delta = 1.0 if not tgt_leg._is_mtm else fx
+        _ = tgt_leg._spread(
+            -(tgt_leg_npv + alt_leg_npv), tgt_fore_curve, tgt_disc_curve, fx_a_delta
+        )
 
-            specified_spd = 0.0
-            if _is_float_tgt_leg and not (getattr(tgt_leg, f"float_spread") is None):
-                specified_spd = tgt_leg.float_spread
-            elif not _is_float_tgt_leg:
-                specified_spd = tgt_leg.fixed_rate * 100
+        specified_spd = 0.0
+        if _is_float_tgt_leg and not (getattr(tgt_leg, f"float_spread") is None):
+            specified_spd = tgt_leg.float_spread
+        elif not _is_float_tgt_leg:
+            specified_spd = tgt_leg.fixed_rate * 100
 
-            _ += specified_spd
+        _ += specified_spd
 
-            if self._is_mtm:
-                self.leg2._do_not_repeat_set_periods = False  # reset the mtm calc
-
-        else:
-            # need to set_order(2) for XCS.
-            # npv = self.npv(curves, solver, fx, leg_.currency)
-            raise NotImplementedError("Dual and Dual2 upcasting not complete.")
-            # the problem here is that spread requires Dual2 but fx_fixing
-            # calculates a Dual by default. Needs a manual overwrite.
-            # set_order(1) for XCS
+        if self._is_mtm:
+            self.leg2._do_not_repeat_set_periods = False  # reset the mtm calc
 
         return _ if _is_float_tgt_leg else _ * 0.01
 

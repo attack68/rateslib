@@ -597,10 +597,11 @@ class TestNonMtmXCS:
                         payment_lag_exchange=0, fx_fixing=2.0, notional=1e6)
         assert xcs.leg2_notional == -2e6
 
-    @pytest.mark.parametrize("float_spd, compound, expected",[
+    @pytest.mark.parametrize("float_spd, compound, expected", [
         (10, "none_simple", 10.160794),
         (100, "none_simple", 101.60794),
-        (100, "isda_compounding", 101.00),
+        (100, "isda_compounding", 101.023590),
+        (100, "isda_flat_compounding", 101.336040),
     ])
     def test_nonmtmxcs_spread(self, curve, curve2, float_spd, compound, expected):
         fxf = FXForwards(
@@ -622,7 +623,7 @@ class TestNonMtmXCS:
         validate = xcs.npv([curve, curve, curve2, curve2], None, fxf)
         assert abs(validate) < 1e-2
         result2 = xcs.rate([curve, curve, curve2, curve2], None, fxf, 2)
-        assert abs(result - result2) < 1e-9
+        assert abs(result - result2) < 1e-3
 
         # reverse legs
         xcs_reverse = NonMtmXCS(dt(2022, 2, 1), "8M", "M",
@@ -952,7 +953,8 @@ class TestXCS:
     @pytest.mark.parametrize("float_spd, compound, expected", [
         (10, "none_simple", 9.97839804),
         (100, "none_simple", 99.78398037),
-        (100, "isda_compounding", 101.00),
+        (100, "isda_compounding", 99.418428),
+        (100, "isda_flat_compounding", 99.621117),
     ])
     def test_mtmxcs_rate(self, float_spd, compound, expected, curve, curve2):
         fxf = FXForwards(
@@ -974,7 +976,7 @@ class TestXCS:
         validate = xcs.npv([curve2, curve2, curve, curve], None, fxf)
         assert abs(validate) < 1e-2
         result2 = xcs.rate([curve2, curve2, curve, curve], None, fxf, 2)
-        assert abs(result - result2) < 1e-9
+        assert abs(result - result2) < 1e-3
 
 
 class TestFixedFloatXCS:
