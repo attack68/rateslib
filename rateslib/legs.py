@@ -847,11 +847,11 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         else:
             return fx * value
 
-    def fixings_table(self, curve: Curve):
+    def fixings_table(self, curve: Curve):  # pragma: no cover
         # TODO: fixing table for ZeroFloatLeg
         raise NotImplementedError("fixings table on ZeroFloatLeg.")
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args, **kwargs):  # pragma: no cover
         # TODO: a delta for ZeroFloatLeg
         raise NotImplementedError("analytic delta on ZeroFloatLeg.")
 
