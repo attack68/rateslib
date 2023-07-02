@@ -225,8 +225,9 @@ class TestFloatLeg:
         assert float_leg._is_linear is expected
 
     @pytest.mark.parametrize("method, expected", [
-        ("ISDA_compounding", 2.88250579),
-        ("NONE_Simple", 4.637779609),
+        ("ISDA_compounding", 357.7055853),
+        ("ISDA_flat_compounding", 360.658902),
+        ("NONE_Simple", 362.2342162),
     ])
     def test_float_leg_spread_calculation(self, method, expected, curve):
         leg = FloatLeg(
@@ -239,13 +240,13 @@ class TestFloatLeg:
             fixing_method="rfr_payment_delay",
             spread_compound_method=method,
             currency="nok",
-            float_spread=-399,
+            float_spread=0,
         )
-        npv = leg.npv(curve, curve)
-        result = leg._spread(-npv, curve, curve)
-        assert abs(result + expected) < 1e-3
-        leg.float_spread = result - 399
-        assert abs(leg.npv(curve, curve)) < 1e1
+        base_npv = leg.npv(curve, curve)
+        result = leg._spread(-15000000, curve, curve)
+        assert abs(result - expected) < 1e-3
+        leg.float_spread = result
+        assert abs(leg.npv(curve, curve)-base_npv+15000000) < 2e2
 
     def test_fixing_method_raises(self):
         with pytest.raises(ValueError, match="`fixing_method`"):
