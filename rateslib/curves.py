@@ -1820,8 +1820,18 @@ class CompositeCurve(PlotCurve):
                     f"{curves[0].node_dates[0]} and {curves[i].node_dates[0]}"
                 )
 
+        for attr in ["calendar", ]:
+            for i in range(1, len(curves)):
+                if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
+                    raise ValueError(
+                        "Cannot composite curves with different attributes, "
+                        f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
+                        f"'{getattr(curves[0], attr, None)}'."
+                    )
+        self.calendar = curves[0].calendar
+
         if self._base_type == "dfs":
-            for attr in ["modifier", "calendar", "convention"]:
+            for attr in ["modifier", "convention"]:
                 for i in range(1, len(curves)):
                     if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
                         raise ValueError(
@@ -1830,7 +1840,6 @@ class CompositeCurve(PlotCurve):
                             f"'{getattr(curves[0], attr, None)}'."
                         )
             self.modifier = curves[0].modifier
-            self.calendar = curves[0].calendar
             self.convention = curves[0].convention
 
         self.curves = tuple(curves)
@@ -2089,11 +2098,11 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
             y_1 = dual_log(y_1) / ((start - x_1) / timedelta(days=365))
         op = lambda z: dual_exp((start - x) / timedelta(days=365) * z)
     elif interpolation == "flat_forward":
-        if x == x_2:
+        if x >= x_2:
             return y_2
         return y_1
     elif interpolation == "flat_backward":
-        if x == x_1:
+        if x <= x_1:
             return y_1
         return y_2
     ret = op(y_1 + (y_2 - y_1) * ((x - x_1) / (x_2 - x_1)))

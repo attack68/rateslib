@@ -36,7 +36,7 @@ from pandas import DataFrame, concat, date_range, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, _add_days, get_calendar, dcf
 from rateslib.scheduling import Schedule
-from rateslib.curves import Curve, index_left, LineCurve
+from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
 from rateslib.solver import Solver
 from rateslib.periods import Cashflow, FixedPeriod, FloatPeriod, _get_fx_and_base
 from rateslib.legs import (
@@ -135,7 +135,7 @@ def _get_curves_and_fx_maybe_from_solver(
     elif curves is None:
         curves = curves_attr
 
-    if isinstance(curves, (Curve, str)):
+    if isinstance(curves, (Curve, str, CompositeCurve)):
         curves = [curves]
     if solver is None:
 
