@@ -510,7 +510,7 @@ class TestZeroFixedLeg:
             fixed_rate=None,
         )
         result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], None, curve)
-        assert (result - 2.50) < 1e-3
+        assert (result / 100 - 2.50) < 1e-3
 
 
 class TestFloatLegExchange:

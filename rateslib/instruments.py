@@ -47,6 +47,7 @@ from rateslib.legs import (
     FloatLegExchangeMtm,
     FixedLegExchangeMtm,
     ZeroFloatLeg,
+    ZeroFixedLeg,
     CustomLeg,
 )
 from rateslib.dual import Dual, Dual2, set_order, DualTypes
@@ -3943,11 +3944,11 @@ class ZCS(BaseDerivative):
         super().__init__(*args, **kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
-        self.leg1 = FixedLeg(
+        self.leg1 = ZeroFixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
-            frequency="Z",
+            frequency=self.frequency,
             stub=self.stub,
             front_stub=self.front_stub,
             back_stub=self.back_stub,
@@ -4020,7 +4021,6 @@ class ZCS(BaseDerivative):
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-        metric: str = "fixed_rate",
     ):
         """
         Return the mid-market rate of the ZCS.
@@ -4041,8 +4041,6 @@ class ZCS(BaseDerivative):
 
                The arguments ``fx`` and ``base`` are unused by single currency
                derivatives rates calculations.
-        metric : str in {"fixed_rate", "irr"}
-            The IRR uses an **exact** DCF
 
         Returns
         -------
@@ -4053,38 +4051,20 @@ class ZCS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
 
-        The *'fixed_rate'* ``metric`` defines a cashflow by:
-
-        .. math::
-
-           -notional \\times fixed_rate \\times dcf
-
-        The *'irr'* ``metric`` defines a cashflow by:
+        The *'irr'* ``fixed_rate`` defines a cashflow by:
 
         .. math::
 
            -notional * ((1 + irr / f)^{f \\times dcf} - 1)
 
-        where :math:`f` is associated with the floating leg frequency.
+        where :math:`f` is associated with the compounding frequency.
         """
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
-        fixed_rate_ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
-        if metric == "fixed_rate":
-            return fixed_rate_
-        elif metric == "irr":
-            f = 12 / defaults.frequency_months[self.leg2.schedule.frequency]
-            dcf_ = self.leg1.periods[0].dcf
-            _ = dcf_ * fixed_rate_ / 100 + 1.0
-            _ = _ ** (1 / (f * dcf_))
-            _ = (_ - 1.0) * f * 100
-            return _
-        else:
-            raise ValueError("`metric` must be in {'fixed_rate', 'irr'}")
-        # leg1_analytic_delta = self.leg1.analytic_delta(curves[0], curves[1])
-        # return leg2_npv / (leg1_analytic_delta * 100)
+        _ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        return _
 
     def cashflows(
         self,

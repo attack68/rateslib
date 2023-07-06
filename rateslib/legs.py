@@ -1234,7 +1234,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         period_rate = -target_npv / (a_delta * 100)
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         _ = f * ((1 + period_rate * self.dcf/ 100)**(1/(self.dcf*f)) - 1)
-        return _ * 100
+        return _ * 10000
 
 
 class BaseLegExchange(BaseLeg):

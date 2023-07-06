@@ -441,7 +441,11 @@ class TestFRA:
 
 class TestZCS:
 
-    def test_zcs_rate(self):
+    @pytest.mark.parametrize("freq, exp", [
+        ("Q", 3.52986327830),
+        ("S", 3.54543819675)
+    ])
+    def test_zcs_rate(self, freq, exp):
         usd = Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -453,7 +457,8 @@ class TestZCS:
         zcs = ZCS(
             effective=dt(2022, 1, 1),
             termination="10Y",
-            frequency="Q",
+            frequency=freq,
+            leg2_frequency="Q",
             calendar="nyc",
             currency="usd",
             fixed_rate=4.0,
@@ -462,11 +467,7 @@ class TestZCS:
             curves=["usd"],
         )
         result = zcs.rate(usd)
-        expected = 4.22474207536529
-        assert abs(result - expected) < 1e-7
-        result2 = zcs.rate(usd, metric="irr")
-        expected2 = 3.53180596384863
-        assert abs(result2 - expected2) < 1e-7
+        assert abs(result - exp) < 1e-7
 
 
 def test_forward_fx_immediate():
