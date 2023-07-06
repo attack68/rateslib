@@ -567,7 +567,6 @@ class FloatPeriod(BasePeriod):
     The first is the most efficient and most encountered. The second and third are
     rarely encountered in modern financial instruments.
     For further info see
-    :download:`Swap Compounding Formulae<_static/SSRN-id3882163(compounding).pdf>` and
     :download:`ISDA Compounding Memo (2009)<_static/isda-compounding-memo.pdf>`.
 
     .. _float fixings:

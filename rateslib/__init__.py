@@ -92,6 +92,7 @@ from rateslib.legs import (
     FloatLegExchange,
     FloatLegExchangeMtm,
     ZeroFloatLeg,
+    ZeroFixedLeg,
     CustomLeg,
 )
 
@@ -177,6 +178,7 @@ __all__ = [
     "FixedLeg",
     "FloatLeg",
     "ZeroFloatLeg",
+    "ZeroFixedLeg",
     "FixedLegExchange",
     "FixedLegExchangeMtm",
     "FloatLegExchange",

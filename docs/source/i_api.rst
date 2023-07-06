@@ -99,6 +99,7 @@ Curves
    :skip: datetime
    :skip: timedelta
    :skip: Holiday
+   :skip: comb
 
 
 FX
@@ -134,6 +135,7 @@ Periods
    :skip: LineCurve
    :skip: Series
    :skip: datetime
+   :skip: comb
 
 Legs
 ----
@@ -197,6 +199,7 @@ Instruments
    :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver
+   :skip: CompositeCurve
 
 Solver
 ------

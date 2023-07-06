@@ -41,7 +41,7 @@ from rateslib.periods import (
     _validate_float_args,
     _get_fx_and_base,
 )
-from rateslib.dual import Dual, Dual2, set_order
+from rateslib.dual import Dual, Dual2, set_order, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -1017,6 +1017,224 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             }
         ]
         return DataFrame.from_records(seq)
+
+
+class ZeroFixedLeg(BaseLeg, FixedLegMixin):
+    """
+    Create a zero coupon fixed leg composed of a single
+    :class:`~rateslib.periods.FixedPeriod` .
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseLeg`.
+    fixed_rate : float, optional
+        The IRR rate applied to determine cashflows. Can be set to `None` and designated
+        later, perhaps after a mid-market rate for all periods has been calculated.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+
+    The rate in this calculation is not a period rate but an IRR defining the cashflow
+    as follows,
+
+    .. math::
+
+       C = -N ( (1 + \\frac{R}{f}) ^ {df} - 1)
+
+    Examples
+    --------
+    TODO
+    """
+
+    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.periods = [
+            FixedPeriod(
+                fixed_rate=None,
+                start=self.schedule.effective,
+                end=self.schedule.termination,
+                payment=self.schedule.pschedule[-1],
+                notional=self.notional,
+                currency=self.currency,
+                convention=self.convention,
+                termination=self.schedule.termination,
+                frequency=self.schedule.frequency,
+                stub=False,
+            )
+        ]
+        self.fixed_rate = fixed_rate
+
+    @property
+    def fixed_rate(self):
+        """
+        float or None : If set will also set the ``fixed_rate`` of
+            contained :class:`FixedPeriod` s.
+        """
+        return self._fixed_rate
+
+    @fixed_rate.setter
+    def fixed_rate(self, value):
+        # overload the setter for a zero coupon to convert from irr to period rate
+        self._fixed_rate = value
+        f = 12 / defaults.frequency_months[self.schedule.frequency]
+        if value is not None:
+            period_rate = 100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
+        else:
+            period_rate = None
+
+        for period in self.periods:
+            if isinstance(period, FixedPeriod):
+                period.fixed_rate = period_rate
+
+    @property
+    def dcf(self):
+        _ = 0.0
+        for period in self.periods:
+            _ += period.dcf
+        return _
+
+    def cashflows(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Union[float, FXRates, FXForwards] = 1.0,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the properties of the leg used in calculating cashflows.
+
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object. Not used unless it is set equal to
+            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+            object, converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object. If not given defaults to
+            ``fx.base``.
+
+        Returns
+        -------
+        DataFrame
+        """
+        disc_curve = disc_curve or curve
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        rate = self.fixed_rate
+        cashflow = self.periods[0].cashflow
+        if disc_curve is None or rate is None:
+            npv, npv_fx = None, None
+        else:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+        seq = [
+            {
+                defaults.headers["type"]: type(self).__name__,
+                defaults.headers["stub_type"]: None,
+                defaults.headers["currency"]: self.currency.upper(),
+                defaults.headers["a_acc_start"]: self.schedule.effective,
+                defaults.headers["a_acc_end"]: self.schedule.termination,
+                defaults.headers["payment"]: self.schedule.pschedule[-1],
+                defaults.headers["convention"]: self.convention,
+                defaults.headers["dcf"]: self.dcf,
+                defaults.headers["notional"]: float(self.notional),
+                defaults.headers["df"]: None
+                if disc_curve is None
+                else float(disc_curve[self.schedule.pschedule[-1]]),
+                defaults.headers["rate"]: self.fixed_rate,
+                defaults.headers["spread"]: None,
+                defaults.headers["cashflow"]: cashflow,
+                defaults.headers["npv"]: npv,
+                defaults.headers["fx"]: float(fx),
+                defaults.headers["npv_fx"]: npv_fx,
+            }
+        ]
+        return DataFrame.from_records(seq)
+
+    def analytic_delta(
+        self,
+        curve: Optional[Curve] = None,
+        disc_curve: Optional[Curve] = None,
+        fx: Union[float, FXRates, FXForwards] = 1.0,
+        base: Optional[str] = None,
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the leg object.
+
+        Parameters
+        ----------
+        curve : Curve
+            The forecasting curve object. Not used unless it is set equal to
+            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+            object, converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object.
+
+        Returns
+        -------
+        float, Dual, Dual2, None
+
+        Notes
+        -----
+        For a :class:`ZeroFixedLeg` this gives the sensitivity to the IRR fixed rate.
+        This is a non-linear quantity and depends on the fixed rate itself.
+        This value is *not* used when determining mid-market prices.
+
+        .. math::
+
+           \\frac{\\partial P}{\\partial R} = N v d \\left ( 1 + \\frac{R^{irr}}{f} \\right ) ^{df-1}
+
+        If the ``fixed_rate`` is undetermined and set to *None* will return *None*.
+
+        """
+        disc_curve_: Curve = disc_curve or curve
+        if self.fixed_rate is None:
+            return None
+
+        f = 12 / defaults.frequency_months[self.schedule.frequency]
+        _ = self.notional * self.dcf * disc_curve_[self.periods[0].payment]
+        _ *= (1 + self.fixed_rate / (100*f)) ** (self.dcf * f - 1)
+        return _ / 10000
+
+    def _analytic_delta(self, *args, **kwargs) -> DualTypes:
+        """
+        Analytic delta based on period rate and not IRR.
+        """
+        _ = 0.0
+        for period in self.periods:
+            _ += period.analytic_delta(*args, **kwargs)
+        return _
+
+    def _spread(self, target_npv, fore_curve, disc_curve, fx=None):
+        """
+        Overload the _spread calc to use analytic delta based on period rate
+        """
+        a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
+        period_rate = -target_npv / (a_delta * 100)
+        f = 12 / defaults.frequency_months[self.schedule.frequency]
+        _ = f * ((1 + period_rate * self.dcf/ 100)**(1/(self.dcf*f)) - 1)
+        return _ * 100
 
 
 class BaseLegExchange(BaseLeg):

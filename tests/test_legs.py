@@ -11,6 +11,7 @@ from rateslib.legs import (
     FloatLeg,
     FloatPeriod,
     ZeroFloatLeg,
+    ZeroFixedLeg,
     FixedPeriod,
     CustomLeg,
     FloatLegExchange,
@@ -431,6 +432,85 @@ class TestZeroFloatLeg:
         result = ftl.cashflows()
         assert result.iloc[0].to_dict()[Defaults.headers["npv"]] is None
         assert result.iloc[0].to_dict()[Defaults.headers["npv_fx"]] is None
+
+
+class TestZeroFixedLeg:
+
+    @pytest.mark.parametrize("freq, cash, rate", [
+        ("A", 13140821.29, 2.50),
+        ("S", 13227083.80, 2.50),
+        ("A", None, None),
+    ])
+    def test_zero_fixed_leg_cashflows(self, freq, cash, rate, curve):
+        zfl = ZeroFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            convention="ActAct",
+            frequency=freq,
+            fixed_rate=rate,
+        )
+        result = zfl.cashflows(curve)
+        expected = DataFrame(
+            {
+                "Type": ["ZeroFixedLeg"],
+                 "Acc Start": [dt(2022, 1, 1)],
+                 "Acc End": [dt(2027, 1, 1)],
+                 "DCF": [5.0],
+                 "Rate": [rate],
+                 "Cashflow": [cash]
+             }
+        )
+        assert_frame_equal(
+            result[["Type", "Acc Start", "Acc End", "DCF", "Rate", "Cashflow"]],
+            expected,
+            rtol=1e-3,
+        )
+
+    def test_zero_fixed_leg_npv(self, curve):
+        zfl = ZeroFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            convention="ActAct",
+            frequency="A",
+            fixed_rate=2.5,
+        )
+        result = zfl.npv(curve)
+        expected = 13140821.29 * curve[dt(2027, 1, 1)]
+        assert abs(result - expected) < 1e-2
+        result2 = zfl.npv(curve, local=True)
+        assert abs(result2["usd"] - expected) < 1e-2
+
+    def test_zero_fixed_leg_analytic_delta(self, curve):
+        zfl = ZeroFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            convention="ActAct",
+            frequency="A",
+            fixed_rate=2.5,
+        )
+        result1 = zfl._analytic_delta(curve)
+        result2 = zfl.analytic_delta(curve)
+        assert abs(result1 + 40789.7007) < 1e-3
+        assert abs(result2 + 45024.1974) < 1e-3
+
+    def test_zero_fixed_spread(self, curve):
+        zfl = ZeroFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            convention="ActAct",
+            frequency="A",
+            fixed_rate=None,
+        )
+        result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], None, curve)
+        assert (result - 2.50) < 1e-3
 
 
 class TestFloatLegExchange:
