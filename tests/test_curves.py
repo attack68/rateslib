@@ -496,6 +496,15 @@ def test_curve_shift_dual_input():
     assert np.all(np.abs(diff) < 1e-7)
 
 
+def test_composite_curve_shift():
+    c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
+    c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
+    cc = CompositeCurve([c1, c2])
+    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
+    expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
+    assert abs(result - expected) < 1e-3
+
+
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
 def test_linecurve_shift(ad_order):
     curve = LineCurve(
@@ -933,4 +942,32 @@ class TestPlotCurve:
         assert len(lines) == 1
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 3, 1)
+        assert result[1][0] == 0
+
+    @pytest.mark.parametrize("left", [None, dt(2022, 1, 1), "0d"])
+    @pytest.mark.parametrize("right", [None, dt(2022, 2, 1), "0d"])
+    def test_plot_index(self, left, right):
+        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        fig, ax, lines = i_curve.plot_index(left=left, right=right)
+        result = lines[0].get_data()
+        assert result[0][0] == dt(2022, 1, 1)
+        assert abs(result[1][0].real - 2.0) < 1e-6
+
+    def test_plot_index_comparators(self):
+        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curv2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        fig, ax, lines = i_curve.plot_index(comparators=[i_curv2])
+        assert len(lines) == 2
+        res1 = lines[0].get_data()
+        res2 = lines[1].get_data()
+        assert res1[0][0] == res2[0][0]
+        assert res1[1][0] == res2[1][0]
+
+    def test_plot_index_diff(self):
+        i_curv = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curv2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        fig, ax, lines = i_curv.plot_index("1d", comparators=[i_curv2], difference=True)
+        assert len(lines) == 1
+        result = lines[0].get_data()
+        assert result[0][0] == dt(2022, 1, 1)
         assert result[1][0] == 0

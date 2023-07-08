@@ -1613,6 +1613,75 @@ class IndexCurve(Curve):
             )
         return self.index_base * 1 / self[date_]
 
+    def plot_index(
+        self,
+        right: Optional[Union[datetime, str]] = None,
+        left: Optional[Union[datetime, str]] = None,
+        comparators: list[Curve] = [],
+        difference: bool = False,
+        labels: list[str] = [],
+    ):
+        """
+        Plot given forward tenor rates from the curve.
+
+        Parameters
+        ----------
+        tenor : str
+            The tenor of the forward rates to plot, e.g. "1D", "3M".
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the final node of the curve minus the ``tenor``.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the initial node of the curve.
+        comparators: list[Curve]
+            A list of curves which to include on the same plot as comparators.
+        difference : bool
+            Whether to plot as comparator minus base curve or outright curve levels in
+            plot. Default is `False`.
+        labels : list[str]
+            A list of strings associated with the plot and comparators. Must be same
+            length as number of plots.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+        """
+        if left is None:
+            left_: datetime = self.node_dates[0]
+        elif isinstance(left, str):
+            left_ = add_tenor(self.node_dates[0], left, None, None)
+        elif isinstance(left, datetime):
+            left_ = left
+        else:
+            raise ValueError("`left` must be supplied as datetime or tenor string.")
+
+        if right is None:
+            right_: datetime = self.node_dates[-1]
+        elif isinstance(right, str):
+            right_ = add_tenor(self.node_dates[0], right, None, None)
+        elif isinstance(right, datetime):
+            right_ = right
+        else:
+            raise ValueError("`right` must be supplied as datetime or tenor string.")
+
+        points: int = (right_ - left_).days + 1
+        x = [left_ + timedelta(days=i) for i in range(points)]
+        rates = [self.index_value(_) for _ in x]
+        if not difference:
+            y = [rates]
+            if comparators is not None:
+                for comparator in comparators:
+                    y.append([comparator.index_value(_) for _ in x])
+        elif difference and len(comparators) > 0:
+            y = []
+            for comparator in comparators:
+                diff = [comparator.index_value(_) - rates[i] for i, _ in enumerate(x)]
+                y.append(diff)
+        return plot(x, y, labels)
+
 
 class CompositeCurve(PlotCurve):
     """

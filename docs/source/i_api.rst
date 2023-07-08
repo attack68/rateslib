@@ -158,6 +158,8 @@ Legs
    :skip: Schedule
    :skip: IndexCashflow
    :skip: IndexFixedPeriod
+   :skip: IndexCurve
+   :skip: IndexMixin
 
 Instruments
 -----------
@@ -200,6 +202,7 @@ Instruments
    :skip: LineCurve
    :skip: Solver
    :skip: CompositeCurve
+   :skip: ZeroFixedLeg
 
 Solver
 ------
