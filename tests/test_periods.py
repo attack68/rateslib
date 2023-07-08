@@ -62,6 +62,18 @@ def line_curve():
 
 class TestFloatPeriod:
 
+    def test_none_cashflow(self):
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+        )
+        assert float_period.cashflow(None) is None
+
     @pytest.mark.parametrize("spread_method, float_spread, expected", [
         ("none_simple", 100.0, 24744.478172244584),
         ("isda_compounding", 0.0, 24744.478172244584),
@@ -410,6 +422,24 @@ class TestFloatPeriod:
             method_param=2,
         )
         result = float_period.fixings_table(line_curve)
+        expected = DataFrame({
+            "obs_dates": [dt(2022, 1, 2)],
+            "notional": [-1e6],
+            "dcf": [None],
+            "rates": [2.0]
+        }).set_index("obs_dates")
+        assert_frame_equal(expected, result)
+
+    def test_ibor_fixing_table_fast(self, line_curve):
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=2,
+        )
+        result = float_period.fixings_table_fast(line_curve)
         expected = DataFrame({
             "obs_dates": [dt(2022, 1, 2)],
             "notional": [-1e6],

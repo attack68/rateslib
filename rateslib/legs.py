@@ -758,7 +758,7 @@ class IndexLegMixin:
 
 class IndexFixedLeg(IndexLegMixin, FixedLeg):
     """
-    Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
+    Create a fixed leg composed of :class:`~rateslib.periods.IndexFixedPeriod` s.
 
     Parameters
     ----------
@@ -776,9 +776,12 @@ class IndexFixedLeg(IndexLegMixin, FixedLeg):
         periods.
         If a datetime indexed ``Series`` will use the fixings that are available in
         that object, and derive the rest from the ``curve``.
-    index_method : str
+    index_method : str, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month.
+    index_lag : int, optional
+        The number of months by which the index value is lagged. Used to ensure
+        consistency between curves and forecast values. Defined by default.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
     """
@@ -1253,9 +1256,33 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
 class ZeroIndexLeg(BaseLeg):
     """
-    Create a zero coupon index leg
+    Create a zero coupon index leg.
 
+    This leg is composed of an :class:`~rateslib.perods.IndexFixedPeriod` set to 100%
+    for the indexing up of the notional and an offsetting
+    :class:`~rateslib.periods.Cashflow` to negate the notional.
 
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseLeg`.
+    index_base : float or None, optional
+        The base index applied to all periods.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the first
+        period.
+        If a list of *n* fixings will be used as the index fixings for the first *n*
+        periods.
+        If a datetime indexed ``Series`` will use the fixings that are available in
+        that object, and derive the rest from the ``curve``.
+    index_method : str
+        Whether the indexing uses a daily measure for settlement or the most recently
+        monthly data taken from the first day of month.
+    index_lag : int, optional
+        The number of months by which the index value is lagged. Used to ensure
+        consistency between curves and forecast values. Defined by default.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
 
     """
 
@@ -1264,7 +1291,7 @@ class ZeroIndexLeg(BaseLeg):
         *args,
         index_base: Optional[Union[float, Series]] = None,
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: str = "daily",
+        index_method: Optional[str] = None,
         index_lag: Optional[int] = None,
         **kwargs
     ):
@@ -1303,6 +1330,15 @@ class ZeroIndexLeg(BaseLeg):
 
     def cashflow(self, curve: Optional[IndexCurve] = None):
         _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
+        return _
+
+    def cashflows(self, *args, **kwargs):
+        cfs = super().cashflows(*args, **kwargs)
+        _ = cfs.iloc[[0]].copy()
+        for attr in ["Cashflow", "NPV", "NPV Ccy"]:
+            _[attr] += cfs.iloc[1][attr]
+        _["Type"] = "ZeroIndexLeg"
+        _["Period"] = None
         return _
 
 
@@ -1603,9 +1639,7 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
 
     Notes
     -----
-    The initial cashflow notional is set as the negative of the notional. The payment
-    date is set equal to the accrual start date adjusted by
-    the ``payment_lag_exchange``.
+    An initial exchange is not currently implement for this leg.
 
     The final cashflow notional is set as the notional. The payment date is set equal
     to the final accrual date adjusted by ``payment_lag_exchange``.

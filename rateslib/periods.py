@@ -1901,9 +1901,6 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
 
-        cashflow_ = self.cashflow(curve)
-        cashflow_ = None if cashflow_ is None else float(cashflow_)
-
         index_ratio_, index_, _ = self.index_ratio(curve)
 
         return {
@@ -1911,9 +1908,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["real_cashflow"]: self.real_cashflow,
-            defaults.headers["index_value"]: index_,
-            defaults.headers["index_ratio"]: index_ratio_,
-            defaults.headers["cashflow"]: cashflow_,
+            defaults.headers["index_value"]: _float_or_none(index_),
+            defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
+            defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -1983,3 +1980,10 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.headers["index_ratio"]: index_ratio_,
             defaults.headers["cashflow"]: self.cashflow(curve),
         }
+
+
+def _float_or_none(val):
+    if val is None:
+        return None
+    else:
+        return float(val)
