@@ -31,13 +31,14 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.scheduling import Schedule
-from rateslib.curves import Curve
+from rateslib.curves import Curve, IndexCurve
 from rateslib.periods import (
     IndexFixedPeriod,
     FixedPeriod,
     FloatPeriod,
     Cashflow,
     IndexCashflow,
+    IndexMixin,
     _validate_float_args,
     _get_fx_and_base,
 )
@@ -714,7 +715,48 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     #     return True
 
 
-class IndexFixedLeg(FixedLeg):
+class IndexLegMixin:
+    schedule = None
+    index_method = None
+    index_fixings = None
+
+    def _set_index_fixings(
+        self,
+        index_fixings,
+    ):
+        """
+        Re-organises the fixings input to list structure for each period.
+        Requires a ``schedule`` object and ``float_args``.
+        """
+        if index_fixings is None:
+            _ = []
+        elif isinstance(index_fixings, Series):
+            last_fixing = index_fixings.index[-1]
+            if self.index_method == "daily":
+                first_req = [
+                    self.schedule.aschedule[i + 1]
+                    for i in range(self.schedule.n_periods)
+                ]
+            else:  # index_method == "monthly":
+                first_req = [
+                    datetime(
+                        self.schedule.aschedule[i + 1].year,
+                        self.schedule.aschedule[i + 1].month,
+                        1,
+                    )
+                    for i in range(self.schedule.n_periods)
+                ]
+            _ = [index_fixings if last_fixing >= day else None for day in first_req]
+        elif not isinstance(index_fixings, list):
+            _ = [index_fixings]
+        else:
+            _ = index_fixings
+
+        self.index_fixings = _ + [None] * (self.schedule.n_periods - len(_))
+        return None
+
+
+class IndexFixedLeg(IndexLegMixin, FixedLeg):
     """
     Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
 
@@ -747,11 +789,16 @@ class IndexFixedLeg(FixedLeg):
         fixed_rate: Optional[float] = None,
         index_base: float,
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: str = "daily",
+        index_method: Optional[str] = None,
+        index_lag: Optional[int] = None,
         **kwargs,
     ):
-        self._fixed_rate = fixed_rate
-        super().__init__(*args, **kwargs)
+
+        super().__init__(*args, fixed_rate=fixed_rate, **kwargs)
+        self.index_base = index_base
+        self.index_fixings = index_fixings
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is None else index_lag
         self._set_index_fixings(index_fixings)
         self.periods = [
             IndexFixedPeriod(
@@ -771,39 +818,6 @@ class IndexFixedLeg(FixedLeg):
             )
             for i, period in self.schedule.table.to_dict(orient="index").items()
         ]
-
-    def _set_index_fixings(
-        self,
-        index_fixings,
-    ):
-        """
-        Re-organises the fixings input to list structure for each period.
-        Requires a ``schedule`` object and ``float_args``.
-        """
-        if index_fixings is None:
-            _ = []
-        elif isinstance(index_fixings, Series):
-            last_fixing = index_fixings.index[-1]
-            if self.index_method == "daily":
-                first_req = [
-                    self.schedule.pschedule[i + 1]
-                    for i in range(self.schedule.n_periods)
-                ]
-            else:  # index_method == "monthly":
-                first_req = [
-                    datetime(
-                        self.schedule.pschedule[i + 1].year,
-                        self.schedule.pschedule[i + 1].month,
-                        1,
-                    )
-                    for i in range(self.schedule.n_periods)
-                ]
-            _ = [index_fixings if last_fixing >= day else None for day in first_req]
-        elif not isinstance(index_fixings, list):
-            _ = [index_fixings]
-
-        self.index_fixings = _ + [None] * (self.schedule.n_periods - len(_))
-        return None
 
 
 class ZeroFloatLeg(BaseLeg, FloatLegMixin):
@@ -902,7 +916,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     def rate(self, curve):
         """
-        Calculating the floating rate for the zero coupon leg.
+        Calculating a period type floating rate for the zero coupon leg.
 
         Parameters
         ----------
@@ -1237,6 +1251,156 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         return _ * 10000
 
 
+class ZeroIndexLeg(BaseLeg):
+    """
+    Create a zero coupon index leg
+
+
+
+    """
+
+    def __init__(
+        self,
+        *args,
+        index_base: Optional[Union[float, Series]] = None,
+        index_fixings: Optional[Union[float, Series]] = None,
+        index_method: str = "daily",
+        index_lag: Optional[int] = None,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.index_base = index_base
+        self.index_fixings = index_fixings
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        # The first period indexes up the complete notional amount.
+        # The second period deducts the un-indexed notional amount.
+        self.periods = [
+            IndexFixedPeriod(
+                fixed_rate=100.0,
+                start=self.schedule.effective,
+                end=self.schedule.termination,
+                payment=self.schedule.pschedule[-1],
+                convention="1",
+                frequency=self.schedule.frequency,
+                notional=self.notional,
+                currency=self.currency,
+                termination=self.schedule.termination,
+                stub=False,
+                index_base=self.index_base,
+                index_fixings=self.index_fixings,
+                index_lag=self.index_lag,
+                index_method=self.index_method,
+            ),
+            Cashflow(
+                notional=-self.notional,
+                payment=self.schedule.pschedule[-1],
+                currency=self.currency,
+                stub_type=None,
+                rate=None,
+            )
+        ]
+
+    def cashflow(self, curve: Optional[IndexCurve] = None):
+        _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
+        return _
+
+
+# class ZeroIndexLeg2(BaseLeg):
+#     """
+#     Create a zero coupon index leg
+#
+#
+#
+#     """
+#
+#     def __init__(
+#         self,
+#         *args,
+#         index_base: Optional[Union[float, Series]] = None,
+#         index_fixings: Optional[Union[float, Series]] = None,
+#         index_method: str = "daily",
+#         index_lag: Optional[int] = None,
+#         **kwargs
+#     ):
+#         super().__init__(*args, **kwargs)
+#         self.index_base = index_base
+#         self.index_fixings = index_fixings
+#         self.index_method = defaults.index_method if index_method is None else index_method.lower()
+#         self.index_lag = defaults.index_lag if index_lag is None else index_lag
+#
+#     def cashflow(self, curve: Optional[IndexCurve] = None):
+#         base_value = IndexMixin._index_value(
+#             i_fixings=self.index_base,
+#             i_date=self.schedule.effective,
+#             i_curve=curve,
+#             i_lag=self.index_lag,
+#             i_method=self.index_method,
+#         )
+#         end_value = IndexMixin._index_value(
+#             i_fixings=self.index_fixings,
+#             i_date=self.schedule.termination,
+#             i_curve=curve,
+#             i_lag=self.index_lag,
+#             i_method=self.index_method,
+#         )
+#         _ = -self.notional * (end_value / base_value - 1)
+#         return _
+#
+#     def npv(
+#         self,
+#         curve: IndexCurve,
+#         disc_curve: Optional[Curve] = None,
+#         fx: Optional[Union[float, FXRates, FXForwards]] = None,
+#         base: Optional[str] = None,
+#         local: bool = False,
+#     ) -> DualTypes:
+#         """
+#         Return the NPV of the leg object.
+#
+#         Calculates the cashflow for the period and multiplies it by the DF associated
+#         with the payment date.
+#
+#         Parameters
+#         ----------
+#         curve : IndexCurve, optional
+#             The forecasting curve object. Not used unless it is set equal to
+#             ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
+#         disc_curve : Curve, optional
+#             The discounting curve object used in calculations.
+#             Set equal to ``curve`` if not given.
+#         fx : float, FXRates, FXForwards, optional
+#             The immediate settlement FX rate that will be used to convert values
+#             into another currency. A given `float` is used directly. If giving a
+#             :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+#             object, converts from local currency into ``base``.
+#         base : str, optional
+#             The base currency to convert cashflows into (3-digit code), set by default.
+#             Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+#             :class:`~rateslib.fx.FXForwards` object.
+#         local : bool, optional
+#             If `True` will ignore the ``base`` request and return a dict identifying
+#             local currency NPV.
+#
+#         Returns
+#         -------
+#         float, Dual, Dual2, or dict of such
+#         """
+#         disc_curve = disc_curve or curve
+#         if disc_curve is None or curve is None:
+#             raise TypeError(
+#                 "`curves` have not been supplied correctly. NoneType has been detected."
+#             )
+#         if self.schedule.pschedule[-1] < disc_curve.node_dates[0]:
+#             return 0.0  # payment date is in the past avoid issues with fixings or rates
+#         fx, base = _get_fx_and_base(self.currency, fx, base)
+#         value = self.cashflow(curve) * disc_curve[self.payment]
+#         if local:
+#             return {self.currency: value}
+#         else:
+#             return fx * value
+
+
 class BaseLegExchange(BaseLeg):
     """
     Abstract base class with common parameters for all ``LegExchange`` subclasses.
@@ -1410,7 +1574,7 @@ class FixedLegExchange(FixedLegMixin, BaseLegExchange):
         )
 
 
-class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
+class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
     """
     Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
     final :class:`~rateslib.periods.IndexCashflow` s.
@@ -1475,33 +1639,6 @@ class IndexFixedLegExchange(FixedLegMixin, BaseLegExchange):
 
         self._set_index_fixings(index_fixings)
         self._set_periods()
-
-    def _set_index_fixings(
-        self, index_fixings: Optional[Union[float, list, Series]]
-    ) -> None:
-        """
-        Re-organises the ``index_fixings`` input to list structure for each period.
-        Requires a ``schedule`` object and ``index_args``.
-        """
-        if index_fixings is None:
-            index_fixings_: list = []
-        elif isinstance(index_fixings, Series):
-            last_fixing = index_fixings.index[-1]
-            required_day = self.schedule.pschedule[: self.schedule.n_periods]
-            if self.index_method == "monthly":
-                required_day = [datetime(d.year, d.month, 1) for d in required_day]
-            index_fixings_ = [
-                index_fixings if last_fixing >= d else None for d in required_day
-            ]
-        elif not isinstance(index_fixings, list):
-            index_fixings_ = [index_fixings]
-        else:
-            index_fixings_ = index_fixings
-
-        self.index_fixings = index_fixings_ + [None] * (
-            self.schedule.n_periods - len(index_fixings_)
-        )
-        return None
 
     def _set_periods(self) -> None:
         # initial exchange

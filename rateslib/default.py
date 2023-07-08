@@ -16,6 +16,7 @@ class Defaults:
     stub_length = "SHORT"
     modifier = "MF"
     index_lag = 3
+    index_method = "daily"
     payment_lag = 2
     payment_lag_exchange = 0
     payment_lag_specific = {

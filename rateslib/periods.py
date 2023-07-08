@@ -31,7 +31,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, get_calendar, dcf
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_eom
 from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
@@ -1693,9 +1693,10 @@ class Cashflow:
 
 
 class IndexMixin(metaclass=ABCMeta):
-    index_base: float = 0.0
+    index_base: Optional[Union[float, Series]] = None
     index_method: str = ""
     index_fixings: Optional[Union[float, Series]] = None
+    index_lag: Optional[int] = None
     payment: datetime = datetime(1990, 1, 1)
     currency: str = ""
 
@@ -1706,14 +1707,43 @@ class IndexMixin(metaclass=ABCMeta):
         """
         if self.real_cashflow is None:
             return None
-        if self.rate(curve) is None:
+        index_ratio, _, _ = self.index_ratio(curve)
+        if index_ratio is None:
             return None
-        _ = self.real_cashflow * self.rate(curve) / self.index_base
+        else:
+            _ = self.real_cashflow * index_ratio
         return _
 
-    def rate(self, curve: Optional[IndexCurve] = None) -> Optional[DualTypes]:
+    def index_ratio(self, curve: Optional[IndexCurve]) -> tuple:
+        denominator = self._index_value(
+            i_fixings=self.index_base,
+            i_date=getattr(self, "start", None),  # IndexCashflow has no start
+            i_curve=curve,
+            i_lag=self.index_lag,
+            i_method=self.index_method
+        )
+        numerator = self._index_value(
+            i_fixings=self.index_fixings,
+            i_date=self.end,
+            i_curve=curve,
+            i_lag=self.index_lag,
+            i_method=self.index_method
+        )
+        if numerator is None or denominator is None:
+            return None, numerator, denominator
+        else:
+            return numerator / denominator, numerator, denominator
+
+    @staticmethod
+    def _index_value(
+        i_fixings: Optional[Union[float, Series]],
+        i_date: datetime,
+        i_curve: IndexCurve,
+        i_lag: int,
+        i_method: str
+    ) -> Optional[DualTypes]:
         """
-        Project an index rate for the cashflow payment date.
+        Project an index rate, or lookup from provided fixings, for a given date.
 
         If ``index_fixings`` are set on the period this will be used instead of
         the ``curve``.
@@ -1726,26 +1756,34 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        if self.index_fixings is None:
-            if curve is None:
+        if i_fixings is None:
+            if i_curve is None:
                 return None
-            # forecast inflation index from curve
-            return curve.index_value(self.payment, self.index_method)
+            if not isinstance(i_curve, IndexCurve):
+                raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
+            if i_curve.index_lag == i_lag:
+                return i_curve.index_value(i_date, i_method)
         else:
-            if isinstance(self.index_fixings, Series):
-                if self.index_method == "daily":
-                    adj_date = self.payment
-                else:  # index_method == "monthly"
-                    adj_date = datetime(self.payment.year, self.payment.month, 1)
+            if isinstance(i_fixings, Series):
+                if i_method == "daily":
+                    adj_date = i_date
+                    unavailable_date = i_fixings.index[-1]
+                else:
+                    adj_date = datetime(i_date.year, i_date.month, 1)
+                    _ = i_fixings.index[-1]
+                    unavailable_date = _get_eom(_.month, _.year)
 
-                try:
-                    return self.index_fixings[adj_date]
-                except KeyError:
-                    s = self.index_fixings.copy()
-                    s.loc[adj_date] = np.NaN  # type: ignore[call-overload]
-                    return s.sort_index().interpolate("linear")[adj_date]
+                if i_date > unavailable_date:
+                    raise ValueError("`index_fixings` cannot forecast the index value.")
+                else:
+                    try:
+                        return i_fixings[adj_date]
+                    except KeyError:
+                        s = i_fixings.copy()
+                        s.loc[adj_date] = np.NaN  # type: ignore[call-overload]
+                        return s.sort_index().interpolate("linear")[adj_date]
             else:
-                return self.index_fixings
+                return i_fixings
 
     def npv(
         self,
@@ -1792,9 +1830,12 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         If a datetime indexed ``Series`` will use the
         fixings that are available in that object, using linear interpolation if
         necessary.
-    index_method : str
+    index_method : str, optional
         Whether the indexing uses a daily measure for settlement or the most recently
-        monthly data taken from the first day of month.
+        monthly data taken from the first day of month. Defined by default.
+    index_lag : int
+        The number of months by which the index value is lagged. Used to ensure
+        consistency between curves and forecast values. Defined by default.
     kwargs : dict
         Required keyword arguments to :class:`FixedPeriod`.
     """
@@ -1802,14 +1843,16 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     def __init__(
         self,
         *args,
-        index_base: float,
+        index_base: Optional[Union[float, Series]],
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: str = "daily",
+        index_method: Optional[str] = None,
+        index_lag: Optional[int] = None,
         **kwargs,
     ):
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = index_method.lower()
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is None else index_lag
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super(IndexMixin, self).__init__(*args, **kwargs)
@@ -1822,7 +1865,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         base: Optional[str] = None,
     ):
         real_a_delta = super().analytic_delta(curve, disc_curve, fx, base)
-        _ = real_a_delta * self.rate(curve) / self.index_base
+        index_ratio, _, _ = self.index_ratio(curve)
+        _ = None if index_ratio is None else real_a_delta * index_ratio
         return _
 
     @property
@@ -1860,11 +1904,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         cashflow_ = self.cashflow(curve)
         cashflow_ = None if cashflow_ is None else float(cashflow_)
 
-        index_ = self.rate(curve)
-        if index_ is None:
-            index_ratio_ = None
-        else:
-            index_ratio_ = index_ / self.index_base
+        index_ratio_, index_, _ = self.index_ratio(curve)
 
         return {
             **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),
@@ -1900,7 +1940,10 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         ``curve``.
     index_method : str
         Whether the indexing uses a daily measure for settlement or the most recently
-        monthly data taken from the first day of month.
+        monthly data taken from the first day of month. Defined by default.
+    index_lag : int
+        The number of months by which the index value is lagged. Used to ensure
+        consistency between curves and forecast values. Defined by default.
     kwargs : dict
         Required keyword arguments to :class:`Cashflow`.
     """
@@ -1909,13 +1952,16 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         *args,
         index_base: float,
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: str = "daily",
+        index_method: Optional[str] = None,
+        index_lag: Optional[int] = None,
         **kwargs,
     ):
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = index_method.lower()
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is None else index_lag
         super(IndexMixin, self).__init__(*args, **kwargs)
+        self.end = self.payment
 
     @property
     def real_cashflow(self):
@@ -1929,12 +1975,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         base: Optional[str] = None,
     ) -> dict:
 
-        index_ = self.rate(curve)
-        if index_ is None:
-            index_ratio_ = None
-        else:
-            index_ratio_ = index_ / self.index_base
-
+        index_ratio_, index_, _ = self.index_ratio(curve)
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["real_cashflow"]: self.real_cashflow,

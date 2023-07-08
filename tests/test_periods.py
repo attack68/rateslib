@@ -948,12 +948,12 @@ class TestIndexFixedPeriod:
     ])
     def test_period_rate(self, method, expected):
         index_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
@@ -964,17 +964,17 @@ class TestIndexFixedPeriod:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.,
         )
-        result = index_period.rate(index_curve)
+        _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
 
     def test_period_cashflow(self):
         index_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
@@ -1026,12 +1026,12 @@ class TestIndexFixedPeriod:
     ])
     def test_period_fixings_series(self, fixings, method, curve):
         fixed_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             currency="usd",
             index_base=200.0,
@@ -1058,12 +1058,12 @@ class TestIndexFixedPeriod:
 
     def test_period_npv(self, curve):
         index_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
