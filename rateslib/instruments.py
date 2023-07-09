@@ -538,13 +538,11 @@ class BondMixin:
             len(self.leg1.schedule.aschedule),
             settlement,
         )
-        return (
-            (settlement - self.leg1.schedule.aschedule[acc_idx])
-            / (
-                self.leg1.schedule.aschedule[acc_idx + 1]
-                - self.leg1.schedule.aschedule[acc_idx]
-            )
-        ), acc_idx
+        _ = (settlement - self.leg1.schedule.aschedule[acc_idx]) / (
+            self.leg1.schedule.aschedule[acc_idx + 1]
+            - self.leg1.schedule.aschedule[acc_idx]
+        )
+        return _, acc_idx
 
     def _npv_local(
         self,
@@ -1873,10 +1871,7 @@ class Bill(FixedRateBond):
         return rate
 
     def price(
-        self,
-        discount_rate: DualTypes,
-        settlement: datetime,
-        dirty: bool = False
+        self, discount_rate: DualTypes, settlement: datetime, dirty: bool = False
     ) -> DualTypes:
         """
         Return the price of the bill given the ``discount_rate``.
@@ -5085,15 +5080,15 @@ class BaseXCS(BaseDerivative):
         return True
 
     def _set_pricing_mid(
-            self,
-            curves: Optional[Union[Curve, str, list]] = None,
-            solver: Optional[Solver] = None,
-            fx: Optional[FXForwards] = None,
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
     ):
         leg: int = 1
         lookup = {
             1: ["_fixed_rate_mixin", "_float_spread_mixin"],
-            2: ["_leg2_fixed_rate_mixin", "_leg2_float_spread_mixin"]
+            2: ["_leg2_fixed_rate_mixin", "_leg2_float_spread_mixin"],
         }
         if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is None:
             # Fixed/Fixed or Float/Fixed
@@ -6501,10 +6496,15 @@ class FXSwap(BaseXCS):
         self._points = value
         self._leg2_fixed_rate = None
         if value is not None:
-            fixed_rate = value * -self.notional / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
+            fixed_rate = (
+                value
+                * -self.notional
+                / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
+            )
             self.leg2_fixed_rate = fixed_rate
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
@@ -7067,7 +7067,8 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
 
     if float(fx0 * fx1) > 0:
         raise ValueError(
-            "`brents` must initiate from function values with opposite signs.")
+            "`brents` must initiate from function values with opposite signs."
+        )
 
     if abs(fx0) < abs(fx1):
         x0, x1 = x1, x0
@@ -7092,11 +7093,13 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
         else:
             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
 
-        if ((float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1)) or
-                (mflag == True and (abs(new - x1)) >= (abs(x1 - x2) / 2)) or
-                (mflag == False and (abs(new - x1)) >= (abs(x2 - d) / 2)) or
-                (mflag == True and (abs(x1 - x2)) < tolerance) or
-                (mflag == False and (abs(x2 - d)) < tolerance)):
+        if (
+            (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+            or (mflag == True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+            or (mflag == False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+            or (mflag == True and (abs(x1 - x2)) < tolerance)
+            or (mflag == False and (abs(x2 - d)) < tolerance)
+        ):
             new = (x0 + x1) / 2
             mflag = True
 
