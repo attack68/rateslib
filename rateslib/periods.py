@@ -1,6 +1,6 @@
 # This module is a dependent of legs.py
 
-# TODO float spread averaging
+# TODO v2.0 Add float rate averaging to the available fixing_method (e.g. RIBAs and monthly fed funds futures)
 
 """
 .. ipython:: python

@@ -21,6 +21,7 @@ class Defaults:
     payment_lag_exchange = 0
     payment_lag_specific = {
         "IRS": 2,
+        "IIRS": 2,
         "ZCS": 2,
         "ZCIS": 0,
         "FXSwap": 0,

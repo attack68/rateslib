@@ -1649,18 +1649,21 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
     :class:`~rateslib.legs.FloatLegExchange`.
     """
 
+    # TODO: spread calculations to determine the fixed rate on this leg do not work.
     def __init__(
         self,
         *args,
         index_base: float,
         index_fixings: Optional[Union[float, Series]] = None,
-        index_method: str = "daily",
+        index_method: Optional[str] = None,
+        index_lag: Optional[int] = None,
         fixed_rate: Optional[float] = None,
         **kwargs,
     ) -> None:
         self._fixed_rate = fixed_rate
         self.index_base = index_base
-        self.index_method = index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)

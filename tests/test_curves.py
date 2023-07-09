@@ -3,6 +3,7 @@ from datetime import datetime as dt
 from pandas import DataFrame
 import numpy as np
 from math import log, exp
+from matplotlib import pyplot as plt
 
 import context
 from rateslib.curves import (
@@ -137,6 +138,7 @@ def test_zero_rate_plot():
         interpolation="linear_zero_rate",
     )
     curve_zero.plot("1d")
+    plt.close("all")
 
 
 def test_curve_equality_type_differ(curve, line_curve):
@@ -900,12 +902,14 @@ class TestPlotCurve:
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 3, 1)
         assert abs(result[1][0].real - 12.004001333774994) < 1e-6
+        plt.close("all")
 
     def test_plot_linecurve(self, line_curve):
         fig, ax, lines = line_curve.plot("0d")
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 3, 1)
         assert abs(result[1][0].real - 2.0) < 1e-6
+        plt.close("all")
 
     @pytest.mark.parametrize("left", ["1d", dt(2022, 3, 2)])
     def test_plot_curve_left(self, curve, left):
@@ -913,10 +917,12 @@ class TestPlotCurve:
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 3, 2)
         assert abs(result[1][0].real - 12.008005336896055) < 1e-6
+        plt.close("all")
 
     def test_plot_curve_left_raise(self, curve):
         with pytest.raises(ValueError, match="`left` must be supplied as"):
             fig, ax, lines = curve.plot("1d", left=100.3)
+        plt.close("all")
 
     @pytest.mark.parametrize("right", ["2d", dt(2022, 3, 3)])
     def test_plot_curve_right(self, curve, right):
@@ -924,10 +930,12 @@ class TestPlotCurve:
         result = lines[0].get_data()
         assert result[0][-1] == dt(2022, 3, 2)
         assert abs(result[1][-1].real - 12.008005336896055) < 1e-6
+        plt.close("all")
 
     def test_plot_curve_right_raise(self, curve):
         with pytest.raises(ValueError, match="`right` must be supplied as"):
             fig, ax, lines = curve.plot("1d", right=100.3)
+        plt.close("all")
 
     def test_plot_comparators(self, curve):
         fig, ax, lines = curve.plot("1d", comparators=[curve])
@@ -936,6 +944,7 @@ class TestPlotCurve:
         res2 = lines[1].get_data()
         assert res1[0][0] == res2[0][0]
         assert res1[1][0] == res2[1][0]
+        plt.close("all")
 
     def test_plot_diff(self, curve):
         fig, ax, lines = curve.plot("1d", comparators=[curve], difference=True)
@@ -943,6 +952,7 @@ class TestPlotCurve:
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 3, 1)
         assert result[1][0] == 0
+        plt.close("all")
 
     @pytest.mark.parametrize("left", [None, dt(2022, 1, 1), "0d"])
     @pytest.mark.parametrize("right", [None, dt(2022, 2, 1), "0d"])
@@ -952,6 +962,7 @@ class TestPlotCurve:
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 1, 1)
         assert abs(result[1][0].real - 2.0) < 1e-6
+        plt.close("all")
 
     def test_plot_index_comparators(self):
         i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
@@ -962,6 +973,7 @@ class TestPlotCurve:
         res2 = lines[1].get_data()
         assert res1[0][0] == res2[0][0]
         assert res1[1][0] == res2[1][0]
+        plt.close("all")
 
     def test_plot_index_diff(self):
         i_curv = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
@@ -971,3 +983,4 @@ class TestPlotCurve:
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 1, 1)
         assert result[1][0] == 0
+        plt.close("all")

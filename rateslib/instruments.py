@@ -49,6 +49,8 @@ from rateslib.legs import (
     ZeroFloatLeg,
     ZeroFixedLeg,
     ZeroIndexLeg,
+    IndexFixedLeg,
+    IndexFixedLegExchange,
     CustomLeg,
 )
 from rateslib.dual import Dual, Dual2, set_order, DualTypes
@@ -3820,7 +3822,355 @@ class Swap(IRS):
 
 
 class IIRS(BaseDerivative):
-    pass
+    """
+    Create an indexed interest rate swap (IIRS) composing an
+    :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
+
+    If ``final_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLegExchange`
+    and :class:`~rateslib.legs.FloatLegExchange`.
+
+    Parameters
+    ----------
+    args : dict
+       Required positional args to :class:`BaseDerivative`.
+    fixed_rate : float or None
+       The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
+       will be set to mid-market when curves are provided.
+    index_base : float or None, optional
+       The base index applied to all periods.
+    index_fixings : float, or Series, optional
+       If a float scalar, will be applied as the index fixing for the first
+       period.
+       If a list of *n* fixings will be used as the index fixings for the first *n*
+       periods.
+       If a datetime indexed ``Series`` will use the fixings that are available in
+       that object, and derive the rest from the ``curve``.
+    index_method : str
+       Whether the indexing uses a daily measure for settlement or the most recently
+       monthly data taken from the first day of month.
+    index_lag : int, optional
+       The number of months by which the index value is lagged. Used to ensure
+       consistency between curves and forecast values. Defined by default.
+    notional_exchange : bool, optional
+       Whether the legs include final notional exchanges and interim
+       amortization notional exchanges.
+    kwargs : dict
+       Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    .. ipython:: python
+
+      usd = Curve(
+          nodes={
+              dt(2022, 1, 1): 1.0,
+              dt(2027, 1, 1): 0.85,
+              dt(2032, 1, 1): 0.65,
+          },
+          id="usd",
+      )
+      us_cpi = IndexCurve(
+          nodes={
+              dt(2022, 1, 1): 1.0,
+              dt(2027, 1, 1): 0.85,
+              dt(2032, 1, 1): 0.70,
+          },
+          id="us_cpi",
+          index_base=100,
+          index_lag=3,
+      )
+
+    Create the ZCIS, and demonstrate the :meth:`~rateslib.instruments.ZCIS.rate`,
+    :meth:`~rateslib.instruments.ZCIS.npv`,
+    :meth:`~rateslib.instruments.ZCIS.analytic_delta`, and
+
+    .. ipython:: python
+
+      zcis = ZCIS(
+          effective=dt(2022, 1, 1),
+          termination="10Y",
+          frequency="A",
+          calendar="nyc",
+          currency="usd",
+          fixed_rate=2.05,
+          convention="1+",
+          notional=100e6,
+          index_base=100.0,
+          index_method="monthly",
+          index_lag=3,
+          index_fixings=None,
+          curves=["us_cpi", "usd"],
+      )
+      zcis.rate(curves=[us_cpi, usd])
+      zcis.npv(curves=[us_cpi, usd])
+      zcis.analytic_delta(us_cpi, usd)
+
+    A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
+
+    .. ipython:: python
+
+      zcis.cashflows(curves=[us_cpi, usd])
+
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCIS.delta`
+    and :meth:`~rateslib.instruments.ZCIS.gamma`, construct a curve model.
+
+    .. ipython:: python
+
+      sofr_kws = dict(
+          effective=dt(2022, 1, 1),
+          frequency="A",
+          convention="Act360",
+          calendar="nyc",
+          currency="usd",
+          curves=["usd"]
+      )
+      cpi_kws = dict(
+          effective=dt(2022, 1, 1),
+          frequency="A",
+          convention="1+",
+          calendar="nyc",
+          index_method="monthly",
+          currency="usd",
+          curves=["us_cpi", "usd"]
+      )
+      instruments = [
+          IRS(termination="5Y", **sofr_kws),
+          IRS(termination="10Y", **sofr_kws),
+          ZCIS(termination="5Y", **cpi_kws),
+          ZCIS(termination="10Y", **cpi_kws),
+      ]
+      solver = Solver(
+          curves=[usd, us_cpi],
+          instruments=instruments,
+          s=[3.40, 3.60, 2.2, 2.05],
+          instrument_labels=["5Y", "10Y", "5Yi", "10Yi"],
+          id="us",
+      )
+      zcis.delta(solver=solver)
+      zcis.gamma(solver=solver)
+    """
+
+    _fixed_rate_mixin = True
+    _leg2_float_spread_mixin = True
+
+    def __init__(
+        self,
+        *args,
+        fixed_rate: Optional[float] = None,
+        index_base: Optional[Union[float, Series]] = None,
+        index_fixings: Optional[Union[float, Series]] = None,
+        index_method: Optional[str] = None,
+        index_lag: Optional[int] = None,
+        notional_exchange: Optional[bool] = False,
+        payment_lag_exchange: Optional[int] = None,
+        leg2_float_spread: Optional[float] = None,
+        leg2_fixings: Optional[Union[float, list]] = None,
+        leg2_fixing_method: Optional[str] = None,
+        leg2_method_param: Optional[int] = None,
+        leg2_spread_compound_method: Optional[str] = None,
+        leg2_payment_lag_exchange: Optional[int] = "inherit",
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._fixed_rate = fixed_rate
+        if leg2_payment_lag_exchange == "inherit":
+            leg2_payment_lag_exchange = payment_lag_exchange
+
+        if not notional_exchange:
+            L1, L2 = IndexFixedLeg, FloatLeg
+            l1_args, l2_args = {}, {}
+        else:
+            L1, L2 = IndexFixedLegExchange, FloatLegExchange
+            l1_args = dict(
+                payment_lag_exchange=payment_lag_exchange,
+                initial_exchange=False,
+            )
+            l2_args = dict(
+                payment_lag_exchange=leg2_payment_lag_exchange,
+                initial_exchange=False,
+            )
+
+        self.leg1 = L1(
+            fixed_rate=fixed_rate,
+            effective=self.effective,
+            termination=self.termination,
+            frequency=self.frequency,
+            stub=self.stub,
+            front_stub=self.front_stub,
+            back_stub=self.back_stub,
+            roll=self.roll,
+            eom=self.eom,
+            modifier=self.modifier,
+            calendar=self.calendar,
+            payment_lag=self.payment_lag,
+            notional=self.notional,
+            currency=self.currency,
+            amortization=self.amortization,
+            convention=self.convention,
+            index_base=index_base,
+            index_method=index_method,
+            index_lag=index_lag,
+            index_fixings=index_fixings,
+            **l1_args,
+        )
+        self.leg2 = L2(
+            effective=self.leg2_effective,
+            termination=self.leg2_termination,
+            frequency=self.leg2_frequency,
+            stub=self.leg2_stub,
+            front_stub=self.leg2_front_stub,
+            back_stub=self.leg2_back_stub,
+            roll=self.leg2_roll,
+            eom=self.leg2_eom,
+            modifier=self.leg2_modifier,
+            calendar=self.leg2_calendar,
+            payment_lag=self.leg2_payment_lag,
+            notional=self.leg2_notional,
+            currency=self.leg2_currency,
+            amortization=self.leg2_amortization,
+            convention=self.leg2_convention,
+            float_spread=leg2_float_spread,
+            fixings=leg2_fixings,
+            fixing_method=leg2_fixing_method,
+            method_param=leg2_method_param,
+            spread_compound_method=leg2_spread_compound_method,
+            **l2_args,
+        )
+
+    def npv(self, *args, **kwargs):
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        return super().cashflows(*args, **kwargs)
+
+    def rate(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the mid-market rate of the IRS.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that
+            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        The arguments ``fx`` and ``base`` are unused by single currency derivatives
+        rates calculations.
+        """
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        leg2_npv = self.leg2.npv(curves[2], curves[3])
+        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+
+    def spread(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the mid-market float spread (bps) required to equate to the fixed rate.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        If the :class:`IRS` is specified without a ``fixed_rate`` this should always
+        return the current ``leg2_float_spread`` value or zero since the fixed rate used
+        for calculation is the implied rate including the current ``leg2_float_spread``
+        parameter.
+
+        Examples
+        --------
+        For the most common parameters this method will be exact.
+
+        .. ipython:: python
+
+           irs.spread(curves=usd)
+           irs.leg2_float_spread = -6.948753
+           irs.npv(curves=usd)
+
+        When a non-linear spread compound method is used for float RFR legs this is
+        an approximation, via second order Taylor expansion.
+
+        .. ipython:: python
+
+           irs = IRS(
+               effective=dt(2022, 2, 15),
+               termination=dt(2022, 8, 15),
+               frequency="Q",
+               convention="30e360",
+               leg2_convention="Act360",
+               leg2_fixing_method="rfr_payment_delay",
+               leg2_spread_compound_method="isda_compounding",
+               payment_lag=2,
+               fixed_rate=2.50,
+               leg2_float_spread=0,
+               notional=50000000,
+               currency="usd",
+           )
+           irs.spread(curves=usd)
+           irs.leg2_float_spread = -111.060143
+           irs.npv(curves=usd)
+           irs.spread(curves=usd)
+
+        The ``leg2_float_spread`` is determined through NPV differences. If the difference
+        is small since the defined spread is already quite close to the solution the
+        approximation is much more accurate. This is shown above where the second call
+        to ``irs.spread`` is different to the previous call, albeit the difference
+        is 1/10000th of a basis point.
+        """
+        irs_npv = self.npv(curves, solver)
+        specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
 
 
 class ZCS(BaseDerivative):
@@ -4081,7 +4431,6 @@ class ZCS(BaseDerivative):
 
 
 class ZCIS(BaseDerivative):
-    # TODO this docstring copied. Needs editing
     """
     Create a zero coupon index swap (ZCIS) composing an
     :class:`~rateslib.legs.ZeroFixedLeg`
@@ -4146,21 +4495,21 @@ class ZCIS(BaseDerivative):
        zcis = ZCIS(
            effective=dt(2022, 1, 1),
            termination="10Y",
-           frequency="Q",
+           frequency="A",
            calendar="nyc",
            currency="usd",
-           fixed_rate=4.0,
-           convention="Act360",
+           fixed_rate=2.05,
+           convention="1+",
            notional=100e6,
            index_base=100.0,
            index_method="monthly",
            index_lag=3,
            index_fixings=None,
-           curves=["usd"],
+           curves=["us_cpi", "usd"],
        )
        zcis.rate(curves=[us_cpi, usd])
        zcis.npv(curves=[us_cpi, usd])
-       zcis.analytic_delta(curve=[us_cpi, usd])
+       zcis.analytic_delta(us_cpi, usd)
 
     A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
 
@@ -4261,11 +4610,25 @@ class ZCIS(BaseDerivative):
             convention=self.leg2_convention,
         )
 
+    def _set_pricing_mid(self, curves, solver):
+        mid_market_rate = self.rate(curves, solver)
+        self.leg1.fixed_rate = float(mid_market_rate)
+
     def cashflows(self, *args, **kwargs):
         return super().cashflows(*args, **kwargs)
 
-    def npv(self, *args, **kwargs):
-        return super().npv(*args, **kwargs)
+    def npv(
+            self,
+            curves: Optional[Union[Curve, str, list]] = None,
+            solver: Optional[Solver] = None,
+            fx: Optional[Union[float, FXRates, FXForwards]] = None,
+            base: Optional[str] = None,
+            local: bool = False,
+    ):
+        if self.fixed_rate is None:
+            # set a fixed rate for the purpose of pricing NPV, which should be zero.
+            self._set_pricing_mid(curves, solver)
+        return super().npv(curves, solver, fx, base, local)
 
     def rate(
         self,

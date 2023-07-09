@@ -528,6 +528,7 @@ class TestNullPricing:
         FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
         SBS(dt(2022, 7, 1), "3M", "A", curves=["eureur", "eureur", "eurusd", "eureur"], notional=-1e6),
         ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        # TODO add a null price test for ZCIS
         XCS(dt(2022, 7, 1), "3M", "A", currency="usd", leg2_currency="eur", curves=["usdusd", "usdusd", "eureur", "eurusd"], notional=1e6),
         NonMtmXCS(dt(2022, 7, 1), "3M", "A", currency="usd", leg2_currency="eur", curves=["usdusd", "usdusd", "eureur", "eurusd"], notional=1e6),
         NonMtmFixedFloatXCS(dt(2022, 7, 1), "3M", "A", currency="eur", leg2_currency="usd",  curves=["eureur", "eureur", "usdusd", "usdusd"], notional=1e6),
