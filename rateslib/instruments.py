@@ -4118,13 +4118,21 @@ class ZCIS(BaseDerivative):
 
     .. ipython:: python
 
-       usd = IndexCurve(
+       usd = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2027, 1, 1): 0.85,
+               dt(2032, 1, 1): 0.65,
+           },
+           id="usd",
+       )
+       us_cpi = IndexCurve(
            nodes={
                dt(2022, 1, 1): 1.0,
                dt(2027, 1, 1): 0.85,
                dt(2032, 1, 1): 0.70,
            },
-           id="usd",
+           id="us_cpi",
            index_base=100,
            index_lag=3,
        )
@@ -4150,18 +4158,18 @@ class ZCIS(BaseDerivative):
            index_fixings=None,
            curves=["usd"],
        )
-       zcs.rate(curves=usd)
-       zcs.npv(curves=usd)
-       zcs.analytic_delta(curve=usd)
+       zcis.rate(curves=[us_cpi, usd])
+       zcis.npv(curves=[us_cpi, usd])
+       zcis.analytic_delta(curve=[us_cpi, usd])
 
-    A DataFrame of :meth:`~rateslib.instruments.ZCS.cashflows`.
+    A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
 
     .. ipython:: python
 
-       zcs.cashflows(curves=usd)
+       zcis.cashflows(curves=[us_cpi, usd])
 
-    For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCS.delta`
-    and :meth:`~rateslib.instruments.ZCS.gamma`, construct a curve model.
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCIS.delta`
+    and :meth:`~rateslib.instruments.ZCIS.gamma`, construct a curve model.
 
     .. ipython:: python
 
@@ -4173,19 +4181,30 @@ class ZCIS(BaseDerivative):
            currency="usd",
            curves=["usd"]
        )
+       cpi_kws = dict(
+           effective=dt(2022, 1, 1),
+           frequency="A",
+           convention="1+",
+           calendar="nyc",
+           index_method="monthly",
+           currency="usd",
+           curves=["us_cpi", "usd"]
+       )
        instruments = [
            IRS(termination="5Y", **sofr_kws),
            IRS(termination="10Y", **sofr_kws),
+           ZCIS(termination="5Y", **cpi_kws),
+           ZCIS(termination="10Y", **cpi_kws),
        ]
        solver = Solver(
-           curves=[usd],
+           curves=[usd, us_cpi],
            instruments=instruments,
-           s=[3.40, 3.60],
-           instrument_labels=["5Y", "10Y"],
-           id="sofr",
+           s=[3.40, 3.60, 2.2, 2.05],
+           instrument_labels=["5Y", "10Y", "5Yi", "10Yi"],
+           id="us",
        )
-       zcs.delta(solver=solver)
-       zcs.gamma(solver=solver)
+       zcis.delta(solver=solver)
+       zcis.gamma(solver=solver)
     """
 
     _fixed_rate_mixin = True
