@@ -21,7 +21,10 @@ class DualBase(metaclass=ABCMeta):
     dual: np.ndarray = np.zeros(0)
     dual2: np.ndarray = np.zeros(0)
 
-    def __init__(self, real: float, vars: tuple[str, ...] = tuple()):
+    def __init__(
+        self, real: float, vars: tuple[str, ...] = tuple()
+    ) -> None:  # pragma: no cover
+        # each dual overloads init
         self.real: float = real
         self.vars: tuple[str, ...] = vars
 
@@ -74,7 +77,8 @@ class DualBase(metaclass=ABCMeta):
                 return False
         elif type(self) is Dual2 or type(argument) is Dual2:
             # this line should not be hit TypeError should raise earlier
-            return False  # cannot compare Dual with Dual2
+            # cannot compare Dual with Dual2
+            return False  # pragma: no cover
         return True
 
     def __upcast_combined__(self, arg):
