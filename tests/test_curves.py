@@ -112,6 +112,13 @@ def test_curve_rate_floating_spread(scm, exp):
     assert (result - exp) < 1e-8
 
 
+def test_curve_rate_raises(curve):
+    with pytest.raises(ValueError, match="Must supply a valid `spread_compound"):
+        curve.rate(
+            dt(2022, 3, 3), "7d", float_spread=10.0, spread_compound_method="bad"
+        )
+
+
 @pytest.mark.parametrize("li, ll, val, expected", [
     ([0, 1, 2, 3, 4], 5, 0, 0),
     ([0, 1, 2, 3, 4], 5, 0.5, 0),
@@ -761,6 +768,45 @@ def test_curve_roll_copy(curve):
     assert result == curve
 
 
+def test_index_curve_roll():
+    crv = IndexCurve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.988,
+            dt(2024, 1, 1): 0.975,
+            dt(2025, 1, 1): 0.965,
+            dt(2026, 1, 1): 0.955,
+            dt(2027, 1, 1): 0.9475,
+        },
+        t=[
+            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+        ],
+        index_base=110.0,
+        interpolation="log_linear",
+    )
+    rolled_curve = crv.roll("10d")
+    rolled_curve2 = crv.roll("-10d")
+
+    expected = np.array([crv.rate(_, "1D") for _ in [
+        dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)
+    ]
+                         ])
+    result = np.array([rolled_curve.rate(_, "1D") for _ in [
+        dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)
+    ]
+                       ])
+    result2 = np.array([rolled_curve2.rate(_, "1D") for _ in [
+        dt(2023, 1, 5), dt(2023, 3, 5), dt(2024, 11, 5), dt(2026, 4, 5)
+    ]
+                        ])
+    assert np.all(np.abs(result - expected) < 1e-7)
+    assert np.all(np.abs(result2 - expected) < 1e-7)
+    assert rolled_curve.index_base == crv.index_base
+
+
 def test_curve_translate_raises(curve):
     with pytest.raises(ValueError, match="Cannot translate exactly for the given"):
         curve.translate(dt(2022, 4, 1))
@@ -860,6 +906,86 @@ class TestCompositeCurve:
         expected = curve.rate(dt(2022, 6, 1), "1Y", approximate=False)
         assert abs(result - expected) < 1e-4
 
+    def test_composite_curve_translate(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955
+            },
+            t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+               dt(2024, 1, 1),
+               dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        crv = CompositeCurve([curve1, curve2])
+
+        result_curve = crv.translate(dt(2022, 3, 1))
+        diff = np.array([
+            result_curve.rate(_, "1D") - crv.rate(_, "1D") for _ in [
+                dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+            ]
+        ])
+        assert np.all(np.abs(diff) < 1e-5)
+
+    def test_composite_curve_roll(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955
+            },
+            t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+               dt(2024, 1, 1),
+               dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        crv = CompositeCurve([curve1, curve2])
+
+        rolled_curve = crv.roll("10d")
+        expected = np.array([crv.rate(_, "1D") for _ in [
+            dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)
+        ]
+                             ])
+        result = np.array([rolled_curve.rate(_, "1D") for _ in [
+            dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)
+        ]
+        ])
+
+        assert np.all(np.abs(result - expected) < 1e-7)
+
     def test_isinstance_raises(self):
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
         line_curve = LineCurve({dt(2022, 1, 1): 10.0, dt(2023, 1, 1): 12.0})
@@ -893,6 +1019,39 @@ class TestCompositeCurve:
         c2 = Curve({dt(2022, 1, 2): 1.0, dt(2023, 1, 1): 0.99})
         with pytest.raises(ValueError, match="`curves` must share the same ini"):
             CompositeCurve([c1, c2])
+
+    @pytest.mark.parametrize("lag, base",[
+        ([2, 3], [100.0, 100.0]),
+        ([3, 3], [100.0, 100.001])
+    ])
+    def test_index_curves_raises(self, lag, base):
+        ic1 = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=lag[0],
+            index_base=base[0]
+        )
+        ic2 = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=lag[1],
+            index_base=base[1]
+        )
+        with pytest.raises(ValueError, match="Cannot composite curves with different"):
+            CompositeCurve([ic1, ic2])
+
+    def test_index_curves_attributes(self):
+        ic1 = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=3,
+            index_base=101.1
+        )
+        ic2 = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=3,
+            index_base=101.1
+        )
+        cc = CompositeCurve([ic1, ic2])
+        assert cc.index_lag == 3
+        assert cc.index_base == 101.1
 
 
 class TestPlotCurve:
@@ -984,3 +1143,10 @@ class TestPlotCurve:
         assert result[0][0] == dt(2022, 1, 1)
         assert result[1][0] == 0
         plt.close("all")
+
+    def test_plot_index_raises(self):
+        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        with pytest.raises(ValueError, match="`left` must be supplied as"):
+            i_curve.plot_index(left=2.0)
+        with pytest.raises(ValueError, match="`right` must be supplied as"):
+            i_curve.plot_index(right=2.0)

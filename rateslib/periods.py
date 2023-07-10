@@ -1774,7 +1774,10 @@ class IndexMixin(metaclass=ABCMeta):
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
-                    raise ValueError("`index_fixings` cannot forecast the index value.")
+                    raise ValueError(
+                        "`index_fixings` cannot forecast the index value. "
+                        f"There are no fixings available after date: {unavailable_date}"
+                    )
                 else:
                     try:
                         return i_fixings[adj_date]

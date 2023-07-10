@@ -949,7 +949,8 @@ class Curve(Serialize, PlotCurve):
 
     def roll(self, tenor: Union[datetime, str]):
         """
-        Create a new curve with its shape translated in time
+        Create a new curve with its shape translated in time but an identical initial
+        node date.
 
         This curve adjustment is a simulation of a future state of the market where
         forward rates are assumed to have moved so that the present day's curve shape
@@ -1915,6 +1916,17 @@ class CompositeCurve(PlotCurve):
                         )
             self.modifier = curves[0].modifier
             self.convention = curves[0].convention
+        if isinstance(curves[0], IndexCurve):
+            for attr in ["index_base", "index_lag"]:
+                for i in range(1, len(curves)):
+                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
+                        raise ValueError(
+                            "Cannot composite curves with different attributes, "
+                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
+                            f"'{getattr(curves[0], attr, None)}'."
+                        )
+            self.index_lag = curves[0].index_lag
+            self.index_base = curves[0].index_base
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates

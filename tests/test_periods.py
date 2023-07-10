@@ -1188,6 +1188,36 @@ class TestIndexFixedPeriod:
         result = i_period.cashflows()
         assert result[Defaults.headers["index_ratio"]] is None
 
+    def test_bad_curve(self):
+        i_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 2, 1),
+            payment=dt(2022, 2, 1),
+            frequency="M",
+            index_base=100.0,
+        )
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+            i_period.index_ratio(curve)
+
+    def test_cannot_forecast_from_fixings(self):
+        i_fixings = Series([100], index=[dt(2021, 1, 1)])
+        i_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 2, 1),
+            payment=dt(2022, 2, 1),
+            frequency="M",
+            index_base=100.0,
+            index_fixings=i_fixings,
+        )
+        curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=3,
+            index_base=100.0
+        )
+        with pytest.raises(ValueError, match="`index_fixings` cannot forecast the"):
+            i_period.index_ratio(curve)
+
 
 class TestIndexCashflow:
 
