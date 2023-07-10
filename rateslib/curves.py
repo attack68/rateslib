@@ -555,20 +555,23 @@ class Curve(Serialize, PlotCurve):
             elif spread_compound_method == "isda_compounding":
                 # this provides an approximated rate
                 r_bar, d, n = average_rate(effective, termination, self.convention, _)
-                _ = ((1+(r_bar+float_spread/100)/100 * d)**n - 1) / (n * d)
+                _ = ((1 + (r_bar + float_spread / 100) / 100 * d) ** n - 1) / (n * d)
                 return 100 * _
             elif spread_compound_method == "isda_flat_compounding":
                 # this provides an approximated rate
                 r_bar, d, n = average_rate(effective, termination, self.convention, _)
-                rd = r_bar/100 * d
-                _ = (r_bar + float_spread/100) / n * (
-                        comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2
+                rd = r_bar / 100 * d
+                _ = (
+                    (r_bar + float_spread / 100)
+                    / n
+                    * (comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2)
                 )
                 return _
             else:
                 raise ValueError(
                     "Must supply a valid `spread_compound_method`, when `float_spread` "
-                    " is not `None`.")
+                    " is not `None`."
+                )
 
         return _
 
@@ -1049,7 +1052,7 @@ class Curve(Serialize, PlotCurve):
             convention=self.convention,
             id=None,
             ad=self.ad,
-            **xtra
+            **xtra,
         )
         if tenor > self.node_dates[0]:
             return new_curve
@@ -1889,7 +1892,9 @@ class CompositeCurve(PlotCurve):
                     f"{curves[0].node_dates[0]} and {curves[i].node_dates[0]}"
                 )
 
-        for attr in ["calendar", ]:
+        for attr in [
+            "calendar",
+        ]:
             for i in range(1, len(curves)):
                 if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
                     raise ValueError(
@@ -1975,7 +1980,7 @@ class CompositeCurve(PlotCurve):
                     dcf_ += d_
                     for curve in self.curves:
                         __ += curve.rate(date_, term_)
-                    _ *= (1 + d_ * __ / 100)
+                    _ *= 1 + d_ * __ / 100
                     date_ = term_
                 _ = 100 * (_ - 1) / dcf_
         else:
@@ -1989,7 +1994,7 @@ class CompositeCurve(PlotCurve):
         if self._base_type == "dfs":
             # will return a composited discount factor
             days = (date - self.curves[0].node_dates[0]).days
-            d = 1.0/360 if self.convention == "ACT360" else 1.0/365
+            d = 1.0 / 360 if self.convention == "ACT360" else 1.0 / 365
             total_rate = 0.0
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
@@ -2054,9 +2059,9 @@ class CompositeCurve(PlotCurve):
         -------
         CompositeCurve
         """
-        return CompositeCurve(curves=[
-            curve.translate(start, t) for curve in self.curves
-        ])
+        return CompositeCurve(
+            curves=[curve.translate(start, t) for curve in self.curves]
+        )
 
     def roll(self, tenor: Union[datetime, str]) -> CompositeCurve:
         """
