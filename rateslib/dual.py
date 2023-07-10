@@ -720,6 +720,39 @@ def set_order(val, order):
         return val._set_order(order)
 
 
+def set_order_convert(val, order, tag):
+    """
+    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
+
+    Parameters
+    ----------
+    val : float, Dual or Dual2
+        The value to convert.
+    order : int
+        The AD order to convert the value to if necessary.
+    tag : str
+        The variable name if upcasting a float to a Dual or Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(val, (*FLOATS, *INTS)):
+        if order == 0:
+            return val
+        elif order == 1:
+            return Dual(val, tag)
+        elif order == 2:
+            return Dual2(val, tag)
+    elif isinstance(val, (Dual, Dual2)):
+        if order == 0:
+            return float(val)
+        elif (order == 1 and isinstance(val, Dual)) \
+                or (order == 2 and isinstance(val, Dual2)):
+            return val
+        else:
+            return val._set_order(order)
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.

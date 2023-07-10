@@ -17,7 +17,7 @@ import numpy as np
 import json
 from math import floor, comb
 from rateslib import defaults
-from rateslib.dual import Dual, Dual2, dual_log, dual_exp
+from rateslib.dual import Dual, Dual2, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
 from rateslib.default import plot
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
@@ -149,19 +149,12 @@ class Serialize:
         """
         if order == getattr(self, "ad", None):
             return None
-        if order == 0:
-            self.ad = 0
-            self.nodes = {k: float(v) for i, (k, v) in enumerate(self.nodes.items())}
-            self.csolve()
-            return None
-        elif order == 1:
-            self.ad, DualType = 1, Dual
-        elif order == 2:
-            self.ad, DualType = 2, Dual2
-        else:
+        elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+
+        self.ad = order
         self.nodes = {
-            k: DualType(float(v), f"{self.id}{i}")
+            k: set_order_convert(v, order, f"{self.id}{i}")
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self.csolve()
