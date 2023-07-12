@@ -35,6 +35,7 @@ class Defaults:
         "FixedFixedXCS": 2,
         "FloatFixedXCS": 2,
         "FixedRateBond": 0,
+        "IndexFixedRateBond": 0,
         "FloatRateBond": 0,
         "Bill": 0,
         "FRA": 0,

@@ -100,6 +100,7 @@ from rateslib.instruments import (
     Value,
     Bill,
     FixedRateBond,
+    IndexFixedRateBond,
     FloatRateBond,
     BondFuture,
     IRS,
@@ -188,6 +189,7 @@ __all__ = [
     "CustomLeg",
     # instruments.py
     "FixedRateBond",
+    "IndexFixedRateBond",
     "FloatRateBond",
     "BondFuture",
     "FRA",

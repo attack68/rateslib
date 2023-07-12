@@ -857,6 +857,17 @@ class TestIndexCurve:
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
             curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
+    def test_roll_preserves_ad(self):
+        curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=100.0,
+            index_lag=3,
+            id="tags_",
+            ad=1,
+        )
+        new_curve = curve.roll("1m")
+        pass
+
 
 class TestCompositeCurve:
 

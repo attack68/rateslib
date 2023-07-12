@@ -57,28 +57,40 @@ email contact through **rateslib@gmail.com**.
      - v 0.2.0
    * - Inflation Bonds
      - Adding the pricing nuances for inflation bond markets.
-     - Very likely
-     - By mid 2023
+     - Pre release
+     - v 0.3.0
    * - Inflation Swaps
      - Adding the pricing nuances for inflation swaps.
-     - Very likely
-     - By end 2023
+     - Pre release
+     - v 0.3.0
+   * - FX Spot and Repos
+     - Adding basic funding instruments.
+     - Likely (v1.0)
+     - End 2023
+   * - Coding Interest Rates
+     - Officially document this library's algorithms and release the book.
+     - Planned
+     - End 2023
+   * - Version 1.0
+     - Release the official first non-beta version of this library.
+     - Planned
+     - End 2023
    * - Defaults
      - Adding the ability to define parameters by specification, e.g. "sofr irs" or
        "uk gilt", which set multiple default parameters.
-     - Likely, to improve UI.
+     - Likely, to improve UI. (v1.0?)
      - By end 2023
+   * - Vanilla FX options and volatility products
+     - Adding option instruments and benchmark trades such as risk-reversals.
+     - Highly likely (v2.0?)
+     - By mid 2024
    * - Vanilla Swaptions
      - Adding the instruments priced by a volatility input.
-     - Likely
-     - By mid 2024
-   * - Vanilla FX options
-     - Adding option instruments and benchmark trades such as risk-reversals.
-     - Possible, depending on ease of extension from swaptions.
+     - Likely (v2.0 or v3.0?)
      - By end 2024
    * - SABR model for options
      - Adding the parameters to construct SABR vol surfaces/ cuves.
-     - Possible, with dependencies to other developments.
+     - Possible, with dependencies to other developments. (v3.0?)
      - By end 2024
    * - Optimization of code
      - Using C extensions, or rust, or re-writing certain blocks to improve performance.

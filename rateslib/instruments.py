@@ -36,9 +36,9 @@ from pandas import DataFrame, concat, date_range, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, _add_days, get_calendar, dcf
 from rateslib.scheduling import Schedule
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
+from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
-from rateslib.periods import Cashflow, FixedPeriod, FloatPeriod, _get_fx_and_base
+from rateslib.periods import Cashflow, FixedPeriod, FloatPeriod, _get_fx_and_base, IndexMixin
 from rateslib.legs import (
     FixedLeg,
     FixedLegExchange,
@@ -620,6 +620,485 @@ class BondMixin:
         else:
             return npv / disc_curve[projection]
 
+    def _price_from_ytm(self, ytm: float, settlement: datetime, dirty: bool = False):
+        """
+        Loop through all future cashflows and discount them with ``ytm`` to achieve
+        correct price.
+        """
+        # TODO note this formula does not account for back stubs
+        # this is also mentioned in Coding IRs
+
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+        v = 1 / (1 + ytm / (100 * f))
+
+        acc_frac, acc_idx = self._accrued_frac(settlement)
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        else:
+            fd0 = 1 - acc_frac
+
+        d = 0
+        for i, p_idx in enumerate(
+                range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
+        ):
+            if i == 0 and self.ex_div(settlement):
+                continue
+            else:
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
+                # d += self.leg1.periods[p_idx].cashflow * v ** i
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
+        p = v ** fd0 * d / -self.leg1.notional * 100
+        return p if dirty else p - self.accrued(settlement)
+
+    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
+        """
+        Calculate the price of the security per nominal value of 100, given
+        yield-to-maturity.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity against which to determine the price.
+        settlement : datetime
+            The settlement date on which to determine the price.
+        dirty : bool, optional
+            If `True` will include the
+            :meth:`rateslib.instruments.FixedRateBond.accrued` in the price.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Examples
+        --------
+        This example is taken from the UK debt management office website.
+        The result should be `141.070132` and the bond is ex-div.
+
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.ex_div(dt(1999, 5, 27))
+           gilt.price(
+               ytm=4.445,
+               settlement=dt(1999, 5, 27),
+               dirty=True
+           )
+
+        This example is taken from the Swedish national debt office website.
+        The result of accrued should, apparently, be `0.210417` and the clean
+        price should be `99.334778`.
+
+        .. ipython:: python
+
+           bond = FixedRateBond(
+               effective=dt(2017, 5, 12),
+               termination=dt(2028, 5, 12),
+               frequency="A",
+               calendar="stk",
+               currency="sek",
+               convention="ActActICMA",
+               ex_div=5,
+               fixed_rate=0.75
+           )
+           bond.ex_div(dt(2017, 8, 23))
+           bond.accrued(dt(2017, 8, 23))
+           bond.price(
+               ytm=0.815,
+               settlement=dt(2017, 8, 23),
+               dirty=False
+           )
+
+        """
+        return self._price_from_ytm(ytm, settlement, dirty)
+
+    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
+        """
+        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity for the bond.
+        settlement : datetime
+            The settlement date of the bond.
+        metric : str
+            The specific duration calculation to return. See notes.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        The available metrics are:
+
+        - *"risk"*: the derivative of price w.r.t. ytm, scaled to -1bp.
+
+          .. math::
+
+             risk = - \\frac{\partial P }{\partial y}
+
+        - *"modified"*: the modified duration which is *risk* divided by price.
+
+          .. math::
+
+             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\partial P }{\partial y}
+
+        - *"duration"*: the duration which is modified duration reverse modified.
+
+          .. math::
+
+             duration = mduration \\times (1 + y / f)
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.duration(4.445, dt(1999, 5, 27), "risk")
+           gilt.duration(4.445, dt(1999, 5, 27), "modified")
+           gilt.duration(4.445, dt(1999, 5, 27), "duration")
+
+        This result is interpreted as cents. If the yield is increased by 1bp the price
+        will fall by 14.65 cents.
+
+        .. ipython:: python
+
+           gilt.price(4.445, dt(1999, 5, 27))
+           gilt.price(4.455, dt(1999, 5, 27))
+        """
+        if metric == "risk":
+            _ = -self.price(Dual(float(ytm), "y"), settlement).gradient("y")[0]
+        elif metric == "modified":
+            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
+            _ = -price.gradient("y")[0] / float(price) * 100
+        elif metric == "duration":
+            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
+            f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+            v = 1 + float(ytm) / (100 * f)
+            _ = -price.gradient("y")[0] / float(price) * v * 100
+        return _
+
+    def convexity(self, ytm: float, settlement: datetime):
+        """
+        Return the second derivative of ``price`` w.r.t. ``ytm``.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity for the bond.
+        settlement : datetime
+            The settlement date of the bond.
+
+        Returns
+        -------
+        float
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.convexity(4.445, dt(1999, 5, 27))
+
+        This number is interpreted as hundredths of a cent. For a 1bp increase in
+        yield the duration will decrease by 2 hundredths of a cent.
+
+        .. ipython:: python
+
+           gilt.duration(4.445, dt(1999, 5, 27))
+           gilt.duration(4.455, dt(1999, 5, 27))
+        """
+        return self.price(Dual2(float(ytm), "y"), settlement).gradient("y", 2)[0][0]
+
+    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
+        """
+        Calculate the yield-to-maturity of the security given its price.
+
+        Parameters
+        ----------
+        price : float
+            The price, per 100 nominal, against which to determine the yield.
+        settlement : datetime
+            The settlement date on which to determine the price.
+        dirty : bool, optional
+            If `True` will assume the
+            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        If ``price`` is given as :class:`~rateslib.dual.Dual` or
+        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
+        as the same type with the variables passed through accordingly.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.ytm(
+               price=141.0701315,
+               settlement=dt(1999,5,27),
+               dirty=True
+           )
+           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+
+        """
+
+        def root(y):
+            # we set this to work in float arithmetic for efficiency. Dual is added
+            # back below, see PR GH3
+            return self._price_from_ytm(y, settlement, dirty) - float(price)
+
+        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
+        # x, iters = _brents(root, -99, 10000)  # use own local brents code
+        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
+
+        if isinstance(price, Dual):
+            # use the inverse function theorem to express x as a Dual
+            p = self._price_from_ytm(Dual(x, "y"), settlement, dirty)
+            return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
+        elif isinstance(price, Dual2):
+            # use the IFT in 2nd order to express x as a Dual2
+            p = self._price_from_ytm(Dual2(x, "y"), settlement, dirty)
+            dydP = 1 / p.gradient("y")[0]
+            d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
+            return Dual2(
+                x,
+                price.vars,
+                dydP * price.dual,
+                0.5
+                * (
+                        dydP * price.gradient(price.vars, order=2)
+                        + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
+                ),
+            )
+        else:
+            return x
+
+    def fwd_from_repo(
+            self,
+            price: Union[float, Dual, Dual2],
+            settlement: datetime,
+            forward_settlement: datetime,
+            repo_rate: Union[float, Dual, Dual2],
+            convention: Optional[str] = None,
+            dirty: bool = False,
+    ):
+        """
+        Return a forward price implied by a given repo rate.
+
+        Parameters
+        ----------
+        price : float, Dual, or Dual2
+            The initial price of the security at ``settlement``.
+        settlement : datetime
+            The settlement date of the bond
+        forward_settlement : datetime
+            The forward date for which to calculate the forward price.
+        repo_rate : float, Dual or Dual2
+            The rate which is used to calculate values.
+        convention : str, optional
+            The day count convention applied to the rate. If not given uses default
+            values.
+        dirty : bool, optional
+            Whether the input and output price are specified including accrued interest.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        Any intermediate (non ex-dividend) cashflows between ``settlement`` and
+        ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
+        """
+        convention = defaults.convention if convention is None else convention
+        dcf_ = dcf(settlement, forward_settlement, convention)
+        if not dirty:
+            d_price = price + self.accrued(settlement)
+        else:
+            d_price = price
+        if self.leg1.amortization != 0:
+            raise NotImplementedError(  # pragma: no cover
+                "method for forward price not available with amortization"
+            )
+        total_rtn = d_price * (1 + repo_rate * dcf_ / 100) * -self.leg1.notional / 100
+
+        # now systematically deduct coupons paid between settle and forward settle
+        settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+        fwd_settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            forward_settlement,
+        )
+
+        # do not accrue a coupon not received
+        settlement_idx += 1 if self.ex_div(settlement) else 0
+        # deduct final coupon if received within period
+        fwd_settlement_idx += 1 if self.ex_div(forward_settlement) else 0
+
+        for p_idx in range(settlement_idx, fwd_settlement_idx):
+            # deduct accrued coupon from dirty price
+            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
+            accrued_coup = self.leg1.periods[p_idx].cashflow * (
+                    1 + dcf_ * repo_rate / 100
+            )
+            total_rtn -= accrued_coup
+
+        forward_price = total_rtn / -self.leg1.notional * 100
+        if dirty:
+            return forward_price
+        else:
+            return forward_price - self.accrued(forward_settlement)
+
+    def repo_from_fwd(
+            self,
+            price: Union[float, Dual, Dual2],
+            settlement: datetime,
+            forward_settlement: datetime,
+            forward_price: Union[float, Dual, Dual2],
+            convention: Optional[str] = None,
+            dirty: bool = False,
+    ):
+        """
+        Return an implied repo rate from a forward price.
+
+        Parameters
+        ----------
+        price : float, Dual, or Dual2
+            The initial price of the security at ``settlement``.
+        settlement : datetime
+            The settlement date of the bond
+        forward_settlement : datetime
+            The forward date for which to calculate the forward price.
+        forward_price : float, Dual or Dual2
+            The forward price which iplies the repo rate
+        convention : str, optional
+            The day count convention applied to the rate. If not given uses default
+            values.
+        dirty : bool, optional
+            Whether the input and output price are specified including accrued interest.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        Any intermediate (non ex-dividend) cashflows between ``settlement`` and
+        ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
+        """
+        convention = defaults.convention if convention is None else convention
+        # forward price from repo is linear in repo_rate so reverse calculate with AD
+        if not dirty:
+            p_t = forward_price + self.accrued(forward_settlement)
+            p_0 = price + self.accrued(settlement)
+        else:
+            p_t, p_0 = forward_price, price
+
+        dcf_ = dcf(settlement, forward_settlement, convention)
+        numerator = p_t - p_0
+        denominator = p_0 * dcf_
+
+        # now systematically deduct coupons paid between settle and forward settle
+        settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+        fwd_settlement_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            forward_settlement,
+        )
+
+        # do not accrue a coupon not received
+        settlement_idx += 1 if self.ex_div(settlement) else 0
+        # deduct final coupon if received within period
+        fwd_settlement_idx += 1 if self.ex_div(forward_settlement) else 0
+
+        for p_idx in range(settlement_idx, fwd_settlement_idx):
+            # deduct accrued coupon from dirty price
+            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
+            numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+            denominator -= (
+                    100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+            )
+
+        return numerator / denominator * 100
+
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the accrued amount per nominal par value of 100.
+
+        Parameters
+        ----------
+        settlement : datetime
+            The settlement date which to measure accrued interest against.
+
+        Notes
+        -----
+        Fractionally apportions the coupon payment based on calendar days.
+
+        .. math::
+
+           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
+
+        """
+        # TODO validate against effective and termination?
+        frac, acc_idx = self._accrued_frac(settlement)
+        if self.ex_div(settlement):
+            frac = frac - 1  # accrued is negative in ex-div period
+        _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
+        return frac * _ / -self.leg1.notional * 100
+
     def npv(
         self,
         curves: Optional[Union[Curve, str, list]] = None,
@@ -947,6 +1426,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     """
     _fixed_rate_mixin = True
+    _ytm_attribute = "cashflow"  # nominal bonds use cashflows in YTM calculation
 
     def __init__(
         self,
@@ -1004,488 +1484,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
-    def accrued(self, settlement: datetime):
-        """
-        Calculate the accrued amount per nominal par value of 100.
-
-        Parameters
-        ----------
-        settlement : datetime
-            The settlement date which to measure accrued interest against.
-
-        Notes
-        -----
-        Fractionally apportions the coupon payment based on calendar days.
-
-        .. math::
-
-           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
-
-        """
-        # TODO validate against effective and termination?
-        frac, acc_idx = self._accrued_frac(settlement)
-        if self.ex_div(settlement):
-            frac = frac - 1  # accrued is negative in ex-div period
-        return frac * self.leg1.periods[acc_idx].cashflow / -self.leg1.notional * 100
-
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    # Analogue Methods
-
-    def _price_from_ytm(self, ytm: float, settlement: datetime, dirty: bool = False):
-        """
-        Loop through all future cashflows and discount them with ``ytm`` to achieve
-        correct price.
-        """
-        # TODO note this formula does not account for back stubs
-        # this is also mentioned in Coding IRs
-
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        v = 1 / (1 + ytm / (100 * f))
-
-        acc_frac, acc_idx = self._accrued_frac(settlement)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        d = 0
-        for i, p_idx in enumerate(
-            range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
-        ):
-            if i == 0 and self.ex_div(settlement):
-                continue
-            else:
-                d += self.leg1.periods[p_idx].cashflow * v**i
-        d += self.leg1.periods[-1].cashflow * v**i
-        p = v**fd0 * d / -self.leg1.notional * 100
-        return p if dirty else p - self.accrued(settlement)
-
-    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
-        """
-        Calculate the price of the security per nominal value of 100, given
-        yield-to-maturity.
-
-        Parameters
-        ----------
-        ytm : float
-            The yield-to-maturity against which to determine the price.
-        settlement : datetime
-            The settlement date on which to determine the price.
-        dirty : bool, optional
-            If `True` will include the
-            :meth:`rateslib.instruments.FixedRateBond.accrued` in the price.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Examples
-        --------
-        This example is taken from the UK debt management office website.
-        The result should be `141.070132` and the bond is ex-div.
-
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.ex_div(dt(1999, 5, 27))
-           gilt.price(
-               ytm=4.445,
-               settlement=dt(1999, 5, 27),
-               dirty=True
-           )
-
-        This example is taken from the Swedish national debt office website.
-        The result of accrued should, apparently, be `0.210417` and the clean
-        price should be `99.334778`.
-
-        .. ipython:: python
-
-           bond = FixedRateBond(
-               effective=dt(2017, 5, 12),
-               termination=dt(2028, 5, 12),
-               frequency="A",
-               calendar="stk",
-               currency="sek",
-               convention="ActActICMA",
-               ex_div=5,
-               fixed_rate=0.75
-           )
-           bond.ex_div(dt(2017, 8, 23))
-           bond.accrued(dt(2017, 8, 23))
-           bond.price(
-               ytm=0.815,
-               settlement=dt(2017, 8, 23),
-               dirty=False
-           )
-
-        """
-        return self._price_from_ytm(ytm, settlement, dirty)
-
-    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
-        """
-        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
-
-        Parameters
-        ----------
-        ytm : float
-            The yield-to-maturity for the bond.
-        settlement : datetime
-            The settlement date of the bond.
-        metric : str
-            The specific duration calculation to return. See notes.
-
-        Returns
-        -------
-        float
-
-        Notes
-        -----
-        The available metrics are:
-
-        - *"risk"*: the derivative of price w.r.t. ytm, scaled to -1bp.
-
-          .. math::
-
-             risk = - \\frac{\partial P }{\partial y}
-
-        - *"modified"*: the modified duration which is *risk* divided by price.
-
-          .. math::
-
-             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\partial P }{\partial y}
-
-        - *"duration"*: the duration which is modified duration reverse modified.
-
-          .. math::
-
-             duration = mduration \\times (1 + y / f)
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.duration(4.445, dt(1999, 5, 27), "risk")
-           gilt.duration(4.445, dt(1999, 5, 27), "modified")
-           gilt.duration(4.445, dt(1999, 5, 27), "duration")
-
-        This result is interpreted as cents. If the yield is increased by 1bp the price
-        will fall by 14.65 cents.
-
-        .. ipython:: python
-
-           gilt.price(4.445, dt(1999, 5, 27))
-           gilt.price(4.455, dt(1999, 5, 27))
-        """
-        if metric == "risk":
-            _ = -self.price(Dual(float(ytm), "y"), settlement).gradient("y")[0]
-        elif metric == "modified":
-            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
-            _ = -price.gradient("y")[0] / float(price) * 100
-        elif metric == "duration":
-            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
-            f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-            v = 1 + float(ytm) / (100 * f)
-            _ = -price.gradient("y")[0] / float(price) * v * 100
-        return _
-
-    def convexity(self, ytm: float, settlement: datetime):
-        """
-        Return the second derivative of ``price`` w.r.t. ``ytm``.
-
-        Parameters
-        ----------
-        ytm : float
-            The yield-to-maturity for the bond.
-        settlement : datetime
-            The settlement date of the bond.
-
-        Returns
-        -------
-        float
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.convexity(4.445, dt(1999, 5, 27))
-
-        This number is interpreted as hundredths of a cent. For a 1bp increase in
-        yield the duration will decrease by 2 hundredths of a cent.
-
-        .. ipython:: python
-
-           gilt.duration(4.445, dt(1999, 5, 27))
-           gilt.duration(4.455, dt(1999, 5, 27))
-        """
-        return self.price(Dual2(float(ytm), "y"), settlement).gradient("y", 2)[0][0]
-
-    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
-        """
-        Calculate the yield-to-maturity of the security given its price.
-
-        Parameters
-        ----------
-        price : float
-            The price, per 100 nominal, against which to determine the yield.
-        settlement : datetime
-            The settlement date on which to determine the price.
-        dirty : bool, optional
-            If `True` will assume the
-            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        If ``price`` is given as :class:`~rateslib.dual.Dual` or
-        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
-        as the same type with the variables passed through accordingly.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.ytm(
-               price=141.0701315,
-               settlement=dt(1999,5,27),
-               dirty=True
-           )
-           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-
-        """
-
-        def root(y):
-            # we set this to work in float arithmetic for efficiency. Dual is added
-            # back below, see PR GH3
-            return self._price_from_ytm(y, settlement, dirty) - float(price)
-
-        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
-        # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
-
-        if isinstance(price, Dual):
-            # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(Dual(x, "y"), settlement, dirty)
-            return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
-        elif isinstance(price, Dual2):
-            # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(Dual2(x, "y"), settlement, dirty)
-            dydP = 1 / p.gradient("y")[0]
-            d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
-            return Dual2(
-                x,
-                price.vars,
-                dydP * price.dual,
-                0.5
-                * (
-                    dydP * price.gradient(price.vars, order=2)
-                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
-                ),
-            )
-        else:
-            return x
-
-    def fwd_from_repo(
-        self,
-        price: Union[float, Dual, Dual2],
-        settlement: datetime,
-        forward_settlement: datetime,
-        repo_rate: Union[float, Dual, Dual2],
-        convention: Optional[str] = None,
-        dirty: bool = False,
-    ):
-        """
-        Return a forward price implied by a given repo rate.
-
-        Parameters
-        ----------
-        price : float, Dual, or Dual2
-            The initial price of the security at ``settlement``.
-        settlement : datetime
-            The settlement date of the bond
-        forward_settlement : datetime
-            The forward date for which to calculate the forward price.
-        repo_rate : float, Dual or Dual2
-            The rate which is used to calculate values.
-        convention : str, optional
-            The day count convention applied to the rate. If not given uses default
-            values.
-        dirty : bool, optional
-            Whether the input and output price are specified including accrued interest.
-
-        Returns
-        -------
-        float, Dual or Dual2
-
-        Notes
-        -----
-        Any intermediate (non ex-dividend) cashflows between ``settlement`` and
-        ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
-        """
-        convention = defaults.convention if convention is None else convention
-        dcf_ = dcf(settlement, forward_settlement, convention)
-        if not dirty:
-            d_price = price + self.accrued(settlement)
-        else:
-            d_price = price
-        if self.leg1.amortization != 0:
-            raise NotImplementedError(  # pragma: no cover
-                "method for forward price not available with amortization"
-            )
-        total_rtn = d_price * (1 + repo_rate * dcf_ / 100) * -self.leg1.notional / 100
-
-        # now systematically deduct coupons paid between settle and forward settle
-        settlement_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            settlement,
-        )
-        fwd_settlement_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            forward_settlement,
-        )
-
-        # do not accrue a coupon not received
-        settlement_idx += 1 if self.ex_div(settlement) else 0
-        # deduct final coupon if received within period
-        fwd_settlement_idx += 1 if self.ex_div(forward_settlement) else 0
-
-        for p_idx in range(settlement_idx, fwd_settlement_idx):
-            # deduct accrued coupon from dirty price
-            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            accrued_coup = self.leg1.periods[p_idx].cashflow * (
-                1 + dcf_ * repo_rate / 100
-            )
-            total_rtn -= accrued_coup
-
-        forward_price = total_rtn / -self.leg1.notional * 100
-        if dirty:
-            return forward_price
-        else:
-            return forward_price - self.accrued(forward_settlement)
-
-    def repo_from_fwd(
-        self,
-        price: Union[float, Dual, Dual2],
-        settlement: datetime,
-        forward_settlement: datetime,
-        forward_price: Union[float, Dual, Dual2],
-        convention: Optional[str] = None,
-        dirty: bool = False,
-    ):
-        """
-        Return an implied repo rate from a forward price.
-
-        Parameters
-        ----------
-        price : float, Dual, or Dual2
-            The initial price of the security at ``settlement``.
-        settlement : datetime
-            The settlement date of the bond
-        forward_settlement : datetime
-            The forward date for which to calculate the forward price.
-        forward_price : float, Dual or Dual2
-            The forward price which iplies the repo rate
-        convention : str, optional
-            The day count convention applied to the rate. If not given uses default
-            values.
-        dirty : bool, optional
-            Whether the input and output price are specified including accrued interest.
-
-        Returns
-        -------
-        float, Dual or Dual2
-
-        Notes
-        -----
-        Any intermediate (non ex-dividend) cashflows between ``settlement`` and
-        ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
-        """
-        convention = defaults.convention if convention is None else convention
-        # forward price from repo is linear in repo_rate so reverse calculate with AD
-        if not dirty:
-            p_t = forward_price + self.accrued(forward_settlement)
-            p_0 = price + self.accrued(settlement)
-        else:
-            p_t, p_0 = forward_price, price
-
-        dcf_ = dcf(settlement, forward_settlement, convention)
-        numerator = p_t - p_0
-        denominator = p_0 * dcf_
-
-        # now systematically deduct coupons paid between settle and forward settle
-        settlement_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            settlement,
-        )
-        fwd_settlement_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            forward_settlement,
-        )
-
-        # do not accrue a coupon not received
-        settlement_idx += 1 if self.ex_div(settlement) else 0
-        # deduct final coupon if received within period
-        fwd_settlement_idx += 1 if self.ex_div(forward_settlement) else 0
-
-        for p_idx in range(settlement_idx, fwd_settlement_idx):
-            # deduct accrued coupon from dirty price
-            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
-            denominator -= (
-                100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
-            )
-
-        return numerator / denominator * 100
 
     # Digital Methods
 
@@ -1600,6 +1601,202 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     """
     #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
+
+
+class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
+    _fixed_rate_mixin = True
+    _ytm_attribute = "real_cashflow"  # index linked bonds use real cashflows
+
+    def __init__(
+        self,
+        effective: datetime,
+        termination: Union[datetime, str] = None,
+        frequency: str = None,
+        stub: Optional[str] = None,
+        front_stub: Optional[datetime] = None,
+        back_stub: Optional[datetime] = None,
+        roll: Optional[Union[str, int]] = None,
+        eom: Optional[bool] = None,
+        modifier: Optional[str] = False,
+        calendar: Optional[Union[CustomBusinessDay, str]] = None,
+        payment_lag: Optional[int] = None,
+        notional: Optional[float] = None,
+        currency: Optional[str] = None,
+        amortization: Optional[float] = None,
+        convention: Optional[str] = None,
+        fixed_rate: Optional[float] = None,
+        index_base: Optional[Union[float, Series]] = None,
+        index_fixings: Optional[Union[float, Series]] = None,
+        index_method: Optional[str] = None,
+        index_lag: Optional[int] = None,
+        ex_div: int = 0,
+        settle: int = 1,
+        curves: Optional[Union[list, str, Curve]] = None,
+    ):
+        self.curves = curves
+        if frequency.lower() == "z":
+            raise ValueError(
+                "IndexFixedRateBond `frequency` must be in {M, B, Q, T, S, A}."
+            )
+        if payment_lag is None:
+            payment_lag = defaults.payment_lag_specific[type(self).__name__]
+        self._fixed_rate = fixed_rate
+        self.ex_div_days = ex_div
+        self.settle = settle
+        self.leg1 = IndexFixedLegExchange(
+            effective=effective,
+            termination=termination,
+            frequency=frequency,
+            stub=stub,
+            front_stub=front_stub,
+            back_stub=back_stub,
+            roll=roll,
+            eom=eom,
+            modifier=modifier,
+            calendar=calendar,
+            payment_lag=payment_lag,
+            payment_lag_exchange=payment_lag,
+            notional=notional,
+            currency=currency,
+            amortization=amortization,
+            convention=convention,
+            fixed_rate=fixed_rate,
+            initial_exchange=False,
+            index_base=index_base,
+            index_method=index_method,
+            index_lag=index_lag,
+            index_fixings=index_fixings,
+        )
+        if self.leg1.amortization != 0:
+            # Note if amortization is added to FixedRateBonds must systematically
+            # go through and update all methods. Many rely on the quantity
+            # self.notional which is currently assumed to be a fixed quantity
+            raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
+
+    def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
+        index_base = self.leg1.index_base
+        acc_idx = index_left(
+            self.leg1.schedule.aschedule,
+            len(self.leg1.schedule.aschedule),
+            settlement,
+        )
+        index_val = IndexMixin._index_value(
+            i_fixings=self.leg1.index_fixings[acc_idx],
+            i_curve=curve,
+            i_lag=self.leg1.index_lag,
+            i_method=self.leg1.index_method,
+            i_date=settlement,
+        )
+        return index_val / index_base
+
+    def rate(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        metric: str = "clean_price",
+        forward_settlement: Optional[datetime] = None,
+    ):
+        """
+        Return various pricing metrics of the security calculated from
+        :class:`~rateslib.curves.Curve` s.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`Curve` or id or a list of such. A list defines the
+            following curves in the order:
+
+              - Forecasting :class:`Curve` for ``leg1``.
+              - Discounting :class:`Curve` for ``leg1``.
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        metric : str, optional
+            Metric returned by the method. Available options are {"clean_price",
+            "dirty_price", "ytm", "fwd_clean_price", "fwd_dirty_price"}
+        forward_settlement : datetime
+            The forward settlement date, required if the metric is in
+            {"fwd_clean_price", "fwd_dirty_price"}.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+
+        metric = metric.lower()
+        if metric in [
+            "clean_price",
+            "dirty_price",
+            "index_clean_price",
+            "ytm",
+            "index_dirty_price",
+        ]:
+            settlement = add_tenor(
+                curves[1].node_dates[0],
+                f"{self.settle}B",
+                None,
+                self.leg1.schedule.calendar,
+            )
+            npv = self._npv_local(
+                curves[0], curves[1], fx, base, settlement, settlement
+            )
+            # scale price to par 100 (npv is already projected forward to settlement)
+            index_dirty_price = npv * 100 / -self.leg1.notional
+            index_ratio = self.index_ratio(settlement, curves[0])
+            dirty_price = index_dirty_price / index_ratio
+
+            if metric == "dirty_price":
+                return dirty_price
+            elif metric == "clean_price":
+                return dirty_price - self.accrued(settlement)
+            elif metric == "ytm":
+                return self.ytm(dirty_price, settlement, True)
+            elif metric == "index_dirty_price":
+                return index_dirty_price
+            elif metric == "index_clean_price":
+                return index_dirty_price - self.accrued(settlement) * index_ratio
+
+        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
+            if forward_settlement is None:
+                raise ValueError(
+                    "`forward_settlement` needed to determine forward price."
+                )
+            npv = self._npv_local(
+                curves[0], curves[1], fx, base, forward_settlement, forward_settlement
+            )
+            index_dirty_price = npv / -self.leg1.notional * 100
+            index_ratio = self.index_ratio(forward_settlement, curves[0])
+            dirty_price = index_dirty_price / index_ratio
+            if metric == "fwd_dirty_price":
+                return dirty_price
+            elif metric == "fwd_clean_price":
+                return dirty_price - self.accrued(forward_settlement)
+            elif metric == "fwd_index_dirty_price":
+                return index_dirty_price
+            elif metric == "fwd_index_clean_price":
+                return (
+                    index_dirty_price - self.accrued(forward_settlement) * index_ratio
+                )
+
+        raise ValueError(
+            "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
+            "'fwd_clean_price', 'fwd_dirty_price', 'index_dirty_price', "
+            "'index_clean_price', 'fwd_index_dirty_price', 'fwd_index_clean_price'}."
+        )
 
 
 class Bill(FixedRateBond):
@@ -3888,9 +4085,9 @@ class IIRS(BaseDerivative):
 
     .. ipython:: python
 
-      zcis = ZCIS(
+      iirs = IIRS(
           effective=dt(2022, 1, 1),
-          termination="10Y",
+          termination="4Y",
           frequency="A",
           calendar="nyc",
           currency="usd",
@@ -3901,20 +4098,20 @@ class IIRS(BaseDerivative):
           index_method="monthly",
           index_lag=3,
           index_fixings=None,
-          curves=["us_cpi", "usd"],
+          leg2_convention="Act360",
+          curves=["us_cpi", "usd", "usd", "usd"],
       )
-      zcis.rate(curves=[us_cpi, usd])
-      zcis.npv(curves=[us_cpi, usd])
-      zcis.analytic_delta(us_cpi, usd)
+      iirs.rate(curves=[us_cpi, usd, usd, usd])
+      iirs.npv(curves=[us_cpi, usd, usd, usd])
 
-    A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
+    A DataFrame of :meth:`~rateslib.instruments.IIRS.cashflows`.
 
     .. ipython:: python
 
-      zcis.cashflows(curves=[us_cpi, usd])
+      iirs.cashflows(curves=[us_cpi, usd, usd, usd])
 
-    For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCIS.delta`
-    and :meth:`~rateslib.instruments.ZCIS.gamma`, construct a curve model.
+    For accurate sensitivity calculations; :meth:`~rateslib.instruments.IIRS.delta`
+    and :meth:`~rateslib.instruments.IIRS.gamma`, construct a curve model.
 
     .. ipython:: python
 
@@ -3948,8 +4145,8 @@ class IIRS(BaseDerivative):
           instrument_labels=["5Y", "10Y", "5Yi", "10Yi"],
           id="us",
       )
-      zcis.delta(solver=solver)
-      zcis.gamma(solver=solver)
+      iirs.delta(solver=solver)
+      iirs.gamma(solver=solver)
     """
 
     _fixed_rate_mixin = True

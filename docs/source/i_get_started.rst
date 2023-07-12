@@ -86,11 +86,16 @@ Introduction to Rateslib
 
 - Discount securities - :class:`~rateslib.instruments.Bill`,
 - Regular nominal bonds - :class:`~rateslib.instruments.FixedRateBond`,
+- Bond futures - :class:`~rateslib.instruments.BondFuture`,
+- Index linked bonds - :class:`~rateslib.instruments.IndexFixedRateBond`,
 - Also FRNs - :class:`~rateslib.instruments.FloatRateBond`.
 
 **Single Currency Derivatives**
 
 - Interest rate swaps (both IBOR and RFR) - :class:`~rateslib.instruments.IRS`,
+- Index interest rate swaps - :class:`~rateslib.instruments.IIRS`,
+- Zero coupon swaps - :class:`~rateslib.instruments.ZCS`,
+- Zero coupon index swaps - :class:`~rateslib.instruments.ZCIS`,
 - Basis swaps - :class:`~rateslib.instruments.SBS`,
 - Forward rate agreements - :class:`~rateslib.instruments.FRA`.
 

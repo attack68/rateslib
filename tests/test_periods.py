@@ -7,7 +7,7 @@ import numpy as np
 
 import context
 from rateslib.periods import (
-    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod, IndexCashflow
+    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod, IndexCashflow, IndexMixin
 )
 from rateslib.fx import FXRates
 from rateslib.default import Defaults
@@ -1200,23 +1200,36 @@ class TestIndexFixedPeriod:
         with pytest.raises(TypeError, match="`index_value` must be forecast from"):
             i_period.index_ratio(curve)
 
-    def test_cannot_forecast_from_fixings(self):
-        i_fixings = Series([100], index=[dt(2021, 1, 1)])
-        i_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 2, 1),
-            payment=dt(2022, 2, 1),
-            frequency="M",
-            index_base=100.0,
-            index_fixings=i_fixings,
+    # TEST REDUNDANT: function was changed to fallback to forecast from curve
+    # def test_cannot_forecast_from_fixings(self):
+    #     i_fixings = Series([100], index=[dt(2021, 1, 1)])
+    #     i_period = IndexFixedPeriod(
+    #         start=dt(2022, 1, 1),
+    #         end=dt(2022, 2, 1),
+    #         payment=dt(2022, 2, 1),
+    #         frequency="M",
+    #         index_base=100.0,
+    #         index_fixings=i_fixings,
+    #     )
+    #     curve = IndexCurve(
+    #         {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+    #         index_lag=3,
+    #         index_base=100.0
+    #     )
+    #     with pytest.raises(ValueError, match="`index_fixings` cannot forecast the"):
+    #         i_period.index_ratio(curve)
+
+    def test_index_fixings_linear_interp(self):
+        i_fixings = Series([173.1, 174.2], index=[dt(2001, 7, 1), dt(2001, 8, 1)])
+        result = IndexMixin._index_value(
+            i_fixings=i_fixings,
+            i_curve=None,
+            i_date=dt(2001, 7, 20),
+            i_lag=3,
+            i_method="daily"
         )
-        curve = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-            index_lag=3,
-            index_base=100.0
-        )
-        with pytest.raises(ValueError, match="`index_fixings` cannot forecast the"):
-            i_period.index_ratio(curve)
+        expected = 173.1 + 19/31 * (174.2 - 173.1)
+        assert abs(result - expected) < 1e-6
 
 
 class TestIndexCashflow:

@@ -1735,10 +1735,26 @@ class IndexMixin(metaclass=ABCMeta):
             return numerator / denominator, numerator, denominator
 
     @staticmethod
+    def _index_value_from_curve(
+        i_date: datetime,
+        i_curve: Optional[IndexCurve],
+        i_lag: int,
+        i_method: str,
+    ) -> Optional[DualTypes]:
+        if i_curve is None:
+            return None
+        elif not isinstance(i_curve, IndexCurve):
+            raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
+        elif i_lag != i_curve.index_lag:
+            return None  # TODO decide if RolledCurve to correct index lag be attemoted
+        else:
+            return i_curve.index_value(i_date, i_method)
+
+    @staticmethod
     def _index_value(
         i_fixings: Optional[Union[float, Series]],
         i_date: datetime,
-        i_curve: IndexCurve,
+        i_curve: Optional[IndexCurve],
         i_lag: int,
         i_method: str
     ) -> Optional[DualTypes]:
@@ -1757,12 +1773,7 @@ class IndexMixin(metaclass=ABCMeta):
         float, Dual, Dual2
         """
         if i_fixings is None:
-            if i_curve is None:
-                return None
-            if not isinstance(i_curve, IndexCurve):
-                raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
-            if i_curve.index_lag == i_lag:
-                return i_curve.index_value(i_date, i_method)
+            return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
         else:
             if isinstance(i_fixings, Series):
                 if i_method == "daily":
@@ -1774,17 +1785,19 @@ class IndexMixin(metaclass=ABCMeta):
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
-                    raise ValueError(
-                        "`index_fixings` cannot forecast the index value. "
-                        f"There are no fixings available after date: {unavailable_date}"
-                    )
+                    return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
+                    # raise ValueError(
+                    #     "`index_fixings` cannot forecast the index value. "
+                    #     f"There are no fixings available after date: {unavailable_date}"
+                    # )
                 else:
                     try:
                         return i_fixings[adj_date]
                     except KeyError:
                         s = i_fixings.copy()
                         s.loc[adj_date] = np.NaN  # type: ignore[call-overload]
-                        return s.sort_index().interpolate("linear")[adj_date]
+                        _ = s.sort_index().interpolate("time")[adj_date]
+                        return _
             else:
                 return i_fixings
 
