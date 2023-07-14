@@ -755,6 +755,18 @@ class IndexLegMixin:
         self.index_fixings = _ + [None] * (self.schedule.n_periods - len(_))
         return None
 
+    @property
+    def index_base(self):
+        return self._index_base
+
+    @index_base.setter
+    def index_base(self, value):
+        self._index_base = value
+        # if value is not None:
+        for period in self.periods:
+            if isinstance(period, (IndexFixedPeriod, IndexCashflow)):
+                period.index_base = value
+
 
 class IndexFixedLeg(IndexLegMixin, FixedLeg):
     """
@@ -798,7 +810,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLeg):
     ):
 
         super().__init__(*args, fixed_rate=fixed_rate, **kwargs)
-        self.index_base = index_base
+        self._index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
@@ -1254,7 +1266,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         return _ * 10000
 
 
-class ZeroIndexLeg(BaseLeg):
+class ZeroIndexLeg(BaseLeg, IndexLegMixin):
     """
     Create a zero coupon index leg.
 
@@ -1296,7 +1308,7 @@ class ZeroIndexLeg(BaseLeg):
         **kwargs
     ):
         super().__init__(*args, **kwargs)
-        self.index_base = index_base
+        self._index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
@@ -1566,7 +1578,7 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
         **kwargs,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self.index_base = index_base
+        self._index_base = index_base
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
         if self.index_method not in ["daily", "monthly"]:

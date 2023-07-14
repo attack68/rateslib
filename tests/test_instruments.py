@@ -8,6 +8,7 @@ import context
 from rateslib import defaults, default_context
 from rateslib.instruments import (
     IRS,
+    IIRS,
     forward_fx,
     SBS,
     FXSwap,
@@ -16,6 +17,7 @@ from rateslib.instruments import (
     Bill,
     Value,
     ZCS,
+    ZCIS,
     _get_curve_from_solver,
     BaseMixin,
     FloatRateBond,
@@ -208,8 +210,10 @@ class TestNullPricing:
                 notional=-1e6,
             ),
             ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+            IIRS(dt(2022, 7, 1), "3M", "A", curves=["eu_cpi", "eureur", "eureur", "eureur"], notional=1e6),
+            IIRS(dt(2022, 7, 1), "3M", "A",
+                 curves=["eu_cpi", "eureur", "eureur", "eureur"], notional=1e6, notional_exchange=True),
             # TODO add a null price test for ZCIS
-            # TODO add a null price test for IIRS - exchange and none
             XCS(
                 dt(2022, 7, 1),
                 "3M",
@@ -290,6 +294,7 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -298,13 +303,14 @@ class TestNullPricing:
             IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
             IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
             IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"])
         ]
         solver = Solver(
-            curves=[c1, c2, c3],
+            curves=[c1, c2, c3, c4],
             instruments=ins,
-            s=[1.2, 1.3, 1.33],
+            s=[1.2, 1.3, 1.33, 0.5],
             id="solver",
-            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj."],
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
             fx=fxf,
         )
         result = inst.delta(solver=solver)
@@ -313,7 +319,7 @@ class TestNullPricing:
         assert abs(result2) < 1e-3
 
         # test that instruments have not been set by the previous pricing action
-        solver.s = [1.3, 1.4, 1.36]
+        solver.s = [1.3, 1.4, 1.36, 0.55]
         solver.iterate()
         result3 = inst.npv(solver=solver)
         assert abs(result3) < 1e-3
@@ -515,6 +521,67 @@ class TestIRS:
         with pytest.raises(AttributeError, match="Cannot set `float_spread`"):
             irs.float_spread = 1.0
 
+    def test_index_base_raises(self):
+        irs = IRS(dt(2022, 1, 1), "9M", "Q")
+        with pytest.raises(AttributeError, match="Cannot set `index_base`"):
+            irs.index_base = 1.0
+
+        with pytest.raises(AttributeError, match="Cannot set `leg2_index_base`"):
+            irs.leg2_index_base = 1.0
+
+
+class TestIIRS:
+
+    def test_index_base_none_populated(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0
+        )
+        iirs = IIRS(
+            effective=dt(2022, 2, 1),
+            termination="1y",
+            frequency="Q",
+            index_lag=3,
+            notional_exchange=False,
+        )
+        for period in iirs.leg1.periods:
+            assert period.index_base is None
+        iirs.rate(curves=[i_curve, curve])
+        for period in iirs.leg1.periods:
+            assert period.index_base == 200.0
+
+    def test_iirs_npv_mid_mkt_zero(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0
+        )
+        iirs = IIRS(
+            effective=dt(2022, 2, 1),
+            termination=dt(2022, 7, 1),
+            payment_lag=0,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            stub="ShortFront",
+        )
+        result = iirs.npv([i_curve, curve])
+        assert abs(result) < 1e-8
+
+        iirs.fixed_rate = iirs.rate([i_curve, curve])
+        iirs.index_base = 1000.0  # high index base implies positive NPV
+        assert iirs.npv([i_curve, curve]) > 1
+
+        iirs.index_base = None  # index_base set back to initial
+        iirs.fixed_rate = None
+        assert abs(iirs.npv([i_curve, curve])) < 1e-8
+
+        mid_fixed = float(iirs.rate([i_curve, curve]))
+        iirs.base_index = 200.0  # this is index_base from i_curve
+        new_mid = float(iirs.rate([i_curve, curve]))
+        assert abs(mid_fixed - new_mid) < 1e-6
+
 
 class TestSBS:
     def test_sbs_npv(self, curve):
@@ -649,6 +716,25 @@ class TestZCS:
         )
         result = zcs.rate(usd)
         assert abs(result - exp) < 1e-7
+
+
+class TestZCIS:
+
+    def test_leg2_index_base(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=200.0
+        )
+        zcis = ZCIS(
+            effective=dt(2022, 1, 1),
+            termination="9m",
+            frequency="Q",
+        )
+        prior = zcis.rate(curves=[curve, curve, i_curve, curve])
+
+        zcis.leg2_index_base = 100.0  # index base is lower
+        result = zcis.rate(curves=[curve, curve, i_curve, curve])
+        assert result > (prior + 100)
 
 
 def test_forward_fx_immediate():
@@ -2041,6 +2127,35 @@ class TestIndexFixedRateBond:
         result = bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
         assert abs(result-expected) < 1e-5
 
+    def test_fixed_rate_bond_npv_private(self):
+        # this test shadows 'fixed_rate_bond_npv' but extends it for projection
+        curve = Curve(
+            {dt(2004, 11, 25): 1.0, dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75}
+        )
+        index_curve = IndexCurve(
+            {dt(2004, 11, 25): 1.0, dt(2034, 1, 1): 1.0}, index_base=100.0
+        )
+        gilt = IndexFixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            notional=-100,
+            settle=0,
+            index_base=50.0,
+            index_lag=3,
+            index_method="daily",
+        )
+        result = gilt._npv_local(
+            index_curve, curve, None, None, dt(2010, 11, 26), dt(2010, 11, 25)
+        )
+        expected = 109.229489312983 * 2.0 # npv should match associated test
+        assert abs(result - expected) < 1e-6
+
 
 class TestBill:
     def test_bill_discount_rate(self):
@@ -2824,6 +2939,17 @@ class TestPricingMechanism:
         ob.cashflows()
         ob.spread()
 
+    def test_iirs(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=100.0,
+        )
+        ob = IIRS(dt(2022, 1, 28), "6m", "Q", curves=[i_curve, curve, curve, curve])
+        ob.rate()
+        ob.npv()
+        ob.cashflows()
+        ob.spread()
+
     def test_sbs(self, curve):
         ob = SBS(dt(2022, 1, 28), "6m", "Q", curves=curve)
         ob.rate()
@@ -2866,6 +2992,22 @@ class TestPricingMechanism:
         ob.rate(leg=2, fx=fxf)
         ob.npv(fx=fxf)
         ob.cashflows(fx=fxf)
+
+    def test_zcs(self, curve):
+        ob = ZCS(dt(2022, 1, 28), "6m", "S", curves=curve)
+        ob.rate()
+        ob.npv()
+        ob.cashflows()
+
+    def test_zcis(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=100.0,
+        )
+        ob = ZCIS(dt(2022, 1, 28), "6m", "S", curves=[curve, curve, i_curve, curve])
+        ob.rate()
+        ob.npv()
+        ob.cashflows()
 
 
 class TestPortfolio:

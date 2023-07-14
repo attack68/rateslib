@@ -361,6 +361,8 @@ class BaseMixin:
     _float_spread_mixin = False
     _leg2_fixed_rate_mixin = False
     _leg2_float_spread_mixin = False
+    _index_base_mixin = False
+    _leg2_index_base_mixin = False
     _rate_scalar = 1.0
 
     @property
@@ -435,6 +437,52 @@ class BaseMixin:
             raise AttributeError("Cannot set `leg2_float_spread` for this Instrument.")
         self._leg2_float_spread = value
         self.leg2.float_spread = value
+
+    @property
+    def index_base(self):
+        """
+        float or None : If set will also set the ``index_base`` of the contained
+        leg1.
+
+        .. note::
+           ``fixed_rate``, ``float_spread``, ``leg2_fixed_rate`` and
+           ``leg2_float_spread`` are attributes only applicable to certain
+           ``Instruments``. *AttributeErrors* are raised if calling or setting these
+           is invalid.
+
+        """
+        # TODO: re-write these docstrings to include index base mixin
+        return self._index_base
+
+    @index_base.setter
+    def index_base(self, value):
+        if not self._index_base_mixin:
+            raise AttributeError("Cannot set `index_base` for this Instrument.")
+        self._index_base = value
+        self.leg1.index_base = value
+
+    @property
+    def leg2_index_base(self):
+        """
+        float or None : If set will also set the ``index_base`` of the contained
+        leg1.
+
+        .. note::
+           ``fixed_rate``, ``float_spread``, ``leg2_fixed_rate`` and
+           ``leg2_float_spread`` are attributes only applicable to certain
+           ``Instruments``. *AttributeErrors* are raised if calling or setting these
+           is invalid.
+
+        """
+        # TODO: re-write these docstrings to include index base mixin
+        return self._leg2_index_base
+
+    @leg2_index_base.setter
+    def leg2_index_base(self, value):
+        if not self._leg2_index_base_mixin:
+            raise AttributeError("Cannot set `leg2_index_base` for this Instrument.")
+        self._leg2_index_base = value
+        self.leg2.index_base = value
 
 
 class Value(BaseMixin):
@@ -1606,6 +1654,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
     _fixed_rate_mixin = True
     _ytm_attribute = "real_cashflow"  # index linked bonds use real cashflows
+    _index_base_mixin = True
 
     def __init__(
         self,
@@ -1641,6 +1690,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self._fixed_rate = fixed_rate
+        self._index_base = index_base
         self.ex_div_days = ex_div
         self.settle = settle
         self.leg1 = IndexFixedLegExchange(
@@ -1674,7 +1724,6 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
-        index_base = self.leg1.index_base
         acc_idx = index_left(
             self.leg1.schedule.aschedule,
             len(self.leg1.schedule.aschedule),
@@ -1686,6 +1735,13 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             i_lag=self.leg1.index_lag,
             i_method=self.leg1.index_method,
             i_date=settlement,
+        )
+        index_base = IndexMixin._index_value(
+            i_fixings=self.index_base,
+            i_date=self.leg1.schedule.effective,
+            i_lag=self.leg1.index_lag,
+            i_method=self.leg1.index_method,
+            i_curve=curve
         )
         return index_val / index_base
 
@@ -1736,6 +1792,11 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
+        if self.index_base is None:
+            # must forecast for the leg
+            self.leg1.index_base = curves[0].index_value(
+                self.leg1.schedule.effective, self.leg1.index_method
+            )
 
         metric = metric.lower()
         if metric in [
@@ -4150,6 +4211,7 @@ class IIRS(BaseDerivative):
     """
 
     _fixed_rate_mixin = True
+    _index_base_mixin = True
     _leg2_float_spread_mixin = True
 
     def __init__(
@@ -4171,10 +4233,12 @@ class IIRS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self._index_base = index_base
         self._fixed_rate = fixed_rate
         if leg2_payment_lag_exchange == "inherit":
             leg2_payment_lag_exchange = payment_lag_exchange
 
+        self.notional_exchange = notional_exchange
         if not notional_exchange:
             L1, L2 = IndexFixedLeg, FloatLeg
             l1_args, l2_args = {}, {}
@@ -4236,8 +4300,26 @@ class IIRS(BaseDerivative):
             **l2_args,
         )
 
-    def npv(self, *args, **kwargs):
-        return super().npv(*args, **kwargs)
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+    ):
+        mid_market_rate = self.rate(curves, solver)
+        self.leg1.fixed_rate = float(mid_market_rate)
+
+    def npv(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        if self.fixed_rate is None:
+            # set a fixed rate for the purpose of pricing NPV, which should be zero.
+            self._set_pricing_mid(curves, solver)
+        return super().npv(curves, solver, fx, base, local)
 
     def cashflows(self, *args, **kwargs):
         return super().cashflows(*args, **kwargs)
@@ -4281,8 +4363,20 @@ class IIRS(BaseDerivative):
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
+        if self.index_base is None:
+            # must forecast for the leg
+            self.leg1.index_base = curves[0].index_value(
+                self.leg1.schedule.effective, self.leg1.index_method
+            )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
-        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+
+        if self.fixed_rate is None:
+            self.leg1.fixed_rate = 0.0
+        _existing = self.leg1.fixed_rate
+        leg1_npv = self.leg1.npv(curves[0], curves[1])
+
+        _ = self.leg1._spread(-leg2_npv - leg1_npv, curves[0], curves[1]) / 100
+        return _ + _existing
 
     def spread(
         self,
@@ -4754,19 +4848,21 @@ class ZCIS(BaseDerivative):
     """
 
     _fixed_rate_mixin = True
+    _leg2_index_base_mixin = True
 
     def __init__(
         self,
         *args,
         fixed_rate: Optional[float] = None,
-        index_base: Optional[Union[float, Series]] = None,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
+        leg2_index_base: Optional[Union[float, Series]] = None,
+        leg2_index_fixings: Optional[Union[float, Series]] = None,
+        leg2_index_method: Optional[str] = None,
+        leg2_index_lag: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._fixed_rate = fixed_rate
+        self._leg2_index_base = leg2_index_base
         self.leg1 = ZeroFixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
@@ -4786,10 +4882,10 @@ class ZCIS(BaseDerivative):
             convention=self.convention,
         )
         self.leg2 = ZeroIndexLeg(
-            index_base=index_base,
-            index_method=index_method,
-            index_lag=index_lag,
-            index_fixings=index_fixings,
+            index_base=leg2_index_base,
+            index_method=leg2_index_method,
+            index_lag=leg2_index_lag,
+            index_fixings=leg2_index_fixings,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
             frequency=self.leg2_frequency,
@@ -4866,7 +4962,13 @@ class ZCIS(BaseDerivative):
         curves, _ = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
+        if self.leg2_index_base is None:
+            # must forecast for the leg
+            self.leg2.index_base = curves[2].index_value(
+                self.leg2.schedule.effective, self.leg2.index_method
+            )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
+
         return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
 
 

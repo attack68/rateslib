@@ -640,6 +640,23 @@ class TestZeroIndexLeg:
         result = zil.cashflow(index_curve)
         assert abs(result - exp) < 1e-3
 
+    def test_set_index_leg_after_init(self):
+        leg = IndexFixedLeg(
+            effective=dt(2022, 3, 15),
+            termination="9M",
+            frequency="Q",
+            convention="ActActICMA",
+            payment_lag=0,
+            notional=40e6,
+            fixed_rate=5.0,
+            index_base=None,
+        )
+        for period in leg.periods:
+            assert period.index_base is None
+        leg.index_base = 205.0
+        for period in leg.periods:
+            assert period.index_base == 205.0
+
 
 class TestFloatLegExchange:
     def test_float_leg_exchange_notional_setter(self):
@@ -868,6 +885,24 @@ class TestIndexFixedLegExchange:
                 index_method="BAD",
             )
 
+    def test_set_index_leg_after_init(self):
+        leg = IndexFixedLegExchange(
+            effective=dt(2022, 3, 15),
+            termination="9M",
+            frequency="Q",
+            convention="ActActICMA",
+            payment_lag=0,
+            notional=40e6,
+            fixed_rate=5.0,
+            index_base=None,
+            initial_exchange=False,
+        )
+        for period in leg.periods:
+            assert period.index_base is None
+        leg.index_base = 205.0
+        for period in leg.periods:
+            assert period.index_base == 205.0
+
 
 class TestIndexFixedLeg:
     @pytest.mark.parametrize(
@@ -970,6 +1005,40 @@ class TestIndexFixedLeg:
         cashflows = leg.cashflows(index_curve)
         result = cashflows.iloc[2]["Index Val"]
         assert abs(result - exp) < 1e-3
+
+    def test_set_index_leg_after_init(self):
+        leg = IndexFixedLeg(
+            effective=dt(2022, 3, 15),
+            termination="9M",
+            frequency="Q",
+            convention="ActActICMA",
+            payment_lag=0,
+            notional=40e6,
+            fixed_rate=5.0,
+            index_base=None,
+        )
+        for period in leg.periods:
+            assert period.index_base is None
+        leg.index_base = 205.0
+        for period in leg.periods:
+            assert period.index_base == 205.0
+
+    def test_set_index_base(self, curve):
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            index_base=None,
+        )
+        assert leg.index_base is None
+        assert leg.periods[0].index_base is None
+
+        leg.index_base = 200.0
+        assert leg.index_base == 200.0
+        assert leg.periods[0].index_base == 200.0
 
 
 class TestFloatLegExchangeMtm:

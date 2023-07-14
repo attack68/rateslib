@@ -1608,7 +1608,12 @@ class IndexCurve(Curve):
             raise ValueError(
                 "`interpolation` for `index_value` must be in {'daily', 'monthly'}."
             )
-        return self.index_base * 1 / self[date_]
+        if date_ < self.node_dates[0]:
+            return 0.0
+            # return zero for index dates in the past
+            # the proper way for instruments to deal with this is to supply i_fixings
+        else:
+            return self.index_base * 1 / self[date_]
 
     def plot_index(
         self,

@@ -1865,6 +1865,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         index_lag: Optional[int] = None,
         **kwargs,
     ):
+        # if index_base is None:
+        #     raise ValueError("`index_base` cannot be None.")
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
