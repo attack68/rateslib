@@ -718,42 +718,66 @@ class FloatLeg(BaseLeg, FloatLegMixin):
 class IndexLegMixin:
     schedule = None
     index_method = None
-    index_fixings = None
+    _index_fixings = None
+    _index_base = None
 
-    def _set_index_fixings(
-        self,
-        index_fixings,
-    ):
+    def _set_index_fixings_on_periods(self):
         """
         Re-organises the fixings input to list structure for each period.
         Requires a ``schedule`` object and ``float_args``.
         """
-        if index_fixings is None:
-            _ = []
-        elif isinstance(index_fixings, Series):
-            last_fixing = index_fixings.index[-1]
-            if self.index_method == "daily":
-                first_req = [
-                    self.schedule.aschedule[i]
-                    for i in range(self.schedule.n_periods)
-                ]
-            else:  # index_method == "monthly":
-                first_req = [
-                    datetime(
-                        self.schedule.aschedule[i + 1].year,
-                        self.schedule.aschedule[i + 1].month,
-                        1,
-                    )
-                    for i in range(self.schedule.n_periods)
-                ]
-            _ = [index_fixings if last_fixing >= day else None for day in first_req]
-        elif not isinstance(index_fixings, list):
-            _ = [index_fixings]
-        else:
-            _ = index_fixings
+        if self.index_fixings is None:
+            pass # do nothing
+        elif isinstance(self.index_fixings, Series):
+            for period in self.periods:
+                period.index_fixings = IndexMixin._index_value(
+                    i_method=self.index_method,
+                    i_lag=self.index_lag,
+                    i_curve=None,
+                    i_date=period.end,
+                    i_fixings=self.index_fixings,
+                )
+        elif isinstance(self.index_fixings, list):
+            for i in range(len(self.index_fixings)):
+                self.periods[i].index_fixings = self.index_fixings[i]
+        else: # index_fixings is float
+            if type(self) is ZeroFixedLeg:
+                self.periods[0].index_fixings = self.index_fixings
+                self.periods[1].index_fixings = self.index_fixings
+            elif type(self) is IndexFixedLegExchange and self.inital_exchange is False:
+                self.periods[0].index_fixings = self.index_fixings
+            else:
+                self.periods[0].index_fixings = self.index_fixings
+            # TODO index_fixings as a list cannot handle amortization. Use a Series.
 
-        self.index_fixings = _ + [None] * (self.schedule.n_periods - len(_))
-        return None
+    @property
+    def index_fixings(self):
+        return self._index_fixings
+
+    @index_fixings.setter
+    def index_fixings(self, value):
+        self._index_fixings = value
+        # if value is not None:
+        for i, period in enumerate(self.periods):
+
+            if isinstance(period, (IndexFixedPeriod, IndexCashflow)):
+                if isinstance(value, Series):
+                    _ = IndexMixin._index_value(
+                        i_fixings=value,
+                        i_method=self.index_method,
+                        i_lag=self.index_lag,
+                        i_date=period.end,
+                        i_curve=None,  # not required because i_fixings is Series
+                    )
+                elif isinstance(value, list):
+                    if i >= len(value):
+                        _ = None  # some fixings are unknown, list size is limited
+                    else:
+                        _ = value[i]
+                else:
+                    # value is float or None
+                    _ = value if i == 0 else None
+                period.index_fixings = _
 
     @property
     def index_base(self):
@@ -761,6 +785,14 @@ class IndexLegMixin:
 
     @index_base.setter
     def index_base(self, value):
+        if isinstance(value, Series):
+            value = IndexMixin._index_value(
+                i_fixings=value,
+                i_method=self.index_method,
+                i_lag=self.index_lag,
+                i_date=self.schedule.effective,
+                i_curve=None,  # not required becuase i_fixings is Series
+            )
         self._index_base = value
         # if value is not None:
         for period in self.periods:
@@ -810,11 +842,8 @@ class IndexFixedLeg(IndexLegMixin, FixedLeg):
     ):
 
         super().__init__(*args, fixed_rate=fixed_rate, **kwargs)
-        self._index_base = index_base
-        self.index_fixings = index_fixings
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
-        self._set_index_fixings(index_fixings)
         self.periods = [
             IndexFixedPeriod(
                 fixed_rate=self.fixed_rate,
@@ -828,11 +857,13 @@ class IndexFixedLeg(IndexLegMixin, FixedLeg):
                 frequency=self.schedule.frequency,
                 stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
                 index_base=index_base,
-                index_fixings=self.index_fixings[i],
+                index_fixings=self.index_fixings,
                 index_method=index_method,
             )
             for i, period in self.schedule.table.to_dict(orient="index").items()
         ]
+        self.index_fixings = index_fixings  # set index fixings after periods init
+        self.index_base = index_base  # set after periods initialised
 
 
 class ZeroFloatLeg(BaseLeg, FloatLegMixin):
@@ -1308,8 +1339,6 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         **kwargs
     ):
         super().__init__(*args, **kwargs)
-        self._index_base = index_base
-        self.index_fixings = index_fixings
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         # The first period indexes up the complete notional amount.
@@ -1339,6 +1368,8 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
                 rate=None,
             )
         ]
+        self.index_fixings = index_fixings  # set index fixings after periods init
+        self.index_base = index_base  # set after periods initialised
 
     def cashflow(self, curve: Optional[IndexCurve] = None):
         _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
@@ -1578,7 +1609,6 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
         **kwargs,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self._index_base = index_base
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         self.index_method = defaults.index_method if index_method is None else index_method.lower()
         if self.index_method not in ["daily", "monthly"]:
@@ -1590,14 +1620,16 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
                 "due to not implemented `index_fixings` input argument applicable to "
                 "the indexing-up the initial exchange."
             )
-
-        self._set_index_fixings(index_fixings)
         self._set_periods()
+        self.index_fixings = index_fixings  # set index fixings after periods init
+        self.index_base = index_base  # set after periods initialised
 
     def _set_periods(self) -> None:
+        self.periods = []
+
         # initial exchange
-        self.periods = (
-            [
+        if self.initial_exchange:
+            self.periods.append(
                 IndexCashflow(
                     notional=-self.notional,
                     payment=add_tenor(
@@ -1610,14 +1642,12 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
                     stub_type="Exchange",
                     rate=None,
                     index_base=self.index_base,
-                    index_fixings=self.index_fixings[0],
+                    index_fixings=self.index_fixings,
                     index_method=self.index_method,
                 )
-            ]
-            if self.initial_exchange
-            else []
-        )
+            )
 
+        # regular periods
         regular_periods = [
             IndexFixedPeriod(
                 fixed_rate=self.fixed_rate,
@@ -1632,7 +1662,7 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
                 stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
                 index_base=self.index_base,
                 index_method=self.index_method,
-                index_fixings=self.index_fixings[i],
+                index_fixings=self.index_fixings,
             )
             for i, period in self.schedule.table.to_dict(orient="index").items()
         ]
@@ -1645,7 +1675,7 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
                     stub_type="Amortization",
                     rate=None,
                     index_base=self.index_base,
-                    index_fixings=self.index_fixings[1 + i],
+                    index_fixings=self.index_fixings,
                     index_method=self.index_method,
                 )
                 for i in range(self.schedule.n_periods - 1)
@@ -1673,7 +1703,7 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
                 stub_type="Exchange",
                 rate=None,
                 index_base=self.index_base,
-                index_fixings=self.index_fixings[-1],
+                index_fixings=self.index_fixings,
                 index_method=self.index_method,
             )
         )

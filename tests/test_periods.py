@@ -1158,6 +1158,7 @@ class TestIndexFixedPeriod:
             "Spread": None,
             "Cashflow": -20000000.0,
             "Real Cashflow": -10e6,
+            "Index Base": 100.0,
             "Index Val": 200.0,
             "Index Ratio": 2.0,
             "NPV": -19795582.53779571 if curve_ else None,

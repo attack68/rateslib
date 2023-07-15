@@ -1286,6 +1286,11 @@ class BondMixin:
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
+        if self._index_base_mixin and self.index_base is None:
+            self.leg1.index_base = curves[0].index_value(
+                self.leg1.schedule.effective, self.leg1.index_method
+            )
+
         if settlement is None:
             settlement = add_tenor(
                 curves[1].node_dates[0],
@@ -1724,13 +1729,14 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
-        acc_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
-            settlement,
-        )
+        if self.leg1.index_fixings is not None \
+                and not isinstance(self.leg1.index_fixings, Series):
+            raise ValueError(
+                "Must provide `index_fixings` as a Series for inter-period settlement."
+            )
+        # TODO: this indexing of periods assumes no amortization
         index_val = IndexMixin._index_value(
-            i_fixings=self.leg1.index_fixings[acc_idx],
+            i_fixings=self.leg1.index_fixings,
             i_curve=curve,
             i_lag=self.leg1.index_lag,
             i_method=self.leg1.index_method,
@@ -4316,13 +4322,35 @@ class IIRS(BaseDerivative):
         base: Optional[str] = None,
         local: bool = False,
     ):
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        if self.index_base is None:
+            # must forecast for the leg
+            self.leg1.index_base = curves[0].index_value(
+                self.leg1.schedule.effective, self.leg1.index_method
+            )
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
-    def cashflows(self, *args, **kwargs):
-        return super().cashflows(*args, **kwargs)
+    def cashflows(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        curves, _ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        if self.index_base is None:
+            # must forecast for the leg
+            self.leg1.index_base = curves[0].index_value(
+                self.leg1.schedule.effective, self.leg1.index_method
+            )
+        return super().cashflows(curves, solver, fx, base)
 
     def rate(
         self,

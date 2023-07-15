@@ -1023,7 +1023,11 @@ class TestIndexFixedLeg:
         for period in leg.periods:
             assert period.index_base == 205.0
 
-    def test_set_index_base(self, curve):
+    @pytest.mark.parametrize("i_base", [
+        200.0,
+        Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]),
+    ])
+    def test_set_index_base(self, curve, i_base):
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
@@ -1036,9 +1040,27 @@ class TestIndexFixedLeg:
         assert leg.index_base is None
         assert leg.periods[0].index_base is None
 
-        leg.index_base = 200.0
+        leg.index_base = i_base
         assert leg.index_base == 200.0
         assert leg.periods[0].index_base == 200.0
+
+    @pytest.mark.parametrize("i_base, exp", [
+        (Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]), 200.0),
+        (Series([1.0, 2.0], index=[dt(2000, 1, 1), dt(2000, 12, 1)]), None),
+        (None, None),
+        (110.0, 110.0),
+    ])
+    def test_initialise_index_base(self, i_base, exp):
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            index_base=i_base,
+        )
+        assert leg.index_base == exp
 
 
 class TestFloatLegExchangeMtm:
@@ -1354,3 +1376,71 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw):
 
     result = leg.npv(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
     assert float(result - expected[1]) < 1e-6
+
+
+@pytest.mark.parametrize("klass, kwargs, expected", [
+    (IndexFixedLeg, {}, [200.0, 300.0, 400.0]),
+    (IndexFixedLegExchange, {"initial_exchange": False}, [200.0, 300.0, 400.0, 400.0]),
+    (ZeroIndexLeg, {}, [400.0])
+])
+def test_set_index_fixings_series_leg_types(klass, kwargs, expected):
+    index_fixings = Series(
+        [100.0, 200.0, 300, 399.0, 401.0],
+        index=[dt(2022, 1, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 10, 31), dt(2022, 11, 2)]
+    )
+    obj = klass(
+        effective=dt(2022, 2, 5),
+        termination="9M",
+        frequency="Q",
+        index_fixings=index_fixings,
+        index_base=100.0,
+        index_lag=3,
+        index_method="monthly",
+        **kwargs,
+    )
+    for i, period in enumerate(obj.periods):
+        if type(period) is Cashflow:
+            continue
+        assert period.index_fixings == expected[i]
+
+
+@pytest.mark.parametrize("klass, kwargs, expected", [
+    (IndexFixedLeg, {"index_fixings": [200.0, 300.0, 400.0]}, [200.0, 300.0, 400.0]),
+    (IndexFixedLegExchange, {"initial_exchange": False, "index_fixings": [200.0, 300.0, 400.0, 400.0]}, [200.0, 300.0, 400.0, 400.0]),
+    (ZeroIndexLeg, {"index_fixings": [400.0]}, [400.0])
+])
+def test_set_index_fixings_list_leg_types(klass, kwargs, expected):
+    obj = klass(
+        effective=dt(2022, 2, 5),
+        termination="9M",
+        frequency="Q",
+        index_base=100.0,
+        index_lag=3,
+        index_method="monthly",
+        **kwargs,
+    )
+    for i, period in enumerate(obj.periods):
+        if type(period) is Cashflow:
+            continue
+        assert period.index_fixings == expected[i]
+
+
+@pytest.mark.parametrize("klass, kwargs, expected", [
+    (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, None, None]),
+    (IndexFixedLegExchange, {"initial_exchange": False, "index_fixings": 200.0}, [200.0, None, None, None]),
+    (ZeroIndexLeg, {"index_fixings": 400.0}, [400.0])
+])
+def test_set_index_fixings_float_leg_types(klass, kwargs, expected):
+    obj = klass(
+        effective=dt(2022, 2, 5),
+        termination="9M",
+        frequency="Q",
+        index_base=100.0,
+        index_lag=3,
+        index_method="monthly",
+        **kwargs,
+    )
+    for i, period in enumerate(obj.periods):
+        if type(period) is Cashflow:
+            continue
+        assert period.index_fixings == expected[i]

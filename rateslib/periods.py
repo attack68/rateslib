@@ -1785,7 +1785,12 @@ class IndexMixin(metaclass=ABCMeta):
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
-                    return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
+                    if i_curve is None:
+                        return None
+                    else:
+                        return IndexMixin._index_value_from_curve(
+                            i_date, i_curve, i_lag, i_method
+                        )
                     # raise ValueError(
                     #     "`index_fixings` cannot forecast the index value. "
                     #     f"There are no fixings available after date: {unavailable_date}"
@@ -1919,14 +1924,15 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
 
-        index_ratio_, index_, _ = self.index_ratio(curve)
+        index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
 
         return {
             **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["real_cashflow"]: self.real_cashflow,
-            defaults.headers["index_value"]: _float_or_none(index_),
+            defaults.headers["index_base"]: _float_or_none(index_base_),
+            defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
             defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
             defaults.headers["npv"]: npv,
@@ -1990,12 +1996,13 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         base: Optional[str] = None,
     ) -> dict:
 
-        index_ratio_, index_, _ = self.index_ratio(curve)
+        index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["real_cashflow"]: self.real_cashflow,
-            defaults.headers["index_value"]: index_,
-            defaults.headers["index_ratio"]: index_ratio_,
+            defaults.headers["index_base"]: _float_or_none(index_base_),
+            defaults.headers["index_value"]: _float_or_none(index_val_),
+            defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
             defaults.headers["cashflow"]: self.cashflow(curve),
         }
 

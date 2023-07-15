@@ -582,6 +582,73 @@ class TestIIRS:
         new_mid = float(iirs.rate([i_curve, curve]))
         assert abs(mid_fixed - new_mid) < 1e-6
 
+    def test_cashflows(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99},
+            index_lag=3,
+            index_base=100.0
+        )
+        iirs = IIRS(
+            effective=dt(2022, 2, 1),
+            termination="9M",
+            frequency="Q",
+            index_base=Series([90, 110], index=[dt(2022, 1, 31), dt(2022, 2, 2)]),
+            index_fixings=[110, 115],
+            index_lag=3,
+            index_method="daily",
+            fixed_rate=1.0
+        )
+        result = iirs.cashflows([i_curve, curve, curve, curve])
+        expected = DataFrame({
+            "Index Val": [110.0, 115.0, 100.7754, np.nan, np.nan, np.nan],
+            "Index Ratio": [1.10, 1.15, 1.00775, np.nan, np.nan, np.nan],
+            "NPV": [
+                -2682.655, -2869.534, -2488.937, 9849.93, 10070.85, 9963.277
+            ],
+            "Type": ["IndexFixedPeriod"] * 3 + ["FloatPeriod"] * 3
+        }, index= MultiIndex.from_tuples([
+            ("leg1", 0), ("leg1", 1), ("leg1", 2), ("leg2", 0), ("leg2", 1), ("leg2", 2)
+        ]))
+        assert_frame_equal(
+            expected, result[["Index Val", "Index Ratio", "NPV", "Type"]], rtol=1e-3,
+        )
+
+    def test_npv_no_index_base(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0
+        )
+        iirs = IIRS(
+            effective=dt(2022, 2, 1),
+            termination="1y",
+            frequency="Q",
+            fixed_rate=2.0,
+            index_lag=3,
+            notional_exchange=False,
+        )
+        result = iirs.npv([i_curve, curve, curve, curve])
+        expected = 19792.08369745
+        assert abs(result - expected) < 1e-6
+
+    def test_cashflows_no_index_base(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0
+        )
+        iirs = IIRS(
+            effective=dt(2022, 2, 1),
+            termination="1y",
+            frequency="Q",
+            fixed_rate=2.0,
+            index_lag=3,
+            notional_exchange=False,
+        )
+        result = iirs.cashflows([i_curve, curve, curve, curve])
+        for i in range(4):
+            assert result.iloc[i]["Index Base"] == 200.0
+
 
 class TestSBS:
     def test_sbs_npv(self, curve):
@@ -2026,6 +2093,7 @@ class TestFixedRateBond:
 
 
 class TestIndexFixedRateBond:
+
     def test_fixed_rate_bond_price(self):
         # test pricing functions against Nominal Gilt Example prices from UK DMO
         # these prices should be equivalent for the REAL component of Index Bonds
@@ -2103,7 +2171,6 @@ class TestIndexFixedRateBond:
 
     @pytest.mark.parametrize("i_fixings, expected", [
         (None, 1.161227269),
-        ([100, 190], 2.00000),
         (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00)
     ])
     def test_index_ratio(self, i_fixings, expected):
@@ -2126,6 +2193,27 @@ class TestIndexFixedRateBond:
         )
         result = bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
         assert abs(result-expected) < 1e-5
+
+    def test_index_ratio_raises_float_index_fixings(self):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=3,
+            index_base=110.0,
+        )
+        bond = IndexFixedRateBond(
+            dt(2022, 1, 1),
+            "9m",
+            "Q",
+            convention="ActActICMA",
+            fixed_rate=4,
+            ex_div=0,
+            calendar="ldn",
+            index_base=95.0,
+            index_fixings=[100.0, 200.0],
+            index_method="daily",
+        )
+        with pytest.raises(ValueError, match="Must provide `index_fixings` as a Seri"):
+            bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
 
     def test_fixed_rate_bond_npv_private(self):
         # this test shadows 'fixed_rate_bond_npv' but extends it for projection
@@ -2155,6 +2243,30 @@ class TestIndexFixedRateBond:
         )
         expected = 109.229489312983 * 2.0 # npv should match associated test
         assert abs(result - expected) < 1e-6
+
+    def test_index_base_forecast(self, curve):
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=3,
+            index_base=95.0,
+        )
+        bond = IndexFixedRateBond(
+            dt(2022, 1, 1),
+            "9m",
+            "Q",
+            convention="ActActICMA",
+            fixed_rate=4,
+            ex_div=0,
+            calendar="ldn",
+            index_method="daily",
+        )
+        cashflows = bond.cashflows([i_curve, curve])
+        for i in range(4):
+            assert cashflows.iloc[i]["Index Base"] == 95.0
+
+        result = bond.npv([i_curve, curve])
+        expected = -1006709.5266
+        assert abs(result - expected) < 1e-4
 
 
 class TestBill:
