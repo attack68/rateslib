@@ -3245,6 +3245,19 @@ class TestPortfolio:
         pf = Portfolio([irs1] * 5)
         assert pf.npv() == irs1.npv() * 5
 
+    def test_portfolio_npv_local(self, curve):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve, currency="usd")
+        irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="eur")
+        irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
+        pf = Portfolio([irs1, irs2, irs3])
+
+        result = pf.npv(local=True)
+        expected = {
+            "usd": 20093.295095887483,
+            "eur": 5048.87332403382,
+        }
+        assert result == expected
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])

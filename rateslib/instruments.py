@@ -7554,6 +7554,8 @@ class Fly(Sensitivities):
 
 
 class Portfolio(Sensitivities):
+    # TODO document portfolio
+
     def __init__(self, instruments):
         self.instruments = instruments
 
@@ -7752,9 +7754,10 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 
     pad = min(tol * 1e8, 0.0001, abs(f_ * 1e4))  # avoids singular matrix error
     if y <= y0:
+        # line not hit due to reassessment of initial vars?
         return _ytm_quadratic_converger2(
             f, 2 * y - y0 - pad, y, y0 + pad, None, f_, None, tol
-        )
+        )  # pragma: no cover
     elif y0 < y <= y1:
         if (y - y0) < (y1 - y):
             return _ytm_quadratic_converger2(
@@ -7774,9 +7777,10 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
                 f, 2 * y - y2 - pad, y, y2 + pad, None, f_, None, tol
             )
     else:  # y2 < y:
+        # line not hit due to reassessmemt of initial vars?
         return _ytm_quadratic_converger2(
             f, y2 - pad, y, 2 * y - y2 + pad, None, f_, None, tol
-        )
+        )  # pragma: no cover
 
 
 def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
