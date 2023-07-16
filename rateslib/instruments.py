@@ -552,6 +552,12 @@ class Value(BaseMixin):
 
 
 class BondMixin:
+    def _set_base_index_if_none(self, curve: IndexCurve):
+        if self._index_base_mixin and self.index_base is None:
+            self.leg1.index_base = curve.index_value(
+                self.leg1.schedule.effective, self.leg1.index_method
+            )
+
     def ex_div(self, settlement: datetime):
         """
         Return a boolean whether the security is ex-div on the settlement.
@@ -640,6 +646,7 @@ class BondMixin:
         The date for which the PV is returned is by ``projection``, and not the
         initial node date of the ``disc_curve``.
         """
+        self._set_base_index_if_none(curve)
         npv = self.leg1.npv(curve, disc_curve, fx, base)
 
         # now must systematically deduct any cashflow between the initial node date
@@ -1286,10 +1293,7 @@ class BondMixin:
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
-        if self._index_base_mixin and self.index_base is None:
-            self.leg1.index_base = curves[0].index_value(
-                self.leg1.schedule.effective, self.leg1.index_method
-            )
+        self._set_base_index_if_none(curves[0])
 
         if settlement is None:
             settlement = add_tenor(
@@ -1798,11 +1802,6 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         curves, fx = _get_curves_and_fx_maybe_from_solver(
             self.curves, solver, curves, fx
         )
-        if self.index_base is None:
-            # must forecast for the leg
-            self.leg1.index_base = curves[0].index_value(
-                self.leg1.schedule.effective, self.leg1.index_method
-            )
 
         metric = metric.lower()
         if metric in [
@@ -1837,7 +1836,12 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "index_clean_price":
                 return index_dirty_price - self.accrued(settlement) * index_ratio
 
-        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
+        elif metric in [
+            "fwd_clean_price",
+            "fwd_dirty_price",
+            "fwd_index_clean_price",
+            "fwd_index_dirty_price",
+        ]:
             if forward_settlement is None:
                 raise ValueError(
                     "`forward_settlement` needed to determine forward price."
@@ -5775,18 +5779,18 @@ class BaseXCS(BaseDerivative):
             # Fixed/Float where fixed leg is unpriced
             return True
         elif self._float_spread_mixin and self.float_spread is None:
-            pass
+            # Float leg1 where leg1 is
+            pass  # goto 2)
         else:
             return False
 
+        # 2) leg1 is Float
         if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is None:
-            pass
+            return True
         elif self._leg2_float_spread_mixin and self.leg2_float_spread is None:
-            pass
+            return True
         else:
             return False
-
-        return True
 
     def _set_pricing_mid(
         self,
@@ -5809,7 +5813,10 @@ class BaseXCS(BaseDerivative):
         elif getattr(self, lookup[leg][1]):
             getattr(self, f"leg{leg}").float_spread = float(rate)
         else:
-            raise AttributeError("BaseXCS leg1 must be defined fixed or float.")
+            # this line should not be hit: internal code check
+            raise AttributeError(
+                "BaseXCS leg1 must be defined fixed or float."
+            )  # pragma: no cover
 
     def npv(
         self,

@@ -37,7 +37,7 @@ from rateslib.instruments import (
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
-from rateslib.curves import Curve, IndexCurve
+from rateslib.curves import Curve, IndexCurve, LineCurve
 from rateslib.fx import FXRates, FXForwards
 from rateslib.solver import Solver
 
@@ -783,6 +783,27 @@ class TestZCS:
         )
         result = zcs.rate(usd)
         assert abs(result - exp) < 1e-7
+
+    def test_zcs_analytic_delta(self):
+        usd = Curve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.85, dt(2032, 1, 1): 0.70},
+            id="usd",
+        )
+        zcs = ZCS(
+            effective=dt(2022, 1, 1),
+            termination="10Y",
+            frequency="Q",
+            leg2_frequency="Q",
+            calendar="nyc",
+            currency="usd",
+            fixed_rate=4.0,
+            convention="Act360",
+            notional=100e6,
+            curves=["usd"],
+        )
+        result = zcs.analytic_delta(usd, usd)
+        expected = 105226.66099084
+        assert abs(result - expected) < 1e-7
 
 
 class TestZCIS:
@@ -2257,16 +2278,87 @@ class TestIndexFixedRateBond:
             convention="ActActICMA",
             fixed_rate=4,
             ex_div=0,
-            calendar="ldn",
+            calendar=None,
             index_method="daily",
+            settle=0,
         )
         cashflows = bond.cashflows([i_curve, curve])
         for i in range(4):
             assert cashflows.iloc[i]["Index Base"] == 95.0
 
         result = bond.npv([i_curve, curve])
-        expected = -1006709.5266
+        expected = -1006875.3812
         assert abs(result - expected) < 1e-4
+
+        result = bond.rate([i_curve, curve], metric="index_dirty_price")
+        assert abs(result * -1e4 - expected) < 1e-4
+
+    def test_fixed_rate_bond_fwd_rate(self):
+        gilt = IndexFixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            settle=0,
+            index_base=50.0
+        )
+        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
+        i_curve = IndexCurve(
+            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0},
+            index_base=100.0
+        )
+        clean_price = gilt.rate([i_curve, curve], metric="clean_price")
+        index_clean_price = gilt.rate([i_curve, curve], metric="index_clean_price")
+        assert abs(index_clean_price * 0.5 - clean_price) < 1e-3
+
+        result = gilt.rate(
+            [i_curve, curve],
+            metric="fwd_clean_price",
+            forward_settlement=dt(1998, 12, 9)
+        )
+        assert abs(result - clean_price) < 1e-8
+        result = gilt.rate(
+            [i_curve, curve],
+            metric="fwd_index_clean_price",
+            forward_settlement=dt(1998, 12, 9)
+        )
+        assert abs(result * 0.5 - clean_price) < 1e-8
+
+        result = gilt.rate([i_curve, curve], metric="dirty_price")
+        expected = clean_price + gilt.accrued(dt(1998, 12, 9))
+        assert result == expected
+        result = gilt.rate(
+            [i_curve, curve],
+            metric="fwd_dirty_price",
+            forward_settlement=dt(1998, 12, 9)
+        )
+        assert abs(result - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
+        result = gilt.rate(
+            [i_curve, curve],
+            metric="fwd_index_dirty_price",
+            forward_settlement=dt(1998, 12, 9)
+        )
+        assert abs(result * 0.5 - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
+
+        result = gilt.rate([i_curve, curve], metric="ytm")
+        expected = gilt.ytm(clean_price, dt(1998, 12, 9), False)
+        assert abs(result - expected) < 1e-8
+
+    def test_fwd_from_repo(self):
+        assert False
+
+    def test_repo_from_fwd(self):
+        assert False
+
+    def test_duration(self):
+        assert False
+
+    def test_convexity(self):
+        assert False
 
 
 class TestBill:
@@ -2692,6 +2784,22 @@ class TestFloatRateBond:
         with pytest.raises(ValueError, match="`metric` must be in"):
             bond.rate(None, metric="BAD")
 
+    def test_forecast_ibor(self, curve):
+        f_curve = LineCurve({
+            dt(2022, 1, 1): 3.0,
+            dt(2022, 2, 1): 4.0
+        })
+        frn = FloatRateBond(
+            effective=dt(2022, 2, 1),
+            termination="3m",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = frn.accrued(dt(2022, 2, 5), forecast=True, curve=f_curve)
+        expected = 0.044444444
+        assert abs(result - expected) < 1e-4
+
 
 class TestBondFuture:
     @pytest.mark.parametrize(
@@ -3038,6 +3146,11 @@ class TestBondFuture:
         result2 = future.convexity(112.98, delivery=delivery)[0]
         assert abs(result2 - expected * 100) < 1e-3
 
+        # Bond future duration which is not risk is not adjusted by CFs
+        result = future.duration(112.98, delivery=delivery, metric="modified")[0]
+        expected = 7.23419455163
+        assert abs(result - expected) < 1e-3
+
 
 class TestPricingMechanism:
     def test_value(self, curve):
@@ -3163,6 +3276,19 @@ class TestFly:
         fly = Fly(irs1, irs2, irs3)
         fly.cashflows()
 
+    def test_local_npv(self, curve):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve, currency="eur")
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
+        irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve, currency="gbp")
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.npv(local=True)
+        expected = {
+            "eur": 7523.321141258284,
+            "usd": 6711.514715925333,
+            "gbp": 7523.321141258284,
+        }
+        assert result == expected
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3188,6 +3314,17 @@ class TestSpread:
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve)
         spd = Spread(irs1, irs2)
         spd.cashflows()
+
+    def test_local_npv(self, curve):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve, currency="eur")
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
+        spd = Spread(irs1, irs2)
+        result = spd.npv(local=True)
+        expected = {
+            "eur": 7523.321141258284,
+            "usd": 6711.514715925333,
+        }
+        assert result == expected
 
 
 class TestSensitivities:
