@@ -7353,6 +7353,13 @@ class Spread(Sensitivities):
         Returns
         -------
         float, Dual or Dual2
+
+        Notes
+        -----
+
+        If the argument ``local`` is added to return a dict of currencies, ensure
+        that this is added as a **keyword** argument and not a positional argument.
+        I.e. use `local=True`.
         """
         leg1_npv = self.instrument1.npv(*args, **kwargs)
         leg2_npv = self.instrument2.npv(*args, **kwargs)
@@ -7474,8 +7481,8 @@ class Fly(Sensitivities):
         leg3_npv = self.instrument3.npv(*args, **kwargs)
         if kwargs.get("local", False):
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) + leg3_npv.get(k, 0)
+                for k in set(leg1_npv) | set(leg2_npv) | set(leg3_npv)
             }
         else:
             return leg1_npv + leg2_npv + leg3_npv
