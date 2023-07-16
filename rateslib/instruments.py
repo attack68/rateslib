@@ -4169,6 +4169,7 @@ class IIRS(BaseDerivative):
           index_method="monthly",
           index_lag=3,
           index_fixings=None,
+          notional_exchange=True,
           leg2_convention="Act360",
           curves=["us_cpi", "usd", "usd", "usd"],
       )
@@ -4199,9 +4200,9 @@ class IIRS(BaseDerivative):
           frequency="A",
           convention="1+",
           calendar="nyc",
-          index_method="monthly",
+          leg2_index_method="monthly",
           currency="usd",
-          curves=["us_cpi", "usd"]
+          curves=["usd", "usd", "us_cpi", "usd"]
       )
       instruments = [
           IRS(termination="5Y", **sofr_kws),
@@ -4824,21 +4825,21 @@ class ZCIS(BaseDerivative):
            fixed_rate=2.05,
            convention="1+",
            notional=100e6,
-           index_base=100.0,
-           index_method="monthly",
-           index_lag=3,
-           index_fixings=None,
+           leg2_index_base=100.0,
+           leg2_index_method="monthly",
+           leg2_index_lag=3,
+           leg2_index_fixings=None,
            curves=["us_cpi", "usd"],
        )
-       zcis.rate(curves=[us_cpi, usd])
-       zcis.npv(curves=[us_cpi, usd])
-       zcis.analytic_delta(us_cpi, usd)
+       zcis.rate(curves=[usd, usd, us_cpi, usd])
+       zcis.npv(curves=[usd, usd, us_cpi, usd])
+       zcis.analytic_delta(usd, usd)
 
     A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
 
     .. ipython:: python
 
-       zcis.cashflows(curves=[us_cpi, usd])
+       zcis.cashflows(curves=[usd, usd, us_cpi, usd])
 
     For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCIS.delta`
     and :meth:`~rateslib.instruments.ZCIS.gamma`, construct a curve model.
@@ -4858,9 +4859,9 @@ class ZCIS(BaseDerivative):
            frequency="A",
            convention="1+",
            calendar="nyc",
-           index_method="monthly",
+           leg2_index_method="monthly",
            currency="usd",
-           curves=["us_cpi", "usd"]
+           curves=["usd", "usd", "us_cpi", "usd"]
        )
        instruments = [
            IRS(termination="5Y", **sofr_kws),

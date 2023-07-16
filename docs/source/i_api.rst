@@ -82,6 +82,7 @@ Curves
 .. automodapi:: rateslib.curves
    :no-heading:
    :inherited-members:
+   :skip: set_order_convert
    :skip: add_tenor
    :skip: create_calendar
    :skip: dcf
@@ -167,6 +168,11 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :skip: IndexCurve
+   :skip: IndexFixedLeg
+   :skip: IndexFixedLegExchange
+   :skip: IndexMixin
+   :skip: ZeroIndexLeg
    :skip: forward_fx
    :skip: sqrt
    :skip: abstractmethod
