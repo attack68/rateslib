@@ -439,7 +439,7 @@ class TestFloatPeriod:
             fixing_method="ibor",
             method_param=2,
         )
-        result = float_period.fixings_table_fast(line_curve)
+        result = float_period.fixings_table(line_curve, approximate=True)
         expected = DataFrame({
             "obs_dates": [dt(2022, 1, 2)],
             "notional": [-1e6],
@@ -695,7 +695,7 @@ class TestFloatPeriod:
             float_spread=spd,
         )
         expected = float_period.fixings_table(crv)
-        result = float_period.fixings_table_fast(crv)
+        result = float_period.fixings_table(crv, approximate=True)
         assert_frame_equal(result, expected, rtol=1e-2)
 
     def test_rfr_rate_fixings_series_monotonic_error(self):

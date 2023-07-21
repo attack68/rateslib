@@ -512,6 +512,21 @@ class TestZeroFloatLeg:
         assert result.iloc[0].to_dict()[Defaults.headers["npv"]] is None
         assert result.iloc[0].to_dict()[Defaults.headers["npv_fx"]] is None
 
+    def test_zero_float_leg_analytic_delta(self, curve):
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            convention="ActAct",
+            frequency="A",
+            float_spread=1.0,
+        )
+        result = zfl.analytic_delta(curve)
+        expected = -47914.3660
+
+        assert abs(result - expected) < 1e-3
+
 
 class TestZeroFixedLeg:
     @pytest.mark.parametrize(

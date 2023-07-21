@@ -4094,7 +4094,7 @@ class IIRS(BaseDerivative):
     Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
 
-    If ``final_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLegExchange`
+    If ``notional_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLegExchange`
     and :class:`~rateslib.legs.FloatLegExchange`.
 
     Parameters
@@ -4829,7 +4829,7 @@ class ZCIS(BaseDerivative):
            leg2_index_method="monthly",
            leg2_index_lag=3,
            leg2_index_fixings=None,
-           curves=["us_cpi", "usd"],
+           curves=["usd", "usd", "us_cpi", "usd"],
        )
        zcis.rate(curves=[usd, usd, us_cpi, usd])
        zcis.npv(curves=[usd, usd, us_cpi, usd])
@@ -7563,6 +7563,13 @@ class Portfolio(Sensitivities):
     def npv(self, *args, **kwargs):
         # TODO do not permit a mixing of currencies.
         # TODO look at legs.npv where args len is used.
+
+        from multiprocessing import Pool
+        def npv_inst(inst):
+            return inst.npv(*args, **kwargs)
+        p = Pool(defaults.cores)
+        result = p.map(npv_inst, self.instruments)
+
         if kwargs.get("local", False):
             ret = {}
             for instrument in self.instruments:

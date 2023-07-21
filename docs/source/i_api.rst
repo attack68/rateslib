@@ -14,6 +14,22 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+Notation
+--------
+
+.. math::
+
+   d \quad \text{or} \quad d_i =& \text{DCF of period} \; (i) \\
+   m \quad \text{or} \quad m_i =& \text{Maturity date of period} \; (i) \\
+   v(m) =& \text{DF of period payment date,} \; m \\
+   N \quad \text{or} \quad N_i =& \text{Notional of period} \; (i) \\
+   R =& \text{Fixed rate of period or leg} \\
+   z =& \text{Floating period spread} \\
+   r(r_i, z) =& \text{Floating rate of period as a function of fixings,} \; (r_i) \\
+   C =& \text{Cashflow} \\
+   P =& \text{Net present value} \\
+   I(m) =& \text{Index ratio applicable at maturity,} \; m \\
+
 Defaults
 ---------
 
@@ -121,6 +137,8 @@ FX
 
 Periods
 -------
+
+Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 .. automodapi:: rateslib.periods
    :no-heading:

@@ -92,6 +92,8 @@ class BasePeriod(metaclass=ABCMeta):
     FixedPeriod : Create a period defined with a fixed rate.
     FloatPeriod : Create a period defined with a floating rate index.
     Cashflow : Create a period defined by a single cashflow.
+    IndexFixedPeriod : Create a period defined with a fixed rate and an index.
+    IndexCashflow : Create a period defined by a single cashflow and an index.
     """
 
     @abstractmethod
@@ -171,45 +173,6 @@ class BasePeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
 
-        Notes
-        -----
-        For a :class:`FixedPeriod` this gives the sensitivity to the fixed rate.
-
-        .. math::
-
-           C = v N d R, \\quad A = \\frac{\\partial C}{\\partial R} = v N d
-
-        For a :class:`FloatPeriod` this gives the sensitivity to the float spread, which
-        under a ``spread_compound_method`` of *"none_simple"* (or if the
-        ``float_spread`` is zero) is equivalent to :class:`FixedPeriod` analytic delta.
-        If other compounding methods are applied the figure is usually slightly higher.
-
-        .. math::
-
-           C = v N d r(r_i, z), \\quad A = \\frac{\\partial C}{\\partial z} = v N d \\frac{\\partial r}{\\partial z}
-
-        where,
-
-        .. math::
-
-           d =& \\text{DCF of period} \\\\
-           v =& \\text{DF of period payment date}\\\\
-           N =& \\text{Notional of period}\\\\
-           R =& \\text{Fixed rate of period}\\\\
-           r =& \\text{Float period rate as a function of fixings and spread}\\\\
-           z =& \\text{Float period spread}\\\\
-
-        The sign, or direction, of analytic delta is ignorant of whether a period is
-        fixed rate or floating rate, and thus, dependent upon the context of calculating
-        either fixed rates or floating spreads, requires different interpretation.
-
-        For a **positive notional**, which assumes paying a cashflow, this method
-        returns a **positive value**. The resultant usage of analytic delta should then
-        assign a proper sign for its context in post-processing.
-
-        The analytic delta of a :class:`Cashflow` is set to zero to be compatible with
-        inherited :class:`~rateslib.instruments.BaseDerivative` methods.
-
         Examples
         --------
         .. ipython:: python
@@ -243,7 +206,7 @@ class BasePeriod(metaclass=ABCMeta):
         disc_curve: Optional[Curve] = None,
         fx: Union[float, FXRates, FXForwards] = 1.0,
         base: Optional[str] = None,
-    ):
+    ) -> dict:
         """
         Return the properties of the period used in calculating cashflows.
 
@@ -300,7 +263,7 @@ class BasePeriod(metaclass=ABCMeta):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
         local: bool = False,
-    ) -> DualTypes:
+    ) -> Union[DualTypes, dict[str, DualTypes]]:
         """
         Return the NPV of the period object.
 
@@ -356,6 +319,26 @@ class FixedPeriod(BasePeriod):
         typically after a mid-market rate for all periods has been calculated.
     kwargs : dict
         Required keyword arguments to :class:`BasePeriod`.
+
+    Notes
+    -----
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = -NdR
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv = -NdRv
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = - \\frac{\\partial P}{\\partial R} = Ndv
     """
 
     def __init__(self, *args, fixed_rate: Union[float, None] = None, **kwargs):
@@ -363,6 +346,11 @@ class FixedPeriod(BasePeriod):
         super().__init__(*args, **kwargs)
 
     def analytic_delta(self, *args, **kwargs) -> DualTypes:
+        """
+        Return the analytic delta of the *FixedPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
         return super().analytic_delta(*args, **kwargs)
 
     @property
@@ -388,6 +376,10 @@ class FixedPeriod(BasePeriod):
         base: Optional[str] = None,
         local: bool = False,
     ) -> DualTypes:
+        """
+        Return the NPV of the *FixedPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
         disc_curve = disc_curve or curve
         if disc_curve is None:
             raise TypeError(
@@ -406,7 +398,11 @@ class FixedPeriod(BasePeriod):
         disc_curve: Optional[Curve] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
-    ):
+    ) -> dict:
+        """
+        Return the cashflows of the *FixedPeriod*.
+        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
@@ -523,6 +519,23 @@ class FloatPeriod(BasePeriod):
 
     Notes
     -----
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = -Ndr(r_i, z)
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv = -Ndr(r_i, z)v
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = - \\frac{\\partial P}{\\partial z} = Ndv \\frac{\\partial r}{\\partial z}
 
     **Fixing Methods**
 
@@ -752,6 +765,11 @@ class FloatPeriod(BasePeriod):
         fx: Union[float, FXRates, FXForwards] = 1.0,
         base: Optional[str] = None,
     ):
+        """
+        Return the analytic delta of the *FloatPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
         if self.spread_compound_method == "none_simple" or self.float_spread == 0:
             # then analytic_delta is not impacted by float_spread compounding
             dr_dz = 1.0
@@ -776,6 +794,11 @@ class FloatPeriod(BasePeriod):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ):
+        """
+        Return the cashflows of the *FloatPeriod*.
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
@@ -805,6 +828,11 @@ class FloatPeriod(BasePeriod):
         base: Optional[str] = None,
         local: bool = False,
     ):
+        """
+        Return the cashflows of the *FloatPeriod*.
+        See
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
         disc_curve = disc_curve or curve
         if disc_curve is None or curve is None:
             raise TypeError(
@@ -1165,7 +1193,11 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def fixings_table(self, curve: Union[Curve, LineCurve]):
+    def fixings_table(
+        self,
+        curve: Union[Curve, LineCurve],
+        approximate: bool = False
+    ):
         """
         Return a DataFrame of fixing exposures.
 
@@ -1174,6 +1206,9 @@ class FloatPeriod(BasePeriod):
         curve : Curve, LineCurve
             The forecast needed to calculate rates which affect compounding and
             dependent notional exposure.
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
 
         Returns
         -------
@@ -1276,6 +1311,8 @@ class FloatPeriod(BasePeriod):
             })
            period.fixings_table(ibor_curve)
         """
+        if approximate:
+            return self._fixings_table_fast(curve)
         if "rfr" in self.fixing_method:
             rate, table = self._rfr_fixings_array(
                 curve,
@@ -1298,117 +1335,11 @@ class FloatPeriod(BasePeriod):
                 }
             ).set_index("obs_dates")
 
-    def fixings_table_fast(self, curve: Union[Curve, LineCurve]):
-        # TODO this doc string was copied. needs review
+    def _fixings_table_fast(self, curve: Union[Curve, LineCurve]):
         """
-        Return a DataFrame of approximate fixing exposures.
+        Return a DataFrame of **approximate** fixing exposures.
 
-        Parameters
-        ----------
-        curve : Curve, LineCurve
-            The forecast needed to calculate rates which affect compounding and
-            dependent notional exposure.
-
-        Returns
-        -------
-        DataFrame
-
-        Notes
-        -----
-        **IBOR** and **RFR** ``fixing_method`` have different representations under
-        this method.
-
-        For *"ibor"* based floating rates the fixing exposures are indexed by
-        **publication date** and not by reference value date. IBOR fixings tend to
-        occur either in advance, or the same day.
-
-        For *"rfr"* based floating rates the fixing exposures are indexed by the
-        **reference value date** and not by publication date. RFR fixings tend to
-        publish in arrears, usually at 9am the following business day. Central banks
-        tend to publish data aligning the fixing rate with the reference value date
-        and not by the publication date which is why this format is chosen. It also
-        has practical application when constructing curves.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           rfr_curve = Curve(
-               nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
-               calendar="bus"
-           )
-
-        A regular `rfr_payment_delay` period.
-
-        .. ipython:: python
-
-           constants = {
-               "start": dt(2022, 1, 5),
-               "end": dt(2022, 1, 11),
-               "payment": dt(2022, 1, 11),
-               "frequency": "Q",
-               "notional": -1000000,
-               "currency": "gbp",
-           }
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_payment_delay"
-           })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_observation_shift` period. Notice how the above had
-        4 fixings spanning 6 calendar days, but the observation shift here attributes
-        4 fixings spanning 4 calendar days so the notional exposure to those dates
-        is increased by effectively 6/4.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_observation_shift",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_lookback` period. Notice how the lookback period adjusts
-        the weightings on the 6th January fixing by 3, and thus increases the notional
-        exposure.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_lookback",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_lockout` period. Notice how the exposure to the final
-        fixing which then spans multiple days is increased.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_lockout",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        An IBOR fixing table
-
-        .. ipython:: python
-
-            ibor_curve = Curve(
-               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
-               calendar="bus",
-           )
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "ibor",
-               "method_param": 2,
-            })
-           period.fixings_table(ibor_curve)
+        For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
         """
         if "rfr" in self.fixing_method:
             # Depending upon method get the observation dates and dcf dates
@@ -1590,6 +1521,24 @@ class Cashflow:
     -----
     Other common :class:`BasePeriod` parameters not required for single cashflows are
     set to *None*.
+
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = -N
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv = -Nv
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = 0
     """
 
     def __init__(
@@ -1606,9 +1555,7 @@ class Cashflow:
         self.rate_ = rate if rate is None else float(rate)
 
     def rate(self):
-        """
-        The rate of the cashflow (nominal only - not used in calculations)
-        """
+        # The rate of the cashflow (nominal only - not used in calculations)
         return self.rate_
 
     def npv(
@@ -1619,6 +1566,11 @@ class Cashflow:
         base: Optional[str] = None,
         local: bool = False,
     ):
+        """
+        Return the NPV of the *Cashflow*.
+        See
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
         disc_curve = disc_curve or curve
         if disc_curve is None:
             raise TypeError(
@@ -1638,6 +1590,11 @@ class Cashflow:
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ) -> dict:
+        """
+        Return the cashflows of the *Cashflow*.
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
@@ -1684,6 +1641,11 @@ class Cashflow:
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ):
+        """
+        Return the analytic delta of the *Cashflow*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
         return 0
 
 
@@ -1693,6 +1655,10 @@ class Cashflow:
 
 
 class IndexMixin(metaclass=ABCMeta):
+    """
+    Abstract base class to include methods and properties related to indexed *Periods*.
+    """
+
     index_base: Optional[Union[float, Series]] = None
     index_method: str = ""
     index_fixings: Optional[Union[float, Series]] = None
@@ -1715,6 +1681,22 @@ class IndexMixin(metaclass=ABCMeta):
         return _
 
     def index_ratio(self, curve: Optional[IndexCurve]) -> tuple:
+        """
+        Calculate the index ratio for the end date of the *IndexPeriod*.
+
+        .. math::
+
+           I(m) = \\frac{I_{val}(m)}{I_{base}}
+
+        Parameters
+        ----------
+        curve : IndexCurve
+            The index curve from which index values are forecast.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
         denominator = self._index_value(
             i_fixings=self.index_base,
             i_date=getattr(self, "start", None),  # IndexCashflow has no start
@@ -1814,6 +1796,10 @@ class IndexMixin(metaclass=ABCMeta):
         base: Optional[str] = None,
         local: bool = False,
     ):
+        """
+        Return the cashflows of the *IndexPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
         disc_curve = disc_curve or curve
         if disc_curve is None:
             raise TypeError(
@@ -1836,7 +1822,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     """
     Create a period defined with a real rate adjusted by an index.
 
-    When used with inflation products this defines a real coupon period with a
+    When used with an inflation index this defines a real coupon period with a
     cashflow adjusted upwards by the inflation index.
 
     Parameters
@@ -1859,6 +1845,32 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         consistency between curves and forecast values. Defined by default.
     kwargs : dict
         Required keyword arguments to :class:`FixedPeriod`.
+
+    Notes
+    -----
+    The ``real_cashflow`` is defined as follows;
+
+    .. math::
+
+       C_{real} = -NdR
+
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = C_{real}I(m) = -NdRI(m)
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv = -NdRv(m)I(m)
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = - \\frac{\\partial P}{\\partial R} = Ndv(m)I(m)
     """
 
     def __init__(
@@ -1887,6 +1899,10 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         fx: Union[float, FXRates, FXForwards] = 1.0,
         base: Optional[str] = None,
     ):
+        """
+        Return the analytic delta of the *IndexFixedPeriod*.
+        See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
         real_a_delta = super().analytic_delta(curve, disc_curve, fx, base)
         index_ratio, _, _ = self.index_ratio(curve)
         _ = None if index_ratio is None else real_a_delta * index_ratio
@@ -1914,6 +1930,10 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ):
+        """
+        Return the cashflows of the *IndexFixedPeriod*.
+        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
@@ -1940,12 +1960,19 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             defaults.headers["npv_fx"]: npv_fx,
         }
 
+    def npv(self, *args, **kwargs):
+        """
+        Return the cashflows of the *IndexFixedPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        return super().npv(*args, **kwargs)
+
 
 class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     """
     Create a cashflow defined with a real rate adjusted by an index.
 
-    When used with inflation products this defines a real redemption with a
+    When used with an inflation index this defines a real redemption with a
     cashflow adjusted upwards by the inflation index.
 
     Parameters
@@ -1967,6 +1994,32 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         consistency between curves and forecast values. Defined by default.
     kwargs : dict
         Required keyword arguments to :class:`Cashflow`.
+
+    Notes
+    -----
+    The ``real_cashflow`` is defined as follows;
+
+    .. math::
+
+       C_{real} = -N
+
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = C_{real}I(m) = -NI(m)
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv(m) = -Nv(m)I(m)
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = 0
     """
     def __init__(
         self,
@@ -1995,7 +2048,10 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ) -> dict:
-
+        """
+        Return the cashflows of the *IndexCashflow*.
+        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
@@ -2005,6 +2061,21 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
             defaults.headers["cashflow"]: self.cashflow(curve),
         }
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *IndexCashflow*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        return super().npv(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *IndexCashflow*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
+        return 0.0
 
 
 def _float_or_none(val):
