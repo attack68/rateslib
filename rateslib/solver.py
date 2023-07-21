@@ -8,9 +8,11 @@ import numpy as np
 import warnings
 from pandas import DataFrame, MultiIndex, concat, Series
 
+from rateslib import defaults
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
 from rateslib.fx import FXForwards, ProxyCurve
 from rateslib.curves import CompositeCurve
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -198,11 +200,7 @@ class Gradients:
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
         """
-        rates_pre = []
-        for solver in self.pre_solvers:
-            rates_pre += [rate for rate in solver.r]
-        rates_pre += [rate for rate in self.r]
-        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
+        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in self.r_pre]).T
         return grad_f_rT
 
     @property
@@ -260,15 +258,10 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        rates_pre = []
-        for solver in self.pre_solvers:
-            rates_pre += [rate for rate in solver.r]
-        rates_pre += [rate for rate in self.r]
-
         all_gradients = np.array(
             [
                 rate.gradient(self.pre_variables + tuple(fx_vars), order=2)
-                for rate in rates_pre
+                for rate in self.r_pre
             ]
         ).swapaxes(0, 2)
 
@@ -290,13 +283,8 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        rates_pre = []
-        for solver in self.pre_solvers:
-            rates_pre += [rate for rate in solver.r]
-        rates_pre += [rate for rate in self.r]
-
         grad_f_f_rT = np.array(
-            [rate.gradient(fx_vars, order=2) for rate in rates_pre]
+            [rate.gradient(fx_vars, order=2) for rate in self.r_pre]
         ).swapaxes(0, 2)
         return grad_f_f_rT
 
@@ -385,11 +373,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        rates_pre = []
-        for solver in self.pre_solvers:
-            rates_pre += [rate for rate in solver.r]
-        rates_pre += [rate for rate in self.r]
-        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in rates_pre]).T
+        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in self.r_pre]).T
         return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
 
     def grad_f_f(self, f, fx_vars):
@@ -959,7 +943,7 @@ class Solver(Gradients):
         instruments: Union[tuple[tuple], list[tuple]] = (),
         s: list[float] = [],
         weights: Optional[list] = None,
-        algorithm: str = "gauss_newton",
+        algorithm: Optional[str] = None,
         fx: Optional[FXForwards] = None,
         instrument_labels: Optional[tuple[str], list[str]] = None,
         id: Optional[str] = None,
@@ -968,7 +952,8 @@ class Solver(Gradients):
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
     ) -> None:
-        self.algorithm, self.m = algorithm, len(instruments)
+        self.algorithm = algorithm if algorithm is not None else defaults.algorithm
+        self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         self.pre_solvers = tuple(pre_solvers)
@@ -1135,6 +1120,7 @@ class Solver(Gradients):
         if not dual2_only:
             self._v = None  # depends on self.curves
             self._r = None  # depends on self.pre_curves and self.instruments
+            self._r_pre = None  # depends on pre_solvers and self.r
             self._x = None  # depends on self.r, self.s
             self._g = None  # depends on self.x, self.weights
             self._J = None  # depends on self.r
@@ -1179,6 +1165,26 @@ class Solver(Gradients):
             self._r = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
             # solver and fx are passed by default via parse_args to get string curves
         return self._r
+
+    @property
+    def r_pre(self):
+        if len(self.pre_solvers) == 0:
+            return self.r
+
+        if self._r_pre is None:
+            r_pre = np.empty(self.pre_m, dtype="object")
+
+            i = 0
+            for pre_solver in self.pre_solvers:
+
+                m = pre_solver.pre_m
+                r_pre[i : i + m] = pre_solver.r_pre
+                i = i + m
+
+            # create bottom right block
+            r_pre[-self.m :] = self.r
+            self._r_pre = r_pre
+        return self._r_pre
 
     @property
     def x(self):

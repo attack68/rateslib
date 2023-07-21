@@ -1302,3 +1302,42 @@ def test_solving_indirect_parameters_from_proxy_composite():
     ]
     solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur],
                     instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
+
+
+def test_solver_dimensions_of_matmul():
+    swaps = [
+        IRS(dt(2023, 7, 21), "9m", "A", fixed_rate=2.0, curves="chf", currency="chf"),
+        IRS(dt(2023, 7, 21), "9m", "A", fixed_rate=2.0, curves="gbp", currency="gbp"),
+        IRS(dt(2023, 7, 21), "9m", "A", fixed_rate=2.0, curves="usd", currency="usd"),
+    ]
+    chf_inst = [
+        IRS(dt(2023, 7, 21), "6m", "A", curves="chf", currency="chf"),
+        IRS(dt(2023, 7, 21), "1y", "A", curves="chf", currency="chf"),
+    ]
+    gbp_inst = [
+        IRS(dt(2023, 7, 21), "6m", "A", curves="gbp", currency="gbp"),
+        IRS(dt(2023, 7, 21), "1y", "A", curves="gbp", currency="gbp"),
+    ]
+    usd_inst = [
+        IRS(dt(2023, 7, 21), "6m", "A", curves="usd", currency="usd"),
+        IRS(dt(2023, 7, 21), "1y", "A", curves="usd", currency="usd"),
+    ]
+    usd = Curve(
+        {dt(2023, 7, 21): 1.0, dt(2024, 1, 21): 1.0, dt(2024, 7, 21): 1.0},
+        id="usd",
+    )
+    gbp = Curve(
+        {dt(2023, 7, 21): 1.0, dt(2024, 1, 21): 1.0, dt(2024, 7, 21): 1.0},
+        id="gbp",
+    )
+    chf = Curve(
+        {dt(2023, 7, 21): 1.0, dt(2024, 1, 21): 1.0, dt(2024, 7, 21): 1.0},
+        id="chf",
+    )
+    fxr = FXRates({"gbpusd": 1.25, "chfgbp": 1.1})
+    solver1 = Solver(curves=[chf], instruments=chf_inst, s=[1.5, 1.8], id="CHF")
+    solver2 = Solver(curves=[gbp], instruments=gbp_inst, s=[1.6, 1.7], id="GBP", pre_solvers=[solver1])
+    solver3 = Solver(curves=[usd], instruments=usd_inst, s=[1.7, 1.9], id="USD", pre_solvers=[solver2])
+    pf = Portfolio(swaps)
+    result = pf.delta(solver=solver3, base="gbp", fx=fxr)
+    result2 = pf.gamma(solver=solver3, base="gbp", fx=fxr)

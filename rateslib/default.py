@@ -93,8 +93,10 @@ class Defaults:
         "index_ratio": "Index Ratio",
         "index_base": "Index Base",
     }
+    algorithm = "gauss_newton"
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"
+    cores = 1
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
