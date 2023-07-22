@@ -540,7 +540,13 @@ class Curve(Serialize, PlotCurve):
             df_ratio = self[effective] / self[termination]
         except ZeroDivisionError:
             return None
-        _ = (df_ratio - 1) / dcf(effective, termination, self.convention) * 100
+
+        try:
+            _ = (df_ratio - 1) / dcf(effective, termination, self.convention) * 100
+        except ZeroDivisionError:
+            raise ZeroDivisionError(
+                f"effective: {effective}, termination: {termination}"
+            )
 
         if float_spread is not None and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
