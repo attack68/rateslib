@@ -7554,6 +7554,10 @@ class Fly(Sensitivities):
 #         return 2 * self.instrument2.rate(*args2) - self.instrument1.rate(*args1) - self.instrument3.rate(*args3)
 
 
+def _instrument_npv(instrument, *args, **kwargs):
+    return instrument.npv(*args, **kwargs)
+
+
 class Portfolio(Sensitivities):
     # TODO document portfolio
 
@@ -7564,12 +7568,34 @@ class Portfolio(Sensitivities):
         # TODO do not permit a mixing of currencies.
         # TODO look at legs.npv where args len is used.
 
-        from multiprocessing import Pool
-        def npv_inst(inst):
-            return inst.npv(*args, **kwargs)
-        p = Pool(defaults.cores)
-        result = p.map(npv_inst, self.instruments)
+        if defaults.pool == 1:
+            return self._npv_single_core(*args, **kwargs)
 
+        from multiprocessing import Pool
+        from functools import partial
+        func = partial(_instrument_npv, *args, **kwargs)
+        p = Pool(defaults.pool)
+        results = p.map(func, self.instruments)
+
+        if kwargs.get("local", False):
+            _ = DataFrame(results).fillna(0.0)
+            _ = _.sum()
+            ret = _.to_dict()
+
+            # ret = {}
+            # for result in results:
+            #     for ccy in result:
+            #         if ccy in ret:
+            #             ret[ccy] += result[ccy]
+            #         else:
+            #             ret[ccy] = result[ccy]
+
+        else:
+            ret = sum(results)
+
+        return ret
+
+    def _npv_single_core(self, *args, **kwargs):
         if kwargs.get("local", False):
             ret = {}
             for instrument in self.instruments:
@@ -7583,7 +7609,6 @@ class Portfolio(Sensitivities):
             ret = 0
             for instrument in self.instruments:
                 ret += instrument.npv(*args, **kwargs)
-
         return ret
 
 
