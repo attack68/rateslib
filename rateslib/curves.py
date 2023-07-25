@@ -1881,8 +1881,16 @@ class CompositeCurve(PlotCurve):
         self,
         curves: Union[list, tuple],
         id: Optional[str] = None,
+        multi_csa: bool = False,
+        multi_csa_step: Optional[int] = None
     ) -> None:
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+
+        if multi_csa and isinstance(curves[0], (LineCurve, IndexCurve)):
+            raise TypeError("Multi-CSA curves must be of type `Curve`.")
+        self.multi_csa = multi_csa
+        self.multi_csa_step = defaults.multi_csa_step if multi_csa_step is None else multi_csa_step
+
         # validate
         self._base_type = curves[0]._base_type
         for i in range(1, len(curves)):
@@ -1897,16 +1905,17 @@ class CompositeCurve(PlotCurve):
                     f"{curves[0].node_dates[0]} and {curves[i].node_dates[0]}"
                 )
 
-        for attr in [
-            "calendar",
-        ]:
-            for i in range(1, len(curves)):
-                if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
-                    raise ValueError(
-                        "Cannot composite curves with different attributes, "
-                        f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
-                        f"'{getattr(curves[0], attr, None)}'."
-                    )
+        if not self.multi_csa:  # for multi_csa DF curve do not check calendars
+            for attr in [
+                "calendar",
+            ]:
+                for i in range(1, len(curves)):
+                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
+                        raise ValueError(
+                            "Cannot composite curves with different attributes, "
+                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
+                            f"'{getattr(curves[0], attr, None)}'."
+                        )
         self.calendar = curves[0].calendar
 
         if self._base_type == "dfs":
@@ -1960,7 +1969,7 @@ class CompositeCurve(PlotCurve):
         approximate : bool, optional
             When compositing :class:`Curve` or :class:`IndexCurve` calculating many
             individual rates is expensive. This uses an approximation typically with
-            error less than 1/100th of basis point.
+            error less than 1/100th of basis point. Not used if ``multi_csa`` is True.
 
         Returns
         -------
@@ -1977,12 +1986,18 @@ class CompositeCurve(PlotCurve):
                 termination = add_tenor(effective, termination, modifier, self.calendar)
 
             d = 1.0 / 360 if "360" in self.convention else 1.0 / 365
-            if approximate:
+
+            if self.multi_csa:
+                n = (termination - effective).days
+                df_num = self[effective]
+                df_den = self[termination]
+                _ = (df_num / df_den - 1) * 100 / (d * n)
+
+            elif approximate:
                 # calculates the geometric mean overnight rates in periods and adds
-                _ = 0.0
+                _, n = 0.0, (termination - effective).days
                 for curve_ in self.curves:
                     r = curve_.rate(effective, termination)
-                    n = (termination - effective).days
                     _ += ((1 + r * n * d / 100) ** (1 / n) - 1) / d
 
                 _ = ((1 + d * _) ** n - 1) * 100 / (d * n)
@@ -2011,12 +2026,40 @@ class CompositeCurve(PlotCurve):
             # will return a composited discount factor
             days = (date - self.curves[0].node_dates[0]).days
             d = 1.0 / 360 if self.convention == "ACT360" else 1.0 / 365
-            total_rate = 0.0
-            for curve in self.curves:
-                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
-                total_rate += avg_rate
-            _ = 1.0 / (1 + total_rate * d) ** days
-            return _
+
+            if not self.multi_csa:
+                total_rate = 0.0
+                for curve in self.curves:
+                    avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
+                    total_rate += avg_rate
+                _ = 1.0 / (1 + total_rate * d) ** days
+                return _
+            else:
+                # method uses the step and picks the highest (cheapest rate)
+                # in each period
+                _ = 1.0
+                d1 = self.curves[0].node_dates[0]
+                d2 = d1 + timedelta(days=self.multi_csa_step)
+
+                # cache stores looked up DF values to next loop, avoiding double calc
+                cache = {i: 1.0 for i in range(len(self.curves))}
+                while d2 < date:
+                    min_ratio = 1e5
+                    for i, curve in enumerate(self.curves):
+                        d2_df = curve[d2]
+                        ratio_ = d2_df / cache[i]
+                        min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+                        cache[i] = d2_df
+                    _ *= min_ratio
+                    d1, d2 = d2, d2 + timedelta(days=self.multi_csa_step)
+
+                # finish the loop on the correct date
+                min_ratio = 1e5
+                for i, curve in enumerate(self.curves):
+                    ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
+                    min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+                _ *= min_ratio
+                return _
 
         elif self._base_type == "values":
             # will return a composited rate

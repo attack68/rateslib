@@ -411,13 +411,13 @@ class FixedLeg(BaseLeg, FixedLegMixin):
 
     .. math::
 
-       P = -N R \\sum_{i=1}^n {d_i v_i(m_i)}
+       P = - R \\sum_{i=1}^n {N_i d_i v_i(m_i)}
 
     The analytic delta is the sum of the period analytic deltas.
 
     .. math::
 
-       A = -\\frac{\\partial P}{\\partial R} = N \\sum_{i=1}^n {d_i v_i(m_i)}
+       A = -\\frac{\\partial P}{\\partial R} = \\sum_{i=1}^n {N_i d_i v_i(m_i)}
 
     """
 
@@ -613,13 +613,13 @@ class FloatLeg(BaseLeg, FloatLegMixin):
 
     .. math::
 
-       P = -N \\sum_{i=1}^n {r_i(r_j, z) d_i v_i(m_i)}
+       P = - \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}
 
     The analytic delta is the sum of the period analytic deltas.
 
     .. math::
 
-       A = -\\frac{\\partial P}{\\partial z} = N \\sum_{i=1}^n {\\frac{\\partial r_i}{\\partial z} d_i v_i(m_i)}
+       A = -\\frac{\\partial P}{\\partial z} = \\sum_{i=1}^n {\\frac{\\partial r_i}{\\partial z} N_i d_i v_i(m_i)}
 
 
     .. warning::

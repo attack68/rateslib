@@ -14,6 +14,7 @@ from rateslib.curves import (
     IndexCurve,
     CompositeCurve,
 )
+from rateslib import default_context
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
 
@@ -1003,7 +1004,7 @@ class TestCompositeCurve:
         with pytest.raises(TypeError, match="`curves` must be a list of"):
             CompositeCurve([curve, line_curve])
 
-    @pytest.mark.parametrize("attribute, val",[
+    @pytest.mark.parametrize("attribute, val", [
         ("modifier", ["MF", "MP"]),
         ("calendar", ["ldn", "tgt"]),
         ("convention", ["act360", "act365f"])
@@ -1031,7 +1032,7 @@ class TestCompositeCurve:
         with pytest.raises(ValueError, match="`curves` must share the same ini"):
             CompositeCurve([c1, c2])
 
-    @pytest.mark.parametrize("lag, base",[
+    @pytest.mark.parametrize("lag, base", [
         ([2, 3], [100.0, 100.0]),
         ([3, 3], [100.0, 100.001])
     ])
@@ -1063,6 +1064,61 @@ class TestCompositeCurve:
         cc = CompositeCurve([ic1, ic2])
         assert cc.index_lag == 3
         assert cc.index_base == 101.1
+
+    def test_multi_csa(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+             },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        c3 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99979455,  # 3.5%
+                dt(2022, 1, 4): 0.99969869,  # 3.5%
+                dt(2022, 1, 5): 0.99958915,  # 4%
+            },
+            convention="Act365F",
+        )
+        cc = CompositeCurve([c1, c2, c3], multi_csa=True)
+        with default_context("multi_csa_granularity", 1):
+            r1 = cc.rate(dt(2022, 1, 1), "1d")
+            r2 = cc.rate(dt(2022, 1, 2), "1d")
+            r3 = cc.rate(dt(2022, 1, 3), "1d")
+            r4 = cc.rate(dt(2022, 1, 4), "1d")
+
+        assert abs(r1 - 4.0) < 1e-3
+        assert abs(r2 - 3.5) < 1e-3
+        assert abs(r3 - 3.5) < 1e-3
+        assert abs(r4 - 4.0) < 1e-3
+
+    def test_multi_csa_granularity(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.9, dt(2072, 1, 1): 0.5})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.8, dt(2072, 1, 1): 0.7})
+        cc = CompositeCurve([c1, c2], multi_csa=True)
+
+        with default_context("multi_csa_granularity", 182):
+            r1 = cc.rate(dt(2052, 5, 24), "1d")
+            r2 = cc.rate(dt(2052, 5, 25), "1d")
+            r3 = cc.rate(dt(2052, 5, 26), "1d")
+
+        assert abs(r1 - 1.448374) < 1e-3
 
 
 class TestPlotCurve:

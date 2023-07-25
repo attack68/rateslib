@@ -21,7 +21,7 @@ Legs
 ****
 
 The ``rateslib.legs`` module creates *Legs* which
-essentially contain a list of :ref:`Periods<periods-doc>`. The pricing, and
+typically contain a list of :ref:`Periods<periods-doc>`. The pricing, and
 risk, calculations of *Legs* resolves to a linear sum of those same calculations
 looped over all of the individual *Periods*.
 Like *Periods*, it is probably quite

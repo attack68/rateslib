@@ -332,13 +332,13 @@ class FixedPeriod(BasePeriod):
 
     .. math::
 
-       P = Cv = -NdRv
+       P = Cv = -NdRv(m)
 
     The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
 
     .. math::
 
-       A = - \\frac{\\partial P}{\\partial R} = Ndv
+       A = - \\frac{\\partial P}{\\partial R} = Ndv(m)
     """
 
     def __init__(self, *args, fixed_rate: Union[float, None] = None, **kwargs):
@@ -529,13 +529,13 @@ class FloatPeriod(BasePeriod):
 
     .. math::
 
-       P = Cv = -Ndr(r_i, z)v
+       P = Cv(m) = -Ndr(r_i, z)v(m)
 
     The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
 
     .. math::
 
-       A = - \\frac{\\partial P}{\\partial z} = Ndv \\frac{\\partial r}{\\partial z}
+       A = - \\frac{\\partial P}{\\partial z} = Ndv(m) \\frac{\\partial r}{\\partial z}
 
     **Fixing Methods**
 
@@ -1532,7 +1532,7 @@ class Cashflow:
 
     .. math::
 
-       P = Cv = -Nv
+       P = Cv(m) = -Nv(m)
 
     The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
 
@@ -1555,7 +1555,9 @@ class Cashflow:
         self.rate_ = rate if rate is None else float(rate)
 
     def rate(self):
-        # The rate of the cashflow (nominal only - not used in calculations)
+        """
+        Return the associated rate initialised with the *Cashflow*. Not used for calculations.
+        """
         return self.rate_
 
     def npv(
