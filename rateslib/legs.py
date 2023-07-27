@@ -1227,17 +1227,27 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     Notes
     -----
+    .. warning::
 
-    The rate in this calculation is not a period rate but an IRR defining the cashflow
-    as follows,
+       The ``fixed_rate`` in this calculation is not a period rate but an IRR
+       defining the cashflow as follows,
+
+       .. math::
+
+          C = -N \\left ( \\left (1 + \\frac{R^{irr}}{f} \\right ) ^ {df} - 1 \\right )
+
+    The NPV of a *ZeroFixedLeg* is:
 
     .. math::
 
-       C = -N ( (1 + \\frac{R}{f}) ^ {df} - 1)
+       P = -N v(m) \\left ( \\left (1+\\frac{R^{irr}}{f} \\right )^{df} - 1 \\right )
 
-    Examples
-    --------
-    TODO
+    The analytic delta of a *ZeroFixedLeg* is:
+
+    .. math::
+
+      A = N d v(m) \\left ( 1+ \\frac{R^{irr}}{f} \\right )^{df -1}
+
     """
 
     def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
@@ -1283,6 +1293,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     @property
     def dcf(self):
+        """
+        The DCF of a *ZeroFixedLeg* is defined as DCF of the single *FixedPeriod*
+        spanning the *Leg*.
+        """
         _ = 0.0
         for period in self.periods:
             _ += period.dcf
@@ -1296,30 +1310,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         base: Optional[str] = None,
     ):
         """
-        Return the properties of the leg used in calculating cashflows.
+        Return the cashflows of the *ZeroFixedLeg* from all periods.
 
-        Parameters
-        ----------
-        curve : Curve, optional
-            The forecasting curve object. Not used unless it is set equal to
-            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
-        disc_curve : Curve, optional
-            The discounting curve object used in calculations.
-            Set equal to ``curve`` if not given.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
-            object, converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code).
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object. If not given defaults to
-            ``fx.base``.
-
-        Returns
-        -------
-        DataFrame
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
         """
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
@@ -1362,42 +1356,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         base: Optional[str] = None,
     ) -> DualTypes:
         """
-        Return the analytic delta of the leg object.
+        Return the analytic delta of the *ZeroFixedLeg* from all periods.
 
-        Parameters
-        ----------
-        curve : Curve
-            The forecasting curve object. Not used unless it is set equal to
-            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
-        disc_curve : Curve, optional
-            The discounting curve object used in calculations.
-            Set equal to ``curve`` if not given.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
-            object, converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-
-        Returns
-        -------
-        float, Dual, Dual2, None
-
-        Notes
-        -----
-        For a :class:`ZeroFixedLeg` this gives the sensitivity to the IRR fixed rate.
-        This is a non-linear quantity and depends on the fixed rate itself.
-        This value is *not* used when determining mid-market prices.
-
-        .. math::
-
-           \\frac{\\partial P}{\\partial R} = N v d \\left ( 1 + \\frac{R^{irr}}{f} \\right ) ^{df-1}
-
-        If the ``fixed_rate`` is undetermined and set to *None* will return *None*.
-
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         disc_curve_: Curve = disc_curve or curve
         if self.fixed_rate is None:
@@ -1426,6 +1388,15 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         _ = f * ((1 + period_rate * self.dcf/ 100)**(1/(self.dcf*f)) - 1)
         return _ * 10000
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *ZeroFixedLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
 
 
 class ZeroIndexLeg(BaseLeg, IndexLegMixin):
@@ -1536,6 +1507,7 @@ class BaseLegExchange(BaseLeg):
     --------
     FixedLegExchange : Create a fixed leg with additional notional exchanges.
     FloatLegExchange : Create a floating leg with additional notional exchanges.
+    IndexFixedLegExchange : Create a fixed leg indexed with additional indexed notional exchanges.
     BaseLegExchangeMtm : Base class for legs with additional MTM notional exchanges.
     """
 
@@ -1579,6 +1551,14 @@ class BaseLegExchange(BaseLeg):
     def _set_periods(self):
         pass  # pragma: no cover
 
+    def npv(self, *args, **kwargs):
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        return super().cashflows(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        return super().analytic_delta(*args, **kwargs)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1687,6 +1667,15 @@ class FixedLegExchange(FixedLegMixin, BaseLegExchange):
                 "Exchange",
             )
         )
+
+    def npv(self, *args, **kwargs):
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        return super().cashflows(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        return super().analytic_delta(*args, **kwargs)
 
 
 class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
@@ -1839,6 +1828,15 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
                 index_method=self.index_method,
             )
         )
+
+    def npv(self, *args, **kwargs):
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        return super().cashflows(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        return super().analytic_delta(*args, **kwargs)
 
 
 class FloatLegExchange(BaseLegExchange, FloatLegMixin):
@@ -2001,6 +1999,15 @@ class FloatLegExchange(BaseLegExchange, FloatLegMixin):
         :meth:`FloatPeriod.fixings_table()<rateslib.periods.FloatPeriod.fixings_table>`.
         """
         return super()._fixings_table(*args, **kwargs)
+
+    def npv(self, *args, **kwargs):
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        return super().cashflows(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        return super().analytic_delta(*args, **kwargs)
 
 
 class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):
@@ -2228,23 +2235,6 @@ class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):
         base: Optional[str] = None,
         local: bool = False,
     ):
-        """
-        Return the NPV of the leg object via summing all periods.
-
-        Calculates the cashflow for the all periods and multiplies them by the
-        DF associated with each payment date.
-
-        Parameters
-        ----------
-        args :
-            Positional arguments supplied to :meth:`BasePeriod.npv`.
-        kwargs :
-            Keyword arguments supplied to :meth:`BasePeriod.npv`.
-
-        Returns
-        -------
-        float, Dual, Dual2 or dict of such
-        """
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
         ret = super().npv(curve, disc_curve, fx, base, local)
