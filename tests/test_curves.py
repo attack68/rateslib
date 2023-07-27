@@ -809,8 +809,8 @@ def test_index_curve_roll():
 
 
 def test_curve_translate_raises(curve):
-    with pytest.raises(ValueError, match="Cannot translate exactly for the given"):
-        curve.translate(dt(2022, 4, 1))
+    with pytest.raises(ValueError, match="Cannot translate into the past."):
+        curve.translate(dt(2020, 4, 1))
 
 
 class TestIndexCurve:

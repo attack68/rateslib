@@ -738,9 +738,12 @@ class Curve(Serialize, PlotCurve):
         new_nodes = {k: scalar * v for k, v in self.nodes.items()}
 
         # re-organise the nodes on the new curve
-        if start == self.node_dates[1]:
-            del new_nodes[self.node_dates[1]]
         del new_nodes[self.node_dates[0]]
+        flag, i = (start >= self.node_dates[1]), 1
+        while flag:
+            del new_nodes[self.node_dates[i]]
+            flag, i = (start >= self.node_dates[i + 1]), i + 1
+
         new_nodes = {start: 1.0, **new_nodes}
         return new_nodes
 
@@ -875,10 +878,8 @@ class Curve(Serialize, PlotCurve):
            plt.show()
 
         """
-        if start <= self.node_dates[0] or self.node_dates[1] < start:
-            raise ValueError(
-                "Cannot translate exactly for the given `start`, review the docs."
-            )
+        if start <= self.node_dates[0]:
+            raise ValueError("Cannot translate into the past. Review the docs.")
 
         new_nodes = self._translate_nodes(start)
 
@@ -1308,12 +1309,15 @@ class LineCurve(Curve):
 
     def _translate_nodes(self, start: datetime):
         new_nodes = self.nodes.copy()
+
         # re-organise the nodes on the new curve
         del new_nodes[self.node_dates[0]]
-        if start == self.node_dates[1]:
-            pass
-        else:
-            new_nodes = {start: self[start], **new_nodes}
+        flag, i = (start >= self.node_dates[1]), 1
+        while flag:
+            del new_nodes[self.node_dates[i]]
+            flag, i = (start >= self.node_dates[i + 1]), i + 1
+
+        new_nodes = {start: self[start], **new_nodes}
         return new_nodes
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
