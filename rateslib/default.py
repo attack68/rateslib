@@ -97,7 +97,14 @@ class Defaults:
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"
     pool = 1
-    multi_csa_step = 1  # number of days between calc for points for multi_csa curves
+
+    # fmt: off
+    multi_csa_steps = [
+       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
+       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
+       1808, 1821, 1824, 1825,
+    ]
+    # fmt: on
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.

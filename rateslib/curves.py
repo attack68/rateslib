@@ -1882,14 +1882,18 @@ class CompositeCurve(PlotCurve):
         curves: Union[list, tuple],
         id: Optional[str] = None,
         multi_csa: bool = False,
-        multi_csa_step: Optional[int] = None
+        multi_csa_min_step: Optional[int] = 1,
+        multi_csa_max_step: Optional[int] = 1825,
     ) -> None:
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
 
         if multi_csa and isinstance(curves[0], (LineCurve, IndexCurve)):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
         self.multi_csa = multi_csa
-        self.multi_csa_step = defaults.multi_csa_step if multi_csa_step is None else multi_csa_step
+        self.multi_csa_min_step = max(1, multi_csa_min_step)
+        self.multi_csa_max_step = min(1825, multi_csa_max_step)
+        if self.multi_csa_min_step > self.multi_csa_max_step:
+            raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
 
         # validate
         self._base_type = curves[0]._base_type
@@ -1989,6 +1993,8 @@ class CompositeCurve(PlotCurve):
 
             if self.multi_csa:
                 n = (termination - effective).days
+                # TODO when these discount factors are looked up the curve repeats
+                # the lookup could be vectorised to return two values at once.
                 df_num = self[effective]
                 df_den = self[termination]
                 _ = (df_num / df_den - 1) * 100 / (d * n)
@@ -2039,10 +2045,15 @@ class CompositeCurve(PlotCurve):
                 # in each period
                 _ = 1.0
                 d1 = self.curves[0].node_dates[0]
-                d2 = d1 + timedelta(days=self.multi_csa_step)
 
+                def _get_step(step):
+                    return min(
+                        max(step, self.multi_csa_min_step), self.multi_csa_max_step
+                    )
+
+                d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
                 # cache stores looked up DF values to next loop, avoiding double calc
-                cache = {i: 1.0 for i in range(len(self.curves))}
+                cache, k = {i: 1.0 for i in range(len(self.curves))}, 1
                 while d2 < date:
                     min_ratio = 1e5
                     for i, curve in enumerate(self.curves):
@@ -2051,15 +2062,22 @@ class CompositeCurve(PlotCurve):
                         min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
                         cache[i] = d2_df
                     _ *= min_ratio
-                    d1, d2 = d2, d2 + timedelta(days=self.multi_csa_step)
+                    try:
+                        step = _get_step(defaults.multi_csa_steps[k])
+                    except IndexError:
+                        step = self.multi_csa_max_step
+                    d1, d2, k = d2, d2 + timedelta(days=step), k + 1
 
                 # finish the loop on the correct date
-                min_ratio = 1e5
-                for i, curve in enumerate(self.curves):
-                    ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
-                    min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-                _ *= min_ratio
-                return _
+                if date == d1:
+                    return _
+                else:
+                    min_ratio = 1e5
+                    for i, curve in enumerate(self.curves):
+                        ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
+                        min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+                    _ *= min_ratio
+                    return _
 
         elif self._base_type == "values":
             # will return a composited rate

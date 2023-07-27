@@ -1111,12 +1111,13 @@ class TestCompositeCurve:
     def test_multi_csa_granularity(self):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.9, dt(2072, 1, 1): 0.5})
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.8, dt(2072, 1, 1): 0.7})
-        cc = CompositeCurve([c1, c2], multi_csa=True)
+        cc = CompositeCurve(
+            [c1, c2], multi_csa=True, multi_csa_max_step=182, multi_csa_min_step=182
+        )
 
-        with default_context("multi_csa_granularity", 182):
-            r1 = cc.rate(dt(2052, 5, 24), "1d")
-            r2 = cc.rate(dt(2052, 5, 25), "1d")
-            r3 = cc.rate(dt(2052, 5, 26), "1d")
+        r1 = cc.rate(dt(2052, 5, 24), "1d")
+        r2 = cc.rate(dt(2052, 5, 25), "1d")
+        r3 = cc.rate(dt(2052, 5, 26), "1d")
 
         assert abs(r1 - 1.448374) < 1e-3
 
