@@ -21,7 +21,10 @@ class DualBase(metaclass=ABCMeta):
     dual: np.ndarray = np.zeros(0)
     dual2: np.ndarray = np.zeros(0)
 
-    def __init__(self, real: float, vars: tuple[str, ...] = tuple()):
+    def __init__(
+        self, real: float, vars: tuple[str, ...] = tuple()
+    ) -> None:  # pragma: no cover
+        # each dual overloads init
         self.real: float = real
         self.vars: tuple[str, ...] = vars
 
@@ -74,7 +77,8 @@ class DualBase(metaclass=ABCMeta):
                 return False
         elif type(self) is Dual2 or type(argument) is Dual2:
             # this line should not be hit TypeError should raise earlier
-            return False  # cannot compare Dual with Dual2
+            # cannot compare Dual with Dual2
+            return False  # pragma: no cover
         return True
 
     def __upcast_combined__(self, arg):
@@ -715,6 +719,39 @@ def set_order(val, order):
     elif isinstance(val, (Dual, Dual2)):
         return val._set_order(order)
 
+
+def set_order_convert(val, order, tag):
+    """
+    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
+
+    Parameters
+    ----------
+    val : float, Dual or Dual2
+        The value to convert.
+    order : int
+        The AD order to convert the value to if necessary.
+    tag : str
+        The variable name if upcasting a float to a Dual or Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(val, (*FLOATS, *INTS)):
+        if order == 0:
+            return val
+        elif order == 1:
+            return Dual(val, tag)
+        elif order == 2:
+            return Dual2(val, tag)
+    elif isinstance(val, (Dual, Dual2)):
+        if order == 0:
+            return float(val)
+        elif (order == 1 and isinstance(val, Dual)) \
+                or (order == 2 and isinstance(val, Dual2)):
+            return val
+        else:
+            return val._set_order(order)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

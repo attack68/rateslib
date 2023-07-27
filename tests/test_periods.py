@@ -7,7 +7,7 @@ import numpy as np
 
 import context
 from rateslib.periods import (
-    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod, IndexCashflow
+    Cashflow, FixedPeriod, FloatPeriod, IndexFixedPeriod, IndexCashflow, IndexMixin
 )
 from rateslib.fx import FXRates
 from rateslib.default import Defaults
@@ -62,11 +62,23 @@ def line_curve():
 
 class TestFloatPeriod:
 
+    def test_none_cashflow(self):
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+        )
+        assert float_period.cashflow(None) is None
+
     @pytest.mark.parametrize("spread_method, float_spread, expected", [
         ("none_simple", 100.0, 24744.478172244584),
         ("isda_compounding", 0.0, 24744.478172244584),
         ("isda_compounding", 100.0, 25053.484941157145),
-        ("isda_flat_compounding", 100.0, 24747.211149828523),
+        ("isda_flat_compounding", 100.0, 24867.852396116967),
     ])
     def test_float_period_analytic_delta(self, curve, spread_method, float_spread, expected):
         float_period = FloatPeriod(
@@ -211,7 +223,7 @@ class TestFloatPeriod:
         curve = rfr_curve if curve_type == "curve" else line_curve
         period = FloatPeriod(dt(2022, 1, 1), dt(2022, 1, 4), dt(2022, 1, 4), "Q",
                              fixing_method="rfr_lockout", method_param=2)
-        assert period._is_complex == True  # lockout requires all fixings.
+        assert period._is_inefficient == True  # lockout requires all fixings.
         result = period.rate(curve)
         expected = ((1 + 0.01 / 365) * (1 + 0.01 / 365) * (
                     1 + 0.01 / 365) - 1) * 36500 / 3
@@ -373,7 +385,7 @@ class TestFloatPeriod:
                 1 + 0.03 / 365) - 1) * 36500 / 3 + 100 / 100),
         ("isda_compounding",
          ((1 + 0.02 / 365) * (1 + 0.03 / 365) * (1 + 0.04 / 365) - 1) * 36500 / 3),
-        ("isda_flat_compounding", 3.000118724464),
+        ("isda_flat_compounding", 3.000173518986841),
     ])
     def test_rfr_compounding_float_spreads(self, method, expected, rfr_curve):
         period = FloatPeriod(
@@ -397,7 +409,7 @@ class TestFloatPeriod:
             fixing_method="ibor",
             method_param=2,
         )
-        assert period._is_complex == False
+        assert period._is_inefficient == False
         assert period.rate(line_curve) == 3.0
 
     def test_ibor_fixing_table(self, line_curve):
@@ -410,6 +422,24 @@ class TestFloatPeriod:
             method_param=2,
         )
         result = float_period.fixings_table(line_curve)
+        expected = DataFrame({
+            "obs_dates": [dt(2022, 1, 2)],
+            "notional": [-1e6],
+            "dcf": [None],
+            "rates": [2.0]
+        }).set_index("obs_dates")
+        assert_frame_equal(expected, result)
+
+    def test_ibor_fixing_table_fast(self, line_curve):
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=2,
+        )
+        result = float_period.fixings_table(line_curve, approximate=True)
         expected = DataFrame({
             "obs_dates": [dt(2022, 1, 2)],
             "notional": [-1e6],
@@ -576,16 +606,16 @@ class TestFloatPeriod:
             result = float_period.rate(curve)
         assert result == 2.0
 
-    @pytest.mark.skip(reason="str is an erroneous input to function: test redundant.")
-    def test_float_period_rate_raises(self):
-        float_period = FloatPeriod(
-            start=dt(2022, 1, 4),
-            end=dt(2022, 4, 4),
-            payment=dt(2022, 4, 4),
-            frequency="Q",
-        )
-        with pytest.raises(TypeError, match="Curve must be of type"):
-            float_period.rate("bad_curve")
+    # @pytest.mark.skip(reason="str is an erroneous input to function: test redundant.")
+    # def test_float_period_rate_raises(self):
+    #     float_period = FloatPeriod(
+    #         start=dt(2022, 1, 4),
+    #         end=dt(2022, 4, 4),
+    #         payment=dt(2022, 4, 4),
+    #         frequency="Q",
+    #     )
+    #     with pytest.raises(TypeError, match="Curve must be of type"):
+    #         float_period.rate("bad_curve")
 
     def test_float_period_fixings_list_raises_on_ibor(self):
         with pytest.raises(ValueError, match="`fixings` can only be a single"):
@@ -632,6 +662,41 @@ class TestFloatPeriod:
         # assert values are unchanged even if curve can calculate derivatives
         result = float_period.fixings_table(curve)
         assert_frame_equal(result, expected)
+
+    @pytest.mark.parametrize("method, param", [
+        ("rfr_payment_delay", None),
+        ("rfr_lookback", 4),
+        ("rfr_lockout", 1),
+        ("rfr_observation_shift", 2),
+    ])
+    @pytest.mark.parametrize("scm, spd", [
+        ("none_simple", 1000.0),
+        ("isda_compounding", 1000.0),
+        ("isda_flat_compounding", 1000.0),
+    ])
+    @pytest.mark.parametrize("crv", [
+        Curve({
+            dt(2022, 1, 1): 1.00,
+            dt(2022, 4, 1): 0.99,
+            dt(2022, 7, 1): 0.98,
+            dt(2022, 10, 1): 0.97,
+            dt(2023, 6, 1): 0.96,
+        }, interpolation="log_linear", calendar="bus"),
+    ])
+    def test_rfr_fixings_table_fast(self, method, param, scm, spd, crv):
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 3),
+            payment=dt(2023, 1, 3),
+            frequency="M",
+            fixing_method=method,
+            method_param=param,
+            spread_compound_method=scm,
+            float_spread=spd,
+        )
+        expected = float_period.fixings_table(crv)
+        result = float_period.fixings_table(crv, approximate=True)
+        assert_frame_equal(result, expected, rtol=1e-2)
 
     def test_rfr_rate_fixings_series_monotonic_error(self):
         nodes = {
@@ -913,12 +978,12 @@ class TestIndexFixedPeriod:
     ])
     def test_period_rate(self, method, expected):
         index_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
@@ -929,17 +994,17 @@ class TestIndexFixedPeriod:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.,
         )
-        result = index_period.rate(index_curve)
+        _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
 
     def test_period_cashflow(self):
         index_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
@@ -991,12 +1056,12 @@ class TestIndexFixedPeriod:
     ])
     def test_period_fixings_series(self, fixings, method, curve):
         fixed_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             currency="usd",
             index_base=200.0,
@@ -1023,12 +1088,12 @@ class TestIndexFixedPeriod:
 
     def test_period_npv(self, curve):
         index_period = IndexFixedPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
             notional=1e9,
             convention="Act360",
-            termination=dt(2022, 4, 1),
+            termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
@@ -1093,6 +1158,7 @@ class TestIndexFixedPeriod:
             "Spread": None,
             "Cashflow": -20000000.0,
             "Real Cashflow": -10e6,
+            "Index Base": 100.0,
             "Index Val": 200.0,
             "Index Ratio": 2.0,
             "NPV": -19795582.53779571 if curve_ else None,
@@ -1122,6 +1188,49 @@ class TestIndexFixedPeriod:
         )
         result = i_period.cashflows()
         assert result[Defaults.headers["index_ratio"]] is None
+
+    def test_bad_curve(self):
+        i_period = IndexFixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 2, 1),
+            payment=dt(2022, 2, 1),
+            frequency="M",
+            index_base=100.0,
+        )
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+            i_period.index_ratio(curve)
+
+    # TEST REDUNDANT: function was changed to fallback to forecast from curve
+    # def test_cannot_forecast_from_fixings(self):
+    #     i_fixings = Series([100], index=[dt(2021, 1, 1)])
+    #     i_period = IndexFixedPeriod(
+    #         start=dt(2022, 1, 1),
+    #         end=dt(2022, 2, 1),
+    #         payment=dt(2022, 2, 1),
+    #         frequency="M",
+    #         index_base=100.0,
+    #         index_fixings=i_fixings,
+    #     )
+    #     curve = IndexCurve(
+    #         {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+    #         index_lag=3,
+    #         index_base=100.0
+    #     )
+    #     with pytest.raises(ValueError, match="`index_fixings` cannot forecast the"):
+    #         i_period.index_ratio(curve)
+
+    def test_index_fixings_linear_interp(self):
+        i_fixings = Series([173.1, 174.2], index=[dt(2001, 7, 1), dt(2001, 8, 1)])
+        result = IndexMixin._index_value(
+            i_fixings=i_fixings,
+            i_curve=None,
+            i_date=dt(2001, 7, 20),
+            i_lag=3,
+            i_method="daily"
+        )
+        expected = 173.1 + 19/31 * (174.2 - 173.1)
+        assert abs(result - expected) < 1e-6
 
 
 class TestIndexCashflow:

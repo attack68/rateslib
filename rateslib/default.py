@@ -16,11 +16,14 @@ class Defaults:
     stub_length = "SHORT"
     modifier = "MF"
     index_lag = 3
+    index_method = "daily"
     payment_lag = 2
     payment_lag_exchange = 0
     payment_lag_specific = {
         "IRS": 2,
+        "IIRS": 2,
         "ZCS": 2,
+        "ZCIS": 0,
         "FXSwap": 0,
         "SBS": 2,
         "Swap": 2,
@@ -32,6 +35,7 @@ class Defaults:
         "FixedFixedXCS": 2,
         "FloatFixedXCS": 2,
         "FixedRateBond": 0,
+        "IndexFixedRateBond": 0,
         "FloatRateBond": 0,
         "Bill": 0,
         "FRA": 0,
@@ -87,9 +91,20 @@ class Defaults:
         "real_cashflow": "Real Cashflow",
         "index_value": "Index Val",
         "index_ratio": "Index Ratio",
+        "index_base": "Index Base",
     }
+    algorithm = "gauss_newton"
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"
+    pool = 1
+
+    # fmt: off
+    multi_csa_steps = [
+       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
+       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
+       1808, 1821, 1824, 1825,
+    ]
+    # fmt: on
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.

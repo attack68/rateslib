@@ -1,5 +1,6 @@
 import pytest
 from datetime import datetime as dt
+from matplotlib import pyplot as plt
 from pandas import DataFrame
 from pandas.testing import assert_frame_equal
 import numpy as np
@@ -536,6 +537,7 @@ def test_fx_plot(left, right):
     assert len(result) == 3
     y_data = result[2][0].get_data()[1]
     assert abs(float(y_data[8]) - 0.9520631477714822) < 1e-10
+    plt.close("all")
 
 
 def test_delta_risk_equivalence():

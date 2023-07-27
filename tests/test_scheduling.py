@@ -582,3 +582,99 @@ def test_get_unadjusted_long_stub_imm(ue, ut, exp):
 def test_get_unadjusted_short_stub_imm(ue, ut, exp):
     result = _get_unadjusted_short_stub_date(ue, ut, "Q", "FRONT", False, "imm")
     assert result == exp
+
+
+def test_dead_stubs():
+    # this was a bug detected in performance testing which generated a 1d invalid stub.
+    # this failed originally because a 1D stub between Sun 2nd May 27 and Mon 3rd May 27
+    # was invalid since the adjusted accrual schedule modified the sunday to be
+    # equal to the Monday giving a 0 day period.
+    s = Schedule(
+        dt(2027, 5, 2),
+        dt(2046, 5, 3),
+        "A",
+        "SHORTFRONT",
+        None,
+        None,
+        None,
+        None,
+        False,
+        "bus",
+        None,
+    )
+    assert s.uschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
+    assert s.aschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
+
+    # manipulate this test to cover the case for dual sided stubs
+    s = Schedule(
+        dt(2027, 5, 2),
+        dt(2046, 6, 3),
+        "A",
+        "SHORTFRONTSHORTBACK",
+        None,
+        dt(2046, 5, 3),  # back stub means front stub is inferred
+        None,
+        None,
+        False,
+        "bus",
+        None,
+    )
+    assert s.uschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
+    assert s.aschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
+
+    # this was a bug detected in performance testing which generated a 1d invalid stub.
+    # this failed originally because the ueffective date of Sat 20-dec-25 and the
+    # inferred front stub of Sun 21-dec-25 both adjusted forwards to 22-dec-25
+    # giving a 0 day period.
+    s = Schedule(
+        dt(2025, 12, 20),
+        dt(2069, 12, 21),
+        "A",
+        "SHORTFRONT",
+        None,
+        None,
+        None,
+        None,
+        False,
+        "bus",
+        None,
+    )
+    assert s.uschedule[0:2] == [dt(2025, 12, 21), dt(2026, 12, 21)]
+    assert s.aschedule[0:2] == [dt(2025, 12, 22), dt(2026, 12, 21)]
+
+    # this was a bug detected in performance testing which generated a 1d invalid stub.
+    # this failed originally because the utermination date of Sat 20-dec-25 and the
+    # inferred front stub of Sun 21-dec-25 both adjusted forwards to 22-dec-25
+    # giving a 0 day period.
+    s = Schedule(
+        dt(2027, 10, 19),
+        dt(2047, 10, 20),
+        "A",
+        "SHORTBACK",
+        None,
+        None,
+        None,
+        None,
+        False,
+        "bus",
+        None,
+    )
+    assert s.uschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 19)]
+    assert s.aschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 21)]
+
+    # manipulate this test for dual sided stubs
+    s = Schedule(
+        dt(2027, 8, 19),
+        dt(2047, 10, 20),
+        "A",
+        "SHORTFRONTSHORTBACK",
+        dt(2027, 10, 19),
+        None,
+        None,
+        None,
+        False,
+        "bus",
+        None,
+    )
+    assert s.uschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 19)]
+    assert s.aschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 21)]

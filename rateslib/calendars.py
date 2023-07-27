@@ -342,7 +342,7 @@ def add_tenor(
        from rateslib.dual import Dual, Dual2
        from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow
        from rateslib.legs import FixedLeg, FloatLeg, CustomLeg, FloatLegExchange, FixedLegExchange, FloatLegExchangeMtm, FixedLegExchangeMtm
-       from rateslib.instruments import FixedRateBond, FloatRateBond, Value, IRS, SBS, FRA, forward_fx, Spread, Fly, BondFuture, Bill, ZCS, FXSwap
+       from rateslib.instruments import FixedRateBond, FloatRateBond, Value, IRS, SBS, FRA, forward_fx, Spread, Fly, BondFuture, Bill, ZCS, FXSwap, ZCIS, IIRS
        from rateslib.solver import Solver
        from rateslib.splines import bspldnev_single, PPSpline
        from datetime import datetime as dt
@@ -543,6 +543,7 @@ def dcf(
     Permitted values for the convention are:
 
     - `"1"`: Returns 1 for any period.
+    - `"1+"`: Returns the number of months between dates divided by 12.
     - `"Act365F"`: Returns actual number of days divided by a fixed 365 denominator.
     - `"Act360"`: Returns actual number of days divided by a fixed 360 denominator.
     - `"30E360"`, `"EuroBondBasis"`: Months are treated as having 30 days and start
@@ -587,8 +588,6 @@ def dcf(
     convention = convention.upper()
     if convention == "ACT365F":
         return (end - start) / timedelta(days=365)
-    elif convention == "1":
-        return 1.0
     elif convention == "ACT360":
         return (end - start) / timedelta(days=360)
     elif convention in ["30360", "360360", "BONDBASIS"]:
@@ -670,9 +669,13 @@ def dcf(
                 else:
                     fraction += (end - start) / (end - prev_start)
                 return fraction * frequency_months / 12
+    elif convention == "1":
+        return 1.0
+    elif convention == "1+":
+        return end.year - start.year + (end.month - start.month) / 12
     else:
         raise ValueError(
-            "`convention` must be in {'Act365f', '1', 'Act360', "
+            "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
             "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
             "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
             "'ActActISMA', 'ActActBond'}"

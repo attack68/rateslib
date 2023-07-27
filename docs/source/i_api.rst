@@ -14,6 +14,22 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+Notation
+--------
+
+.. math::
+
+   d \quad \text{or} \quad d_i =& \text{DCF of period} \; (i) \\
+   m \quad \text{or} \quad m_i =& \text{Maturity date of period} \; (i) \\
+   v(m) =& \text{DF of period payment date,} \; m \\
+   N \quad \text{or} \quad N_i =& \text{Notional of period} \; (i) \\
+   R =& \text{Fixed rate of period or leg} \\
+   z =& \text{Floating period spread} \\
+   r(r_i, z) =& \text{Floating rate of period as a function of fixings,} \; (r_i) \\
+   C =& \text{Cashflow} \\
+   P =& \text{Net present value} \\
+   I(m) =& \text{Index ratio applicable at maturity,} \; m \\
+
 Defaults
 ---------
 
@@ -82,6 +98,7 @@ Curves
 .. automodapi:: rateslib.curves
    :no-heading:
    :inherited-members:
+   :skip: set_order_convert
    :skip: add_tenor
    :skip: create_calendar
    :skip: dcf
@@ -99,6 +116,7 @@ Curves
    :skip: datetime
    :skip: timedelta
    :skip: Holiday
+   :skip: comb
 
 
 FX
@@ -120,6 +138,8 @@ FX
 Periods
 -------
 
+Link to the :ref:`Periods<periods-doc>` section in the user guide.
+
 .. automodapi:: rateslib.periods
    :no-heading:
    :skip: ABCMeta
@@ -134,6 +154,7 @@ Periods
    :skip: LineCurve
    :skip: Series
    :skip: datetime
+   :skip: comb
 
 Legs
 ----
@@ -156,6 +177,8 @@ Legs
    :skip: Schedule
    :skip: IndexCashflow
    :skip: IndexFixedPeriod
+   :skip: IndexCurve
+   :skip: IndexMixin
 
 Instruments
 -----------
@@ -163,6 +186,11 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :skip: IndexCurve
+   :skip: IndexFixedLeg
+   :skip: IndexFixedLegExchange
+   :skip: IndexMixin
+   :skip: ZeroIndexLeg
    :skip: forward_fx
    :skip: sqrt
    :skip: abstractmethod
@@ -197,6 +225,8 @@ Instruments
    :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver
+   :skip: CompositeCurve
+   :skip: ZeroFixedLeg
 
 Solver
 ------

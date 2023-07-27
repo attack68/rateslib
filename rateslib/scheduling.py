@@ -795,6 +795,33 @@ def _check_regular_swap(
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+def _is_invalid_very_short_stub(
+    date_to_modify: datetime,
+    date_fixed: datetime,
+    modifier: str,
+    calendar: CustomBusinessDay,
+):
+    """
+    This tests that a very short, i.e. 1 to a few days, stub has not been erroneously
+    generated. Short stubs are invalid if there is one genuine business day in the
+    window.
+    """
+    # _ = date_range(start=date1, end=date2, freq=calendar)
+    if _is_holiday(date_to_modify, calendar):
+        date1_ = add_tenor(date_to_modify, "1b", modifier, calendar)
+    else:
+        date1_ = date_to_modify
+
+    if _is_holiday(date_fixed, calendar):
+        date2_ = add_tenor(date_fixed, "1b", modifier, calendar)
+    else:
+        date2_ = date_fixed
+
+    if date1_ == date2_:
+        return True  # date range created by stubs is too small and is invalid
+    return False
+
+
 def _infer_stub_date(
     effective: datetime,
     termination: datetime,
@@ -850,6 +877,7 @@ def _infer_stub_date(
       - ``back_stub``: when ``stub`` is dual sided and ``front_stub`` is specified.
     """
     if "FRONT" in stub and "BACK" in stub:  # stub is dual sided
+        dead_front_stub, dead_back_stub = False, False
         if front_stub is None:
             assert isinstance(back_stub, datetime)
             valid, parsed_args = _check_regular_swap(
@@ -870,6 +898,9 @@ def _infer_stub_date(
                 front_stub = _get_unadjusted_stub_date(
                     effective, back_stub, frequency, stub_, eom, roll
                 )
+                dead_front_stub = _is_invalid_very_short_stub(
+                    effective, front_stub, modifier, calendar
+                )
         else:
             valid, parsed_args = _check_regular_swap(
                 front_stub, termination, frequency, modifier, eom, roll, calendar
@@ -889,6 +920,9 @@ def _infer_stub_date(
                 back_stub = _get_unadjusted_stub_date(
                     front_stub, termination, frequency, stub_, eom, roll
                 )
+                dead_back_stub = _is_invalid_very_short_stub(
+                    back_stub, termination, modifier, calendar
+                )
         valid, parsed_args = _check_regular_swap(
             front_stub, back_stub, frequency, modifier, eom, roll, calendar
         )
@@ -896,10 +930,10 @@ def _infer_stub_date(
             return valid, parsed_args
         else:
             return True, {
-                "ueffective": effective,
-                "utermination": termination,
-                "front_stub": parsed_args["ueffective"],
-                "back_stub": parsed_args["utermination"],
+                "ueffective": effective if not dead_front_stub else parsed_args["ueffective"],
+                "utermination": termination if not dead_back_stub else parsed_args["utermination"],
+                "front_stub": parsed_args["ueffective"] if not dead_front_stub else None,
+                "back_stub": parsed_args["utermination"] if not dead_back_stub else None,
                 "roll": parsed_args["roll"],
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
@@ -923,6 +957,13 @@ def _infer_stub_date(
             front_stub = _get_unadjusted_stub_date(
                 effective, termination, frequency, stub_, eom, roll
             )
+
+            # The following check prohibits stubs that are too short under calendar,
+            # e.g. 2 May 27 is a Sunday and 3 May 27 is a Monday => dead_stub is True
+            dead_stub = _is_invalid_very_short_stub(
+                effective, front_stub, modifier, calendar
+            )
+
             valid, parsed_args = _check_regular_swap(
                 front_stub, termination, frequency, modifier, eom, roll, calendar
             )
@@ -930,9 +971,9 @@ def _infer_stub_date(
                 return valid, parsed_args
             else:
                 return True, {
-                    "ueffective": effective,
+                    "ueffective": effective if not dead_stub else parsed_args["ueffective"],
                     "utermination": parsed_args["utermination"],
-                    "front_stub": parsed_args["ueffective"],
+                    "front_stub": parsed_args["ueffective"] if not dead_stub else None,
                     "back_stub": None,
                     "roll": parsed_args["roll"],
                     "frequency": parsed_args["frequency"],
@@ -957,6 +998,13 @@ def _infer_stub_date(
             back_stub = _get_unadjusted_stub_date(
                 effective, termination, frequency, stub_, eom, roll
             )
+
+            # The following check prohibits stubs that are too short under calendar,
+            # 19 Oct 47 is a Saturday and 20 Oct 47 is a Sunday => dead_stub is True
+            dead_stub = _is_invalid_very_short_stub(
+                back_stub, termination, modifier, calendar
+            )
+
             valid, parsed_args = _check_regular_swap(
                 effective, back_stub, frequency, modifier, eom, roll, calendar
             )
@@ -965,9 +1013,9 @@ def _infer_stub_date(
             else:
                 return True, {
                     "ueffective": parsed_args["ueffective"],
-                    "utermination": termination,
+                    "utermination": termination if not dead_stub else parsed_args["utermination"],
                     "front_stub": None,
-                    "back_stub": parsed_args["utermination"],
+                    "back_stub": parsed_args["utermination"] if not dead_stub else None,
                     "roll": parsed_args["roll"],
                     "frequency": parsed_args["frequency"],
                     "eom": parsed_args["eom"],
@@ -1202,7 +1250,7 @@ def _get_unadjusted_date_alternatives(
     Parameters
     ----------
     date : Datetime
-        Date to test.
+        Adjusted date for which unadjusted dates can be modified to.
     modifier : str, optional
         |modifier|
     calendar : Calendar

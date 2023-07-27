@@ -20,31 +20,36 @@
 Legs
 ****
 
-The ``rateslib.legs`` module creates ``Legs`` which
-essentially contain a list of :ref:`Periods<periods-doc>`. The pricing, and
-risk, calculations of ``Legs`` resolves to a linear sum of those same calculations
-looped over all of the individual :ref:`Periods<periods-doc>`.
-Like :ref:`Periods<periods-doc>` it is probably quite
-rare that ``Legs`` will be instantiated directly, rather they will form the
+The ``rateslib.legs`` module creates *Legs* which
+typically contain a list of :ref:`Periods<periods-doc>`. The pricing, and
+risk, calculations of *Legs* resolves to a linear sum of those same calculations
+looped over all of the individual *Periods*.
+Like *Periods*, it is probably quite
+rare that *Legs* will be instantiated directly, rather they will form the
 components of :ref:`Instruments<instruments-doc>`, but none-the-less, this page
 describes their construction.
 
-The
-following ``Legs`` are provided:
+The following *Legs* are provided, click on the links for a full description of each
+*Leg* type:
 
 .. autosummary::
    rateslib.legs.BaseLeg
+   rateslib.legs.BaseLegExchange
+   rateslib.legs.BaseLegExchangeMtm
    rateslib.legs.FixedLeg
    rateslib.legs.FloatLeg
+   rateslib.legs.IndexFixedLeg
    rateslib.legs.ZeroFloatLeg
-   rateslib.legs.BaseLegExchange
+   rateslib.legs.ZeroFixedLeg
+   rateslib.legs.ZeroIndexLeg
    rateslib.legs.FixedLegExchange
    rateslib.legs.FloatLegExchange
+   rateslib.legs.IndexFixedLegExchange
    rateslib.legs.FixedLegExchangeMtm
    rateslib.legs.FloatLegExchangeMtm
    rateslib.legs.CustomLeg
 
-``Legs``, similar to ``Periods``, are defined as having the following the methods:
+*Legs*, similar to *Periods*, are defined as having the following the methods:
 
 .. autosummary::
    rateslib.legs.BaseLeg.npv
@@ -54,7 +59,7 @@ following ``Legs`` are provided:
 Basic Leg Inputs
 ----------------
 The :class:`~rateslib.legs.BaseLeg` is an abstract base class providing the shared
-input arguments used by all ``Leg`` types. Besides ``fixed_rate``, a
+input arguments used by all *Leg* types. Besides ``fixed_rate``, a
 :class:`~rateslib.legs.FixedLeg` can demonstrate all of the standard arguments to
 a :class:`~rateslib.legs.BaseLeg`.
 
