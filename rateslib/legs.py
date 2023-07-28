@@ -907,13 +907,13 @@ class IndexFixedLeg(IndexLegMixin, FixedLeg):
 
     .. math::
 
-       P = -N R \\sum_{i=1}^n {d_i v_i(m_i) I(m_i)}
+       P = - R \\sum_{i=1}^n {N_i d_i v_i(m_i) I(m_i)}
 
     The analytic delta is the sum of the period analytic deltas.
 
     .. math::
 
-       A = -\\frac{\\partial P}{\\partial R} = N \\sum_{i=1}^n {d_i v_i(m_i) I(m_i)}
+       A = -\\frac{\\partial P}{\\partial R} = \\sum_{i=1}^n {N_i d_i v_i(m_i) I(m_i)}
     """
 
     def __init__(
@@ -1014,13 +1014,13 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     .. math::
 
-       P = -N v(m) \\left ( \\prod_{i=1}^n (1 + d_i r_i(r_j, z)) - 1 \\right )
+       P = -N v(m_n) \\left ( \\prod_{i=1}^n (1 + d_i r_i(r_j, z)) - 1 \\right )
 
     The analytic delta of a *ZeroFloatLeg* is:
 
     .. math::
 
-      A = N v(m) \\sum_{k=1}^n d_k \\frac{\\partial r_k}{\\partial z} \\prod_{i=1, i \\ne k}^n (1 + d_i r_i(r_j, z))
+      A = N v(m_n) \\sum_{k=1}^n d_k \\frac{\\partial r_k}{\\partial z} \\prod_{i=1, i \\ne k}^n (1 + d_i r_i(r_j, z))
 
     .. warning::
 
@@ -1157,7 +1157,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             _ = period.analytic_delta(curve, disc_curve_, fx, base) / disc_curve_[period.payment]
             _ *= compounded_rate / (1 + period.dcf * period.rate(curve) / 100)
             a_sum += _
-        a_sum *= disc_curve_[period.payment] *fx
+        a_sum *= disc_curve_[self.schedule.pschedule[-1].payment] * fx
         return a_sum
 
     def cashflows(
@@ -1401,11 +1401,9 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
 class ZeroIndexLeg(BaseLeg, IndexLegMixin):
     """
-    Create a zero coupon index leg.
-
-    This leg is composed of an :class:`~rateslib.perods.IndexFixedPeriod` set to 100%
-    for the indexing up of the notional and an offsetting
-    :class:`~rateslib.periods.Cashflow` to negate the notional.
+    Create a zero coupon index leg composed of a single
+    :class:`~rateslib.periods.IndexFixedPeriod` and
+    a :class:`~rateslib.periods.Cashflow`.
 
     Parameters
     ----------
@@ -1428,6 +1426,23 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         consistency between curves and forecast values. Defined by default.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The fixed rate of the *IndexFixedPeriod* is set to 100% to index up the
+    complete the notional. The offsetting *Cashflow* deducts the real notional.
+
+    The NPV of a *ZeroIndexLeg* is the sum of the period NPVs.
+
+    .. math::
+
+       P = - v(m_n) N \\left ( I(m_n) - 1 \\right )
+
+    The analytic delta is defined as zero due to the lack of rates related attributes.
+
+    .. math::
+
+       A = 0
 
     """
 
@@ -1474,10 +1489,17 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         self.index_base = index_base  # set after periods initialised
 
     def cashflow(self, curve: Optional[IndexCurve] = None):
+        """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period."""
         _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
         return _
 
     def cashflows(self, *args, **kwargs):
+        """
+        Return the properties of the *IndexFixedLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
         cfs = super().cashflows(*args, **kwargs)
         _ = cfs.iloc[[0]].copy()
         for attr in ["Cashflow", "NPV", "NPV Ccy"]:
@@ -1485,6 +1507,33 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         _["Type"] = "ZeroIndexLeg"
         _["Period"] = None
         return _
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *ZeroIndexLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return 0.0
+
+    def cashflows(self, *args, **kwargs) -> DataFrame:
+        """
+        Return the properties of the *ZeroIndexLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *ZeroIndexLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
 
 
 class BaseLegExchange(BaseLeg):
