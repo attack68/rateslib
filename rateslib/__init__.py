@@ -93,6 +93,9 @@ from rateslib.legs import (
     FloatLegExchangeMtm,
     ZeroFloatLeg,
     ZeroFixedLeg,
+    ZeroIndexLeg,
+    IndexFixedLeg,
+    IndexFixedLegExchange,
     CustomLeg,
 )
 
@@ -186,6 +189,9 @@ __all__ = [
     "FixedLegExchangeMtm",
     "FloatLegExchange",
     "FloatLegExchangeMtm",
+    "IndexFixedLeg",
+    "ZeroIndexLeg",
+    "IndexFixedLegExchange",
     "CustomLeg",
     # instruments.py
     "FixedRateBond",
