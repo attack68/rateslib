@@ -1059,8 +1059,9 @@ class FXForwards:
 
         """
 
-        def _get_d_f_idx_and_path(pair, path: Optional[list[dict]]) \
-                -> tuple[int, int, list[dict]]:
+        def _get_d_f_idx_and_path(
+            pair, path: Optional[list[dict]]
+        ) -> tuple[int, int, list[dict]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
@@ -1702,7 +1703,7 @@ class ProxyCurve(Curve):
         convention: Optional[str] = None,
         modifier: Optional[Union[str, bool]] = False,
         calendar: Optional[Union[CalInput, bool]] = False,
-        id: Optional[str]=None,
+        id: Optional[str] = None,
     ):
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()

@@ -38,7 +38,13 @@ from rateslib.calendars import add_tenor, _add_days, get_calendar, dcf
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
-from rateslib.periods import Cashflow, FixedPeriod, FloatPeriod, _get_fx_and_base, IndexMixin
+from rateslib.periods import (
+    Cashflow,
+    FixedPeriod,
+    FloatPeriod,
+    _get_fx_and_base,
+    IndexMixin,
+)
 from rateslib.legs import (
     FixedLeg,
     FixedLegExchange,
@@ -695,15 +701,15 @@ class BondMixin:
 
         d = 0
         for i, p_idx in enumerate(
-                range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
+            range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
         ):
             if i == 0 and self.ex_div(settlement):
                 continue
             else:
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v**i
                 # d += self.leg1.periods[p_idx].cashflow * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
-        p = v ** fd0 * d / -self.leg1.notional * 100
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v**i
+        p = v**fd0 * d / -self.leg1.notional * 100
         return p if dirty else p - self.accrued(settlement)
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
@@ -966,21 +972,21 @@ class BondMixin:
                 dydP * price.dual,
                 0.5
                 * (
-                        dydP * price.gradient(price.vars, order=2)
-                        + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
+                    dydP * price.gradient(price.vars, order=2)
+                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
                 ),
             )
         else:
             return x
 
     def fwd_from_repo(
-            self,
-            price: Union[float, Dual, Dual2],
-            settlement: datetime,
-            forward_settlement: datetime,
-            repo_rate: Union[float, Dual, Dual2],
-            convention: Optional[str] = None,
-            dirty: bool = False,
+        self,
+        price: Union[float, Dual, Dual2],
+        settlement: datetime,
+        forward_settlement: datetime,
+        repo_rate: Union[float, Dual, Dual2],
+        convention: Optional[str] = None,
+        dirty: bool = False,
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1043,7 +1049,7 @@ class BondMixin:
             # deduct accrued coupon from dirty price
             dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
             accrued_coup = self.leg1.periods[p_idx].cashflow * (
-                    1 + dcf_ * repo_rate / 100
+                1 + dcf_ * repo_rate / 100
             )
             total_rtn -= accrued_coup
 
@@ -1054,13 +1060,13 @@ class BondMixin:
             return forward_price - self.accrued(forward_settlement)
 
     def repo_from_fwd(
-            self,
-            price: Union[float, Dual, Dual2],
-            settlement: datetime,
-            forward_settlement: datetime,
-            forward_price: Union[float, Dual, Dual2],
-            convention: Optional[str] = None,
-            dirty: bool = False,
+        self,
+        price: Union[float, Dual, Dual2],
+        settlement: datetime,
+        forward_settlement: datetime,
+        forward_price: Union[float, Dual, Dual2],
+        convention: Optional[str] = None,
+        dirty: bool = False,
     ):
         """
         Return an implied repo rate from a forward price.
@@ -1124,7 +1130,7 @@ class BondMixin:
             dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
             numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
             denominator -= (
-                    100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+                100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
             )
 
         return numerator / denominator * 100
@@ -1733,8 +1739,9 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
-        if self.leg1.index_fixings is not None \
-                and not isinstance(self.leg1.index_fixings, Series):
+        if self.leg1.index_fixings is not None and not isinstance(
+            self.leg1.index_fixings, Series
+        ):
             raise ValueError(
                 "Must provide `index_fixings` as a Series for inter-period settlement."
             )
@@ -1751,7 +1758,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             i_date=self.leg1.schedule.effective,
             i_lag=self.leg1.index_lag,
             i_method=self.leg1.index_method,
-            i_curve=curve
+            i_curve=curve,
         )
         return index_val / index_base
 
@@ -4944,12 +4951,12 @@ class ZCIS(BaseDerivative):
         return super().cashflows(*args, **kwargs)
 
     def npv(
-            self,
-            curves: Optional[Union[Curve, str, list]] = None,
-            solver: Optional[Solver] = None,
-            fx: Optional[Union[float, FXRates, FXForwards]] = None,
-            base: Optional[str] = None,
-            local: bool = False,
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
     ):
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
@@ -7573,6 +7580,7 @@ class Portfolio(Sensitivities):
 
         from multiprocessing import Pool
         from functools import partial
+
         func = partial(_instrument_npv, *args, **kwargs)
         p = Pool(defaults.pool)
         results = p.map(func, self.instruments)

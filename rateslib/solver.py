@@ -990,7 +990,8 @@ class Solver(Gradients):
         self.W = np.diag(self.weights)
 
         self.curves = {
-            curve.id: curve for curve in curves
+            curve.id: curve
+            for curve in curves
             if not type(curve) in [ProxyCurve, CompositeCurve]
             # Proxy and Composite curves have no parameters of their own
         }
@@ -1019,11 +1020,14 @@ class Solver(Gradients):
             self.pre_curves.update(pre_solver.pre_curves)
             curve_collection.extend(pre_solver.pre_curves.values())
         self.pre_curves.update(self.curves)
-        self.pre_curves.update({
-            curve.id: curve for curve in curves
-            if type(curve) in [ProxyCurve, CompositeCurve]
-            # Proxy and Composite curves added to the collection without variables
-        })
+        self.pre_curves.update(
+            {
+                curve.id: curve
+                for curve in curves
+                if type(curve) in [ProxyCurve, CompositeCurve]
+                # Proxy and Composite curves added to the collection without variables
+            }
+        )
         curve_collection.extend(curves)
         for curve1, curve2 in combinations(curve_collection, 2):
             if curve1.id == curve2.id:
@@ -1176,7 +1180,6 @@ class Solver(Gradients):
 
             i = 0
             for pre_solver in self.pre_solvers:
-
                 m = pre_solver.pre_m
                 r_pre[i : i + m] = pre_solver.r_pre
                 i = i + m
@@ -1715,7 +1718,7 @@ class Solver(Gradients):
             ridx = ridx.append(
                 MultiIndex.from_tuples(
                     [("all", base) + l for l in inst_keys + fx_keys],
-                    names=["local_ccy", "display_ccy", "type", "solver", "label"]
+                    names=["local_ccy", "display_ccy", "type", "solver", "label"],
                 )
             )
         cidx = MultiIndex.from_tuples(

@@ -831,7 +831,6 @@ class IndexLegMixin:
         self._index_fixings = value
         # if value is not None:
         for i, period in enumerate(self.periods):
-
             if isinstance(period, (IndexFixedPeriod, IndexCashflow)):
                 if isinstance(value, Series):
                     _ = IndexMixin._index_value(
@@ -926,9 +925,10 @@ class IndexFixedLeg(IndexLegMixin, FixedLeg):
         index_lag: Optional[int] = None,
         **kwargs,
     ):
-
         super().__init__(*args, fixed_rate=fixed_rate, **kwargs)
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         self.periods = [
             IndexFixedPeriod(
@@ -1154,7 +1154,10 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
         a_sum = 0.0
         for period in self.periods:
-            _ = period.analytic_delta(curve, disc_curve_, fx, base) / disc_curve_[period.payment]
+            _ = (
+                period.analytic_delta(curve, disc_curve_, fx, base)
+                / disc_curve_[period.payment]
+            )
             _ *= compounded_rate / (1 + period.dcf * period.rate(curve) / 100)
             a_sum += _
         a_sum *= disc_curve_[self.schedule.pschedule[-1]] * fx
@@ -1251,7 +1254,6 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
     """
 
     def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
-
         super().__init__(*args, **kwargs)
         self.periods = [
             FixedPeriod(
@@ -1283,7 +1285,9 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         self._fixed_rate = value
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         if value is not None:
-            period_rate = 100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
+            period_rate = (
+                100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
+            )
         else:
             period_rate = None
 
@@ -1367,7 +1371,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         _ = self.notional * self.dcf * disc_curve_[self.periods[0].payment]
-        _ *= (1 + self.fixed_rate / (100*f)) ** (self.dcf * f - 1)
+        _ *= (1 + self.fixed_rate / (100 * f)) ** (self.dcf * f - 1)
         return _ / 10000
 
     def _analytic_delta(self, *args, **kwargs) -> DualTypes:
@@ -1386,7 +1390,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
         period_rate = -target_npv / (a_delta * 100)
         f = 12 / defaults.frequency_months[self.schedule.frequency]
-        _ = f * ((1 + period_rate * self.dcf/ 100)**(1/(self.dcf*f)) - 1)
+        _ = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
         return _ * 10000
 
     def npv(self, *args, **kwargs):
@@ -1453,10 +1457,12 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         index_fixings: Optional[Union[float, Series]] = None,
         index_method: Optional[str] = None,
         index_lag: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         # The first period indexes up the complete notional amount.
         # The second period deducts the un-indexed notional amount.
@@ -1483,7 +1489,7 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
                 currency=self.currency,
                 stub_type=None,
                 rate=None,
-            )
+            ),
         ]
         self.index_fixings = index_fixings  # set index fixings after periods init
         self.index_base = index_base  # set after periods initialised
@@ -1608,6 +1614,7 @@ class BaseLegExchange(BaseLeg):
 
     def analytic_delta(self, *args, **kwargs):
         return super().analytic_delta(*args, **kwargs)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1779,7 +1786,9 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
     ) -> None:
         self._fixed_rate = fixed_rate
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)

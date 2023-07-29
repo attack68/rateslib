@@ -803,7 +803,11 @@ class FloatPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         cashflow = None if curve is None else float(self.cashflow(curve))
-        rate = None if curve is None else float(100 * cashflow / (-self.notional * self.dcf))
+        rate = (
+            None
+            if curve is None
+            else float(100 * cashflow / (-self.notional * self.dcf))
+        )
         if disc_curve is None or rate is None:
             npv, npv_fx = None, None
         else:
@@ -1149,7 +1153,7 @@ class FloatPeriod(BasePeriod):
             sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
             C_i = 0.0
             for i in range(1, len(sub_cashflows)):
-                C_i += sub_cashflows.iloc[i-1]
+                C_i += sub_cashflows.iloc[i - 1]
                 sub_cashflows.iloc[i] += C_i * rates.iloc[i] / 100 * dcf_vals.iloc[i]
             total_cashflow = sub_cashflows.sum()
             return total_cashflow * 100 / dcf_vals.sum()
@@ -1193,11 +1197,7 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def fixings_table(
-        self,
-        curve: Union[Curve, LineCurve],
-        approximate: bool = False
-    ):
+    def fixings_table(self, curve: Union[Curve, LineCurve], approximate: bool = False):
         """
         Return a DataFrame of fixing exposures.
 
@@ -1360,10 +1360,10 @@ class FloatPeriod(BasePeriod):
             )
             scalar = dcf_vals.values / obs_vals.values
             if self.fixing_method == "rfr_lockout":
-                scalar[-self.method_param:] = 0.0
-                scalar[-(self.method_param+1)] = (
-                    obs_vals.iloc[-(self.method_param+1):].sum() /
-                    obs_vals.iloc[-(self.method_param+1)]
+                scalar[-self.method_param :] = 0.0
+                scalar[-(self.method_param + 1)] = (
+                    obs_vals.iloc[-(self.method_param + 1) :].sum()
+                    / obs_vals.iloc[-(self.method_param + 1)]
                 )
 
             # perform an efficient rate approximation
@@ -1377,15 +1377,15 @@ class FloatPeriod(BasePeriod):
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
             if self.spread_compound_method == "none_simple":
-                drdri = (1 / n) * (1 + (rate / 100) * d) ** (n-1)
+                drdri = (1 / n) * (1 + (rate / 100) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
-                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n-1)
+                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_flat_compounding":
                 dr = d * r_bar / 100
                 drdri = (1 / n) * (
-                    ((1/n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
-                    +
-                    ((r_bar / 100 + z)/n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
+                    ((1 / n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
+                    + ((r_bar / 100 + z) / n)
+                    * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
                 )
 
             notional_exposure = Series(
@@ -1473,7 +1473,7 @@ class FloatPeriod(BasePeriod):
             effective=os,
             termination=oe,
             float_spread=0.0,
-            spread_compound_method=self.spread_compound_method
+            spread_compound_method=self.spread_compound_method,
         )
         r, d, n = average_rate(os, oe, fore_curve.convention, rate)
         # approximate sensitivity to each fixing
@@ -1486,7 +1486,7 @@ class FloatPeriod(BasePeriod):
         elif self.spread_compound_method == "isda_flat_compounding":
             # d2rdz2 = 0.0
             drdz = (
-                1 + comb(n, 2)/n * r/100 * d + comb(n, 3)/n * (r/100 * d) ** 2
+                1 + comb(n, 2) / n * r / 100 * d + comb(n, 3) / n * (r / 100 * d) ** 2
             ) / 1e4
             Nvd = -self.notional * disc_curve[self.payment] * self.dcf
             a, b = 0.0, Nvd * drdz
@@ -1704,14 +1704,14 @@ class IndexMixin(metaclass=ABCMeta):
             i_date=getattr(self, "start", None),  # IndexCashflow has no start
             i_curve=curve,
             i_lag=self.index_lag,
-            i_method=self.index_method
+            i_method=self.index_method,
         )
         numerator = self._index_value(
             i_fixings=self.index_fixings,
             i_date=self.end,
             i_curve=curve,
             i_lag=self.index_lag,
-            i_method=self.index_method
+            i_method=self.index_method,
         )
         if numerator is None or denominator is None:
             return None, numerator, denominator
@@ -1746,7 +1746,7 @@ class IndexMixin(metaclass=ABCMeta):
         i_date: datetime,
         i_curve: Optional[IndexCurve],
         i_lag: int,
-        i_method: str
+        i_method: str,
     ) -> Optional[DualTypes]:
         """
         Project an index rate, or lookup from provided fixings, for a given date.
@@ -1894,7 +1894,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         #     raise ValueError("`index_base` cannot be None.")
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
@@ -2029,6 +2031,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
        A = 0
     """
+
     def __init__(
         self,
         *args,
@@ -2040,7 +2043,9 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     ):
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         super(IndexMixin, self).__init__(*args, **kwargs)
         self.end = self.payment
