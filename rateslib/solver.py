@@ -1713,7 +1713,10 @@ class Solver(Gradients):
         )
         if base is not None:
             ridx = ridx.append(
-                MultiIndex.from_tuples([("all", base) + l for l in inst_keys + fx_keys])
+                MultiIndex.from_tuples(
+                    [("all", base) + l for l in inst_keys + fx_keys],
+                    names=["local_ccy", "display_ccy", "type", "solver", "label"]
+                )
             )
         cidx = MultiIndex.from_tuples(
             [l for l in inst_keys + fx_keys], names=["type", "solver", "label"]
