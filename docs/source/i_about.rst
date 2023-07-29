@@ -106,7 +106,7 @@ A broad based release history is as follows:
 
 v 0.3.0
 --------
-Not yet released
+Release 29th Jul 2023
 
 .. list-table::
    :widths: 25 75

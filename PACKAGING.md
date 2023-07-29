@@ -16,3 +16,6 @@ $ twine upload -r testpypi dist/*
 
 check:
 $ pip install -i https://test.pypi.org/simple rateslib
+
+docs:
+Goto read the docs and add a new branch.
