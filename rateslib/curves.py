@@ -2168,6 +2168,33 @@ class CompositeCurve(PlotCurve):
         """
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
+    def index_value(self, date: datetime, interpolation: str = "daily"):
+        """
+        Calculate the accrued value of the index from the ``index_base``.
+
+        See :meth:`IndexCurve.index_value()<rateslib.curves.IndexCurve.index_value>`
+        """
+        # TODO: DRY inherit this method from IndexCurve.index_value.
+        if not isinstance(self.curves[0], IndexCurve):
+            raise TypeError("`index_value` not available on non `IndexCurve` types.")
+
+        if interpolation.lower() == "daily":
+            date_ = date
+        elif interpolation.lower() == "monthly":
+            date_ = datetime(date.year, date.month, 1)
+        else:
+            raise ValueError(
+                "`interpolation` for `index_value` must be in {'daily', 'monthly'}."
+            )
+        if date_ < self.node_dates[0]:
+            return 0.0
+            # return zero for index dates in the past
+            # the proper way for instruments to deal with this is to supply i_fixings
+        elif date_ == self.node_dates[0]:
+            return self.index_base
+        else:
+            return self.index_base * 1 / self[date_]
+
 
 def average_rate(effective, termination, convention, rate):
     """

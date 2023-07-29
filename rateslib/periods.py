@@ -32,7 +32,7 @@ from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf, _get_eom
-from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate
+from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
@@ -1727,7 +1727,13 @@ class IndexMixin(metaclass=ABCMeta):
     ) -> Optional[DualTypes]:
         if i_curve is None:
             return None
-        elif not isinstance(i_curve, IndexCurve):
+        elif (
+            not isinstance(i_curve, IndexCurve)
+            and not isinstance(i_curve, CompositeCurve)
+        ) or (
+            isinstance(i_curve, CompositeCurve)
+            and not isinstance(i_curve.curves[0], IndexCurve)
+        ):
             raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
         elif i_lag != i_curve.index_lag:
             return None  # TODO decide if RolledCurve to correct index lag be attemoted

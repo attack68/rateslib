@@ -11,7 +11,7 @@ from rateslib.periods import (
 )
 from rateslib.fx import FXRates
 from rateslib.default import Defaults
-from rateslib.curves import Curve, LineCurve, IndexCurve
+from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
 
 
 @pytest.fixture()
@@ -1231,6 +1231,46 @@ class TestIndexFixedPeriod:
         )
         expected = 173.1 + 19/31 * (174.2 - 173.1)
         assert abs(result - expected) < 1e-6
+
+    def test_composite_curve(self):
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+        )
+        index_curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.,
+        )
+        composite_curve = CompositeCurve([index_curve])
+        _, result, _ = index_period.index_ratio(composite_curve)
+
+    def test_composite_curve_raises(self):
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.,
+        )
+        curve = Curve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+        )
+        composite_curve = CompositeCurve([curve])
+        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+            _, result, _ = index_period.index_ratio(composite_curve)
 
 
 class TestIndexCashflow:
