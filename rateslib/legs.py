@@ -1157,7 +1157,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             _ = period.analytic_delta(curve, disc_curve_, fx, base) / disc_curve_[period.payment]
             _ *= compounded_rate / (1 + period.dcf * period.rate(curve) / 100)
             a_sum += _
-        a_sum *= disc_curve_[self.schedule.pschedule[-1].payment] * fx
+        a_sum *= disc_curve_[self.schedule.pschedule[-1]] * fx
         return a_sum
 
     def cashflows(
