@@ -66,12 +66,12 @@ from rateslib.curves import (
     index_left,
     IndexCurve,
     CompositeCurve,
+    ProxyCurve,
 )
 
 from rateslib.fx import (
     FXRates,
     FXForwards,
-    ProxyCurve,
 )
 
 from rateslib.solver import Solver
@@ -166,6 +166,7 @@ __all__ = [
     "LineCurve",
     "IndexCurve",
     "CompositeCurve",
+    "ProxyCurve",
     "interpolate",
     "index_left",
     # solver.py
@@ -173,7 +174,6 @@ __all__ = [
     # fx.py
     "FXRates",
     "FXForwards",
-    "ProxyCurve",
     # periods.py,
     "FixedPeriod",
     "FloatPeriod",

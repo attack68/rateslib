@@ -14,6 +14,7 @@ from rateslib.curves import (
     IndexCurve,
     CompositeCurve,
 )
+from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
@@ -1120,6 +1121,33 @@ class TestCompositeCurve:
         r3 = cc.rate(dt(2052, 5, 26), "1d")
 
         assert abs(r1 - 1.448374) < 1e-3
+
+    def test_composite_curve_proxies(self):
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.992}, id="eu")
+        fxf = FXForwards(
+            fx_rates = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1)),
+            fx_curves= {
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+        pc = CompositeCurve([
+            uu,
+            fxf.curve("usd", "eur")
+        ], multi_csa=True)
+        result = pc[dt(2023, 1, 1)]
+        expected = 0.98900
+        assert abs(result - expected) < 1e-4
+
+        pc = CompositeCurve([
+            fxf.curve("usd", "eur"),
+            uu,
+        ], multi_csa=True)
+        result = pc[dt(2023, 1, 1)]
+        assert abs(result - expected) < 1e-4
 
 
 class TestPlotCurve:

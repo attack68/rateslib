@@ -20,7 +20,12 @@ from rateslib import defaults
 from rateslib.dual import Dual, Dual2, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
 from rateslib.default import plot
-from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
+from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, CalInput
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rateslib.fx import FXForwards
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1903,10 +1908,15 @@ class CompositeCurve(PlotCurve):
         self._base_type = curves[0]._base_type
         for i in range(1, len(curves)):
             if not type(curves[0]) == type(curves[i]):
-                raise TypeError(
-                    "`curves` must be a list of similar type curves, got "
-                    f"{type(curves[0])} and {type(curves[i])}."
-                )
+                if type(curves[0]) is Curve and type(curves[i]) is ProxyCurve:
+                    pass
+                elif type(curves[0]) is ProxyCurve and type(curves[i]) is Curve:
+                    pass
+                else:
+                    raise TypeError(
+                        "`curves` must be a list of similar type curves, got "
+                        f"{type(curves[0])} and {type(curves[i])}."
+                    )
             if not curves[0].node_dates[0] == curves[i].node_dates[0]:
                 raise ValueError(
                     "`curves` must share the same initial node date, got "
@@ -2194,6 +2204,122 @@ class CompositeCurve(PlotCurve):
             return self.index_base
         else:
             return self.index_base * 1 / self[date_]
+
+
+class ProxyCurve(Curve):
+    """
+    A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on
+    other curves related via :class:`~rateslib.fx.FXForwards` parity.
+
+    Parameters
+    ----------
+    cashflow : str
+        The currency in which cashflows are represented (3-digit code).
+    collateral : str
+        The currency of the CSA against which cashflows are collateralised (3-digit
+        code).
+    fx_forwards : FXForwards
+        The :class:`~rateslib.fx.FXForwards` object which contains the relating
+        FX information and the available :class:`~rateslib.curves.Curve` s.
+    convention : str
+        The day count convention used for calculating rates. If `None` defaults
+        to the convention in the local cashflow currency.
+    modifier : str, optional
+        The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
+        If `False` will default to the modifier in the local cashflow currency.
+    calendar : calendar or str, optional
+        The holiday calendar object to use. If str, lookups named calendar
+        from static data. Used for determining rates. If `False` will
+        default to the calendar in the local cashflow currency.
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multi-curve framework.
+
+    Notes
+    -----
+    The DFs returned are calculated via the chaining method and the below formula,
+    relating the DF curve in the local collateral currency and FX forward rates.
+
+    .. math::
+
+       w_{dom:for,i} = \\frac{f_{DOMFOR,i}}{F_{DOMFOR,0}} v_{for:for,i}
+
+    The returned curve contains contrived methods to calculate this dynamically and
+    efficiently from the combination of curves and FX rates that are available within
+    the given :class:`FXForwards` instance.
+    """
+
+    _base_type = "dfs"
+
+    def __init__(
+        self,
+        cashflow: str,
+        collateral: str,
+        fx_forwards: FXForwards,
+        convention: Optional[str] = None,
+        modifier: Optional[Union[str, bool]] = False,
+        calendar: Optional[Union[CalInput, bool]] = False,
+        id: Optional[str] = None,
+    ):
+        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
+        self._is_proxy = True
+        self.fx_forwards = fx_forwards
+        self.cash_currency = cash_ccy
+        self.cash_pair = f"{cash_ccy}{cash_ccy}"
+        self.cash_idx = self.fx_forwards.currencies[cash_ccy]
+        self.coll_currency = coll_ccy
+        self.coll_pair = f"{coll_ccy}{coll_ccy}"
+        self.coll_idx = self.fx_forwards.currencies[coll_ccy]
+        self.pair = f"{cash_ccy}{coll_ccy}"
+        self.path = self.fx_forwards._get_recursive_chain(
+            self.fx_forwards.transform, self.coll_idx, self.cash_idx
+        )[1]
+        self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[
+            -1
+        ]
+
+        default_curve = Curve(
+            {},
+            convention=self.fx_forwards.fx_curves[self.cash_pair].convention
+            if convention is None
+            else convention,
+            modifier=self.fx_forwards.fx_curves[self.cash_pair].modifier
+            if modifier is False
+            else modifier,
+            calendar=self.fx_forwards.fx_curves[self.cash_pair].calendar
+            if calendar is False
+            else calendar,
+        )
+        self.convention = default_curve.convention
+        self.modifier = default_curve.modifier
+        self.calendar = default_curve.calendar
+        self.node_dates = [self.fx_forwards.immediate, self.terminal]
+
+    def __getitem__(self, date: datetime):
+        return (
+            self.fx_forwards.rate(self.pair, date, path=self.path)
+            / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
+            * self.fx_forwards.fx_curves[self.coll_pair][date]
+        )
+
+    def to_json(self):  # pragma: no cover
+        """
+        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
+        :return:
+        """
+        return NotImplementedError("`to_json` not available on proxy curve.")
+
+    def from_json(self):  # pragma: no cover
+        """
+        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
+        """
+        return NotImplementedError("`from_json` not available on proxy curve.")
+
+    def _set_ad_order(self):  # pragma: no cover
+        """
+        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
+        """
+        return NotImplementedError("`set_ad_order` not available on proxy curve.")
 
 
 def average_rate(effective, termination, convention, rate):

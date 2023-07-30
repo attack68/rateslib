@@ -127,6 +127,7 @@ FX
    :skip: Any
    :skip: Curve
    :skip: LineCurve
+   :skip: ProxyCurve
    :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
@@ -152,6 +153,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: FXRates
    :skip: FXForwards
    :skip: LineCurve
+   :skip: CompositeCurve
    :skip: Series
    :skip: datetime
    :skip: comb
