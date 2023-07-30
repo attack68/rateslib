@@ -1341,3 +1341,68 @@ def test_solver_dimensions_of_matmul():
     pf = Portfolio(swaps)
     result = pf.delta(solver=solver3, base="gbp", fx=fxr)
     result2 = pf.gamma(solver=solver3, base="gbp", fx=fxr)
+
+
+def test_pre_solver_single_fx_object():
+    # this test considers building up FXForwards using chined solvers.
+    uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+    ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+    gg = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="gg")
+    eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+    gu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="gu")
+
+    fxf1 = FXForwards(
+        fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+        fx_curves={
+            "usdusd": uu,
+            "eureur": ee,
+            "eurusd": eu,
+        }
+    )
+
+    fxf2 = FXForwards(
+        fx_rates=FXRates({"eurusd": 1.0, "gbpusd": 1.5}, settlement=dt(2022, 1, 1)),
+        fx_curves={
+            "usdusd": uu,
+            "eureur": ee,
+            "gbpgbp": gg,
+            "eurusd": eu,
+            "gbpusd": gu,
+        }
+    )
+
+    s1 = Solver(
+        curves=[uu, ee, gg],
+        instruments=[
+            IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="gg"),
+        ],
+        s=[1.5, 1.5, 1.0],
+        id="local"
+    )
+    s2 = Solver(
+        curves=[eu],
+        instruments=[
+            XCS(dt(2022, 1, 1), "1Y", "Q", currency="eur", leg2_currency="usd", curves=["ee", "eu", "uu", "uu"])
+        ],
+        s=[10.0],
+        id="x1",
+        fx=fxf1,
+        pre_solvers=[s1]
+    )
+    s3 = Solver(
+        curves=[gu],
+        instruments=[
+            XCS(dt(2022, 1, 1), "1Y", "Q", currency="gbp", leg2_currency="usd", curves=["gg", "gu", "uu", "uu"])
+        ],
+        s=[20.0],
+        id="x2",
+        fx=fxf2,
+        pre_solvers=[s2]
+    )
+    result = gu[dt(2023, 1, 1)]
+    expected = 0.988
+    assert (result-expected) < 1e-4
+
+
