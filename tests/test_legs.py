@@ -918,6 +918,22 @@ class TestIndexFixedLegExchange:
         for period in leg.periods:
             assert period.index_base == 205.0
 
+    def test_npv(self):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+        index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+                                 index_base=100.0)
+        index_leg_exch = IndexFixedLegExchange(
+            dt(2022, 1, 1), "9M", "Q",
+            notional=1000000,
+            amortization=200000,
+            index_base=100.0,
+            initial_exchange=False,
+            fixed_rate=1.0,
+        )
+        result = index_leg_exch.npv(index_curve, curve)
+        expected = -999971.65702
+        assert abs(result-expected) < 1e-4
+
 
 class TestIndexFixedLeg:
     @pytest.mark.parametrize(

@@ -1639,8 +1639,8 @@ class FixedLegExchange(FixedLegMixin, BaseLegExchange):
 
     Notes
     -----
-    The initial cashflow notional is set as the negative of the notional. The payment
-    date is set equal to the accrual start date adjusted by
+    The (optional) initial cashflow notional is set as the negative of the notional.
+    The payment date is set equal to the accrual start date adjusted by
     the ``payment_lag_exchange``.
 
     The final cashflow notional is set as the notional. The payment date is set equal
@@ -1649,6 +1649,33 @@ class FixedLegExchange(FixedLegMixin, BaseLegExchange):
     If ``amortization`` is specified an exchanged notional equivalent to the
     amortization amount is added to the list of periods. For similar examples see
     :class:`~rateslib.legs.FloatLegExchange`.
+
+    The NPV of a *FixedLegExchange* is the sum of the period NPVs.
+
+    .. math::
+
+       P = - R \\sum_{i=1}^n N_i d_i v(m_i) + N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)
+
+    The analytic delta is defined as that of a *FixedLeg*.
+
+    .. math::
+
+       A = \\sum_{i=1}^n N_i d_i v(m_i)
+
+    Examples
+    --------
+
+    .. ipython:: python
+
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       fixed_leg_exch = FixedLegExchange(
+           dt(2022, 1, 1), "9M", "Q",
+           fixed_rate=2.0,
+           notional=1000000,
+           amortization=200000,
+       )
+       fixed_leg_exch.cashflows(curve)
+       fixed_leg_exch.npv(curve)
     """
 
     def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs) -> None:
@@ -1763,7 +1790,10 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
 
     Notes
     -----
-    An initial exchange is not currently implement for this leg.
+
+    .. warning::
+
+       An initial exchange is not currently implemented for this leg.
 
     The final cashflow notional is set as the notional. The payment date is set equal
     to the final accrual date adjusted by ``payment_lag_exchange``.
@@ -1771,6 +1801,37 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
     If ``amortization`` is specified an exchanged notional equivalent to the
     amortization amount is added to the list of periods. For similar examples see
     :class:`~rateslib.legs.FloatLegExchange`.
+
+    The NPV of a *IndexFixedLegExchange* is the sum of the period NPVs.
+
+    .. math::
+
+       P = - R \\sum_{i=1}^n N_i d_i v(m_i) I(m_i) - \sum_{i=1}^{n-1}(N_{i}-N_{i+1})v(m_i)I(m_i)  - N_n v(m_n)I(m_n)
+
+    The analytic delta is defined as that of a *FixedLeg*.
+
+    .. math::
+
+       A = \\sum_{i=1}^n N_i d_i v(m_i) I(m_i)
+
+    Examples
+    --------
+
+    .. ipython:: python
+
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0)
+       index_leg_exch = IndexFixedLegExchange(
+           dt(2022, 1, 1), "9M", "Q",
+           notional=1000000,
+           amortization=200000,
+           index_base=100.0,
+           initial_exchange=False,
+           fixed_rate=1.0,
+       )
+       index_leg_exch.cashflows(index_curve, curve)
+       index_leg_exch.npv(index_curve, curve)
+
     """
 
     # TODO: spread calculations to determine the fixed rate on this leg do not work.
@@ -1929,29 +1990,39 @@ class FloatLegExchange(BaseLegExchange, FloatLegMixin):
     -----
     For more details of floating rate options see :class:`rateslib.periods.FloatPeriod`.
 
-    The initial cashflow notional is set as the negative of the notional. The payment
+    The (optional) initial cashflow notional is set as the negative of the notional.
+    The payment
     date is set equal to the accrual date adjusted by the ``payment_lag_exchange``
     days.
 
     The final cashflow notional is set as the notional. The payment date is set equal
-    to the final accraul date adjusted by the ``payment_lag_exchange``
+    to the final accrual date adjusted by the ``payment_lag_exchange``
     days.
 
     If ``amortization`` is specified an exchanged notional equivalent to the
     amortization amount is added to the list of periods.
+
+    The NPV of a *FloatLegExchange* is the sum of the period NPVs.
+
+    .. math::
+
+       P = - \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)} + N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial z} = \\sum_{i=1}^n {\\frac{\\partial r_i}{\\partial z} N_i d_i v_i(m_i)}
 
     Examples
     --------
 
     .. ipython:: python
 
-       float_leg_exch = FloatLegExchange(dt(2022, 1, 1), "9M", "Q", notional=1000000)
-       float_leg_exch.cashflows(curve)
-
-    .. ipython:: python
-
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        float_leg_exch = FloatLegExchange(dt(2022, 1, 1), "9M", "Q", notional=1000000, amortization=200000)
        float_leg_exch.cashflows(curve)
+       float_leg_exch.npv(curve)
     """
 
     def __init__(
