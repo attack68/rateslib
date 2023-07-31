@@ -204,8 +204,79 @@ class BaseLeg(metaclass=ABCMeta):
         self._set_periods()
 
     @abstractmethod
-    def _set_periods(self):
-        pass  # pragma: no cover
+    def _set_periods(self) -> None:
+        # initial exchange
+        self.periods = (
+            [
+                Cashflow(
+                    -self.notional,
+                    add_tenor(
+                        self.schedule.aschedule[0],
+                        f"{self.payment_lag_exchange}B",
+                        None,
+                        self.schedule.calendar,
+                    ),
+                    self.currency,
+                    "Exchange",
+                )
+            ]
+            if self.initial_exchange
+            else []
+        )
+
+        regular_periods = [
+            self._regular_period(
+                start=period[defaults.headers["a_acc_start"]],
+                end=period[defaults.headers["a_acc_end"]],
+                payment=period[defaults.headers["payment"]],
+                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                notional=self.notional - self.amortization * i,
+                iterator=i,
+            )
+            for i, period in self.schedule.table.to_dict(orient="index").items()
+        ]
+        if self.final_exchange and self.amortization != 0:
+            amortization = [
+                Cashflow(
+                    self.amortization,
+                    add_tenor(
+                        self.schedule.aschedule[i+1],
+                        f"{self.payment_lag_exchange}B",
+                        None,
+                        self.schedule.calendar,
+                    ),
+                    self.currency,
+                    "Amortization",
+                )
+                for i in range(self.schedule.n_periods - 1)
+            ]
+            interleaved_periods = [
+                val for pair in zip(regular_periods, amortization) for val in pair
+            ]
+            interleaved_periods.append(regular_periods[-1])  # add last regular period
+        else:
+            interleaved_periods = regular_periods
+        self.periods.extend(interleaved_periods)
+
+        # final cashflow
+        if self.final_exchange:
+            self.periods.append(
+                Cashflow(
+                    self.notional - self.amortization * (self.schedule.n_periods - 1),
+                    add_tenor(
+                        self.schedule.aschedule[-1],
+                        f"{self.payment_lag_exchange}B",
+                        None,
+                        self.schedule.calendar,
+                    ),
+                    self.currency,
+                    "Exchange",
+                )
+            )
+
+    # @abstractmethod
+    # def _regular_period(self):
+    #     pass  # pragma: no cover
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -431,6 +502,28 @@ class FixedLegMixin:
             if isinstance(period, FixedPeriod):
                 period.fixed_rate = value
 
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        notional: float,
+        stub: bool,
+        iterator: int,
+    ):
+        return FixedPeriod(
+            fixed_rate=self.fixed_rate,
+            start=start,
+            end=end,
+            payment=payment,
+            frequency=self.schedule.frequency,
+            notional=notional,
+            currency=self.currency,
+            convention=self.convention,
+            termination=self.schedule.termination,
+            stub=stub,
+        )
+
 
 class FixedLeg(BaseLeg, FixedLegMixin):
     """
@@ -536,73 +629,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
         return super().npv(*args, **kwargs)
 
     def _set_periods(self) -> None:
-        # initial exchange
-        self.periods = (
-            [
-                Cashflow(
-                    -self.notional,
-                    add_tenor(
-                        self.schedule.aschedule[0],
-                        f"{self.payment_lag_exchange}B",
-                        None,
-                        self.schedule.calendar,
-                    ),
-                    self.currency,
-                    "Exchange",
-                )
-            ]
-            if self.initial_exchange
-            else []
-        )
-
-        regular_periods = [
-            FixedPeriod(
-                fixed_rate=self.fixed_rate,
-                start=period[defaults.headers["a_acc_start"]],
-                end=period[defaults.headers["a_acc_end"]],
-                payment=period[defaults.headers["payment"]],
-                notional=self.notional - self.amortization * i,
-                convention=self.convention,
-                currency=self.currency,
-                termination=self.schedule.termination,
-                frequency=self.schedule.frequency,
-                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
-            )
-            for i, period in self.schedule.table.to_dict(orient="index").items()
-        ]
-        if self.final_exchange and self.amortization != 0:
-            amortization = [
-                Cashflow(
-                    self.amortization,
-                    self.schedule.pschedule[1 + i],
-                    self.currency,
-                    "Amortization",
-                )
-                for i in range(self.schedule.n_periods - 1)
-            ]
-            interleaved_periods = [
-                val for pair in zip(regular_periods, amortization) for val in pair
-            ]
-            interleaved_periods.append(regular_periods[-1])  # add last regular period
-        else:
-            interleaved_periods = regular_periods
-        self.periods.extend(interleaved_periods)
-
-        # final cashflow
-        if self.final_exchange:
-            self.periods.append(
-                Cashflow(
-                    self.notional - self.amortization * (self.schedule.n_periods - 1),
-                    add_tenor(
-                        self.schedule.aschedule[-1],
-                        f"{self.payment_lag_exchange}B",
-                        None,
-                        self.schedule.calendar,
-                    ),
-                    self.currency,
-                    "Exchange",
-                )
-            )
+        return super()._set_periods()
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -714,6 +741,32 @@ class FloatLegMixin:
             if type(self.periods[_]) is FloatPeriod:
                 df = pd.concat([df, self.periods[_].fixings_table(*args, **kwargs)])
         return df
+
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        notional: float,
+        stub: bool,
+        iterator: int,
+    ):
+        return FloatPeriod(
+            float_spread=self.float_spread,
+            start=start,
+            end=end,
+            payment=payment,
+            frequency=self.schedule.frequency,
+            notional=notional,
+            currency=self.currency,
+            convention=self.convention,
+            termination=self.schedule.termination,
+            stub=stub,
+            fixings=self.fixings[iterator],
+            fixing_method=self.fixing_method,
+            method_param=self.method_param,
+            spread_compound_method=self.spread_compound_method,
+        )
 
 
 class FloatLeg(BaseLeg, FloatLegMixin):
@@ -837,79 +890,6 @@ class FloatLeg(BaseLeg, FloatLegMixin):
         self._set_fixings(fixings)
         self._set_periods()
 
-    def _set_periods(self):
-        # initial exchange
-        self.periods = (
-            [
-                Cashflow(
-                    -self.notional,
-                    add_tenor(
-                        self.schedule.aschedule[0],
-                        f"{self.payment_lag_exchange}B",
-                        None,
-                        self.schedule.calendar,
-                    ),
-                    self.currency,
-                    "Exchange",
-                )
-            ]
-            if self.initial_exchange
-            else []
-        )
-
-        regular_periods = [
-            FloatPeriod(
-                float_spread=self.float_spread,
-                start=period[defaults.headers["a_acc_start"]],
-                end=period[defaults.headers["a_acc_end"]],
-                payment=period[defaults.headers["payment"]],
-                frequency=self.schedule.frequency,
-                notional=self.notional - self.amortization * i,
-                currency=self.currency,
-                convention=self.convention,
-                termination=self.schedule.termination,
-                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
-                fixings=self.fixings[i],
-                fixing_method=self.fixing_method,
-                method_param=self.method_param,
-                spread_compound_method=self.spread_compound_method,
-            )
-            for i, period in self.schedule.table.to_dict(orient="index").items()
-        ]
-        if self.final_exchange and self.amortization != 0:
-            amortization = [
-                Cashflow(
-                    self.amortization,
-                    self.schedule.pschedule[1 + i],
-                    self.currency,
-                    "Amortization",
-                )
-                for i in range(self.schedule.n_periods - 1)
-            ]
-            interleaved_periods = [
-                val for pair in zip(regular_periods, amortization) for val in pair
-            ]
-            interleaved_periods.append(regular_periods[-1])  # add last regular period
-        else:
-            interleaved_periods = regular_periods
-        self.periods.extend(interleaved_periods)
-
-        # final cashflow
-        if self.final_exchange:
-            self.periods.append(
-                Cashflow(
-                    self.notional - self.amortization * (self.schedule.n_periods - 1),
-                    add_tenor(
-                        self.schedule.aschedule[-1],
-                        f"{self.payment_lag_exchange}B",
-                        None,
-                        self.schedule.calendar,
-                    ),
-                    self.currency,
-                    "Exchange",
-                )
-            )
-
     def analytic_delta(self, *args, **kwargs):
         """
         Return the analytic delta of the *FloatLeg* via summing all periods.
@@ -945,6 +925,9 @@ class FloatLeg(BaseLeg, FloatLegMixin):
         :meth:`FloatPeriod.fixings_table()<rateslib.periods.FloatPeriod.fixings_table>`.
         """
         return super()._fixings_table(*args, **kwargs)
+
+    def _set_periods(self) -> None:
+        return super()._set_periods()
 
     # @property
     # def _is_complex(self):
@@ -1978,10 +1961,6 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings.extend([fx_fixings[-1]] * (n_req - n_given))
         return fx_fixings
 
-    @abc.abstractmethod
-    def _regular_period(self, *args, **kwargs):
-        pass  # pragma: no cover
-
     def _set_periods(self, fx):
         fx_fixings = self._get_fx_fixings(fx)
         self.notional = fx_fixings[0] * self.alt_notional
@@ -2166,28 +2145,6 @@ class FixedLegMtm(BaseLegMtm, FixedLegMixin):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _regular_period(
-        self,
-        start: datetime,
-        end: datetime,
-        payment: datetime,
-        notional: float,
-        stub: bool,
-        iterator: int,
-    ):
-        return FixedPeriod(
-            fixed_rate=self.fixed_rate,
-            start=start,
-            end=end,
-            payment=payment,
-            frequency=self.schedule.frequency,
-            notional=notional,
-            currency=self.currency,
-            convention=self.convention,
-            termination=self.schedule.termination,
-            stub=stub,
-        )
-
 
 class FloatLegMtm(BaseLegMtm, FloatLegMixin):
     """
@@ -2309,32 +2266,6 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
         self._set_fixings(fixings)
         self.fx_fixings = fx_fixings  # sets fx_fixings and periods after initialising
         # self._initialised = True  # once rates fixings are set can set periods
-
-    def _regular_period(
-        self,
-        start: datetime,
-        end: datetime,
-        payment: datetime,
-        notional: float,
-        stub: bool,
-        iterator: int,
-    ):
-        return FloatPeriod(
-            float_spread=self.float_spread,
-            start=start,
-            end=end,
-            payment=payment,
-            frequency=self.schedule.frequency,
-            notional=notional,
-            currency=self.currency,
-            convention=self.convention,
-            termination=self.schedule.termination,
-            stub=stub,
-            fixings=self.fixings[iterator],
-            fixing_method=self.fixing_method,
-            method_param=self.method_param,
-            spread_compound_method=self.spread_compound_method,
-        )
 
 
 class CustomLeg(BaseLeg):
