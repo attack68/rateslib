@@ -16,8 +16,8 @@ from rateslib.legs import (
     FixedPeriod,
     CustomLeg,
     IndexFixedLeg,
-    FloatLegExchangeMtm,
-    FixedLegExchangeMtm,
+    FloatLegMtm,
+    FixedLegMtm,
     Cashflow,
 )
 from rateslib.fx import FXRates, FXForwards
@@ -70,7 +70,7 @@ class TestFloatLeg:
                 )
             ),
             (
-                FloatLegExchangeMtm(
+                FloatLegMtm(
                     effective=dt(2022, 1, 1),
                     termination=dt(2022, 6, 1),
                     payment_lag=0,
@@ -1116,7 +1116,7 @@ class TestFloatLegExchangeMtm:
         ],
     )
     def test_float_leg_exchange_mtm(self, fx_fixings, exp):
-        float_leg_exch = FloatLegExchangeMtm(
+        float_leg_exch = FloatLegMtm(
             effective=dt(2022, 1, 3),
             termination=dt(2022, 7, 3),
             frequency="Q",
@@ -1167,7 +1167,7 @@ class TestFloatLegExchangeMtm:
         assert float_leg_exch.periods[-1].notional == 10e6 * rate[1]
 
     def test_mtm_leg_exchange_spread(self):
-        leg = FloatLegExchangeMtm(
+        leg = FloatLegMtm(
             effective=dt(2022, 1, 3),
             termination=dt(2022, 7, 3),
             frequency="Q",
@@ -1209,7 +1209,7 @@ class TestFloatLegExchangeMtm:
         ],
     )
     def test_mtm_leg_fx_fixings_warn_raise(self, curve, fx_fixings, exp):
-        float_leg_exch = FloatLegExchangeMtm(
+        float_leg_exch = FloatLegMtm(
             effective=dt(2022, 1, 3),
             termination=dt(2022, 7, 3),
             frequency="Q",
@@ -1306,7 +1306,7 @@ def test_custom_leg():
     ],
 )
 def test_fixed_leg_exchange_mtm(fx_fixings, exp):
-    fixed_leg_exch = FixedLegExchangeMtm(
+    fixed_leg_exch = FixedLegMtm(
         effective=dt(2022, 1, 3),
         termination=dt(2022, 7, 3),
         frequency="Q",
@@ -1349,7 +1349,7 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp):
     assert fixed_leg_exch.periods[-1].notional == 10e6 * rate[1]
 
 
-@pytest.mark.parametrize("type_", (FloatLegExchangeMtm, FixedLegExchangeMtm))
+@pytest.mark.parametrize("type_", (FloatLegMtm, FixedLegMtm))
 def test_mtm_leg_raises(type_):
     with pytest.raises(ValueError, match="`amortization`"):
         type_(
@@ -1381,8 +1381,8 @@ def test_mtm_leg_raises(type_):
 @pytest.mark.parametrize(
     "type_, expected, kw",
     [
-        (FloatLegExchangeMtm, [522.324262, 522.324262], {"float_spread": 1.0}),
-        (FixedLegExchangeMtm, [522.324262, 53772.226595], {"fixed_rate": 2.5}),
+        (FloatLegMtm, [522.324262, 522.324262], {"float_spread": 1.0}),
+        (FixedLegMtm, [522.324262, 53772.226595], {"fixed_rate": 2.5}),
     ],
 )
 def test_mtm_leg_exchange_metrics(type_, expected, kw):

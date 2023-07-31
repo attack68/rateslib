@@ -48,8 +48,8 @@ from rateslib.periods import (
 from rateslib.legs import (
     FixedLeg,
     FloatLeg,
-    FloatLegExchangeMtm,
-    FixedLegExchangeMtm,
+    FloatLegMtm,
+    FixedLegMtm,
     ZeroFloatLeg,
     ZeroFixedLeg,
     ZeroIndexLeg,
@@ -6664,7 +6664,7 @@ class XCS(BaseXCS):
             initial_exchange=True,
             final_exchange=True,
         )
-        self.leg2 = FloatLegExchangeMtm(
+        self.leg2 = FloatLegMtm(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6919,7 +6919,7 @@ class FixedFloatXCS(BaseXCS):
             initial_exchange=True,
             final_exchange=True,
         )
-        self.leg2 = FloatLegExchangeMtm(
+        self.leg2 = FloatLegMtm(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6992,7 +6992,7 @@ class FixedFixedXCS(BaseXCS):
             initial_exchange=True,
             final_exchange=True,
         )
-        self.leg2 = FixedLegExchangeMtm(
+        self.leg2 = FixedLegMtm(
             fixed_rate=leg2_fixed_rate,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -7070,7 +7070,7 @@ class FloatFixedXCS(BaseXCS):
             initial_exchange=True,
             final_exchange=True,
         )
-        self.leg2 = FixedLegExchangeMtm(
+        self.leg2 = FixedLegMtm(
             fixed_rate=leg2_fixed_rate,
             effective=self.leg2_effective,
             termination=self.leg2_termination,

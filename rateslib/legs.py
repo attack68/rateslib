@@ -1835,10 +1835,9 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         return super().analytic_delta(*args, **kwargs)
 
 
-class BaseLegExchangeMtm(BaseLeg, metaclass=ABCMeta):
+class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     """
-    Abstract base class with common parameters for all ``LegExchangeMtm``
-    subclasses.
+    Abstract base class with common parameters for all ``LegMtm`` subclasses.
 
     Parameters
     ----------
@@ -2097,7 +2096,7 @@ class BaseLegExchangeMtm(BaseLeg, metaclass=ABCMeta):
         return ret
 
 
-class FixedLegExchangeMtm(BaseLegExchangeMtm, FixedLegMixin):
+class FixedLegMtm(BaseLegMtm, FixedLegMixin):
     """
     Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
@@ -2190,7 +2189,7 @@ class FixedLegExchangeMtm(BaseLegExchangeMtm, FixedLegMixin):
         )
 
 
-class FloatLegExchangeMtm(BaseLegExchangeMtm, FloatLegMixin):
+class FloatLegMtm(BaseLegMtm, FloatLegMixin):
     """
     Create a leg of :class:`~rateslib.periods.FloatPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
@@ -2234,9 +2233,9 @@ class FloatLegExchangeMtm(BaseLegExchangeMtm, FloatLegMixin):
 
     .. warning::
 
-       ``amortization`` is **not** permitted for on ``FloatLegExchangeMtm``.
+       ``amortization`` is **not** permitted for on ``FloatLegMtm``.
 
-       ``notional`` is **not** used on an ``FloatLegExchangeMtm``. It is determined
+       ``notional`` is **not** used on an ``FloatLegMtm``. It is determined
        from ``alt_notional`` under given ``fx_fixings``.
 
     .. note::
@@ -2266,7 +2265,7 @@ class FloatLegExchangeMtm(BaseLegExchangeMtm, FloatLegMixin):
 
     .. ipython:: python
 
-       float_leg_exch_mtm = FloatLegExchangeMtm(
+       float_leg_exch_mtm = FloatLegMtm(
            effective=dt(2022, 1, 1),
            termination="9M",
            frequency="Q",

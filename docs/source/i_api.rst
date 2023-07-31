@@ -218,9 +218,9 @@ Instruments
    :skip: Schedule
    :skip: CustomLeg
    :skip: FixedLeg
-   :skip: FixedLegExchangeMtm
+   :skip: FixedLegMtm
    :skip: FloatLeg
-   :skip: FloatLegExchangeMtm
+   :skip: FloatLegMtm
    :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver

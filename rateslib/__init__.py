@@ -86,9 +86,9 @@ from rateslib.periods import (
 
 from rateslib.legs import (
     FixedLeg,
-    FixedLegExchangeMtm,
+    FixedLegMtm,
     FloatLeg,
-    FloatLegExchangeMtm,
+    FloatLegMtm,
     ZeroFloatLeg,
     ZeroFixedLeg,
     ZeroIndexLeg,
@@ -182,8 +182,8 @@ __all__ = [
     "FloatLeg",
     "ZeroFloatLeg",
     "ZeroFixedLeg",
-    "FixedLegExchangeMtm",
-    "FloatLegExchangeMtm",
+    "FixedLegMtm",
+    "FloatLegMtm",
     "IndexFixedLeg",
     "ZeroIndexLeg",
     "CustomLeg",
