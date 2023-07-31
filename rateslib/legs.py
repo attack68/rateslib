@@ -95,6 +95,14 @@ class BaseLeg(metaclass=ABCMeta):
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
         See :meth:`~rateslib.calendars.dcf`.
+    payment_lag_exchange : int
+        The number of business days by which to delay notional exchanges, aligned with
+        the accrual schedule.
+    initial_exchange : bool
+        Whether to also include an initial notional exchange.
+    final_exchange : bool
+        Whether to also include a final notional exchange and interim amortization
+        notional exchanges.
 
     Notes
     -----
@@ -104,11 +112,12 @@ class BaseLeg(metaclass=ABCMeta):
     Attributes
     ----------
     schedule : Schedule
-    notional : float
     currency : str
-    amortization : float
     convention : str
     periods : list
+    initial_exchange : bool
+    final_exchange : bool
+    payment_lag_exchange : int
 
     See Also
     --------
@@ -2019,79 +2028,6 @@ class IndexFixedLegExchange(IndexLegMixin, FixedLegMixin, BaseLegExchange):
 
     def analytic_delta(self, *args, **kwargs):
         return super().analytic_delta(*args, **kwargs)
-
-
-class FloatLegExchange(FloatLeg):
-    """
-    Create a leg of :class:`~rateslib.periods.FloatPeriod` s and initial and
-    final :class:`~rateslib.periods.Cashflow` s.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseLegExchange`.
-    float_spread : float or None
-        The spread applied to determine cashflows. Can be set to `None` and designated
-        later, perhaps after a mid-market spread for all periods has been calculated.
-    spread_compound_method : str, optional
-        The method to use for adding a spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the **first**
-        whole period of the leg. If a list of *n* items, each successive item will be
-        passed to the ``fixing`` argument of the first *n* periods of the leg.
-        A list within the list is accepted if it contains a set of RFR fixings that
-        will be applied to any individual RFR period.
-    fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseLegExchange`.
-
-    Notes
-    -----
-    For more details of floating rate options see :class:`rateslib.periods.FloatPeriod`.
-
-    The (optional) initial cashflow notional is set as the negative of the notional.
-    The payment
-    date is set equal to the accrual date adjusted by the ``payment_lag_exchange``
-    days.
-
-    The final cashflow notional is set as the notional. The payment date is set equal
-    to the final accrual date adjusted by the ``payment_lag_exchange``
-    days.
-
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods.
-
-    The NPV of a *FloatLegExchange* is the sum of the period NPVs.
-
-    .. math::
-
-       P = - \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)} + N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)
-
-    The analytic delta is the sum of the period analytic deltas.
-
-    .. math::
-
-       A = -\\frac{\\partial P}{\\partial z} = \\sum_{i=1}^n {\\frac{\\partial r_i}{\\partial z} N_i d_i v_i(m_i)}
-
-    Examples
-    --------
-
-    .. ipython:: python
-
-       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-       float_leg_exch = FloatLegExchange(dt(2022, 1, 1), "9M", "Q", notional=1000000, amortization=200000)
-       float_leg_exch.cashflows(curve)
-       float_leg_exch.npv(curve)
-    """
-
-    def __init__(self, *args, **kwargs):
-        if not "initial_exchange" in kwargs:
-            kwargs["initial_exchange"] = True
-        super().__init__(*args, final_exchange=True, **kwargs)
 
 
 class BaseLegExchangeMtm(BaseLegExchange, metaclass=ABCMeta):

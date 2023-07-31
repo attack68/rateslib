@@ -49,7 +49,6 @@ from rateslib.legs import (
     FixedLeg,
     FixedLegExchange,
     FloatLeg,
-    FloatLegExchange,
     FloatLegExchangeMtm,
     FixedLegExchangeMtm,
     ZeroFloatLeg,
@@ -2296,7 +2295,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -2319,6 +2318,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             method_param=method_param,
             spread_compound_method=spread_compound_method,
             initial_exchange=False,
+            final_exchange=True,
         )
         self.ex_div_days = ex_div
         self.settle = settle
@@ -4261,7 +4261,7 @@ class IIRS(BaseDerivative):
             L1, L2 = IndexFixedLeg, FloatLeg
             l1_args, l2_args = {}, {}
         else:
-            L1, L2 = IndexFixedLegExchange, FloatLegExchange
+            L1, L2 = IndexFixedLegExchange, FloatLeg
             l1_args = dict(
                 payment_lag_exchange=payment_lag_exchange,
                 initial_exchange=False,
@@ -4269,6 +4269,7 @@ class IIRS(BaseDerivative):
             l2_args = dict(
                 payment_lag_exchange=leg2_payment_lag_exchange,
                 initial_exchange=False,
+                final_exchange=True,
             )
 
         self.leg1 = L1(
@@ -6084,7 +6085,7 @@ class NonMtmXCS(BaseXCS):
             leg2_payment_lag_exchange = payment_lag_exchange
         self._leg2_float_spread = leg2_float_spread
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             float_spread=float_spread,
             fixings=fixings,
             fixing_method=fixing_method,
@@ -6106,8 +6107,10 @@ class NonMtmXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FloatLegExchange(
+        self.leg2 = FloatLeg(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6129,6 +6132,8 @@ class NonMtmXCS(BaseXCS):
             currency=self.leg2_currency,
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
 
@@ -6401,7 +6406,7 @@ class NonMtmFixedFloatXCS(BaseXCS):
             amortization=self.amortization,
             convention=self.convention,
         )
-        self.leg2 = FloatLegExchange(
+        self.leg2 = FloatLeg(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6423,6 +6428,8 @@ class NonMtmFixedFloatXCS(BaseXCS):
             currency=self.leg2_currency,
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
 
@@ -6625,7 +6632,7 @@ class XCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_float_spread = leg2_float_spread
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             float_spread=float_spread,
             fixings=fixings,
             fixing_method=fixing_method,
@@ -6647,6 +6654,8 @@ class XCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self.leg2 = FloatLegExchangeMtm(
             float_spread=leg2_float_spread,
@@ -7025,7 +7034,7 @@ class FloatFixedXCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_fixed_rate = leg2_fixed_rate
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             float_spread=float_spread,
             fixings=fixings,
             fixing_method=fixing_method,
@@ -7047,6 +7056,8 @@ class FloatFixedXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self.leg2 = FixedLegExchangeMtm(
             fixed_rate=leg2_fixed_rate,

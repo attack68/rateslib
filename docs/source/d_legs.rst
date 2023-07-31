@@ -43,7 +43,6 @@ The following *Legs* are provided, click on the links for a full description of 
    rateslib.legs.ZeroFixedLeg
    rateslib.legs.ZeroIndexLeg
    rateslib.legs.FixedLegExchange
-   rateslib.legs.FloatLegExchange
    rateslib.legs.IndexFixedLegExchange
    rateslib.legs.FixedLegExchangeMtm
    rateslib.legs.FloatLegExchangeMtm

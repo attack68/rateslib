@@ -222,7 +222,6 @@ Instruments
    :skip: FixedLegExchange
    :skip: FixedLegExchangeMtm
    :skip: FloatLeg
-   :skip: FloatLegExchange
    :skip: FloatLegExchangeMtm
    :skip: ZeroFloatLeg
    :skip: LineCurve
