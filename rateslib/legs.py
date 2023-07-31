@@ -278,6 +278,10 @@ class BaseLeg(metaclass=ABCMeta):
     # def _regular_period(self):
     #     pass  # pragma: no cover
 
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
     def analytic_delta(self, *args, **kwargs):
         """
         Return the analytic delta of the *Leg* via summing all periods.
@@ -1724,7 +1728,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         # initial exchange
         if self.initial_exchange:
             raise NotImplementedError(
-                "Cannot construct `IndexFixedLegExchange` with `initial_exchange` "
+                "Cannot construct `IndexFixedLeg` with `initial_exchange` "
                 "due to not implemented `index_fixings` input argument applicable to "
                 "the indexing-up the initial exchange."
             )

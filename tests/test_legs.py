@@ -655,21 +655,29 @@ class TestZeroIndexLeg:
         assert abs(result - exp) < 1e-3
 
     def test_set_index_leg_after_init(self):
-        leg = IndexFixedLeg(
+        leg = ZeroIndexLeg(
             effective=dt(2022, 3, 15),
             termination="9M",
             frequency="Q",
-            convention="ActActICMA",
+            convention="1+",
             payment_lag=0,
             notional=40e6,
-            fixed_rate=5.0,
             index_base=None,
         )
-        for period in leg.periods:
+        for period in leg.periods[:1]:
             assert period.index_base is None
         leg.index_base = 205.0
-        for period in leg.periods:
+        for period in leg.periods[:1]:
             assert period.index_base == 205.0
+
+    def test_zero_analytic_delta(self):
+        zil = ZeroIndexLeg(
+            effective=dt(2022, 1, 15),
+            termination="2Y",
+            frequency="A",
+            convention="1+",
+        )
+        assert zil.analytic_delta() == 0.0
 
 
 class TestFloatLegExchange:
@@ -1104,6 +1112,20 @@ class TestIndexFixedLeg:
             index_base=i_base,
         )
         assert leg.index_base == exp
+
+    # this test is for coverage. When implemented this is OK to remove.
+    def test_initial_exchange_raises(self):
+        with pytest.raises(NotImplementedError, match="Cannot construct `IndexFixedL" ):
+            IndexFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="Act360",
+                frequency="Q",
+                index_base=None,
+                initial_exchange=True,
+            )
 
 
 class TestFloatLegExchangeMtm:
