@@ -15,8 +15,6 @@ from rateslib.legs import (
     ZeroIndexLeg,
     FixedPeriod,
     CustomLeg,
-    FixedLegExchange,
-    IndexFixedLegExchange,
     IndexFixedLeg,
     FloatLegExchangeMtm,
     FixedLegExchangeMtm,
@@ -843,7 +841,7 @@ class TestIndexFixedLegExchange:
         ],
     )
     def test_idx_leg_cashflows(self, i_fixings):
-        leg = IndexFixedLegExchange(
+        leg = IndexFixedLeg(
             effective=dt(2022, 3, 15),
             termination="9M",
             frequency="Q",
@@ -854,6 +852,7 @@ class TestIndexFixedLegExchange:
             index_base=200.0,
             index_fixings=i_fixings,
             initial_exchange=False,
+            final_exchange=True,
         )
         index_curve = IndexCurve(
             nodes={
@@ -901,16 +900,18 @@ class TestIndexFixedLegExchange:
 
     def test_args_raises(self):
         with pytest.raises(ValueError, match="`index_method` must be in"):
-            leg = IndexFixedLegExchange(
+            leg = IndexFixedLeg(
                 effective=dt(2022, 3, 15),
                 termination="9M",
                 frequency="Q",
                 index_base=200.0,
                 index_method="BAD",
+                initial_exchange=True,
+                final_exchange=True,
             )
 
     def test_set_index_leg_after_init(self):
-        leg = IndexFixedLegExchange(
+        leg = IndexFixedLeg(
             effective=dt(2022, 3, 15),
             termination="9M",
             frequency="Q",
@@ -920,6 +921,7 @@ class TestIndexFixedLegExchange:
             fixed_rate=5.0,
             index_base=None,
             initial_exchange=False,
+            final_exchange=True,
         )
         for period in leg.periods:
             assert period.index_base is None
@@ -931,13 +933,14 @@ class TestIndexFixedLegExchange:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
         index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
                                  index_base=100.0)
-        index_leg_exch = IndexFixedLegExchange(
+        index_leg_exch = IndexFixedLeg(
             dt(2022, 1, 1), "9M", "Q",
             notional=1000000,
             amortization=200000,
             index_base=100.0,
             initial_exchange=False,
             fixed_rate=1.0,
+            final_exchange=True,
         )
         result = index_leg_exch.npv(index_curve, curve)
         expected = -999971.65702
@@ -1263,7 +1266,7 @@ def test_leg_amortization():
     for i, period in enumerate(index_leg.periods):
         assert period.notional == 1e6 - 250e3 * i
 
-    index_leg_exchange = IndexFixedLegExchange(
+    index_leg_exchange = IndexFixedLeg(
         dt(2022, 1, 1),
         dt(2022, 10, 1),
         frequency="Q",
@@ -1272,6 +1275,7 @@ def test_leg_amortization():
         fixed_rate=2.0,
         index_base=100.0,
         initial_exchange=False,
+        final_exchange=True,
     )
     for i, period in enumerate(index_leg_exchange.periods[0::2]):
         assert period.notional == 1e6 - 250e3 * i
@@ -1420,7 +1424,7 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw):
 
 @pytest.mark.parametrize("klass, kwargs, expected", [
     (IndexFixedLeg, {}, [200.0, 300.0, 400.0]),
-    (IndexFixedLegExchange, {"initial_exchange": False}, [200.0, 300.0, 400.0, 400.0]),
+    (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True}, [200.0, 300.0, 400.0, 400.0]),
     (ZeroIndexLeg, {}, [400.0])
 ])
 def test_set_index_fixings_series_leg_types(klass, kwargs, expected):
@@ -1446,7 +1450,7 @@ def test_set_index_fixings_series_leg_types(klass, kwargs, expected):
 
 @pytest.mark.parametrize("klass, kwargs, expected", [
     (IndexFixedLeg, {"index_fixings": [200.0, 300.0, 400.0]}, [200.0, 300.0, 400.0]),
-    (IndexFixedLegExchange, {"initial_exchange": False, "index_fixings": [200.0, 300.0, 400.0, 400.0]}, [200.0, 300.0, 400.0, 400.0]),
+    (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True, "index_fixings": [200.0, 300.0, 400.0, 400.0]}, [200.0, 300.0, 400.0, 400.0]),
     (ZeroIndexLeg, {"index_fixings": [400.0]}, [400.0])
 ])
 def test_set_index_fixings_list_leg_types(klass, kwargs, expected):
@@ -1467,7 +1471,7 @@ def test_set_index_fixings_list_leg_types(klass, kwargs, expected):
 
 @pytest.mark.parametrize("klass, kwargs, expected", [
     (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, None, None]),
-    (IndexFixedLegExchange, {"initial_exchange": False, "index_fixings": 200.0}, [200.0, None, None, None]),
+    (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True, "index_fixings": 200.0}, [200.0, None, None, None]),
     (ZeroIndexLeg, {"index_fixings": 400.0}, [400.0])
 ])
 def test_set_index_fixings_float_leg_types(klass, kwargs, expected):

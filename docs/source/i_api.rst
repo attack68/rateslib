@@ -190,7 +190,6 @@ Instruments
    :inherited-members:
    :skip: IndexCurve
    :skip: IndexFixedLeg
-   :skip: IndexFixedLegExchange
    :skip: IndexMixin
    :skip: ZeroIndexLeg
    :skip: forward_fx
@@ -219,7 +218,6 @@ Instruments
    :skip: Schedule
    :skip: CustomLeg
    :skip: FixedLeg
-   :skip: FixedLegExchange
    :skip: FixedLegExchangeMtm
    :skip: FloatLeg
    :skip: FloatLegExchangeMtm

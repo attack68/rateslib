@@ -47,7 +47,6 @@ from rateslib.periods import (
 )
 from rateslib.legs import (
     FixedLeg,
-    FixedLegExchange,
     FloatLeg,
     FloatLegExchangeMtm,
     FixedLegExchangeMtm,
@@ -55,7 +54,6 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroIndexLeg,
     IndexFixedLeg,
-    IndexFixedLegExchange,
     CustomLeg,
 )
 from rateslib.dual import Dual, Dual2, set_order, DualTypes
@@ -1387,7 +1385,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     ex_div_days : int
     settle : int
     curves : str, list, CurveType
-    leg1 : FixedLegExchange
+    leg1 : FixedLeg
 
     Examples
     --------
@@ -1520,7 +1518,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self._fixed_rate = fixed_rate
         self.ex_div_days = ex_div
         self.settle = settle
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -1539,6 +1537,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             convention=convention,
             fixed_rate=fixed_rate,
             initial_exchange=False,
+            final_exchange=True
         )
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
@@ -1707,7 +1706,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self._index_base = index_base
         self.ex_div_days = ex_div
         self.settle = settle
-        self.leg1 = IndexFixedLegExchange(
+        self.leg1 = IndexFixedLeg(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -1726,6 +1725,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             convention=convention,
             fixed_rate=fixed_rate,
             initial_exchange=False,
+            final_exchange=True,
             index_base=index_base,
             index_method=index_method,
             index_lag=index_lag,
@@ -2258,7 +2258,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
     Attributes
     ----------
     ex_div_days : int
-    leg1 : FloatLegExchange
+    leg1 : FloatLeg
     """
 
     _float_spread_mixin = True
@@ -4101,8 +4101,8 @@ class IIRS(BaseDerivative):
     Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
 
-    If ``notional_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLegExchange`
-    and :class:`~rateslib.legs.FloatLegExchange`.
+    If ``notional_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLeg`
+    and :class:`~rateslib.legs.FloatLeg`.
 
     Parameters
     ----------
@@ -4261,10 +4261,11 @@ class IIRS(BaseDerivative):
             L1, L2 = IndexFixedLeg, FloatLeg
             l1_args, l2_args = {}, {}
         else:
-            L1, L2 = IndexFixedLegExchange, FloatLeg
+            L1, L2 = IndexFixedLeg, FloatLeg
             l1_args = dict(
                 payment_lag_exchange=payment_lag_exchange,
                 initial_exchange=False,
+                final_exchange=True,
             )
             l2_args = dict(
                 payment_lag_exchange=leg2_payment_lag_exchange,
@@ -5994,7 +5995,7 @@ class BaseXCS(BaseDerivative):
 class NonMtmXCS(BaseXCS):
     """
     Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FloatLegExchange` s.
+    :class:`~rateslib.legs.FloatLeg` s.
 
     Parameters
     ----------
@@ -6319,8 +6320,8 @@ class NonMtmXCS(BaseXCS):
 class NonMtmFixedFloatXCS(BaseXCS):
     """
     Create a non-mark-to-market cross currency swap (XCS) derivative composing a
-    :class:`~rateslib.legs.FixedLegExchange` and a
-    :class:`~rateslib.legs.FloatLegExchange`.
+    :class:`~rateslib.legs.FixedLeg` and a
+    :class:`~rateslib.legs.FloatLeg`.
 
     Parameters
     ----------
@@ -6387,7 +6388,7 @@ class NonMtmFixedFloatXCS(BaseXCS):
             leg2_payment_lag_exchange = payment_lag_exchange
         self._leg2_float_spread = leg2_float_spread
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6405,6 +6406,8 @@ class NonMtmFixedFloatXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self.leg2 = FloatLeg(
             float_spread=leg2_float_spread,
@@ -6437,7 +6440,7 @@ class NonMtmFixedFloatXCS(BaseXCS):
 class NonMtmFixedFixedXCS(BaseXCS):
     """
     Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FixedLegExchange` s.
+    :class:`~rateslib.legs.FixedLeg` s.
 
     Parameters
     ----------
@@ -6489,7 +6492,7 @@ class NonMtmFixedFixedXCS(BaseXCS):
             leg2_payment_lag_exchange = payment_lag_exchange
         self._leg2_fixed_rate = leg2_fixed_rate
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6507,8 +6510,10 @@ class NonMtmFixedFixedXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FixedLegExchange(
+        self.leg2 = FixedLeg(
             fixed_rate=leg2_fixed_rate,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -6526,6 +6531,8 @@ class NonMtmFixedFixedXCS(BaseXCS):
             currency=self.leg2_currency,
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
 
@@ -6891,7 +6898,7 @@ class FixedFloatXCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_float_spread = leg2_float_spread
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6909,6 +6916,8 @@ class FixedFloatXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self.leg2 = FloatLegExchangeMtm(
             float_spread=leg2_float_spread,
@@ -6962,7 +6971,7 @@ class FixedFixedXCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_fixed_rate = leg2_fixed_rate
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6980,6 +6989,8 @@ class FixedFixedXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self.leg2 = FixedLegExchangeMtm(
             fixed_rate=leg2_fixed_rate,
@@ -7192,7 +7203,7 @@ class FXSwap(BaseXCS):
         if leg2_payment_lag_exchange == "inherit":
             leg2_payment_lag_exchange = payment_lag_exchange
         self._fixed_rate = 0.0
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=0.0,
             effective=self.effective,
             termination=self.termination,
@@ -7204,8 +7215,10 @@ class FXSwap(BaseXCS):
             notional=self.notional,
             currency=self.currency,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FixedLegExchange(
+        self.leg2 = FixedLeg(
             fixed_rate=None,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -7217,6 +7230,8 @@ class FXSwap(BaseXCS):
             notional=self.leg2_notional,
             currency=self.leg2_currency,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
         self.points = points

@@ -34,7 +34,6 @@ The following *Legs* are provided, click on the links for a full description of 
 
 .. autosummary::
    rateslib.legs.BaseLeg
-   rateslib.legs.BaseLegExchange
    rateslib.legs.BaseLegExchangeMtm
    rateslib.legs.FixedLeg
    rateslib.legs.FloatLeg
@@ -42,8 +41,6 @@ The following *Legs* are provided, click on the links for a full description of 
    rateslib.legs.ZeroFloatLeg
    rateslib.legs.ZeroFixedLeg
    rateslib.legs.ZeroIndexLeg
-   rateslib.legs.FixedLegExchange
-   rateslib.legs.IndexFixedLegExchange
    rateslib.legs.FixedLegExchangeMtm
    rateslib.legs.FloatLegExchangeMtm
    rateslib.legs.CustomLeg
@@ -131,7 +128,8 @@ and :class:`~rateslib.legs.FloatLeg` classes, except there are now the
 additional arguments:
 
 - ``initial_exchange``,
-- ``payment_lag_exchanged``,
+- ``final_exchange``,
+- ``payment_lag_exchange``,
 
 The ``payment_lag_exchange`` argument allows configuration of separate lags
 for notional exchanges and regular period flows, which is common practice
@@ -139,7 +137,7 @@ on ``CrossCurrencySwaps`` for example.
 
 .. ipython:: python
 
-   fixed_leg_exch = FixedLegExchange(
+   fixed_leg_exch = FixedLeg(
        effective=dt(2022, 1, 15),
        termination=dt(2022, 7, 15),
        frequency="Q",
@@ -157,6 +155,7 @@ on ``CrossCurrencySwaps`` for example.
        convention="act360",
        fixed_rate=5.0,
        initial_exchange=True,
+       final_exchange=True,
        payment_lag_exchange=0,
    )
    fixed_leg_exch.cashflows(curve)
@@ -176,8 +175,8 @@ FX rates. Thus the additional arguments in this leg are:
 - ``notional`` is not used in this leg type and is overwritten.
 
 Otherwise, the arguments are the same as the
-previous :class:`~rateslib.legs.FixedLegExchange`
-and :class:`~rateslib.legs.FloatLegExchange`.
+previous :class:`~rateslib.legs.FixedLeg`
+and :class:`~rateslib.legs.FloatLeg`.
 
 .. ipython:: python
 
