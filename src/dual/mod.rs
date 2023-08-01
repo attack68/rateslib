@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array, arr1, aview1};
+use ndarray::{Array1, Array, arr1};
 // use ndarray_einsum_beta::*;
 use num_traits;
 use num_traits::Pow;

@@ -4,6 +4,10 @@
 requires      = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+#[build-system]
+#requires = ["maturin>=1.0,<2.0"]
+#build-backend = "maturin"
+
 [project]
 name = "rateslib"
 version = "0.3.0"
