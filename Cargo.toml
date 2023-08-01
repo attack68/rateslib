@@ -1,15 +1,18 @@
 [package]
-name = "rateslib_rust"
-version = "0.1.0"
+name = "rateslibrs"
+version = "0.4.0"
 edition = "2021"
 
 [lib]
-name = "rateslib_rust"
+name = "rateslibrs"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+#crate-type = ["cdylib"]  # for pyO3
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+pyo3 = { version = "0.19.2", features = ["extension-module"] }
 ndarray = "0.15.6"
 indexmap = "1.9.3"
 ndarray_einsum_beta = "0.7.0"

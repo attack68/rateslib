@@ -1,8 +1,8 @@
 // extern crate ndarray;
-use nalgebra as na;
+// use nalgebra as na;
 use std::rc::Rc;
 
-use rateslib_rust::dual::{Dual};
+use rateslibrs::dual::{Dual};
 use indexmap::set::IndexSet;
 use ndarray::Array;
 
