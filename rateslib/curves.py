@@ -25,7 +25,7 @@ from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, Ca
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rateslib.fx import FXForwards
+    from rateslib.fx import FXForwards  # pragma: no cover
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

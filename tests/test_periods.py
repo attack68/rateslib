@@ -1304,6 +1304,13 @@ class TestIndexCashflow:
         result = i_period.cashflows()
         assert result[Defaults.headers["index_ratio"]] is None
 
+    def test_index_only(self, curve):
+        cf = IndexCashflow(
+            notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=200,
+            index_only=True,
+        )
+        assert abs(cf.npv(curve) + 1e6) < 1e-6
+
 
 def test_base_period_dates_raise():
     with pytest.raises(ValueError):

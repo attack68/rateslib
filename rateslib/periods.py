@@ -1679,7 +1679,11 @@ class IndexMixin(metaclass=ABCMeta):
         if index_ratio is None:
             return None
         else:
-            _ = self.real_cashflow * index_ratio
+            if self.index_only:
+                _ = -1.0
+            else:
+                _ = 0.0
+            _ = self.real_cashflow * (index_ratio + _)
         return _
 
     def index_ratio(self, curve: Optional[IndexCurve]) -> tuple:
@@ -1894,6 +1898,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         #     raise ValueError("`index_base` cannot be None.")
         self.index_base = index_base
         self.index_fixings = index_fixings
+        self.index_only = False
         self.index_method = (
             defaults.index_method if index_method is None else index_method.lower()
         )
@@ -2002,6 +2007,12 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     index_lag : int
         The number of months by which the index value is lagged. Used to ensure
         consistency between curves and forecast values. Defined by default.
+    index_only : bool
+        If *True* deduct the real notional from the cashflow and produce only the
+        indexed component.
+    end : datetime, optional
+        The registered end of a period when the index value is measured. If *None*
+        is set equal to the payment date.
     kwargs : dict
         Required keyword arguments to :class:`Cashflow`.
 
@@ -2039,6 +2050,8 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         index_fixings: Optional[Union[float, Series]] = None,
         index_method: Optional[str] = None,
         index_lag: Optional[int] = None,
+        index_only: bool = False,
+        end: Optional[datetime] = None,
         **kwargs,
     ):
         self.index_base = index_base
@@ -2047,8 +2060,9 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.index_method if index_method is None else index_method.lower()
         )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
-        self.end = self.payment
+        self.end = self.payment if end is None else end
 
     @property
     def real_cashflow(self):

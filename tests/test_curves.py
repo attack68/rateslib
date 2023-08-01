@@ -814,6 +814,11 @@ def test_curve_translate_raises(curve):
         curve.translate(dt(2020, 4, 1))
 
 
+def test_curve_zero_width_rate_raises(curve):
+    with pytest.raises(ZeroDivisionError, match="effective:"):
+        curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
+
+
 class TestIndexCurve:
 
     def test_curve_translate_knots_raises(self, curve):
@@ -1148,6 +1153,15 @@ class TestCompositeCurve:
         ], multi_csa=True)
         result = pc[dt(2023, 1, 1)]
         assert abs(result - expected) < 1e-4
+
+    def test_multi_raises(self, line_curve, curve):
+        with pytest.raises(TypeError, match="Multi-CSA curves must"):
+            cc = CompositeCurve([line_curve], multi_csa=True)
+
+        with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
+            cc = CompositeCurve(
+                [curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4
+            )
 
 
 class TestPlotCurve:

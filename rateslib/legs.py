@@ -107,7 +107,18 @@ class BaseLeg(metaclass=ABCMeta):
     Notes
     -----
     See also :class:`~rateslib.scheduling.Schedule` for a more thorough description
-    of some of these arguments.
+    of some of these scheduling arguments.
+
+    The (optional) initial cashflow notional is set as the negative of the notional.
+    The payment date is set equal to the accrual start date adjusted by
+    the ``payment_lag_exchange``.
+
+    The final cashflow notional is set as the notional. The payment date is set equal
+    to the final accrual date adjusted by ``payment_lag_exchange``.
+
+    If ``amortization`` is specified an exchanged notional equivalent to the
+    amortization amount is added to the list of periods as interim exchanges if
+    ``final_exchange`` is *True*. Payment dates adhere to the ``payment_lag_exchange``.
 
     Attributes
     ----------
@@ -549,38 +560,13 @@ class FixedLeg(BaseLeg, FixedLegMixin):
 
     .. math::
 
-       P = - R \\sum_{i=1}^n {N_i d_i v_i(m_i)}
+       P = \\underbrace{- R \\sum_{i=1}^n {N_i d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
 
     The analytic delta is the sum of the period analytic deltas.
 
     .. math::
 
        A = -\\frac{\\partial P}{\\partial R} = \\sum_{i=1}^n {N_i d_i v_i(m_i)}
-
-
-    Notes2
-    ------
-    The (optional) initial cashflow notional is set as the negative of the notional.
-    The payment date is set equal to the accrual start date adjusted by
-    the ``payment_lag_exchange``.
-
-    The final cashflow notional is set as the notional. The payment date is set equal
-    to the final accrual date adjusted by ``payment_lag_exchange``.
-
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods.
-
-    The NPV of a *FixedLegExchange* is the sum of the period NPVs.
-
-    .. math::
-
-       P = - R \\sum_{i=1}^n N_i d_i v(m_i) + N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)
-
-    The analytic delta is defined as that of a *FixedLeg*.
-
-    .. math::
-
-       A = \\sum_{i=1}^n N_i d_i v(m_i)
 
     Examples
     --------
@@ -644,7 +630,8 @@ class FixedLeg(BaseLeg, FixedLegMixin):
 class FloatLegMixin:
     """
     Add the functionality to add and retrieve ``float_spread`` on
-    :class:`~rateslib.periods.FloatPeriod` s and a :meth:`fixings_table`.
+    :class:`~rateslib.periods.FloatPeriod` s and a
+    :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
     """
 
     def _set_fixings(
@@ -807,7 +794,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
 
     .. math::
 
-       P = - \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}
+       P = \\underbrace{- \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
 
     The analytic delta is the sum of the period analytic deltas.
 
@@ -1577,7 +1564,7 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
 
     def cashflows(self, *args, **kwargs):
         """
-        Return the properties of the *IndexFixedLeg* used in calculating cashflows.
+        Return the properties of the *ZeroIndexLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -1598,15 +1585,6 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         return 0.0
-
-    def cashflows(self, *args, **kwargs) -> DataFrame:
-        """
-        Return the properties of the *ZeroIndexLeg* used in calculating cashflows.
-
-        For arguments see
-        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
-        """
-        return super().cashflows(*args, **kwargs)
 
     def npv(self, *args, **kwargs):
         """

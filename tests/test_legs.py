@@ -679,6 +679,34 @@ class TestZeroIndexLeg:
         )
         assert zil.analytic_delta() == 0.0
 
+    def test_cashflows(self):
+        index_curve = IndexCurve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.97,
+            },
+            index_base=100.0,
+        )
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
+        zil = ZeroIndexLeg(
+            effective=dt(2022, 1, 15),
+            termination="2Y",
+            frequency="A",
+            convention="1+",
+        )
+        result = zil.cashflows(index_curve, curve)
+        expected = DataFrame({
+            "Type": ["ZeroIndexLeg"],
+            "Notional": [1000000.],
+            "Real Cashflow": [-1000000.],
+            "Index Base": [100.11863],
+            "Index Ratio": [1.06178],
+            "Cashflow": [-61782.379],
+            "NPV": [-58053.47605],
+        })
+        assert_frame_equal(result[["Type", "Notional", "Real Cashflow", "Index Base",
+                                   "Index Ratio", "Cashflow", "NPV"]], expected, rtol=1e-3)
+
 
 class TestFloatLegExchange:
     def test_float_leg_exchange_notional_setter(self):
