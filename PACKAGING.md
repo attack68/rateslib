@@ -4,6 +4,7 @@ Update "release" in docs/source/conf.py, e.g. to 0.2.x
 Update the switcher.json in main:docs/source/static
 Update pyproject.toml with new version.
 Delete the switcher in the releases branch since this is taken from main.
+Add release date to whatsnew file.
 
 Checks:
 $ coverage run -m pytest

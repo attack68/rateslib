@@ -4,10 +4,10 @@
 Release Notes
 **************
 
-Proper release notes started being recorded after version 0.3.0
+Proper release notes started being recorded after version 0.3.x
 
-0.4.0
-******
+0.4.0 (not released)
+********************
 
 - Bug: allow *CompositeCurve* to be constructed from *ProxyCurve* and *Curve*
   combinations.
