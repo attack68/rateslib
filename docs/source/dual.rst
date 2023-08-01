@@ -156,8 +156,9 @@ Compatability with NumPy
 To enable this library to perform its calculations in a vectorised way we need to
 leverage NumPy's array calculations. NumPy arrays containing dual numbers are
 forced to have an ``object`` dtype configuration. This is imposed by NumPy and means
-that certain functions may not be compatible, for example ``np.einsum``. However,
-many functions are compatible.
+that certain functions may not be compatible, for example ``np.einsum`` (although,
+support for ``object`` dtypes was added to ``np.einsum`` as of version 1.25.0).
+However, many functions are compatible.
 
 Broadcasting
 ------------

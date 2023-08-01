@@ -34,19 +34,15 @@ The following *Legs* are provided, click on the links for a full description of 
 
 .. autosummary::
    rateslib.legs.BaseLeg
-   rateslib.legs.BaseLegExchange
-   rateslib.legs.BaseLegExchangeMtm
+   rateslib.legs.BaseLegMtm
    rateslib.legs.FixedLeg
    rateslib.legs.FloatLeg
    rateslib.legs.IndexFixedLeg
    rateslib.legs.ZeroFloatLeg
    rateslib.legs.ZeroFixedLeg
    rateslib.legs.ZeroIndexLeg
-   rateslib.legs.FixedLegExchange
-   rateslib.legs.FloatLegExchange
-   rateslib.legs.IndexFixedLegExchange
-   rateslib.legs.FixedLegExchangeMtm
-   rateslib.legs.FloatLegExchangeMtm
+   rateslib.legs.FixedLegMtm
+   rateslib.legs.FloatLegMtm
    rateslib.legs.CustomLeg
 
 *Legs*, similar to *Periods*, are defined as having the following the methods:
@@ -61,7 +57,7 @@ Basic Leg Inputs
 The :class:`~rateslib.legs.BaseLeg` is an abstract base class providing the shared
 input arguments used by all *Leg* types. Besides ``fixed_rate``, a
 :class:`~rateslib.legs.FixedLeg` can demonstrate all of the standard arguments to
-a :class:`~rateslib.legs.BaseLeg`.
+a *BaseLeg*.
 
 For complete documentation of some of these inputs see :ref:`Scheduling<schedule-doc>`.
 
@@ -84,6 +80,9 @@ For complete documentation of some of these inputs see :ref:`Scheduling<schedule
        amortization=250000,
        convention="act360",
        fixed_rate=1.0,
+       initial_exchange=False,
+       final_exchange=False,
+       payment_lag_exchange=0,
    )
    fixed_leg.cashflows(curve)
 
@@ -109,6 +108,9 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
        amortization=250000,
        convention="act360",
        float_spread=1.0,
+       initial_exchange=False,
+       final_exchange=False,
+       payment_lag_exchange=0,
        fixings=None,
        fixing_method="rfr_payment_delay",
        method_param=None,
@@ -116,31 +118,33 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
    )
    float_leg.cashflows(curve)
 
-The basic ``Legs`` are most commonly used in the construction
+These basic *Legs* are most commonly used in the construction
 of :class:`~rateslib.instruments.IRS` and :class:`~rateslib.instruments.SBS`.
 
 Legs with Exchanged Notionals
 -----------------------------
 
-``Bonds`` and ``CrossCurrencySwaps`` involve ``Legs`` with exchanged
+``Bonds``, ``CrossCurrencySwaps`` and ``IndexSwaps`` involve *Legs* with exchanged
 notionals, which are represented as :class:`~rateslib.periods.Cashflow` s.
-Notionals are always exchanged at the end on these ``Legs`` with
-the option of also being exchanged at the start too.
+These ``Legs`` have the option of an initial exchange and also of a
+final exchange. Interim exchanges (amortization) will be applied if
+there is a final exchange.
 
 The arguments are the same as the previous :class:`~rateslib.legs.FixedLeg`
-and :class:`~rateslib.legs.FloatLeg` classes, except there are now the
-additional arguments:
+and :class:`~rateslib.legs.FloatLeg` classes, except attention is drawn to the
+provided arguments:
 
 - ``initial_exchange``,
-- ``payment_lag_exchanged``,
+- ``final_exchange``,
+- ``payment_lag_exchange``,
 
-The ``payment_lag_exchange`` argument allows configuration of separate lags
+This allows for configuration of separate payment lags
 for notional exchanges and regular period flows, which is common practice
-on ``CrossCurrencySwaps`` for example.
+on *CrossCurrencySwaps* for example.
 
 .. ipython:: python
 
-   fixed_leg_exch = FixedLegExchange(
+   fixed_leg_exch = FixedLeg(
        effective=dt(2022, 1, 15),
        termination=dt(2022, 7, 15),
        frequency="Q",
@@ -158,15 +162,16 @@ on ``CrossCurrencySwaps`` for example.
        convention="act360",
        fixed_rate=5.0,
        initial_exchange=True,
+       final_exchange=True,
        payment_lag_exchange=0,
    )
    fixed_leg_exch.cashflows(curve)
 
 Mark-to-Market Exchanged Legs
 -----------------------------
-MTM ``Legs`` are common on ``CrossCurrencySwaps``.
+``LegMtm`` objects are common on ``CrossCurrencySwaps``.
 Whilst the other leg types are technically indifferent regarding the ``currency``
-they are created in, MTM ``Legs`` **require** a domestic currency and an alternative
+they are initialised with, *LegMtms* **require** a domestic currency and an alternative
 currency against which MTM calculations can be measured. The ``notional`` of the
 ``MtmLeg`` is variable according to the fixed ``alt_notional`` and the forward
 FX rates. Thus the additional arguments in this leg are:
@@ -177,12 +182,12 @@ FX rates. Thus the additional arguments in this leg are:
 - ``notional`` is not used in this leg type and is overwritten.
 
 Otherwise, the arguments are the same as the
-previous :class:`~rateslib.legs.FixedLegExchange`
-and :class:`~rateslib.legs.FloatLegExchange`.
+previous :class:`~rateslib.legs.FixedLeg`
+and :class:`~rateslib.legs.FloatLeg`.
 
 .. ipython:: python
 
-   float_leg_exch = FloatLegExchangeMtm(
+   float_leg_exch = FloatLegMtm(
        effective=dt(2022, 1, 3),
        termination=dt(2022, 7, 3),
        frequency="Q",
@@ -204,6 +209,7 @@ and :class:`~rateslib.legs.FloatLegExchange`.
        method_param=None,
        spread_compound_method="none_simple",
        initial_exchange=True,
+       final_exchange=True,
        payment_lag_exchange=0,
        alt_notional=2000000,
        alt_currency="eur",

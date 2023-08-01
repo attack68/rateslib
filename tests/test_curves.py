@@ -14,6 +14,7 @@ from rateslib.curves import (
     IndexCurve,
     CompositeCurve,
 )
+from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
@@ -813,6 +814,11 @@ def test_curve_translate_raises(curve):
         curve.translate(dt(2020, 4, 1))
 
 
+def test_curve_zero_width_rate_raises(curve):
+    with pytest.raises(ZeroDivisionError, match="effective:"):
+        curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
+
+
 class TestIndexCurve:
 
     def test_curve_translate_knots_raises(self, curve):
@@ -1120,6 +1126,42 @@ class TestCompositeCurve:
         r3 = cc.rate(dt(2052, 5, 26), "1d")
 
         assert abs(r1 - 1.448374) < 1e-3
+
+    def test_composite_curve_proxies(self):
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.992}, id="eu")
+        fxf = FXForwards(
+            fx_rates = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1)),
+            fx_curves= {
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+        pc = CompositeCurve([
+            uu,
+            fxf.curve("usd", "eur")
+        ], multi_csa=True)
+        result = pc[dt(2023, 1, 1)]
+        expected = 0.98900
+        assert abs(result - expected) < 1e-4
+
+        pc = CompositeCurve([
+            fxf.curve("usd", "eur"),
+            uu,
+        ], multi_csa=True)
+        result = pc[dt(2023, 1, 1)]
+        assert abs(result - expected) < 1e-4
+
+    def test_multi_raises(self, line_curve, curve):
+        with pytest.raises(TypeError, match="Multi-CSA curves must"):
+            cc = CompositeCurve([line_curve], multi_csa=True)
+
+        with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
+            cc = CompositeCurve(
+                [curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4
+            )
 
 
 class TestPlotCurve:

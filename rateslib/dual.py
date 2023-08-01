@@ -747,11 +747,13 @@ def set_order_convert(val, order, tag):
     elif isinstance(val, (Dual, Dual2)):
         if order == 0:
             return float(val)
-        elif (order == 1 and isinstance(val, Dual)) \
-                or (order == 2 and isinstance(val, Dual2)):
+        elif (order == 1 and isinstance(val, Dual)) or (
+            order == 2 and isinstance(val, Dual2)
+        ):
             return val
         else:
             return val._set_order(order)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

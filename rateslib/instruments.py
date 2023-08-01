@@ -38,19 +38,22 @@ from rateslib.calendars import add_tenor, _add_days, get_calendar, dcf
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
-from rateslib.periods import Cashflow, FixedPeriod, FloatPeriod, _get_fx_and_base, IndexMixin
+from rateslib.periods import (
+    Cashflow,
+    FixedPeriod,
+    FloatPeriod,
+    _get_fx_and_base,
+    IndexMixin,
+)
 from rateslib.legs import (
     FixedLeg,
-    FixedLegExchange,
     FloatLeg,
-    FloatLegExchange,
-    FloatLegExchangeMtm,
-    FixedLegExchangeMtm,
+    FloatLegMtm,
+    FixedLegMtm,
     ZeroFloatLeg,
     ZeroFixedLeg,
     ZeroIndexLeg,
     IndexFixedLeg,
-    IndexFixedLegExchange,
     CustomLeg,
 )
 from rateslib.dual import Dual, Dual2, set_order, DualTypes
@@ -695,15 +698,15 @@ class BondMixin:
 
         d = 0
         for i, p_idx in enumerate(
-                range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
+            range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
         ):
             if i == 0 and self.ex_div(settlement):
                 continue
             else:
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v**i
                 # d += self.leg1.periods[p_idx].cashflow * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
-        p = v ** fd0 * d / -self.leg1.notional * 100
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v**i
+        p = v**fd0 * d / -self.leg1.notional * 100
         return p if dirty else p - self.accrued(settlement)
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
@@ -966,21 +969,21 @@ class BondMixin:
                 dydP * price.dual,
                 0.5
                 * (
-                        dydP * price.gradient(price.vars, order=2)
-                        + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
+                    dydP * price.gradient(price.vars, order=2)
+                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
                 ),
             )
         else:
             return x
 
     def fwd_from_repo(
-            self,
-            price: Union[float, Dual, Dual2],
-            settlement: datetime,
-            forward_settlement: datetime,
-            repo_rate: Union[float, Dual, Dual2],
-            convention: Optional[str] = None,
-            dirty: bool = False,
+        self,
+        price: Union[float, Dual, Dual2],
+        settlement: datetime,
+        forward_settlement: datetime,
+        repo_rate: Union[float, Dual, Dual2],
+        convention: Optional[str] = None,
+        dirty: bool = False,
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1043,7 +1046,7 @@ class BondMixin:
             # deduct accrued coupon from dirty price
             dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
             accrued_coup = self.leg1.periods[p_idx].cashflow * (
-                    1 + dcf_ * repo_rate / 100
+                1 + dcf_ * repo_rate / 100
             )
             total_rtn -= accrued_coup
 
@@ -1054,13 +1057,13 @@ class BondMixin:
             return forward_price - self.accrued(forward_settlement)
 
     def repo_from_fwd(
-            self,
-            price: Union[float, Dual, Dual2],
-            settlement: datetime,
-            forward_settlement: datetime,
-            forward_price: Union[float, Dual, Dual2],
-            convention: Optional[str] = None,
-            dirty: bool = False,
+        self,
+        price: Union[float, Dual, Dual2],
+        settlement: datetime,
+        forward_settlement: datetime,
+        forward_price: Union[float, Dual, Dual2],
+        convention: Optional[str] = None,
+        dirty: bool = False,
     ):
         """
         Return an implied repo rate from a forward price.
@@ -1124,7 +1127,7 @@ class BondMixin:
             dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
             numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
             denominator -= (
-                    100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+                100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
             )
 
         return numerator / denominator * 100
@@ -1382,7 +1385,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     ex_div_days : int
     settle : int
     curves : str, list, CurveType
-    leg1 : FixedLegExchange
+    leg1 : FixedLeg
 
     Examples
     --------
@@ -1515,7 +1518,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self._fixed_rate = fixed_rate
         self.ex_div_days = ex_div
         self.settle = settle
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -1534,6 +1537,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             convention=convention,
             fixed_rate=fixed_rate,
             initial_exchange=False,
+            final_exchange=True
         )
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
@@ -1702,7 +1706,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self._index_base = index_base
         self.ex_div_days = ex_div
         self.settle = settle
-        self.leg1 = IndexFixedLegExchange(
+        self.leg1 = IndexFixedLeg(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -1721,6 +1725,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             convention=convention,
             fixed_rate=fixed_rate,
             initial_exchange=False,
+            final_exchange=True,
             index_base=index_base,
             index_method=index_method,
             index_lag=index_lag,
@@ -1733,8 +1738,9 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
-        if self.leg1.index_fixings is not None \
-                and not isinstance(self.leg1.index_fixings, Series):
+        if self.leg1.index_fixings is not None and not isinstance(
+            self.leg1.index_fixings, Series
+        ):
             raise ValueError(
                 "Must provide `index_fixings` as a Series for inter-period settlement."
             )
@@ -1751,7 +1757,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             i_date=self.leg1.schedule.effective,
             i_lag=self.leg1.index_lag,
             i_method=self.leg1.index_method,
-            i_curve=curve
+            i_curve=curve,
         )
         return index_val / index_base
 
@@ -2252,7 +2258,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
     Attributes
     ----------
     ex_div_days : int
-    leg1 : FloatLegExchange
+    leg1 : FloatLeg
     """
 
     _float_spread_mixin = True
@@ -2289,7 +2295,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -2312,6 +2318,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             method_param=method_param,
             spread_compound_method=spread_compound_method,
             initial_exchange=False,
+            final_exchange=True,
         )
         self.ex_div_days = ex_div
         self.settle = settle
@@ -4094,8 +4101,8 @@ class IIRS(BaseDerivative):
     Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
 
-    If ``notional_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLegExchange`
-    and :class:`~rateslib.legs.FloatLegExchange`.
+    If ``notional_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLeg`
+    and :class:`~rateslib.legs.FloatLeg`.
 
     Parameters
     ----------
@@ -4254,14 +4261,16 @@ class IIRS(BaseDerivative):
             L1, L2 = IndexFixedLeg, FloatLeg
             l1_args, l2_args = {}, {}
         else:
-            L1, L2 = IndexFixedLegExchange, FloatLegExchange
+            L1, L2 = IndexFixedLeg, FloatLeg
             l1_args = dict(
                 payment_lag_exchange=payment_lag_exchange,
                 initial_exchange=False,
+                final_exchange=True,
             )
             l2_args = dict(
                 payment_lag_exchange=leg2_payment_lag_exchange,
                 initial_exchange=False,
+                final_exchange=True,
             )
 
         self.leg1 = L1(
@@ -4944,12 +4953,12 @@ class ZCIS(BaseDerivative):
         return super().cashflows(*args, **kwargs)
 
     def npv(
-            self,
-            curves: Optional[Union[Curve, str, list]] = None,
-            solver: Optional[Solver] = None,
-            fx: Optional[Union[float, FXRates, FXForwards]] = None,
-            base: Optional[str] = None,
-            local: bool = False,
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
     ):
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
@@ -5986,7 +5995,7 @@ class BaseXCS(BaseDerivative):
 class NonMtmXCS(BaseXCS):
     """
     Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FloatLegExchange` s.
+    :class:`~rateslib.legs.FloatLeg` s.
 
     Parameters
     ----------
@@ -6077,7 +6086,7 @@ class NonMtmXCS(BaseXCS):
             leg2_payment_lag_exchange = payment_lag_exchange
         self._leg2_float_spread = leg2_float_spread
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             float_spread=float_spread,
             fixings=fixings,
             fixing_method=fixing_method,
@@ -6099,8 +6108,10 @@ class NonMtmXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FloatLegExchange(
+        self.leg2 = FloatLeg(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6122,6 +6133,8 @@ class NonMtmXCS(BaseXCS):
             currency=self.leg2_currency,
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
 
@@ -6307,8 +6320,8 @@ class NonMtmXCS(BaseXCS):
 class NonMtmFixedFloatXCS(BaseXCS):
     """
     Create a non-mark-to-market cross currency swap (XCS) derivative composing a
-    :class:`~rateslib.legs.FixedLegExchange` and a
-    :class:`~rateslib.legs.FloatLegExchange`.
+    :class:`~rateslib.legs.FixedLeg` and a
+    :class:`~rateslib.legs.FloatLeg`.
 
     Parameters
     ----------
@@ -6375,7 +6388,7 @@ class NonMtmFixedFloatXCS(BaseXCS):
             leg2_payment_lag_exchange = payment_lag_exchange
         self._leg2_float_spread = leg2_float_spread
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6393,8 +6406,10 @@ class NonMtmFixedFloatXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FloatLegExchange(
+        self.leg2 = FloatLeg(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6416,6 +6431,8 @@ class NonMtmFixedFloatXCS(BaseXCS):
             currency=self.leg2_currency,
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
 
@@ -6423,7 +6440,7 @@ class NonMtmFixedFloatXCS(BaseXCS):
 class NonMtmFixedFixedXCS(BaseXCS):
     """
     Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FixedLegExchange` s.
+    :class:`~rateslib.legs.FixedLeg` s.
 
     Parameters
     ----------
@@ -6475,7 +6492,7 @@ class NonMtmFixedFixedXCS(BaseXCS):
             leg2_payment_lag_exchange = payment_lag_exchange
         self._leg2_fixed_rate = leg2_fixed_rate
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6493,8 +6510,10 @@ class NonMtmFixedFixedXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FixedLegExchange(
+        self.leg2 = FixedLeg(
             fixed_rate=leg2_fixed_rate,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -6512,6 +6531,8 @@ class NonMtmFixedFixedXCS(BaseXCS):
             currency=self.leg2_currency,
             amortization=self.leg2_amortization,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
 
@@ -6618,7 +6639,7 @@ class XCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_float_spread = leg2_float_spread
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             float_spread=float_spread,
             fixings=fixings,
             fixing_method=fixing_method,
@@ -6640,8 +6661,10 @@ class XCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FloatLegExchangeMtm(
+        self.leg2 = FloatLegMtm(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6875,7 +6898,7 @@ class FixedFloatXCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_float_spread = leg2_float_spread
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6893,8 +6916,10 @@ class FixedFloatXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FloatLegExchangeMtm(
+        self.leg2 = FloatLegMtm(
             float_spread=leg2_float_spread,
             fixings=leg2_fixings,
             fixing_method=leg2_fixing_method,
@@ -6946,7 +6971,7 @@ class FixedFixedXCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_fixed_rate = leg2_fixed_rate
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=fixed_rate,
             effective=self.effective,
             termination=self.termination,
@@ -6964,8 +6989,10 @@ class FixedFixedXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FixedLegExchangeMtm(
+        self.leg2 = FixedLegMtm(
             fixed_rate=leg2_fixed_rate,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -7018,7 +7045,7 @@ class FloatFixedXCS(BaseXCS):
         self._fx_fixings = fx_fixings
         self._leg2_fixed_rate = leg2_fixed_rate
         self._float_spread = float_spread
-        self.leg1 = FloatLegExchange(
+        self.leg1 = FloatLeg(
             float_spread=float_spread,
             fixings=fixings,
             fixing_method=fixing_method,
@@ -7040,8 +7067,10 @@ class FloatFixedXCS(BaseXCS):
             currency=self.currency,
             amortization=self.amortization,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FixedLegExchangeMtm(
+        self.leg2 = FixedLegMtm(
             fixed_rate=leg2_fixed_rate,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -7174,7 +7203,7 @@ class FXSwap(BaseXCS):
         if leg2_payment_lag_exchange == "inherit":
             leg2_payment_lag_exchange = payment_lag_exchange
         self._fixed_rate = 0.0
-        self.leg1 = FixedLegExchange(
+        self.leg1 = FixedLeg(
             fixed_rate=0.0,
             effective=self.effective,
             termination=self.termination,
@@ -7186,8 +7215,10 @@ class FXSwap(BaseXCS):
             notional=self.notional,
             currency=self.currency,
             convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
-        self.leg2 = FixedLegExchange(
+        self.leg2 = FixedLeg(
             fixed_rate=None,
             effective=self.leg2_effective,
             termination=self.leg2_termination,
@@ -7199,6 +7230,8 @@ class FXSwap(BaseXCS):
             notional=self.leg2_notional,
             currency=self.leg2_currency,
             convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
         )
         self._initialise_fx_fixings(fx_fixing)
         self.points = points
@@ -7573,6 +7606,7 @@ class Portfolio(Sensitivities):
 
         from multiprocessing import Pool
         from functools import partial
+
         func = partial(_instrument_npv, *args, **kwargs)
         p = Pool(defaults.pool)
         results = p.map(func, self.instruments)

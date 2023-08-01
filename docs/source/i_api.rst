@@ -127,6 +127,7 @@ FX
    :skip: Any
    :skip: Curve
    :skip: LineCurve
+   :skip: ProxyCurve
    :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
@@ -152,6 +153,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: FXRates
    :skip: FXForwards
    :skip: LineCurve
+   :skip: CompositeCurve
    :skip: Series
    :skip: datetime
    :skip: comb
@@ -188,7 +190,6 @@ Instruments
    :inherited-members:
    :skip: IndexCurve
    :skip: IndexFixedLeg
-   :skip: IndexFixedLegExchange
    :skip: IndexMixin
    :skip: ZeroIndexLeg
    :skip: forward_fx
@@ -217,11 +218,9 @@ Instruments
    :skip: Schedule
    :skip: CustomLeg
    :skip: FixedLeg
-   :skip: FixedLegExchange
-   :skip: FixedLegExchangeMtm
+   :skip: FixedLegMtm
    :skip: FloatLeg
-   :skip: FloatLegExchange
-   :skip: FloatLegExchangeMtm
+   :skip: FloatLegMtm
    :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver

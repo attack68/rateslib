@@ -32,7 +32,7 @@ from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf, _get_eom
-from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate
+from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
@@ -803,7 +803,11 @@ class FloatPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         cashflow = None if curve is None else float(self.cashflow(curve))
-        rate = None if curve is None else float(100 * cashflow / (-self.notional * self.dcf))
+        rate = (
+            None
+            if curve is None
+            else float(100 * cashflow / (-self.notional * self.dcf))
+        )
         if disc_curve is None or rate is None:
             npv, npv_fx = None, None
         else:
@@ -1149,7 +1153,7 @@ class FloatPeriod(BasePeriod):
             sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
             C_i = 0.0
             for i in range(1, len(sub_cashflows)):
-                C_i += sub_cashflows.iloc[i-1]
+                C_i += sub_cashflows.iloc[i - 1]
                 sub_cashflows.iloc[i] += C_i * rates.iloc[i] / 100 * dcf_vals.iloc[i]
             total_cashflow = sub_cashflows.sum()
             return total_cashflow * 100 / dcf_vals.sum()
@@ -1193,11 +1197,7 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def fixings_table(
-        self,
-        curve: Union[Curve, LineCurve],
-        approximate: bool = False
-    ):
+    def fixings_table(self, curve: Union[Curve, LineCurve], approximate: bool = False):
         """
         Return a DataFrame of fixing exposures.
 
@@ -1360,10 +1360,10 @@ class FloatPeriod(BasePeriod):
             )
             scalar = dcf_vals.values / obs_vals.values
             if self.fixing_method == "rfr_lockout":
-                scalar[-self.method_param:] = 0.0
-                scalar[-(self.method_param+1)] = (
-                    obs_vals.iloc[-(self.method_param+1):].sum() /
-                    obs_vals.iloc[-(self.method_param+1)]
+                scalar[-self.method_param :] = 0.0
+                scalar[-(self.method_param + 1)] = (
+                    obs_vals.iloc[-(self.method_param + 1) :].sum()
+                    / obs_vals.iloc[-(self.method_param + 1)]
                 )
 
             # perform an efficient rate approximation
@@ -1377,15 +1377,15 @@ class FloatPeriod(BasePeriod):
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
             if self.spread_compound_method == "none_simple":
-                drdri = (1 / n) * (1 + (rate / 100) * d) ** (n-1)
+                drdri = (1 / n) * (1 + (rate / 100) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
-                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n-1)
+                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_flat_compounding":
                 dr = d * r_bar / 100
                 drdri = (1 / n) * (
-                    ((1/n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
-                    +
-                    ((r_bar / 100 + z)/n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
+                    ((1 / n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
+                    + ((r_bar / 100 + z) / n)
+                    * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
                 )
 
             notional_exposure = Series(
@@ -1473,7 +1473,7 @@ class FloatPeriod(BasePeriod):
             effective=os,
             termination=oe,
             float_spread=0.0,
-            spread_compound_method=self.spread_compound_method
+            spread_compound_method=self.spread_compound_method,
         )
         r, d, n = average_rate(os, oe, fore_curve.convention, rate)
         # approximate sensitivity to each fixing
@@ -1486,7 +1486,7 @@ class FloatPeriod(BasePeriod):
         elif self.spread_compound_method == "isda_flat_compounding":
             # d2rdz2 = 0.0
             drdz = (
-                1 + comb(n, 2)/n * r/100 * d + comb(n, 3)/n * (r/100 * d) ** 2
+                1 + comb(n, 2) / n * r / 100 * d + comb(n, 3) / n * (r / 100 * d) ** 2
             ) / 1e4
             Nvd = -self.notional * disc_curve[self.payment] * self.dcf
             a, b = 0.0, Nvd * drdz
@@ -1679,7 +1679,11 @@ class IndexMixin(metaclass=ABCMeta):
         if index_ratio is None:
             return None
         else:
-            _ = self.real_cashflow * index_ratio
+            if self.index_only:
+                _ = -1.0
+            else:
+                _ = 0.0
+            _ = self.real_cashflow * (index_ratio + _)
         return _
 
     def index_ratio(self, curve: Optional[IndexCurve]) -> tuple:
@@ -1704,14 +1708,14 @@ class IndexMixin(metaclass=ABCMeta):
             i_date=getattr(self, "start", None),  # IndexCashflow has no start
             i_curve=curve,
             i_lag=self.index_lag,
-            i_method=self.index_method
+            i_method=self.index_method,
         )
         numerator = self._index_value(
             i_fixings=self.index_fixings,
             i_date=self.end,
             i_curve=curve,
             i_lag=self.index_lag,
-            i_method=self.index_method
+            i_method=self.index_method,
         )
         if numerator is None or denominator is None:
             return None, numerator, denominator
@@ -1727,7 +1731,13 @@ class IndexMixin(metaclass=ABCMeta):
     ) -> Optional[DualTypes]:
         if i_curve is None:
             return None
-        elif not isinstance(i_curve, IndexCurve):
+        elif (
+            not isinstance(i_curve, IndexCurve)
+            and not isinstance(i_curve, CompositeCurve)
+        ) or (
+            isinstance(i_curve, CompositeCurve)
+            and not isinstance(i_curve.curves[0], IndexCurve)
+        ):
             raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
         elif i_lag != i_curve.index_lag:
             return None  # TODO decide if RolledCurve to correct index lag be attemoted
@@ -1740,7 +1750,7 @@ class IndexMixin(metaclass=ABCMeta):
         i_date: datetime,
         i_curve: Optional[IndexCurve],
         i_lag: int,
-        i_method: str
+        i_method: str,
     ) -> Optional[DualTypes]:
         """
         Project an index rate, or lookup from provided fixings, for a given date.
@@ -1888,7 +1898,10 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         #     raise ValueError("`index_base` cannot be None.")
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_only = False
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
@@ -1994,6 +2007,12 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     index_lag : int
         The number of months by which the index value is lagged. Used to ensure
         consistency between curves and forecast values. Defined by default.
+    index_only : bool
+        If *True* deduct the real notional from the cashflow and produce only the
+        indexed component.
+    end : datetime, optional
+        The registered end of a period when the index value is measured. If *None*
+        is set equal to the payment date.
     kwargs : dict
         Required keyword arguments to :class:`Cashflow`.
 
@@ -2023,6 +2042,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
        A = 0
     """
+
     def __init__(
         self,
         *args,
@@ -2030,14 +2050,19 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         index_fixings: Optional[Union[float, Series]] = None,
         index_method: Optional[str] = None,
         index_lag: Optional[int] = None,
+        index_only: bool = False,
+        end: Optional[datetime] = None,
         **kwargs,
     ):
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is None else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
-        self.end = self.payment
+        self.end = self.payment if end is None else end
 
     @property
     def real_cashflow(self):

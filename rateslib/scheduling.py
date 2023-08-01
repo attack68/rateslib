@@ -930,10 +930,18 @@ def _infer_stub_date(
             return valid, parsed_args
         else:
             return True, {
-                "ueffective": effective if not dead_front_stub else parsed_args["ueffective"],
-                "utermination": termination if not dead_back_stub else parsed_args["utermination"],
-                "front_stub": parsed_args["ueffective"] if not dead_front_stub else None,
-                "back_stub": parsed_args["utermination"] if not dead_back_stub else None,
+                "ueffective": effective
+                if not dead_front_stub
+                else parsed_args["ueffective"],
+                "utermination": termination
+                if not dead_back_stub
+                else parsed_args["utermination"],
+                "front_stub": parsed_args["ueffective"]
+                if not dead_front_stub
+                else None,
+                "back_stub": parsed_args["utermination"]
+                if not dead_back_stub
+                else None,
                 "roll": parsed_args["roll"],
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
@@ -971,7 +979,9 @@ def _infer_stub_date(
                 return valid, parsed_args
             else:
                 return True, {
-                    "ueffective": effective if not dead_stub else parsed_args["ueffective"],
+                    "ueffective": effective
+                    if not dead_stub
+                    else parsed_args["ueffective"],
                     "utermination": parsed_args["utermination"],
                     "front_stub": parsed_args["ueffective"] if not dead_stub else None,
                     "back_stub": None,
@@ -1013,7 +1023,9 @@ def _infer_stub_date(
             else:
                 return True, {
                     "ueffective": parsed_args["ueffective"],
-                    "utermination": termination if not dead_stub else parsed_args["utermination"],
+                    "utermination": termination
+                    if not dead_stub
+                    else parsed_args["utermination"],
                     "front_stub": None,
                     "back_stub": parsed_args["utermination"] if not dead_stub else None,
                     "roll": parsed_args["roll"],
@@ -1073,7 +1085,12 @@ def _get_unadjusted_stub_date(
             utermination = _ - timedelta(days=1)
 
     return _get_unadjusted_short_stub_date(
-        ueffective, utermination, frequency, stub_side, eom, roll,
+        ueffective,
+        utermination,
+        frequency,
+        stub_side,
+        eom,
+        roll,
     )
 
 

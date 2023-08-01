@@ -66,12 +66,12 @@ from rateslib.curves import (
     index_left,
     IndexCurve,
     CompositeCurve,
+    ProxyCurve,
 )
 
 from rateslib.fx import (
     FXRates,
     FXForwards,
-    ProxyCurve,
 )
 
 from rateslib.solver import Solver
@@ -86,13 +86,13 @@ from rateslib.periods import (
 
 from rateslib.legs import (
     FixedLeg,
-    FixedLegExchange,
-    FixedLegExchangeMtm,
+    FixedLegMtm,
     FloatLeg,
-    FloatLegExchange,
-    FloatLegExchangeMtm,
+    FloatLegMtm,
     ZeroFloatLeg,
     ZeroFixedLeg,
+    ZeroIndexLeg,
+    IndexFixedLeg,
     CustomLeg,
 )
 
@@ -163,6 +163,7 @@ __all__ = [
     "LineCurve",
     "IndexCurve",
     "CompositeCurve",
+    "ProxyCurve",
     "interpolate",
     "index_left",
     # solver.py
@@ -170,7 +171,6 @@ __all__ = [
     # fx.py
     "FXRates",
     "FXForwards",
-    "ProxyCurve",
     # periods.py,
     "FixedPeriod",
     "FloatPeriod",
@@ -182,10 +182,10 @@ __all__ = [
     "FloatLeg",
     "ZeroFloatLeg",
     "ZeroFixedLeg",
-    "FixedLegExchange",
-    "FixedLegExchangeMtm",
-    "FloatLegExchange",
-    "FloatLegExchangeMtm",
+    "FixedLegMtm",
+    "FloatLegMtm",
+    "IndexFixedLeg",
+    "ZeroIndexLeg",
     "CustomLeg",
     # instruments.py
     "FixedRateBond",

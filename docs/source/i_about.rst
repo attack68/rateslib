@@ -4,8 +4,8 @@
 About
 ******
 
-About Rateslib
-******************
+The History and Context of Rateslib
+************************************
 
 *Rateslib* BETA was first released in April 2023.
 
@@ -29,11 +29,150 @@ early 2024 under the working title of *Coding Interest Rates: FX, Swaps and Bond
   :target: https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538
   :width: 92
 
-About the Author
-****************
-TBD.
+Five Pillars of Rateslib's Design Philosophy
+*********************************************
 
-Development
+1) Maximise flexibility and usability whilst minimising user input
+-----------------------------------------------------------------------
+
+This is a user interface (UI) objective. *Rateslib* aims to
+make technical and complex financial instrument analysis easily accessible and
+consumable. This philosophy has shaped the the entire design and API architecture of *rateslib*.
+
+For example, this library will not add esoteric or complex algorithms for valuing a
+financial instrument. Although doing so satisfies the philosophy of maximising
+flexibility, every addition adds documentation obfuscation, uncertainty
+about market practice and likely extends parameter numbers. It breaks the
+philosophy.
+
+On the other hand this library will allow various *Curve* construction interpolation
+algorithms because these are market standard and their parametrisation is simple and
+well documented, and these have considerable impact on all users. It satisfies the
+philosophy.
+
+2) Risk sensitivities are prioritised above valuation
+-----------------------------------------------------
+
+This is functionality objective. Risk is harder to calculate than valuation.
+To calculate risk it is
+necessary to be able to calculate value. To calculate value it is not necessary
+to calculate risk. Therefore making design choices around calculating risk avoids
+the problem of building *Instruments* in a value sense and 'hacking' risk metrics
+later.
+
+This philosophy indirectly drives performant solutions. It is also the reason that
+the library constructed and implemented its own automatic differentiation (AD)
+toolset to properly label and be able to pass around derivatives from any object
+or scenario to another. It also means that *npv*, *delta* and *gamma* have the
+same arguments signature.
+
+3) Unify asset classes with a single UI framework
+-------------------------------------------------------
+
+This defines scope. *Rateslib* aims to unify interest rates, FX and inflation
+in its first version.
+The ambition is to incorporate volatility products into version two. Within
+this unification we must include the commonly traded instruments within
+each of these classes.
+
+
+4) Practical performance must be achieved
+------------------------------------------
+
+This is a functionality objective.
+Version one of *rateslib* is pure Python. The performance constraints this places are
+restrictive. However, every method *rateslib* offers must be capable of producing
+results in practical time. A fixed income library written in Python cannot achieve
+what *rateslib* achieves without AD. Additionally many manual optimisations are
+implemented and are documented.
+
+5) Transparency and validation is necessary
+--------------------------------------------
+
+This is a community objective.
+No algorithm, optimisation or approximation is added without being documented
+in **Coding Interest Rates**. The code coverage of the library strives to be 100%.
+This API documentation should be exhaustive with demonstrative examples.
+Where official sources (ISDA documentation, academic papers, issuer specifications)
+are available their examples should be used as unit tests within *rateslib*. A good
+example for these are the UK DMO's Gilt calculations which are replicated exactly
+by *rateslib*.
+
+
+Releases
+***********
+
+A broad based release history is as follows:
+
+v 0.3.0
+--------
+Release 29th Jul 2023
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Legs
+     - Added :class:`~rateslib.legs.IndexFixedLeg`,
+       :class:`~rateslib.legs.ZeroIndexLeg`,
+       and :class:`~rateslib.legs.IndexFixedLegExchange`.
+   * - Instruments
+     - Added :class:`~rateslib.instruments.IndexFixedRateBond`,
+       :class:`~rateslib.instruments.IIRS`, :class:`~rateslib.instruments.ZCIS`.
+   * - Curves
+     - Added :class:`~rateslib.curves.CompositeCurve`.
+
+v 0.2.0
+--------
+Release 15th May 2023
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Instruments
+     - Added :class:`~rateslib.instruments.BondFuture`.
+   * - Curves
+     - Added :class:`~rateslib.curves.IndexCurve`.
+
+v 0.1.0
+--------
+Release 24th April 2023
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Automatic Differentiation
+     - A toolset for making risk sensitivity and gradient based calculations.
+   * - Calendars
+     - A toolset for handling dates and holiday calendars for schedules.
+   * - Schedule
+     - A toolset for generating financial schedules of financial instruments.
+   * - Splines
+     - A toolset for allowing spline interpolation.
+   * - Curves
+     - Initial classes for DF bases and value based interest rate curves.
+   * - Periods
+     - Initial classes for handling fixed periods, float periods and cashflows.
+   * - Legs
+     - Initial classes for aggregating periods.
+   * - Instruments
+     - Adding standard financial instruments such as securities: bonds and bills,
+       and derivatives such as: IRS, SBS, FRA, XCS, FXSwap
+   * - Solver
+     - A set of algorithms for iteratively determining interest rate curves.
+   * - FX
+     - Initial classes for handling FX rates an Fx forwards.
+
+
+Development Plan
 *******************
 
 As a new library the future development of *rateslib* is open to many avenues.
@@ -51,18 +190,6 @@ email contact through **rateslib@gmail.com**.
      - Description
      - Consideration
      - Timeframe
-   * - Bond futures
-     - Adding method and parameters to define bond futures.
-     - Complete
-     - v 0.2.0
-   * - Inflation Bonds
-     - Adding the pricing nuances for inflation bond markets.
-     - Pre release
-     - v 0.3.0
-   * - Inflation Swaps
-     - Adding the pricing nuances for inflation swaps.
-     - Pre release
-     - v 0.3.0
    * - FX Spot and Repos
      - Adding basic funding instruments.
      - Likely (v1.0)
@@ -115,3 +242,9 @@ email contact through **rateslib@gmail.com**.
        working with other data providers APIs.
      - Unlikely, due to the subjectivity of every data consumer.
      - no ETA
+
+
+About the Author
+****************
+TBD.
+

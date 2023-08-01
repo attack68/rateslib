@@ -1,6 +1,7 @@
 import pytest
 import math
 import numpy as np
+from packaging import version
 
 import context
 from rateslib.dual import (
@@ -780,11 +781,26 @@ def test_numpy_matmul(y_2, y_1):
     assert np.all(result == expected)
 
 
+@pytest.mark.skipif(
+    version.parse(np.__version__) >= version.parse("1.25.0"),
+    reason="Object dtypes accepted by NumPy in 1.25.0+"
+)
 def test_numpy_einsum(y_2, y_1):
     # einsum does not work with object dtypes
     a = np.array([y_2, y_1])
     with pytest.raises(TypeError):
         _ = np.einsum("i,j", a, a, optimize=True)
+
+
+@pytest.mark.skipif(
+    version.parse(np.__version__) < version.parse("1.25.0"),
+    reason="Object dtypes not accepted by NumPy in <1.25.0"
+)
+def test_numpy_einsum_works(y_2, y_1):
+    a = np.array([y_2, y_1])
+    result = np.einsum("i,j", a, a, optimize=True)
+    expected = np.array([[y_2 * y_2, y_2 * y_1], [y_2 * y_1, y_1 * y_1]])
+    assert np.all(result == expected)
 
 
 @pytest.mark.parametrize("z", [
