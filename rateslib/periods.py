@@ -509,7 +509,7 @@ class FloatPeriod(BasePeriod):
         in the period and the remaining fixings will be forecast from the curve and
         composed into the overall rate. If a datetime indexed ``Series`` will use the
         fixings that are available in that object, and derive the rest from the
-        ``curve``.
+        ``curve``. **Must be input excluding** ``float_spread``.
     fixing_method : str, optional
         The method by which floating rates are determined, set by default. See notes.
     method_param : int, optional
@@ -747,7 +747,7 @@ class FloatPeriod(BasePeriod):
         self.fixings = fixings
         if isinstance(self.fixings, list) and self.fixing_method == "ibor":
             raise ValueError(
-                "`fixings` can only be a single value, not list, under 'ibor' method."
+                "`fixings` cannot be supplied as list, under 'ibor' `fixing_method`."
             )
 
         # self.calendar = get_calendar(calendar)
@@ -902,6 +902,7 @@ class FloatPeriod(BasePeriod):
 
             # this ignores spread_compound_type
             return self.fixings + self.float_spread / 100
+
         # else next calculations made based on fixings in (None, list, Series)
 
         if curve._base_type == "dfs":
@@ -942,8 +943,13 @@ class FloatPeriod(BasePeriod):
             try:
                 return self.fixings[fixing_date] + self.float_spread / 100
             except KeyError:
+                # TODO warn if Series contains close dates but cannot find a value for exact date.
                 # fixing not available: use curve
                 pass
+        elif isinstance(self.fixings, list):  # this is also validated in __init__
+            raise ValueError(
+                "`fixings` cannot be supplied as list, under 'ibor' `fixing_method`."
+            )
 
         if self.stub:
             r = curve.rate(self.start, self.end) + self.float_spread / 100
@@ -960,8 +966,14 @@ class FloatPeriod(BasePeriod):
             try:
                 return self.fixings[fixing_date] + self.float_spread / 100
             except KeyError:
+                # TODO warn if Series contains close dates but cannot find a value for exact date.
                 # fixing not available: use curve
                 pass
+        elif isinstance(self.fixings, list):  # this is also validated in __init__
+            raise ValueError(
+                "`fixings` cannot be supplied as list, under 'ibor' `fixing_method`."
+            )
+
         return curve[fixing_date] + self.float_spread / 100
 
     def _rfr_rate_from_line_curve(self, curve: LineCurve):
@@ -1026,8 +1038,18 @@ class FloatPeriod(BasePeriod):
                         "`fixings` as a Series must have a monotonically increasing "
                         "datetimeindex."
                     )
+                # [-2] is used because the last rfr fixing is 1 day before the end
                 fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
-                rates.loc[fixing_rates.index] = fixing_rates
+
+                try:
+                    rates.loc[fixing_rates.index] = fixing_rates
+                except KeyError as e:
+                    raise ValueError(
+                        "The supplied `fixings` contain more fixings than were "
+                        "expected by the holiday calendar of the `curve`.\nThe "
+                        "additional fixing dates are shown in the underlying "
+                        f"KeyError message below:\n{e}"
+                    )
 
                 # basic error checking for missing fixings and provide warning.
                 try:

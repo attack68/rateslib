@@ -617,8 +617,8 @@ class TestFloatPeriod:
     #     with pytest.raises(TypeError, match="Curve must be of type"):
     #         float_period.rate("bad_curve")
 
-    def test_float_period_fixings_list_raises_on_ibor(self):
-        with pytest.raises(ValueError, match="`fixings` can only be a single"):
+    def test_float_period_fixings_list_raises_on_ibor(self, curve, line_curve):
+        with pytest.raises(ValueError, match="`fixings` cannot be supplied as list,"):
             float_period = FloatPeriod(
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
@@ -628,6 +628,20 @@ class TestFloatPeriod:
                 method_param=2,
                 fixings=[1.00]
             )
+
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=2,
+        )
+        float_period.fixings = [1.0]
+        with pytest.raises(ValueError, match="`fixings` cannot be supplied as list,"):
+            float_period.rate(curve)
+        with pytest.raises(ValueError, match="`fixings` cannot be supplied as list,"):
+            float_period.rate(line_curve)
 
     def test_rfr_fixings_table(self, curve):
         float_period = FloatPeriod(
@@ -802,6 +816,26 @@ class TestFloatPeriod:
         )
         with pytest.raises(TypeError, match="`curve` must be supplied"):
             float_period.analytic_delta()
+
+    def test_more_fixings_than_calendar_from_curve_raises(self):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, calendar="bus")
+        fixings = Series([1.0, 2., 3., 4., 5., 6., 7.],
+                         index=[
+                             dt(2022, 1, 4), dt(2022, 1, 5), dt(2022, 1, 6),
+                             dt(2022, 1, 7), dt(2022, 1, 8), dt(2022, 1, 9),
+                             dt(2022, 1, 10)
+                         ])
+        period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 1, 11),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            payment=dt(2022, 1, 9),
+            float_spread=10.0,
+            fixings=fixings,
+        )
+        with pytest.raises(ValueError, match="The supplied `fixings` contain more"):
+            result = period.rate(curve)
 
 
 class TestFixedPeriod:
