@@ -1,12 +1,7 @@
-use crate::dual::Dual;
+use crate::dual::{Dual, Duals};
 use ndarray::Array;
 
-enum Point {
-    f64,
-    Dual,
-}
-
-pub fn dual_tensordot(a: &Array<Point>, b:&Array<Point>) {
+pub fn dual_tensordot(a: &Array<Duals>, b:&Array<Duals>) {
     let a_shape = a.shape();
     let b_shape = b.shape();
     let i: u16; let j: u16;
