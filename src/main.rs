@@ -2,7 +2,8 @@
 // use nalgebra as na;
 use std::rc::Rc;
 
-use rateslibrs::dual::{Dual};
+// use rateslibrs::dual::{Dual};
+use rateslibrs::dual::dual1::Dual;
 use indexmap::set::IndexSet;
 use ndarray::Array;
 
