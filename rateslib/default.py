@@ -7,25 +7,51 @@ import os
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-PATH = os.path.dirname(os.path.abspath(__file__))
+class Fixings:
 
+    @staticmethod
+    def _load_csv(path):
+        abspath = os.path.dirname(os.path.abspath(__file__))
+        target = os.path.join(abspath, path)
+        df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
+        return df["rate"].sort_index(ascending=True)
 
-class LazyFixingLoader:
+    def __init__(self):
+        self._sonia = None
+        self._estr = None
+        self._sofr = None
+        self._swestr = None
+        self._nowa = None
 
     @property
-    def fixings(self):
-        # cache the fixings in the object
-        if self._fixings is None:
-            df = read_csv(
-                self.path, index_col=0, parse_dates=[0], date_format="%d-%m-%Y"
-            )
-            self._fixings = df["rate"].sort_index(ascending=True)
-        return self._fixings
+    def sonia(self):
+        if self._sonia is None:
+            self._sonia = self._load_csv("data/sonia.csv")
+        return self._sonia
 
-    def __init__(self, file):
-        target = os.path.join(PATH, file)
-        self.path = target
-        self._fixings = None
+    @property
+    def estr(self):
+        if self._estr is None:
+            self._estr = self._load_csv("data/estr.csv")
+        return self._estr
+
+    @property
+    def sofr(self):
+        if self._sofr is None:
+            self._sofr = self._load_csv("data/sofr.csv")
+        return self._sofr
+
+    @property
+    def swestr(self):
+        if self._swestr is None:
+            self._swestr = self._load_csv("data/swestr.csv")
+        return self._swestr
+
+    @property
+    def nowa(self):
+        if self._nowa is None:
+            self._nowa = self._load_csv("data/nowa.csv")
+        return self._nowa
 
 
 class Defaults:
@@ -134,12 +160,7 @@ class Defaults:
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     # fixings data
-    sofr = LazyFixingLoader("data/sofr.csv")
-    swestr = LazyFixingLoader("data/swestr.csv")
-    sonia = LazyFixingLoader("data/sonia.csv")
-    nowa = LazyFixingLoader("data/nowa.csv")
-    estr = LazyFixingLoader("data/estr.csv")
-    saron = LazyFixingLoader("data/saron.csv")
+    fixings = Fixings()
 
     def reset_defaults(self):
         base = Defaults()
