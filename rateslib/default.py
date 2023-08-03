@@ -138,6 +138,8 @@ class Defaults:
     swestr = LazyFixingLoader("data/swestr.csv")
     sonia = LazyFixingLoader("data/sonia.csv")
     nowa = LazyFixingLoader("data/nowa.csv")
+    estr = LazyFixingLoader("data/estr.csv")
+    saron = LazyFixingLoader("data/saron.csv")
 
     def reset_defaults(self):
         base = Defaults()

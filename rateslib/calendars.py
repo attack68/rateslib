@@ -45,6 +45,7 @@ NewYearsDayHoliday = Holiday(
 NewYearsDaySundayHoliday = Holiday(
     "New Year's Day Holiday", month=1, day=1, observance=sunday_to_monday
 )
+Berchtoldstag = Holiday("Berchtoldstag", month=1, day=2)
 
 # US based
 USMartinLutherKingJr = Holiday(
@@ -91,6 +92,7 @@ UKSummerBankHoliday = Holiday(
 # EUR based
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
 SENational = Holiday("Sweden National Day", month=6, day=6)
+CHNational = Holiday("Swiss National Day", month=8, day=1)
 MidsummerFriday = Holiday(
     "Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1))  # type: ignore[arg-type]
 )
@@ -163,6 +165,20 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         ChristmasDay,
         BoxingDay,
     ],
+    "zur": [
+        NewYearsDay,
+        Berchtoldstag,
+        GoodFriday,
+        EasterMonday,
+        EULabourDay,
+        AscentionDay,
+        WhitMonday,
+        CHNational,
+        # ChristmasEve,
+        ChristmasDay,
+        BoxingDay,
+        # NewYearsEve,
+    ]
 }
 
 
