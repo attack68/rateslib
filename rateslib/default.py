@@ -53,6 +53,10 @@ class Fixings:
             self._nowa = self._load_csv("data/nowa.csv")
         return self._nowa
 
+    @property
+    def saron(self):
+        raise NotImplementedError("Swiss SIX exchange licence not available.")
+
 
 class Defaults:
     """
