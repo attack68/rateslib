@@ -10,6 +10,8 @@ from pandas.tseries.holiday import (
     Holiday,
     next_monday,
     next_monday_or_tuesday,
+    sunday_to_monday,
+    nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
 
@@ -25,6 +27,9 @@ ChristmasDay = Holiday("Christmas Day", month=12, day=25)
 ChristmasDayHoliday = Holiday(
     "Christmas Day Holiday", month=12, day=25, observance=next_monday_or_tuesday
 )
+ChristmasDayNearestHoliday = Holiday(
+    "Christmas Day Sunday Holiday", month=12, day=25, observance=nearest_workday
+)
 BoxingDay = Holiday("Boxing Day", month=12, day=26)
 BoxingDayHoliday = Holiday(
     "Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday
@@ -33,6 +38,9 @@ NewYearsEve = Holiday("New Year's Eve", month=12, day=31)
 NewYearsDay = Holiday("New Year's Day", month=1, day=1)
 NewYearsDayHoliday = Holiday(
     "New Year's Day Holiday", month=1, day=1, observance=next_monday
+)
+NewYearsDaySundayHoliday = Holiday(
+    "New Year's Day Holiday", month=1, day=1, observance=sunday_to_monday
 )
 
 # US based
@@ -49,11 +57,13 @@ USPresidentsDay = Holiday(
 USMemorialDay = Holiday(
     "US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
 )
-USIndependenceDay = Holiday("US Independence Day", month=7, day=4)
+USJuneteenthSundayHoliday = Holiday("Juneteenth Independence Day", start_date=datetime(2022, 1, 1), month=6, day=19, observance=sunday_to_monday)
+USIndependenceDayHoliday = Holiday("US Independence Day", month=7, day=4, observance=nearest_workday)
 USLabourDay = Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
 USColumbusDay = Holiday(
     "US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2))  # type: ignore[arg-type]
 )
+USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
 USThanksgivingDay = Holiday(
     "US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4))  # type: ignore[arg-type]
 )
@@ -101,14 +111,19 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         BoxingDayHoliday,
     ],
     "nyc": [
-        NewYearsDayHoliday,
+        NewYearsDaySundayHoliday,
+        USMartinLutherKingJr,
+        USPresidentsDay,
         GoodFriday,
-        EasterMonday,
-        UKEarlyMayBankHoliday,
-        UKSpringBankHoliday,
-        UKSummerBankHoliday,
-        ChristmasDayHoliday,
-        BoxingDayHoliday,
+        USMemorialDay,
+        USJuneteenthSundayHoliday,
+        USIndependenceDayHoliday,
+        USLabourDay,
+        USColumbusDay,
+        USVeteransDaySundayHoliday,
+        USThanksgivingDay,
+        ChristmasDayNearestHoliday,
+        Holiday("GHW Bush Funeral", year=2018, month=12, day=5),
     ],
     "stk": [
         NewYearsDay,

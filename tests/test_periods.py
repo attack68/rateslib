@@ -817,7 +817,7 @@ class TestFloatPeriod:
         with pytest.raises(TypeError, match="`curve` must be supplied"):
             float_period.analytic_delta()
 
-    def test_more_fixings_than_calendar_from_curve_raises(self):
+    def test_more_series_fixings_than_calendar_from_curve_raises(self):
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, calendar="bus")
         fixings = Series([1.0, 2., 3., 4., 5., 6., 7.],
                          index=[
@@ -836,6 +836,24 @@ class TestFloatPeriod:
         )
         with pytest.raises(ValueError, match="The supplied `fixings` contain more"):
             result = period.rate(curve)
+
+    def test_series_fixings_not_applicable_to_period(self):
+        # if a series is historic and of no relevance all fixings are forecast from crv
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, calendar="bus")
+        fixings = Series([1.0, 2., 3.],
+                         index=[dt(2021, 1, 4), dt(2021, 1, 5), dt(2021, 1, 6)])
+        period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 1, 11),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            payment=dt(2022, 1, 9),
+            float_spread=10.0,
+            fixings=fixings,
+        )
+        result = period.rate(curve)
+        expected = 1.09136153  # series fixings are completely ignored
+        assert abs(result - expected) < 1e-5
 
 
 class TestFixedPeriod:

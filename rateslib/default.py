@@ -1,8 +1,30 @@
 from pandas.tseries.offsets import BusinessDay
+from pandas import read_csv
+import os
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+PATH = os.path.dirname(os.path.abspath(__file__))
+
+
+class LazyFixingLoader:
+
+    @property
+    def fixings(self):
+        if self._fixings is None:
+            df = read_csv(
+                self.path, index_col=0, parse_dates=[0], date_format="%d-%m-%Y"
+            )
+            self._fixings = df["rate"].sort_index(ascending=True)
+        return self._fixings
+
+    def __init__(self, file):
+        target = os.path.join(PATH, file)
+        self.path = target
+        self._fixings = None
 
 
 class Defaults:
@@ -109,6 +131,9 @@ class Defaults:
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+    # fixings data
+    sofr = LazyFixingLoader("data/sofr.csv")
 
     def reset_defaults(self):
         base = Defaults()
