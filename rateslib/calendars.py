@@ -19,9 +19,12 @@ CalInput = Optional[Union[CustomBusinessDay, str]]
 
 # Generic holidays
 Epiphany = Holiday("Epiphany", month=1, day=6)
+MaundyThursday = Holiday("Maundy Thursday", month=1, day=1, offset=[Easter(), Day(-3)])
 GoodFriday = Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)])
 EasterMonday = Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)])
 AscentionDay = Holiday("Ascention Day", month=1, day=1, offset=[Easter(), Day(39)])
+Pentecost = Holiday("PenteCost", month=1, day=1, offset=[Easter(), Day(49)])
+WhitMonday = Holiday("Whit Monday", month=1, day=1, offset=[Easter(), Day(50)])
 ChristmasEve = Holiday("Christmas Eve", month=12, day=24)
 ChristmasDay = Holiday("Christmas Day", month=12, day=25)
 ChristmasDayHoliday = Holiday(
@@ -87,10 +90,11 @@ UKSummerBankHoliday = Holiday(
 
 # EUR based
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
-SwedenNational = Holiday("Sweden National Day", month=6, day=6)
+SENational = Holiday("Sweden National Day", month=6, day=6)
 MidsummerFriday = Holiday(
     "Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1))  # type: ignore[arg-type]
 )
+NOConstitutionDay = Holiday("NO Constitution Day", month=5, day=17)
 
 CALENDAR_RULES: Dict[str, list[Any]] = {
     "bus": [],
@@ -139,7 +143,7 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         EasterMonday,
         EULabourDay,
         AscentionDay,
-        SwedenNational,
+        SENational,
         MidsummerFriday,
         ChristmasEve,
         ChristmasDay,
@@ -148,17 +152,16 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
     ],
     "osl": [
         NewYearsDay,
-        Epiphany,
+        MaundyThursday,
         GoodFriday,
         EasterMonday,
         EULabourDay,
+        NOConstitutionDay,
         AscentionDay,
-        SwedenNational,
-        MidsummerFriday,
+        WhitMonday,
         ChristmasEve,
         ChristmasDay,
         BoxingDay,
-        NewYearsEve,
     ],
 }
 

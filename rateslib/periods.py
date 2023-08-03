@@ -1048,7 +1048,11 @@ class FloatPeriod(BasePeriod):
                         "The supplied `fixings` contain more fixings than were "
                         "expected by the holiday calendar of the `curve`.\nThe "
                         "additional fixing dates are shown in the underlying "
-                        f"KeyError message below:\n{e}"
+                        "KeyError message below.\nIf the Series you are providing "
+                        "contains valid fixings the fault probably lies with "
+                        "Rateslib calendar definitions and should be reported.\n"
+                        "This error can avoided by excluding these fixings using "
+                        f"Series.pop().\n{e}"
                     )
 
                 # basic error checking for missing fixings and provide warning.
