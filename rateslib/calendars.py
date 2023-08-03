@@ -25,7 +25,7 @@ AscentionDay = Holiday("Ascention Day", month=1, day=1, offset=[Easter(), Day(39
 ChristmasEve = Holiday("Christmas Eve", month=12, day=24)
 ChristmasDay = Holiday("Christmas Day", month=12, day=25)
 ChristmasDayHoliday = Holiday(
-    "Christmas Day Holiday", month=12, day=25, observance=next_monday_or_tuesday
+    "Christmas Day Holiday", month=12, day=25, observance=next_monday
 )
 ChristmasDayNearestHoliday = Holiday(
     "Christmas Day Sunday Holiday", month=12, day=25, observance=nearest_workday
@@ -76,6 +76,8 @@ USThanksgivingDay = Holiday(
 UKEarlyMayBankHoliday = Holiday(
     "UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1))  # type: ignore[arg-type]
 )
+UKSpringBankPre2022 = Holiday("UK Spring Bank Holiday pre 2022", end_date=datetime(2022, 5, 1), month=5, day=31, offset=DateOffset(weekday=MO(-1)))
+UKSpringBankPost2022 = Holiday("UK Spring Bank Holiday post 2022", start_date=datetime(2022, 7, 1), month=5, day=31, offset=DateOffset(weekday=MO(-1)))
 UKSpringBankHoliday = Holiday(
     "UK Spring Bank Holiday", month=5, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
 )
@@ -105,7 +107,12 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         GoodFriday,
         EasterMonday,
         UKEarlyMayBankHoliday,
-        UKSpringBankHoliday,
+        UKSpringBankPre2022,
+        Holiday("Queen Jubilee Thu", year=2022, month=6, day=2),
+        Holiday("Queen Jubilee Fri", year=2022, month=6, day=3),
+        Holiday("Queen Funeral", year=2022, month=9, day=19),
+        UKSpringBankPost2022,
+        Holiday("King Charles III Coronation", year=2023, month=5, day=8),
         UKSummerBankHoliday,
         ChristmasDayHoliday,
         BoxingDayHoliday,

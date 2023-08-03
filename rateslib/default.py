@@ -14,6 +14,7 @@ class LazyFixingLoader:
 
     @property
     def fixings(self):
+        # cache the fixings in the object
         if self._fixings is None:
             df = read_csv(
                 self.path, index_col=0, parse_dates=[0], date_format="%d-%m-%Y"
@@ -134,6 +135,8 @@ class Defaults:
 
     # fixings data
     sofr = LazyFixingLoader("data/sofr.csv")
+    swestr = LazyFixingLoader("data/swestr.csv")
+    sonia = LazyFixingLoader("data/sonia.csv")
 
     def reset_defaults(self):
         base = Defaults()
