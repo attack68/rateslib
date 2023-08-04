@@ -47,6 +47,8 @@ Calendars
    :skip: floor
    :skip: next_monday
    :skip: next_monday_or_tuesday
+   :skip: nearest_workday
+   :skip: sunday_to_monday
 
 Scheduling
 ----------

@@ -264,6 +264,272 @@ def get_calendar(
     -------
     CustomBusinessDay or tuple
 
+    Notes
+    -----
+
+    The following named calendars are available and have been back tested against the
+    publication of RFR indexes in the relevant geography.
+
+    - *"bus"* (only weekends excluded)
+    - *"tgt"* (ESTR)
+    - *"osl"* (NOWA)
+    - *"zur"* (SARON)
+    - *"nyc"* (SOFR)
+    - *"ldn"* (SONIA)
+    - *"stk"* (SWESTR)
+
+    The list of generic holidays applied to these calendars is as follows;
+
+    .. list-table:: Calendar generic holidays
+       :widths: 52 8 8 8 8 8 8
+       :header-rows: 1
+
+       * - Holiday
+         - *"tgt"*
+         - *"osl"*
+         - *"zur"*
+         - *"nyc"*
+         - *"ldn"*
+         - *"stk"*
+       * - New Years Day
+         - X
+         - X
+         - X
+         -
+         -
+         - X
+       * - New Years Day (sun->mon)
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - New Years Day (w/e->mon)
+         -
+         -
+         -
+         -
+         - X
+         -
+       * - Berchtoldstag
+         -
+         -
+         - X
+         -
+         -
+         -
+       * - Epiphany
+         -
+         -
+         -
+         -
+         -
+         - X
+       * - Martin Luther King Day
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - President's Day
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - Maundy Thursday
+         -
+         - X
+         -
+         -
+         -
+         -
+       * - Good Friday
+         - X
+         - X
+         - X
+         - X
+         - X
+         - X
+       * - Easter Monday
+         - X
+         - X
+         - X
+         -
+         - X
+         - X
+       * - UK Early May Bank Holiday
+         -
+         -
+         -
+         -
+         - X
+         -
+       * - UK Late May Bank Holiday
+         -
+         -
+         -
+         -
+         - X
+         -
+       * - EU Labour Day
+         - X
+         - X
+         - X
+         -
+         -
+         - X
+       * - US Memorial Day
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - Ascention Day
+         -
+         - X
+         - X
+         -
+         -
+         - X
+       * - Whit Monday
+         -
+         - X
+         -
+         -
+         -
+         -
+       * - Midsummer Friday
+         -
+         -
+         -
+         -
+         -
+         - X
+       * - Sweden National Day
+         -
+         -
+         -
+         -
+         -
+         - X
+       * - Norwegian Constitution Day
+         -
+         - X
+         -
+         -
+         -
+         -
+       * - Swiss National Day
+         -
+         -
+         - X
+         -
+         -
+         -
+       * - Juneteenth National Day (sun->mon)
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - US Independence Day (sat->fri,sun->mon)
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - US Labour Day
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - UK Summer Bank Holiday
+         -
+         -
+         -
+         -
+         - X
+         -
+       * - Columbus Day
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - US Veteran's Day (sun->mon)
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - US Thanksgiving
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - Christmas Eve
+         -
+         - X
+         -
+         -
+         -
+         - X
+       * - Christmas Day
+         - X
+         - X
+         - X
+         -
+         -
+         - X
+       * - Christmas Day (sat,sun->mon)
+         -
+         -
+         -
+         -
+         - X
+         -
+       * - Christmas Day (sat->fri,sun->mon)
+         -
+         -
+         -
+         - X
+         -
+         -
+       * - Boxing Day
+         - X
+         - X
+         - X
+         -
+         -
+         - X
+       * - Boxing Day (sun,mon->tue)
+         -
+         -
+         -
+         -
+         - X
+         -
+       * - New Year's Eve
+         -
+         -
+         -
+         -
+         -
+         - X
+
     Examples
     --------
     .. ipython:: python
