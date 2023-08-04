@@ -1103,7 +1103,7 @@ class TestCompositeCurve:
             convention="Act365F",
         )
         cc = CompositeCurve([c1, c2, c3], multi_csa=True)
-        with default_context("multi_csa_granularity", 1):
+        with default_context("multi_csa_steps", [1,1,1,1,1,1,1]):
             r1 = cc.rate(dt(2022, 1, 1), "1d")
             r2 = cc.rate(dt(2022, 1, 2), "1d")
             r3 = cc.rate(dt(2022, 1, 3), "1d")
@@ -1162,6 +1162,50 @@ class TestCompositeCurve:
             cc = CompositeCurve(
                 [curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4
             )
+
+    def test_multi_csa_shift(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        c3 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99979455,  # 3.5%
+                dt(2022, 1, 4): 0.99969869,  # 3.5%
+                dt(2022, 1, 5): 0.99958915,  # 4%
+            },
+            convention="Act365F",
+        )
+        cc = CompositeCurve([c1, c2, c3], multi_csa=True)
+        cc_shift = cc.shift(100)
+        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
+            r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
+            r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
+            r3 = cc_shift.rate(dt(2022, 1, 3), "1d")
+            r4 = cc_shift.rate(dt(2022, 1, 4), "1d")
+
+        assert abs(r1 - 5.0) < 1e-3
+        assert abs(r2 - 4.5) < 1e-3
+        assert abs(r3 - 4.5) < 1e-3
+        assert abs(r4 - 5.0) < 1e-3
 
 
 class TestPlotCurve:

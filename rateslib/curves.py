@@ -503,7 +503,8 @@ class Curve(Serialize, PlotCurve):
         spread_compound_method : str in {"none_simple", "isda_compounding"}
             The method if adding a float spread.
             If *"none_simple"* is used this results in an exact calculation.
-            If *"isda_compounding"* is used this results in an approximation.
+            If *"isda_compounding"* or *"isda_flat_compounding"* is used this results
+            in an approximation.
 
         Returns
         -------
@@ -530,9 +531,9 @@ class Curve(Serialize, PlotCurve):
 
         - When ``spread_compound_method`` is *"none_simple"* the spread is a simple
           linear addition.
-        - When using *"isda_compounding"* the curve is assumed to be comprised of RFR
+        - When using *"isda_compounding"* or *"isda_flat_compounding"* the curve is
+          assumed to be comprised of RFR
           rates and an approximation is used to derive to total rate.
-        - The *"isda_flat_compounding"* method is not suitable for this optimisation.
 
         """
         modifier = self.modifier if modifier is False else modifier
@@ -2130,7 +2131,12 @@ class CompositeCurve(PlotCurve):
                 curves += (curve.shift(spread),)
         else:
             curves += self.curves[1:]
-        return CompositeCurve(curves=curves)
+        return CompositeCurve(
+            curves=curves,
+            multi_csa=self.multi_csa,
+            multi_csa_max_step=self.multi_csa_max_step,
+            multi_csa_min_step=self.multi_csa_min_step,
+        )
 
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
         """
@@ -2155,7 +2161,10 @@ class CompositeCurve(PlotCurve):
         CompositeCurve
         """
         return CompositeCurve(
-            curves=[curve.translate(start, t) for curve in self.curves]
+            curves=[curve.translate(start, t) for curve in self.curves],
+            multi_csa=self.multi_csa,
+            multi_csa_max_step=self.multi_csa_max_step,
+            multi_csa_min_step=self.multi_csa_min_step,
         )
 
     def roll(self, tenor: Union[datetime, str]) -> CompositeCurve:
@@ -2180,7 +2189,12 @@ class CompositeCurve(PlotCurve):
         -------
         CompositeCurve
         """
-        return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
+        return CompositeCurve(
+            curves=[curve.roll(tenor) for curve in self.curves],
+            multi_csa = self.multi_csa,
+            multi_csa_max_step = self.multi_csa_max_step,
+            multi_csa_min_step = self.multi_csa_min_step,
+        )
 
     def index_value(self, date: datetime, interpolation: str = "daily"):
         """
