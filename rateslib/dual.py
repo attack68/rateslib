@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 PRECISION = 1e-14
-FLOATS = (float, np.float16, np.float32, np.float64, np.float128)
+FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
 INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
