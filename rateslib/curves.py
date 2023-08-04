@@ -2125,7 +2125,11 @@ class CompositeCurve(PlotCurve):
         CompositeCurve
         """
         curves = (self.curves[0].shift(spread),)
-        curves += self.curves[1:]
+        if self.multi_csa:
+            for curve in self.curves[1:]:
+                curves += (curve.shift(spread),)
+        else:
+            curves += self.curves[1:]
         return CompositeCurve(curves=curves)
 
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:

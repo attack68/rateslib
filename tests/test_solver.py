@@ -550,11 +550,11 @@ def test_delta_gamma_calculation():
 
     # Mechanism 1: dynamic
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6)
-    assert 74430 < float(eur_swap.delta(estr_curve, estr_solver).sum()) < 74432
+    assert 74430 < float(eur_swap.delta(estr_curve, estr_solver).sum().iloc[0]) < 74432
     assert -229 < float(eur_swap.gamma(estr_curve, estr_solver).sum().sum()) < -228
 
     # Mechanism 1: dynamic names
-    assert 74430 < float(eur_swap.delta("estr_curve", estr_solver).sum()) < 74432
+    assert 74430 < float(eur_swap.delta("estr_curve", estr_solver).sum().iloc[0]) < 74432
     assert -229 < float(eur_swap.gamma("estr_curve", estr_solver).sum().sum()) < -228
 
     # Mechanism 1: fails on None curve specification
@@ -565,12 +565,12 @@ def test_delta_gamma_calculation():
 
     # Mechanism 2: static specific
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves=estr_curve)
-    assert 74430 < float(eur_swap.delta(None, estr_solver).sum()) < 74432
+    assert 74430 < float(eur_swap.delta(None, estr_solver).sum().iloc[0]) < 74432
     assert -229 < float(eur_swap.gamma(None, estr_solver).sum().sum()) < -228
 
     # Mechanism 2: static named
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves="estr_curve")
-    assert 74430 < float(eur_swap.delta(None, estr_solver).sum()) < 74432
+    assert 74430 < float(eur_swap.delta(None, estr_solver).sum().iloc[0]) < 74432
     assert -229 < float(eur_swap.gamma(None, estr_solver).sum().sum()) < -228
 
 
