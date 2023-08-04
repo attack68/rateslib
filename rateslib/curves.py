@@ -2191,9 +2191,9 @@ class CompositeCurve(PlotCurve):
         """
         return CompositeCurve(
             curves=[curve.roll(tenor) for curve in self.curves],
-            multi_csa = self.multi_csa,
-            multi_csa_max_step = self.multi_csa_max_step,
-            multi_csa_min_step = self.multi_csa_min_step,
+            multi_csa=self.multi_csa,
+            multi_csa_max_step=self.multi_csa_max_step,
+            multi_csa_min_step=self.multi_csa_min_step,
         )
 
     def index_value(self, date: datetime, interpolation: str = "daily"):

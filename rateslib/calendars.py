@@ -61,13 +61,23 @@ USPresidentsDay = Holiday(
 USMemorialDay = Holiday(
     "US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
 )
-USJuneteenthSundayHoliday = Holiday("Juneteenth Independence Day", start_date=datetime(2022, 1, 1), month=6, day=19, observance=sunday_to_monday)
-USIndependenceDayHoliday = Holiday("US Independence Day", month=7, day=4, observance=nearest_workday)
+USJuneteenthSundayHoliday = Holiday(
+    "Juneteenth Independence Day",
+    start_date=datetime(2022, 1, 1),
+    month=6,
+    day=19,
+    observance=sunday_to_monday,
+)
+USIndependenceDayHoliday = Holiday(
+    "US Independence Day", month=7, day=4, observance=nearest_workday
+)
 USLabourDay = Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
 USColumbusDay = Holiday(
     "US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2))  # type: ignore[arg-type]
 )
-USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
+USVeteransDaySundayHoliday = Holiday(
+    "Veterans Day", month=11, day=11, observance=sunday_to_monday
+)
 USThanksgivingDay = Holiday(
     "US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4))  # type: ignore[arg-type]
 )
@@ -80,8 +90,20 @@ USThanksgivingDay = Holiday(
 UKEarlyMayBankHoliday = Holiday(
     "UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1))  # type: ignore[arg-type]
 )
-UKSpringBankPre2022 = Holiday("UK Spring Bank Holiday pre 2022", end_date=datetime(2022, 5, 1), month=5, day=31, offset=DateOffset(weekday=MO(-1)))
-UKSpringBankPost2022 = Holiday("UK Spring Bank Holiday post 2022", start_date=datetime(2022, 7, 1), month=5, day=31, offset=DateOffset(weekday=MO(-1)))
+UKSpringBankPre2022 = Holiday(
+    "UK Spring Bank Holiday pre 2022",
+    end_date=datetime(2022, 5, 1),
+    month=5,
+    day=31,
+    offset=DateOffset(weekday=MO(-1)),
+)
+UKSpringBankPost2022 = Holiday(
+    "UK Spring Bank Holiday post 2022",
+    start_date=datetime(2022, 7, 1),
+    month=5,
+    day=31,
+    offset=DateOffset(weekday=MO(-1)),
+)
 UKSpringBankHoliday = Holiday(
     "UK Spring Bank Holiday", month=5, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
 )
@@ -178,7 +200,7 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         ChristmasDay,
         BoxingDay,
         # NewYearsEve,
-    ]
+    ],
 }
 
 

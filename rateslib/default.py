@@ -8,7 +8,6 @@ import os
 
 
 class Fixings:
-
     @staticmethod
     def _load_csv(path):
         abspath = os.path.dirname(os.path.abspath(__file__))

@@ -997,14 +997,13 @@ class FloatPeriod(BasePeriod):
         dcf_vals = dcf_vals.set_axis(rates.index)
         if self.float_spread == 0 or self.spread_compound_method == "none_simple":
             return (
-                    (1 + dcf_vals * rates / 100).prod() - 1
+                (1 + dcf_vals * rates / 100).prod() - 1
             ) * 100 / dcf_vals.sum() + self.float_spread / 100
         elif self.spread_compound_method == "isda_compounding":
             return (
-                    ((1 + dcf_vals * (
-                                rates / 100 + self.float_spread / 10000)).prod() - 1)
-                    * 100
-                    / dcf_vals.sum()
+                ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1)
+                * 100
+                / dcf_vals.sum()
             )
         elif self.spread_compound_method == "isda_flat_compounding":
             sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
@@ -1411,7 +1410,7 @@ class FloatPeriod(BasePeriod):
             v_vals /= v
             notional_exposure = Series(
                 (-self.notional * self.dcf * float(drdri) / d * scalar) / v_vals,
-                index=obs_vals.index
+                index=obs_vals.index,
             )
 
             table = DataFrame(
@@ -1421,7 +1420,9 @@ class FloatPeriod(BasePeriod):
                     "dcf_dates": dcf_dates,
                     "dcf": dcf_vals,
                     "notional": notional_exposure,
-                    "rates": Series(rate, index=obs_dates.index).apply(float, convert_dtype=float),
+                    "rates": Series(rate, index=obs_dates.index).apply(
+                        float, convert_dtype=float
+                    ),
                 }
             )
 

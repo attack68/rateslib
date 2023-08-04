@@ -251,7 +251,7 @@ class BaseLeg(metaclass=ABCMeta):
                 Cashflow(
                     self.amortization,
                     add_tenor(
-                        self.schedule.aschedule[i+1],
+                        self.schedule.aschedule[i + 1],
                         f"{self.payment_lag_exchange}B",
                         None,
                         self.schedule.calendar,
@@ -2289,7 +2289,6 @@ class CustomLeg(BaseLeg):
 
     def _set_periods(self, periods):
         self.periods = periods
-
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

@@ -1537,7 +1537,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             convention=convention,
             fixed_rate=fixed_rate,
             initial_exchange=False,
-            final_exchange=True
+            final_exchange=True,
         )
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
