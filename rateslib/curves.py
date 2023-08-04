@@ -2361,11 +2361,19 @@ def average_rate(effective, termination, convention, rate):
     -------
     tuple : The rate, the 1-day DCF, and the number of calendar days
     """
-    # TODO decide if the one-day DCF is properly accounted for here, e.g. 30e360?
-    # maybe just provide a static mapping instead.
-    d = 1.0 / 360 if "360" in convention else 1.0 / 365
+    if convention.lower() == "act360":
+        d = 1.0 / 360
+    elif convention.lower() == "act365f":
+        d = 1.0 / 365
+    else:
+        # TODO decide if the one-day DCF is properly accounted for here, e.g. 30e360?
+        # maybe just provide a static mapping instead.
+        raise NotImplementedError(
+            "`curve` conventions not 'act360' or 'act365f' are not yet defined for "
+            f"approximations, got: '{convention}'."
+        )
     n = (termination - effective).days
-    _ = ((1 + rate / 100 * n * d) ** (1 / n) - 1) / d
+    _ = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 
 

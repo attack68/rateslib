@@ -183,6 +183,7 @@ class TestFloatLeg:
             currency="SEK",
             fixing_method=method,
             method_param=param,
+            payment_lag=0,
         )
         float_leg.cashflows(curve)
         result = float_leg.fixings_table(curve)[dt(2022, 12, 28) : dt(2023, 1, 1)]
@@ -196,17 +197,17 @@ class TestFloatLeg:
                     dt(2023, 1, 1),
                 ],
                 "notional": [
-                    -1002914.0840790921,
-                    -1002914.0840790921,
-                    -1003192.739517848,
-                    -1002835.4299274746,
-                    -1002835.4299274748,
+                    -999565.42990,
+                    -999676.87136,
+                    -1000066.11220,
+                    -999821.37380,
+                    -999932.84380,
                 ],
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             }
         ).set_index("obs_dates")
-        assert_frame_equal(result, expected)
+        assert_frame_equal(result, expected, rtol=1e-5)
 
     def test_float_leg_set_float_spread(self, curve):
         float_leg = FloatLeg(
@@ -795,7 +796,7 @@ class TestFloatLegExchange:
         result = fle.fixings_table(curve)
         expected = DataFrame(
             {
-                "notional": [-1009872.33778, -1010201.55052],
+                "notional": [-1009872.33778, -1000000.00000],
                 "dcf": [0.002777777777777778, 0.002777777777777778],
                 "rates": [4.01655, 4.01655],
             },

@@ -291,12 +291,23 @@ class TestFloatPeriod:
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) - 1) * 36500 / 2
         assert abs(result - expected) < 1e-12
 
+    def test_dcf_obs_period_raises(self):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, calendar="ldn")
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 1), end=dt(2022, 12, 31),
+            payment=dt(2022, 12, 31), frequency="A",
+            fixing_method="rfr_lookback", method_param=5
+        )
+        # this may only raise when lookback is used ?
+        with pytest.raises(ValueError, match="RFR Observation and Accrual DCF dates "):
+            float_period.rate(curve)
+
     @pytest.mark.parametrize("curve_type", ["curve", "linecurve"])
     @pytest.mark.parametrize("method, expected, expected_date", [
-        ("rfr_payment_delay", [1000616, 1000589, 1000328, 1000561], dt(2022, 1, 6)),
-        ("rfr_observation_shift", [1500369, 1500328, 1500287, 1500246], dt(2022, 1, 4)),
-        ("rfr_lockout", [1000548, 5001945, 0, 0], dt(2022, 1, 6)),
-        ("rfr_lookback", [1000411, 1000383, 3000575, 1000328], dt(2022, 1, 4)),
+        ("rfr_payment_delay", [1000000, 1000082, 1000191, 1000561], dt(2022, 1, 6)),
+        ("rfr_observation_shift", [1499240, 1499281, 1499363, 1499486], dt(2022, 1, 4)),
+        ("rfr_lockout", [999931, 4999411, 0, 0], dt(2022, 1, 6)),
+        ("rfr_lookback", [999657, 999685, 2998726, 999821], dt(2022, 1, 4)),
     ])
     def test_rfr_fixings_array(self, curve_type, method, expected, expected_date):
         # tests the fixings array and the compounding for different types of curve
@@ -348,7 +359,7 @@ class TestFloatPeriod:
                              fixing_method=method, convention="act365f",
                              notional=-1000000)
         rate, table = period._rfr_fixings_array(
-            curve=rfr_curve, fixing_exposure=True
+            curve=rfr_curve, fixing_exposure=True, disc_curve=curve
         )
 
         assert table["obs_dates"][1] == expected_date
@@ -364,8 +375,8 @@ class TestFloatPeriod:
 
     @pytest.mark.parametrize("method, param, expected", [
         ("rfr_payment_delay", 0, 1000000),
-        ("rfr_observation_shift", 1, 1000000 / 3),
-        ("rfr_lookback", 1, 1000000 / 3)
+        ("rfr_observation_shift", 1, 333319),
+        ("rfr_lookback", 1, 333319)
     ])
     def test_rfr_fixings_array_single_period(self, method, param, expected):
         rfr_curve = Curve(
@@ -661,16 +672,16 @@ class TestFloatPeriod:
                 dt(2023, 1, 1),
             ],
             "notional": [
-                -1000011.27030,
-                -1000011.27030,
-                -1000289.11920,
-                -999932.84380,
+                -999565.42990,
+                -999676.87136,
+                -1000066.11220,
+                -999821.37380,
                 -999932.84380,
             ],
             "dcf": [0.0027777777777777778] * 5,
             "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364]
         }).set_index("obs_dates")
-        assert_frame_equal(result, expected)
+        assert_frame_equal(result, expected, rtol=1e-4)
 
         curve._set_ad_order(order=1)
         # assert values are unchanged even if curve can calculate derivatives
@@ -773,13 +784,14 @@ class TestFloatPeriod:
             fixings=[1.19, 1.19],
         )
         def interp(date, nodes):
-            if date < dt(2023, 1 ,1):
+            if date < dt(2023, 1, 1):
                 return None
             return 2.0
-        curve = LineCurve({dt(2023, 1, 1): 3.0, dt(2023, 2, 1): 2.0},
+        line_curve = LineCurve({dt(2023, 1, 1): 3.0, dt(2023, 2, 1): 2.0},
                           interpolation=interp)
+        curve = Curve({dt(2023, 1, 1): 1.0, dt(2023, 2, 1): 0.999})
         with pytest.raises(ValueError, match="RFRs could not be calculated"):
-            result = float_period.fixings_table(curve)
+            result = float_period.fixings_table(line_curve, disc_curve=curve)
 
     def test_method_param_raises(self):
         with pytest.raises(ValueError, match='`method_param` must be >0 for "rfr_lock'):
