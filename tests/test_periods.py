@@ -12,6 +12,7 @@ from rateslib.periods import (
 from rateslib.fx import FXRates
 from rateslib.default import Defaults
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
+from rateslib import defaults
 
 
 @pytest.fixture()
@@ -866,6 +867,25 @@ class TestFloatPeriod:
         result = period.rate(curve)
         expected = 1.09136153  # series fixings are completely ignored
         assert abs(result - expected) < 1e-5
+
+    @pytest.mark.parametrize("meth, param, exp", [
+        ("rfr_payment_delay", None, 3.1183733605),
+        ("rfr_observation_shift", 2, 3.085000395),
+        ("rfr_lookback", 2, 3.05163645),
+        ("rfr_lockout", 7, 3.00157855)
+    ])
+    def test_norges_bank_nowa_calc_same(self, meth, param, exp):
+        # https://app.norges-bank.no/nowa/#/en/
+        curve = Curve({dt(2023, 8, 4): 1.0}, calendar="osl", convention="act365f")
+        period = FloatPeriod(
+            start=dt(2023, 4, 27), end=dt(2023, 5, 12),
+            payment=dt(2023, 5, 16), frequency="A",
+            fixing_method=meth,
+            method_param=param, float_spread=0.0,
+            fixings=defaults.fixings.nowa
+        )
+        result = period.rate(curve)
+        assert abs(result - exp) < 1e-7
 
 
 class TestFixedPeriod:

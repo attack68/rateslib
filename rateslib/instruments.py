@@ -57,7 +57,7 @@ from rateslib.legs import (
     CustomLeg,
 )
 from rateslib.dual import Dual, Dual2, set_order, DualTypes
-from rateslib.fx import FXForwards, FXRates
+from rateslib.fx import FXForwards, FXRates, forward_fx
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -67,6 +67,7 @@ from rateslib.fx import FXForwards, FXRates
 
 def _get_curve_from_solver(curve, solver):
     if getattr(curve, "_is_proxy", False):
+        # TODO: consider also adding CompositeCurves as exceptions under the same rule
         # proxy curves exist outside of solvers but still have Dual variables associated
         # with curves inside the solver, so can still generate risks to calibrating
         # instruments
@@ -136,6 +137,13 @@ def _get_curves_and_fx_maybe_from_solver(
                 fx_ = solver.fx
     else:
         fx_ = fx
+        if solver is not None and solver.fx is not None and id(fx) != id(solver.fx):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which will be used but is not the same. This can lead "
+                "to calculation inconsistencies, mathematically.",
+                UserWarning,
+            )
 
     if curves is None and curves_attr is None:
         return (None, None, None, None), fx_
@@ -487,6 +495,213 @@ class BaseMixin:
         self._leg2_index_base = value
         self.leg2.index_base = value
 
+    def analytic_delta(self, *args, leg=1, **kwargs):
+        """
+        Return the analytic delta of a leg of the derivative object.
+
+        Parameters
+        ----------
+        args :
+            Required positional arguments supplied to
+            :meth:`BaseLeg.analytic_delta<rateslib.legs.BaseLeg.analytic_delta>`.
+        leg : int in [1, 2]
+            The leg identifier of which to take the analytic delta.
+        kwargs :
+            Required Keyword arguments supplied to
+            :meth:`BaseLeg.analytic_delta()<rateslib.legs.BaseLeg.analytic_delta>`.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Examples
+        --------
+        .. ipython:: python
+
+           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, id="SONIA")
+           fxr = FXRates({"gbpusd": 1.25}, base="usd")
+
+        .. ipython:: python
+
+           irs = IRS(
+               effective=dt(2022, 1, 1),
+               termination="6M",
+               frequency="Q",
+               currency="gbp",
+               notional=1e9,
+               fixed_rate=5.0,
+           )
+           irs.analytic_delta(curve, curve)
+           irs.analytic_delta(curve, curve, fxr)
+           irs.analytic_delta(curve, curve, fxr, "gbp")
+        """
+        return getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
+
+    @abstractmethod
+    def cashflows(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the properties of all legs used in calculating cashflows.
+
+        Parameters
+        ----------
+        curves : CurveType, str or list of such, optional
+            A single :class:`~rateslib.curves.Curve`,
+            :class:`~rateslib.curves.LineCurve` or id or a
+            list of such. A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` or
+              :class:`~rateslib.curves.LineCurve` for ``leg1``.
+            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+            - Forecasting :class:`~rateslib.curves.Curve` or
+              :class:`~rateslib.curves.LineCurve` for ``leg2``.
+            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
+            converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object. If not given defaults
+            to ``fx.base``.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        If **only one curve** is given this is used as all four curves.
+
+        If **two curves** are given the forecasting curve is used as the forecasting
+        curve on both legs and the discounting curve is used as the discounting
+        curve for both legs.
+
+        If **three curves** are given the single discounting curve is used as the
+        discounting curve for both legs.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           irs.cashflows([curve], None, fxr)
+        """
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        return concat(
+            [
+                self.leg1.cashflows(curves[0], curves[1], fx, base),
+                self.leg2.cashflows(curves[2], curves[3], fx, base),
+            ],
+            keys=["leg1", "leg2"],
+        )
+
+    @abc.abstractmethod
+    def npv(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        """
+        Return the NPV of the derivative object by summing legs.
+
+        Parameters
+        ----------
+        curves : Curve, LineCurve, str or list of such
+            A single :class:`~rateslib.curves.Curve`,
+            :class:`~rateslib.curves.LineCurve` or id or a
+            list of such. A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` or
+              :class:`~rateslib.curves.LineCurve` for ``leg1``.
+            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+            - Forecasting :class:`~rateslib.curves.Curve` or
+              :class:`~rateslib.curves.LineCurve` for ``leg2``.
+            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
+            converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object. If not given defaults
+            to ``fx.base``.
+        local : bool, optional
+            If `True` will return a dict identifying NPV by local currencies on each
+            leg. Useful for multi-currency derivatives and for ensuring risk
+            sensitivities are allocated to local currencies without conversion.
+
+        Returns
+        -------
+        float, Dual or Dual2, or dict of such.
+
+        Notes
+        -----
+        If **only one curve** is given this is used as all four curves.
+
+        If **two curves** are given the forecasting curve is used as the forecasting
+        curve on both legs and the discounting curve is used as the discounting
+        curve for both legs.
+
+        If **three curves** are given the single discounting curve is used as the
+        discounting curve for both legs.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           irs.npv(curve)
+           irs.npv([curve], None, fxr)
+           irs.npv([curve], None, fxr, "gbp")
+        """
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
+        leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
+        if local:
+            return {
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
+                for k in set(leg1_npv) | set(leg2_npv)
+            }
+        else:
+            return leg1_npv + leg2_npv
+
+    @abc.abstractmethod
+    def rate(self, *args, **kwargs):
+        """
+        Return the `rate` or typical `price` for a derivative instrument.
+
+        Returns
+        -------
+        Dual
+
+        Notes
+        -----
+        This method must be implemented for instruments to function effectively in
+        :class:`Solver` iterations.
+        """
+        pass  # pragma: no cover
+
 
 class Value(BaseMixin):
     """
@@ -549,6 +764,156 @@ class Value(BaseMixin):
             self.curves, solver, curves, None
         )
         return curves[0][self.effective]
+
+    def npv(self, *args, **kwargs):
+        raise NotImplementedError("`Value` instrument has no concept of NPV.")
+
+    def cashflows(self, *args, **kwargs):
+        raise NotImplementedError("`Value` instrument has no concept of cashflows.")
+
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
+
+
+class FXExchange(Sensitivities, BaseMixin):
+
+    def __init__(
+        self,
+        settlement: datetime,
+        currency: str,
+        leg2_currency: str,
+        fx_rate: Optional[float] = None,
+        notional: Optional[float] = None,
+        curves: Optional[Union[list, str, Curve]] = None,
+    ):
+        self.curves = curves
+        self.settlement = settlement
+        self.pair = f"{currency.lower()}{leg2_currency.lower()}"
+        self.leg1 = Cashflow(
+                notional=defaults.notional if notional is None else notional,
+                currency=currency.lower(),
+                payment=settlement,
+                stub_type="Exchange",
+                rate=None,
+            )
+        self.leg2 = Cashflow(
+                notional=1.0,  # will be determined by setting fx_rate
+                currency=leg2_currency.lower(),
+                payment=settlement,
+                stub_type="Exchange",
+                rate=fx_rate,
+            )
+        self.fx_rate = fx_rate
+
+    @property
+    def fx_rate(self):
+        return self._fx_rate
+
+    @fx_rate.setter
+    def fx_rate(self, value):
+        self._fx_rate = value
+        self.leg2.notional = 0.0 if value is None else value * -self.leg1.notional
+        self.leg2._rate = value
+
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[Dual, float, FXRates, FXForwards]] = None,
+    ):
+        mid_market_rate = self.rate(curves, solver, fx)
+        self.fx_rate = float(mid_market_rate)
+        self._fx_rate = None
+
+    def npv(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+        local: bool = False,
+    ):
+        """
+        Return the NPV of the *FXExchange* by summing legs.
+
+        For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.npv>`
+        """
+        if self.fx_rate is None:
+            self._set_pricing_mid(curves, solver, fx)
+
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        if base is None:
+            # set a default base for the multi-currency instrument
+            base = self.leg1.currency
+        if not isinstance(fx, (FXRates, FXForwards)):
+            if base.lower() == self.leg1.currency:
+                leg1_npv = self.leg1.npv(curves[0], curves[1], 1.0, base, local)
+                leg2_npv = self.leg2.npv(curves[2], curves[3], 1/fx, base, local)
+            elif base.lower() == self.leg2.currency:
+                leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
+                leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base, local)
+            else:
+                raise ValueError(
+                    f"Cannot calculate `npv` for `base` {base} with `fx` as float.\n"
+                    "Instead supply an `fx` argument as `FXRates` or `FXForwards`."
+                )
+        else:
+            leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
+            leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
+
+        if local:
+            return {
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
+                for k in set(leg1_npv) | set(leg2_npv)
+            }
+        else:
+            return leg1_npv + leg2_npv
+
+    def cashflows(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the cashflows of the *FXExchange* by aggregating legs.
+
+        For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.cashflows>`
+        """
+        curves, fx = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        seq = [
+            self.leg1.cashflows(curves[0], curves[1], fx, base),
+            self.leg2.cashflows(curves[2], curves[3], fx, base),
+        ]
+        return DataFrame.from_records(seq)
+
+    def rate(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        """
+        Return the mid-market rate of the instrument.
+
+        For arguments see :meth:`BaseMixin.rate<rateslib.instruments.BaseMixin.rate>`
+        """
+        curves, fx_ = _get_curves_and_fx_maybe_from_solver(
+            self.curves, solver, curves, fx
+        )
+        if isinstance(fx_, (FXRates, FXForwards)):
+            imm_fx = fx_.rate(self.pair)
+        else:
+            imm_fx = fx_
+
+        _ = forward_fx(self.settlement, curves[1], curves[3], imm_fx)
+        return _
 
 
 ### Securities
@@ -3510,213 +3875,6 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
                 _ = leg2_val
             setattr(self, attribute, val)
             setattr(self, f"leg2_{attribute}", _)
-
-    def analytic_delta(self, *args, leg=1, **kwargs):
-        """
-        Return the analytic delta of a leg of the derivative object.
-
-        Parameters
-        ----------
-        args :
-            Required positional arguments supplied to
-            :meth:`BaseLeg.analytic_delta<rateslib.legs.BaseLeg.analytic_delta>`.
-        leg : int in [1, 2]
-            The leg identifier of which to take the analytic delta.
-        kwargs :
-            Required Keyword arguments supplied to
-            :meth:`BaseLeg.analytic_delta()<rateslib.legs.BaseLeg.analytic_delta>`.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Examples
-        --------
-        .. ipython:: python
-
-           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, id="SONIA")
-           fxr = FXRates({"gbpusd": 1.25}, base="usd")
-
-        .. ipython:: python
-
-           irs = IRS(
-               effective=dt(2022, 1, 1),
-               termination="6M",
-               frequency="Q",
-               currency="gbp",
-               notional=1e9,
-               fixed_rate=5.0,
-           )
-           irs.analytic_delta(curve, curve)
-           irs.analytic_delta(curve, curve, fxr)
-           irs.analytic_delta(curve, curve, fxr, "gbp")
-        """
-        return getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
-
-    @abstractmethod
-    def cashflows(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-    ):
-        """
-        Return the properties of all legs used in calculating cashflows.
-
-        Parameters
-        ----------
-        curves : CurveType, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve`,
-            :class:`~rateslib.curves.LineCurve` or id or a
-            list of such. A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` or
-              :class:`~rateslib.curves.LineCurve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` or
-              :class:`~rateslib.curves.LineCurve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-        solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that constructs
-            ``Curves`` from calibrating instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code).
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object. If not given defaults
-            to ``fx.base``.
-
-        Returns
-        -------
-        DataFrame
-
-        Notes
-        -----
-        If **only one curve** is given this is used as all four curves.
-
-        If **two curves** are given the forecasting curve is used as the forecasting
-        curve on both legs and the discounting curve is used as the discounting
-        curve for both legs.
-
-        If **three curves** are given the single discounting curve is used as the
-        discounting curve for both legs.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           irs.cashflows([curve], None, fxr)
-        """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
-        )
-        return concat(
-            [
-                self.leg1.cashflows(curves[0], curves[1], fx, base),
-                self.leg2.cashflows(curves[2], curves[3], fx, base),
-            ],
-            keys=["leg1", "leg2"],
-        )
-
-    @abc.abstractmethod
-    def npv(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        local: bool = False,
-    ):
-        """
-        Return the NPV of the derivative object by summing legs.
-
-        Parameters
-        ----------
-        curves : Curve, LineCurve, str or list of such
-            A single :class:`~rateslib.curves.Curve`,
-            :class:`~rateslib.curves.LineCurve` or id or a
-            list of such. A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` or
-              :class:`~rateslib.curves.LineCurve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` or
-              :class:`~rateslib.curves.LineCurve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-        solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that constructs
-            ``Curves`` from calibrating instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code).
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object. If not given defaults
-            to ``fx.base``.
-        local : bool, optional
-            If `True` will return a dict identifying NPV by local currencies on each
-            leg. Useful for multi-currency derivatives and for ensuring risk
-            sensitivities are allocated to local currencies without conversion.
-
-        Returns
-        -------
-        float, Dual or Dual2, or dict of such.
-
-        Notes
-        -----
-        If **only one curve** is given this is used as all four curves.
-
-        If **two curves** are given the forecasting curve is used as the forecasting
-        curve on both legs and the discounting curve is used as the discounting
-        curve for both legs.
-
-        If **three curves** are given the single discounting curve is used as the
-        discounting curve for both legs.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           irs.npv(curve)
-           irs.npv([curve], None, fxr)
-           irs.npv([curve], None, fxr, "gbp")
-        """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
-        )
-        leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
-        leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
-        if local:
-            return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)
-            }
-        else:
-            return leg1_npv + leg2_npv
-
-    @abc.abstractmethod
-    def rate(self, *args, **kwargs):
-        """
-        Return the `rate` or typical `price` for a derivative instrument.
-
-        Returns
-        -------
-        Dual
-
-        Notes
-        -----
-        This method must be implemented for instruments to function effectively in
-        :class:`Solver` iterations.
-        """
-        pass  # pragma: no cover
 
     # def delta(
     #     self,
@@ -7644,106 +7802,6 @@ class Portfolio(Sensitivities):
             for instrument in self.instruments:
                 ret += instrument.npv(*args, **kwargs)
         return ret
-
-
-def forward_fx(
-    date: datetime,
-    curve_domestic: Curve,
-    curve_foreign: Curve,
-    fx_rate: Union[float, Dual],
-    fx_settlement: Optional[datetime] = None,
-) -> Dual:
-    """
-    Return the adjusted FX rate based on interest rate parity.
-
-    .. deprecated:: 0.0
-       See notes.
-
-    Parameters
-    ----------
-    date : datetime
-        The target date to determine the adjusted FX rate for.
-    curve_domestic : Curve
-        The discount curve for the domestic currency. Should be FX swap / XCS adjusted.
-    curve_foreign : Curve
-        The discount curve for the foreign currency. Should be FX swap / XCS consistent
-        with ``domestic curve``.
-    fx_rate : float or Dual
-        The known FX rate, typically spot FX given with a spot settlement date.
-    fx_settlement : datetime, optional
-        The date the given ``fx_rate`` will settle, i.e spot T+2. If `None` is assumed
-        to be immediate settlement, i.e. date upon which both ``curves`` have a DF
-        of precisely 1.0. Method is more efficient if ``fx_rate`` is given for
-        immediate settlement.
-
-    Returns
-    -------
-    float, Dual, Dual2
-
-    Notes
-    -----
-    We use the formula,
-
-    .. math::
-
-       (EURUSD) f_i = \\frac{(EUR:USD-CSA) w^*_i}{(USD:USD-CSA) v_i} F_0 = \\frac{(EUR:EUR-CSA) v^*_i}{(USD:EUR-CSA) w_i} F_0
-
-    where :math:`w` is a cross currency adjusted discount curve and :math:`v` is the
-    locally derived discount curve in a given currency, and `*` denotes the domestic
-    currency. :math:`F_0` is the immediate FX rate, i.e. aligning with the initial date
-    on curves such that discounts factors are precisely 1.0.
-
-    This implies that given the dates and rates supplied,
-
-    .. math::
-
-       f_i = \\frac{w^*_iv_j}{v_iw_j^*} f_j = \\frac{v^*_iw_j}{w_iv_j^*} f_j
-
-    where `j` denotes the settlement date provided.
-
-    **Deprecated**
-
-    This method is deprecated. It should be replaced by the use of
-    :class:`~rateslib.fx.FXForwards` objects. See examples.
-
-    Examples
-    --------
-    Using this function directly.
-
-    .. ipython:: python
-
-       domestic_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96})
-       foreign_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
-       forward_fx(
-           date=dt(2022, 7, 1),
-           curve_domestic=domestic_curve,
-           curve_foreign=foreign_curve,
-           fx_rate=2.0,
-           fx_settlement=dt(2022, 1, 3)
-       )
-
-    Replacing this deprecated function with object-oriented methods.
-
-    .. ipython:: python
-
-       fxr = FXRates({"usdgbp": 2.0}, settlement=dt(2022, 1, 3))
-       fxf = FXForwards(fxr, {
-           "usdusd": domestic_curve,
-           "gbpgbp": foreign_curve,
-           "gbpusd": foreign_curve,
-       })
-       fxf.rate("usdgbp", dt(2022, 7, 1))
-    """
-    if date == fx_settlement:
-        return fx_rate
-    elif date == curve_domestic.node_dates[0] and fx_settlement is None:
-        return fx_rate
-
-    _ = curve_domestic[date] / curve_foreign[date]
-    if fx_settlement is not None:
-        _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
-    _ *= fx_rate
-    return _
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

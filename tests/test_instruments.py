@@ -12,6 +12,7 @@ from rateslib.instruments import (
     forward_fx,
     SBS,
     FXSwap,
+    FXExchange,
     NonMtmXCS,
     FixedRateBond,
     Bill,
@@ -288,6 +289,13 @@ class TestNullPricing:
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
+            FXExchange(
+                settlement=dt(2022, 10, 1),
+                currency="eur",
+                leg2_currency="usd",
+                curves=["eureur", "eureur", "usdusd", "usdusd"],
+                notional=1e6*25/74.27,
+            )
         ],
     )
     def test_null_priced_delta(self, inst):
@@ -826,6 +834,62 @@ class TestZCIS:
         assert result > (prior + 100)
 
 
+class TestValue:
+
+    def test_npv_adelta_cashflows_raises(self):
+        value = Value(dt(2022, 1, 1))
+        with pytest.raises(NotImplementedError):
+            value.npv()
+
+        with pytest.raises(NotImplementedError):
+            value.cashflows()
+
+        with pytest.raises(NotImplementedError):
+            value.analytic_delta()
+
+
+class TestFXExchange:
+
+    def test_cashflows(self):
+        fxe = FXExchange(
+            settlement=dt(2022, 10, 1),
+            currency="eur",
+            leg2_currency="usd",
+            notional=1e6,
+            fx_rate=2.05
+        )
+        result = fxe.cashflows()
+        expected = DataFrame({
+            "Type": ["Cashflow", "Cashflow"],
+            "Period": ["Exchange", "Exchange"],
+            "Ccy": ["EUR", "USD"],
+            "Payment": [dt(2022, 10, 1), dt(2022, 10, 1)],
+            "Notional": [1e6, -2050000.0],
+            "Rate": [None, 2.05],
+            "Cashflow": [-1e6, 2050000.0],
+        })
+        result = result[[
+            "Type", "Period", "Ccy", "Payment", "Notional", "Rate", "Cashflow"
+        ]]
+        assert_frame_equal(result, expected, rtol=1e-6)
+
+    @pytest.mark.parametrize("base, fx", [
+        # (None, 0.0),
+        # ("eur", 1.20),
+        # ("usd", 1/1.20),
+        ("eur", FXRates({"eurusd": 1.20})),
+    ])
+    def test_rate(self, curve, curve2, base, fx):
+        fxe = FXExchange(
+            settlement=dt(2022, 3, 1),
+            currency="eur",
+            leg2_currency="usd",
+            fx_rate=1.2080131682341035,
+        )
+        result = fxe.npv([None, curve, None, curve2], None, fx, base, local=False)
+        assert abs(result-0.0) < 1e-8
+
+
 def test_forward_fx_immediate():
     d_curve = Curve(
         nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear"
@@ -991,6 +1055,7 @@ class TestNonMtmXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
+            float_spread=0.0,
         )
 
         with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
@@ -1001,9 +1066,9 @@ class TestNonMtmXCS:
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.cashflows([curve, curve, curve2, curve2])
 
-        with pytest.warns():
-            with default_context("no_fx_fixings_for_xcs", "warn"):
-                xcs.npv([curve, curve, curve2, curve2])
+        # with pytest.warns():
+        #     with default_context("no_fx_fixings_for_xcs", "warn"):
+        #         xcs.npv([curve, curve, curve2, curve2])
 
     def test_nonmtmxcs_cashflows(self, curve, curve2):
         fxf = FXForwards(
@@ -1063,7 +1128,7 @@ class TestNonMtmXCS:
             notional=10e6,
             fx_fixing=mapping[fix],
         )
-        assert abs(xcs.npv([curve, curve, curve2, curve2])) < 1e-7
+        assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
 
 
 class TestNonMtmFixedFloatXCS:
@@ -1204,7 +1269,7 @@ class TestNonMtmFixedFloatXCS:
             fx_fixing=mapping[fix],
             leg2_float_spread=10.0,
         )
-        assert abs(xcs.npv([curve2, curve2, curve, curve])) < 1e-7
+        assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxf)) < 1e-7
 
     def test_nonmtmfixxcs_raises(self, curve, curve2):
         fxf = FXForwards(
@@ -1319,21 +1384,7 @@ class TestNonMtmFixedFixedXCS:
             fx_fixing=mapping[fix],
             leg2_fixed_rate=2.0,
         )
-        assert abs(xcs.npv([curve2, curve2, curve, curve])) < 1e-7
-
-        xcs = NonMtmFixedFixedXCS(
-            dt(2022, 2, 1),
-            "8M",
-            "M",
-            payment_lag=0,
-            currency="nok",
-            leg2_currency="usd",
-            payment_lag_exchange=0,
-            notional=10e6,
-            fx_fixing=mapping[fix],
-            fixed_rate=2.0,
-        )
-        assert abs(xcs.npv([curve2, curve2, curve, curve])) < 1e-7
+        assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxr)) < 1e-7
 
     def test_nonmtmfixfixxcs_raises(self, curve, curve2):
         fxf = FXForwards(

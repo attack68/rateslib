@@ -137,6 +137,10 @@ FX
    :skip: datetime
    :skip: product
    :skip: timedelta
+   :skip: add_tenor
+   :skip: dual_solve
+   :skip: plot
+   :skip: set_order
 
 Periods
 -------
@@ -228,6 +232,7 @@ Instruments
    :skip: Solver
    :skip: CompositeCurve
    :skip: ZeroFixedLeg
+   :skip: forward_fx
 
 Solver
 ------

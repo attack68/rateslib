@@ -401,13 +401,13 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def update(self, fx_rates: dict):
+    def update(self, fx_rates: Optional[dict] = None):
         """
         Update all or some of the FX rates of the instance.
 
         Parameters
         ----------
-        fx_rates : dict
+        fx_rates : dict, optional
             Dict whose keys are 6-character domestic-foreign currency pairs and
             which are present in FXRates.pairs, and whose
             values are the relevant rates to update.
@@ -469,6 +469,8 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
+        if fx_rates is None:
+            return None
         fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
         pairs = list(fx_rates_.keys())
         if len(set(pairs).difference(set(self.pairs))) != 0:
@@ -1653,3 +1655,96 @@ class FXForwards:
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def forward_fx(
+    date: datetime,
+    curve_domestic: Curve,
+    curve_foreign: Curve,
+    fx_rate: Union[float, Dual],
+    fx_settlement: Optional[datetime] = None,
+) -> Dual:
+    """
+    Return a forward FX rate based on interest rate parity.
+
+    Parameters
+    ----------
+    date : datetime
+        The target date to determine the adjusted FX rate for.
+    curve_domestic : Curve
+        The discount curve for the domestic currency. Should be FX swap / XCS adjusted.
+    curve_foreign : Curve
+        The discount curve for the foreign currency. Should be FX swap / XCS consistent
+        with ``domestic curve``.
+    fx_rate : float or Dual
+        The known FX rate, typically spot FX given with a spot settlement date.
+    fx_settlement : datetime, optional
+        The date the given ``fx_rate`` will settle, i.e spot T+2. If `None` is assumed
+        to be immediate settlement, i.e. date upon which both ``curves`` have a DF
+        of precisely 1.0. Method is more efficient if ``fx_rate`` is given for
+        immediate settlement.
+
+    Returns
+    -------
+    float, Dual, Dual2
+
+    Notes
+    -----
+    We use the formula,
+
+    .. math::
+
+       (EURUSD) f_i = \\frac{(EUR:USD-CSA) w^*_i}{(USD:USD-CSA) v_i} F_0 = \\frac{(EUR:EUR-CSA) v^*_i}{(USD:EUR-CSA) w_i} F_0
+
+    where :math:`w` is a cross currency adjusted discount curve and :math:`v` is the
+    locally derived discount curve in a given currency, and `*` denotes the domestic
+    currency. :math:`F_0` is the immediate FX rate, i.e. aligning with the initial date
+    on curves such that discounts factors are precisely 1.0.
+
+    This implies that given the dates and rates supplied,
+
+    .. math::
+
+       f_i = \\frac{w^*_iv_j}{v_iw_j^*} f_j = \\frac{v^*_iw_j}{w_iv_j^*} f_j
+
+    where `j` denotes the settlement date provided.
+
+    Examples
+    --------
+    Using this function directly.
+
+    .. ipython:: python
+
+       domestic_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96})
+       foreign_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+       forward_fx(
+           date=dt(2022, 7, 1),
+           curve_domestic=domestic_curve,
+           curve_foreign=foreign_curve,
+           fx_rate=2.0,
+           fx_settlement=dt(2022, 1, 3)
+       )
+
+    Best practice is to use :class:`FXForwards` classes but this method provides
+    an efficient alternative and is occasionally used internally in the library.
+
+    .. ipython:: python
+
+       fxr = FXRates({"usdgbp": 2.0}, settlement=dt(2022, 1, 3))
+       fxf = FXForwards(fxr, {
+           "usdusd": domestic_curve,
+           "gbpgbp": foreign_curve,
+           "gbpusd": foreign_curve,
+       })
+       fxf.rate("usdgbp", dt(2022, 7, 1))
+    """
+    if date == fx_settlement:
+        return fx_rate
+    elif date == curve_domestic.node_dates[0] and fx_settlement is None:
+        return fx_rate
+
+    _ = curve_domestic[date] / curve_foreign[date]
+    if fx_settlement is not None:
+        _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
+    _ *= fx_rate
+    return _

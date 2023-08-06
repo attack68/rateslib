@@ -1614,13 +1614,13 @@ class Cashflow:
         self.notional, self.payment = notional, payment
         self.currency = defaults.base_currency if currency is None else currency.lower()
         self.stub_type = stub_type
-        self.rate_ = rate if rate is None else float(rate)
+        self._rate = rate if rate is None else float(rate)
 
     def rate(self):
         """
         Return the associated rate initialised with the *Cashflow*. Not used for calculations.
         """
-        return self.rate_
+        return self._rate
 
     def npv(
         self,
