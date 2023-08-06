@@ -90,14 +90,16 @@ def _get_curve_from_solver(curve, solver):
                     raise ValueError("`curve` must be in `solver`.")
 
 
-def _get_curves_and_fx_maybe_from_solver(
+def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Optional[Union[Curve, str, list]],
     solver: Optional[Solver],
     curves: Optional[Union[Curve, str, list]],
     fx: Optional[Union[float, FXRates, FXForwards]],
-):
+    base: Optional[str],
+    local_ccy: Optional[str],
+) -> tuple:
     """
-    Parses the ``solver``, ``curves`` and ``fx`` arguments in combination.
+    Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 
     Parameters
     ----------
@@ -112,7 +114,7 @@ def _get_curves_and_fx_maybe_from_solver(
 
     Returns
     -------
-    tuple : (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting), fx
+    tuple : (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting), fx, base
 
     Notes
     -----
@@ -125,6 +127,14 @@ def _get_curves_and_fx_maybe_from_solver(
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
     """
+    if fx is None and base is None:
+        # base will not be inherited from a 2nd level inherited object, i.e.
+        # from solver.fx, to preserve single currency instruments being defaulted
+        # to their local currency.
+        base_ = local_ccy
+    else:
+        base_ = base
+
     if fx is None:
         if solver is None:
             fx_ = None
@@ -146,7 +156,7 @@ def _get_curves_and_fx_maybe_from_solver(
             )
 
     if curves is None and curves_attr is None:
-        return (None, None, None, None), fx_
+        return (None, None, None, None), fx_, base_
     elif curves is None:
         curves = curves_attr
 
@@ -180,7 +190,7 @@ def _get_curves_and_fx_maybe_from_solver(
     elif len(curves_) > 4:
         raise ValueError("Can only supply a maximum of 4 `curves`.")
 
-    return curves_, fx_
+    return curves_, fx_, base_
 
 
 # def _get_curves_and_fx_maybe_from_solver(
@@ -302,8 +312,10 @@ class Sensitivities:
         if solver is None:
             raise ValueError("`solver` is required for delta/gamma methods.")
         npv = self.npv(curves, solver, fx, base, local=True)
-        _, fx = _get_curves_and_fx_maybe_from_solver(None, solver, None, fx)
-        return solver.delta(npv, base, fx)
+        _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            None, solver, None, fx, base, None
+        )
+        return solver.delta(npv, base_, fx_)
 
     def gamma(
         self,
@@ -346,7 +358,9 @@ class Sensitivities:
         """
         if solver is None:
             raise ValueError("`solver` is required for delta/gamma methods.")
-        _, fx_ = _get_curves_and_fx_maybe_from_solver(None, solver, None, fx)
+        _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            None, solver, None, fx, base, None
+        )
 
         # store original order
         if fx_ is not None:
@@ -356,8 +370,8 @@ class Sensitivities:
         _ad1 = solver._ad
         solver._set_ad_order(2)
 
-        npv = self.npv(curves, solver, fx_, base, local=True)
-        grad_s_sT_P = solver.gamma(npv, base, fx_)
+        npv = self.npv(curves, solver, fx_, base_, local=True)
+        grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
         if fx_ is not None:
@@ -596,13 +610,13 @@ class BaseMixin:
 
            irs.cashflows([curve], None, fxr)
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         return concat(
             [
-                self.leg1.cashflows(curves[0], curves[1], fx, base),
-                self.leg2.cashflows(curves[2], curves[3], fx, base),
+                self.leg1.cashflows(curves[0], curves[1], fx_, base_),
+                self.leg2.cashflows(curves[2], curves[3], fx_, base_),
             ],
             keys=["leg1", "leg2"],
         )
@@ -673,11 +687,11 @@ class BaseMixin:
            irs.npv([curve], None, fxr)
            irs.npv([curve], None, fxr, "gbp")
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
-        leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
+        leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
+        leg2_npv = self.leg2.npv(curves[2], curves[3], fx_, base_, local)
         if local:
             return {
                 k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
@@ -760,8 +774,8 @@ class Value(BaseMixin):
         :class:`~rateslib.curves.LineCurve` value on the ``effective`` date of the
         instrument.
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, None
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, None, None, "_"
         )
         return curves[0][self.effective]
 
@@ -841,27 +855,25 @@ class FXExchange(Sensitivities, BaseMixin):
         if self.fx_rate is None:
             self._set_pricing_mid(curves, solver, fx)
 
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        if base is None:
-            # set a default base for the multi-currency instrument
-            base = self.leg1.currency
-        if not isinstance(fx, (FXRates, FXForwards)):
-            if base.lower() == self.leg1.currency:
-                leg1_npv = self.leg1.npv(curves[0], curves[1], 1.0, base, local)
-                leg2_npv = self.leg2.npv(curves[2], curves[3], 1/fx, base, local)
-            elif base.lower() == self.leg2.currency:
-                leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
-                leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base, local)
+
+        if not isinstance(fx_, (FXRates, FXForwards)):
+            if base_.lower() == self.leg1.currency:
+                leg1_npv = self.leg1.npv(curves[0], curves[1], 1.0, base_, local)
+                leg2_npv = self.leg2.npv(curves[2], curves[3], 1/fx_, base_, local)
+            elif base_.lower() == self.leg2.currency:
+                leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
+                leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base_, local)
             else:
                 raise ValueError(
                     f"Cannot calculate `npv` for `base` {base} with `fx` as float.\n"
                     "Instead supply an `fx` argument as `FXRates` or `FXForwards`."
                 )
         else:
-            leg1_npv = self.leg1.npv(curves[0], curves[1], fx, base, local)
-            leg2_npv = self.leg2.npv(curves[2], curves[3], fx, base, local)
+            leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
+            leg2_npv = self.leg2.npv(curves[2], curves[3], fx_, base_, local)
 
         if local:
             return {
@@ -883,12 +895,12 @@ class FXExchange(Sensitivities, BaseMixin):
 
         For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.cashflows>`
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, None
         )
         seq = [
-            self.leg1.cashflows(curves[0], curves[1], fx, base),
-            self.leg2.cashflows(curves[2], curves[3], fx, base),
+            self.leg1.cashflows(curves[0], curves[1], fx_, base_),
+            self.leg2.cashflows(curves[2], curves[3], fx_, base_),
         ]
         return DataFrame.from_records(seq)
 
@@ -904,8 +916,8 @@ class FXExchange(Sensitivities, BaseMixin):
 
         For arguments see :meth:`BaseMixin.rate<rateslib.instruments.BaseMixin.rate>`
         """
-        curves, fx_ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         if isinstance(fx_, (FXRates, FXForwards)):
             imm_fx = fx_.rate(self.pair)
@@ -1169,13 +1181,13 @@ class BondMixin:
 
           .. math::
 
-             risk = - \\frac{\partial P }{\partial y}
+             risk = - \\frac{\\partial P }{\\partial y}
 
         - *"modified"*: the modified duration which is *risk* divided by price.
 
           .. math::
 
-             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\partial P }{\partial y}
+             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
 
         - *"duration"*: the duration which is modified duration reverse modified.
 
@@ -1572,8 +1584,8 @@ class BondMixin:
         curve on both legs and the discounting curve is used as the discounting
         curve for both legs.
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         settlement = add_tenor(
             curves[1].node_dates[0],
@@ -1581,8 +1593,8 @@ class BondMixin:
             None,
             self.leg1.schedule.calendar,
         )
-        base = self.leg1.currency if local else base
-        npv = self._npv_local(curves[0], curves[1], fx, base, settlement, None)
+        base_ = self.leg1.currency if local else base
+        npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, None)
         if local:
             return {self.leg1.currency: npv}
         else:
@@ -1658,8 +1670,8 @@ class BondMixin:
         -------
         DataFrame
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         self._set_base_index_if_none(curves[0])
 
@@ -1670,7 +1682,7 @@ class BondMixin:
                 None,
                 self.leg1.schedule.calendar,
             )
-        cashflows = self.leg1.cashflows(curves[0], curves[1], fx, base)
+        cashflows = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
         if self.ex_div(settlement):
             # deduct the next coupon which has otherwise been included in valuation
             current_period = index_left(
@@ -1959,8 +1971,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         -------
         float, Dual, Dual2
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
         metric = metric.lower()
@@ -1972,7 +1984,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                 self.leg1.schedule.calendar,
             )
             npv = self._npv_local(
-                curves[0], curves[1], fx, base, settlement, settlement
+                curves[0], curves[1], fx_, base_, settlement, settlement
             )
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
@@ -1990,7 +2002,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                     "`forward_settlement` needed to determine forward price."
                 )
             npv = self._npv_local(
-                curves[0], curves[1], fx, base, forward_settlement, forward_settlement
+                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
             )
             dirty_price = npv / -self.leg1.notional * 100
             if metric == "fwd_dirty_price":
@@ -2170,8 +2182,8 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         float, Dual, Dual2
         """
 
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
         metric = metric.lower()
@@ -2189,7 +2201,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
                 self.leg1.schedule.calendar,
             )
             npv = self._npv_local(
-                curves[0], curves[1], fx, base, settlement, settlement
+                curves[0], curves[1], fx_, base_, settlement, settlement
             )
             # scale price to par 100 (npv is already projected forward to settlement)
             index_dirty_price = npv * 100 / -self.leg1.notional
@@ -2218,7 +2230,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
                     "`forward_settlement` needed to determine forward price."
                 )
             npv = self._npv_local(
-                curves[0], curves[1], fx, base, forward_settlement, forward_settlement
+                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
             )
             index_dirty_price = npv / -self.leg1.notional * 100
             index_ratio = self.index_ratio(forward_settlement, curves[0])
@@ -2447,8 +2459,8 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         settlement = add_tenor(
             curves[1].node_dates[0],
@@ -2458,7 +2470,7 @@ class Bill(FixedRateBond):
         )
         # scale price to par 100 and make a fwd adjustment according to curve
         price = (
-            self.npv(curves, solver, fx, base)
+            self.npv(curves, solver, fx_, base_)
             * 100
             / (-self.leg1.notional * curves[1][settlement])
         )
@@ -2923,8 +2935,8 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         float, Dual, Dual2
 
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
         metric = metric.lower()
@@ -2936,7 +2948,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                 self.leg1.schedule.calendar,
             )
             npv = self._npv_local(
-                curves[0], curves[1], fx, base, settlement, settlement
+                curves[0], curves[1], fx_, base_, settlement, settlement
             )
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
@@ -2956,7 +2968,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                     "`forward_settlement` needed to determine forward price."
                 )
             npv = self._npv_local(
-                curves[0], curves[1], fx, base, forward_settlement, forward_settlement
+                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
             )
             dirty_price = npv / -self.leg1.notional * 100
             if metric == "fwd_dirty_price":
@@ -4134,8 +4146,8 @@ class IRS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
         return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
@@ -4240,8 +4252,8 @@ class IRS(BaseDerivative):
         """
         irs_npv = self.npv(curves, solver)
         specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
         # leg2_analytic_delta = self.leg2.analytic_delta(curves[2], curves[3])
@@ -4494,8 +4506,8 @@ class IIRS(BaseDerivative):
         base: Optional[str] = None,
         local: bool = False,
     ):
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         if self.index_base is None:
             # must forecast for the leg
@@ -4505,7 +4517,7 @@ class IIRS(BaseDerivative):
         if self.fixed_rate is None:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             self._set_pricing_mid(curves, solver)
-        return super().npv(curves, solver, fx, base, local)
+        return super().npv(curves, solver, fx_, base_, local)
 
     def cashflows(
         self,
@@ -4514,15 +4526,15 @@ class IIRS(BaseDerivative):
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
     ):
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         if self.index_base is None:
             # must forecast for the leg
             self.leg1.index_base = curves[0].index_value(
                 self.leg1.schedule.effective, self.leg1.index_method
             )
-        return super().cashflows(curves, solver, fx, base)
+        return super().cashflows(curves, solver, fx_, base_)
 
     def rate(
         self,
@@ -4560,8 +4572,8 @@ class IIRS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         if self.index_base is None:
             # must forecast for the leg
@@ -4658,8 +4670,8 @@ class IIRS(BaseDerivative):
         """
         irs_npv = self.npv(curves, solver)
         specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
 
@@ -4899,8 +4911,8 @@ class ZCS(BaseDerivative):
 
         where :math:`f` is associated with the compounding frequency.
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
         _ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
@@ -5159,8 +5171,8 @@ class ZCIS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         if self.leg2_index_base is None:
             # must forecast for the leg
@@ -5467,8 +5479,8 @@ class SBS(BaseDerivative):
         float, Dual or Dual2
         """
         core_npv = super().npv(curves, solver)
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         if leg == 1:
             leg_obj, args = self.leg1, (curves[0], curves[1])
@@ -5717,10 +5729,10 @@ class FRA(Sensitivities, BaseMixin):
         """
         if self.fixed_rate is None:
             self._set_pricing_mid(curves, solver)
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.currency
         )
-        fx, base = _get_fx_and_base(self.currency, fx, base)
+        fx, base = _get_fx_and_base(self.currency, fx_, base_)
         value = self.cashflow(curves[0]) * curves[1][self.payment]
         if local:
             return {self.currency: value}
@@ -5757,8 +5769,8 @@ class FRA(Sensitivities, BaseMixin):
         -------
         float, Dual or Dual2
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
         return self.leg2.rate(curves[0])
 
@@ -5810,24 +5822,24 @@ class FRA(Sensitivities, BaseMixin):
         -------
         DataFrame
         """
-        curves, _ = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        fx, base = _get_fx_and_base(self.currency, fx, base)
+        fx_, base_ = _get_fx_and_base(self.currency, fx_, base_)
         cf = float(self.cashflow(curves[0]))
         npv_local = self.cashflow(curves[0]) * curves[1][self.payment]
 
         _fix = None if self.fixed_rate is None else -float(self.fixed_rate)
         _spd = None if curves[1] is None else -float(self.rate(curves[1])) * 100
-        cfs = self.leg1.cashflows(curves[0], curves[1], fx, base)
+        cfs = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
         cfs[defaults.headers["type"]] = "FRA"
         cfs[defaults.headers["payment"]] = self.payment
         cfs[defaults.headers["cashflow"]] = cf
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
         cfs[defaults.headers["npv"]] = npv_local
-        cfs[defaults.headers["fx"]] = float(fx)
-        cfs[defaults.headers["npv_fx"]] = npv_local * float(fx)
+        cfs[defaults.headers["fx"]] = float(fx_)
+        cfs[defaults.headers["npv_fx"]] = npv_local * float(fx_)
         return DataFrame.from_records([cfs])
 
 
@@ -6004,19 +6016,18 @@ class BaseXCS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        base = self.leg1.currency if base is None else base
 
         if self._is_unpriced:
-            self._set_pricing_mid(curves, solver, fx)
+            self._set_pricing_mid(curves, solver, fx_)
 
-        self._set_fx_fixings(fx)
+        self._set_fx_fixings(fx_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
 
-        ret = super().npv(curves, solver, fx, base, local)
+        ret = super().npv(curves, solver, fx_, base_, local)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = False  # reset for next calculation
         return ret
@@ -6068,8 +6079,8 @@ class BaseXCS(BaseDerivative):
         Examples
         --------
         """
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, None, self.leg1.currency
         )
 
         if leg == 1:
@@ -6082,7 +6093,7 @@ class BaseXCS(BaseDerivative):
         leg2 = 1 if leg == 2 else 2
         tgt_str, alt_str = "" if leg == 1 else "leg2_", "" if leg2 == 1 else "leg2_"
         tgt_leg, alt_leg = getattr(self, f"leg{leg}"), getattr(self, f"leg{leg2}")
-        base = tgt_leg.currency
+        base_ = tgt_leg.currency
 
         _is_float_tgt_leg = "Float" in type(tgt_leg).__name__
         _is_float_alt_leg = "Float" in type(alt_leg).__name__
@@ -6104,8 +6115,8 @@ class BaseXCS(BaseDerivative):
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
 
-        tgt_leg_npv = tgt_leg.npv(tgt_fore_curve, tgt_disc_curve, fx, base)
-        alt_leg_npv = alt_leg.npv(alt_fore_curve, alt_disc_curve, fx, base)
+        tgt_leg_npv = tgt_leg.npv(tgt_fore_curve, tgt_disc_curve, fx_, base_)
+        alt_leg_npv = alt_leg.npv(alt_fore_curve, alt_disc_curve, fx_, base_)
         fx_a_delta = 1.0 if not tgt_leg._is_mtm else fx
         _ = tgt_leg._spread(
             -(tgt_leg_npv + alt_leg_npv), tgt_fore_curve, tgt_disc_curve, fx_a_delta
@@ -6137,14 +6148,14 @@ class BaseXCS(BaseDerivative):
         fx: Optional[FXForwards] = None,
         base: Optional[str] = None,
     ):
-        curves, fx = _get_curves_and_fx_maybe_from_solver(
-            self.curves, solver, curves, fx
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        self._set_fx_fixings(fx)
+        self._set_fx_fixings(fx_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
 
-        ret = super().cashflows(curves, solver, fx, base)
+        ret = super().cashflows(curves, solver, fx_, base_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = False  # reset the mtm calc
         return ret

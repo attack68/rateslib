@@ -34,7 +34,7 @@ from rateslib.instruments import (
     Portfolio,
     Spread,
     Fly,
-    _get_curves_and_fx_maybe_from_solver,
+    _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
@@ -129,8 +129,8 @@ def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, 
     )
     curve = curve if crv else None
 
-    crv_result, fx_result = _get_curves_and_fx_maybe_from_solver(
-        None, solver, curve, fx
+    crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
+        None, solver, curve, fx, None, "usd"
     )
 
     # check the fx results. If fx is specified directly it is returned
@@ -156,13 +156,13 @@ def test_get_curves_and_fx_from_solver_raises():
     solver = Solver([curve], inst, [0.975])
 
     with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
-        _get_curves_and_fx_maybe_from_solver(None, None, "tagged", None)
+        _get_curves_fx_and_base_maybe_from_solver(None, None, "tagged", None, None, "")
 
     with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
-        _get_curves_and_fx_maybe_from_solver(None, solver, "bad_id", None)
+        _get_curves_fx_and_base_maybe_from_solver(None, solver, "bad_id", None, None, "")
 
     with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
-        _get_curves_and_fx_maybe_from_solver(None, solver, ["tagged"] * 5, None)
+        _get_curves_fx_and_base_maybe_from_solver(None, solver, ["tagged"] * 5, None, None, "")
 
 
 @pytest.mark.parametrize("num", [1, 2, 3, 4])
@@ -172,8 +172,8 @@ def test_get_curves_from_solver_multiply(num):
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
     inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
     solver = Solver([curve], inst, [0.975])
-    result, _ = _get_curves_and_fx_maybe_from_solver(
-        None, solver, ["tagged"] * num, None
+    result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        None, solver, ["tagged"] * num, None, None, ""
     )
     assert result == (curve, curve, curve, curve)
 
