@@ -61,6 +61,38 @@ def line_curve():
     return LineCurve(nodes=nodes, interpolation="linear", convention="act365f")
 
 
+class TestFXandBase:
+
+    def test_fx_and_base_raise(self):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
+        per = FixedPeriod(
+            dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 3, 1), "A",
+            fixed_rate=2, currency="usd",
+        )
+        with pytest.raises(ValueError, match="`base` "):
+            per.npv(curve, curve, base="eur")
+
+    def test_fx_and_base_warn1(self):
+        # base and numeric fx given.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
+        per = FixedPeriod(
+            dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 3, 1), "A",
+            fixed_rate=2, currency="usd",
+        )
+        with pytest.warns(UserWarning, match="`base` "):
+            per.npv(curve, curve, fx=1.1, base="eur")
+
+    def test_fx_and_base_warn2(self):
+        # base is none and numeric fx given.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
+        per = FixedPeriod(
+            dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 3, 1), "A",
+            fixed_rate=2, currency="usd",
+        )
+        with pytest.warns(UserWarning, match="It is not best practice to provide"):
+            per.npv(curve, curve, fx=1.1)
+
+
 class TestFloatPeriod:
 
     def test_none_cashflow(self):

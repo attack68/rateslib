@@ -195,6 +195,142 @@ def test_get_proxy_curve_from_solver(usdusd, usdeur, eureur):
     irs.npv(curves=curve, solver=solver)
 
 
+class TestSolverFXandBase:
+    """
+    Test the npv method with combinations of solver fx and base args.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        """setup any state specific to the execution of the given class (which
+        usually contains tests).
+        """
+        cls.curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
+        cls.fxr = FXRates({"eurusd": 1.1, "gbpusd": 1.25}, base="gbp")
+        cls.irs = IRS(dt(2022, 2, 1), "6M", "A", curves=cls.curve, fixed_rate=4.0)
+        cls.solver = Solver(
+            curves=[cls.curve],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1y", "A", curves=cls.curve)
+            ],
+            s=[4.109589041095898],
+            id="Solver",
+        )
+        cls.nxcs = NonMtmXCS(dt(2022, 2, 1), "6M", "A", curves=[cls.curve]*4,
+                             currency="eur", leg2_currency="usd", float_spread=2.0)
+
+    @classmethod
+    def teardown_class(cls):
+        """teardown any state that was previously setup with a call to
+        setup_class.
+        """
+        pass
+
+    # ``base`` is explcit
+
+    def test_base_and_fx(self):
+        # calculable since base aligns with local currency
+        result = self.irs.npv(fx=self.fxr, base="eur")
+        expected = 330.4051154763001 / 1.1
+        assert abs(result - expected) < 1e-4
+
+        with pytest.warns(UserWarning):
+            # warn about numeric
+            result = self.irs.npv(fx=1/1.1, base="eur")
+
+        # raises because no FX data to calculate a conversion
+        with pytest.raises(KeyError, match="'usd'"):
+            result = self.irs.npv(fx=FXRates({"eurgbp":1.1}), base="eur")
+
+    def test_base_and_solverfx(self):
+        # should take fx from solver and calculated
+        self.solver.fx = FXRates({"eurusd": 1.1})
+        result = self.irs.npv(solver=self.solver, base="eur")
+        expected = 330.4051154763001 / 1.1
+        assert abs(result - expected) < 1e-4
+        self.solver.fx = None
+
+    def test_base_and_fx_and_solverfx(self):
+        # should take fx and ignore solver.fx
+        fxr = FXRates({"eurusd": 1.2})
+        self.solver.fx = fxr
+
+        # no warning becuase objects are the same
+        result = self.irs.npv(solver=self.solver, base="eur", fx=fxr)
+        expected = 330.4051154763001 / 1.2
+        assert abs(result - expected) < 1e-4
+
+        # should give warning because obj id are different
+        with pytest.warns(UserWarning):
+            result = self.irs.npv(solver=self.solver, base="eur", fx=self.fxr)
+            expected = 330.4051154763001 / 1.1
+            assert abs(result - expected) < 1e-4
+
+        self.solver.fx = None
+
+    def test_base_only(self):
+        # calculable since base aligns with local currency
+        result = self.irs.npv(base="usd")
+        expected = 330.4051154763001
+        assert abs(result - expected) < 1e-4
+
+        # raises becuase no FX data to calculate a conversion
+        with pytest.raises(ValueError, match="`base` "):
+            result = self.irs.npv(base="eur")
+
+    def test_base_solvernofx(self):
+        # calculable since base aligns with local currency
+        result = self.irs.npv(base="usd", solver=self.solver)
+        expected = 330.4051154763001
+        assert abs(result - expected) < 1e-4
+
+        # raises becuase no FX data to calculate a conversion
+        with pytest.raises(ValueError, match="`base` "):
+            result = self.irs.npv(base="eur", solver=self.solver)
+
+    # ``base`` is inferred
+
+    def test_no_args(self):
+        # should result in a local NPV calculation
+        result = self.irs.npv()
+        expected = 330.4051154763001
+        assert abs(result - expected) < 1e-4
+
+    def test_fx(self):
+        # should repeat the "_just_base" case.
+        result = self.irs.npv(fx=self.fxr)
+        expected = 330.4051154763001 / 1.25
+        assert abs(result - expected) < 1e-4
+
+    def test_fx_solverfx(self):
+        fxr = FXRates({"eurusd": 1.2}, base="eur")
+        self.solver.fx = fxr
+
+        # no warning becuase objects are the same
+        result = self.irs.npv(solver=self.solver, fx=fxr)
+        expected = 330.4051154763001 / 1.2
+        assert abs(result - expected) < 1e-4
+
+        # should give warning because obj id are different
+        with pytest.warns(UserWarning):
+            result = self.irs.npv(solver=self.solver, fx=self.fxr)
+            expected = 330.4051154763001 / 1.25  # base in this case inferred as GBP
+            assert abs(result - expected) < 1e-4
+
+        self.solver.fx = None
+
+    def test_solverfx(self):
+        fxr = FXRates({"eurusd": 1.2}, base="eur")
+        self.solver.fx = fxr
+
+        # no warning becuase objects are the same
+        result = self.irs.npv(solver=self.solver)
+        expected = 330.4051154763001  # base in this should be local currency not eur.
+        assert abs(result - expected) < 1e-4
+
+        self.solver.fx = None
+
+
 class TestNullPricing:
     # test instruments can be priced without defining a pricing parameter.
 
