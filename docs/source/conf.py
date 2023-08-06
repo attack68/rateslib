@@ -29,7 +29,7 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
     'sphinx_automodapi.automodapi'
 ]
-numpydoc_show_class_members = False  # for sphinx automod accoridng to docs
+numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 
 templates_path = ['_templates']

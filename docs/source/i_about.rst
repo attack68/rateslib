@@ -32,7 +32,7 @@ early 2024 under the working title of *Coding Interest Rates: FX, Swaps and Bond
 Five Pillars of Rateslib's Design Philosophy
 *********************************************
 
-1) Maximise flexibility and usability whilst minimising user input
+1) Maximise flexibility : Minimise user input
 -----------------------------------------------------------------------
 
 This is a user interface (UI) objective. *Rateslib* aims to
@@ -50,23 +50,23 @@ algorithms because these are market standard and their parametrisation is simple
 well documented, and these have considerable impact on all users. It satisfies the
 philosophy.
 
-2) Risk sensitivities are prioritised above valuation
+2) Prioritise sensitivities above valuation
 -----------------------------------------------------
 
-This is functionality objective. Risk is harder to calculate than valuation.
-To calculate risk it is
+This is functionality objective. Risk sensitivities are harder to calculate than
+valuation. To calculate risk it is
 necessary to be able to calculate value. To calculate value it is not necessary
 to calculate risk. Therefore making design choices around calculating risk avoids
-the problem of building *Instruments* in a value sense and 'hacking' risk metrics
+the problem of building *Instruments* in a value sense and 'hacking' risk sensitivities
 later.
 
 This philosophy indirectly drives performant solutions. It is also the reason that
 the library constructed and implemented its own automatic differentiation (AD)
 toolset to properly label and be able to pass around derivatives from any object
 or scenario to another. It also means that *npv*, *delta* and *gamma* have the
-same arguments signature.
+same arguments signature, which promotes usability.
 
-3) Unify asset classes with a single UI framework
+3) Unify asset classes within a single UI
 -------------------------------------------------------
 
 This defines scope. *Rateslib* aims to unify interest rates, FX and inflation
@@ -76,8 +76,8 @@ this unification we must include the commonly traded instruments within
 each of these classes.
 
 
-4) Practical performance must be achieved
-------------------------------------------
+4) Achieve scalable performance
+--------------------------------------------
 
 This is a functionality objective.
 Version one of *rateslib* is pure Python. The performance constraints this places are
@@ -85,6 +85,10 @@ restrictive. However, every method *rateslib* offers must be capable of producin
 results in practical time. A fixed income library written in Python cannot achieve
 what *rateslib* achieves without AD. Additionally many manual optimisations are
 implemented and are documented.
+
+A wider article about
+`performance in rateslib <https://www.linkedin.com/pulse/rateslib-performance-1000-irs-rateslib>`_
+is available following the link.
 
 5) Transparency and validation is necessary
 --------------------------------------------
@@ -94,9 +98,12 @@ No algorithm, optimisation or approximation is added without being documented
 in **Coding Interest Rates**. The code coverage of the library strives to be 100%.
 This API documentation should be exhaustive with demonstrative examples.
 Where official sources (ISDA documentation, academic papers, issuer specifications)
-are available their examples should be used as unit tests within *rateslib*. A good
+are available their examples should be used as unit tests within *rateslib*.
+
+A good
 example for these are the UK DMO's Gilt calculations which are replicated exactly
-by *rateslib*.
+by *rateslib*. Another example is the
+`replication of Norges Bank NOWA calculator <https://www.linkedin.com/pulse/rateslib-vs-norges-bank-nowa-calculator-rateslib>`_
 
 
 Releases

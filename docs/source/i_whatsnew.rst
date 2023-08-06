@@ -21,7 +21,7 @@ Bug Fixes
 ---------
 
 - When performing operations on *CompositeCurves* the resultant curve now inherits
-  the `multi_csa` parameters.
+  the ``multi_csa`` parameters.
 - Float Fixing exposure tables were marginally overestimated by ignoring
   discounting effects.
 - NumPy.float128 datatype is not available on Windows and caused loading errors.
