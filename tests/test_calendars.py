@@ -216,7 +216,12 @@ def test_is_imm_hmuz():
 
 @pytest.mark.parametrize(
     "month, year, expected",
-    [(3, 2022, dt(2022, 3, 16)), (6, 2022, dt(2022, 6, 15)), (9, 2022, dt(2022, 9, 21)), (12, 2022, dt(2022, 12, 21))],
+    [
+        (3, 2022, dt(2022, 3, 16)),
+        (6, 2022, dt(2022, 6, 15)),
+        (9, 2022, dt(2022, 9, 21)),
+        (12, 2022, dt(2022, 12, 21)),
+    ],
 )
 def test_get_imm(month, year, expected):
     result = _get_imm(month, year)
@@ -265,11 +270,43 @@ def test_dcf(start, end, conv, expected):
         (dt(2022, 6, 29), dt(2022, 7, 31), "30E360", 1 / 12 + 1 / 360, None, None, None),
         (dt(2022, 2, 28), dt(2022, 3, 31), "30E360", 1 / 12 + 2 / 360, None, None, None),
         (dt(2022, 2, 28), dt(2022, 3, 31), "30E360ISDA", 1 / 12, 12, dt(2022, 3, 3), None),
-        (dt(1999, 2, 1), dt(1999, 7, 1), "ACTACTICMA", 150 / 365, 12, dt(2000, 7, 1), True),  # short first
-        (dt(2002, 8, 15), dt(2003, 7, 15), "ACTACTICMA", 0.5 + 153 / 368, 6, dt(2004, 1, 15), True),  # long first
-        (dt(2000, 1, 30), dt(2000, 6, 30), "ACTACTICMA", 152 / 364, 6, dt(2000, 6, 30), True),  # short back
+        (
+            dt(1999, 2, 1),
+            dt(1999, 7, 1),
+            "ACTACTICMA",
+            150 / 365,
+            12,
+            dt(2000, 7, 1),
+            True,
+        ),  # short first
+        (
+            dt(2002, 8, 15),
+            dt(2003, 7, 15),
+            "ACTACTICMA",
+            0.5 + 153 / 368,
+            6,
+            dt(2004, 1, 15),
+            True,
+        ),  # long first
+        (
+            dt(2000, 1, 30),
+            dt(2000, 6, 30),
+            "ACTACTICMA",
+            152 / 364,
+            6,
+            dt(2000, 6, 30),
+            True,
+        ),  # short back
         # (dt(1999, 11, 30), dt(2000, 4, 30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),  # long back : SKIP the _add_tenor does not account for month end roll here
-        (dt(1999, 11, 15), dt(2000, 4, 15), "ACTACTICMA", 0.25 + 60 / 360, 3, dt(2000, 4, 15), True),  # long back
+        (
+            dt(1999, 11, 15),
+            dt(2000, 4, 15),
+            "ACTACTICMA",
+            0.25 + 60 / 360,
+            3,
+            dt(2000, 4, 15),
+            True,
+        ),  # long back
         (dt(2002, 8, 31), dt(2002, 11, 30), "ACTACTICMA", 0.25, 3, dt(2004, 11, 30), False),
     ],
 )

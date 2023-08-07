@@ -140,14 +140,32 @@ def test_infer_stub_date_no_inference_on_regular(e, t, stub, exp_roll, exp_stub,
 
 def test_infer_stub_date_no_inference_on_regular_dual(cal_):
     result = _infer_stub_date(
-        dt(2022, 2, 26), dt(2024, 4, 26), "Q", "SHORTFRONTBACK", None, dt(2024, 2, 26), "MF", False, None, cal_
+        dt(2022, 2, 26),
+        dt(2024, 4, 26),
+        "Q",
+        "SHORTFRONTBACK",
+        None,
+        dt(2024, 2, 26),
+        "MF",
+        False,
+        None,
+        cal_,
     )
     assert result[0]
     assert result[1]["front_stub"] is None
     assert result[1]["roll"] == 26
 
     result = _infer_stub_date(
-        dt(2022, 2, 26), dt(2024, 4, 26), "Q", "FRONTSHORTBACK", dt(2022, 4, 26), None, "MF", False, None, cal_
+        dt(2022, 2, 26),
+        dt(2024, 4, 26),
+        "Q",
+        "FRONTSHORTBACK",
+        dt(2022, 4, 26),
+        None,
+        "MF",
+        False,
+        None,
+        cal_,
     )
     assert result[0]
     assert result[1]["back_stub"] is None
@@ -204,7 +222,16 @@ def test_infer_stub_date_dual_sided2(e, bs, t, stub, exp_roll, exp_stub, cal_):
 
 def test_infer_stub_date_dual_sided_invalid(cal_):
     result = _infer_stub_date(
-        dt(2022, 1, 1), dt(2022, 12, 31), "Q", "FRONTSHORTBACK", dt(2022, 2, 13), None, "MF", False, 9, cal_
+        dt(2022, 1, 1),
+        dt(2022, 12, 31),
+        "Q",
+        "FRONTSHORTBACK",
+        dt(2022, 2, 13),
+        None,
+        "MF",
+        False,
+        9,
+        cal_,
     )
     assert not result[0]
 
@@ -233,13 +260,49 @@ def test_schedule_raises(cal_):
         _ = Schedule(dt(2022, 1, 1), dt(2021, 12, 31), "Q")
 
     with pytest.raises(ValueError):
-        _ = Schedule(dt(2022, 1, 1), dt(2022, 12, 31), "Q", "SHORTFRONT", None, dt(2022, 11, 15), None, False, "MF", cal_, 1)
+        _ = Schedule(
+            dt(2022, 1, 1),
+            dt(2022, 12, 31),
+            "Q",
+            "SHORTFRONT",
+            None,
+            dt(2022, 11, 15),
+            None,
+            False,
+            "MF",
+            cal_,
+            1,
+        )
 
     with pytest.raises(ValueError):
-        _ = Schedule(dt(2022, 1, 1), dt(2022, 12, 31), "Q", "SHORTBACK", dt(2022, 3, 15), None, None, False, "MF", cal_, 1)
+        _ = Schedule(
+            dt(2022, 1, 1),
+            dt(2022, 12, 31),
+            "Q",
+            "SHORTBACK",
+            dt(2022, 3, 15),
+            None,
+            None,
+            False,
+            "MF",
+            cal_,
+            1,
+        )
 
     with pytest.raises(ValueError):
-        _ = Schedule(dt(2022, 1, 1), dt(2022, 12, 31), "Q", "SBLB", dt(2022, 3, 15), None, None, False, "MF", cal_, 1)
+        _ = Schedule(
+            dt(2022, 1, 1),
+            dt(2022, 12, 31),
+            "Q",
+            "SBLB",
+            dt(2022, 3, 15),
+            None,
+            None,
+            False,
+            "MF",
+            cal_,
+            1,
+        )
 
 
 @pytest.mark.parametrize(
@@ -364,7 +427,14 @@ def test_unadjusted_date_alternatives(date, modifier, cal_, expected):
             4,
             [dt(2023, 2, 4), dt(2023, 5, 4), dt(2023, 8, 4), dt(2023, 9, 4)],
         ),
-        (dt(2023, 3, 4), dt(2023, 9, 4), None, None, 4, [dt(2023, 3, 4), dt(2023, 6, 4), dt(2023, 9, 4)]),
+        (
+            dt(2023, 3, 4),
+            dt(2023, 9, 4),
+            None,
+            None,
+            4,
+            [dt(2023, 3, 4), dt(2023, 6, 4), dt(2023, 9, 4)],
+        ),
         (
             dt(2023, 2, 4),
             dt(2023, 10, 4),
@@ -376,7 +446,9 @@ def test_unadjusted_date_alternatives(date, modifier, cal_, expected):
     ],
 )
 def test_generate_irregular_uschedule(effective, termination, uf, ub, roll, expected):
-    result = list(_generate_irregular_schedule_unadjusted(effective, termination, "Q", roll, uf, ub))
+    result = list(
+        _generate_irregular_schedule_unadjusted(effective, termination, "Q", roll, uf, ub)
+    )
     assert result == expected
 
 
@@ -385,11 +457,36 @@ def test_generate_irregular_uschedule(effective, termination, uf, ub, roll, expe
     [
         (dt(2023, 3, 4), dt(2023, 9, 4), 4, [dt(2023, 3, 4), dt(2023, 6, 4), dt(2023, 9, 4)]),
         (dt(2023, 3, 6), dt(2023, 9, 6), 6, [dt(2023, 3, 6), dt(2023, 6, 6), dt(2023, 9, 6)]),
-        (dt(2023, 4, 30), dt(2023, 10, 31), 31, [dt(2023, 4, 30), dt(2023, 7, 31), dt(2023, 10, 31)]),
-        (dt(2022, 2, 28), dt(2022, 8, 31), "eom", [dt(2022, 2, 28), dt(2022, 5, 31), dt(2022, 8, 31)]),
-        (dt(2021, 11, 30), dt(2022, 5, 31), 31, [dt(2021, 11, 30), dt(2022, 2, 28), dt(2022, 5, 31)]),
-        (dt(2023, 4, 30), dt(2023, 10, 30), 30, [dt(2023, 4, 30), dt(2023, 7, 30), dt(2023, 10, 30)]),
-        (dt(2022, 3, 16), dt(2022, 9, 21), "imm", [dt(2022, 3, 16), dt(2022, 6, 15), dt(2022, 9, 21)]),
+        (
+            dt(2023, 4, 30),
+            dt(2023, 10, 31),
+            31,
+            [dt(2023, 4, 30), dt(2023, 7, 31), dt(2023, 10, 31)],
+        ),
+        (
+            dt(2022, 2, 28),
+            dt(2022, 8, 31),
+            "eom",
+            [dt(2022, 2, 28), dt(2022, 5, 31), dt(2022, 8, 31)],
+        ),
+        (
+            dt(2021, 11, 30),
+            dt(2022, 5, 31),
+            31,
+            [dt(2021, 11, 30), dt(2022, 2, 28), dt(2022, 5, 31)],
+        ),
+        (
+            dt(2023, 4, 30),
+            dt(2023, 10, 30),
+            30,
+            [dt(2023, 4, 30), dt(2023, 7, 30), dt(2023, 10, 30)],
+        ),
+        (
+            dt(2022, 3, 16),
+            dt(2022, 9, 21),
+            "imm",
+            [dt(2022, 3, 16), dt(2022, 6, 15), dt(2022, 9, 21)],
+        ),
         (dt(2022, 12, 1), dt(2023, 6, 1), "som", [dt(2022, 12, 1), dt(2023, 3, 1), dt(2023, 6, 1)]),
     ],
 )
@@ -538,7 +635,9 @@ def test_payment_lag_is_business_days():
 
 def test_schedule_bad_stub_combinations_raise():
     with pytest.raises(ValueError, match="Must supply at least one stub date"):
-        _ = Schedule(effective=dt(2022, 1, 1), termination=dt(2023, 1, 1), frequency="S", stub="FRONTBACK")
+        _ = Schedule(
+            effective=dt(2022, 1, 1), termination=dt(2023, 1, 1), frequency="S", stub="FRONTBACK"
+        )
 
 
 def test_schedule_bad_stub_combinations_raise2():
@@ -613,7 +712,10 @@ def test_schedule_n_periods():
 
 @pytest.mark.parametrize(
     "ue, ut, exp",
-    [(dt(2023, 3, 17), dt(2023, 12, 20), dt(2023, 9, 20)), (dt(2022, 12, 19), dt(2023, 12, 20), dt(2023, 3, 15))],  # PR #9
+    [
+        (dt(2023, 3, 17), dt(2023, 12, 20), dt(2023, 9, 20)),
+        (dt(2022, 12, 19), dt(2023, 12, 20), dt(2023, 3, 15)),
+    ],  # PR #9
 )
 def test_get_unadjusted_long_stub_imm(ue, ut, exp):
     result = _get_unadjusted_stub_date(ue, ut, "Q", "LONGFRONT", False, "imm")

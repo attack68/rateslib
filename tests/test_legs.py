@@ -714,7 +714,19 @@ class TestZeroIndexLeg:
             }
         )
         assert_frame_equal(
-            result[["Type", "Notional", "Real Cashflow", "Index Base", "Index Ratio", "Cashflow", "NPV"]], expected, rtol=1e-3
+            result[
+                [
+                    "Type",
+                    "Notional",
+                    "Real Cashflow",
+                    "Index Base",
+                    "Index Ratio",
+                    "Cashflow",
+                    "NPV",
+                ]
+            ],
+            expected,
+            rtol=1e-3,
         )
 
 
@@ -796,12 +808,16 @@ class TestFloatLegExchange:
         assert abs(leg.npv(curve).real) < 1e-9
 
     def test_float_leg_exchange_npv(self, curve):
-        fle = FloatLeg(dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True)
+        fle = FloatLeg(
+            dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True
+        )
         result = fle.npv(curve)
         assert abs(result) < 1e-9
 
     def test_float_leg_exchange_fixings_table(self, curve):
-        fle = FloatLeg(dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True)
+        fle = FloatLeg(
+            dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True
+        )
         result = fle.fixings_table(curve)
         expected = DataFrame(
             {
@@ -1478,7 +1494,11 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw):
     "klass, kwargs, expected",
     [
         (IndexFixedLeg, {}, [200.0, 300.0, 400.0]),
-        (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True}, [200.0, 300.0, 400.0, 400.0]),
+        (
+            IndexFixedLeg,
+            {"initial_exchange": False, "final_exchange": True},
+            [200.0, 300.0, 400.0, 400.0],
+        ),
         (ZeroIndexLeg, {}, [400.0]),
     ],
 )
@@ -1509,7 +1529,11 @@ def test_set_index_fixings_series_leg_types(klass, kwargs, expected):
         (IndexFixedLeg, {"index_fixings": [200.0, 300.0, 400.0]}, [200.0, 300.0, 400.0]),
         (
             IndexFixedLeg,
-            {"initial_exchange": False, "final_exchange": True, "index_fixings": [200.0, 300.0, 400.0, 400.0]},
+            {
+                "initial_exchange": False,
+                "final_exchange": True,
+                "index_fixings": [200.0, 300.0, 400.0, 400.0],
+            },
             [200.0, 300.0, 400.0, 400.0],
         ),
         (ZeroIndexLeg, {"index_fixings": [400.0]}, [400.0]),

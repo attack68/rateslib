@@ -4,7 +4,16 @@ import numpy as np
 from packaging import version
 
 import context
-from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, set_order, _plu_decomp, _pivot_matrix
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    dual_exp,
+    dual_log,
+    dual_solve,
+    set_order,
+    _plu_decomp,
+    _pivot_matrix,
+)
 
 
 @pytest.fixture()
@@ -253,17 +262,30 @@ def test_op_inversions(x_1, x_2):
     [
         (
             "__add__",
-            Dual2(3, vars=["v0", "v1", "v2"], dual=np.array([1, 2, 3]), dual2=np.array([[2, 1, 1], [1, 1, 0], [1, 0, 1]])),
+            Dual2(
+                3,
+                vars=["v0", "v1", "v2"],
+                dual=np.array([1, 2, 3]),
+                dual2=np.array([[2, 1, 1], [1, 1, 0], [1, 0, 1]]),
+            ),
         ),
         (
             "__sub__",
             Dual2(
-                -1, vars=["v0", "v1", "v2"], dual=np.array([1, 2, -3]), dual2=np.array([[0, 1, -1], [1, 1, 0], [-1, 0, -1]])
+                -1,
+                vars=["v0", "v1", "v2"],
+                dual=np.array([1, 2, -3]),
+                dual2=np.array([[0, 1, -1], [1, 1, 0], [-1, 0, -1]]),
             ),
         ),
         (
             "__mul__",
-            Dual2(2, vars=["v0", "v1", "v2"], dual=np.array([2, 4, 3]), dual2=np.array([[3, 2, 2.5], [2, 2, 3], [2.5, 3, 1]])),
+            Dual2(
+                2,
+                vars=["v0", "v1", "v2"],
+                dual=np.array([2, 4, 3]),
+                dual2=np.array([[3, 2, 2.5], [2, 2, 3], [2.5, 3, 1]]),
+            ),
         ),
         (
             "__truediv__",
@@ -316,10 +338,26 @@ def test_left_op_with_float(x_1, op, expected):
 @pytest.mark.parametrize(
     "op, expected",
     [
-        ("__add__", Dual2(1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))),
-        ("__sub__", Dual2(1 - 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))),
-        ("__mul__", Dual2(1 * 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) * 2.5, dual2=np.ones((2, 2)) * 2.5)),
-        ("__truediv__", Dual2(1 / 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) / 2.5, dual2=np.ones((2, 2)) / 2.5)),
+        (
+            "__add__",
+            Dual2(1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))),
+        ),
+        (
+            "__sub__",
+            Dual2(1 - 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))),
+        ),
+        (
+            "__mul__",
+            Dual2(
+                1 * 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) * 2.5, dual2=np.ones((2, 2)) * 2.5
+            ),
+        ),
+        (
+            "__truediv__",
+            Dual2(
+                1 / 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) / 2.5, dual2=np.ones((2, 2)) / 2.5
+            ),
+        ),
     ],
 )
 def test_left_op_with_float2(y_2, op, expected):
@@ -335,8 +373,12 @@ def test_right_op_with_float(x_1):
 
 
 def test_right_op_with_float2(y_2):
-    assert 2.5 + y_2 == Dual2(1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
-    assert 2.5 - y_2 == Dual2(2.5 - 1, vars=["v0", "v1"], dual=-np.array([1, 2]), dual2=-np.ones((2, 2)))
+    assert 2.5 + y_2 == Dual2(
+        1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))
+    )
+    assert 2.5 - y_2 == Dual2(
+        2.5 - 1, vars=["v0", "v1"], dual=-np.array([1, 2]), dual2=-np.ones((2, 2))
+    )
     assert 2.5 * y_2 == y_2 * 2.5
     assert 2.5 / y_2 == (y_2 / 2.5) ** -1
 
@@ -474,7 +516,12 @@ def test_dual2_power_2d():
 def test_dual2_inv_specific():
     z = Dual2(2, vars=["x", "y"], dual=np.array([2, 3]))
     result = z**-1
-    expected = Dual2(0.5, vars=["x", "y"], dual=np.array([-0.5, -0.75]), dual2=np.array([[0.5, 0.75], [0.75, 9 / 8]]))
+    expected = Dual2(
+        0.5,
+        vars=["x", "y"],
+        dual=np.array([-0.5, -0.75]),
+        dual2=np.array([[0.5, 0.75], [0.75, 9 / 8]]),
+    )
     assert result == expected
 
 
@@ -557,13 +604,28 @@ def test_downcast_vars():
     )
     assert w.__downcast_vars__().vars == ("y", "z")
 
-    x = Dual2(2, vars=["x", "y", "z"], dual=np.array([0, 1, 1]), dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]))
+    x = Dual2(
+        2,
+        vars=["x", "y", "z"],
+        dual=np.array([0, 1, 1]),
+        dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
+    )
     assert x.__downcast_vars__().vars == ("y", "z")
 
-    y = Dual2(2, vars=["x", "y", "z"], dual=np.array([0, 0, 1]), dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]))
+    y = Dual2(
+        2,
+        vars=["x", "y", "z"],
+        dual=np.array([0, 0, 1]),
+        dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
+    )
     assert y.__downcast_vars__().vars == ("z",)
 
-    z = Dual2(2, vars=["x", "y", "z"], dual=np.array([0, 0, 1]), dual2=np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1]]))
+    z = Dual2(
+        2,
+        vars=["x", "y", "z"],
+        dual=np.array([0, 0, 1]),
+        dual2=np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1]]),
+    )
     assert z.__downcast_vars__().vars == ("y", "z")
 
 
@@ -581,9 +643,16 @@ def test_powers_bad_type(base, exponent, x_1, y_1):
 
 
 def test_keep_manifold_gradient():
-    du2 = Dual2(10, ["x", "y", "z"], dual=np.array([1, 2, 3]), dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]))
+    du2 = Dual2(
+        10,
+        ["x", "y", "z"],
+        dual=np.array([1, 2, 3]),
+        dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]),
+    )
     result = du2.gradient(["x", "z"], 1, keep_manifold=True)
-    expected = np.array([Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))])
+    expected = np.array(
+        [Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))]
+    )
     assertions = result == expected
     assert all(assertions)
 
@@ -605,7 +674,9 @@ def test_dual_set_order(x_1, y_1):
 
 
 def test_pivoting():
-    A = np.array([[1, 0, 0, 0, 0], [-1, 1, 0, 0, 0], [0, -1, 0, 1, 0], [-1, 0, 0.5, 0, 0], [0, 0, -1, 0, 1]])
+    A = np.array(
+        [[1, 0, 0, 0, 0], [-1, 1, 0, 0, 0], [0, -1, 0, 1, 0], [-1, 0, 0.5, 0, 0], [0, 0, -1, 0, 1]]
+    )
     result, _ = _pivot_matrix(A, method=1)
     expected = np.array(
         [
@@ -682,7 +753,9 @@ def test_solve_lsqrs():
 
 def test_solve_dual():
     A = np.array([[1, 0], [0, 1]], dtype="object")
-    b = np.array([Dual(2, ["x"], np.array([1])), Dual(5, ["x", "y"], np.array([1, 1]))])[:, np.newaxis]
+    b = np.array([Dual(2, ["x"], np.array([1])), Dual(5, ["x", "y"], np.array([1, 1]))])[
+        :, np.newaxis
+    ]
     x = dual_solve(A, b)
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
@@ -690,14 +763,18 @@ def test_solve_dual():
 
 def test_solve_dual2():
     A = np.array([[Dual2(1), Dual2(0)], [Dual2(0), Dual2(1)]], dtype="object")
-    b = np.array([Dual2(2, ["x"], np.array([1])), Dual2(5, ["x", "y"], np.array([1, 1]))])[:, np.newaxis]
+    b = np.array([Dual2(2, ["x"], np.array([1])), Dual2(5, ["x", "y"], np.array([1, 1]))])[
+        :, np.newaxis
+    ]
     x = dual_solve(A, b)
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
 
 def test_sparse_solve(A_sparse):
-    b = np.array([0, 0.90929743, 0.14112001, -0.7568025, -0.95892427, -0.2794155, 0.6569866, 0.98935825, 0])
+    b = np.array(
+        [0, 0.90929743, 0.14112001, -0.7568025, -0.95892427, -0.2794155, 0.6569866, 0.98935825, 0]
+    )
     b = b[:, np.newaxis]
     x = dual_solve(A_sparse, b)
     x_np = np.linalg.solve(A_sparse, b)
@@ -800,7 +877,8 @@ def test_numpy_matmul(y_2, y_1):
 
 
 @pytest.mark.skipif(
-    version.parse(np.__version__) >= version.parse("1.25.0"), reason="Object dtypes accepted by NumPy in 1.25.0+"
+    version.parse(np.__version__) >= version.parse("1.25.0"),
+    reason="Object dtypes accepted by NumPy in 1.25.0+",
 )
 def test_numpy_einsum(y_2, y_1):
     # einsum does not work with object dtypes
@@ -810,7 +888,8 @@ def test_numpy_einsum(y_2, y_1):
 
 
 @pytest.mark.skipif(
-    version.parse(np.__version__) < version.parse("1.25.0"), reason="Object dtypes not accepted by NumPy in <1.25.0"
+    version.parse(np.__version__) < version.parse("1.25.0"),
+    reason="Object dtypes not accepted by NumPy in <1.25.0",
 )
 def test_numpy_einsum_works(y_2, y_1):
     a = np.array([y_2, y_1])

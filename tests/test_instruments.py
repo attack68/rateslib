@@ -177,7 +177,9 @@ def test_get_curves_from_solver_multiply(num):
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
     inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
     solver = Solver([curve], inst, [0.975])
-    result, _, _ = _get_curves_fx_and_base_maybe_from_solver(None, solver, ["tagged"] * num, None, None, "")
+    result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        None, solver, ["tagged"] * num, None, None, ""
+    )
     assert result == (curve, curve, curve, curve)
 
 
@@ -218,7 +220,13 @@ class TestSolverFXandBase:
             id="Solver",
         )
         cls.nxcs = NonMtmXCS(
-            dt(2022, 2, 1), "6M", "A", curves=[cls.curve] * 4, currency="eur", leg2_currency="usd", float_spread=2.0
+            dt(2022, 2, 1),
+            "6M",
+            "A",
+            curves=[cls.curve] * 4,
+            currency="eur",
+            leg2_currency="usd",
+            float_spread=2.0,
         )
 
     @classmethod
@@ -349,7 +357,13 @@ class TestNullPricing:
                 notional=-1e6,
             ),
             ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
-            IIRS(dt(2022, 7, 1), "3M", "A", curves=["eu_cpi", "eureur", "eureur", "eureur"], notional=1e6),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                curves=["eu_cpi", "eureur", "eureur", "eureur"],
+                notional=1e6,
+            ),
             IIRS(
                 dt(2022, 7, 1),
                 "3M",
@@ -682,7 +696,11 @@ class TestIRS:
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve):
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4}, index_lag=3, index_base=100.0)
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+        )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
             termination="1y",
@@ -697,7 +715,11 @@ class TestIIRS:
             assert period.index_base == 200.0
 
     def test_iirs_npv_mid_mkt_zero(self, curve):
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4}, index_lag=3, index_base=100.0)
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+        )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
             termination=dt(2022, 7, 1),
@@ -724,7 +746,9 @@ class TestIIRS:
         assert abs(mid_fixed - new_mid) < 1e-6
 
     def test_cashflows(self, curve):
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99}, index_lag=3, index_base=100.0)
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99}, index_lag=3, index_base=100.0
+        )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
             termination="9M",
@@ -743,7 +767,9 @@ class TestIIRS:
                 "NPV": [-2682.655, -2869.534, -2488.937, 9849.93, 10070.85, 9963.277],
                 "Type": ["IndexFixedPeriod"] * 3 + ["FloatPeriod"] * 3,
             },
-            index=MultiIndex.from_tuples([("leg1", 0), ("leg1", 1), ("leg1", 2), ("leg2", 0), ("leg2", 1), ("leg2", 2)]),
+            index=MultiIndex.from_tuples(
+                [("leg1", 0), ("leg1", 1), ("leg1", 2), ("leg2", 0), ("leg2", 1), ("leg2", 2)]
+            ),
         )
         assert_frame_equal(
             expected,
@@ -752,7 +778,11 @@ class TestIIRS:
         )
 
     def test_npv_no_index_base(self, curve):
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4}, index_lag=3, index_base=100.0)
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+        )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
             termination="1y",
@@ -766,7 +796,11 @@ class TestIIRS:
         assert abs(result - expected) < 1e-6
 
     def test_cashflows_no_index_base(self, curve):
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4}, index_lag=3, index_base=100.0)
+        i_curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+        )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
             termination="1y",
@@ -967,7 +1001,13 @@ class TestValue:
 
 class TestFXExchange:
     def test_cashflows(self):
-        fxe = FXExchange(settlement=dt(2022, 10, 1), currency="eur", leg2_currency="usd", notional=1e6, fx_rate=2.05)
+        fxe = FXExchange(
+            settlement=dt(2022, 10, 1),
+            currency="eur",
+            leg2_currency="usd",
+            notional=1e6,
+            fx_rate=2.05,
+        )
         result = fxe.cashflows()
         expected = DataFrame(
             {
@@ -2377,7 +2417,8 @@ class TestIndexFixedRateBond:
             gilt.rate(curve, metric="fwd_clean_price")
 
     @pytest.mark.parametrize(
-        "i_fixings, expected", [(None, 1.161227269), (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00)]
+        "i_fixings, expected",
+        [(None, 1.161227269), (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00)],
     )
     def test_index_ratio(self, i_fixings, expected):
         i_curve = IndexCurve(
@@ -2491,17 +2532,25 @@ class TestIndexFixedRateBond:
         index_clean_price = gilt.rate([i_curve, curve], metric="index_clean_price")
         assert abs(index_clean_price * 0.5 - clean_price) < 1e-3
 
-        result = gilt.rate([i_curve, curve], metric="fwd_clean_price", forward_settlement=dt(1998, 12, 9))
+        result = gilt.rate(
+            [i_curve, curve], metric="fwd_clean_price", forward_settlement=dt(1998, 12, 9)
+        )
         assert abs(result - clean_price) < 1e-8
-        result = gilt.rate([i_curve, curve], metric="fwd_index_clean_price", forward_settlement=dt(1998, 12, 9))
+        result = gilt.rate(
+            [i_curve, curve], metric="fwd_index_clean_price", forward_settlement=dt(1998, 12, 9)
+        )
         assert abs(result * 0.5 - clean_price) < 1e-8
 
         result = gilt.rate([i_curve, curve], metric="dirty_price")
         expected = clean_price + gilt.accrued(dt(1998, 12, 9))
         assert result == expected
-        result = gilt.rate([i_curve, curve], metric="fwd_dirty_price", forward_settlement=dt(1998, 12, 9))
+        result = gilt.rate(
+            [i_curve, curve], metric="fwd_dirty_price", forward_settlement=dt(1998, 12, 9)
+        )
         assert abs(result - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
-        result = gilt.rate([i_curve, curve], metric="fwd_index_dirty_price", forward_settlement=dt(1998, 12, 9))
+        result = gilt.rate(
+            [i_curve, curve], metric="fwd_index_dirty_price", forward_settlement=dt(1998, 12, 9)
+        )
         assert abs(result * 0.5 - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
 
         result = gilt.rate([i_curve, curve], metric="ytm")
@@ -2898,7 +2947,9 @@ class TestFloatRateBond:
         curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
         disc_curve = curve.shift(spd)
 
-        result = bond.rate(curves=[curve, disc_curve], metric=metric, forward_settlement=dt(2010, 8, 1))
+        result = bond.rate(
+            curves=[curve, disc_curve], metric=metric, forward_settlement=dt(2010, 8, 1)
+        )
         assert abs(result - exp) < 1e-8
 
     def test_float_rate_bond_forward_accrued(self):
@@ -3058,7 +3109,9 @@ class TestBondFuture:
         assert_frame_equal(result2, expected)
 
     def test_notional(self):
-        future = BondFuture(coupon=0, delivery=dt(2000, 6, 1), basket=[], nominal=100000, contracts=10)
+        future = BondFuture(
+            coupon=0, delivery=dt(2000, 6, 1), basket=[], nominal=100000, contracts=10
+        )
         assert future.notional == -1e6
 
     def test_dirty_in_methods(self):
@@ -3071,7 +3124,9 @@ class TestBondFuture:
         ]
         future = BondFuture(delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds)
         prices = [102.732, 131.461, 107.877, 134.455]
-        dirty_prices = [price + future.basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)]
+        dirty_prices = [
+            price + future.basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)
+        ]
         result = future.gross_basis(112.98, dirty_prices, dt(2000, 3, 16), True)
         expected = future.gross_basis(112.98, prices, dt(2000, 3, 16), False)
         assert result == expected
@@ -3270,7 +3325,10 @@ class TestBondFuture:
         expected = 8.20178546111
         assert abs(result - expected) < 1e-3
 
-        expected = future.duration(112.98, delivery=delivery)[0] - future.duration(112.98 - result / 100, delivery=delivery)[0]
+        expected = (
+            future.duration(112.98, delivery=delivery)[0]
+            - future.duration(112.98 - result / 100, delivery=delivery)[0]
+        )
         result2 = future.convexity(112.98, delivery=delivery)[0]
         assert abs(result2 - expected * 100) < 1e-3
 
