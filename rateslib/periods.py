@@ -68,8 +68,8 @@ def _get_fx_and_base(
             else:
                 warnings.warn(
                     f"`base` ({base}) should not be given when supplying `fx` as numeric "
-                    f"since it will not be used.\n It may also be interpreted as giving "
-                    f"wrong results.\n Best practice is to instead supply `fx` as an "
+                    f"since it will not be used.\nIt may also be interpreted as giving "
+                    f"wrong results.\nBest practice is to instead supply `fx` as an "
                     f"FXRates (or FXForwards) object.\n"
                     f"Reformulate: [fx={fx}, base='{base}'] -> "
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
@@ -85,12 +85,12 @@ def _get_fx_and_base(
             else:
                 warnings.warn(
                     "It is not best practice to provide `fx` as numeric since this can "
-                    "cause errors of output when dealing with multi-currency derivatives, "
+                    "cause errors of output when dealing with multi-currency derivatives,\n"
                     "and it also fails to preserve FX rate sensitivity in calculations.\n"
                     "Instead, supply a 'base' currency and use an "
                     "FXRates or FXForwards object.\n"
                     f"Reformulate: [fx={fx}, base=None] -> "
-                    f"[fx=FXRates({{'{currency}bas}}': {fx}), base='bas'].",
+                    f"[fx=FXRates({{'{currency}bas': {fx}}}), base='bas'].",
                     UserWarning,
                 )
             fx = fx

@@ -865,18 +865,18 @@ class FXExchange(Sensitivities, BaseMixin):
                 "`solver` containing an FX object."
             )
         if not isinstance(fx_, (FXRates, FXForwards)):
-            base_ = self.leg1.currency if base_ is None else base_
-            if base_.lower() == self.leg1.currency:
-                leg1_npv = self.leg1.npv(curves[0], curves[1], 1.0, base_, local)
-                leg2_npv = self.leg2.npv(curves[2], curves[3], 1 / fx_, base_, local)
-            elif base_.lower() == self.leg2.currency:
-                leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
-                leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base_, local)
-            else:
-                raise ValueError(
-                    f"Cannot calculate `npv` for `base` {base} with `fx` as float.\n"
-                    "Instead supply an `fx` argument as `FXRates` or `FXForwards`."
-                )
+            # force base_ leg1 currency to be converted consistent.
+            leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
+            leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base_, local)
+            warnings.warn(
+                "When valuing multi-currency derivatives it not best practice to "
+                "supply `fx` as numeric.\nYour input:\n"
+                f"`npv(solver={'None' if solver is None else '<Solver>'}, fx={fx}, base='{base if base is not None else 'None'}')\n"
+                "has been implicitly converted into the following by this operation:\n"
+                f"`npv(solver={'None' if solver is None else '<Solver>'}, "
+                f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), base='{self.leg2.currency}')\n.",
+                UserWarning
+            )
         else:
             leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
             leg2_npv = self.leg2.npv(curves[2], curves[3], fx_, base_, local)
@@ -7763,6 +7763,7 @@ class Fly(Sensitivities):
 
 
 def _instrument_npv(instrument, *args, **kwargs):
+    # used for parallel processing with Portfolio.npv
     return instrument.npv(*args, **kwargs)
 
 
@@ -7785,6 +7786,7 @@ class Portfolio(Sensitivities):
         func = partial(_instrument_npv, *args, **kwargs)
         p = Pool(defaults.pool)
         results = p.map(func, self.instruments)
+        p.close()
 
         if kwargs.get("local", False):
             _ = DataFrame(results).fillna(0.0)

@@ -175,11 +175,21 @@ class TestFloatPeriod:
             Defaults.headers["fx"]: fx,
             Defaults.headers["npv_fx"]: -10096746.871171726 * fx if crv else None,
         }
-        result = float_period.cashflows(
-            curve if crv else None,
-            fx=(2 if fx == 2 else fxr),
-            base="_" if fx == 2 else "nok",
-        )
+        if fx == 2.0:
+            with pytest.warns(UserWarning):
+                # It is not best practice to provide `fx` as numeric
+                result = float_period.cashflows(
+                    curve if crv else None,
+                    fx=2.0,
+                    base=None,
+                )
+        else:
+            result = float_period.cashflows(
+                curve if crv else None,
+                fx=fxr,
+                base="nok",
+
+            )
         assert result == expected
 
     def test_spread_compound_raises(self):
@@ -1018,11 +1028,12 @@ class TestFixedPeriod:
             Defaults.headers["fx"]: fx,
             Defaults.headers["npv_fx"]: -9897791.268897855 * fx if crv else None,
         }
-        result = fixed_period.cashflows(
-            curve if crv else None,
-            fx=(2 if fx == 2 else fxr),
-            base="_" if fx == 2 else "nok",
-        )
+        if fx == 2.0:
+            with pytest.warns(UserWarning):
+                # supplying `fx` as numeric
+                result = fixed_period.cashflows(curve if crv else None, fx=2.0, base=None)
+        else:
+            result = fixed_period.cashflows(curve if crv else None, fx=fxr, base="nok")
         assert result == expected
 
     def test_fixed_period_npv(self, curve, fxr):
@@ -1094,11 +1105,20 @@ class TestCashflow:
             Defaults.headers["fx"]: fx,
             Defaults.headers["npv_fx"]: -989779126.8897856 * fx if crv else None,
         }
-        result = cashflow.cashflows(
-            curve if crv else None,
-            fx=(2 if fx == 2 else fxr),
-            base="_" if fx == 2 else "nok",
-        )
+        if fx == 2.0:
+            with pytest.warns(UserWarning):
+                # supplying `fx` as numeric
+                result = cashflow.cashflows(
+                    curve if crv else None,
+                    fx=2.0,
+                    base=None,
+                )
+        else:
+            result = cashflow.cashflows(
+                curve if crv else None,
+                fx=fxr,
+                base="nok",
+            )
         assert result == expected
 
     def test_cashflow_npv_raises(self, curve):

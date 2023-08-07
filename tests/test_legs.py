@@ -87,12 +87,22 @@ class TestFloatLeg:
         ],
     )
     def test_float_leg_analytic_delta_with_npv(self, curve, obj):
-        result = 5 * obj.analytic_delta(curve, curve)
-        before_npv = -obj.npv(curve, curve)
-        obj.float_spread = 5
-        after_npv = -obj.npv(curve, curve)
-        expected = after_npv - before_npv
-        assert abs(result - expected) < 1e-7
+        if type(obj) is FloatLegMtm:
+            with pytest.warns(UserWarning):
+                # Using 1.0 for FX, no `fx` or `fx_fixing` given to object
+                result = 5 * obj.analytic_delta(curve, curve)
+                before_npv = -obj.npv(curve, curve)
+                obj.float_spread = 5
+                after_npv = -obj.npv(curve, curve)
+                expected = after_npv - before_npv
+                assert abs(result - expected) < 1e-7
+        else:
+            result = 5 * obj.analytic_delta(curve, curve)
+            before_npv = -obj.npv(curve, curve)
+            obj.float_spread = 5
+            after_npv = -obj.npv(curve, curve)
+            expected = after_npv - before_npv
+            assert abs(result - expected) < 1e-7
 
     def test_float_leg_analytic_delta(self, curve):
         float_leg = FloatLeg(
