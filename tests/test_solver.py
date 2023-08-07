@@ -332,7 +332,7 @@ def test_solver_independent_curve():
     ]
     s = np.array([2.00, 2.00, 2.00])
     with default_context("curve_not_in_solver", "ignore"):
-        solver = Solver(
+        Solver(
             curves=[var_curve],
             instruments=instruments,
             s=s,
@@ -415,12 +415,12 @@ def test_non_unique_curves():
     solver = Solver(curves=[curve], instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})], s=[1])
 
     with pytest.raises(ValueError, match="`curves` must each have their own unique"):
-        solver2 = Solver(
+        Solver(
             curves=[curve2], instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})], s=[2], pre_solvers=[solver]
         )
 
     with pytest.raises(ValueError, match="`curves` must each have their own unique"):
-        solver2 = Solver(
+        Solver(
             curves=[curve, curve2],
             instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
             s=[2],
@@ -751,7 +751,7 @@ def test_solver_second_order_vars_raise_on_first_order_pre_solvers():
 def test_bad_algo_raises():
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
     with pytest.raises(NotImplementedError, match="`algorithm`: bad_algo"):
-        solver = Solver(
+        Solver(
             curves=[curve], instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})], s=[1], algorithm="bad_algo"
         )
 
@@ -789,7 +789,7 @@ def test_solver_float_rate_bond():
             {"metric": "spread"},
         ),
     ]
-    solver = Solver([d_c], instruments, [25, 25, 25])
+    Solver([d_c], instruments, [25, 25, 25])
     result = d_c.rate(dt(2022, 7, 1), "1D")
     expected = f_c.rate(dt(2022, 7, 1), "1D") + 0.25
     assert abs(result - expected) < 3e-4
@@ -1090,7 +1090,7 @@ def test_solver_gamma_pnl_explain():
         XCS(dt(2022, 1, 1), "10y", "A", currency="usd", leg2_currency="usd", curves=["estr", "eurusd", "sofr", "sofr"]),
         XCS(dt(2032, 1, 1), "10y", "A", currency="usd", leg2_currency="eur", curves=["estr", "eurusd", "sofr", "sofr"]),
     ]
-    s_base = np.array([3.45, 2.85, 2.25, 0.9, -15, -10])
+    # s_base = np.array([3.45, 2.85, 2.25, 0.9, -15, -10])
     sofr = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="sofr")
     estr = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="estr")
     eurusd = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="eurusd")
@@ -1218,7 +1218,7 @@ def test_solver_non_unique_id_raises():
     solver = Solver(curves=[curve], instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})], s=[1], id="bad")
     curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="B")
     with pytest.raises(ValueError, match="Solver `id`s must be unique"):
-        solver2 = Solver(
+        Solver(
             curves=[curve2],
             instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve2,), {})],
             s=[1],
@@ -1248,7 +1248,7 @@ def test_solving_indirect_parameters_from_proxy_composite():
         IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
         XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
     ]
-    solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
+    Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
 
 
 def test_solver_dimensions_of_matmul():
@@ -1286,8 +1286,8 @@ def test_solver_dimensions_of_matmul():
     solver2 = Solver(curves=[gbp], instruments=gbp_inst, s=[1.6, 1.7], id="GBP", pre_solvers=[solver1])
     solver3 = Solver(curves=[usd], instruments=usd_inst, s=[1.7, 1.9], id="USD", pre_solvers=[solver2])
     pf = Portfolio(swaps)
-    result = pf.delta(solver=solver3, base="gbp", fx=fxr)
-    result2 = pf.gamma(solver=solver3, base="gbp", fx=fxr)
+    pf.delta(solver=solver3, base="gbp", fx=fxr)
+    pf.gamma(solver=solver3, base="gbp", fx=fxr)
 
 
 def test_pre_solver_single_fx_object():
@@ -1336,7 +1336,7 @@ def test_pre_solver_single_fx_object():
         fx=fxf1,
         pre_solvers=[s1],
     )
-    s3 = Solver(
+    Solver(
         curves=[gu],
         instruments=[XCS(dt(2022, 1, 1), "1Y", "Q", currency="gbp", leg2_currency="usd", curves=["gg", "gu", "uu", "uu"])],
         s=[20.0],

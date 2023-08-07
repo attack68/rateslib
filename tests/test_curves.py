@@ -1,6 +1,5 @@
 import pytest
 from datetime import datetime as dt
-from pandas import DataFrame
 import numpy as np
 from math import log, exp
 from matplotlib import pyplot as plt
@@ -1256,8 +1255,8 @@ class TestCompositeCurve:
         cc = CompositeCurve([c1, c2], multi_csa=True, multi_csa_max_step=182, multi_csa_min_step=182)
 
         r1 = cc.rate(dt(2052, 5, 24), "1d")
-        r2 = cc.rate(dt(2052, 5, 25), "1d")
-        r3 = cc.rate(dt(2052, 5, 26), "1d")
+        # r2 = cc.rate(dt(2052, 5, 25), "1d")
+        # r3 = cc.rate(dt(2052, 5, 26), "1d")
 
         assert abs(r1 - 1.448374) < 1e-3
 

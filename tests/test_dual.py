@@ -759,7 +759,7 @@ def test_numpy_equality(y_2):
 )
 def test_numpy_broadcast_ops_types(z, arg, op_str):
     op = "__" + op_str + "__"
-    if type(z) in [Dual, Dual2] and type(arg) in [Dual, Dual2] and type(arg) != type(z):
+    if type(z) in [Dual, Dual2] and type(arg) in [Dual, Dual2] and type(arg) is not type(z):
         pytest.skip("Cannot operate Dual and Dual2 together.")
     result = getattr(np.array([z, z]), op)(arg)
     expected = np.array([getattr(z, op)(arg), getattr(z, op)(arg)])

@@ -5,7 +5,6 @@ exclude =
     docs,
     notebooks,
     target,
-    tests,
     venv9,
     venv11,
     scratch.py,
@@ -18,3 +17,4 @@ max-line-length = 127
 extend-ignore = E203, W605, E501
 per-file-ignores =
     rateslib/__init__.py:E402
+    tests/*:F401

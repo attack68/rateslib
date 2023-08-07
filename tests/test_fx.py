@@ -587,10 +587,10 @@ def test_oo_update_forwards_rates():
     }
     fx_rates = FXRates({"usdeur": 0.9, "eurnok": 8.888889}, dt(2022, 1, 3))
     fxf = FXForwards(fx_rates, fx_curves)
-    original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  #  7.917 = 0.9 * 8.888
+    original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 7.917 = 0.9 * 8.888
     fx_rates.update({"usdeur": 1.0})
     fxf.update()
-    updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  #  8.797 = 1.0 * 8.888
+    updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 8.797 = 1.0 * 8.888
     assert original_fwd != updated_fwd
 
 

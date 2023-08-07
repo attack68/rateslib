@@ -258,7 +258,7 @@ class TestFloatPeriod:
     def test_rfr_lockout_method(self, curve_type, rfr_curve, line_curve):
         curve = rfr_curve if curve_type == "curve" else line_curve
         period = FloatPeriod(dt(2022, 1, 1), dt(2022, 1, 4), dt(2022, 1, 4), "Q", fixing_method="rfr_lockout", method_param=2)
-        assert period._is_inefficient == True  # lockout requires all fixings.
+        assert period._is_inefficient is True  # lockout requires all fixings.
         result = period.rate(curve)
         expected = ((1 + 0.01 / 365) * (1 + 0.01 / 365) * (1 + 0.01 / 365) - 1) * 36500 / 3
         assert abs(result - expected) < 1e-12
@@ -478,7 +478,7 @@ class TestFloatPeriod:
             fixing_method="ibor",
             method_param=2,
         )
-        assert period._is_inefficient == False
+        assert period._is_inefficient is False
         assert period.rate(line_curve) == 3.0
 
     def test_ibor_fixing_table(self, line_curve):
@@ -639,7 +639,7 @@ class TestFloatPeriod:
         # expected = ((1 + 0.015 / 365) * (1 + 0.025 / 365) * (1 + 0.01 / 365) * (
         #             1 + 0.02 / 365) - 1) * 36500 / 4 + 1
         with pytest.warns(UserWarning):
-            result = period.rate(curve)
+            period.rate(curve)
         # assert result == expected
 
     def test_fixing_with_float_spread_warning(self, curve):
@@ -837,11 +837,11 @@ class TestFloatPeriod:
         line_curve = LineCurve({dt(2023, 1, 1): 3.0, dt(2023, 2, 1): 2.0}, interpolation=interp)
         curve = Curve({dt(2023, 1, 1): 1.0, dt(2023, 2, 1): 0.999})
         with pytest.raises(ValueError, match="RFRs could not be calculated"):
-            result = float_period.fixings_table(line_curve, disc_curve=curve)
+            float_period.fixings_table(line_curve, disc_curve=curve)
 
     def test_method_param_raises(self):
         with pytest.raises(ValueError, match='`method_param` must be >0 for "rfr_lock'):
-            float_period = FloatPeriod(
+            FloatPeriod(
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),
@@ -852,7 +852,7 @@ class TestFloatPeriod:
             )
 
         with pytest.raises(ValueError, match="`method_param` should not be used"):
-            float_period = FloatPeriod(
+            FloatPeriod(
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),
@@ -899,7 +899,7 @@ class TestFloatPeriod:
             fixings=fixings,
         )
         with pytest.raises(ValueError, match="The supplied `fixings` contain more"):
-            result = period.rate(curve)
+            period.rate(curve)
 
     def test_series_fixings_not_applicable_to_period(self):
         # if a series is historic and of no relevance all fixings are forecast from crv
@@ -1217,7 +1217,7 @@ class TestIndexFixedPeriod:
 
     def test_period_raises(self):
         with pytest.raises(ValueError, match="`index_method` must be "):
-            fixed_period = IndexFixedPeriod(
+            IndexFixedPeriod(
                 start=dt(2022, 1, 1),
                 end=dt(2022, 4, 1),
                 payment=dt(2022, 4, 3),

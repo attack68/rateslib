@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 import context
-from rateslib.splines import *
+from rateslib.splines import PPSpline
 
 
 @pytest.fixture()

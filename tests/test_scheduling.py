@@ -143,14 +143,14 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_):
         dt(2022, 2, 26), dt(2024, 4, 26), "Q", "SHORTFRONTBACK", None, dt(2024, 2, 26), "MF", False, None, cal_
     )
     assert result[0]
-    assert result[1]["front_stub"] == None
+    assert result[1]["front_stub"] is None
     assert result[1]["roll"] == 26
 
     result = _infer_stub_date(
         dt(2022, 2, 26), dt(2024, 4, 26), "Q", "FRONTSHORTBACK", dt(2022, 4, 26), None, "MF", False, None, cal_
     )
     assert result[0]
-    assert result[1]["back_stub"] == None
+    assert result[1]["back_stub"] is None
     assert result[1]["roll"] == 26
 
 
@@ -343,9 +343,6 @@ def test_check_regular_swap_mf(eff, term, roll, e_bool, e_ueff, e_uterm, e_roll,
 def test_unadjusted_date_alternatives(date, modifier, cal_, expected):
     result = _get_unadjusted_date_alternatives(date, modifier, cal_)
     assert result == expected
-
-
-## Book sections
 
 
 @pytest.mark.parametrize(
@@ -569,7 +566,7 @@ def test_schedule_bad_stub_combinations_raise2():
     ],
 )
 def test_schedule_combinations_valid(st, fs, bs):
-    result = Schedule(
+    Schedule(
         effective=dt(2022, 1, 1),
         termination=dt(2023, 2, 1),
         frequency="S",
@@ -593,7 +590,7 @@ def test_schedule_combinations_valid(st, fs, bs):
 )
 def test_schedule_combinations_invalid(st, fs, bs, roll):
     with pytest.raises(ValueError, match="date, stub and roll inputs are invalid"):
-        result = Schedule(
+        Schedule(
             effective=dt(2022, 1, 1),
             termination=dt(2023, 2, 1),
             frequency="S",
