@@ -71,11 +71,7 @@ def bsplev_single(x, i, k, t, org_k=None):
         if t[i] != t[i + k - 1]:
             left = (x - t[i]) / (t[i + k - 1] - t[i]) * bsplev_single(x, i, k - 1, t)
         if t[i + 1] != t[i + k]:
-            right = (
-                (t[i + k] - x)
-                / (t[i + k] - t[i + 1])
-                * bsplev_single(x, i + 1, k - 1, t)
-            )
+            right = (t[i + k] - x) / (t[i + k] - t[i + 1]) * bsplev_single(x, i + 1, k - 1, t)
         return left + right
 
 
@@ -241,9 +237,7 @@ class PPSpline:
                 return False
         if self.c is None and other.c is None:
             return True
-        elif (self.c is None and other.c is not None) or (
-            self.c is not None and other.c is None
-        ):
+        elif (self.c is None and other.c is not None) or (self.c is not None and other.c is None):
             return False
         elif not all(self.c == other.c):
             return False
@@ -385,8 +379,7 @@ class PPSpline:
                 )
         if len(tau) != len(y):
             raise ValueError(
-                f"`tau` and `y` must have the same length, "
-                f"`tau`: {len(tau)}, `y`: {len(y)}"
+                f"`tau` and `y` must have the same length, " f"`tau`: {len(tau)}, `y`: {len(y)}"
             )
         y = np.asarray(y)
         B_ji = self.bsplmatrix(tau, left_n, right_n)

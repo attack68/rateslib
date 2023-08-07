@@ -25,6 +25,7 @@ from datetime import datetime
 from typing import Optional, Union
 import abc
 import warnings
+
 # from math import sqrt
 
 import numpy as np
@@ -35,6 +36,7 @@ from pandas import DataFrame, concat, Series
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf
+
 # from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
@@ -165,9 +167,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
 
         def check_curve(curve):
             if isinstance(curve, str):
-                raise ValueError(
-                    "`curves` must contain Curve, not str, if `solver` not given."
-                )
+                raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
             return curve
 
         curves_ = tuple(check_curve(curve) for curve in curves)
@@ -693,8 +693,7 @@ class BaseMixin:
         leg2_npv = self.leg2.npv(curves[2], curves[3], fx_, base_, local)
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)
             }
         else:
             return leg1_npv + leg2_npv
@@ -785,9 +784,7 @@ class Value(BaseMixin):
         raise NotImplementedError("`Value` instrument has no concept of cashflows.")
 
     def analytic_delta(self, *args, **kwargs):
-        raise NotImplementedError(
-            "`Value` instrument has no concept of analytic delta."
-        )
+        raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
 
 
 class FXExchange(Sensitivities, BaseMixin):
@@ -875,7 +872,7 @@ class FXExchange(Sensitivities, BaseMixin):
                 "has been implicitly converted into the following by this operation:\n"
                 f"`npv(solver={'None' if solver is None else '<Solver>'}, "
                 f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), base='{self.leg2.currency}')\n.",
-                UserWarning
+                UserWarning,
             )
         else:
             leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
@@ -883,8 +880,7 @@ class FXExchange(Sensitivities, BaseMixin):
 
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)
             }
         else:
             return leg1_npv + leg2_npv
@@ -981,8 +977,7 @@ class BondMixin:
             settlement,
         )
         _ = (settlement - self.leg1.schedule.aschedule[acc_idx]) / (
-            self.leg1.schedule.aschedule[acc_idx + 1]
-            - self.leg1.schedule.aschedule[acc_idx]
+            self.leg1.schedule.aschedule[acc_idx + 1] - self.leg1.schedule.aschedule[acc_idx]
         )
         return _, acc_idx
 
@@ -1080,9 +1075,7 @@ class BondMixin:
             fd0 = 1 - acc_frac
 
         d = 0
-        for i, p_idx in enumerate(
-            range(acc_idx, len(self.leg1.schedule.aschedule) - 1)
-        ):
+        for i, p_idx in enumerate(range(acc_idx, len(self.leg1.schedule.aschedule) - 1)):
             if i == 0 and self.ex_div(settlement):
                 continue
             else:
@@ -1403,9 +1396,9 @@ class BondMixin:
         else:
             d_price = price
         if self.leg1.amortization != 0:
-            raise NotImplementedError(  # pragma: no cover
+            raise NotImplementedError(
                 "method for forward price not available with amortization"
-            )
+            )  # pragma: no cover
         total_rtn = d_price * (1 + repo_rate * dcf_ / 100) * -self.leg1.notional / 100
 
         # now systematically deduct coupons paid between settle and forward settle
@@ -1428,9 +1421,7 @@ class BondMixin:
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
             dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            accrued_coup = self.leg1.periods[p_idx].cashflow * (
-                1 + dcf_ * repo_rate / 100
-            )
+            accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
             total_rtn -= accrued_coup
 
         forward_price = total_rtn / -self.leg1.notional * 100
@@ -1509,9 +1500,7 @@ class BondMixin:
             # deduct accrued coupon from dirty price
             dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
             numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
-            denominator -= (
-                100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
-            )
+            denominator -= 100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
 
         return numerator / denominator * 100
 
@@ -1633,9 +1622,7 @@ class BondMixin:
                 self.leg1.schedule.n_periods + 1,
                 settlement,
             )
-            a_delta -= self.leg1.periods[current_period].analytic_delta(
-                curve, disc_curve, fx, base
-            )
+            a_delta -= self.leg1.periods[current_period].analytic_delta(curve, disc_curve, fx, base)
         return a_delta
 
     def cashflows(
@@ -1989,9 +1976,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                 None,
                 self.leg1.schedule.calendar,
             )
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, settlement, settlement
-            )
+            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
@@ -2004,9 +1989,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
             if forward_settlement is None:
-                raise ValueError(
-                    "`forward_settlement` needed to determine forward price."
-                )
+                raise ValueError("`forward_settlement` needed to determine forward price.")
             npv = self._npv_local(
                 curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
             )
@@ -2080,9 +2063,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
     ):
         self.curves = curves
         if frequency.lower() == "z":
-            raise ValueError(
-                "IndexFixedRateBond `frequency` must be in {M, B, Q, T, S, A}."
-            )
+            raise ValueError("IndexFixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self._fixed_rate = fixed_rate
@@ -2121,9 +2102,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
-        if self.leg1.index_fixings is not None and not isinstance(
-            self.leg1.index_fixings, Series
-        ):
+        if self.leg1.index_fixings is not None and not isinstance(self.leg1.index_fixings, Series):
             raise ValueError(
                 "Must provide `index_fixings` as a Series for inter-period settlement."
             )
@@ -2206,9 +2185,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
                 None,
                 self.leg1.schedule.calendar,
             )
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, settlement, settlement
-            )
+            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             index_dirty_price = npv * 100 / -self.leg1.notional
             index_ratio = self.index_ratio(settlement, curves[0])
@@ -2232,9 +2209,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             "fwd_index_dirty_price",
         ]:
             if forward_settlement is None:
-                raise ValueError(
-                    "`forward_settlement` needed to determine forward price."
-                )
+                raise ValueError("`forward_settlement` needed to determine forward price.")
             npv = self._npv_local(
                 curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
             )
@@ -2248,9 +2223,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "fwd_index_dirty_price":
                 return index_dirty_price
             elif metric == "fwd_index_clean_price":
-                return (
-                    index_dirty_price - self.accrued(forward_settlement) * index_ratio
-                )
+                return index_dirty_price - self.accrued(forward_settlement) * index_ratio
 
         raise ValueError(
             "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
@@ -2488,9 +2461,7 @@ class Bill(FixedRateBond):
             return self.simple_rate(price, settlement)
         elif metric == "ytm":
             return self.ytm(price, settlement, False)
-        raise ValueError(
-            "`metric` must be in {'price', 'discount_rate', 'ytm', 'simple_rate'}"
-        )
+        raise ValueError("`metric` must be in {'price', 'discount_rate', 'ytm', 'simple_rate'}")
 
     def simple_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
         """
@@ -2822,10 +2793,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             rate = self.leg1.periods[acc_idx].rate(curve)
 
             cashflow = (
-                -self.leg1.periods[acc_idx].notional
-                * self.leg1.periods[acc_idx].dcf
-                * rate
-                / 100
+                -self.leg1.periods[acc_idx].notional * self.leg1.periods[acc_idx].dcf * rate / 100
             )
             return frac * cashflow / -self.leg1.notional * 100
         else:  # is "rfr"
@@ -2890,9 +2858,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
 
             if self.ex_div(settlement):
                 rate_to_end = self.leg1.periods[acc_idx].rate(curve)
-                accrued_to_end = (
-                    100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
-                )
+                accrued_to_end = 100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
                 return accrued_to_settle - accrued_to_end
             else:
                 return accrued_to_settle
@@ -2953,9 +2919,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                 None,
                 self.leg1.schedule.calendar,
             )
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, settlement, settlement
-            )
+            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
@@ -2970,9 +2934,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
 
         elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
             if forward_settlement is None:
-                raise ValueError(
-                    "`forward_settlement` needed to determine forward price."
-                )
+                raise ValueError("`forward_settlement` needed to determine forward price.")
             npv = self._npv_local(
                 curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
             )
@@ -2982,9 +2944,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "fwd_clean_price":
                 return dirty_price - self.accrued(forward_settlement, True, curves[0])
 
-        raise ValueError(
-            "`metric` must be in {'dirty_price', 'clean_price', 'spread'}."
-        )
+        raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread'}.")
 
 
 # Single currency derivatives
@@ -3240,9 +3200,7 @@ class BondFuture(Sensitivities):
         return self._cfs
 
     def _conversion_factors(self):
-        return tuple(
-            bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket
-        )
+        return tuple(bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket)
 
     def dlv(
         self,
@@ -3299,13 +3257,10 @@ class BondFuture(Sensitivities):
         )
         df["Price"] = prices
         df["YTM"] = [
-            bond.ytm(prices[i], settlement, dirty=dirty)
-            for i, bond in enumerate(self.basket)
+            bond.ytm(prices[i], settlement, dirty=dirty) for i, bond in enumerate(self.basket)
         ]
         df["C.Factor"] = self.cfs
-        df["Gross Basis"] = self.gross_basis(
-            future_price, prices, settlement, dirty=dirty
-        )
+        df["Gross Basis"] = self.gross_basis(future_price, prices, settlement, dirty=dirty)
         df["Implied Repo"] = self.implied_repo(
             future_price, prices, settlement, delivery, convention, dirty=dirty
         )
@@ -3314,8 +3269,7 @@ class BondFuture(Sensitivities):
             future_price, prices, r_, settlement, delivery, convention, dirty=dirty
         )
         df["Bond"] = [
-            f"{bond.fixed_rate:,.3f}% "
-            f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+            f"{bond.fixed_rate:,.3f}% " f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
             for bond in self.basket
         ]
         return df
@@ -3347,14 +3301,11 @@ class BondFuture(Sensitivities):
         """
         if dirty:
             prices_ = tuple(
-                prices[i] - bond.accrued(settlement)
-                for i, bond in enumerate(self.basket)
+                prices[i] - bond.accrued(settlement) for i, bond in enumerate(self.basket)
             )
         else:
             prices_ = prices
-        return tuple(
-            prices_[i] - self.cfs[i] * future_price for i in range(len(self.basket))
-        )
+        return tuple(prices_[i] - self.cfs[i] * future_price for i in range(len(self.basket)))
 
     def net_basis(
         self,
@@ -3403,9 +3354,7 @@ class BondFuture(Sensitivities):
             r_ = repo_rate
 
         net_basis_ = tuple(
-            bond.fwd_from_repo(
-                prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty
-            )
+            bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
             - self.cfs[i] * future_price
             for i, bond in enumerate(self.basket)
         )
@@ -3490,8 +3439,7 @@ class BondFuture(Sensitivities):
             settlement = delivery
         adjusted_prices = [future_price * cf for cf in self.cfs]
         yields = tuple(
-            bond.ytm(adjusted_prices[i], settlement)
-            for i, bond in enumerate(self.basket)
+            bond.ytm(adjusted_prices[i], settlement) for i, bond in enumerate(self.basket)
         )
         return yields
 
@@ -3706,9 +3654,7 @@ class BondFuture(Sensitivities):
         if metric == "future_price":
             return future_price
         elif metric == "ytm":
-            return self.basket[ctd_index].ytm(
-                future_price * self.cfs[ctd_index], f_settlement
-            )
+            return self.basket[ctd_index].ytm(future_price * self.cfs[ctd_index], f_settlement)
 
     def npv(
         self,
@@ -5658,9 +5604,7 @@ class FRA(Sensitivities, BaseMixin):
 
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination = add_tenor(
-                effective, termination, self.modifier, self.calendar
-            )
+            termination = add_tenor(effective, termination, self.modifier, self.calendar)
 
         self.notional = defaults.notional if notional is None else notional
 
@@ -5887,9 +5831,7 @@ class BaseXCS(BaseDerivative):
             # later. If a fixing is given this means the notional is fixed without any
             # further sensitivity, hence the downcast to a float below.
             if isinstance(fx_fixings, FXForwards):
-                self.fx_fixings = float(
-                    fx_fixings.rate(self.pair, self.leg2.periods[0].payment)
-                )
+                self.fx_fixings = float(fx_fixings.rate(self.pair, self.leg2.periods[0].payment))
             elif isinstance(fx_fixings, FXRates):
                 self.fx_fixings = float(fx_fixings.rate(self.pair))
             elif isinstance(fx_fixings, (float, Dual, Dual2)):
@@ -6000,9 +5942,7 @@ class BaseXCS(BaseDerivative):
             getattr(self, f"leg{leg}").float_spread = float(rate)
         else:
             # this line should not be hit: internal code check
-            raise AttributeError(
-                "BaseXCS leg1 must be defined fixed or float."
-            )  # pragma: no cover
+            raise AttributeError("BaseXCS leg1 must be defined fixed or float.")  # pragma: no cover
 
     def npv(
         self,
@@ -6369,9 +6309,7 @@ class NonMtmXCS(BaseXCS):
             fx_rate,
             fx_settlement,
         )
-        leg1_analytic_delta = f_0 * self.leg1.analytic_delta(
-            curve_domestic, disc_curve_domestic
-        )
+        leg1_analytic_delta = f_0 * self.leg1.analytic_delta(curve_domestic, disc_curve_domestic)
         spread = npv / leg1_analytic_delta
         return spread
 
@@ -6978,9 +6916,7 @@ class XCS(BaseXCS):
             fx_rate,
             fx_settlement,
         )
-        leg1_analytic_delta = f_0 * self.leg1.analytic_delta(
-            curve_domestic, disc_curve_domestic
-        )
+        leg1_analytic_delta = f_0 * self.leg1.analytic_delta(curve_domestic, disc_curve_domestic)
         spread = npv / leg1_analytic_delta
         return spread
 
@@ -7371,9 +7307,7 @@ class FXSwap(BaseXCS):
         **kwargs,
     ):
         if fx_fixing is None and points is not None:
-            raise ValueError(
-                "Cannot set `points` on FXSwap without giving an `fx_fixing`."
-            )
+            raise ValueError("Cannot set `points` on FXSwap without giving an `fx_fixing`.")
         super().__init__(*args, **kwargs)
         if leg2_payment_lag_exchange == "inherit":
             leg2_payment_lag_exchange = payment_lag_exchange
@@ -7574,8 +7508,7 @@ class Spread(Sensitivities):
         leg2_npv = self.instrument2.npv(*args, **kwargs)
         if kwargs.get("local", False):
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)
             }
         else:
             return leg1_npv + leg2_npv
@@ -7877,9 +7810,7 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 
     if f0 < 0 and f1 < 0 and f2 < 0:
         # reassess initial values
-        return _ytm_quadratic_converger2(
-            f, 2 * y0 - y2, y1 - y2 + y0, y0, None, None, f0, tol
-        )
+        return _ytm_quadratic_converger2(f, 2 * y0 - y2, y1 - y2 + y0, y0, None, None, f0, tol)
     elif f0 > 0 and f1 > 0 and f2 > 0:
         return _ytm_quadratic_converger2(
             f, y2, y1 + 1 * (y2 - y0), y2 + 2 * (y2 - y0), f2, None, None, tol
@@ -7904,22 +7835,14 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         )  # pragma: no cover
     elif y0 < y <= y1:
         if (y - y0) < (y1 - y):
-            return _ytm_quadratic_converger2(
-                f, y0 - pad, y, 2 * y - y0 + pad, None, f_, None, tol
-            )
+            return _ytm_quadratic_converger2(f, y0 - pad, y, 2 * y - y0 + pad, None, f_, None, tol)
         else:
-            return _ytm_quadratic_converger2(
-                f, 2 * y - y1 - pad, y, y1 + pad, None, f_, None, tol
-            )
+            return _ytm_quadratic_converger2(f, 2 * y - y1 - pad, y, y1 + pad, None, f_, None, tol)
     elif y1 < y <= y2:
         if (y - y1) < (y2 - y):
-            return _ytm_quadratic_converger2(
-                f, y1 - pad, y, 2 * y - y1 + pad, None, f_, None, tol
-            )
+            return _ytm_quadratic_converger2(f, y1 - pad, y, 2 * y - y1 + pad, None, f_, None, tol)
         else:
-            return _ytm_quadratic_converger2(
-                f, 2 * y - y2 - pad, y, y2 + pad, None, f_, None, tol
-            )
+            return _ytm_quadratic_converger2(f, 2 * y - y2 - pad, y, y2 + pad, None, f_, None, tol)
     else:  # y2 < y:
         # line not hit due to reassessmemt of initial vars?
         return _ytm_quadratic_converger2(

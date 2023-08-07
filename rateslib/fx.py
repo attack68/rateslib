@@ -128,11 +128,7 @@ class FXRates:
         self.currencies = {
             k: i
             for i, k in enumerate(
-                list(
-                    dict.fromkeys(
-                        [p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]
-                    )
-                )
+                list(dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]))
             )
         }
         self.currencies_list = list(self.currencies.keys())
@@ -208,10 +204,7 @@ class FXRates:
             return self.copy()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
-            {
-                pair: self.rate(pair) if keep_ad else self.rate(pair).real
-                for pair in pairs
-            },
+            {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
             self.settlement,
         )
         return restated_fx_rates
@@ -338,9 +331,7 @@ class FXRates:
         if isinstance(value, (float, int)):
             value = Dual(value)
         base = self.base if base is None else base.lower()
-        _ = np.array(
-            [0 if ccy != base else float(value) for ccy in self.currencies_list]
-        )
+        _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = value.gradient(pair)[0]
@@ -588,9 +579,7 @@ class FXRates:
         return not self.__eq__(other)
 
     def copy(self):
-        return FXRates(
-            fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base
-        )
+        return FXRates(fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base)
 
 
 class FXForwards:
@@ -827,9 +816,7 @@ class FXForwards:
                     sub_curves = self._get_curves_for_currencies(
                         self.fx_curves, fx_rates_obj.currencies_list + pre_currencies
                     )
-                    acyclic_fxf = FXForwards(
-                        fx_rates=combined_fx_rates, fx_curves=sub_curves
-                    )
+                    acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
 
             if base is not None:
                 acyclic_fxf.base = base.lower()
@@ -868,9 +855,7 @@ class FXForwards:
     @staticmethod
     def _get_curves_for_currencies(fx_curves, currencies):
         ps = product(currencies, currencies)
-        ret = {
-            p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves
-        }
+        ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
         return ret
 
     @staticmethod
@@ -888,9 +873,7 @@ class FXForwards:
             try:
                 cash_idx, coll_idx = currencies[cash], currencies[coll]
             except KeyError:
-                raise ValueError(
-                    f"`fx_curves` contains an unexpected currency: {cash} or {coll}"
-                )
+                raise ValueError(f"`fx_curves` contains an unexpected currency: {cash} or {coll}")
             T[cash_idx, coll_idx] = 1
 
         if T.sum() > (2 * q) - 1:
@@ -1008,9 +991,7 @@ class FXForwards:
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
                 pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update(
-                    {pair: self.fx_rates.fx_array[row, col] * v_i / w_i}
-                )
+                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
         fx_rates_immediate = FXRates(fx_rates_immediate, self.immediate)
         return fx_rates_immediate.restate(self.fx_rates.pairs, keep_ad=True)
@@ -1065,9 +1046,7 @@ class FXForwards:
 
         """
 
-        def _get_d_f_idx_and_path(
-            pair, path: Optional[list[dict]]
-        ) -> tuple[int, int, list[dict]]:
+        def _get_d_f_idx_and_path(pair, path: Optional[list[dict]]) -> tuple[int, int, list[dict]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
@@ -1087,10 +1066,7 @@ class FXForwards:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
                 return rate_, path
             return rate_
-        elif (
-            isinstance(self.fx_rates, FXRates)
-            and settlement == self.fx_rates.settlement
-        ):
+        elif isinstance(self.fx_rates, FXRates) and settlement == self.fx_rates.settlement:
             rate_ = self.fx_rates.rate(pair)
             if return_path:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
@@ -1341,9 +1317,7 @@ class FXForwards:
         elif isinstance(array, DataFrame):
             array_ = array
         else:
-            array_ = DataFrame(
-                {self.immediate: np.asarray(array)}, index=self.currencies_list
-            )
+            array_ = DataFrame({self.immediate: np.asarray(array)}, index=self.currencies_list)
 
         # j = self.currencies[base]
         # return np.sum(array_ * self.fx_array[:, j])

@@ -182,9 +182,7 @@ class BaseLeg(metaclass=ABCMeta):
         self.currency = defaults.base_currency if currency is None else currency.lower()
 
         self.payment_lag_exchange = (
-            defaults.payment_lag_exchange
-            if payment_lag_exchange is None
-            else payment_lag_exchange
+            defaults.payment_lag_exchange if payment_lag_exchange is None else payment_lag_exchange
         )
         self.initial_exchange = initial_exchange
         self.final_exchange = final_exchange
@@ -347,10 +345,7 @@ class BaseLeg(metaclass=ABCMeta):
         bool
         """
         if "Float" in type(self).__name__:
-            if (
-                "rfr" in self.fixing_method
-                and self.spread_compound_method != "none_simple"
-            ):
+            if "rfr" in self.fixing_method and self.spread_compound_method != "none_simple":
                 return False
         return True
 
@@ -362,9 +357,7 @@ class BaseLeg(metaclass=ABCMeta):
         a, b = 0.0, 0.0
         for period in self.periods:
             try:
-                a_, b_ = period._get_analytic_delta_quadratic_coeffs(
-                    fore_curve, disc_curve
-                )
+                a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
                 a += a_
                 b += b_
             except AttributeError:
@@ -387,9 +380,7 @@ class BaseLeg(metaclass=ABCMeta):
 
         return _
 
-    def _spread_isda_dual2(
-        self, target_npv, fore_curve, disc_curve, fx=None
-    ):  # pragma: no cover
+    def _spread_isda_dual2(self, target_npv, fore_curve, disc_curve, fx=None):  # pragma: no cover
         # This method is unused and untested, superseded by _spread_isda_approx_rate
 
         # This method creates a dual2 variable for float spread and obtains derivatives automatically
@@ -434,8 +425,7 @@ class BaseLeg(metaclass=ABCMeta):
             # this is to avoid divide by zero errors and return an approximation
             _ = _1
             warnings.warn(
-                "Divide by zero encountered and the spread is approximated to "
-                "first order.",
+                "Divide by zero encountered and the spread is approximated to " "first order.",
                 UserWarning,
             )
 
@@ -660,9 +650,7 @@ class FloatLegMixin:
                 )
                 for i in range(self.schedule.n_periods)
             ]
-            fixings = [
-                fixings if last_fixing >= day else None for day in first_required_day
-            ]
+            fixings = [fixings if last_fixing >= day else None for day in first_required_day]
         elif not isinstance(fixings, list):
             fixings = [fixings]
 
@@ -1215,10 +1203,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
         a_sum = 0.0
         for period in self.periods:
-            _ = (
-                period.analytic_delta(curve, disc_curve_, fx, base)
-                / disc_curve_[period.payment]
-            )
+            _ = period.analytic_delta(curve, disc_curve_, fx, base) / disc_curve_[period.payment]
             _ *= compounded_rate / (1 + period.dcf * period.rate(curve) / 100)
             a_sum += _
         a_sum *= disc_curve_[self.schedule.pschedule[-1]] * fx
@@ -1240,9 +1225,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
         rate = None if curve is None else float(self.rate(curve))
-        cashflow = (
-            None if rate is None else -float(self.notional * self.dcf * rate / 100)
-        )
+        cashflow = None if rate is None else -float(self.notional * self.dcf * rate / 100)
         if disc_curve is None or rate is None:
             npv, npv_fx = None, None
         else:
@@ -1348,9 +1331,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         self._fixed_rate = value
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         if value is not None:
-            period_rate = (
-                100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
-            )
+            period_rate = 100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
         else:
             period_rate = None
 
@@ -1522,9 +1503,7 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         index_lag: Optional[int] = None,
         **kwargs,
     ):
-        self.index_method = (
-            defaults.index_method if index_method is None else index_method.lower()
-        )
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
@@ -1691,9 +1670,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
     ) -> None:
         self._fixed_rate = fixed_rate
         self.index_lag = defaults.index_lag if index_lag is None else index_lag
-        self.index_method = (
-            defaults.index_method if index_method is None else index_method.lower()
-        )
+        self.index_method = defaults.index_method if index_method is None else index_method.lower()
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)
@@ -1773,8 +1750,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         if self.final_exchange:
             self.periods.append(
                 IndexCashflow(
-                    notional=self.notional
-                    - self.amortization * (self.schedule.n_periods - 1),
+                    notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
                     payment=add_tenor(
                         self.schedule.aschedule[-1],
                         f"{self.payment_lag_exchange}B",
@@ -1847,9 +1823,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         kwargs["final_exchange"] = True
         super().__init__(*args, **kwargs)
         if self.amortization != 0:
-            raise ValueError(
-                "`amortization` cannot be supplied to a `FixedLegExchangeMtm` type."
-            )
+            raise ValueError("`amortization` cannot be supplied to a `FixedLegExchangeMtm` type.")
         self.fx_fixings = fx_fixings  # calls the setter
 
     @property
@@ -1994,9 +1968,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             )
             for i in range(len(fx_fixings) - 1)
         ]
-        interleaved_periods = [
-            val for pair in zip(regular_periods, mtm_flows) for val in pair
-        ]
+        interleaved_periods = [val for pair in zip(regular_periods, mtm_flows) for val in pair]
         interleaved_periods.append(regular_periods[-1])
         self.periods.extend(interleaved_periods)
 
@@ -2278,12 +2250,9 @@ class CustomLeg(BaseLeg):
     """
 
     def __init__(self, periods):
-        if not all(
-            isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods
-        ):
+        if not all(isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods):
             raise ValueError(
-                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, "
-                "Cashflow}."
+                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}."
             )
         self._set_periods(periods)
 

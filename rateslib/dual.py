@@ -21,9 +21,7 @@ class DualBase(metaclass=ABCMeta):
     dual: np.ndarray = np.zeros(0)
     dual2: np.ndarray = np.zeros(0)
 
-    def __init__(
-        self, real: float, vars: tuple[str, ...] = tuple()
-    ) -> None:  # pragma: no cover
+    def __init__(self, real: float, vars: tuple[str, ...] = tuple()) -> None:  # pragma: no cover
         # each dual overloads init
         self.real: float = real
         self.vars: tuple[str, ...] = vars
@@ -318,8 +316,7 @@ class Dual2(DualBase):
             math.log(self.real),
             self.vars,
             self.dual / self.real,
-            self.dual2 / self.real
-            - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2,
+            self.dual2 / self.real - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2,
         )
 
     def __upcast_vars__(self, new_vars):
@@ -332,9 +329,7 @@ class Dual2(DualBase):
     def __downcast_vars__(self):
         """removes variables where first and second order sensitivity is zero"""
         ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
-        ix2_ = np.where(~np.isclose(self.dual2.sum(axis=0), 0, atol=PRECISION))[
-            0
-        ]
+        ix2_ = np.where(~np.isclose(self.dual2.sum(axis=0), 0, atol=PRECISION))[0]
         ixu = np.union1d(ix_, ix2_)
         new_vars = [self.vars[i] for i in ixu]
         return Dual2(self.real, new_vars, self.dual[ixu], self.dual2[np.ix_(ixu, ixu)])
@@ -392,9 +387,7 @@ class Dual(DualBase):
         else:
             self.vars = tuple(vars)
         n = len(self.vars)
-        self.dual: np.ndarray = (
-            np.asarray(dual.copy()) if dual is not None else np.ones(n)
-        )
+        self.dual: np.ndarray = np.asarray(dual.copy()) if dual is not None else np.ones(n)
 
     @property
     def dual2(self):
@@ -440,9 +433,7 @@ class Dual(DualBase):
             if isinstance(argument, np.ndarray):
                 return argument * self
             elif isinstance(argument, (*FLOATS, *INTS)):
-                return Dual(
-                    self.real * float(argument), self.vars, self.dual * float(argument)
-                )
+                return Dual(self.real * float(argument), self.vars, self.dual * float(argument))
             raise TypeError("Dual operations defined between float, int or Dual.")
 
         if self.vars == argument.vars:
@@ -463,9 +454,7 @@ class Dual(DualBase):
                 return argument.__rtruediv__(self)
             if not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError("Dual operations defined between float, int or Dual.")
-            return Dual(
-                self.real / float(argument), self.vars, self.dual / float(argument)
-            )
+            return Dual(self.real / float(argument), self.vars, self.dual / float(argument))
         if self.vars == argument.vars:
             return self * argument**-1
         else:
@@ -747,9 +736,7 @@ def set_order_convert(val, order, tag):
     elif isinstance(val, (Dual, Dual2)):
         if order == 0:
             return float(val)
-        elif (order == 1 and isinstance(val, Dual)) or (
-            order == 2 and isinstance(val, Dual2)
-        ):
+        elif (order == 1 and isinstance(val, Dual)) or (order == 2 and isinstance(val, Dual2)):
             return val
         else:
             return val._set_order(order)

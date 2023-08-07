@@ -27,9 +27,7 @@ Pentecost = Holiday("PenteCost", month=1, day=1, offset=[Easter(), Day(49)])
 WhitMonday = Holiday("Whit Monday", month=1, day=1, offset=[Easter(), Day(50)])
 ChristmasEve = Holiday("Christmas Eve", month=12, day=24)
 ChristmasDay = Holiday("Christmas Day", month=12, day=25)
-ChristmasDayHoliday = Holiday(
-    "Christmas Day Holiday", month=12, day=25, observance=next_monday
-)
+ChristmasDayHoliday = Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday)
 ChristmasDayNearestHoliday = Holiday(
     "Christmas Day Sunday Holiday", month=12, day=25, observance=nearest_workday
 )
@@ -39,9 +37,7 @@ BoxingDayHoliday = Holiday(
 )
 NewYearsEve = Holiday("New Year's Eve", month=12, day=31)
 NewYearsDay = Holiday("New Year's Day", month=1, day=1)
-NewYearsDayHoliday = Holiday(
-    "New Year's Day Holiday", month=1, day=1, observance=next_monday
-)
+NewYearsDayHoliday = Holiday("New Year's Day Holiday", month=1, day=1, observance=next_monday)
 NewYearsDaySundayHoliday = Holiday(
     "New Year's Day Holiday", month=1, day=1, observance=sunday_to_monday
 )
@@ -55,12 +51,8 @@ USMartinLutherKingJr = Holiday(
     day=1,
     offset=DateOffset(weekday=MO(3)),  # type: ignore[arg-type]
 )
-USPresidentsDay = Holiday(
-    "US President" "s Day", month=2, day=1, offset=DateOffset(weekday=MO(3))  # type: ignore[arg-type]
-)
-USMemorialDay = Holiday(
-    "US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
-)
+USPresidentsDay = Holiday("US President" "s Day", month=2, day=1, offset=DateOffset(weekday=MO(3)))  # type: ignore[arg-type]
+USMemorialDay = Holiday("US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1)))  # type: ignore[arg-type]
 USJuneteenthSundayHoliday = Holiday(
     "Juneteenth Independence Day",
     start_date=datetime(2022, 1, 1),
@@ -72,15 +64,9 @@ USIndependenceDayHoliday = Holiday(
     "US Independence Day", month=7, day=4, observance=nearest_workday
 )
 USLabourDay = Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
-USColumbusDay = Holiday(
-    "US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2))  # type: ignore[arg-type]
-)
-USVeteransDaySundayHoliday = Holiday(
-    "Veterans Day", month=11, day=11, observance=sunday_to_monday
-)
-USThanksgivingDay = Holiday(
-    "US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4))  # type: ignore[arg-type]
-)
+USColumbusDay = Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
+USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
+USThanksgivingDay = Holiday("US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4)))  # type: ignore[arg-type]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -115,9 +101,7 @@ UKSummerBankHoliday = Holiday(
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
 SENational = Holiday("Sweden National Day", month=6, day=6)
 CHNational = Holiday("Swiss National Day", month=8, day=1)
-MidsummerFriday = Holiday(
-    "Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1))  # type: ignore[arg-type]
-)
+MidsummerFriday = Holiday("Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1)))  # type: ignore[arg-type]
 NOConstitutionDay = Holiday("NO Constitution Day", month=5, day=17)
 
 CALENDAR_RULES: Dict[str, list[Any]] = {
@@ -694,9 +678,7 @@ def add_tenor(
     elif "M" in tenor:
         return _add_months(start, int(tenor[:-1]), modifier, calendar)
     else:
-        raise ValueError(
-            "`tenor` must identify frequency in {'B', 'D', 'M', 'Y'} e.g. '1Y'"
-        )
+        raise ValueError("`tenor` must identify frequency in {'B', 'D', 'M', 'Y'} e.g. '1Y'")
 
 
 def _add_months(
@@ -830,9 +812,7 @@ def dcf(
     end: datetime,
     convention: str,
     termination: Optional[datetime] = None,  # required for 30E360ISDA and ActActICMA
-    frequency_months: Optional[
-        int
-    ] = None,  # required for ActActICMA = ActActISMA = ActActBond
+    frequency_months: Optional[int] = None,  # req. ActActICMA = ActActISMA = ActActBond
     stub: Optional[bool] = None,  # required for ActActICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -915,100 +895,135 @@ def dcf(
 
     """
     convention = convention.upper()
-    if convention == "ACT365F":
-        return (end - start) / timedelta(days=365)
-    elif convention == "ACT360":
-        return (end - start) / timedelta(days=360)
-    elif convention in ["30360", "360360", "BONDBASIS"]:
-        ds = min(30, start.day)
-        de = min(ds, end.day) if ds == 30 else end.day
-        y, m = end.year - start.year, (end.month - start.month) / 12
-        return y + m + (de - ds) / 360
-    elif convention in ["30E360", "EUROBONDBASIS"]:
-        ds, de = min(30, start.day), min(30, end.day)
-        y, m = end.year - start.year, (end.month - start.month) / 12
-        return y + m + (de - ds) / 360
-    elif convention == "30E360ISDA":
-        if termination is None:
-            raise ValueError(
-                "`termination` must be supplied with specified `convention`."
-            )
-
-        def _is_end_feb(date):
-            if date.month == 2:
-                _, end_feb = calendar_mod.monthrange(date.year, 2)
-                return date.day == end_feb
-            return False
-
-        ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
-        de = (
-            30
-            if (end.day == 31 or (_is_end_feb(end) and end != termination))
-            else end.day
-        )
-        y, m = end.year - start.year, (end.month - start.month) / 12
-        return y + m + (de - ds) / 360
-    elif convention in ["ACTACT", "ACTACTISDA"]:
-        if start == end:
-            return 0.0
-
-        start_date = datetime.combine(start, datetime.min.time())
-        end_date = datetime.combine(end, datetime.min.time())
-
-        year_1_diff = 366 if calendar_mod.isleap(start_date.year) else 365
-        year_2_diff = 366 if calendar_mod.isleap(end_date.year) else 365
-
-        total_sum: float = end.year - start.year - 1
-        total_sum += (datetime(start.year + 1, 1, 1) - start_date).days / year_1_diff
-        total_sum += (end_date - datetime(end.year, 1, 1)).days / year_2_diff
-        return total_sum
-    elif convention in ["ACTACTICMA", "ACTACTISMA", "ACTACTBOND"]:
-        if frequency_months is None:
-            raise ValueError(
-                "`frequency_months` must be supplied with specified `convention`."
-            )
-        if termination is None:
-            raise ValueError(
-                "`termination` must be supplied with specified `convention`."
-            )
-        if stub is None:
-            raise ValueError("`stub` must be supplied with specified `convention`.")
-        if not stub:
-            return frequency_months / 12
-        else:
-            if end == termination:  # stub is a BACK stub:
-                fwd_end = _add_months(start, frequency_months, None, None)
-                fraction = 0.0
-                if end > fwd_end:  # stub is LONG
-                    fraction += 1
-                    fraction += (end - fwd_end) / (
-                        _add_months(start, 2 * frequency_months, None, None) - fwd_end
-                    )
-                else:
-                    fraction += (end - start) / (fwd_end - start)
-                return fraction * frequency_months / 12
-            else:  # stub is a FRONT stub
-                prev_start = _add_months(end, -frequency_months, None, None)
-                fraction = 0
-                if start < prev_start:  # stub is LONG
-                    fraction += 1
-                    fraction += (prev_start - start) / (
-                        prev_start - _add_months(end, -2 * frequency_months, None, None)
-                    )
-                else:
-                    fraction += (end - start) / (end - prev_start)
-                return fraction * frequency_months / 12
-    elif convention == "1":
-        return 1.0
-    elif convention == "1+":
-        return end.year - start.year + (end.month - start.month) / 12
-    else:
+    try:
+        return _DCF[convention](start, end, termination, frequency_months, stub)
+    except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
             "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
             "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
             "'ActActISMA', 'ActActBond'}"
         )
+
+
+def _dcf_act365f(start: datetime, end: datetime, *args):
+    return (end - start) / timedelta(days=365)
+
+
+def _dcf_act360(start: datetime, end: datetime, *args):
+    return (end - start) / timedelta(days=360)
+
+
+def _dcf_30360(start: datetime, end: datetime, *args):
+    ds = min(30, start.day)
+    de = min(ds, end.day) if ds == 30 else end.day
+    y, m = end.year - start.year, (end.month - start.month) / 12
+    return y + m + (de - ds) / 360
+
+
+def _dcf_30e360(start: datetime, end: datetime, *args):
+    ds, de = min(30, start.day), min(30, end.day)
+    y, m = end.year - start.year, (end.month - start.month) / 12
+    return y + m + (de - ds) / 360
+
+
+def _dcf_30e360isda(start: datetime, end: datetime, termination: Optional[datetime], *args):
+    if termination is None:
+        raise ValueError("`termination` must be supplied with specified `convention`.")
+
+    def _is_end_feb(date):
+        if date.month == 2:
+            _, end_feb = calendar_mod.monthrange(date.year, 2)
+            return date.day == end_feb
+        return False
+
+    ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
+    de = 30 if (end.day == 31 or (_is_end_feb(end) and end != termination)) else end.day
+    y, m = end.year - start.year, (end.month - start.month) / 12
+    return y + m + (de - ds) / 360
+
+
+def _dcf_actactisda(start: datetime, end: datetime, *args):
+    if start == end:
+        return 0.0
+
+    start_date = datetime.combine(start, datetime.min.time())
+    end_date = datetime.combine(end, datetime.min.time())
+
+    year_1_diff = 366 if calendar_mod.isleap(start_date.year) else 365
+    year_2_diff = 366 if calendar_mod.isleap(end_date.year) else 365
+
+    total_sum: float = end.year - start.year - 1
+    total_sum += (datetime(start.year + 1, 1, 1) - start_date).days / year_1_diff
+    total_sum += (end_date - datetime(end.year, 1, 1)).days / year_2_diff
+    return total_sum
+
+
+def _dcf_actacticma(
+    start: datetime,
+    end: datetime,
+    termination: Optional[datetime],
+    frequency_months: Optional[int],
+    stub: Optional[bool],
+):
+    if frequency_months is None:
+        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
+    if termination is None:
+        raise ValueError("`termination` must be supplied with specified `convention`.")
+    if stub is None:
+        raise ValueError("`stub` must be supplied with specified `convention`.")
+    if not stub:
+        return frequency_months / 12
+    else:
+        if end == termination:  # stub is a BACK stub:
+            fwd_end = _add_months(start, frequency_months, None, None)
+            fraction = 0.0
+            if end > fwd_end:  # stub is LONG
+                fraction += 1
+                fraction += (end - fwd_end) / (
+                    _add_months(start, 2 * frequency_months, None, None) - fwd_end
+                )
+            else:
+                fraction += (end - start) / (fwd_end - start)
+            return fraction * frequency_months / 12
+        else:  # stub is a FRONT stub
+            prev_start = _add_months(end, -frequency_months, None, None)
+            fraction = 0
+            if start < prev_start:  # stub is LONG
+                fraction += 1
+                fraction += (prev_start - start) / (
+                    prev_start - _add_months(end, -2 * frequency_months, None, None)
+                )
+            else:
+                fraction += (end - start) / (end - prev_start)
+            return fraction * frequency_months / 12
+
+
+def _dcf_1(*args):
+    return 1.0
+
+
+def _dcf_1plus(start: datetime, end: datetime, *args):
+    return end.year - start.year + (end.month - start.month) / 12
+
+
+_DCF = {
+    "ACT365F": _dcf_act365f,
+    "ACT360": _dcf_act360,
+    "30360": _dcf_30360,
+    "360360": _dcf_30360,
+    "BONDBASIS": _dcf_30360,
+    "30E360": _dcf_30e360,
+    "EUROBONDBASIS": _dcf_30e360,
+    "30E360ISDA": _dcf_30e360isda,
+    "ACTACT": _dcf_actactisda,
+    "ACTACTISDA": _dcf_30e360isda,
+    "ACTACTICMA": _dcf_actacticma,
+    "ACTACTISMA": _dcf_actacticma,
+    "ACTACTBOND": _dcf_actacticma,
+    "1": _dcf_1,
+    "1+": _dcf_1plus,
+}
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

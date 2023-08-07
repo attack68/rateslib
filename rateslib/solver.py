@@ -63,8 +63,7 @@ class Gradients:
         if self._J2 is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is "
-                    f"{self._ad}."
+                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}."
                 )
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
@@ -222,8 +221,7 @@ class Gradients:
         if self._J2_pre is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is "
-                    f"{self._ad}."
+                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}."
                 )
 
             J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
@@ -259,10 +257,7 @@ class Gradients:
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
         all_gradients = np.array(
-            [
-                rate.gradient(self.pre_variables + tuple(fx_vars), order=2)
-                for rate in self.r_pre
-            ]
+            [rate.gradient(self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre]
         ).swapaxes(0, 2)
 
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
@@ -283,9 +278,9 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        grad_f_f_rT = np.array(
-            [rate.gradient(fx_vars, order=2) for rate in self.r_pre]
-        ).swapaxes(0, 2)
+        grad_f_f_rT = np.array([rate.gradient(fx_vars, order=2) for rate in self.r_pre]).swapaxes(
+            0, 2
+        )
         return grad_f_f_rT
 
     @property
@@ -302,9 +297,7 @@ class Gradients:
             return self.grad_s_s_vT
 
         if self._grad_s_s_vT_pre is None:
-            self._grad_s_s_vT_pre = self._grad_s_s_vT_final_iteration_analytical(
-                use_pre=True
-            )
+            self._grad_s_s_vT_pre = self._grad_s_s_vT_final_iteration_analytical(use_pre=True)
         return self._grad_s_s_vT_pre
 
     @property
@@ -329,9 +322,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        _ = -np.tensordot(
-            self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)
-        ).swapaxes(1, 2)
+        _ = -np.tensordot(self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)).swapaxes(1, 2)
         _ = np.tensordot(_, self.grad_s_vT_pre, (2, 0))
         grad_f_s_vT = _
         return grad_f_s_vT
@@ -352,9 +343,7 @@ class Gradients:
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
-        _ -= np.tensordot(
-            self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1)
-        )
+        _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
         grad_f_f_vT = _
         return grad_f_f_vT
 
@@ -393,9 +382,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities
         """
         grad_f_f = f.gradient(fx_vars)
-        grad_f_f += np.matmul(
-            self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables)
-        )
+        grad_f_f += np.matmul(self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables))
         return grad_f_f
 
     @property
@@ -421,9 +408,7 @@ class Gradients:
                 grad_s_vT[i : i + m, j : j + n] = pre_solver.grad_s_vT_pre
 
                 # create the right column dependencies
-                grad_v_r = np.array(
-                    [r.gradient(pre_solver.pre_variables) for r in self.r]
-                ).T
+                grad_v_r = np.array([r.gradient(pre_solver.pre_variables) for r in self.r]).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
                 grad_s_vT[i : i + m, -self.m :] = block
@@ -582,9 +567,7 @@ class Gradients:
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
         grad_f_P = npv.gradient(fx_vars)
-        grad_f_P += np.matmul(
-            self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables)
-        )
+        grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables))
         return grad_f_P
 
     def grad_s_Pbase(self, npv, grad_s_P, f):
@@ -604,9 +587,7 @@ class Gradients:
             f : Dual or Dual2
                 The local:base FX rate.
         """
-        grad_s_Pbas = float(npv) * np.matmul(
-            self.grad_s_vT_pre, f.gradient(self.pre_variables)
-        )
+        grad_s_Pbas = float(npv) * np.matmul(self.grad_s_vT_pre, f.gradient(self.pre_variables))
         grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
         return grad_s_Pbas
 
@@ -647,14 +628,10 @@ class Gradients:
                 A local currency NPV of a period of a leg.
         """
         # instrument-instrument cross gamma:
-        _ = np.tensordot(
-            npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1)
-        )
+        _ = np.tensordot(npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1))
         _ = np.tensordot(self.grad_s_vT_pre, _, (1, 0))
 
-        _ += np.tensordot(
-            self.grad_s_s_vT_pre, npv.gradient(self.pre_variables), (2, 0)
-        )
+        _ += np.tensordot(self.grad_s_s_vT_pre, npv.gradient(self.pre_variables), (2, 0))
         grad_s_sT_P = _
         return grad_s_sT_P
         # grad_s_sT_P = np.matmul(
@@ -709,9 +686,7 @@ class Gradients:
         )
         _ += self.gradp_f_vT_Ploc(npv, fx_vars)
         _ = np.tensordot(_, self.grad_s_vT_pre, (1, 1))
-        _ += np.tensordot(
-            self.grad_f_s_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 0)
-        )
+        _ += np.tensordot(self.grad_f_s_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 0))
         grad_f_sT_Ploc = _
         return grad_f_sT_Ploc
 
@@ -959,9 +934,7 @@ class Solver(Gradients):
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
-        if len(set([self.id] + [p.id for p in self.pre_solvers])) < 1 + len(
-            self.pre_solvers
-        ):
+        if len(set([self.id] + [p.id for p in self.pre_solvers])) < 1 + len(self.pre_solvers):
             raise ValueError(
                 "Solver `id`s must be unique when supplying `pre_solvers`, "
                 f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}"
@@ -998,9 +971,7 @@ class Solver(Gradients):
         self.variables = ()
         for curve in self.curves.values():
             curve._set_ad_order(1)  # solver uses gradients in optimisation
-            curve_vars = tuple(
-                (f"{curve.id}{i}" for i in range(curve._ini_solve, curve.n))
-            )
+            curve_vars = tuple((f"{curve.id}{i}" for i in range(curve._ini_solve, curve.n)))
             self.variables += curve_vars
         self.n = len(self.variables)
 
@@ -1037,9 +1008,7 @@ class Solver(Gradients):
                     "specified as a variable in one solver."
                 )
         self.pre_variables += self.variables
-        self.pre_instrument_labels += tuple(
-            (self.id, lbl) for lbl in self.instrument_labels
-        )
+        self.pre_instrument_labels += tuple((self.id, lbl) for lbl in self.instrument_labels)
 
         # Final elements
         self._ad = 1
@@ -1223,9 +1192,7 @@ class Solver(Gradients):
 
         _ = Series(
             self.x.astype(float) * 100 / self.rate_scalars,
-            index=MultiIndex.from_tuples(
-                [(self.id, inst) for inst in self.instrument_labels]
-            ),
+            index=MultiIndex.from_tuples([(self.id, inst) for inst in self.instrument_labels]),
         )
         if s is None:
             s = _
@@ -1330,10 +1297,7 @@ class Solver(Gradients):
             # condition is set to less than to avoid the case where a null update
             # results in the same solution and this is erroneously categorised
             # as a converged solution.
-            if (
-                self.g.real < self.g_prev
-                and (self.g_prev - self.g.real) < self.conv_tol
-            ):
+            if self.g.real < self.g_prev and (self.g_prev - self.g.real) < self.conv_tol:
                 print(
                     f"SUCCESS: `conv_tol` reached after {i} iterations "
                     f"({self.algorithm}), `f_val`: {self.g.real}, "
@@ -1452,12 +1416,8 @@ class Solver(Gradients):
         fx_scalar = 0.0001
         container = {}
         for ccy in npv:
-            container[("instruments", ccy, ccy)] = (
-                self.grad_s_Ploc(npv[ccy]) * inst_scalar
-            )
-            container[("fx", ccy, ccy)] = (
-                self.grad_f_Ploc(npv[ccy], fx_vars) * fx_scalar
-            )
+            container[("instruments", ccy, ccy)] = self.grad_s_Ploc(npv[ccy]) * inst_scalar
+            container[("fx", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], fx_vars) * fx_scalar
 
             if base is not None and base != ccy:
                 # extend the derivatives
@@ -1469,9 +1429,7 @@ class Solver(Gradients):
                     * inst_scalar
                 )
                 container[("fx", ccy, base)] = (
-                    self.grad_f_Pbase(
-                        npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars
-                    )
+                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
                     * fx_scalar
                 )
 
@@ -1491,9 +1449,7 @@ class Solver(Gradients):
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
         if base is not None:
-            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(
-                axis=1
-            )
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
@@ -1666,24 +1622,20 @@ class Solver(Gradients):
             container[(ccy, ccy)]["instruments", "fx"] = container[(ccy, ccy)][
                 ("fx", "instruments")
             ].T
-            container[(ccy, ccy)]["fx", "fx"] = self.grad_f_fT_Ploc(
-                npv[ccy], fx_vars
-            ) * np.matmul(fx_scalar[:, None], fx_scalar[None, :])
+            container[(ccy, ccy)]["fx", "fx"] = self.grad_f_fT_Ploc(npv[ccy], fx_vars) * np.matmul(
+                fx_scalar[:, None], fx_scalar[None, :]
+            )
 
             if base is not None and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[(ccy, base)] = {}
-                container[(ccy, base)][
-                    "instruments", "instruments"
-                ] = self.grad_s_sT_Pbase(
+                container[(ccy, base)]["instruments", "instruments"] = self.grad_s_sT_Pbase(
                     npv[ccy],
                     container[(ccy, ccy)]["instruments", "instruments"]
                     / np.matmul(inst_scalar[:, None], inst_scalar[None, :]),
                     f,
-                ) * np.matmul(
-                    inst_scalar[:, None], inst_scalar[None, :]
-                )
+                ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
                 container[(ccy, base)]["fx", "instruments"] = self.grad_f_sT_Pbase(
                     npv[ccy],
                     container[(ccy, ccy)]["fx", "instruments"]
@@ -1818,9 +1770,7 @@ class Solver(Gradients):
         )
         self._reset_properties_()
         self.iterate()
-        rates = np.array(
-            [_[0].rate(*_[1], **{"solver": self, **_[2]}) for _ in solver.instruments]
-        )
+        rates = np.array([_[0].rate(*_[1], **{"solver": self, **_[2]}) for _ in solver.instruments])
         grad_v_rT = np.array([_.gradient(self.variables) for _ in rates]).T
         return DataFrame(
             np.matmul(self.grad_s_vT, grad_v_rT),

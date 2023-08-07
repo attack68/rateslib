@@ -53,9 +53,7 @@ class Serialize:
 
         container = {
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolation
-            if isinstance(self.interpolation, str)
-            else None,
+            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
             "t": t,
             "c": self.spline.c if self.c_init else None,
             "id": self.id,
@@ -66,9 +64,7 @@ class Serialize:
             "ad": self.ad,
         }
         if type(self) is IndexCurve:
-            container.update(
-                {"index_base": self.index_base, "index_lag": self.index_lag}
-            )
+            container.update({"index_base": self.index_base, "index_lag": self.index_lag})
 
         if self.calendar_type == "null":
             container.update({"calendar": None})
@@ -80,10 +76,8 @@ class Serialize:
                     "calendar": {
                         "weekmask": self.calendar.weekmask,
                         "holidays": [
-                            d.item().strftime(
-                                "%Y-%m-%d"
-                            )  # numpy/pandas timestamp to py
-                            for d in self.calendar.holidays
+                            d.item().strftime("%Y-%m-%d")
+                            for d in self.calendar.holidays  # numpy/pandas timestamp to py
                         ],
                     }
                 }
@@ -117,8 +111,7 @@ class Serialize:
                 return Holiday("", year=d.year, month=d.month, day=d.day)
 
             dates = [
-                parse(datetime.strptime(d, "%Y-%m-%d"))
-                for d in serial["calendar"]["holidays"]
+                parse(datetime.strptime(d, "%Y-%m-%d")) for d in serial["calendar"]["holidays"]
             ]
             serial["calendar"] = create_calendar(
                 rules=dates, weekmask=serial["calendar"]["weekmask"]
@@ -407,9 +400,7 @@ class Curve(Serialize, PlotCurve):
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
-        self.interpolation = (
-            interpolation or defaults.interpolation[type(self).__name__]
-        )
+        self.interpolation = interpolation or defaults.interpolation[type(self).__name__]
 
         # Parameters for the rate derivation
         self.convention = convention or defaults.convention
@@ -552,9 +543,7 @@ class Curve(Serialize, PlotCurve):
         try:
             _ = (df_ratio - 1) / dcf(effective, termination, self.convention) * 100
         except ZeroDivisionError:
-            raise ZeroDivisionError(
-                f"effective: {effective}, termination: {termination}"
-            )
+            raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
 
         if float_spread is not None and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
@@ -901,9 +890,7 @@ class Curve(Serialize, PlotCurve):
                 for i in range(4):
                     new_t[i] = start  # adjust left side of t to start
         elif self.t and self.t[4] <= start:
-            raise ValueError(
-                "Cannot translate spline knots for given `start`, review the docs."
-            )
+            raise ValueError("Cannot translate spline knots for given `start`, review the docs.")
 
         kwargs = {}
         if type(self) is IndexCurve:
@@ -944,9 +931,7 @@ class Curve(Serialize, PlotCurve):
         on_rate = self.rate(self.node_dates[0], "1d", None)
         d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
         scalar = 1 / ((1 + on_rate * d / 100) ** days)
-        new_nodes = {
-            k + timedelta(days=days): v * scalar for k, v in self.nodes.items()
-        }
+        new_nodes = {k + timedelta(days=days): v * scalar for k, v in self.nodes.items()}
         if tenor > self.node_dates[0]:
             new_nodes = {self.node_dates[0]: 1.0, **new_nodes}
         return new_nodes
@@ -1193,12 +1178,8 @@ class LineCurve(Curve):
 
     """
 
-    _op_exp = staticmethod(
-        lambda x: x
-    )  # LineCurve spline is not log based so no exponent needed
-    _op_log = staticmethod(
-        lambda x: x
-    )  # LineCurve spline is not log based so no log needed
+    _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
+    _op_log = staticmethod(lambda x: x)  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = "values"
 
@@ -1623,9 +1604,7 @@ class IndexCurve(Curve):
         elif interpolation.lower() == "monthly":
             date_ = datetime(date.year, date.month, 1)
         else:
-            raise ValueError(
-                "`interpolation` for `index_value` must be in {'daily', 'monthly'}."
-            )
+            raise ValueError("`interpolation` for `index_value` must be in {'daily', 'monthly'}.")
         if date_ < self.node_dates[0]:
             return 0.0
             # return zero for index dates in the past
@@ -2038,9 +2017,9 @@ class CompositeCurve(PlotCurve):
                     date_ = term_
                 _ = 100 * (_ - 1) / dcf_
         else:
-            raise TypeError(  # pragma: no cover
+            raise TypeError(
                 f"Base curve type is unrecognised: {self._base_type}"
-            )
+            )  # pragma: no cover
 
         return _
 
@@ -2064,9 +2043,7 @@ class CompositeCurve(PlotCurve):
                 d1 = self.curves[0].node_dates[0]
 
                 def _get_step(step):
-                    return min(
-                        max(step, self.multi_csa_min_step), self.multi_csa_max_step
-                    )
+                    return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
 
                 d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
                 # cache stores looked up DF values to next loop, avoiding double calc
@@ -2104,9 +2081,9 @@ class CompositeCurve(PlotCurve):
             return _
 
         else:
-            raise TypeError(  # pragma: no cover
+            raise TypeError(
                 f"Base curve type is unrecognised: {self._base_type}"
-            )
+            )  # pragma: no cover
 
     def shift(self, spread: float) -> CompositeCurve:
         """
@@ -2213,9 +2190,7 @@ class CompositeCurve(PlotCurve):
         elif interpolation.lower() == "monthly":
             date_ = datetime(date.year, date.month, 1)
         else:
-            raise ValueError(
-                "`interpolation` for `index_value` must be in {'daily', 'monthly'}."
-            )
+            raise ValueError("`interpolation` for `index_value` must be in {'daily', 'monthly'}.")
         if date_ < self.node_dates[0]:
             return 0.0
             # return zero for index dates in the past
@@ -2294,9 +2269,7 @@ class ProxyCurve(Curve):
         self.path = self.fx_forwards._get_recursive_chain(
             self.fx_forwards.transform, self.coll_idx, self.cash_idx
         )[1]
-        self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[
-            -1
-        ]
+        self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 
         default_curve = Curve(
             {},
@@ -2519,9 +2492,7 @@ def index_left(
 
     """
     if list_length == 1:
-        raise ValueError(
-            "`index_left` designed for intervals. Cannot index list of length 1."
-        )
+        raise ValueError("`index_left` designed for intervals. Cannot index list of length 1.")
 
     if list_length == 2:
         return left_count
@@ -2533,9 +2504,7 @@ def index_left(
     if value <= list_input[split]:
         return index_left(list_input[: split + 1], split + 1, value, left_count)
     else:
-        return index_left(
-            list_input[split:], list_length - split, value, left_count + split
-        )
+        return index_left(list_input[split:], list_length - split, value, left_count + split)
 
 
 # # ALTERNATIVE index_left: exhaustive search which is inferior to binary search

@@ -12,7 +12,9 @@ exclude =
     docs/source/conf.py,
     old,
     build,
-    dist
+    dist,
+    bench,
+    benchmarks
 max-line-length = 127
 extend-ignore = E203, W605, E501
 per-file-ignores =
