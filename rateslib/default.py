@@ -18,7 +18,7 @@ class Fixings:
         if version.parse(pandas.__version__) < version.parse("2.0"):
             # TODO remove when pandas min version is bumped to 2.0
             df = read_csv(target)
-            df["reference_date"] = df["reference_date"].map(lambda x: datetime.strptime(x, "%d-%b-%Y"))
+            df["reference_date"] = df["reference_date"].map(lambda x: datetime.strptime(x, "%d-%m-%Y"))
             df = df.set_index("reference_rate")
         else:
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
