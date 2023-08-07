@@ -209,12 +209,12 @@ def test_fxforwards_set_order_list(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur, "usdgbp": usdeur.copy(), "gbpgbp": eureur.copy()},
     )
     fxf._set_ad_order(order=2)
-    expected = np.array(
-        [
-            Dual2(1.0, "fx_usdeur", [0.0]),
-            Dual2(2.0, "fx_usdeur", [1.0]),
-        ]
-    )
+    # expected = np.array(
+    #     [
+    #         Dual2(1.0, "fx_usdeur", [0.0]),
+    #         Dual2(2.0, "fx_usdeur", [1.0]),
+    #     ]
+    # )
     assert type(fxf.fx_rates_immediate.fx_vector[0]) is Dual2
     assert usdusd.ad == 2
     assert eureur.ad == 2
@@ -433,7 +433,7 @@ def test_generate_proxy_curve():
     assert c2[dt(2022, 10, 1)] == 0.97
 
     c3 = fxf.curve("cad", "eur")
-    assert type(c3) != Curve  # should be ProxyCurve
+    assert type(c3) is not Curve  # should be ProxyCurve
     assert c3[dt(2022, 10, 1)] == Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
 
 
@@ -607,11 +607,11 @@ def test_oo_update_forwards_rates_list():
     fx_rates1 = FXRates({"usdeur": 0.9}, dt(2022, 1, 2))
     fx_rates2 = FXRates({"eurnok": 8.888889}, dt(2022, 1, 3))
     fxf = FXForwards([fx_rates1, fx_rates2], fx_curves)
-    original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  #  7.917 = 0.9 * 8.888
+    original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 7.917 = 0.9 * 8.888
     assert abs(original_fwd - 7.917) < 1e-3
     fx_rates1.update({"usdeur": 1.0})
     fxf.update()
-    updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  #  8.797 = 1.0 * 8.888
+    updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 8.797 = 1.0 * 8.888
     assert abs(updated_fwd - 8.797) < 1e-3
     assert original_fwd != updated_fwd
 
@@ -709,7 +709,7 @@ def test_fxforwards_cyclic_system_fails():
     fxr1 = FXRates({"eurusd": 1.05, "gbpusd": 1.2}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     with pytest.raises(ValueError, match="`fx_curves` is underspecified."):
-        fxf = FXForwards(
+        FXForwards(
             fx_rates=[fxr1, fxr2],
             fx_curves={
                 "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),

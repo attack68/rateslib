@@ -80,10 +80,10 @@ def test_zero_init():
 )
 def test_no_type_crossing_on_ops(x_1, y_1, op):
     with pytest.raises(TypeError):
-        result = getattr(x_1, op)(y_1)
+        getattr(x_1, op)(y_1)
 
     with pytest.raises(TypeError):
-        result = getattr(y_1, op)(x_1)
+        getattr(y_1, op)(x_1)
 
 
 def test_dual_repr(x_1, y_2):
@@ -601,7 +601,7 @@ def test_dual_set_order(x_1, y_1):
     assert set_order(x_1, 0) == 1.0
 
 
-## Linalg dual_solve tests
+# Linalg dual_solve tests
 
 
 def test_pivoting():
@@ -714,7 +714,7 @@ def test_multi_dim_solve():
     assert np.all(b == np.matmul(A, result))
 
 
-## Test numpy compat
+# Test numpy compat
 
 
 def test_numpy_isclose(y_2):

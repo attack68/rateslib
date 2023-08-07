@@ -51,7 +51,7 @@ def curve():
         dt(2022, 7, 1): 0.98,
         dt(2022, 10, 1): 0.97,
     }
-    convention = "Act360"
+    # convention = "Act360"
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
@@ -127,7 +127,16 @@ def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, 
     solver = Solver([curve], inst, [0.975], fx=fxfs if fxf else None) if solver else None
     curve = curve if crv else None
 
-    crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(None, solver, curve, fx, None, "usd")
+    if solver and fxf and fx is not None:
+        with pytest.warns(UserWarning):
+            #  Solver contains an `fx` attribute but an `fx` argument has been supplied
+            crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
+                None, solver, curve, fx, None, "usd"
+            )
+    else:
+        crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
+            None, solver, curve, fx, None, "usd"
+        )
 
     # check the fx results. If fx is specified directly it is returned
     # otherwsie it is returned from a solver object if it is available.
@@ -1012,7 +1021,7 @@ class TestFXExchange:
             leg2_currency="usd",
             fx_rate=1.2080131682341035,
         )
-        result_ = fxe.npv([curve] * 4, fx=2.0, local=True)
+        # result_ = fxe.npv([curve] * 4, fx=2.0, local=True)
         result = fxe.npv([curve] * 4, fx=2.0)
         expected = -993433.103425 + 1200080.27069 / 2.0
         assert abs(result - expected) < 1e-5
@@ -1099,7 +1108,7 @@ class TestNonMtmXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
         )
-        npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
+        # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
         npv = xcs.npv([curve2, curve2, curve, curve], None, fxf)
         assert abs(npv) < 1e-9
 
@@ -1113,7 +1122,7 @@ class TestNonMtmXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
         )
-        npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
+        # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
         npv = xcs.npv([curve2, curve2, curve, curve], None, fxf)
         assert abs(npv) < 1e-9
 
@@ -1738,7 +1747,7 @@ class TestFixedFixedXCS:
         alias = xcs.spread([curve2, curve2, curve, curve], None, fxf, 2)
         assert abs(result - alias) < 1e-8
 
-        ## test reverse
+        # test reverse
         usd_rate = float(irs.rate(curve))
         xcs.fixed_rate = None
         xcs.leg2_fixed_rate = usd_rate
@@ -1791,7 +1800,7 @@ class TestFXSwap:
 
     def test_fxswap_points_raises(self):
         with pytest.raises(ValueError, match="Cannot set `points` on FXSwap without"):
-            fxs = FXSwap(
+            FXSwap(
                 dt(2022, 2, 1),
                 "8M",
                 "M",
@@ -2161,7 +2170,7 @@ class TestFixedRateBond:
 
     def test_fixed_rate_bond_no_amortization(self):
         with pytest.raises(NotImplementedError, match="`amortization` for"):
-            gilt = FixedRateBond(
+            FixedRateBond(
                 effective=dt(1998, 12, 7),
                 termination=dt(2015, 12, 7),
                 frequency="S",
@@ -2332,7 +2341,7 @@ class TestIndexFixedRateBond:
 
     def test_fixed_rate_bond_no_amortization(self):
         with pytest.raises(NotImplementedError, match="`amortization` for"):
-            gilt = IndexFixedRateBond(
+            IndexFixedRateBond(
                 effective=dt(1998, 12, 7),
                 termination=dt(2015, 12, 7),
                 frequency="S",
@@ -2501,7 +2510,7 @@ class TestIndexFixedRateBond:
     # TODO: implement these tests
     # def test_fwd_from_repo(self):
     #     assert False
-    # 
+    #
     # def test_repo_from_fwd(self):
     #     assert False
     #
@@ -2748,7 +2757,7 @@ class TestFloatRateBond:
 
     def test_float_rate_bond_raise_frequency(self):
         with pytest.raises(ValueError, match="FloatRateBond `frequency`"):
-            bond = FloatRateBond(
+            FloatRateBond(
                 effective=dt(2007, 1, 1),
                 termination=dt(2017, 1, 1),
                 frequency="Z",
@@ -2809,7 +2818,7 @@ class TestFloatRateBond:
             calendar=None,
         )
         with pytest.raises(TypeError, match="`fixings` are not available for RFR"):
-            result = bond.accrued(dt(2010, 3, 11))
+            bond.accrued(dt(2010, 3, 11))
 
         with pytest.raises(ValueError, match="For RFR FRNs `ex_div` must be less than"):
             bond = FloatRateBond(
@@ -2905,7 +2914,7 @@ class TestFloatRateBond:
             settle=2,
         )
         curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 0.9}, convention="act365f")
-        disc_curve = curve.shift(0)
+        # disc_curve = curve.shift(0)
         result = bond.accrued(dt(2010, 8, 1), forecast=True, curve=curve)
         expected = 0.13083715795372267
         assert abs(result - expected) < 1e-8
@@ -3176,7 +3185,7 @@ class TestBondFuture:
             basket=bonds,
         )
         with pytest.raises(ValueError, match="`metric`"):
-            result = future.rate(metric="badstr")
+            future.rate(metric="badstr")
 
     def test_futures_npv(self):
         curve = Curve(

@@ -397,7 +397,7 @@ def test_spline_endpoints(endpoints, expected):
 @pytest.mark.parametrize("endpoints", [("natural", "bad"), ("bad", "natural")])
 def test_spline_endpoints_raise(endpoints):
     with pytest.raises(NotImplementedError, match="Endpoint method"):
-        curve = Curve(
+        Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.99,
@@ -424,7 +424,7 @@ def test_spline_endpoints_raise(endpoints):
 
 def test_not_a_knot_raises():
     with pytest.raises(ValueError, match="`endpoints` cannot be 'not_a_knot'"):
-        curve = Curve(
+        Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2024, 1, 1): 0.97,
@@ -1008,23 +1008,24 @@ class TestIndexCurve:
 
     def test_indexcurve_raises(self):
         with pytest.raises(ValueError, match="`index_base` must be given"):
-            curve = IndexCurve({dt(2022, 1, 1): 1.0})
+            IndexCurve({dt(2022, 1, 1): 1.0})
 
     def test_index_value_raises(self):
         curve = IndexCurve({dt(2022, 1, 1): 1.0}, index_base=100.0)
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
             curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
-    def test_roll_preserves_ad(self):
+    @pytest.mark.parametrize("ad", [0, 1, 2])
+    def test_roll_preserves_ad(self, ad):
         curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
             id="tags_",
-            ad=1,
+            ad=ad,
         )
         new_curve = curve.roll("1m")
-        pass
+        assert new_curve.ad == curve.ad
 
 
 class TestCompositeCurve:
@@ -1289,10 +1290,10 @@ class TestCompositeCurve:
 
     def test_multi_raises(self, line_curve, curve):
         with pytest.raises(TypeError, match="Multi-CSA curves must"):
-            cc = CompositeCurve([line_curve], multi_csa=True)
+            CompositeCurve([line_curve], multi_csa=True)
 
         with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
-            cc = CompositeCurve([curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4)
+            CompositeCurve([curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4)
 
     def test_multi_csa_shift(self):
         c1 = Curve(

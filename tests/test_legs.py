@@ -419,7 +419,7 @@ class TestZeroFloatLeg:
 
     def test_zero_float_leg_amort_raise(self):
         with pytest.raises(NotImplementedError, match="`ZeroFloatLeg` cannot accept"):
-            float_leg = ZeroFloatLeg(
+            ZeroFloatLeg(
                 effective=dt(2022, 1, 1),
                 termination=dt(2022, 6, 1),
                 payment_lag=2,
@@ -777,9 +777,9 @@ class TestFloatLegExchange:
         )
         assert len(leg.periods) == 9
         for i in [0, 2, 4, 6, 8]:
-            assert type(leg.periods[i]) == Cashflow
+            assert type(leg.periods[i]) is Cashflow
         for i in [1, 3, 5, 7]:
-            assert type(leg.periods[i]) == FloatPeriod
+            assert type(leg.periods[i]) is FloatPeriod
         assert leg.periods[1].notional == 5e6
         assert leg.periods[7].notional == 2e6
         assert leg.periods[8].notional == 2e6
@@ -936,7 +936,7 @@ class TestIndexFixedLegExchange:
 
     def test_args_raises(self):
         with pytest.raises(ValueError, match="`index_method` must be in"):
-            leg = IndexFixedLeg(
+            IndexFixedLeg(
                 effective=dt(2022, 3, 15),
                 termination="9M",
                 frequency="Q",
@@ -1238,7 +1238,7 @@ class TestFloatLegExchangeMtm:
         )
 
         npv = leg.npv(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
-        a_delta = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
+        # a_delta = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         result = leg._spread(100, fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         leg.float_spread = result
         npv2 = leg.npv(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
@@ -1450,12 +1450,12 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw):
         },
     )
 
-    d = [
-        dt(2022, 1, 6),
-        dt(2022, 4, 6),
-        dt(2022, 7, 6),
-    ]  # payment_lag_exchange is 3 days.
-    rate = [fxf.rate("eurusd", d[i]) for i in range(3)]
+    # d = [
+    #     dt(2022, 1, 6),
+    #     dt(2022, 4, 6),
+    #     dt(2022, 7, 6),
+    # ]  # payment_lag_exchange is 3 days.
+    # rate = [fxf.rate("eurusd", d[i]) for i in range(3)]
 
     result = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
     assert float(result - expected[0]) < 1e-6
