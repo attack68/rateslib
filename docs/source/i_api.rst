@@ -59,7 +59,6 @@ Scheduling
    :skip: Any
    :skip: CustomBusinessDay
    :skip: DataFrame
-   :skip: Day
    :skip: Iterator
    :skip: datetime
    :skip: product
@@ -113,7 +112,6 @@ Curves
    :skip: Any
    :skip: CustomBusinessDay
    :skip: Dual
-   :skip: Dual2
    :skip: PPSpline
    :skip: datetime
    :skip: timedelta
@@ -126,7 +124,6 @@ FX
 
 .. automodapi:: rateslib.fx
    :no-heading:
-   :skip: Any
    :skip: Curve
    :skip: LineCurve
    :skip: ProxyCurve
@@ -152,7 +149,6 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: ABCMeta
    :skip: IndexCurve
    :skip: Curve
-   :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
@@ -199,15 +195,12 @@ Instruments
    :skip: IndexMixin
    :skip: ZeroIndexLeg
    :skip: forward_fx
-   :skip: sqrt
    :skip: abstractmethod
    :skip: add_tenor
    :skip: concat
-   :skip: date_range
    :skip: dcf
    :skip: get_calendar
    :skip: index_left
-   :skip: set_order
    :skip: ABCMeta
    :skip: Curve
    :skip: CustomBusinessDay
@@ -221,8 +214,6 @@ Instruments
    :skip: Cashflow
    :skip: FixedPeriod
    :skip: FloatPeriod
-   :skip: Schedule
-   :skip: CustomLeg
    :skip: FixedLeg
    :skip: FixedLegMtm
    :skip: FloatLeg

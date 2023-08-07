@@ -33,7 +33,7 @@ class Gradients:
 
         .. math::
 
-           [J]_{i,j} = [\\nabla_\mathbf{v} \mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial v_i}
+           [J]_{i,j} = [\\nabla_\\mathbf{v} \\mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial v_i}
 
         Depends on ``self.r``.
         """
@@ -56,7 +56,7 @@ class Gradients:
 
         .. math::
 
-           [J2]_{i,j,k} = [\\nabla_\mathbf{v} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
+           [J2]_{i,j,k} = [\\nabla_\\mathbf{v} \\nabla_\\mathbf{v} \\mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
 
         Depends on ``self.r``.
         """
@@ -88,7 +88,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{s}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i} = \mathbf{J^+}
+           [\\nabla_\\mathbf{s}\\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i} = \\mathbf{J^+}
         """
         if self._grad_s_vT is None:
             self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
@@ -139,7 +139,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+           [\\nabla_\\mathbf{s} \\nabla_\\mathbf{s} \\mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
         """
         if self._grad_s_s_vT is None:
             self._grad_s_s_vT = self._grad_s_s_vT_final_iteration_analytical()
@@ -193,7 +193,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f}\mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial f_i}
+           [\\nabla_\\mathbf{f}\\mathbf{r^T}]_{i,j} = \\frac{\\partial r_j}{\\partial f_i}
 
         Parameters
         ----------
@@ -212,7 +212,7 @@ class Gradients:
 
         .. math::
 
-           [J2]_{i,j,k} = [\\nabla_\mathbf{v} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
+           [J2]_{i,j,k} = [\\nabla_\\mathbf{v} \\nabla_\\mathbf{v} \\mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial v_i \\partial v_j}
 
         Depends on ``self.r`` and ``pre_solvers.J2``.
         """
@@ -250,7 +250,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} \\nabla_\mathbf{v} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial f_i \\partial v_j}
+           [\\nabla_\\mathbf{f} \\nabla_\\mathbf{v} \\mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial f_i \\partial v_j}
 
         Parameters
         ----------
@@ -275,7 +275,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} \\nabla_\mathbf{f} \mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial f_i \\partial f_j}
+           [\\nabla_\\mathbf{f} \\nabla_\\mathbf{f} \\mathbf{r^T}]_{i,j,k} = \\frac{\\partial^2 r_k}{\\partial f_i \\partial f_j}
 
         Parameters
         ----------
@@ -296,7 +296,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
+           [\\nabla_\\mathbf{s} \\nabla_\\mathbf{s} \\mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial s_i \\partial s_j}
         """
         if len(self.pre_solvers) == 0:
             return self.grad_s_s_vT
@@ -321,7 +321,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} \\nabla_\mathbf{s} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial f_i \\partial s_j}
+           [\\nabla_\\mathbf{f} \\nabla_\\mathbf{s} \\mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial f_i \\partial s_j}
 
         Parameters
         ----------
@@ -343,7 +343,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} \\nabla_\mathbf{f} \mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial f_i \\partial f_j}
+           [\\nabla_\\mathbf{f} \\nabla_\\mathbf{f} \\mathbf{v^T}]_{i,j,k} = \\frac{\\partial^2 v_k}{\\partial f_i \\partial f_j}
 
         Parameters
         ----------
@@ -365,7 +365,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial f_i} = -\\frac{\\partial r_z}{\\partial f_i} \\frac{\\partial v_j}{\\partial s_z}
+           [\\nabla_\\mathbf{f}\\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial f_i} = -\\frac{\\partial r_z}{\\partial f_i} \\frac{\\partial v_j}{\\partial s_z}
 
         Parameters
         ----------
@@ -383,7 +383,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} f_{loc:bas}]_{i} = \\frac{d f}{d f_i}
+           [\\nabla_\\mathbf{f} f_{loc:bas}]_{i} = \\frac{d f}{d f_i}
 
         Parameters
         ----------
@@ -406,7 +406,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{s}\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i} = \mathbf{J^+}
+           [\\nabla_\\mathbf{s}\\mathbf{v^T}]_{i,j} = \\frac{\\partial v_j}{\\partial s_i} = \\mathbf{J^+}
         """
         if len(self.pre_solvers) == 0:
             return self.grad_s_vT
@@ -442,7 +442,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{s} f_{loc:bas}]_{i} = \\frac{\\partial f}{\\partial s_i}
+           [\\nabla_\\mathbf{s} f_{loc:bas}]_{i} = \\frac{\\partial f}{\\partial s_i}
 
         Parameters
         ----------
@@ -460,7 +460,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} f_{loc:bas}]_{i,j} = \\frac{\\partial^2 f}{\\partial s_i \\partial s_j}
+           [\\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} f_{loc:bas}]_{i,j} = \\frac{\\partial^2 f}{\\partial s_i \\partial s_j}
 
         Parameters
         ----------
@@ -483,7 +483,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} f_{loc:bas}(\mathbf{v(s, f), f)})]_{i,j} = \\frac{d^2 f}{d f_i \\partial s_j}
+           [\\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} f_{loc:bas}(\\mathbf{v(s, f), f)})]_{i,j} = \\frac{d^2 f}{d f_i \\partial s_j}
 
         Parameters
         ----------
@@ -517,7 +517,7 @@ class Gradients:
 
         .. math::
 
-           [\\nabla_\mathbf{f} \\nabla_\mathbf{f}^\mathbf{T} f_{loc:bas}(\mathbf{v(s, f), f)})]_{i,j} = \\frac{d^2 f}{d f_i d f_j}
+           [\\nabla_\\mathbf{f} \\nabla_\\mathbf{f}^\\mathbf{T} f_{loc:bas}(\\mathbf{v(s, f), f)})]_{i,j} = \\frac{d^2 f}{d f_i d f_j}
 
         Parameters
         ----------
@@ -557,7 +557,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{s} P^{loc} = \\frac{\\partial P^{loc}}{\partial s_i}
+           \\nabla_\\mathbf{s} P^{loc} = \\frac{\\partial P^{loc}}{\\partial s_i}
 
         Parameters:
             npv : Dual or Dual2
@@ -573,7 +573,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{f} P^{loc}(\mathbf{v(s, f), f}) = \\frac{\\partial P^{loc}}{\\partial f_i}+  \\frac{\partial v_z}{\\partial f_i} \\frac{\\partial P^{loc}}{\\partial v_z}
+           \\nabla_\\mathbf{f} P^{loc}(\\mathbf{v(s, f), f}) = \\frac{\\partial P^{loc}}{\\partial f_i}+  \\frac{\partial v_z}{\\partial f_i} \\frac{\\partial P^{loc}}{\\partial v_z}
 
         Parameters:
             npv : Dual or Dual2
@@ -594,7 +594,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
+           \\nabla_\\mathbf{s} P^{bas}(\\mathbf{v(s, f)}) = \\nabla_\\mathbf{s} P^{loc}(\\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\\mathbf{s} f_{loc:bas}
 
         Parameters:
             npv : Dual or Dual2
@@ -617,7 +617,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{s} P^{bas}(\mathbf{v(s, f)}) = \\nabla_\mathbf{s} P^{loc}(\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\mathbf{s} f_{loc:bas}
+           \\nabla_\\mathbf{s} P^{bas}(\\mathbf{v(s, f)}) = \\nabla_\\mathbf{s} P^{loc}(\\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\\mathbf{s} f_{loc:bas}
 
         Parameters:
             npv : Dual or Dual2
@@ -640,7 +640,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} P^{loc}(\mathbf{v, f}) = \\frac{ \\partial^2 P^{loc}(\mathbf{v(s, f)}) }{\\partial s_i \\partial s_j}
+           \\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} P^{loc}(\\mathbf{v, f}) = \\frac{ \\partial^2 P^{loc}(\\mathbf{v(s, f)}) }{\\partial s_i \\partial s_j}
 
         Parameters:
             npv : Dual2
@@ -674,7 +674,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{f} \\nabla_\mathbf{v}^\mathbf{T} P^{loc}(\mathbf{v, f}) = \\frac{ \\partial ^2 P^{loc}(\mathbf{v, f)}) }{\\partial f_i \\partial v_j}
+           \\nabla_\\mathbf{f} \\nabla_\\mathbf{v}^\\mathbf{T} P^{loc}(\\mathbf{v, f}) = \\frac{ \\partial ^2 P^{loc}(\\mathbf{v, f)}) }{\\partial f_i \\partial v_j}
 
         Parameters:
             npv : Dual2
@@ -693,7 +693,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} P^{loc}(\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\mathbf{v(s, f), f)}) }{d f_i \\partial s_j}
+           \\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} P^{loc}(\\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\\mathbf{v(s, f), f)}) }{d f_i \\partial s_j}
 
         Parameters:
             npv : Dual2
@@ -722,7 +722,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} P^{loc}(\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\mathbf{v(s, f), f)}) }{d f_i d f_j}
+           \\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} P^{loc}(\\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\\mathbf{v(s, f), f)}) }{d f_i d f_j}
 
         Parameters:
             npv : Dual2
@@ -754,7 +754,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} P^{bas}(\mathbf{v(s, f), f})
+           \\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} P^{bas}(\\mathbf{v(s, f), f})
 
         Parameters:
             npv : Dual or Dual2
@@ -783,7 +783,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{f} \\nabla_\mathbf{s}^\mathbf{T} P^{bas}(\mathbf{v(s, f), f})
+           \\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} P^{bas}(\\mathbf{v(s, f), f})
 
         Parameters:
             npv : Dual or Dual2
@@ -817,7 +817,7 @@ class Gradients:
 
         .. math::
 
-           \\nabla_\mathbf{s} \\nabla_\mathbf{s}^\mathbf{T} P^{bas}(\mathbf{v(s, f), f})
+           \\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} P^{bas}(\\mathbf{v(s, f), f})
 
         Parameters:
             npv : Dual or Dual2
@@ -1113,9 +1113,9 @@ class Solver(Gradients):
             datatypes and first order derivatives. For the calculation of:
 
               - ``J2`` and ``J2_pre``:
-                :math:`\frac{\partial^2 r_i}{\partial v_j \partial v_k}`
+                :math:`\frac{\\partial^2 r_i}{\\partial v_j \\partial v_k}`
               - ``grad_s_s_vT`` and ``grad_s_s_vT_pre``:
-                :math:`\frac{\partial^2 v_i}{\partial s_j \partial s_k}`
+                :math:`\frac{\\partial^2 v_i}{\\partial s_j \\partial s_k}`
 
         Returns
         -------
@@ -1305,15 +1305,15 @@ class Solver(Gradients):
         Solve the DF node values and update all the ``curves``.
 
         This method uses a gradient based optimisation routine, to solve for all
-        the curve variables, :math:`\mathbf{v}`, as follows,
+        the curve variables, :math:`\\mathbf{v}`, as follows,
 
         .. math::
 
-           \mathbf{v} = \\underset{\mathbf{v}}{\mathrm{argmin}} \;\; f(\mathbf{v}) = \\underset{\mathbf{v}}{\mathrm{argmin}} \;\; (\mathbf{r(v)} - \mathbf{S})\mathbf{W}(\mathbf{r(v)} - \mathbf{S})^\mathbf{T}
+           \\mathbf{v} = \\underset{\\mathbf{v}}{\\mathrm{argmin}} \;\; f(\\mathbf{v}) = \\underset{\\mathbf{v}}{\\mathrm{argmin}} \;\; (\\mathbf{r(v)} - \\mathbf{S})\\mathbf{W}(\\mathbf{r(v)} - \\mathbf{S})^\\mathbf{T}
 
-        where :math:`\mathbf{r}` are the mid-market rates of the calibrating
-        instruments, :math:`\mathbf{S}` are the observed and target rates, and
-        :math:`\mathbf{W}` is the diagonal array of weights.
+        where :math:`\\mathbf{r}` are the mid-market rates of the calibrating
+        instruments, :math:`\\mathbf{S}` are the observed and target rates, and
+        :math:`\\mathbf{W}` is the diagonal array of weights.
 
         Returns
         -------
