@@ -38,33 +38,96 @@ proceeding to review the documentation for  :ref:`FXForwards<fxr-doc>`.
    f_fxf.rst
 
 
-What is `base`?
-----------------
+When we value NPV, what is `base`?
+-------------------------------------
 
-The common  arguments needed for the
-:meth:`Instrument.npv()<rateslib.instruments.BaseMixin.npv>` and similarly
-derived methods are:
+One of the most important aspects to keep track of when valuing
+:meth:`Instrument.npv()<rateslib.instruments.BaseMixin.npv>` is that
+of the currency in which it is displayed. This is the ``base``
+currency it is displayed in.
 
-  [``curves``, ``solver``, ``fx``, ``base``]
+In order to provide a flexible, but minimal, UI *base* does not need to
+be explicitly set to get the results one expects. The arguments needed for the
+*npv* method are:
+
+  ``curves``, ``solver``, ``fx``, ``base``, ``local``
 
 All of these arguments are optional since one might typically be inferred
 from another. This creates some complexity particularly when *base* is
 not given and it might be inferred from others, or when *base* is given
 but it conflicts with the *base* associated with other objects.
 
+**The local argument**
+
+``local`` can, at any time, be set to *True* and this will return a dict
+containing a currency key and a value. By using this we keep track
+of the currency of each *Leg* of the *Instrument*. This is important for
+risk sensitivities and is used internally, especially for multi-currency instruments.
+
+.. ipython:: python
+
+   curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
+   fxr = FXRates({"usdeur": 0.9, "gbpusd": 1.25}, base="gbp", settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={"usdusd": curve, "eureur": curve, "gbpgbp": curve, "eurusd": curve, "gbpusd": curve},
+       base="eur",
+   )
+   solver = Solver(
+       curves=[curve],
+       instruments=[IRS(dt(2022, 1, 1), "1y", "a", curves=curve)],
+       s=[4.109589041095898],
+       fx=fxf,
+   )
+
+.. ipython:: python
+
+   nxcs = NonMtmXCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd")
+   nxcs.npv(curves=[curve]*4, fx=fxf, local=True)
+   nxcs.npv(curves=[curve]*4, fx=fxf, base="usd")
+
+
+Best Practice
+***************
+
+If you want to return an *npv* value in local currency (or in *Leg1* currency for multi-currency instruments),
+then you do **not** need to supply ``base`` or ``fx`` arguments. However, to be explicit,
+*base* can also be specified.
+
+.. ipython:: python
+
+   irs = IRS(dt(2022, 2, 1), "6M", "A", currency="usd", fixed_rate=4.0, curves=curve)
+   irs.npv(solver=solver)              # USD is local currency default, solver.fx.base is EUR.
+   irs.npv(solver=solver, base="usd")  # USD is explicit, solver.fx.base is EUR.
+
+To calculate a value in another non-local currency supply an ``fx`` object and
+specify the ``base``. It is **not** good practice to supply ``fx`` as numeric since this
+can result in errors (if the exchange rate is given the wrong way round (human error))
+and it does not preserve AD or any FX sensitivities. *base* is inferred from the
+*fx* object so the following are all equivalent.
+
+.. ipython:: python
+
+   irs.npv(fx=fxr)                 # GBP is fx's base currency
+   irs.npv(fx=fxr, base="gbp")     # GBP is explicitly specified
+   irs.npv(fx=fxr, base=fxr.base)  # GBP is fx's base currency
+
+Technical rules
+****************
+
 If ``base`` is not given it will be inferred from one of two objects;
 
 - either it will be inferred from the provided ``fx`` object,
 - or it will be inferred from the *Leg* or from *Leg1* of an *Instrument*.
 
-``base`` will not be inherited from a second layer inherited object. I.e. ``base`` will
-not be set equal to the base currency of the ``solver.fx`` associated object.
+``base`` will **not** be inherited from a second layer inherited object. I.e. ``base``
+will not be set equal to the base currency of the ``solver.fx`` associated object.
 
 .. image:: _static/base_inherit.png
   :alt: Inheritance map for base
-  :width: 400
+  :width: 350
 
-.. list-table:: Arguments given and inferred result
+.. list-table:: Possible argument combinations supplied and rateslib return.
    :widths: 66 5 5 12 12
    :header-rows: 1
 
@@ -148,55 +211,34 @@ not be set equal to the base currency of the ``solver.fx`` associated object.
      -
      -
 
+Examples
+**********
 
-
-1) Is ``base`` given explicitly?
-*********************************
-
-**YES**: Use this as the input directly.
-
-This will raise errors if an FX conversion cannot be explicitly calculated.
+We continue the examples above using the USD IRS created and consider possible *npvs*:
 
 .. ipython:: python
 
-   curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
-   irs = IRS(dt(2022, 2, 1), "6M", "A", currency="usd", fixed_rate=4.0)
-   try:
-       irs.npv(curves=curve, base="eur")
-   except ValueError as e:
-       print(e)
-
-This will overwrite the base currency on a *FXRates* or *FXForwards* object.
-
-.. ipython:: python
-
-   fxr = FXRates({"eurusd": 1.1, "gbpusd": 1.25}, base="gbp")
-   irs.npv(curves=curve)
-   irs.npv(curves=curve, fx=fxr, base="eur")
-
-**NO**: Goto 2)
-
-2) Is an ``fx`` object (*FXRates* or *FXForwards*) given explicitly?
-*********************************************************************
-
-**YES**: then ``base`` is inferred from this object.
-
-.. ipython:: python
-
-   irs.npv(curves=curve, fx=fxr)  # fxr has base 'gbp' and the output is in GBP.
-
-If a ``solver`` is given which also contains an ``fx`` attribute then the *Solver's*
-attribute is ignored in favour of the explicit ``fx`` object provided. This will
-raise a *UserWarning*, however.
+   def npv(irs, curves=None, solver=None, fx=None, base=None):
+      try:
+         _ = irs.npv(curves, solver, fx, base)
+      except Exception as e:
+         _ = str(e)
+      return _
 
 .. ipython:: python
    :okwarning:
 
-   solver = Solver(
-       curves=[curve],
-       instruments=[IRS(dt(2022, 1, 1), "1y", "a", curves=curve)],
-       s=[4.109589041095898],
-       fx=FXRates({"usdeur": 1.5}, base="eur"),
-   )
-   irs.npv(curves=curve, solver=solver, fx=fxr)
+   # The following are all explicit EUR output
+   npv(irs, base="eur")          # Error since no conversion rate available.
+   npv(irs, base="eur", fx=fxr)  # Takes 0.9 FX rate from object.
+   npv(irs, base="eur", fx=2.0)  # UserWarning and no fx Dual sensitivities.
+   npv(irs, base="eur", solver=solver)  # Takes 0.95 FX rates from solver.fx
+   npv(irs, base="eur", fx=fxr, solver=solver)  # Takes 0.9 FX rate from fx
 
+   # The following infer the base
+   npv(irs)                         # Base is inferred as local currency: USD
+   npv(irs, fx=fxr)                 # Base is inferred from fx: GBP
+   npv(irs, fx=fxr, base=fxr.base)  # Base is explicit from fx: GBP
+   npv(irs, fx=fxr, solver=solver)  # Base is inferred from fx: GBP. UserWarning for different fx objects
+   npv(irs, solver=solver)          # Base is inferred as local currency: USD
+   npv(irs, solver=solver, fx=solver.fx)  # Base is inferred from solver.fx: EUR

@@ -1000,6 +1000,11 @@ class FXForwards:
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
                 settlement = self.fx_rates.settlement
+                if settlement is None:
+                    raise ValueError(
+                        "`fx_rates` as FXRates supplied to FXForwards must contain a "
+                        "`settlement` argument."
+                    )
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
                 pair = f"{cash_ccy}{coll_ccy}"
