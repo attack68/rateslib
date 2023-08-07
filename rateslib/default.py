@@ -1,6 +1,9 @@
 from pandas.tseries.offsets import BusinessDay
 from pandas import read_csv
+import pandas
 import os
+from packaging import version
+from datetime import datetime
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -12,7 +15,13 @@ class Fixings:
     def _load_csv(path):
         abspath = os.path.dirname(os.path.abspath(__file__))
         target = os.path.join(abspath, path)
-        df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
+        if version.parse(pandas.__version__) < version.parse("2.0"):
+            # TODO remove when pandas min version is bumped to 2.0
+            df = read_csv(target)
+            df["reference_date"] = df["reference_date"].map(lambda x: datetime.strptime(x, "%d-%b-%Y"))
+            df = df.set_index("reference_rate")
+        else:
+            df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
         return df["rate"].sort_index(ascending=True)
 
     def __init__(self):
