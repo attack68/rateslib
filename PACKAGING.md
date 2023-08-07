@@ -10,6 +10,8 @@ Once reverted back to main, switch "release" back to dev.
 Checks:
 $ coverage run -m pytest
 Perform this on development environment as well as specified minimum.
+$ pytest -W error
+Checking for uncaptured warnings.
 
 Build:
 $ pip install build twine

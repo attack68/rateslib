@@ -182,7 +182,7 @@ class Dual2(DualBase):
         self.dual2 = np.asarray(dual2.copy()) if dual2 is not None else np.zeros((n, n))
 
     def __repr__(self):
-        name, final = "Dual2", f", [[...]]"
+        name, final = "Dual2", ", [[...]]"
         return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
 
     def __str__(self):
@@ -331,8 +331,8 @@ class Dual2(DualBase):
 
     def __downcast_vars__(self):
         """removes variables where first and second order sensitivity is zero"""
-        ix_ = np.where(np.isclose(self.dual, 0, atol=PRECISION) == False)[0]
-        ix2_ = np.where(np.isclose(self.dual2.sum(axis=0), 0, atol=PRECISION) == False)[
+        ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
+        ix2_ = np.where(~np.isclose(self.dual2.sum(axis=0), 0, atol=PRECISION))[
             0
         ]
         ixu = np.union1d(ix_, ix2_)
@@ -506,7 +506,7 @@ class Dual(DualBase):
 
     def __downcast_vars__(self):
         """removes variables where first order sensitivity is zero"""
-        ix_ = np.where(np.isclose(self.dual, 0, atol=PRECISION) == False)[0]
+        ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
         new_vars = tuple(self.vars[i] for i in ix_)
         return Dual(self.real, new_vars, self.dual[ix_])
 

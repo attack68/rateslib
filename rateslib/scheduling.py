@@ -1,11 +1,10 @@
 from typing import Optional, Union, Any
-from math import floor
 import calendar as calendar_mod
 from itertools import product
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pandas import DataFrame
-from pandas.tseries.offsets import CustomBusinessDay, Day
+from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import (
@@ -705,7 +704,7 @@ def _check_unadjusted_regular_swap(
     if roll is None:
         roll = _get_unadjusted_roll(ueffective, utermination, eom)
         if roll == 0:
-            return False, f"Roll day could not be inferred from given dates."
+            return False, "Roll day could not be inferred from given dates."
 
     return True, {
         "ueffective": ueffective,

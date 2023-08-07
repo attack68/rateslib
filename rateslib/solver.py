@@ -629,7 +629,7 @@ class Gradients:
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
-        ret = grad_f_P * float(f)  #  <- use float here to cast float array not Dual
+        ret = grad_f_P * float(f)  # <- use float here to cast float array not Dual
         ret += float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
@@ -1709,7 +1709,7 @@ class Solver(Gradients):
         all_keys = sorted(list(set(local_keys + base_keys)))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
-        idx_tuples = [c + l for c in all_keys for l in inst_keys + fx_keys]
+        idx_tuples = [c + _ for c in all_keys for _ in inst_keys + fx_keys]
         ridx = MultiIndex.from_tuples(
             [key for key in idx_tuples],
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
@@ -1717,12 +1717,12 @@ class Solver(Gradients):
         if base is not None:
             ridx = ridx.append(
                 MultiIndex.from_tuples(
-                    [("all", base) + l for l in inst_keys + fx_keys],
+                    [("all", base) + _ for _ in inst_keys + fx_keys],
                     names=["local_ccy", "display_ccy", "type", "solver", "label"],
                 )
             )
         cidx = MultiIndex.from_tuples(
-            [l for l in inst_keys + fx_keys], names=["type", "solver", "label"]
+            [_ for _ in inst_keys + fx_keys], names=["type", "solver", "label"]
         )
         df = DataFrame(None, index=ridx, columns=cidx)
         for key, d in container.items():
@@ -1742,7 +1742,7 @@ class Solver(Gradients):
                 .groupby(level=[2, 3, 4])
                 .sum()
             )
-            gdf.index = MultiIndex.from_tuples([("all", base) + l for l in gdf.index])
+            gdf.index = MultiIndex.from_tuples([("all", base) + _ for _ in gdf.index])
             df.loc[("all", base, slice(None), slice(None), slice(None))] = gdf
 
         return df.astype("float64")

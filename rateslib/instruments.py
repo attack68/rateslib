@@ -25,17 +25,17 @@ from datetime import datetime
 from typing import Optional, Union
 import abc
 import warnings
-from math import sqrt
+# from math import sqrt
 
 import numpy as np
 
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, concat, date_range, Series
+from pandas import DataFrame, concat, Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, _add_days, get_calendar, dcf
-from rateslib.scheduling import Schedule
+from rateslib.calendars import add_tenor, get_calendar, dcf
+# from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
 from rateslib.periods import (
@@ -54,9 +54,8 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroIndexLeg,
     IndexFixedLeg,
-    CustomLeg,
 )
-from rateslib.dual import Dual, Dual2, set_order, DualTypes
+from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates, forward_fx
 
 
@@ -786,11 +785,12 @@ class Value(BaseMixin):
         raise NotImplementedError("`Value` instrument has no concept of cashflows.")
 
     def analytic_delta(self, *args, **kwargs):
-        raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
+        raise NotImplementedError(
+            "`Value` instrument has no concept of analytic delta."
+        )
 
 
 class FXExchange(Sensitivities, BaseMixin):
-
     def __init__(
         self,
         settlement: datetime,
@@ -804,19 +804,19 @@ class FXExchange(Sensitivities, BaseMixin):
         self.settlement = settlement
         self.pair = f"{currency.lower()}{leg2_currency.lower()}"
         self.leg1 = Cashflow(
-                notional=defaults.notional if notional is None else notional,
-                currency=currency.lower(),
-                payment=settlement,
-                stub_type="Exchange",
-                rate=None,
-            )
+            notional=defaults.notional if notional is None else notional,
+            currency=currency.lower(),
+            payment=settlement,
+            stub_type="Exchange",
+            rate=None,
+        )
         self.leg2 = Cashflow(
-                notional=1.0,  # will be determined by setting fx_rate
-                currency=leg2_currency.lower(),
-                payment=settlement,
-                stub_type="Exchange",
-                rate=fx_rate,
-            )
+            notional=1.0,  # will be determined by setting fx_rate
+            currency=leg2_currency.lower(),
+            payment=settlement,
+            stub_type="Exchange",
+            rate=fx_rate,
+        )
         self.fx_rate = fx_rate
 
     @property
@@ -859,10 +859,16 @@ class FXExchange(Sensitivities, BaseMixin):
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
+        if fx_ is None:
+            raise ValueError(
+                "Must have some FX information to price FXExchange, either `fx` or "
+                "`solver` containing an FX object."
+            )
         if not isinstance(fx_, (FXRates, FXForwards)):
+            base_ = self.leg1.currency if base_ is None else base_
             if base_.lower() == self.leg1.currency:
                 leg1_npv = self.leg1.npv(curves[0], curves[1], 1.0, base_, local)
-                leg2_npv = self.leg2.npv(curves[2], curves[3], 1/fx_, base_, local)
+                leg2_npv = self.leg2.npv(curves[2], curves[3], 1 / fx_, base_, local)
             elif base_.lower() == self.leg2.currency:
                 leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
                 leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base_, local)
@@ -928,7 +934,7 @@ class FXExchange(Sensitivities, BaseMixin):
         return _
 
 
-### Securities
+# Securities
 
 
 class BondMixin:
@@ -2981,7 +2987,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         )
 
 
-### Single currency derivatives
+# Single currency derivatives
 
 
 class BondFuture(Sensitivities):
@@ -5843,7 +5849,7 @@ class FRA(Sensitivities, BaseMixin):
         return DataFrame.from_records([cfs])
 
 
-### Multi-currency derivatives
+# Multi-currency derivatives
 
 
 class BaseXCS(BaseDerivative):
@@ -6091,13 +6097,13 @@ class BaseXCS(BaseDerivative):
             alt_fore_curve, alt_disc_curve = curves[0], curves[1]
 
         leg2 = 1 if leg == 2 else 2
-        tgt_str, alt_str = "" if leg == 1 else "leg2_", "" if leg2 == 1 else "leg2_"
+        # tgt_str, alt_str = "" if leg == 1 else "leg2_", "" if leg2 == 1 else "leg2_"
         tgt_leg, alt_leg = getattr(self, f"leg{leg}"), getattr(self, f"leg{leg2}")
         base_ = tgt_leg.currency
 
         _is_float_tgt_leg = "Float" in type(tgt_leg).__name__
         _is_float_alt_leg = "Float" in type(alt_leg).__name__
-        if not _is_float_alt_leg and getattr(alt_leg, f"fixed_rate") is None:
+        if not _is_float_alt_leg and getattr(alt_leg, "fixed_rate") is None:
             raise ValueError(
                 "Cannot solve for a `fixed_rate` or `float_spread` where the "
                 "`fixed_rate` on the non-solvable leg is None."
@@ -6107,7 +6113,7 @@ class BaseXCS(BaseDerivative):
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-        if not _is_float_tgt_leg and getattr(tgt_leg, f"fixed_rate") is None:
+        if not _is_float_tgt_leg and getattr(tgt_leg, "fixed_rate") is None:
             # set the target fixed leg to a null fixed rate for calculation
             tgt_leg.fixed_rate = 0.0
 
@@ -6123,7 +6129,7 @@ class BaseXCS(BaseDerivative):
         )
 
         specified_spd = 0.0
-        if _is_float_tgt_leg and not (getattr(tgt_leg, f"float_spread") is None):
+        if _is_float_tgt_leg and not (getattr(tgt_leg, "float_spread") is None):
             specified_spd = tgt_leg.float_spread
         elif not _is_float_tgt_leg:
             specified_spd = tgt_leg.fixed_rate * 100
@@ -7476,13 +7482,13 @@ class FXSwap(BaseXCS):
         cf = self.leg2.notional * leg2_fixed_rate * 0.01 * self.leg2.periods[1].dcf
         # fwd_fx = (cf + self.leg2.notional) / -self.leg1.notional
         # ini_fx = self.leg2.notional / -self.leg1.notional
-        ## TODO decide how to price mid-market rates when ini fx is struck but
-        ## there is no fixed points, i,e the FXswap is semi-determined, which is
-        ## not a real instrument.
+        # TODO decide how to price mid-market rates when ini fx is struck but
+        # there is no fixed points, i,e the FXswap is semi-determined, which is
+        # not a real instrument.
         return (cf / -self.leg1.notional) * 10000
 
 
-### Generic Instruments
+# Generic Instruments
 
 
 class Spread(Sensitivities):
@@ -7919,67 +7925,67 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         )  # pragma: no cover
 
 
-def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
-    """
-    Alternative yield converger as an alternative to ytm_converger
-
-    Unused currently within the library
-    """
-    fx0 = f(x0)
-    fx1 = f(x1)
-
-    if float(fx0 * fx1) > 0:
-        raise ValueError(
-            "`brents` must initiate from function values with opposite signs."
-        )
-
-    if abs(fx0) < abs(fx1):
-        x0, x1 = x1, x0
-        fx0, fx1 = fx1, fx0
-
-    x2, fx2 = x0, fx0
-
-    mflag = True
-    steps_taken = 0
-
-    while steps_taken < max_iter and abs(x1 - x0) > tolerance:
-        fx0 = f(x0)
-        fx1 = f(x1)
-        fx2 = f(x2)
-
-        if fx0 != fx2 and fx1 != fx2:
-            L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
-            L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
-            L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
-            new = L0 + L1 + L2
-
-        else:
-            new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
-
-        if (
-            (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
-            or (mflag == True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
-            or (mflag == False and (abs(new - x1)) >= (abs(x2 - d) / 2))
-            or (mflag == True and (abs(x1 - x2)) < tolerance)
-            or (mflag == False and (abs(x2 - d)) < tolerance)
-        ):
-            new = (x0 + x1) / 2
-            mflag = True
-
-        else:
-            mflag = False
-
-        fnew = f(new)
-        d, x2 = x2, x1
-
-        if float(fx0 * fnew) < 0:
-            x1 = new
-        else:
-            x0 = new
-
-        if abs(fx0) < abs(fx1):
-            x0, x1 = x1, x0
-
-        steps_taken += 1
-
-    return x1, steps_taken
+# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
+#     """
+#     Alternative yield converger as an alternative to ytm_converger
+#
+#     Unused currently within the library
+#     """
+#     fx0 = f(x0)
+#     fx1 = f(x1)
+#
+#     if float(fx0 * fx1) > 0:
+#         raise ValueError(
+#             "`brents` must initiate from function values with opposite signs."
+#         )
+#
+#     if abs(fx0) < abs(fx1):
+#         x0, x1 = x1, x0
+#         fx0, fx1 = fx1, fx0
+#
+#     x2, fx2 = x0, fx0
+#
+#     mflag = True
+#     steps_taken = 0
+#
+#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+#         fx0 = f(x0)
+#         fx1 = f(x1)
+#         fx2 = f(x2)
+#
+#         if fx0 != fx2 and fx1 != fx2:
+#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+#             new = L0 + L1 + L2
+#
+#         else:
+#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+#
+#         if (
+#             (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+#             or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+#             or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+#             or (mflag is True and (abs(x1 - x2)) < tolerance)
+#             or (mflag is False and (abs(x2 - d)) < tolerance)
+#         ):
+#             new = (x0 + x1) / 2
+#             mflag = True
+#
+#         else:
+#             mflag = False
+#
+#         fnew = f(new)
+#         d, x2 = x2, x1
+#
+#         if float(fx0 * fnew) < 0:
+#             x1 = new
+#         else:
+#             x0 = new
+#
+#         if abs(fx0) < abs(fx1):
+#             x0, x1 = x1, x0
+#
+#         steps_taken += 1
+#
+#     return x1, steps_taken

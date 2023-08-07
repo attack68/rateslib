@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Optional, Union
 import numpy as np
 from pandas import DataFrame, Series
 from pandas.tseries.offsets import CustomBusinessDay
@@ -570,7 +570,7 @@ class FXRates:
 
     def __eq__(self, other):
         """Test two FXRates are identical"""
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         for attr in [
             "pairs",
@@ -1616,7 +1616,7 @@ class FXForwards:
 
     def __eq__(self, other):
         """Test two FXForwards are identical"""
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         for attr in ["base"]:
             if getattr(self, attr, None) != getattr(other, attr, None):

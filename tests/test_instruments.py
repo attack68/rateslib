@@ -1010,12 +1010,11 @@ class TestFXExchange:
         assert_frame_equal(result, expected, rtol=1e-6)
 
     @pytest.mark.parametrize("base, fx", [
-        # (None, 0.0),
-        # ("eur", 1.20),
-        # ("usd", 1/1.20),
+        ("eur", 1.20),
+        ("usd", 1.20),
         ("eur", FXRates({"eurusd": 1.20})),
     ])
-    def test_rate(self, curve, curve2, base, fx):
+    def test_npv_rate(self, curve, curve2, base, fx):
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
             currency="eur",
@@ -1024,6 +1023,48 @@ class TestFXExchange:
         )
         result = fxe.npv([None, curve, None, curve2], None, fx, base, local=False)
         assert abs(result-0.0) < 1e-8
+
+    def test_rate(self, curve, curve2):
+        fxe = FXExchange(
+            settlement=dt(2022, 3, 1),
+            currency="eur",
+            leg2_currency="usd",
+            fx_rate=1.2080131682341035,
+        )
+        result = fxe.rate([None, curve, None, curve2], None, 1.20)
+        expected = 1.2080131682341035
+        assert abs(result - expected) < 1e-7
+
+    def test_npv_fx_numeric(self, curve):
+        # This demonstrates the ambiguity and poor practice of
+        # using numeric fx as pricing input, although it will return.
+        fxe = FXExchange(
+            settlement=dt(2022, 3, 1),
+            currency="eur",
+            leg2_currency="usd",
+            fx_rate=1.2080131682341035,
+        )
+        result_ = fxe.npv([curve] * 4, fx=2.0, local=True)
+        result = fxe.npv([curve]*4, fx=2.0)
+        expected = -993433.103425 + 1200080.27069 / 2.0
+        assert abs(result-expected) < 1e-5
+
+        result = fxe.npv([curve]*4, fx=2.0, base="usd")
+        expected = -993433.103425 * 2.0 + 1200080.27069
+        assert abs(result - expected) < 1e-5
+
+        with pytest.raises(ValueError, match="Cannot calculate `npv`"):
+            fxe.npv([curve] * 4, fx=2.0, base="bad")
+
+    def test_npv_no_fx_raises(self, curve):
+        fxe = FXExchange(
+            settlement=dt(2022, 3, 1),
+            currency="eur",
+            leg2_currency="usd",
+            fx_rate=1.2080131682341035,
+        )
+        with pytest.raises(ValueError, match="Must have some FX info"):
+            fxe.npv(curve)
 
 
 def test_forward_fx_immediate():

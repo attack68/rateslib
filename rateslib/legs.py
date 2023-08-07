@@ -1209,7 +1209,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         """
         disc_curve_: Curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        compounded_rate, total_dcf = 1.0, 0.0
+        compounded_rate = 1.0
         for period in self.periods:
             compounded_rate *= 1 + period.dcf * period.rate(curve) / 100
 

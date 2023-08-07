@@ -24,14 +24,14 @@ from abc import abstractmethod, ABCMeta
 from datetime import datetime
 from typing import Optional, Union
 import warnings
-from math import comb, log, exp
+from math import comb, log
 
 import numpy as np
-from pandas.tseries.offsets import CustomBusinessDay
+# from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_eom, _is_holiday
+from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday
 from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
@@ -73,7 +73,7 @@ def _get_fx_and_base(
                     f"FXRates (or FXForwards) object.\n"
                     f"Reformulate: [fx={fx}, base='{base}'] -> "
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
-                    UserWarning
+                    UserWarning,
                 )
             fx = fx
     else:  # base is None and fx is float or None.
@@ -91,7 +91,7 @@ def _get_fx_and_base(
                     "FXRates or FXForwards object.\n"
                     f"Reformulate: [fx={fx}, base=None] -> "
                     f"[fx=FXRates({{'{currency}bas}}': {fx}), base='bas'].",
-                    UserWarning
+                    UserWarning,
                 )
             fx = fx
 

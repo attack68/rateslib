@@ -56,12 +56,12 @@ def bsplev_single(x, i, k, t, org_k=None):
     For continuity on the right boundary the rightmost basic b-spline is also set equal
     to 1 there: :math:`B_{n,1,\mathbf{t}}(t_{n+k})=1`.
     """
-    ## Right side endpoint support
+    # Right side endpoint support
     org_k = org_k or k  # original_k adds support for derivative recursion
     if x == t[-1] and i >= (len(t) - org_k - 1):
         return 1
 
-    ## Recursion
+    # Recursion
     if k == 1:
         if t[i] <= x < t[i + 1]:
             return 1

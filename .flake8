@@ -1,0 +1,20 @@
+[flake8]
+exclude =
+    .git,
+    .github,
+    docs,
+    notebooks,
+    target,
+    tests,
+    venv9,
+    venv11,
+    scratch.py,
+    __pycache__,
+    docs/source/conf.py,
+    old,
+    build,
+    dist
+max-line-length = 127
+extend-ignore = E203, W605, E501
+per-file-ignores =
+    rateslib/__init__.py:E402

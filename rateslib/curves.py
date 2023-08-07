@@ -17,7 +17,7 @@ import numpy as np
 import json
 from math import floor, comb
 from rateslib import defaults
-from rateslib.dual import Dual, Dual2, dual_log, dual_exp, set_order_convert
+from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
 from rateslib.default import plot
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, CalInput
@@ -113,7 +113,9 @@ class Serialize:
 
         if serial["calendar_type"] == "custom":
             # must load and construct a custom holiday calendar from serial dates
-            parse = lambda d: Holiday("", year=d.year, month=d.month, day=d.day)
+            def parse(d: datetime):
+                return Holiday("", year=d.year, month=d.month, day=d.day)
+
             dates = [
                 parse(datetime.strptime(d, "%Y-%m-%d"))
                 for d in serial["calendar"]["holidays"]
@@ -138,7 +140,7 @@ class Serialize:
 
     def __eq__(self, other):
         """Test two curves are identical"""
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         attrs = [attr for attr in dir(self) if attr[:1] != "_"]
         for attr in attrs:
@@ -1908,7 +1910,7 @@ class CompositeCurve(PlotCurve):
         # validate
         self._base_type = curves[0]._base_type
         for i in range(1, len(curves)):
-            if not type(curves[0]) == type(curves[i]):
+            if not type(curves[0]) is type(curves[i]):
                 if type(curves[0]) is Curve and type(curves[i]) is ProxyCurve:
                     pass
                 elif type(curves[0]) is ProxyCurve and type(curves[i]) is Curve:
@@ -2417,9 +2419,15 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
        interpolate(dt(2000, 1, 6), dt(2000, 1, 1), 10, dt(2000, 1, 11), 50, "linear")
     """
     if interpolation == "linear":
-        op = lambda z: z
+
+        def op(z):
+            return z
+
     elif interpolation == "linear_index":
-        op = lambda z: 1 / z
+
+        def op(z):
+            return 1 / z
+
         y_1, y_2 = 1 / y_1, 1 / y_2
     elif interpolation == "log_linear":
         op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)
@@ -2430,7 +2438,10 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
             y_1 = y_2
         else:
             y_1 = dual_log(y_1) / ((start - x_1) / timedelta(days=365))
-        op = lambda z: dual_exp((start - x) / timedelta(days=365) * z)
+
+        def op(z):
+            return dual_exp((start - x) / timedelta(days=365) * z)
+
     elif interpolation == "flat_forward":
         if x >= x_2:
             return y_2
