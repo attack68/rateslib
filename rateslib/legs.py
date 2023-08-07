@@ -794,7 +794,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
 
     .. math::
 
-       P = \\underbrace{- \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
+       P = \\underbrace{- \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \\sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
 
     The analytic delta is the sum of the period analytic deltas.
 
@@ -1649,7 +1649,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
 
     .. math::
 
-       P = - R \\sum_{i=1}^n N_i d_i v(m_i) I(m_i) - \sum_{i=1}^{n-1}(N_{i}-N_{i+1})v(m_i)I(m_i)  - N_n v(m_n)I(m_n)
+       P = - R \\sum_{i=1}^n N_i d_i v(m_i) I(m_i) - \\sum_{i=1}^{n-1}(N_{i}-N_{i+1})v(m_i)I(m_i)  - N_n v(m_n)I(m_n)
 
     The analytic delta is defined as that of a *FixedLeg*.
 
