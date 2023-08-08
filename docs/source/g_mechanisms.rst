@@ -4,51 +4,325 @@
 Pricing Mechanisms
 ******************
 
+This guide is aimed at users who are not completely new to rateslib and who have a little
+experience already building *Instruments*, *Curves* and *Solvers* are are familiar with some
+of its basic mechanics already.
+
 Summary
 **************************
 
-The pricing mechanisms in ``rateslib`` require ``Instruments`` and
-``Curves``. ``fx`` objects (usually ``FXForwards``) may also be required
+*Rateslib's* API design for valuing and obtaining risk sensitivities of *Instruments*
+follows the first two :ref:`pillars of its design philosophy:<pillars-doc>`
+
+- Maximise flexibility : minimise user input,
+- Prioritise risk sensitivities above valuation.
+
+This means the arguments required for the
+:meth:`Instrument.npv()<rateslib.instruments.BaseMixin.npv>`,
+:meth:`Instrument.delta()<rateslib.instruments.Sensitivities.delta>` and
+:meth:`Instrument.gamma()<rateslib.instruments.Sensitivities.gamma>`
+are the same and optionally require:
+
+``curves``, ``solver``, ``fx``, ``base``, ``local``
+
+When calculating risk metrics a ``solver``, which contains derivative mapping information, is
+required. However, when calculating value, it is sufficient to just provide ``curves``. In this
+case, and if the *curves* do not contain AD then the calculation might be upto 300% faster.
+
+Since these arguments are optional and can be inferred from each other it is important to
+understand the combination that can produce results. There are two section which discuss these
+combiantions.
+
+1) How ``solver``, ``fx``, ``base`` and ``local`` interact?
+2) How ``curves``, ``solver`` and *Instruments* interact?
+
+.. _base-fx-doc:
+
+How do ``solver``, ``fx``, ``base`` and ``local`` interact?
+*************************************************************
+
+One of the most important aspects to keep track of when valuing
+:meth:`Instrument.npv()<rateslib.instruments.BaseMixin.npv>` is that
+of the currency in which it is displayed. This is the ``base``
+currency it is displayed in. *base* does not need to
+be explicitly set to get the results one expects.
+
+**The local argument**
+
+``local`` can, at any time, be set to *True* and this will return a dict
+containing a currency key and a value. By using this we keep track
+of the currency of each *Leg* of the *Instrument*. This is important for
+risk sensitivities and is used internally, especially for multi-currency instruments.
+
+.. ipython:: python
+
+   curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
+   fxr = FXRates({"usdeur": 0.9, "gbpusd": 1.25}, base="gbp", settlement=dt(2022, 1, 3))
+   fxf = FXForwards(
+       fx_rates=fxr,
+       fx_curves={"usdusd": curve, "eureur": curve, "gbpgbp": curve, "eurusd": curve, "gbpusd": curve},
+       base="eur",
+   )
+   solver = Solver(
+       curves=[curve],
+       instruments=[IRS(dt(2022, 1, 1), "1y", "a", curves=curve)],
+       s=[4.109589041095898],
+       fx=fxf,
+   )
+
+.. ipython:: python
+
+   nxcs = NonMtmXCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd")
+   nxcs.npv(curves=[curve]*4, fx=fxf, local=True)
+   nxcs.npv(curves=[curve]*4, fx=fxf, base="usd")
+
+If the ``local`` argument is *False* then *npv* will be returned in only one single currency.
+For multi-currency instruments this means at least one leg will be converted into the *base*
+currency.
+
+What is best practice?
+------------------------
+
+If you want to return an *npv* value in local currency (or in *Leg1* currency for multi-currency
+instruments), then you do **not** need to supply ``base`` or ``fx`` arguments. However, to
+be explicit, *base* can also be specified.
+
+.. ipython:: python
+
+   irs = IRS(dt(2022, 2, 1), "6M", "A", currency="usd", fixed_rate=4.0, curves=curve)
+   irs.npv(solver=solver)              # USD is local currency default, solver.fx.base is EUR.
+   irs.npv(solver=solver, base="usd")  # USD is explicit, solver.fx.base is EUR.
+
+To calculate a value in another non-local currency supply an ``fx`` object and
+specify the ``base``. It is **not** good practice to supply *fx* as numeric since this
+can result in errors (if the exchange rate is given the wrong way round (human error))
+and it does not preserve AD or any FX sensitivities. *base* is inferred from the
+*fx* object so the following are all equivalent. *fx* objects are commonly inherited from
+*solvers*.
+
+.. ipython:: python
+
+   irs.npv(fx=fxr)                     # GBP is fx's base currency
+   irs.npv(fx=fxr, base="gbp")         # GBP is explicitly specified
+   irs.npv(fx=fxr, base=fxr.base)      # GBP is fx's base currency
+   irs.npv(solver=solver, base="gbp")  # GBP is explicitly specified
+
+Technical rules
+-----------------
+
+If ``base`` is not given it will be inferred from one of two objects;
+
+- either it will be inferred from the provided ``fx`` object,
+- or it will be inferred from the *Leg* or from *Leg1* of an *Instrument*.
+
+``base`` will **not** be inherited from a second layer inherited object. I.e. ``base``
+will not be set equal to the base currency of the ``solver.fx`` associated object.
+
+.. image:: _static/base_inherit.png
+  :alt: Inheritance map for base
+  :width: 350
+
+.. list-table:: Possible argument combinations supplied and rateslib return.
+   :widths: 66 5 5 12 12
+   :header-rows: 1
+
+   * - **Case and Output**
+     - ``base``
+     - ``fx``
+     - ``solver`` with *fx*
+     - ``solver`` without *fx*
+   * - ``base`` **is explicit**
+     -
+     -
+     -
+     -
+   * - Returns if *currency* and ``base`` are available in ``fx`` object, otherwise
+       raises.
+     - X
+     - X
+     -
+     -
+   * - Returns and warns about best practice.
+     - X
+     - (numeric)
+     -
+     -
+   * - Returns if *currency* and ``base`` are available in ``fx`` object, otherwise
+       raises.
+     - X
+     -
+     - X
+     -
+   * - Returns if *currency* and ``base`` are available in ``fx`` object, otherwise
+       raises. Will warn if ``fx`` and ``solver.fx`` are not the same object.
+     - X
+     - X
+     - X
+     -
+   * - Returns if ``base`` aligns with local currency, else raises.
+     - X
+     -
+     -
+     -
+   * - Returns if ``base`` aligns with local currency, else raises.
+     - X
+     -
+     -
+     - X
+   * - ``base`` **is inferred** and logic reverts to above cases.
+     -
+     -
+     -
+     -
+   * - Returns inferring ``base`` from ``fx`` object.
+     - <-
+     - X
+     -
+     -
+   * - Returns inferring ``base`` from ``fx`` object. Warns if ``fx`` and
+       ``solver.fx`` are not the same object.
+     - <-
+     - X
+     - X
+     -
+   * - Returns inferring ``base`` from ``fx`` object.
+     - <-
+     - X
+     -
+     - X
+   * - Returns inferring ``base`` as *Leg* or *Leg1* local currency.
+     - (local)
+     -
+     - X
+     -
+   * - Returns inferring ``base`` as *Leg* or *Leg1* local currency.
+     - (local)
+     -
+     -
+     - X
+   * - Returns inferring ``base`` as *Leg* or *Leg1* local currency.
+     - (local)
+     -
+     -
+     -
+
+Examples
+----------
+
+We continue the examples above using the USD IRS created and consider possible *npvs*:
+
+.. ipython:: python
+
+   def npv(irs, curves=None, solver=None, fx=None, base=None):
+      try:
+         _ = irs.npv(curves, solver, fx, base)
+      except Exception as e:
+         _ = str(e)
+      return _
+
+.. ipython:: python
+   :okwarning:
+
+   # The following are all explicit EUR output
+   npv(irs, base="eur")          # Error since no conversion rate available.
+   npv(irs, base="eur", fx=fxr)  # Takes 0.9 FX rate from object.
+   npv(irs, base="eur", fx=2.0)  # UserWarning and no fx Dual sensitivities.
+   npv(irs, base="eur", solver=solver)  # Takes 0.95 FX rates from solver.fx
+   npv(irs, base="eur", fx=fxr, solver=solver)  # Takes 0.9 FX rate from fx
+
+   # The following infer the base
+   npv(irs)                         # Base is inferred as local currency: USD
+   npv(irs, fx=fxr)                 # Base is inferred from fx: GBP
+   npv(irs, fx=fxr, base=fxr.base)  # Base is explicit from fx: GBP
+   npv(irs, fx=fxr, solver=solver)  # Base is inferred from fx: GBP. UserWarning for different fx objects
+   npv(irs, solver=solver)          # Base is inferred as local currency: USD
+   npv(irs, solver=solver, fx=solver.fx)  # Base is inferred from solver.fx: EUR
+
+.. _mechanisms-curves-doc:
+
+How ``curves``, ``solver`` and *Instruments* interact?
+********************************************************
+
+The pricing mechanisms in *rateslib* require :ref:`Instruments<instruments-toc-doc>` and
+:ref:`Curves<c-curves-doc>`. :ref:`FX<fx-doc>` objects
+(usually :class:`FXForwards<rateslib.fx.FXForwards>`) may also be required
 (for multi-currency instruments), and these
-are all often interdependent and calibrated by a ``Solver``.
+are all often interdependent and calibrated by a :ref:`Solver<c-solver-doc>`.
 
-A careful API structure has been created which allows different mechanisms for
-argument input to promote maximum flexibility which may be useful for certain
-circumstances.
+Since *Instruments* are separate objects to *Curves* and *Solvers*, when pricing them it requires
+a mapping to link them all together. This leads to...
 
-There are **three different modes of initialising an** ``Instrument``:
+**Three different modes of initialising an** *Instrument*:
 
-- **Without** specifying any pricing ``curves`` at initialisation: this requires
-  **dynamic** curve specification later, at price time.
-- **With** specifying all pricing ``curves`` at initialisation: this requires curves to
-  exist as objects, either ``Curve`` or ``LineCurve`` objects.
-- **Indirectly** specifying all pricing ``curves`` by known string ``id``. This does
-  not require any curves to pre-exist.
+1) **Dynamic - Price Time Mapping**: this means an *Instrument* is initialised without any
+   ``curves`` and these must be provided later at price time, usually inside a function call.
 
-At price time there are then also **three modes of pricing an**
-``Instrument``. The signature of the ``rate``, ``npv`` and ``cashflows`` methods
-contains the arguments; ``curves`` and ``solver``.
+   .. ipython:: python
 
-- If ``curves`` are given dynamically these are used regardless of which initialisation
-  mode was used. The input here will **overwrite** the curves specified at
-  initialisation.
-- If ``curves`` are not given dynamically then those ``curves`` provided at
-  initialisation will be used.
+      instrument = IRS(dt(2022, 1, 1), "10Y", "A", fixed_rate=2.5)
+      curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.85})
+      instrument.npv(curves=curve)
+      instrument.rate(curves=curve)
 
-  - If they were provided as objects these are used directly.
-  - If they were provided as string ``id`` form, then a ``solver`` is required
-    from which the relevant curves will be extracted.
+2) **Explicit - Immediate Mapping**: this means an *Instrument* is initialised
+   with ``curves`` and this object will be used if no *Curves* are provided at price time.
+   The *Curves* must already exist when initialising the *Instrument*.
 
-If ``curves`` are given dynamically in combination with a ``solver``, and those curves
-do not form part of the solver's iteration remit then depending upon the options,
-errors or warnings might be raised or ignore. See XXXXX TODO
+   .. ipython:: python
 
+      curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.85})
+      instrument = IRS(dt(2022, 1, 1), "10Y", "A", fixed_rate=2.5, curves=curve)
+      instrument.npv()
+      instrument.rate()
 
-Best Practice
-***************
+3) **Indirect - String** ``id`` **Mapping**: this means an *Instrument* is initialised
+   with ``curves`` that contain lookup information to collect the *Curves* at price time
+   from a ``solver``.
 
-The recommended way of working within ``rateslib``
-is to initialise ``Instruments`` with a defined ``curves`` argument
+   .. ipython:: python
+
+      instrument = IRS(dt(2022, 1, 1), "10Y", "A", fixed_rate=2.5, curves="curve-id")
+      curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.85}, id="curve-id")
+      solver = Solver(
+          curves=[curve],
+          instruments=[IRS(dt(2022, 1, 1), "10Y", "A", curves=curve)],
+          s=[1.6151376354769178]
+      )
+      instrument.npv(solver=solver)
+      instrument.rate(solver=solver)
+
+Then, for price time, this then also leads to the following cases...
+
+**Two modes of pricing an** *Instrument*:
+
+1) **Direct Curves Override**:  if ``curves`` are given dynamically these are used regardless of
+   which initialisation mode was used for the *Instrument*.
+
+   .. ipython:: python
+
+      curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.85})
+      irs = IRS(dt(2022, 1, 1), "10Y", "A", curves=curve)
+      other_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.85})
+      irs.npv(curves=other_curve)  # other_curve overrides the initialised curve
+      irs.rate(curves=other_curve)  # other_curve overrides the initialised curve
+
+2) **With Default Initialisation**: if ``curves`` at price time are not provided then those
+   specified at initialisation are used.
+
+   a) **As Objects**: if *Curves* were specified these are used directly (see 2. above)
+
+   b) **From String id with Solver**: if ``curves`` are not objects, but strings, then a ``solver``
+      must be supplied to extract the *Curves* from (see 3. above).
+
+In the unusual combination that ``curves`` are given directly in combination with a ``solver``,
+and those curves do not form part of the solver's curve collection, then depending upon the
+rateslib options configured, then errors or warnings might be raised or this might be ignored.
+
+What is best practice?
+-----------------------
+
+Amongst the variety of input pricing methods there is a recommended way of working.
+This is to use method 3) and to initialise ``Instruments`` with a defined ``curves`` argument
 **as string** ``id`` s. This does not
 impede dynamic pricing if ``curves`` are constructed and supplied later directly to
 pricing methods.
@@ -68,7 +342,8 @@ The ``curves`` attribute on the ``Instrument`` is instructive of its pricing int
    irs.curves
 
 At any point a ``Curve`` could be constructed and used for dynamic pricing, even if
-its ``id`` does not match the instrument initialisation.
+its ``id`` does not match the instrument initialisation. This is usually used in sampling or
+scenario analysis.
 
 .. ipython:: python
 
@@ -78,28 +353,28 @@ its ``id`` does not match the instrument initialisation.
    )
    irs.rate(curve)
 
-The above output would have resulted regardless of under which of the three
-modes the ``Instrument`` was initialised under; without ``curves``,  with ``curves``, or
-using indirect ``id`` s.
-
 Why is this best practice?
 ---------------------------
 
 The reasons that this is best practice are:
 
 - It provides more flexibility when working with multiple different curve models and
-  multiple :class:`~rateslib.solver.Solver` s.
-- It provides more flexibility since only ``Instruments`` constructed in this manner
+  multiple :class:`~rateslib.solver.Solver` s. Instruments do not need to be re-initialised just
+  to extract alternate valuations or alternate risk sensitivities.
+- It provides more flexibility since only *Instruments* constructed in this manner
   can be directly added to the :class:`~rateslib.instruments.Portfolio` class. It also
   extends the :class:`~rateslib.instruments.Spread` and
-  :class:`~rateslib.instruments.Fly` classes.
+  :class:`~rateslib.instruments.Fly` classes to allow *Instruments* which do not share the same
+  *Curves*.
+- It removes the need to externally keep track of the necessary pricing curves needed for each
+  instrument created, which is often four curves for two legs.
 - It creates redundancy by avoiding programmatic errors when curves are overwritten and
   object oriented associations are silently broken, which can occur when using the
   other methods.
-- It is anticipated that this mechanism is the one most future proofed when ``rateslib``
-  is extended for server-client-api transfer via JSON.
+- It is anticipated that this mechanism is the one most future proofed when *rateslib*
+  is extended for server-client-api transfer via JSON or otherwise.
 
-Multiple curve model ``Solver`` s
+Multiple curve model *Solvers*
 ---------------------------------
 
 Consider two different curve models, a **log-linear** one and a **log-cubic spline**,
@@ -191,6 +466,15 @@ display the delta risks.
 
    irs.delta(solver=ll_solver)
    irs.delta(solver=lc_solver)
+
+The programmatic errors avoided are as follows:
+
+.. ipython:: python
+
+   try:
+       irs.delta(curves=ll_curve, solver=lc_solver)
+   except Exception as e:
+       print(e)
 
 Using a ``Portfolio``
 ----------------------

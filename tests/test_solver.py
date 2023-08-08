@@ -934,7 +934,7 @@ def test_delta_irs_guide():
         fixed_rate=6.0,
         curves="sofr",
     )
-    result = irs.delta(solver=usd_solver)
+    result = irs.delta(solver=usd_solver, base="eur", local=True)  # local overrides base to USD
     expected = DataFrame(
         [[0], [16.77263], [32.60487]],
         index=MultiIndex.from_product(
@@ -1250,7 +1250,7 @@ def test_solver_gamma_pnl_explain():
     )
     assert_frame_equal(delta_base, expected_delta, atol=1e-2, rtol=1e-4)
 
-    gamma_base = pf.gamma(solver=solver)
+    gamma_base = pf.gamma(solver=solver, base="usd", local=True)  # local overrrides base to EUR
     expected_gamma = DataFrame(
         data=[
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],

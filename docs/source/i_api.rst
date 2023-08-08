@@ -38,6 +38,7 @@ Defaults
    :no-inheritance-diagram:
    :skip: plot
    :skip: BusinessDay
+   :skip: datetime
 
 Calendars
 ---------

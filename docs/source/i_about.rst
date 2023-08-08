@@ -29,6 +29,8 @@ early 2024 under the working title of *Coding Interest Rates: FX, Swaps and Bond
   :target: https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538
   :width: 92
 
+.. _pillars-doc:
+
 Five Pillars of Rateslib's Design Philosophy
 *********************************************
 

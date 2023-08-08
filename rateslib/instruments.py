@@ -80,7 +80,21 @@ def _get_curve_from_solver(curve, solver):
             try:
                 # it is a safeguard to load curves from solvers when a solver is
                 # provided and multiple curves might have the same id
-                return solver.pre_curves[curve.id]
+                _ = solver.pre_curves[curve.id]
+                if id(_) != id(curve):  # Python id() is a memory id, not a string label id.
+                    raise ValueError(
+                        "A curve has been supplied, as part of ``curves``, which has the same "
+                        f"`id` ('{curve.id}'),\nas one of the curves available as part of the "
+                        "Solver's collection but is not the same object.\n"
+                        "This is ambiguous and cannot price.\n"
+                        "Either refactor the arguments as follows:\n"
+                        "1) remove the conflicting curve: [curves=[..], solver=<Solver>] -> "
+                        "[curves=None, solver=<Solver>]\n"
+                        "2) change the `id` of the supplied curve and ensure the rateslib.defaults "
+                        "option 'curve_not_in_solver' is set to 'ignore'.\n"
+                        "   This will remove the ability to accurately price risk metrics."
+                    )
+                return _
             except KeyError:
                 if defaults.curve_not_in_solver == "ignore":
                     return curve
@@ -275,6 +289,7 @@ class Sensitivities:
         solver: Optional[Solver] = None,
         fx: Optional[Union[FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False,
     ):
         """
         Calculate delta risk against the calibrating instruments of the
@@ -303,6 +318,9 @@ class Sensitivities:
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
             :class:`~rateslib.fx.FXForwards` object.
+        local : bool, optional
+            If `True` will ignore ``base`` - this is equivalent to setting ``base`` to *None*.
+            Included only for argument signature consistent with *npv*.
 
         Returns
         -------
@@ -314,6 +332,8 @@ class Sensitivities:
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             None, solver, None, fx, base, None
         )
+        if local:
+           base_ = None
         return solver.delta(npv, base_, fx_)
 
     def gamma(
@@ -322,6 +342,7 @@ class Sensitivities:
         solver: Optional[Solver] = None,
         fx: Optional[Union[float, FXRates, FXForwards]] = None,
         base: Optional[str] = None,
+        local: bool = False
     ):
         """
         Calculate cross-gamma risk against the calibrating instruments of the
@@ -350,6 +371,9 @@ class Sensitivities:
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
             :class:`~rateslib.fx.FXForwards` object.
+        local : bool, optional
+            If `True` will ignore ``base``. This is equivalent to setting ``base`` to *None*.
+            Included only for argument signature consistent with *npv*.
 
         Returns
         -------
@@ -360,6 +384,8 @@ class Sensitivities:
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             None, solver, None, fx, base, None
         )
+        if local:
+            base_ = None
 
         # store original order
         if fx_ is not None:

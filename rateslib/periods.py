@@ -422,11 +422,11 @@ class FixedPeriod(BasePeriod):
             raise TypeError(
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
-        fx, base = _get_fx_and_base(self.currency, fx, base)
         value = self.cashflow * disc_curve[self.payment]
         if local:
             return {self.currency: value}
         else:
+            fx, _ = _get_fx_and_base(self.currency, fx, base)
             return fx * value
 
     def cashflows(
@@ -868,11 +868,11 @@ class FloatPeriod(BasePeriod):
             )
         if self.payment < disc_curve.node_dates[0]:
             return 0.0  # payment date is in the past avoid issues with fixings or rates
-        fx, base = _get_fx_and_base(self.currency, fx, base)
         value = self.rate(curve) / 100 * self.dcf * disc_curve[self.payment] * -self.notional
         if local:
             return {self.currency: value}
         else:
+            fx, _ = _get_fx_and_base(self.currency, fx, base)
             return fx * value
 
     def cashflow(self, curve: Union[Curve, LineCurve]) -> Union[None, DualTypes]:
@@ -1614,11 +1614,11 @@ class Cashflow:
             raise TypeError(
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
-        fx, base = _get_fx_and_base(self.currency, fx, base)
         value = self.cashflow * disc_curve[self.payment]
         if local:
             return {self.currency: value}
         else:
+            fx, _ = _get_fx_and_base(self.currency, fx, base)
             return fx * value
 
     def cashflows(
@@ -1845,11 +1845,12 @@ class IndexMixin(metaclass=ABCMeta):
             raise TypeError(
                 "`curves` have not been supplied correctly. NoneType has been detected."
             )
-        fx, base = _get_fx_and_base(self.currency, fx, base)
+
         value = self.cashflow(curve) * disc_curve[self.payment]
         if local:
             return {self.currency: value}
         else:
+            fx, _ = _get_fx_and_base(self.currency, fx, base)
             return fx * value
 
     @property
