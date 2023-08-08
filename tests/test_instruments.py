@@ -84,120 +84,128 @@ def usdeur():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-def test_get_curve_from_solver():
-    from rateslib.solver import Solver
+class TestCurvesandSolver:
 
-    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-    inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-    solver = Solver([curve], inst, [0.975])
+    def test_get_curve_from_solver(self):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        solver = Solver([curve], inst, [0.975])
 
-    result = _get_curve_from_solver("tagged", solver)
-    assert result == curve
+        result = _get_curve_from_solver("tagged", solver)
+        assert result == curve
 
-    result = _get_curve_from_solver(curve, solver)
-    assert result == curve
+        result = _get_curve_from_solver(curve, solver)
+        assert result == curve
 
-    no_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="not in solver")
+        no_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="not in solver")
 
-    with default_context("curve_not_in_solver", "ignore"):
-        result = _get_curve_from_solver(no_curve, solver)
-        assert result == no_curve
-
-    with pytest.warns():
-        with default_context("curve_not_in_solver", "warn"):
+        with default_context("curve_not_in_solver", "ignore"):
             result = _get_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
-    with pytest.raises(ValueError, match="`curve` must be in `solver`"):
-        with default_context("curve_not_in_solver", "raise"):
-            result = _get_curve_from_solver(no_curve, solver)
+        with pytest.warns():
+            with default_context("curve_not_in_solver", "warn"):
+                result = _get_curve_from_solver(no_curve, solver)
+                assert result == no_curve
 
+        with pytest.raises(ValueError, match="`curve` must be in `solver`"):
+            with default_context("curve_not_in_solver", "raise"):
+                result = _get_curve_from_solver(no_curve, solver)
 
-@pytest.mark.parametrize("solver", [True, False])
-@pytest.mark.parametrize("fxf", [True, False])
-@pytest.mark.parametrize("fx", [None, 2.0])
-@pytest.mark.parametrize("crv", [True, False])
-def test_get_curves_and_fx_from_solver(usdusd, usdeur, eureur, solver, fxf, fx, crv):
-    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-    inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-    fxfs = FXForwards(
-        FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
-        {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
-    )
-    solver = Solver([curve], inst, [0.975], fx=fxfs if fxf else None) if solver else None
-    curve = curve if crv else None
+    @pytest.mark.parametrize("solver", [True, False])
+    @pytest.mark.parametrize("fxf", [True, False])
+    @pytest.mark.parametrize("fx", [None, 2.0])
+    @pytest.mark.parametrize("crv", [True, False])
+    def test_get_curves_and_fx_from_solver(self, usdusd, usdeur, eureur, solver, fxf, fx, crv):
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        fxfs = FXForwards(
+            FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
+            {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
+        )
+        solver = Solver([curve], inst, [0.975], fx=fxfs if fxf else None) if solver else None
+        curve = curve if crv else None
 
-    if solver and fxf and fx is not None:
-        with pytest.warns(UserWarning):
-            #  Solver contains an `fx` attribute but an `fx` argument has been supplied
+        if solver and fxf and fx is not None:
+            with pytest.warns(UserWarning):
+                #  Solver contains an `fx` attribute but an `fx` argument has been supplied
+                crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
+                    None, solver, curve, fx, None, "usd"
+                )
+        else:
             crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
                 None, solver, curve, fx, None, "usd"
             )
-    else:
-        crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-            None, solver, curve, fx, None, "usd"
-        )
 
-    # check the fx results. If fx is specified directly it is returned
-    # otherwsie it is returned from a solver object if it is available.
-    if fx is not None:
-        assert fx_result == 2.0
-    elif solver is None:
-        assert fx_result is None
-    else:
-        if fxf:
-            assert fx_result == fxfs
-        else:
+        # check the fx results. If fx is specified directly it is returned
+        # otherwsie it is returned from a solver object if it is available.
+        if fx is not None:
+            assert fx_result == 2.0
+        elif solver is None:
             assert fx_result is None
+        else:
+            if fxf:
+                assert fx_result == fxfs
+            else:
+                assert fx_result is None
 
-    assert crv_result == (curve, curve, curve, curve)
+        assert crv_result == (curve, curve, curve, curve)
 
+    def test_get_curves_and_fx_from_solver_raises(self):
+        from rateslib.solver import Solver
 
-def test_get_curves_and_fx_from_solver_raises():
-    from rateslib.solver import Solver
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        solver = Solver([curve], inst, [0.975])
 
-    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-    inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-    solver = Solver([curve], inst, [0.975])
+        with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
+            _get_curves_fx_and_base_maybe_from_solver(None, None, "tagged", None, None, "")
 
-    with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
-        _get_curves_fx_and_base_maybe_from_solver(None, None, "tagged", None, None, "")
+        with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
+            _get_curves_fx_and_base_maybe_from_solver(None, solver, "bad_id", None, None, "")
 
-    with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
-        _get_curves_fx_and_base_maybe_from_solver(None, solver, "bad_id", None, None, "")
+        with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
+            _get_curves_fx_and_base_maybe_from_solver(None, solver, ["tagged"] * 5, None, None, "")
 
-    with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
-        _get_curves_fx_and_base_maybe_from_solver(None, solver, ["tagged"] * 5, None, None, "")
+    @pytest.mark.parametrize("num", [1, 2, 3, 4])
+    def test_get_curves_from_solver_multiply(self, num):
+        from rateslib.solver import Solver
 
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        solver = Solver([curve], inst, [0.975])
+        result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            None, solver, ["tagged"] * num, None, None, ""
+        )
+        assert result == (curve, curve, curve, curve)
 
-@pytest.mark.parametrize("num", [1, 2, 3, 4])
-def test_get_curves_from_solver_multiply(num):
-    from rateslib.solver import Solver
+    def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur):
+        # TODO: check whether curves in fxf but not is solver should be allowed???
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
+            {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
+        )
+        solver = Solver([curve], inst, [0.975], fx=fxf)
+        curve = fxf.curve("eur", "usd")
+        irs = IRS(dt(2022, 1, 1), "3m", "Q")
 
-    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-    inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-    solver = Solver([curve], inst, [0.975])
-    result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-        None, solver, ["tagged"] * num, None, None, ""
-    )
-    assert result == (curve, curve, curve, curve)
+        # test the curve will return even though it is not included within the solver
+        # because it is a proxy curve.
+        irs.npv(curves=curve, solver=solver)
 
-
-def test_get_proxy_curve_from_solver(usdusd, usdeur, eureur):
-    # TODO: check whether curves in fxf but not is solver should be allowed???
-    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-    inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-    fxf = FXForwards(
-        FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
-        {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
-    )
-    solver = Solver([curve], inst, [0.975], fx=fxf)
-    curve = fxf.curve("eur", "usd")
-    irs = IRS(dt(2022, 1, 1), "3m", "Q")
-
-    # test the curve will return even though it is not included within the solver
-    # because it is a proxy curve.
-    irs.npv(curves=curve, solver=solver)
+    def test_ambiguous_curve_in_out_id_solver_raises(self):
+        curve = Curve({dt(2022, 1, 1): 1.0}, id="cloned-id")
+        curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="cloned-id")
+        solver = Solver(
+            curves=[curve2],
+            instruments=[IRS(dt(2022, 1 ,1), "1y", "A", curves="cloned-id")],
+            s=[5.0],
+        )
+        irs = IRS(dt(2022, 1, 1), "1y", "A", fixed_rate=2.0)
+        with pytest.raises(ValueError, match="A curve has been supplied, as part of ``curves``,"):
+            irs.npv(curves=curve, solver=solver)
 
 
 class TestSolverFXandBase:
