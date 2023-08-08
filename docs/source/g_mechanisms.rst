@@ -7,6 +7,18 @@ Pricing Mechanisms
 Summary
 **************************
 
+*Rateslib's* API design for valuing and obtaining risk sensitivities of *Instruments*
+follows the first two :ref:`pillars of its design philosophy:<pillars-doc>`
+
+1) Maximise flexibility : minimise user input,
+2) Prioritise risk sensitivities above valuation.
+
+This means the arguments required for the
+:meth:`Instrument.npv()<rateslib.instruments.BaseMixin.npv>`,
+:meth:`Instrument.delta()<rateslib.instruments.Sensitivities.delta>` and
+:meth:`Instrument.gamma()<rateslib.instruments.Sensitivities.gamma>`
+
+
 The pricing mechanisms in ``rateslib`` require ``Instruments`` and
 ``Curves``. ``fx`` objects (usually ``FXForwards``) may also be required
 (for multi-currency instruments), and these
