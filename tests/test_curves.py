@@ -1272,6 +1272,25 @@ class TestCompositeCurve:
         assert cc.index_lag == 3
         assert cc.index_base == 101.1
 
+        result = cc.index_value(dt(2022, 1, 31), interpolation="monthly")
+        expected = 101.1
+        assert abs(result - expected) < 1e-5
+
+        result = cc.index_value(dt(1999, 1, 1))
+        expected = 0.0
+        assert abs(result - expected) < 1e-5
+
+        result = cc.index_value(dt(2022, 1, 1))
+        expected = 101.1
+        assert abs(result - expected) < 1e-5
+
+    def test_index_curves_interp_raises(self):
+        ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        cc = CompositeCurve([ic1, ic2])
+        with pytest.raises(ValueError, match="`interpolation` for `index_value` must"):
+            cc.index_value(dt(2022, 1, 31), interpolation="bad interp")
+
     def test_multi_csa(self):
         c1 = Curve(
             {
@@ -1405,6 +1424,11 @@ class TestCompositeCurve:
         assert abs(r2 - 4.5) < 1e-3
         assert abs(r3 - 4.5) < 1e-3
         assert abs(r4 - 5.0) < 1e-3
+
+    def test_composite_curve_no_index_value_raises(self, curve):
+        cc = CompositeCurve([curve])
+        with pytest.raises(TypeError, match="`index_value` not available"):
+            cc.index_value(dt(2022, 1, 1))
 
 
 class TestPlotCurve:

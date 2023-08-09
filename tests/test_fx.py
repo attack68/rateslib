@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime as dt
 from matplotlib import pyplot as plt
-from pandas import DataFrame
-from pandas.testing import assert_frame_equal
+from pandas import DataFrame, Series
+from pandas.testing import assert_frame_equal, assert_series_equal
 import numpy as np
 
 import context
@@ -36,6 +36,12 @@ def test_rates():
     assert fxr.fx_array[1, 2].real == 1.25
     assert fxr.fx_array[1, 2] == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
+
+
+def test_fx_update_blank():
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+    result = fxr.update()
+    assert result is None
 
 
 def test_convert_and_base():
@@ -200,6 +206,20 @@ def test_fxforwards_rates_unequal(usdusd, eureur, usdeur):
     assert fxf2 != fxf
 
 
+def test_fxforwards_without_settlement_raise():
+    fxr = FXRates({"usdeur": 1.0})
+    crv = Curve({dt(2022, 1, 1): 1.0})
+    with pytest.raises(ValueError, match="`fx_rates` as FXRates supplied to FXForwards must cont"):
+        FXForwards(
+            fx_rates=fxr,
+            fx_curves={
+                "usdusd": crv,
+                "usdeur": crv,
+                "eureur": crv
+            }
+        )
+
+
 def test_fxforwards_set_order(usdusd, eureur, usdeur):
     fxf = FXForwards(
         FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
@@ -336,6 +356,91 @@ def test_fxforwards_bad_curves_raises(usdusd, eureur, usdeur):
     #          "gbpgbp": eureur
     #          }
     #     )
+
+
+def test_fxforwards_convert(usdusd, eureur, usdeur):
+    fxf = FXForwards(
+        FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
+        {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
+    )
+    result = fxf.convert(
+        100,
+        domestic="usd",
+        foreign="eur",
+        settlement=dt(2022, 1, 15),
+        value_date=dt(2022, 1, 30)
+    )
+    expected = Dual(90.12374519723947, "fx_usdeur", [100.13749466359941])
+    assert result == expected
+
+    result = fxf.convert(
+        100,
+        domestic="usd",
+        foreign="eur",
+        settlement=None,  # should imply immediate settlement
+        value_date=None,  # should imply same as settlement
+    )
+    expected = Dual(90.00200704713323, "fx_usdeur", [100.00223005237025])
+    assert result == expected
+
+
+def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur):
+    fxf = FXForwards(
+        FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
+        {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
+    )
+    ccy = "gbp"
+    with pytest.raises(ValueError, match=f"'{ccy}' not in FXForwards.currencies"):
+        fxf.convert(
+            100,
+            domestic=ccy,
+            foreign="eur",
+            settlement=dt(2022, 1, 15),
+            value_date=dt(2022, 1, 30),
+            on_error="raise",
+        )
+
+    result = fxf.convert(
+            100,
+            domestic=ccy,
+            foreign="eur",
+            settlement=dt(2022, 1, 15),
+            value_date=dt(2022, 1, 30),
+            on_error="ignore",
+        )
+    assert result is None
+
+    with pytest.warns(UserWarning):
+        result = fxf.convert(
+            100,
+            domestic=ccy,
+            foreign="eur",
+            settlement=dt(2022, 1, 15),
+            value_date=dt(2022, 1, 30),
+            on_error="warn",
+        )
+        assert result is None
+
+
+def test_fxforwards_position_not_dual(usdusd, eureur, usdeur):
+    fxf = FXForwards(
+        FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
+        {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
+    )
+    result = fxf.positions(100)
+    expected = DataFrame(
+        {dt(2022, 1, 1): [100.0, 0.], dt(2022, 1, 3): [0.0, 0.0]},
+        index=["usd", "eur"]
+    )
+    assert_frame_equal(result, expected)
+
+    result = fxf.positions(100, aggregate=True)
+    expected = Series(
+        [100.0, 0.],
+        index=["usd", "eur"],
+        name=dt(2022, 1, 1),
+    )
+    assert_series_equal(result, expected)
 
 
 def test_recursive_chain():

@@ -1168,7 +1168,8 @@ class FXForwards:
                         df = df.add(_.to_frame(), fill_value=0.0)
 
         if aggregate:
-            return df.sum(axis=1)
+            _ = df.sum(axis=1).rename(dates[0])
+            return _
         else:
             return df.sort_index(axis=1)
 
