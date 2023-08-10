@@ -11,7 +11,7 @@ from rateslib import defaults
 from rateslib.dual import Dual, dual_solve, set_order, DualTypes
 from rateslib.default import plot
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, LineCurve, ProxyCurve
+from rateslib.curves import Curve, LineCurve, ProxyCurve, CompositeCurve
 
 """
 .. ipython:: python
@@ -793,7 +793,9 @@ class FXForwards:
             self.fx_curves = {k.lower(): v for k, v in fx_curves.items()}
 
             self.terminal = datetime(2200, 1, 1)
-            for flag, (_, curve) in enumerate(self.fx_curves.items()):
+            for flag, (k, curve) in enumerate(self.fx_curves.items()):
+                curve.collateral = k[3:6]  # label curves with collateral
+
                 if flag == 0:
                     self.immediate: datetime = curve.node_dates[0]
                 elif self.immediate != curve.node_dates[0]:
@@ -1447,9 +1449,9 @@ class FXForwards:
         ----------
         cashflow : str
             The currency in which cashflows are represented (3-digit code).
-        collateral : str
+        collateral : str, or list/tuple of such
             The currency of the CSA against which cashflows are collateralised (3-digit
-            code).
+            code). If a list or tuple will return a CompositeCurve in multi-CSA mode.
         convention : str
             The day count convention used for calculating rates. If `None` defaults
             to the convention in the local cashflow currency.
@@ -1465,7 +1467,7 @@ class FXForwards:
 
         Returns
         -------
-        Curve or ProxyCurve
+        Curve, ProxyCurve or CompositeCurve
 
         Notes
         -----
@@ -1483,6 +1485,18 @@ class FXForwards:
         from the combination of curves and FX rates that are available within
         the given :class:`FXForwards` instance.
         """
+        if isinstance(collateral, (list, tuple)):
+            curves = []
+            for coll in collateral:
+                curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
+            _ = CompositeCurve(
+                curves=curves,
+                id=id,
+                multi_csa=True,
+            )
+            _.collateral = ",".join([__.lower() for __ in collateral])
+            return _
+
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         pair = f"{cash_ccy}{coll_ccy}"
         if pair in self.fx_curves:

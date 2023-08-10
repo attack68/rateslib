@@ -12,7 +12,7 @@ from rateslib.fx import (
     forward_fx,
 )
 from rateslib.dual import Dual, Dual2
-from rateslib.curves import Curve, LineCurve
+from rateslib.curves import Curve, LineCurve, CompositeCurve
 
 
 @pytest.mark.parametrize(
@@ -563,6 +563,24 @@ def test_generate_proxy_curve():
     c3 = fxf.curve("cad", "eur")
     assert type(c3) is not Curve  # should be ProxyCurve
     assert c3[dt(2022, 10, 1)] == Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
+
+
+def test_generate_multi_csa_curve():
+    fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+
+    fxf = FXForwards(
+        [fxr1, fxr2],
+        {
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+            "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+            "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+        },
+    )
+    c1 = fxf.curve("cad", ["cad","usd","eur"])
+    assert isinstance(c1, CompositeCurve)
 
 
 def test_proxy_curves_update_with_underlying():

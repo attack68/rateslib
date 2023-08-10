@@ -381,6 +381,7 @@ class Curve(Serialize, PlotCurve):
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
     _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type = "dfs"
+    collateral = None
 
     def __init__(
         self,
@@ -1697,6 +1698,17 @@ class CompositeCurve(PlotCurve):
         The curves to be composited.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
+    multi_csa: bool, optional
+        If *True* defines a multi-CSA discount curve which has a different calculation
+        methodology by selecting the curve within the collection with the highest rate.
+    multi_csa_min_step: int, optional
+        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
+        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
+        in [1, max_step].
+    multi_csa_max_step: int, optional
+        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
+        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
+        in [min_step, 1825].
 
     Examples
     --------
@@ -1867,6 +1879,7 @@ class CompositeCurve(PlotCurve):
        %timeit curve.rate(dt(2022, 6, 1), "1y", approximate=False)
 
     """
+    collateral = None
 
     def __init__(
         self,
@@ -2257,6 +2270,7 @@ class ProxyCurve(Curve):
     ):
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
+        self.collateral = coll_ccy
         self._is_proxy = True
         self.fx_forwards = fx_forwards
         self.cash_currency = cash_ccy
