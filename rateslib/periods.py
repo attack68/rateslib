@@ -60,7 +60,9 @@ def _get_fx_and_base(
                 raise ValueError(
                     f"`base` ({base}) cannot be requested without supplying `fx` as a "
                     "valid FXRates or FXForwards object to convert to "
-                    f"currency ({currency})."
+                    f"currency ({currency}).\n"
+                    "If you are using a `Solver` with multi-currency instruments have you "
+                    "forgotten to attach the FXForwards in the solver's `fx` argument?"
                 )
             fx = 1.0
         else:

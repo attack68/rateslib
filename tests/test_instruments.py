@@ -3533,3 +3533,54 @@ class TestSensitivities:
 
         with pytest.raises(ValueError, match="`solver` is required"):
             irs.gamma()
+
+
+def test_fx_settlements_table():
+    usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usdusd")
+    eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.975}, id="eureur")
+    eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.976}, id="eurusd")
+    fxr = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1))
+    fxf = FXForwards(
+        fx_rates=fxr,
+        fx_curves={
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "eurusd": eurusd,
+        }
+    )
+    usdeur = fxf.curve("usd", "eur", id="usdeur")
+    eur_eurusd = fxf.curve("eur", ["usd", "eur"], id="eur_eurusd")
+
+    solver = Solver(
+        curves=[usdusd, eureur, eurusd, usdeur, eur_eurusd],
+        instruments=[
+            IRS(dt(2022, 1, 1), "1y", "A", curves=usdusd),
+            IRS(dt(2022, 1, 1), "1y", "A", curves=eureur),
+            XCS(dt(2022, 1, 1), "1y", "Q", currency="eur", leg2_currency="usd", curves=[eureur, eurusd, usdusd, usdusd]),
+        ],
+        s = [5.0, 2.5, -10],
+        fx=fxf,
+    )
+
+    pf = Portfolio(
+        [
+            IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", collateral="eur,usd", fixed_rate=2.0, curves=["eureur", "eur_eurusd"]),
+            FXExchange(dt(2022, 2, 1), currency="usd", leg2_currency="eur", collateral="eur", fx_rate=0.9, curves=["eureur", "eureur", "usdeur", "usdeur"]),
+            IRS(dt(2022, 1, 1), "9M", "Q", currency="usd", collateral="usd", fixed_rate=1.5, curves=["usdusd"]),
+        ]
+    )
+
+    assert eureur.collateral == "eur"
+
+    result = pf.cashflows(solver=solver)
+    result = pf.cashflows_table(solver=solver)
+
+    # column names = ["local_ccy", "collateral_currency"]
+    expected = DataFrame(
+        {
+            ()
+        }
+    )
+
+
+

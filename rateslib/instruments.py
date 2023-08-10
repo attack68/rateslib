@@ -32,7 +32,7 @@ import numpy as np
 
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, concat, Series
+from pandas import DataFrame, concat, Series, MultiIndex
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf
@@ -405,6 +405,30 @@ class Sensitivities:
 
         return grad_s_sT_P
 
+    def cashflows_table(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        cashflows = self.cashflows(curves, solver, fx, base)
+        cashflows = cashflows[[
+            defaults.headers["currency"],
+            defaults.headers["collateral"],
+            defaults.headers["payment"],
+            defaults.headers["cashflow"]
+        ]]
+        _ = cashflows.groupby([
+                defaults.headers["currency"],
+                defaults.headers["collateral"],
+                defaults.headers["payment"]
+            ]).sum().unstack([0, 1]).droplevel(0, axis=1)
+        _.columns.names = ["local_ccy", "collateral_ccy"]
+        _.index.names = ["payment"]
+        _ = _.sort_index(ascending=True, axis=0)
+        return _
+
 
 class BaseMixin:
     _fixed_rate_mixin = False
@@ -638,13 +662,14 @@ class BaseMixin:
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        return concat(
+        _ = concat(
             [
                 self.leg1.cashflows(curves[0], curves[1], fx_, base_),
                 self.leg2.cashflows(curves[2], curves[3], fx_, base_),
             ],
             keys=["leg1", "leg2"],
         )
+        return _
 
     @abc.abstractmethod
     def npv(
@@ -930,7 +955,9 @@ class FXExchange(Sensitivities, BaseMixin):
             self.leg1.cashflows(curves[0], curves[1], fx_, base_),
             self.leg2.cashflows(curves[2], curves[3], fx_, base_),
         ]
-        return DataFrame.from_records(seq)
+        _ = DataFrame.from_records(seq)
+        _.index = MultiIndex.from_tuples([('leg1', 0), ('leg2', 0)])
+        return _
 
     def rate(
         self,
@@ -7775,6 +7802,11 @@ class Portfolio(Sensitivities):
                 ret += instrument.npv(*args, **kwargs)
         return ret
 
+    def cashflows(self, *args, **kwargs):
+        return concat(
+            [_.cashflows(*args, **kwargs) for _ in self.instruments],
+            keys=[f"inst{i}" for i in range(len(self.instruments))],
+        )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
