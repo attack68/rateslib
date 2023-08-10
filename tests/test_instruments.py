@@ -1025,7 +1025,8 @@ class TestFXExchange:
                 "Notional": [1e6, -2050000.0],
                 "Rate": [None, 2.05],
                 "Cashflow": [-1e6, 2050000.0],
-            }
+            },
+            index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 0)])
         )
         result = result[["Type", "Period", "Ccy", "Payment", "Notional", "Rate", "Cashflow"]]
         assert_frame_equal(result, expected, rtol=1e-6)
@@ -3535,7 +3536,62 @@ class TestSensitivities:
             irs.gamma()
 
 
-def test_fx_settlements_table():
+@pytest.mark.parametrize("inst, expected",[
+    (IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
+     DataFrame([-0.21319, -0.00068, 0.21656],
+               index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
+               columns=MultiIndex.from_tuples([("EUR", "usd,eur")], names=["local_ccy", "collateral_ccy"])
+               )
+     ),
+    (SBS(dt(2022, 1, 1), "9M", "Q", leg2_frequency="S", currency="eur", curves=["eureur", "eurusd"]),
+     DataFrame([-0.51899, -6260.7208, 6299.28759],
+               index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
+               columns=MultiIndex.from_tuples([("EUR", "usd")], names=["local_ccy", "collateral_ccy"])
+               )
+     ),
+    (
+    FRA(dt(2022, 1, 15), "3M", "Q", currency="eur", curves=["eureur", "eureur"]),
+    DataFrame([0.0],
+              index=Index([dt(2022, 1, 15)], name="payment"),
+              columns=MultiIndex.from_tuples([("EUR", "eur")],
+                                             names=["local_ccy", "collateral_ccy"])
+              )
+    ),
+    (
+    FXExchange(dt(2022, 1, 15), currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+    DataFrame([[-1000000.0, 1101072.93429]],
+              index=Index([dt(2022, 1, 15)], name="payment"),
+              columns=MultiIndex.from_tuples([("EUR", "eur"), ("USD", "eur")],
+                                             names=["local_ccy", "collateral_ccy"])
+              )
+    ),
+    (
+    XCS(dt(2022, 1, 5), "3M", "M", currency="eur", leg2_currency="usd", curves=["eureur", "eurusd", "usdusd", "usdusd"]),
+    DataFrame([[1000000.0, -1100306.44592],
+               [0.0, -2377.85237],
+               [-2042.44624, 4630.97800],
+               [0.0, -2152.15417],
+               [-1844.59236, 4191.00589],
+               [-1000000, 1104836.45246],
+               [-2042.44624, 4650.04393]],
+              index=Index([dt(2022, 1, 5), dt(2022, 2, 5), dt(2022, 2, 7),
+                            dt(2022, 3, 5), dt(2022, 3, 7), dt(2022, 4, 5),
+                            dt(2022, 4, 7)], name="payment"),
+              columns=MultiIndex.from_tuples([("EUR", "usd"), ("USD", "usd")],
+                                             names=["local_ccy", "collateral_ccy"])
+              )
+    ),
+    (
+    FXSwap(dt(2022, 1, 5), "3M", currency="eur", leg2_currency="usd", curves=["eureur", "eurusd", "usdusd", "usdusd"]),
+    DataFrame([[1000000.0, -1100306.44592],
+               [-1000000.0, 1107224.09454]],
+              index=Index([dt(2022, 1, 5), dt(2022, 4, 5)], name="payment"),
+              columns=MultiIndex.from_tuples([("EUR", "usd"), ("USD", "usd")],
+                                             names=["local_ccy", "collateral_ccy"])
+              )
+    ),
+])
+def test_fx_settlements_table(inst, expected):
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usdusd")
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.975}, id="eureur")
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.976}, id="eurusd")
@@ -3558,29 +3614,14 @@ def test_fx_settlements_table():
             IRS(dt(2022, 1, 1), "1y", "A", curves=eureur),
             XCS(dt(2022, 1, 1), "1y", "Q", currency="eur", leg2_currency="usd", curves=[eureur, eurusd, usdusd, usdusd]),
         ],
-        s = [5.0, 2.5, -10],
+        s=[5.0, 2.5, -10],
         fx=fxf,
     )
+    assert eureur.collateral == "eur"  # collateral tags populated by FXForwards
 
-    pf = Portfolio(
-        [
-            IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", collateral="eur,usd", fixed_rate=2.0, curves=["eureur", "eur_eurusd"]),
-            FXExchange(dt(2022, 2, 1), currency="usd", leg2_currency="eur", collateral="eur", fx_rate=0.9, curves=["eureur", "eureur", "usdeur", "usdeur"]),
-            IRS(dt(2022, 1, 1), "9M", "Q", currency="usd", collateral="usd", fixed_rate=1.5, curves=["usdusd"]),
-        ]
-    )
-
-    assert eureur.collateral == "eur"
-
-    result = pf.cashflows(solver=solver)
+    pf = Portfolio([inst])
     result = pf.cashflows_table(solver=solver)
+    assert_frame_equal(expected, result, atol=1e-4)
 
-    # column names = ["local_ccy", "collateral_currency"]
-    expected = DataFrame(
-        {
-            ()
-        }
-    )
-
-
-
+    result = inst.cashflows_table(solver=solver)
+    assert_frame_equal(expected, result, atol=1e-4)

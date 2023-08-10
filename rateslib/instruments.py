@@ -95,6 +95,12 @@ def _get_curve_from_solver(curve, solver):
                         "   This will remove the ability to accurately price risk metrics."
                     )
                 return _
+            except AttributeError:
+                raise AttributeError(
+                    "`curve` has no attribute `id`, likely it not an object and is None, got "
+                    f"{curve}.\nSince a solver is provided have you missed labelling the `curves` "
+                    f"of the instrument or supplying `curves` directly?"
+                )
             except KeyError:
                 if defaults.curve_not_in_solver == "ignore":
                     return curve
@@ -426,7 +432,7 @@ class Sensitivities:
             ]).sum().unstack([0, 1]).droplevel(0, axis=1)
         _.columns.names = ["local_ccy", "collateral_ccy"]
         _.index.names = ["payment"]
-        _ = _.sort_index(ascending=True, axis=0)
+        _ = _.sort_index(ascending=True, axis=0).fillna(0.0)
         return _
 
 
@@ -883,9 +889,10 @@ class FXExchange(Sensitivities, BaseMixin):
         solver: Optional[Solver] = None,
         fx: Optional[Union[Dual, float, FXRates, FXForwards]] = None,
     ):
-        mid_market_rate = self.rate(curves, solver, fx)
-        self.fx_rate = float(mid_market_rate)
-        self._fx_rate = None
+        if self.fx_rate is None:
+            mid_market_rate = self.rate(curves, solver, fx)
+            self.fx_rate = float(mid_market_rate)
+            self._fx_rate = None
 
     def npv(
         self,
@@ -900,8 +907,7 @@ class FXExchange(Sensitivities, BaseMixin):
 
         For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.npv>`
         """
-        if self.fx_rate is None:
-            self._set_pricing_mid(curves, solver, fx)
+        self._set_pricing_mid(curves, solver, fx)
 
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
@@ -948,6 +954,7 @@ class FXExchange(Sensitivities, BaseMixin):
 
         For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.cashflows>`
         """
+        self._set_pricing_mid(curves, solver, fx)
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, None
         )
@@ -3893,6 +3900,10 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             setattr(self, attribute, val)
             setattr(self, f"leg2_{attribute}", _)
 
+    @abstractmethod
+    def _set_pricing_mid(self, *args, **kwargs):
+        pass
+
     # def delta(
     #     self,
     #     curves: Union[Curve, str, list],
@@ -4086,8 +4097,11 @@ class IRS(BaseDerivative):
         curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
     ):
-        mid_market_rate = self.rate(curves, solver)
-        self.leg1.fixed_rate = float(mid_market_rate)
+        # the test for an unpriced IRS is that its fixed rate is not set.
+        if self.fixed_rate is None:
+            # set a fixed rate for the purpose of generic methods NPV will be zero.
+            mid_market_rate = self.rate(curves, solver)
+            self.leg1.fixed_rate = float(mid_market_rate)
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -4110,9 +4124,7 @@ class IRS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        if self.fixed_rate is None:
-            # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            self._set_pricing_mid(curves, solver)
+        self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
@@ -4171,6 +4183,7 @@ class IRS(BaseDerivative):
 
         See :meth:`BaseDerivative.cashflows`.
         """
+        self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx, base)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -4539,6 +4552,9 @@ class IIRS(BaseDerivative):
             self.leg1.index_base = curves[0].index_value(
                 self.leg1.schedule.effective, self.leg1.index_method
             )
+        if self.fixed_rate is None:
+            # set a fixed rate for the purpose of pricing NPV, which should be zero.
+            self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx_, base_)
 
     def rate(
@@ -4851,8 +4867,10 @@ class ZCS(BaseDerivative):
         return super().analytic_delta(*args, **kwargs)
 
     def _set_pricing_mid(self, curves, solver):
-        mid_market_rate = self.rate(curves, solver)
-        self.leg1.fixed_rate = float(mid_market_rate)
+        if self.fixed_rate is None:
+            # set a fixed rate for the purpose of pricing NPV, which should be zero.
+            mid_market_rate = self.rate(curves, solver)
+            self.leg1.fixed_rate = float(mid_market_rate)
 
     def npv(
         self,
@@ -4867,9 +4885,7 @@ class ZCS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        if self.fixed_rate is None:
-            # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            self._set_pricing_mid(curves, solver)
+        self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
@@ -4935,6 +4951,7 @@ class ZCS(BaseDerivative):
 
         See :meth:`BaseDerivative.cashflows`.
         """
+        self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx, base)
 
 
@@ -5121,11 +5138,20 @@ class ZCIS(BaseDerivative):
         )
 
     def _set_pricing_mid(self, curves, solver):
-        mid_market_rate = self.rate(curves, solver)
-        self.leg1.fixed_rate = float(mid_market_rate)
+        if self.fixed_rate is None:
+            # set a fixed rate for the purpose of pricing NPV, which should be zero.
+            mid_market_rate = self.rate(curves, solver)
+            self.leg1.fixed_rate = float(mid_market_rate)
 
-    def cashflows(self, *args, **kwargs):
-        return super().cashflows(*args, **kwargs)
+    def cashflows(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[Union[float, FXRates, FXForwards]] = None,
+        base: Optional[str] = None,
+    ):
+        self._set_pricing_mid(curves, solver)
+        return super().cashflows(curves, solver, fx, base)
 
     def npv(
         self,
@@ -5135,9 +5161,7 @@ class ZCIS(BaseDerivative):
         base: Optional[str] = None,
         local: bool = False,
     ):
-        if self.fixed_rate is None:
-            # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            self._set_pricing_mid(curves, solver)
+        self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
@@ -5410,8 +5434,10 @@ class SBS(BaseDerivative):
         )
 
     def _set_pricing_mid(self, curves, solver):
-        rate = self.rate(curves, solver)
-        self.leg1.float_spread = float(rate)
+        if self.float_spread is None and self.leg2_float_spread is None:
+            # set a pricing parameter for the purpose of pricing NPV at zero.
+            rate = self.rate(curves, solver)
+            self.leg1.float_spread = float(rate)
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -5433,6 +5459,7 @@ class SBS(BaseDerivative):
 
         See :meth:`BaseDerivative.cashflows`.
         """
+        self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx, base)
 
     def npv(
@@ -5448,9 +5475,7 @@ class SBS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        if self.float_spread is None and self.leg2_float_spread is None:
-            # set a pricing parameter for the purpose of pricing NPV at zero.
-            self._set_pricing_mid(curves, solver)
+        self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
     def rate(
@@ -5696,8 +5721,9 @@ class FRA(Sensitivities, BaseMixin):
         curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
     ) -> None:
-        mid_market_rate = self.rate(curves, solver)
-        self.leg1.fixed_rate = mid_market_rate.real
+        if self.fixed_rate is None:
+            mid_market_rate = self.rate(curves, solver)
+            self.leg1.fixed_rate = mid_market_rate.real
 
     def analytic_delta(
         self,
@@ -5730,8 +5756,8 @@ class FRA(Sensitivities, BaseMixin):
 
         See :meth:`BaseDerivative.npv`.
         """
-        if self.fixed_rate is None:
-            self._set_pricing_mid(curves, solver)
+
+        self._set_pricing_mid(curves, solver)
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.currency
         )
@@ -5793,7 +5819,10 @@ class FRA(Sensitivities, BaseMixin):
         """
         cf1 = self.leg1.cashflow
         cf2 = self.leg2.cashflow(curve)
-        cf = cf1 + cf2
+        if cf1 is not None and cf2 is not None:
+            cf = cf1 + cf2
+        else:
+            return None
         rate = None if curve is None else 100 * cf2 / (self.notional * self.leg2.dcf)
         cf /= 1 + self.leg1.dcf * rate / 100
 
@@ -5825,10 +5854,12 @@ class FRA(Sensitivities, BaseMixin):
         -------
         DataFrame
         """
+        self._set_pricing_mid(curves, solver)
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
         fx_, base_ = _get_fx_and_base(self.currency, fx_, base_)
+
         cf = float(self.cashflow(curves[0]))
         npv_local = self.cashflow(curves[0]) * curves[1][self.payment]
 
@@ -6150,6 +6181,10 @@ class BaseXCS(BaseDerivative):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
+
+        if self._is_unpriced:
+            self._set_pricing_mid(curves, solver, fx_)
+
         self._set_fx_fixings(fx_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
