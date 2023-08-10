@@ -9,7 +9,6 @@ from rateslib import defaults, default_context
 from rateslib.instruments import (
     IRS,
     IIRS,
-    forward_fx,
     SBS,
     FXSwap,
     FXExchange,
@@ -1093,21 +1092,7 @@ class TestFXExchange:
             fxe.npv(curve)
 
 
-def test_forward_fx_immediate():
-    d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear")
-    f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
-    result = forward_fx(dt(2022, 4, 1), d_curve, f_curve, 10.0)
-    assert abs(result - 10.102214) < 1e-6
 
-    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, dt(2022, 1, 1))
-    assert abs(result - 10.0) < 1e-6
-
-
-def test_forward_fx_spot_equivalent():
-    d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear")
-    f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
-    result = forward_fx(dt(2022, 7, 1), d_curve, f_curve, 10.102214, dt(2022, 4, 1))
-    assert abs(result - 10.206626) < 1e-6
 
 
 # test the commented out FXSwap variant

@@ -161,7 +161,10 @@ class FXRates:
             A[i + 1, domestic_idx] = -1.0
             A[i + 1, foreign_idx] = 1 / self.fx_rates[pair]
             b[i + 1] = 0
-        x = dual_solve(A, b[:, np.newaxis])[:, 0]
+        try:
+            x = dual_solve(A, b[:, np.newaxis])[:, 0]
+        except ArithmeticError:
+            return self._solve_error()
         self.fx_vector = x
 
         # solve fx_rates array
@@ -169,6 +172,27 @@ class FXRates:
         for i in range(self.q):
             for j in range(i + 1, self.q):
                 self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
+
+    def _solve_error(self):
+        """
+        Is called when `dual_solve` returns an ArithmeticError for partial
+        pivoting fail. Used to indicate obvious errors to users for bad FX pairs.
+        """
+        reversed_pairs = [_[3:6] + _[:3] for _ in self.pairs]
+        report = []
+        for pair in self.pairs:
+            if pair in reversed_pairs:
+                report.append(pair)
+        if len(report) > 1:
+            raise ValueError(
+                "FX rates cannot be solved because redundant information has been "
+                f"supplied.\nPairs and their reverse have been detected. "
+                f"Inspect '{','.join(report)}'"
+            )
+        else:
+            raise ArithmeticError(
+                "The FX Matrix has failed to solve. Partial pivoting has failed."
+            )
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
         """
@@ -1726,5 +1750,6 @@ def forward_fx(
     _ = curve_domestic[date] / curve_foreign[date]
     if fx_settlement is not None:
         _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
+    # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
     _ *= fx_rate
     return _

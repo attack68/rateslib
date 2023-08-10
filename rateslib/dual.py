@@ -597,7 +597,7 @@ def _plu_decomp(A, method=1):
     `method` is passed to the pivoting technique.
     """
     if method == 3:
-        raise ValueError("Partial pivoting has failed on matrix A and cannot solve.")
+        raise ArithmeticError("Partial pivoting has failed on matrix and cannot solve.")
     n = A.shape[0]
     # Create zero matrices for L and U
     L, U = np.zeros((n, n), dtype="object"), np.zeros((n, n), dtype="object")

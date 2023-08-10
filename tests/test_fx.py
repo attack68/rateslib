@@ -9,6 +9,7 @@ import context
 from rateslib.fx import (
     FXForwards,
     FXRates,
+    forward_fx,
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.curves import Curve, LineCurve
@@ -927,3 +928,23 @@ def test_fxforwards_positions_multiple_fx_rates():
         data=[[0.0, 181500.0, 0.0], [0.0, 0.0, -100000.0], [100000, -165000, 105000]],
     )
     assert_frame_equal(result, expected)
+
+
+def test_forward_fx_immediate():
+    d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear")
+    f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
+    result = forward_fx(dt(2022, 4, 1), d_curve, f_curve, 10.0)
+    assert abs(result - 10.102214) < 1e-6
+
+    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, dt(2022, 1, 1))
+    assert abs(result - 10.0) < 1e-6
+
+    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, None)
+    assert abs(result - 10.0) < 1e-6
+
+
+def test_forward_fx_spot_equivalent():
+    d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear")
+    f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
+    result = forward_fx(dt(2022, 7, 1), d_curve, f_curve, 10.102214, dt(2022, 4, 1))
+    assert abs(result - 10.206626) < 1e-6
