@@ -228,6 +228,17 @@ def create_calendar(rules: list, weekmask: Optional[str] = None) -> CustomBusine
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+CALENDARS: Dict[str, CustomBusinessDay] = {
+    "bus": create_calendar(rules=CALENDAR_RULES["bus"], weekmask="Mon Tue Wed Thu Fri"),
+    "tgt": create_calendar(rules=CALENDAR_RULES["tgt"], weekmask="Mon Tue Wed Thu Fri"),
+    "ldn": create_calendar(rules=CALENDAR_RULES["ldn"], weekmask="Mon Tue Wed Thu Fri"),
+    "nyc": create_calendar(rules=CALENDAR_RULES["nyc"], weekmask="Mon Tue Wed Thu Fri"),
+    "stk": create_calendar(rules=CALENDAR_RULES["stk"], weekmask="Mon Tue Wed Thu Fri"),
+    "osl": create_calendar(rules=CALENDAR_RULES["osl"], weekmask="Mon Tue Wed Thu Fri"),
+    "zur": create_calendar(rules=CALENDAR_RULES["zur"], weekmask="Mon Tue Wed Thu Fri"),
+}
+
+
 def get_calendar(
     calendar: CalInput, kind: bool = False
 ) -> Union[CustomBusinessDay, tuple[CustomBusinessDay, str]]:
@@ -536,13 +547,9 @@ def get_calendar(
     elif isinstance(calendar, str):
         calendars = calendar.lower().split(",")
         if len(calendars) == 1:  # only one named calendar is found
-            rules_: list[Any] = CALENDAR_RULES[calendars[0]]
-            ret = (
-                create_calendar(rules=rules_, weekmask="Mon Tue Wed Thu Fri"),
-                "named",
-            )
+            ret = (CALENDARS[calendars[0]], "named")
         else:
-            rules_ = []
+            rules_: list[Any] = []
             for c in calendars:
                 rules_.extend(CALENDAR_RULES[c])
             ret = (create_calendar(rules_, weekmask="Mon Tue Wed Thu Fri"), "named")
