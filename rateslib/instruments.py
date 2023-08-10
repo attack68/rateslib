@@ -7246,12 +7246,6 @@ class FXSwap(BaseXCS):
     points : float, optional
         The pricing parameter for the FX Swap, which will determine the implicit
         fixed rate on leg2.
-    payment_lag_exchange : int
-        The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule. Defaults to 0 for *FXSwaps*.
-    leg2_payment_lag_exchange : int
-        The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule. Defaults to 0 for *FXSwaps*.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
 
@@ -7328,15 +7322,15 @@ class FXSwap(BaseXCS):
         *args,
         fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
         points: Optional[float] = None,
-        payment_lag_exchange: Optional[int] = None,
-        leg2_payment_lag_exchange: Optional[int] = "inherit",
+        # payment_lag_exchange: Optional[int] = None,
+        # leg2_payment_lag_exchange: Optional[int] = "inherit",
         **kwargs,
     ):
         if fx_fixing is None and points is not None:
             raise ValueError("Cannot set `points` on FXSwap without giving an `fx_fixing`.")
         super().__init__(*args, **kwargs)
-        if leg2_payment_lag_exchange == "inherit":
-            leg2_payment_lag_exchange = payment_lag_exchange
+        # if leg2_payment_lag_exchange == "inherit":
+        #     leg2_payment_lag_exchange = payment_lag_exchange
         self._fixed_rate = 0.0
         self.leg1 = FixedLeg(
             fixed_rate=0.0,
@@ -7345,8 +7339,8 @@ class FXSwap(BaseXCS):
             frequency="Z",
             modifier=self.modifier,
             calendar=self.calendar,
-            payment_lag=payment_lag_exchange,
-            payment_lag_exchange=payment_lag_exchange,
+            payment_lag=self.payment_lag,
+            payment_lag_exchange=self.payment_lag,
             notional=self.notional,
             currency=self.currency,
             convention=self.convention,
@@ -7360,8 +7354,8 @@ class FXSwap(BaseXCS):
             frequency="Z",
             modifier=self.leg2_modifier,
             calendar=self.leg2_calendar,
-            payment_lag=leg2_payment_lag_exchange,
-            payment_lag_exchange=leg2_payment_lag_exchange,
+            payment_lag=self.leg2_payment_lag,
+            payment_lag_exchange=self.leg2_payment_lag,
             notional=self.leg2_notional,
             currency=self.leg2_currency,
             convention=self.leg2_convention,
@@ -7405,7 +7399,7 @@ class FXSwap(BaseXCS):
 
     def rate(
         self,
-        curves: Union[Curve, str, list],
+        curves: Optional[Union[Curve, str, list]] = None,
         solver: Optional[Solver] = None,
         fx: Optional[FXForwards] = None,
         fixed_rate: bool = False,

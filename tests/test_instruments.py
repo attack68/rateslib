@@ -1804,7 +1804,7 @@ class TestFXSwap:
             "M",
             currency="usd",
             leg2_currency="nok",
-            payment_lag_exchange=0,
+            payment_lag=0,
             notional=1e6,
         )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
@@ -1822,7 +1822,7 @@ class TestFXSwap:
             "M",
             currency="usd",
             leg2_currency="nok",
-            payment_lag_exchange=0,
+            payment_lag=0,
             notional=1e6,
         )
 
@@ -1858,7 +1858,7 @@ class TestFXSwap:
             points=1754.56233604,
             currency="usd",
             leg2_currency="nok",
-            payment_lag_exchange=0,
+            payment_lag=0,
             notional=1e6,
         )
         npv = fxs.npv([None, curve, None, curve2], None, fxf)
