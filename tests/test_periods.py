@@ -186,6 +186,7 @@ class TestFloatPeriod:
             Defaults.headers["cashflow"]: cashflow,
             Defaults.headers["fx"]: fx,
             Defaults.headers["npv_fx"]: -10096746.871171726 * fx if crv else None,
+            Defaults.headers["collateral"]: None,
         }
         if fx == 2.0:
             with pytest.warns(UserWarning):
@@ -1126,6 +1127,7 @@ class TestFixedPeriod:
             Defaults.headers["cashflow"]: cashflow,
             Defaults.headers["fx"]: fx,
             Defaults.headers["npv_fx"]: -9897791.268897855 * fx if crv else None,
+            Defaults.headers["collateral"]: None,
         }
         if fx == 2.0:
             with pytest.warns(UserWarning):
@@ -1203,6 +1205,7 @@ class TestCashflow:
             Defaults.headers["cashflow"]: -1e9,
             Defaults.headers["fx"]: fx,
             Defaults.headers["npv_fx"]: -989779126.8897856 * fx if crv else None,
+            Defaults.headers["collateral"]: None,
         }
         if fx == 2.0:
             with pytest.warns(UserWarning):
@@ -1429,6 +1432,7 @@ class TestIndexFixedPeriod:
             "NPV": -19795582.53779571 if curve_ else None,
             "FX Rate": 1.0,
             "NPV Ccy": -19795582.53779571 if curve_ else None,
+            Defaults.headers["collateral"]: None,
         }
         assert result == expected
 
