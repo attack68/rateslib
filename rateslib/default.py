@@ -153,6 +153,7 @@ class Defaults:
         "index_value": "Index Val",
         "index_ratio": "Index Ratio",
         "index_base": "Index Base",
+        "collateral": "Collateral",
     }
     algorithm = "gauss_newton"
     curve_not_in_solver = "ignore"
