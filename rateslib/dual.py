@@ -59,19 +59,19 @@ class DualBase(metaclass=ABCMeta):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
             argument = type(self)(float(argument))
         if self.vars == argument.vars:
-            return self.__eq_coeffs__(argument)
+            return self.__eq_coeffs__(argument, PRECISION)
         else:
             self_, argument = self.__upcast_combined__(argument)
             return self_.__eq__(argument)
 
-    def __eq_coeffs__(self, argument):
+    def __eq_coeffs__(self, argument, precision):
         """Compare the coefficients of two Dual numbers for equality."""
-        if not isclose(self.real, argument.real, abs_tol=PRECISION):
+        if not isclose(self.real, argument.real, abs_tol=precision):
             return False
-        elif not np.all(np.isclose(self.dual, argument.dual, atol=PRECISION)):
+        elif not np.all(np.isclose(self.dual, argument.dual, atol=precision)):
             return False
         if type(self) is Dual2 and type(argument) is Dual2:
-            if not np.all(np.isclose(self.dual2, argument.dual2, atol=PRECISION)):
+            if not np.all(np.isclose(self.dual2, argument.dual2, atol=precision)):
                 return False
         elif type(self) is Dual2 or type(argument) is Dual2:
             # this line should not be hit TypeError should raise earlier

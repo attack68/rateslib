@@ -11,6 +11,7 @@ from rateslib.instruments import (
     IIRS,
     SBS,
     FXSwap,
+    FXSwapS,
     FXExchange,
     NonMtmXCS,
     FixedRateBond,
@@ -496,6 +497,80 @@ class TestNullPricing:
         solver.iterate()
         result3 = inst.npv(solver=solver)
         assert abs(result3) < 1e-3
+
+    @pytest.mark.parametrize("inst, param", [
+        (IRS(dt(2022, 7, 1), "3M", "A", curves="usdusd"), "fixed_rate"),
+        (FRA(dt(2022, 7, 1), "3M", "Q", curves="usdusd"), "fixed_rate"),
+        (SBS(dt(2022, 7, 1), "3M", "Q", curves=["usdusd", "usdusd", "eureur", "usdusd"]), "float_spread"),
+        (ZCS(dt(2022, 1, 1), "1Y", "Q", curves=["usdusd"]), "fixed_rate"),
+        (ZCIS(dt(2022, 1, 1), "1Y", "A", curves=["usdusd", "usdusd", "eu_cpi", "usdusd"]), "fixed_rate"),
+        (IIRS(dt(2022, 1, 1), "1Y", "Q", curves=["eu_cpi", "usdusd", "usdusd", "usdusd"]), "fixed_rate"),
+        (FXExchange(dt(2022, 3, 1), currency="usd", leg2_currency="eur", curves=[None, "usdusd", None, "eurusd"]), "fx_rate")
+    ])
+    def test_null_priced_delta_round_trip_one_pricing_param(self, inst, param):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+
+        unpriced_delta = inst.delta(solver=solver)
+        mid_market_price = inst.rate(solver=solver)
+        setattr(inst, param, float(mid_market_price))
+        priced_delta = inst.delta(solver=solver)
+
+        assert_frame_equal(unpriced_delta, priced_delta)
+
+    @pytest.mark.parametrize("inst, param", [
+        (FXSwap(dt(2022, 2, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=[None, "eurusd", None, "usdusd"]), "points"),
+    ])
+    def test_null_priced_delta_round_trip_one_pricing_param_fx_fix(self, inst, param):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+
+        unpriced_delta = inst.delta(solver=solver, fx=fxf)
+        mid_market_price = inst.rate(solver=solver, fx=fxf)
+        setattr(inst, param, float(mid_market_price))
+        priced_delta = inst.delta(solver=solver, fx=fxf)
+
+        assert_frame_equal(unpriced_delta, priced_delta)
 
 
 class TestIRS:
@@ -1091,9 +1166,6 @@ class TestFXExchange:
         )
         with pytest.raises(ValueError, match="Must have some FX info"):
             fxe.npv(curve)
-
-
-
 
 
 # test the commented out FXSwap variant
@@ -1812,6 +1884,24 @@ class TestFXSwap:
         result = fxs.rate([None, curve, None, curve2], None, fxf)
         assert result == expected
 
+    def test_fxswaps_rate(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxs = FXSwapS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            currency="usd",
+            leg2_currency="nok",
+            payment_lag=0,
+            notional=1e6,
+        )
+        expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
+        result = fxs.rate([None, curve, None, curve2], None, fxf)
+        assert result == expected
+
     def test_fxswap_npv(self, curve, curve2):
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
@@ -1833,8 +1923,29 @@ class TestFXSwap:
         fxs.leg2_fixed_rate = result
         assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
 
+    def test_fxswaps_npv(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxs = FXSwapS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            currency="usd",
+            leg2_currency="nok",
+            payment_lag=0,
+            notional=1e6,
+        )
+
+        assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
+
+        result = fxs.rate([None, curve, None, curve2], None, fxf, fixed_rate=True)
+        fxs.leg2_fixed_rate = result
+        assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
+
     def test_fxswap_points_raises(self):
-        with pytest.raises(ValueError, match="Cannot set `points` on FXSwap without"):
+        with pytest.raises(ValueError, match="Cannot set `points` on FXSwap initialisation"):
             FXSwap(
                 dt(2022, 2, 1),
                 "8M",
@@ -1842,11 +1953,41 @@ class TestFXSwap:
                 points=1000.0,
                 currency="usd",
                 leg2_currency="nok",
-                payment_lag_exchange=0,
+                payment_lag=0,
                 notional=1e6,
             )
 
-    def test_fxswap_fixing_and_points(self, curve, curve2):
+    def test_fxswap_points_warns(self):
+        with pytest.warns(UserWarning):
+            FXSwap(
+                dt(2022, 2, 1),
+                "8M",
+                "M",
+                fx_fixing=11.0,
+                currency="usd",
+                leg2_currency="nok",
+                payment_lag=0,
+                notional=1e6,
+            )
+
+    @pytest.mark.parametrize("fx_fixing, points, expected", [
+        (None, None, Dual(0, "fx_usdnok", [-1667.21031322])),
+        (11.0, 1800.0, Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
+        (11.0, 1754.5623360395632, Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
+        (10.032766762996951, 1754.5623360395632, Dual(0, "fx_usdnok", [2654.42027107]))
+    ])
+    def test_fxswap_parameter_combinations_off_mids_given(
+            self, curve, curve2, fx_fixing, points, expected
+    ):
+        # curve._set_ad_order(1)
+        # curve2._set_ad_order(1)
+        # risk sensitivity to curve is checked in:
+        # test_null_priced_delta_round_trip_one_pricing_param_fx_fix
+
+        # the exact values of relevance here are:
+        # usdnok: 10.032766762996951,
+        # points  1754.5623360395632
+
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -1855,15 +1996,17 @@ class TestFXSwap:
             dt(2022, 2, 1),
             "8M",
             "M",
-            fx_fixing=11.0,
-            points=1754.56233604,
+            fx_fixing=fx_fixing,
+            points=points,
             currency="usd",
             leg2_currency="nok",
             payment_lag=0,
             notional=1e6,
         )
-        npv = fxs.npv([None, curve, None, curve2], None, fxf)
-        assert abs(npv + 4166.37288388) < 1e-4
+        assert fxs.points == points
+        result = fxs.npv(curves=[None, curve, None, curve2], fx=fxf, base="usd")
+        assert expected.__eq_coeffs__(result, 1e-4)
+
 
     # def test_proxy_curve_from_fxf(self, curve, curve2):
     #     # TODO this needs a solver from which to test the proxy curve (line 92)
@@ -1878,6 +2021,114 @@ class TestFXSwap:
     #     npv_nok = fxs.npv([None, fxf.curve("usd", "nok"), None, curve2], None, fxf)
     #     npv_usd = fxs.npv([None, curve, None, fxf.curve("nok", "usd")], None, fxf)
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
+
+
+class TestFXSwapS:
+    # def test_fxswap_rate(self, curve, curve2):
+    #     fxf = FXForwards(
+    #         FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+    #         {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+    #     )
+    #     fxs = FXSwap(
+    #         dt(2022, 2, 1),
+    #         "8M",
+    #         "M",
+    #         currency="usd",
+    #         leg2_currency="nok",
+    #         payment_lag=0,
+    #         notional=1e6,
+    #     )
+    #     expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
+    #     result = fxs.rate([None, curve, None, curve2], None, fxf)
+    #     assert result == expected
+
+    def test_fxswaps_priced_npv(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxs = FXSwapS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            currency="usd",
+            leg2_currency="nok",
+            payment_lag=0,
+            notional=1e6,
+            # split_notional=1.02e6,
+            # fx_fixing=10.032766762996951,
+            # points=1754.5623360395632,
+        )
+
+        result = fxs.npv([None, curve, None, curve2], None, fxf)
+        assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
+
+        result = fxs.rate([None, curve, None, curve2], None, fxf, fixed_rate=True)
+        fxs.leg2_fixed_rate = result
+        assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
+
+    # def test_fxswap_points_raises(self):
+    #     with pytest.raises(ValueError, match="Cannot set `points` on FXSwap initialisation"):
+    #         FXSwap(
+    #             dt(2022, 2, 1),
+    #             "8M",
+    #             "M",
+    #             points=1000.0,
+    #             currency="usd",
+    #             leg2_currency="nok",
+    #             payment_lag=0,
+    #             notional=1e6,
+    #         )
+    #
+    # def test_fxswap_points_warns(self):
+    #     with pytest.warns(UserWarning):
+    #         FXSwap(
+    #             dt(2022, 2, 1),
+    #             "8M",
+    #             "M",
+    #             fx_fixing=11.0,
+    #             currency="usd",
+    #             leg2_currency="nok",
+    #             payment_lag=0,
+    #             notional=1e6,
+    #         )
+    #
+    # @pytest.mark.parametrize("fx_fixing, points, expected", [
+    #     (None, None, Dual(0, "fx_usdnok", [-1667.21031322])),
+    #     (11.0, 1800.0, Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
+    #     (11.0, 1754.5623360395632, Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
+    #     (10.032766762996951, 1754.5623360395632, Dual(0, "fx_usdnok", [2654.42027107]))
+    # ])
+    # def test_fxswap_parameter_combinations_off_mids_given(
+    #         self, curve, curve2, fx_fixing, points, expected
+    # ):
+    #     # curve._set_ad_order(1)
+    #     # curve2._set_ad_order(1)
+    #     # risk sensitivity to curve is checked in:
+    #     # test_null_priced_delta_round_trip_one_pricing_param_fx_fix
+    #
+    #     # the exact values of relevance here are:
+    #     # usdnok: 10.032766762996951,
+    #     # points  1754.5623360395632
+    #
+    #     fxf = FXForwards(
+    #         FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+    #         {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+    #     )
+    #     fxs = FXSwap(
+    #         dt(2022, 2, 1),
+    #         "8M",
+    #         "M",
+    #         fx_fixing=fx_fixing,
+    #         points=points,
+    #         currency="usd",
+    #         leg2_currency="nok",
+    #         payment_lag=0,
+    #         notional=1e6,
+    #     )
+    #     assert fxs.points == points
+    #     result = fxs.npv(curves=[None, curve, None, curve2], fx=fxf, base="usd")
+    #     assert expected.__eq_coeffs__(result, 1e-4)
 
 
 class TestFixedRateBond:
@@ -3413,6 +3664,8 @@ class TestPricingMechanism:
         ob.rate()
         ob.npv()
         ob.cashflows()
+
+    # TODO FXEXchange and FXSwap
 
 
 class TestPortfolio:

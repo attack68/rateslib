@@ -73,42 +73,44 @@ def _get_curve_from_solver(curve, solver):
         # with curves inside the solver, so can still generate risks to calibrating
         # instruments
         return curve
+    elif isinstance(curve, str):
+        return solver.pre_curves[curve]
+    elif curve is None:
+        # pass through a None curve. This will either raise errors later or not be needed
+        return None
     else:
-        if isinstance(curve, str):
-            return solver.pre_curves[curve]
-        else:
-            try:
-                # it is a safeguard to load curves from solvers when a solver is
-                # provided and multiple curves might have the same id
-                _ = solver.pre_curves[curve.id]
-                if id(_) != id(curve):  # Python id() is a memory id, not a string label id.
-                    raise ValueError(
-                        "A curve has been supplied, as part of ``curves``, which has the same "
-                        f"`id` ('{curve.id}'),\nas one of the curves available as part of the "
-                        "Solver's collection but is not the same object.\n"
-                        "This is ambiguous and cannot price.\n"
-                        "Either refactor the arguments as follows:\n"
-                        "1) remove the conflicting curve: [curves=[..], solver=<Solver>] -> "
-                        "[curves=None, solver=<Solver>]\n"
-                        "2) change the `id` of the supplied curve and ensure the rateslib.defaults "
-                        "option 'curve_not_in_solver' is set to 'ignore'.\n"
-                        "   This will remove the ability to accurately price risk metrics."
-                    )
-                return _
-            except AttributeError:
-                raise AttributeError(
-                    "`curve` has no attribute `id`, likely it not an object and is None, got "
-                    f"{curve}.\nSince a solver is provided have you missed labelling the `curves` "
-                    f"of the instrument or supplying `curves` directly?"
+        try:
+            # it is a safeguard to load curves from solvers when a solver is
+            # provided and multiple curves might have the same id
+            _ = solver.pre_curves[curve.id]
+            if id(_) != id(curve):  # Python id() is a memory id, not a string label id.
+                raise ValueError(
+                    "A curve has been supplied, as part of ``curves``, which has the same "
+                    f"`id` ('{curve.id}'),\nas one of the curves available as part of the "
+                    "Solver's collection but is not the same object.\n"
+                    "This is ambiguous and cannot price.\n"
+                    "Either refactor the arguments as follows:\n"
+                    "1) remove the conflicting curve: [curves=[..], solver=<Solver>] -> "
+                    "[curves=None, solver=<Solver>]\n"
+                    "2) change the `id` of the supplied curve and ensure the rateslib.defaults "
+                    "option 'curve_not_in_solver' is set to 'ignore'.\n"
+                    "   This will remove the ability to accurately price risk metrics."
                 )
-            except KeyError:
-                if defaults.curve_not_in_solver == "ignore":
-                    return curve
-                elif defaults.curve_not_in_solver == "warn":
-                    warnings.warn("`curve` not found in `solver`.", UserWarning)
-                    return curve
-                else:
-                    raise ValueError("`curve` must be in `solver`.")
+            return _
+        except AttributeError:
+            raise AttributeError(
+                "`curve` has no attribute `id`, likely it not a valid object, got: "
+                f"{curve}.\nSince a solver is provided have you missed labelling the `curves` "
+                f"of the instrument or supplying `curves` directly?"
+            )
+        except KeyError:
+            if defaults.curve_not_in_solver == "ignore":
+                return curve
+            elif defaults.curve_not_in_solver == "warn":
+                warnings.warn("`curve` not found in `solver`.", UserWarning)
+                return curve
+            else:
+                raise ValueError("`curve` must be in `solver`.")
 
 
 def _get_curves_fx_and_base_maybe_from_solver(
@@ -7389,7 +7391,17 @@ class FXSwap(BaseXCS):
         **kwargs,
     ):
         if fx_fixing is None and points is not None:
-            raise ValueError("Cannot set `points` on FXSwap without giving an `fx_fixing`.")
+            raise ValueError(
+                "Cannot set `points` on FXSwap initialisation without giving an `fx_fixing`."
+            )
+        elif fx_fixing is not None and points is None:
+            warnings.warn(
+                "`fx_fixing` has been provided to FXSwap initialisation but `points` has not.\n"
+                "Although this will still work this is not a recommended way to initialise this "
+                "instrument. Either create a 'priced' FXSwap which initialises both the `points` "
+                "and `fx_fixing` arguments simulatenously, or create an 'unpriced' FXSwap which "
+                "leaves both of these arguments to forecasting."
+            )
         super().__init__(*args, **kwargs)
         # if leg2_payment_lag_exchange == "inherit":
         #     leg2_payment_lag_exchange = payment_lag_exchange
@@ -7456,8 +7468,8 @@ class FXSwap(BaseXCS):
         fx: Optional[FXForwards] = None,
     ):
         points = self.rate(curves, solver, fx)
-        self.points = points
-        self._unpriced = True  # setting pricing mid does not define a priced instrument
+        self.points = float(points)
+        self._unpriced = True  # setting temporary pricing mid does not define a priced instrument
 
     def rate(
         self,
@@ -7502,6 +7514,331 @@ class FXSwap(BaseXCS):
         # there is no fixed points, i,e the FXswap is semi-determined, which is
         # not a real instrument.
         return (cf / -self.leg1.notional) * 10000
+
+
+class FXSwapS(BaseXCS):
+    """
+    Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseDerivative`.
+    fx_fixing : float, FXForwards or None
+        The initial FX fixing where leg 1 is considered the domestic currency. For
+        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
+        implies the notional on leg 2 is 110m USD. If `None` determines this
+        dynamically.
+    points : float, optional
+        The pricing parameter for the FX Swap, which will determine the implicit
+        fixed rate on leg2.
+    split_notional : float, optional
+    kwargs : dict
+        Required keyword arguments to :class:`BaseDerivative`.
+
+    Notes
+    -----
+    *FXSwaps* are technically complicated instruments. To define a fully **priced** *Instrument*
+    they require at least two pricing parameters; ``fx_fixing`` and ``points``. If a
+    ``split_notional`` is also given at initialisation it will be assumed to be a split notional
+    *FXSwap*. If not, then it will not be assumed to be.
+
+    If ``fx_fixing`` is given then the market pricing parameter ``points`` can be calculated.
+    This is an unusual partially *priced* parametrisation, however, and a warning will be emitted.
+    As before, if ``split_notional`` is given, or not, at initialisation the *FXSwap* will be
+    assumed to be split notional or not.
+
+    If the *FXSwap* is not initialised with any parameters this defines an **unpriced**
+    *Instrument* and it will be assumed to be split notional, inline with interbank
+    market standards. The mid-market rate of an unpriced FXSwap is the same regardless of whether
+    it is split notional or not, albeit split notional FXSwaps result in smaller FX rate
+    sensitivity.
+
+    Other combinations of arguments, just providing ``points`` or ``split_notional`` or both of
+    those will raise an error. An *FXSwap* cannot be parametrised by these in isolation.
+
+
+
+
+
+    ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+    time and the value of ``notional``. The argument value of ``leg2_notional`` does
+    not impact calculations.
+
+    .. note::
+
+       *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
+       represent traded contracts with defined ``fx_fixing`` and ``points`` values.
+       This is usual for valuing *npv* against current market conditions. Unpriced
+       derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
+       calculation should return the mid-market rate and an *npv* of zero.
+
+    Examples
+    --------
+    To value the *FXSwap* we create *Curves* and :class:`~rateslib.fx.FXForwards`
+    objects.
+
+    .. ipython:: python
+
+       usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
+       eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
+       eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.971}, id="eurusd")
+       fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
+       fxf = FXForwards(
+           fx_rates=fxr,
+           fx_curves={"usdusd": usd, "eureur": eur, "eurusd": eurusd},
+       )
+
+    Then we define the *FXSwap*. This in an unpriced instrument.
+
+    .. ipython:: python
+
+       fxs = FXSwap(
+           effective=dt(2022, 1, 17),
+           termination=dt(2022, 4, 19),
+           calendar="nyc",
+           currency="usd",
+           notional=1000000,
+           leg2_currency="eur",
+           curves=["usd", "usd", "eur", "eurusd"],
+       )
+
+    Now demonstrate the :meth:`~rateslib.instruments.FXSwap.npv` and
+    :meth:`~rateslib.instruments.FXSwap.rate` methods:
+
+    .. ipython:: python
+
+       fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
+       fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
+
+    In the case of *FXSwaps*, whose mid-market price is the difference between two
+    forward FX rates we can also derive this quantity using the independent
+    :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
+    the numerical differences are caused by different calculation methods. The
+    difference here equates to a tolerance of 1e-8, or $1 per $100mm.
+
+    .. ipython:: python
+
+       fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
+
+    """
+
+    _fixed_rate_mixin = True
+    _leg2_fixed_rate_mixin = True
+    _unpriced = True
+
+    def _parse_split_flag(self, fx_fixing, points, split_notional):
+        """
+        Determine the rules for a priced, unpriced or partially priced derivative and whether
+        it is inferred as split notional or not.
+        """
+        is_none = [_ is None for _ in [fx_fixing, points, split_notional]]
+        if all(is_none) or not any(is_none):
+            self._split = True
+        elif split_notional is None and not any([_ is None for _ in [fx_fixing, points]]):
+            self._split = False
+        elif fx_fixing is not None:
+            warnings.warn(
+                "Initialising FXSwap with `fx_fixing` but without `points` is unconventional.\n"
+                "Pricing can still be performed to determine `points`.",
+                UserWarning
+            )
+            if split_notional is not None:
+                self._split = True
+            else:
+                self._split = False
+        else:
+            if points is not None:
+                raise ValueError(
+                    "Cannot initialise FXSwap with `points` but without `fx_fixing`."
+                )
+            else:
+                raise ValueError(
+                    "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
+                )
+
+    def _set_split_notional(self, curve: Optional[Curve] = None, at_init: bool = False):
+        """
+        Will set the fixed rate, if not zero, for leg1, given provided sn or forecast sn.
+
+        self._split_notional is used as a temporary storage when mid market price is determined.
+        """
+        if not self._split:
+            self._split_notional = self.notional
+            # fixed rate at zero remains
+        elif self.split_notional is not None:
+            if at_init:  # this will be run for one time only at initialisation
+                self._split_notional = self.split_notional
+                self._set_leg1_fixed_rate()
+            else:
+                return None
+        else:
+            if at_init:
+                self._split_notional = None
+            else:
+                dt1, dt2 = self.leg1.periods[0].payment, self.leg1.periods[2].payment
+                self._split_notional = self.notional * curve[dt1] / curve[dt2]
+                self._set_leg1_fixed_rate()
+
+    def _set_leg1_fixed_rate(self):
+        fixed_rate = (self.leg1.notional - self._split_notional) / (-self.leg1.notional * self.leg1.periods[1].dcf)
+        self.leg1.fixed_rate = fixed_rate * 100
+
+    def __init__(
+        self,
+        *args,
+        fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
+        points: Optional[float] = None,
+        split_notional: Optional[float] = None,
+        **kwargs,
+    ):
+        self._parse_split_flag(fx_fixing, points, split_notional)
+
+        super().__init__(*args, **kwargs)
+        self._fixed_rate = 0.0
+        self.leg1 = FixedLeg(
+            fixed_rate=0.0,
+            effective=self.effective,
+            termination=self.termination,
+            frequency="Z",
+            modifier=self.modifier,
+            calendar=self.calendar,
+            payment_lag=self.payment_lag,
+            payment_lag_exchange=self.payment_lag,
+            notional=self.notional,
+            currency=self.currency,
+            convention=self.convention,
+            initial_exchange=True,
+            final_exchange=True,
+        )
+        self.split_notional = split_notional
+        self._set_split_notional(curve=None, at_init=True)
+
+        self.leg2 = FixedLeg(
+            fixed_rate=None,
+            effective=self.leg2_effective,
+            termination=self.leg2_termination,
+            frequency="Z",
+            modifier=self.leg2_modifier,
+            calendar=self.leg2_calendar,
+            payment_lag=self.leg2_payment_lag,
+            payment_lag_exchange=self.leg2_payment_lag,
+            notional=self.leg2_notional,
+            currency=self.leg2_currency,
+            convention=self.leg2_convention,
+            initial_exchange=True,
+            final_exchange=True,
+        )
+        self._initialise_fx_fixings(fx_fixing)
+        self.points = points
+
+    @property
+    def points(self):
+        return self._points
+
+    @points.setter
+    def points(self, value):
+        self._unpriced = False
+        self._points = value
+        self._leg2_fixed_rate = None
+
+        # setting points requires leg1.notional leg1.split_notional, fx_fixing and points value
+
+        if value is not None:
+            # leg2 should have been properly set as part of fx_fixings and set_leg2_notional
+            fx_fixing = self.leg2.notional / -self.leg1.notional
+
+            _ = (self._split_notional * (fx_fixing + value / 10000) + self.leg2.notional)
+            fixed_rate = _ / (self.leg2.periods[1].dcf * -self.leg2.notional)
+
+            self.leg2_fixed_rate = fixed_rate * 100
+
+        # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+
+    # Commercial use of this code, and/or copying and redistribution is prohibited.
+    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+    def _set_pricing_mid(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
+    ):
+        # This function ASSUMES that the instrument is unpriced, i.e. all of
+        # split_notional, fx_fixing and points have been initialised as None.
+
+        # first we set the split notional which is defined by interest rates on leg1.
+        points = self.rate(curves, solver, fx)
+        self.points = float(points)
+        self._unpriced = True  # setting pricing mid does not define a priced instrument
+
+    def rate(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
+        fixed_rate: bool = False,
+    ):
+        """
+        Return the mid-market pricing parameter of the FXSwapS.
+
+        Parameters
+        ----------
+        curves : list of Curves
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for leg1 (if floating).
+            - Discounting :class:`~rateslib.curves.Curve` for leg1.
+            - Forecasting :class:`~rateslib.curves.Curve` for leg2 (if floating).
+            - Discounting :class:`~rateslib.curves.Curve` for leg2.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that
+            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+        fx : FXForwards, optional
+            The FX forwards object that is used to determine the initial FX fixing for
+            determining ``leg2_notional``, if not specified at initialisation, and for
+            determining mark-to-market exchanges on mtm XCSs.
+        fixed_rate : bool
+            Whether to return the fixed rate for the leg or the FX swap points price.
+
+        Returns
+        -------
+        float, Dual or Dual2
+        """
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, None, self.leg1.currency
+        )
+        # set the split notional from the curve if not available
+        self._set_split_notional(curve=curves[1])
+        # then we will set the fx_fixing and leg2 initial notional.
+
+        # self._set_fx_fixings(fx) # this will be done by super().rate()
+        leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
+
+        if fixed_rate:
+            return leg2_fixed_rate
+        else:
+            points = -self.leg2.notional * (
+                (1 + leg2_fixed_rate * self.leg2.periods[1].dcf / 100) / self._split_notional
+                - 1 / self.notional
+            )
+            return points * 10000
+
+
+    def cashflows(
+        self,
+        curves: Optional[Union[Curve, str, list]] = None,
+        solver: Optional[Solver] = None,
+        fx: Optional[FXForwards] = None,
+        base: Optional[str] = None,
+    ):
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
+        )
+        if self._is_unpriced:
+            self._set_pricing_mid(curves, solver, fx_)
+        ret = super().cashflows(curves, solver, fx_, base_)
+        return ret
 
 
 # Generic Instruments
