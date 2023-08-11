@@ -7777,7 +7777,8 @@ class Fly(Sensitivities):
 #         return 2 * self.instrument2.rate(*args2) - self.instrument1.rate(*args1) - self.instrument3.rate(*args3)
 
 
-def _instrument_npv(instrument, *args, **kwargs):
+def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
+    # this function is captured by TestPortfolio pooling but is not registered as a parallel process
     # used for parallel processing with Portfolio.npv
     return instrument.npv(*args, **kwargs)
 
