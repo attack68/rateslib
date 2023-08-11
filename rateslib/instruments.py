@@ -7294,229 +7294,229 @@ class FloatFixedXCS(BaseXCS):
         )
 
 
+# class FXSwap(BaseXCS):
+#     """
+#     Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
+#
+#     Parameters
+#     ----------
+#     args : dict
+#         Required positional args to :class:`BaseDerivative`.
+#     fx_fixing : float, FXForwards or None
+#         The initial FX fixing where leg 1 is considered the domestic currency. For
+#         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
+#         implies the notional on leg 2 is 110m USD. If `None` determines this
+#         dynamically.
+#     points : float, optional
+#         The pricing parameter for the FX Swap, which will determine the implicit
+#         fixed rate on leg2.
+#     kwargs : dict
+#         Required keyword arguments to :class:`BaseDerivative`.
+#
+#     Notes
+#     -----
+#     ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+#     time and the value of ``notional``. The argument value of ``leg2_notional`` does
+#     not impact calculations.
+#
+#     .. note::
+#
+#        *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
+#        represent traded contracts with defined ``fx_fixing`` and ``points`` values.
+#        This is usual for valuing *npv* against current market conditions. Unpriced
+#        derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
+#        calculation should return the mid-market rate and an *npv* of zero.
+#
+#     Examples
+#     --------
+#     To value the *FXSwap* we create *Curves* and :class:`~rateslib.fx.FXForwards`
+#     objects.
+#
+#     .. ipython:: python
+#
+#        usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
+#        eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
+#        eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.971}, id="eurusd")
+#        fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
+#        fxf = FXForwards(
+#            fx_rates=fxr,
+#            fx_curves={"usdusd": usd, "eureur": eur, "eurusd": eurusd},
+#        )
+#
+#     Then we define the *FXSwap*. This in an unpriced instrument.
+#
+#     .. ipython:: python
+#
+#        fxs = FXSwap(
+#            effective=dt(2022, 1, 17),
+#            termination=dt(2022, 4, 19),
+#            calendar="nyc",
+#            currency="usd",
+#            notional=1000000,
+#            leg2_currency="eur",
+#            curves=["usd", "usd", "eur", "eurusd"],
+#        )
+#
+#     Now demonstrate the :meth:`~rateslib.instruments.FXSwap.npv` and
+#     :meth:`~rateslib.instruments.FXSwap.rate` methods:
+#
+#     .. ipython:: python
+#
+#        fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
+#        fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
+#
+#     In the case of *FXSwaps*, whose mid-market price is the difference between two
+#     forward FX rates we can also derive this quantity using the independent
+#     :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
+#     the numerical differences are caused by different calculation methods. The
+#     difference here equates to a tolerance of 1e-8, or $1 per $100mm.
+#
+#     .. ipython:: python
+#
+#        fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
+#
+#     """
+#
+#     _fixed_rate_mixin = True
+#     _leg2_fixed_rate_mixin = True
+#     _unpriced = True
+#
+#     def __init__(
+#         self,
+#         *args,
+#         fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
+#         points: Optional[float] = None,
+#         # payment_lag_exchange: Optional[int] = None,
+#         # leg2_payment_lag_exchange: Optional[int] = "inherit",
+#         **kwargs,
+#     ):
+#         if fx_fixing is None and points is not None:
+#             raise ValueError(
+#                 "Cannot set `points` on FXSwap initialisation without giving an `fx_fixing`."
+#             )
+#         elif fx_fixing is not None and points is None:
+#             warnings.warn(
+#                 "`fx_fixing` has been provided to FXSwap initialisation but `points` has not.\n"
+#                 "Although this will still work this is not a recommended way to initialise this "
+#                 "instrument. Either create a 'priced' FXSwap which initialises both the `points` "
+#                 "and `fx_fixing` arguments simulatenously, or create an 'unpriced' FXSwap which "
+#                 "leaves both of these arguments to forecasting."
+#             )
+#         super().__init__(*args, **kwargs)
+#         # if leg2_payment_lag_exchange == "inherit":
+#         #     leg2_payment_lag_exchange = payment_lag_exchange
+#         self._fixed_rate = 0.0
+#         self.leg1 = FixedLeg(
+#             fixed_rate=0.0,
+#             effective=self.effective,
+#             termination=self.termination,
+#             frequency="Z",
+#             modifier=self.modifier,
+#             calendar=self.calendar,
+#             payment_lag=self.payment_lag,
+#             payment_lag_exchange=self.payment_lag,
+#             notional=self.notional,
+#             currency=self.currency,
+#             convention=self.convention,
+#             initial_exchange=True,
+#             final_exchange=True,
+#         )
+#         self.leg2 = FixedLeg(
+#             fixed_rate=None,
+#             effective=self.leg2_effective,
+#             termination=self.leg2_termination,
+#             frequency="Z",
+#             modifier=self.leg2_modifier,
+#             calendar=self.leg2_calendar,
+#             payment_lag=self.leg2_payment_lag,
+#             payment_lag_exchange=self.leg2_payment_lag,
+#             notional=self.leg2_notional,
+#             currency=self.leg2_currency,
+#             convention=self.leg2_convention,
+#             initial_exchange=True,
+#             final_exchange=True,
+#         )
+#         self._initialise_fx_fixings(fx_fixing)
+#         self.points = points
+#
+#     @property
+#     def points(self):
+#         return self._points
+#
+#     @points.setter
+#     def points(self, value):
+#         self._unpriced = False
+#         self._points = value
+#         self._leg2_fixed_rate = None
+#         if value is not None:
+#             fixed_rate = (
+#                 value
+#                 * -self.notional
+#                 / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
+#             )
+#             self.leg2_fixed_rate = fixed_rate
+#
+#         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+#
+#     # Commercial use of this code, and/or copying and redistribution is prohibited.
+#     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+#
+#     def _set_pricing_mid(
+#         self,
+#         curves: Optional[Union[Curve, str, list]] = None,
+#         solver: Optional[Solver] = None,
+#         fx: Optional[FXForwards] = None,
+#     ):
+#         points = self.rate(curves, solver, fx)
+#         self.points = float(points)
+#         self._unpriced = True  # setting temporary pricing mid does not define a priced instrument
+#
+#     def rate(
+#         self,
+#         curves: Optional[Union[Curve, str, list]] = None,
+#         solver: Optional[Solver] = None,
+#         fx: Optional[FXForwards] = None,
+#         fixed_rate: bool = False,
+#     ):
+#         """
+#         Return the mid-market pricing parameter of the FXSwap.
+#
+#         Parameters
+#         ----------
+#         curves : list of Curves
+#             A list defines the following curves in the order:
+#
+#             - Forecasting :class:`~rateslib.curves.Curve` for leg1 (if floating).
+#             - Discounting :class:`~rateslib.curves.Curve` for leg1.
+#             - Forecasting :class:`~rateslib.curves.Curve` for leg2 (if floating).
+#             - Discounting :class:`~rateslib.curves.Curve` for leg2.
+#         solver : Solver, optional
+#             The numerical :class:`~rateslib.solver.Solver` that
+#             constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+#         fx : FXForwards, optional
+#             The FX forwards object that is used to determine the initial FX fixing for
+#             determining ``leg2_notional``, if not specified at initialisation, and for
+#             determining mark-to-market exchanges on mtm XCSs.
+#         fixed_rate : bool
+#             Whether to return the fixed rate for the leg or the FX swap points price.
+#
+#         Returns
+#         -------
+#         float, Dual or Dual2
+#         """
+#         leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
+#         if fixed_rate:
+#             return leg2_fixed_rate
+#         cf = self.leg2.notional * leg2_fixed_rate * 0.01 * self.leg2.periods[1].dcf
+#         # fwd_fx = (cf + self.leg2.notional) / -self.leg1.notional
+#         # ini_fx = self.leg2.notional / -self.leg1.notional
+#         # TODO decide how to price mid-market rates when ini fx is struck but
+#         # there is no fixed points, i,e the FXswap is semi-determined, which is
+#         # not a real instrument.
+#         return (cf / -self.leg1.notional) * 10000
+
+
 class FXSwap(BaseXCS):
-    """
-    Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseDerivative`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-        implies the notional on leg 2 is 110m USD. If `None` determines this
-        dynamically.
-    points : float, optional
-        The pricing parameter for the FX Swap, which will determine the implicit
-        fixed rate on leg2.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
-
-    Notes
-    -----
-    ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
-    time and the value of ``notional``. The argument value of ``leg2_notional`` does
-    not impact calculations.
-
-    .. note::
-
-       *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
-       represent traded contracts with defined ``fx_fixing`` and ``points`` values.
-       This is usual for valuing *npv* against current market conditions. Unpriced
-       derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
-       calculation should return the mid-market rate and an *npv* of zero.
-
-    Examples
-    --------
-    To value the *FXSwap* we create *Curves* and :class:`~rateslib.fx.FXForwards`
-    objects.
-
-    .. ipython:: python
-
-       usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
-       eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
-       eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.971}, id="eurusd")
-       fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
-       fxf = FXForwards(
-           fx_rates=fxr,
-           fx_curves={"usdusd": usd, "eureur": eur, "eurusd": eurusd},
-       )
-
-    Then we define the *FXSwap*. This in an unpriced instrument.
-
-    .. ipython:: python
-
-       fxs = FXSwap(
-           effective=dt(2022, 1, 17),
-           termination=dt(2022, 4, 19),
-           calendar="nyc",
-           currency="usd",
-           notional=1000000,
-           leg2_currency="eur",
-           curves=["usd", "usd", "eur", "eurusd"],
-       )
-
-    Now demonstrate the :meth:`~rateslib.instruments.FXSwap.npv` and
-    :meth:`~rateslib.instruments.FXSwap.rate` methods:
-
-    .. ipython:: python
-
-       fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
-       fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
-
-    In the case of *FXSwaps*, whose mid-market price is the difference between two
-    forward FX rates we can also derive this quantity using the independent
-    :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
-    the numerical differences are caused by different calculation methods. The
-    difference here equates to a tolerance of 1e-8, or $1 per $100mm.
-
-    .. ipython:: python
-
-       fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
-
-    """
-
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
-    _unpriced = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-        points: Optional[float] = None,
-        # payment_lag_exchange: Optional[int] = None,
-        # leg2_payment_lag_exchange: Optional[int] = "inherit",
-        **kwargs,
-    ):
-        if fx_fixing is None and points is not None:
-            raise ValueError(
-                "Cannot set `points` on FXSwap initialisation without giving an `fx_fixing`."
-            )
-        elif fx_fixing is not None and points is None:
-            warnings.warn(
-                "`fx_fixing` has been provided to FXSwap initialisation but `points` has not.\n"
-                "Although this will still work this is not a recommended way to initialise this "
-                "instrument. Either create a 'priced' FXSwap which initialises both the `points` "
-                "and `fx_fixing` arguments simulatenously, or create an 'unpriced' FXSwap which "
-                "leaves both of these arguments to forecasting."
-            )
-        super().__init__(*args, **kwargs)
-        # if leg2_payment_lag_exchange == "inherit":
-        #     leg2_payment_lag_exchange = payment_lag_exchange
-        self._fixed_rate = 0.0
-        self.leg1 = FixedLeg(
-            fixed_rate=0.0,
-            effective=self.effective,
-            termination=self.termination,
-            frequency="Z",
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            payment_lag_exchange=self.payment_lag,
-            notional=self.notional,
-            currency=self.currency,
-            convention=self.convention,
-            initial_exchange=True,
-            final_exchange=True,
-        )
-        self.leg2 = FixedLeg(
-            fixed_rate=None,
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency="Z",
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            payment_lag_exchange=self.leg2_payment_lag,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            convention=self.leg2_convention,
-            initial_exchange=True,
-            final_exchange=True,
-        )
-        self._initialise_fx_fixings(fx_fixing)
-        self.points = points
-
-    @property
-    def points(self):
-        return self._points
-
-    @points.setter
-    def points(self, value):
-        self._unpriced = False
-        self._points = value
-        self._leg2_fixed_rate = None
-        if value is not None:
-            fixed_rate = (
-                value
-                * -self.notional
-                / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
-            )
-            self.leg2_fixed_rate = fixed_rate
-
-        # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def _set_pricing_mid(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-    ):
-        points = self.rate(curves, solver, fx)
-        self.points = float(points)
-        self._unpriced = True  # setting temporary pricing mid does not define a priced instrument
-
-    def rate(
-        self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-        fixed_rate: bool = False,
-    ):
-        """
-        Return the mid-market pricing parameter of the FXSwap.
-
-        Parameters
-        ----------
-        curves : list of Curves
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for leg1 (if floating).
-            - Discounting :class:`~rateslib.curves.Curve` for leg1.
-            - Forecasting :class:`~rateslib.curves.Curve` for leg2 (if floating).
-            - Discounting :class:`~rateslib.curves.Curve` for leg2.
-        solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that
-            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
-        fx : FXForwards, optional
-            The FX forwards object that is used to determine the initial FX fixing for
-            determining ``leg2_notional``, if not specified at initialisation, and for
-            determining mark-to-market exchanges on mtm XCSs.
-        fixed_rate : bool
-            Whether to return the fixed rate for the leg or the FX swap points price.
-
-        Returns
-        -------
-        float, Dual or Dual2
-        """
-        leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
-        if fixed_rate:
-            return leg2_fixed_rate
-        cf = self.leg2.notional * leg2_fixed_rate * 0.01 * self.leg2.periods[1].dcf
-        # fwd_fx = (cf + self.leg2.notional) / -self.leg1.notional
-        # ini_fx = self.leg2.notional / -self.leg1.notional
-        # TODO decide how to price mid-market rates when ini fx is struck but
-        # there is no fixed points, i,e the FXswap is semi-determined, which is
-        # not a real instrument.
-        return (cf / -self.leg1.notional) * 10000
-
-
-class FXSwapS(BaseXCS):
     """
     Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
 
