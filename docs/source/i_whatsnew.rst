@@ -6,7 +6,7 @@ Release Notes
 
 More detailed release notes started being recorded after version 0.3.x
 
-0.4.0 (not released)
+0.4.0 (12 Aug 2023)
 ********************
 
 Refactors and Enhancements
