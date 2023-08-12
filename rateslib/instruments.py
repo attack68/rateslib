@@ -7533,11 +7533,19 @@ class FXSwap(BaseXCS):
         The pricing parameter for the FX Swap, which will determine the implicit
         fixed rate on leg2.
     split_notional : float, optional
+        The accrued notional at termination of the domestic leg accounting for interest
+        payable at domestic interest rates.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
 
     Notes
     -----
+    .. warning::
+
+       ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+       time and the value of ``notional``. The argument value of ``leg2_notional`` does
+       not impact calculations.
+
     *FXSwaps* are technically complicated instruments. To define a fully **priced** *Instrument*
     they require at least two pricing parameters; ``fx_fixing`` and ``points``. If a
     ``split_notional`` is also given at initialisation it will be assumed to be a split notional
@@ -7555,23 +7563,49 @@ class FXSwap(BaseXCS):
     sensitivity.
 
     Other combinations of arguments, just providing ``points`` or ``split_notional`` or both of
-    those will raise an error. An *FXSwap* cannot be parametrised by these in isolation.
+    those will raise an error. An *FXSwap* cannot be parametrised by these in isolation. This is
+    summarised in the below table.
 
+    .. list-table::  Resultant initialisation dependent upon given pricing parameters.
+       :widths: 10 10 10 70
+       :header-rows: 1
 
-
-
-
-    ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
-    time and the value of ``notional``. The argument value of ``leg2_notional`` does
-    not impact calculations.
-
-    .. note::
-
-       *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
-       represent traded contracts with defined ``fx_fixing`` and ``points`` values.
-       This is usual for valuing *npv* against current market conditions. Unpriced
-       derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
-       calculation should return the mid-market rate and an *npv* of zero.
+       * - fx_fixing
+         - points
+         - split_notional
+         - Result
+       * - X
+         - X
+         - X
+         - A fully *priced* instrument defined with split notionals.
+       * - X
+         - X
+         -
+         - A fully *priced* instruments without split notionals.
+       * -
+         -
+         -
+         - An *unpriced* instrument with assumed split notionals.
+       * - X
+         -
+         - X
+         - A partially priced instrument with split notionals. Warns about unconventionality.
+       * - X
+         -
+         -
+         - A partially priced instrument without split notionals. Warns about unconventionality.
+       * -
+         - X
+         - X
+         - Raises ValueError. Not allowable partially priced instrument.
+       * -
+         - X
+         -
+         - Raises ValueError. Not allowable partially priced instrument.
+       * -
+         -
+         - X
+         - Raises ValueError. Not allowable partially priced instrument.
 
     Examples
     --------
@@ -7594,7 +7628,7 @@ class FXSwap(BaseXCS):
     .. ipython:: python
 
        fxs = FXSwap(
-           effective=dt(2022, 1, 17),
+           effective=dt(2022, 1, 18),
            termination=dt(2022, 4, 19),
            calendar="nyc",
            currency="usd",
@@ -7608,18 +7642,36 @@ class FXSwap(BaseXCS):
 
     .. ipython:: python
 
-       fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
-       fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
+       fxs.npv(curves=[None, usd, None, eurusd], fx=fxf)
+       fxs.rate(curves=[None, usd, None, eurusd], fx=fxf)
 
     In the case of *FXSwaps*, whose mid-market price is the difference between two
     forward FX rates we can also derive this quantity using the independent
-    :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
-    the numerical differences are caused by different calculation methods. The
-    difference here equates to a tolerance of 1e-8, or $1 per $100mm.
+    :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method.
 
     .. ipython:: python
 
-       fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
+       fxf.swap("usdeur", [dt(2022, 1, 18), dt(2022, 4, 19)])
+
+    The following is an example of a fully priced *FXSwap* with split notionals.
+
+    .. ipython:: python
+
+       fxs = FXSwap(
+           effective=dt(2022, 1, 18),
+           termination=dt(2022, 4, 19),
+           calendar="nyc",
+           currency="usd",
+           notional=1000000,
+           leg2_currency="eur",
+           curves=["usd", "usd", "eur", "eurusd"],
+           fx_fixing=0.90,
+           split_notional=1001500,
+           points=-49.0
+       )
+       fxs.npv(curves=[None, usd, None, eurusd], fx=fxf)
+       fxs.cashflows(curves=[None, usd, None, eurusd], fx=fxf)
+       fxs.cashflows_table(curves=[None, usd, None, eurusd], fx=fxf)
 
     """
 
