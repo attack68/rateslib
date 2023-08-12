@@ -15,7 +15,8 @@ class Fixings:
     def _load_csv(path):
         abspath = os.path.dirname(os.path.abspath(__file__))
         target = os.path.join(abspath, path)
-        if version.parse(pandas.__version__) < version.parse("2.0"):
+        if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
+            # this is tested by the minimum version gitflow actions.
             # TODO remove when pandas min version is bumped to 2.0
             df = read_csv(target)
             df["reference_date"] = df["reference_date"].map(lambda x: datetime.strptime(x, "%d-%m-%Y"))
@@ -153,6 +154,7 @@ class Defaults:
         "index_value": "Index Val",
         "index_ratio": "Index Ratio",
         "index_base": "Index Base",
+        "collateral": "Collateral",
     }
     algorithm = "gauss_newton"
     curve_not_in_solver = "ignore"
