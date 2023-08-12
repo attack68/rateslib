@@ -14,15 +14,12 @@ $ pytest -W error
 Checking for uncaptured warnings.
 
 5) Commit and push any changes - this will temporarily break readthedocs which will build from push.
+6) Create a new release branch, e.g. 0.3.x and checkout
 
+On "release branch":
 
-Branch to version: x.x.x, e.g. 0.2.x
-Update "release" in docs/source/conf.py, e.g. to 0.2.x
-Update the switcher.json in main:docs/source/static
-Delete the switcher in the releases branch since this is taken from main.
-Once reverted back to main, switch "release" back to dev. 
-
-
+1) Update the "release" field in docs/source/conf.py, e.g. to 0.2.x
+2) Delete the switcher in the releases branch since this is taken from main branch
 
 Build:
 $ pip install build twine
@@ -34,5 +31,6 @@ $ twine upload dist/*
 check:
 $ pip install -i https://test.pypi.org/simple rateslib
 
-docs:
-Goto read-the-docs.io and add a new branch.
+In Read-the-Docs admin console:
+
+1) Add a new branch for auto built docs.
