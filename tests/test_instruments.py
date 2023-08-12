@@ -109,7 +109,10 @@ class TestCurvesandSolver:
 
         with pytest.raises(ValueError, match="`curve` must be in `solver`"):
             with default_context("curve_not_in_solver", "raise"):
-                result = _get_curve_from_solver(no_curve, solver)
+                _get_curve_from_solver(no_curve, solver)
+
+        with pytest.raises(AttributeError, match="`curve` has no attribute `id`, likely it not"):
+            _get_curve_from_solver(100.0, solver)
 
     @pytest.mark.parametrize("solver", [True, False])
     @pytest.mark.parametrize("fxf", [True, False])

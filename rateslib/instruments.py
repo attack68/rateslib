@@ -3903,7 +3903,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             setattr(self, f"leg2_{attribute}", _)
 
     @abstractmethod
-    def _set_pricing_mid(self, *args, **kwargs):
+    def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
         pass
 
     # def delta(
