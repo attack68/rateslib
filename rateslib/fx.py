@@ -190,7 +190,8 @@ class FXRates:
                 f"Inspect '{','.join(report)}'"
             )
         else:
-            raise ArithmeticError(
+            # Do not yet know the conditions in which this will raise. TODO (low) find a way to test
+            raise ArithmeticError(  # pragma: no cover
                 "The FX Matrix has failed to solve. Partial pivoting has failed."
             )
 
