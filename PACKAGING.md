@@ -14,11 +14,11 @@ $ pytest -W error
 Checking for uncaptured warnings.
 
 5) Commit and push any changes - this will temporarily break readthedocs which will build from push.
-6) Create a new release branch, e.g. 0.3.x and checkout
+6) Create a new release branch, e.g. '0.3.x' and checkout
 
 On "release branch":
 
-1) Update the "release" field in docs/source/conf.py, e.g. to 0.2.x
+1) Update the "release" field in docs/source/conf.py, e.g. to '0.3.x'
 2) Delete the switcher in the releases branch since this is taken from main branch
 
 Build:
