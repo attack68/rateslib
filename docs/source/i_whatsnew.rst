@@ -12,6 +12,7 @@ More detailed release notes started being recorded after version 0.3.x
 Refactors and Enhancements
 --------------------------
 
+- Added ``split_notional`` to ``FXSwap`` to more accurately reflect the interbank traded product.
 - Added an ``FXExchange`` class to provide booking FXSpot or FXForward trades of simple FX
   exchanges.
 - Remove all *LegExchange* types and add ``initial_exchange`` and
