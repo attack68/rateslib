@@ -60,7 +60,9 @@ def _get_fx_and_base(
                 raise ValueError(
                     f"`base` ({base}) cannot be requested without supplying `fx` as a "
                     "valid FXRates or FXForwards object to convert to "
-                    f"currency ({currency})."
+                    f"currency ({currency}).\n"
+                    "If you are using a `Solver` with multi-currency instruments have you "
+                    "forgotten to attach the FXForwards in the solver's `fx` argument?"
                 )
             fx = 1.0
         else:
@@ -292,6 +294,7 @@ class BasePeriod(metaclass=ABCMeta):
             defaults.headers["dcf"]: self.dcf,
             defaults.headers["notional"]: float(self.notional),
             defaults.headers["df"]: None if disc_curve is None else float(disc_curve[self.payment]),
+            defaults.headers["collateral"]: None if disc_curve is None else disc_curve.collateral,
         }
 
     @abstractmethod
@@ -1664,6 +1667,7 @@ class Cashflow:
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
+            defaults.headers["collateral"]: None if disc_curve is None else disc_curve.collateral,
         }
 
     @property
