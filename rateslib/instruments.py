@@ -7824,7 +7824,6 @@ class FXSwap(BaseXCS):
             )
             return points * 10000
 
-
     def cashflows(
         self,
         curves: Optional[Union[Curve, str, list]] = None,
@@ -7832,12 +7831,9 @@ class FXSwap(BaseXCS):
         fx: Optional[FXForwards] = None,
         base: Optional[str] = None,
     ):
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.leg1.currency
-        )
         if self._is_unpriced:
-            self._set_pricing_mid(curves, solver, fx_)
-        ret = super().cashflows(curves, solver, fx_, base_)
+            self._set_pricing_mid(curves, solver, fx)
+        ret = super().cashflows(curves, solver, fx, base)
         return ret
 
 

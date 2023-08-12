@@ -1919,22 +1919,42 @@ class TestFXSwap:
         fxs.leg2_fixed_rate = result
         assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
 
-    def test_fxswap_points_raises(self):
-        with pytest.raises(ValueError, match="Cannot initialise FXSwap with `points` but without"):
-            FXSwap(
-                dt(2022, 2, 1),
-                "8M",
-                "M",
-                points=1000.0,
-                currency="usd",
-                leg2_currency="nok",
-                payment_lag=0,
-                notional=1e6,
-            )
+    @pytest.mark.parametrize("points, split_notional", [
+        (100, 1e6), (None, 1e6), (100, None)
+    ])
+    def test_fxswap_points_raises(self, points, split_notional):
+        if points is not None:
+            msg = "Cannot initialise FXSwap with `points` but without `fx_fixing`."
+            with pytest.raises(ValueError, match=msg):
+                FXSwap(
+                    dt(2022, 2, 1),
+                    "8M",
+                    "M",
+                    currency="usd",
+                    leg2_currency="nok",
+                    payment_lag=0,
+                    notional=1e6,
+                    split_notional=split_notional,
+                    points=points,
+                )
+        else:
+            msg = "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
+            with pytest.raises(ValueError, match=msg):
+                FXSwap(
+                    dt(2022, 2, 1),
+                    "8M",
+                    "M",
+                    currency="usd",
+                    leg2_currency="nok",
+                    payment_lag=0,
+                    notional=1e6,
+                    split_notional=split_notional,
+                    points=points,
+                )
 
     def test_fxswap_points_warns(self):
         with pytest.warns(UserWarning):
-            FXSwap(
+            fxs = FXSwap(
                 dt(2022, 2, 1),
                 "8M",
                 "M",
@@ -1944,6 +1964,21 @@ class TestFXSwap:
                 payment_lag=0,
                 notional=1e6,
             )
+            assert fxs._split is False
+
+        with pytest.warns(UserWarning):
+            fxs = FXSwap(
+                dt(2022, 2, 1),
+                "8M",
+                "M",
+                fx_fixing=11.0,
+                currency="usd",
+                leg2_currency="nok",
+                payment_lag=0,
+                notional=1e6,
+                split_notional=1e6,
+            )
+            assert fxs._split is True
 
     @pytest.mark.parametrize("fx_fixing, points, split_notional, expected", [
         (None, None, None, Dual(0, "fx_usdnok", [-1712.833785])),
@@ -1984,6 +2019,27 @@ class TestFXSwap:
         assert fxs.points == points
         result = fxs.npv(curves=[None, curve, None, curve2], fx=fxf, base="usd")
         assert expected.__eq_coeffs__(result, 1e-4)
+
+    def test_rate_with_fixed_parameters(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxs = FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fx_fixing=10.01,
+            points=1765,
+            split_notional=1.01e6,
+            currency="usd",
+            leg2_currency="nok",
+            payment_lag=0,
+            notional=1e6,
+        )
+        result = fxs.rate([None, curve, None, curve2], fx=fxf)
+        expected = 1746.59802
+        assert abs(result - expected) < 1e-4
 
     # def test_proxy_curve_from_fxf(self, curve, curve2):
     #     # TODO this needs a solver from which to test the proxy curve (line 92)
