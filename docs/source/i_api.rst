@@ -128,6 +128,7 @@ FX
    :skip: Curve
    :skip: LineCurve
    :skip: ProxyCurve
+   :skip: CompositeCurve
    :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
@@ -205,6 +206,7 @@ Instruments
    :skip: ABCMeta
    :skip: Curve
    :skip: CustomBusinessDay
+   :skip: MultIndex
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
