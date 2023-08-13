@@ -70,6 +70,7 @@ Bug Fixes
 
 - ``FXExchange`` can now be imported from ``rateslib`` and has been added to ``__init__``.
 - ``cashflows_table`` no longer returns empty when no collateral information was available.
+- ``fixings_table`` didn't properly represent published fixing values as zero exposure.
 
 0.4.0 (12 Aug 2023)
 ********************
