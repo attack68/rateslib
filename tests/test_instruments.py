@@ -3717,7 +3717,7 @@ class TestSensitivities:
             irs.gamma()
 
 
-@pytest.mark.parametrize("inst, expected",[
+@pytest.mark.parametrize("inst, expected", [
     (IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
      DataFrame([-0.21319, -0.00068, 0.21656],
                index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
@@ -3806,3 +3806,19 @@ def test_fx_settlements_table(inst, expected):
 
     result = inst.cashflows_table(solver=solver)
     assert_frame_equal(expected, result, atol=1e-4)
+
+
+def test_fx_settlements_table_no_fxf():
+    solver = Solver(
+        curves=[Curve({dt(2023, 8, 1): 1.0, dt(2024, 8, 1): 1.0}, id="usd")],
+        instruments=[IRS(dt(2023, 8, 1), "1Y", "Q", curves="usd")],
+        s=[2.0],
+        instrument_labels=["1Y"],
+        id="us_rates"
+    )
+    irs_mkt = IRS(
+        dt(2023, 8, 1), "1Y", "Q", curves="usd", fixed_rate=2.0, notional=999556779.81,
+    )
+    result = irs_mkt.cashflows_table(solver=solver)
+    assert abs(result.iloc[0, 0] - 69.49810) < 1e-5
+    assert abs(result.iloc[3, 0] - 69.49810) < 1e-5

@@ -431,7 +431,8 @@ class Sensitivities:
                 defaults.headers["currency"],
                 defaults.headers["collateral"],
                 defaults.headers["payment"]
-            ]).sum().unstack([0, 1]).droplevel(0, axis=1)
+            ], dropna=False)
+        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)
         _.columns.names = ["local_ccy", "collateral_ccy"]
         _.index.names = ["payment"]
         _ = _.sort_index(ascending=True, axis=0).fillna(0.0)
