@@ -6,6 +6,15 @@ Release Notes
 
 More detailed release notes started being recorded after version 0.3.x
 
+0.4.1 (not released)
+**********************
+
+Bug Fixes
+---------
+
+- ``FXExchange`` can now be imported from ``rateslib`` and has been added to ``__init__``.
+- ``cashflows_table`` no longer returns empty when no collateral information was available.
+
 0.4.0 (12 Aug 2023)
 ********************
 
