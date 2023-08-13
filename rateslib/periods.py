@@ -344,6 +344,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.npv(curve, curve)
            period.npv(curve, curve, fxr)
            period.npv(curve, curve, fxr, "gbp")
+           period.npv(curve, curve, fxr, local=True)
         """
         pass  # pragma: no cover
 
@@ -381,6 +382,23 @@ class FixedPeriod(BasePeriod):
     .. math::
 
        A = - \\frac{\\partial P}{\\partial R} = Ndv(m)
+
+    Examples
+    --------
+    .. ipython:: python
+
+       fp = FixedPeriod(
+           start=dt(2022, 2, 1),
+           end=dt(2022, 8, 1),
+           payment=dt(2022, 8, 2),
+           frequency="S",
+           notional=1e6,
+           currency="eur",
+           convention="30e360",
+           fixed_rate=5.0,
+       )
+       fp.cashflows(curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98}))
+
     """
 
     def __init__(self, *args, fixed_rate: Union[float, None] = None, **kwargs):
@@ -1578,6 +1596,18 @@ class Cashflow:
     .. math::
 
        A = 0
+
+    Example
+    -------
+    .. ipython:: python
+
+       cf = Cashflow(
+           notional=1e6,
+           payment=dt(2022, 8, 3),
+           currency="usd",
+           stub_type="Loan Payment",
+       )
+       cf.cashflows(curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.98}))
     """
 
     def __init__(
@@ -1885,7 +1915,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     index_method : str, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
-    index_lag : int
+    index_lag : int, optional
         The number of months by which the index value is lagged. Used to ensure
         consistency between curves and forecast values. Defined by default.
     kwargs : dict
@@ -1916,6 +1946,27 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     .. math::
 
        A = - \\frac{\\partial P}{\\partial R} = Ndv(m)I(m)
+
+    Examples
+    --------
+    .. ipython:: python
+
+       ifp = IndexFixedPeriod(
+           start=dt(2022, 2, 1),
+           end=dt(2022, 8, 1),
+           payment=dt(2022, 8, 2),
+           frequency="S",
+           notional=1e6,
+           currency="eur",
+           convention="30e360",
+           fixed_rate=5.0,
+           index_lag=2,
+           index_base=100.25,
+       )
+       ifp.cashflows(
+           curve=IndexCurve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.99}, index_base=100.0, index_lag=2),
+           disc_curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98})
+       )
     """
 
     def __init__(
@@ -2070,6 +2121,23 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     .. math::
 
        A = 0
+
+    Example
+    -------
+    .. ipython:: python
+
+       icf = IndexCashflow(
+           notional=1e6,
+           end=dt(2022, 8, 1),
+           payment=dt(2022, 8, 3),
+           currency="usd",
+           stub_type="Loan Payment",
+           index_base=100.25
+       )
+       icf.cashflows(
+           curve=IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.99}, index_base=100.0),
+           disc_curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.98}),
+       )
     """
 
     def __init__(
@@ -2109,6 +2177,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
+            defaults.headers["a_acc_end"]: self.end,
             defaults.headers["real_cashflow"]: self.real_cashflow,
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),

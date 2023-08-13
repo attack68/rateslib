@@ -206,7 +206,7 @@ Instruments
    :skip: ABCMeta
    :skip: Curve
    :skip: CustomBusinessDay
-   :skip: MultIndex
+   :skip: MultiIndex
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
