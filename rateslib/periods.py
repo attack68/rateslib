@@ -1176,7 +1176,15 @@ class FloatPeriod(BasePeriod):
             disc_curve = curve
 
         if approximate:
-            return self._fixings_table_fast(curve, disc_curve)
+            if self.fixings is not None:
+                warnings.warn("Cannot approximate a fixings table when some published fixings "
+                              f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
+                              f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
+                              f"period.",
+                              UserWarning)
+            else:
+                return self._fixings_table_fast(curve, disc_curve)
+
         if "rfr" in self.fixing_method:
             rate, table = self._rfr_fixings_array(
                 curve,
@@ -1293,6 +1301,8 @@ class FloatPeriod(BasePeriod):
                 )  # pragma: no cover
 
         # reindex the rates series getting missing values from the curves
+        # TODO (low) the next two lines could probably be vectorised and made more efficient.
+        fixed = ~isna(rates)
         rates = Series({k: curve.rate(k, "1b", "F") if isna(v) else v for k, v in rates.items()})
 
         if fixing_exposure:
@@ -1332,6 +1342,8 @@ class FloatPeriod(BasePeriod):
             )
             v = disc_curve[self.payment]
             notional_exposure *= -self.notional * (self.dcf / dcf_of_r) * v / v_with_r
+            # notional_exposure[fixed.drop_index(drop=True)] = 0.0
+            notional_exposure[fixed.to_numpy()] = 0.0
             extra_cols = {
                 "obs_dcf": dcf_of_r,
                 "notional": notional_exposure.apply(float, convert_dtype=float),
@@ -1367,7 +1379,7 @@ class FloatPeriod(BasePeriod):
             # Depending upon method get the observation dates and dcf dates
             obs_dates, dcf_dates = self._get_method_dcf_markers(curve)
 
-            # TODO this calculation could be vectorised by a 360 or 365 multiplier
+            # TODO (low) this calculation could be vectorised by a 360 or 365 multiplier
             dcf_vals = Series(
                 [  # calculate the dcf values from the dcf dates
                     dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)

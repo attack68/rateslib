@@ -409,6 +409,37 @@ class TestFloatLeg:
         with pytest.raises(ValueError, match="`spread_compound_method`"):
             FloatLeg(dt(2022, 2, 1), "9M", "Q", spread_compound_method="bad")
 
+    def test_float_leg_fixings_table_with_defined_fixings(self):
+        swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
+        float_leg = FloatLeg(
+            effective=dt(2022, 12, 28),
+            termination="2M",
+            frequency="M",
+            fixings=[[1.19, 1.19, -8.81]],
+            currency="SEK",
+            calendar="stk"
+        )
+        result = float_leg.fixings_table(swestr_curve)[dt(2022, 12, 28):dt(2023, 1, 4)]
+        assert result.iloc[0, 0] == 0.0
+        assert result.iloc[1, 0] == 0.0
+        assert result.iloc[2, 0] == 0.0
+
+    def test_float_leg_fixings_table_with_defined_fixings_approximate(self):
+        swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
+        float_leg = FloatLeg(
+            effective=dt(2022, 12, 28),
+            termination="2M",
+            frequency="M",
+            fixings=[[1.19, 1.19, -8.81]],
+            currency="SEK",
+            calendar="stk"
+        )
+        with pytest.warns(UserWarning):
+            result = float_leg.fixings_table(swestr_curve, approximate=True)
+        assert result.iloc[0, 0] == 0.0
+        assert result.iloc[1, 0] == 0.0
+        assert result.iloc[2, 0] == 0.0
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve):
