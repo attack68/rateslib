@@ -4,6 +4,11 @@
 About
 ******
 
+Release Notes
+**************
+
+:ref:`See here for release notes.<whatsnew-doc>`.
+
 The History and Context of Rateslib
 ************************************
 
@@ -106,152 +111,6 @@ A good
 example for these are the UK DMO's Gilt calculations which are replicated exactly
 by *rateslib*. Another example is the
 `replication of Norges Bank NOWA calculator <https://www.linkedin.com/pulse/rateslib-vs-norges-bank-nowa-calculator-rateslib>`_
-
-
-Releases
-***********
-
-A broad based release history is as follows:
-
-v 0.3.0
---------
-Release 29th Jul 2023
-
-.. list-table::
-   :widths: 25 75
-   :header-rows: 1
-
-   * - Feature
-     - Description
-   * - Legs
-     - Added :class:`~rateslib.legs.IndexFixedLeg`,
-       :class:`~rateslib.legs.ZeroIndexLeg`,
-       and :class:`~rateslib.legs.IndexFixedLegExchange`.
-   * - Instruments
-     - Added :class:`~rateslib.instruments.IndexFixedRateBond`,
-       :class:`~rateslib.instruments.IIRS`, :class:`~rateslib.instruments.ZCIS`.
-   * - Curves
-     - Added :class:`~rateslib.curves.CompositeCurve`.
-
-v 0.2.0
---------
-Release 15th May 2023
-
-.. list-table::
-   :widths: 25 75
-   :header-rows: 1
-
-   * - Feature
-     - Description
-   * - Instruments
-     - Added :class:`~rateslib.instruments.BondFuture`.
-   * - Curves
-     - Added :class:`~rateslib.curves.IndexCurve`.
-
-v 0.1.0
---------
-Release 24th April 2023
-
-.. list-table::
-   :widths: 25 75
-   :header-rows: 1
-
-   * - Feature
-     - Description
-   * - Automatic Differentiation
-     - A toolset for making risk sensitivity and gradient based calculations.
-   * - Calendars
-     - A toolset for handling dates and holiday calendars for schedules.
-   * - Schedule
-     - A toolset for generating financial schedules of financial instruments.
-   * - Splines
-     - A toolset for allowing spline interpolation.
-   * - Curves
-     - Initial classes for DF bases and value based interest rate curves.
-   * - Periods
-     - Initial classes for handling fixed periods, float periods and cashflows.
-   * - Legs
-     - Initial classes for aggregating periods.
-   * - Instruments
-     - Adding standard financial instruments such as securities: bonds and bills,
-       and derivatives such as: IRS, SBS, FRA, XCS, FXSwap
-   * - Solver
-     - A set of algorithms for iteratively determining interest rate curves.
-   * - FX
-     - Initial classes for handling FX rates an Fx forwards.
-
-
-Development Plan
-*******************
-
-As a new library the future development of *rateslib* is open to many avenues.
-Some possibilities are listed below. The author is very interested in any feedback
-and this can be given on the public **Issues** board at the project github
-repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
-email contact through **rateslib@gmail.com**.
-
-.. list-table::
-   :widths: 20 35 35 10
-   :header-rows: 1
-
-
-   * - Feature
-     - Description
-     - Consideration
-     - Timeframe
-   * - FX Spot and Repos
-     - Adding basic funding instruments.
-     - Likely (v1.0)
-     - End 2023
-   * - Coding Interest Rates
-     - Officially document this library's algorithms and release the book.
-     - Planned
-     - End 2023
-   * - Version 1.0
-     - Release the official first non-beta version of this library.
-     - Planned
-     - End 2023
-   * - Defaults
-     - Adding the ability to define parameters by specification, e.g. "sofr irs" or
-       "uk gilt", which set multiple default parameters.
-     - Likely, to improve UI. (v1.0?)
-     - By end 2023
-   * - Vanilla FX options and volatility products
-     - Adding option instruments and benchmark trades such as risk-reversals.
-     - Highly likely (v2.0?)
-     - By mid 2024
-   * - Vanilla Swaptions
-     - Adding the instruments priced by a volatility input.
-     - Likely (v2.0 or v3.0?)
-     - By end 2024
-   * - SABR model for options
-     - Adding the parameters to construct SABR vol surfaces/ cuves.
-     - Possible, with dependencies to other developments. (v3.0?)
-     - By end 2024
-   * - Optimization of code
-     - Using C extensions, or rust, or re-writing certain blocks to improve performance.
-     - Likely to some degree, depending upon community adoption and contributions.
-     - no ETA
-   * - AD backend
-     - Changing the AD implementation to another 3rd party (JAX, PyAudi)
-     - Very unlikely, maturity of those libraries must increase and the performance
-       improvements must be sufficient to warrant such a large codebase change.
-     - no ETA
-   * - JSON facility
-     - Designing objects, as well as object oriented associations to be passed from
-       server to client and vice versa to operate a cloud solution.
-     - Possible, due to the author's interest in the topic, but not imminent.
-     - no ETA
-   * - Excel interaction
-     - Allowing *rateslib* to be accessed via Excel in a structured way.
-     - Possible, but not imminent, due to the unscoped problem.
-     - no ETA
-   * - Datafeeds
-     - Allowing *rateslib* to access and consume data in a streaming environment
-       working with other data providers APIs.
-     - Unlikely, due to the subjectivity of every data consumer.
-     - no ETA
-
 
 About the Author
 ****************

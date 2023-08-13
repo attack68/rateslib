@@ -10,12 +10,12 @@
 Instruments
 **********************
 
-The following groups outline the different :ref:`Instrument<instruments-doc>` types
-offered by ``rateslib``.
+The following groups outline the different *Instrument* types
+offered by *rateslib*.
 
-Common methods which all :ref:`Instrument<instruments-doc>` strive to possess are
-``rate()``, ``npv()``, ``analytic_delta``, ``delta()``, ``gamma()`` and
-``cashflows()``.
+Common methods which all *Instruments* strive to possess are
+``rate()``, ``npv()``, ``analytic_delta``, ``delta()``, ``gamma()``,
+``cashflows()`` and ``cashflows_table``.
 
 .. toctree::
     :maxdepth: 0

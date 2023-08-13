@@ -64,7 +64,7 @@ For complete documentation of some of these inputs see :ref:`Scheduling<schedule
 .. ipython:: python
 
    fixed_leg = FixedLeg(
-       effective=dt(2022, 1, 15),
+       effective=dt(2022, 1, 15),        # <- Scheduling options start here
        termination=dt(2022, 12, 7),
        frequency="Q",
        stub=None,
@@ -75,14 +75,14 @@ For complete documentation of some of these inputs see :ref:`Scheduling<schedule
        modifier="MF",
        calendar="nyc",
        payment_lag=2,
-       notional=2000000,
+       payment_lag_exchange=0,
+       notional=2000000,                 # <- Generic options start here
        currency="usd",
        amortization=250000,
        convention="act360",
-       fixed_rate=1.0,
        initial_exchange=False,
        final_exchange=False,
-       payment_lag_exchange=0,
+       fixed_rate=1.0,                   # <- FixedLeg only options start here
    )
    fixed_leg.cashflows(curve)
 
@@ -92,7 +92,7 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
 .. ipython:: python
 
    float_leg = FloatLeg(
-       effective=dt(2022, 1, 15),
+       effective=dt(2022, 1, 15),           # <- Scheduling options start here
        termination=dt(2022, 12, 7),
        frequency="Q",
        stub=None,
@@ -103,14 +103,14 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
        modifier="MF",
        calendar="nyc",
        payment_lag=2,
-       notional=2000000,
+       payment_lag_exchange=0,
+       notional=2000000,                    # <- Generic options start here
        currency="usd",
        amortization=250000,
        convention="act360",
-       float_spread=1.0,
        initial_exchange=False,
        final_exchange=False,
-       payment_lag_exchange=0,
+       float_spread=1.0,                    # <- FloatLeg only options start here
        fixings=None,
        fixing_method="rfr_payment_delay",
        method_param=None,
@@ -126,7 +126,7 @@ Legs with Exchanged Notionals
 
 ``Bonds``, ``CrossCurrencySwaps`` and ``IndexSwaps`` involve *Legs* with exchanged
 notionals, which are represented as :class:`~rateslib.periods.Cashflow` s.
-These ``Legs`` have the option of an initial exchange and also of a
+These *Legs* have the option of an initial exchange and also of a
 final exchange. Interim exchanges (amortization) will be applied if
 there is a final exchange.
 
@@ -145,7 +145,7 @@ on *CrossCurrencySwaps* for example.
 .. ipython:: python
 
    fixed_leg_exch = FixedLeg(
-       effective=dt(2022, 1, 15),
+       effective=dt(2022, 1, 15),       # <- Scheduling options start here
        termination=dt(2022, 7, 15),
        frequency="Q",
        stub=None,
@@ -156,16 +156,18 @@ on *CrossCurrencySwaps* for example.
        modifier="MF",
        calendar="nyc",
        payment_lag=2,
-       notional=2000000,
+       payment_lag_exchange=0,
+       notional=2000000,                # <- Generic options start here
        currency="usd",
        amortization=250000,
        convention="act360",
-       fixed_rate=5.0,
        initial_exchange=True,
        final_exchange=True,
-       payment_lag_exchange=0,
+       fixed_rate=5.0,                  # <- FixedLeg only options start here
    )
    fixed_leg_exch.cashflows(curve)
+
+.. _mtm-legs:
 
 Mark-to-Market Exchanged Legs
 -----------------------------
@@ -188,7 +190,7 @@ and :class:`~rateslib.legs.FloatLeg`.
 .. ipython:: python
 
    float_leg_exch = FloatLegMtm(
-       effective=dt(2022, 1, 3),
+       effective=dt(2022, 1, 3),         # <- Scheduling options start here
        termination=dt(2022, 7, 3),
        frequency="Q",
        stub=None,
@@ -199,19 +201,19 @@ and :class:`~rateslib.legs.FloatLeg`.
        modifier="MF",
        calendar="nyc",
        payment_lag=2,
-       notional=None,
+       payment_lag_exchange=0,
+       notional=None,                    # <- Generic options start here
        currency="usd",
        amortization=None,
        convention="act360",
-       float_spread=0.0,
+       initial_exchange=True,
+       final_exchange=True,
+       float_spread=0.0,                 # <- FloatLeg only options start here
        fixings=None,
        fixing_method="rfr_payment_delay",
        method_param=None,
        spread_compound_method="none_simple",
-       initial_exchange=True,
-       final_exchange=True,
-       payment_lag_exchange=0,
-       alt_notional=2000000,
+       alt_notional=2000000,             # <- MtmLeg only options start here
        alt_currency="eur",
        fx_fixings=None,
    )

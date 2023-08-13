@@ -14,7 +14,7 @@ It is important to understand that the key elements of this library are
 All of these functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way.
 
-For example, we can construct a :class:`~rateslib.curves.Curve` in a number of ways:
+For example, we can construct a :ref:`Curve<c-curves-doc>` in a number of ways:
 here by direct specification of discount factors (DFs).
 
 .. ipython:: python
@@ -45,13 +45,18 @@ We can construct an :ref:`Instrument<instruments-toc-doc>`: here a short dated R
        notional=1000000000,
    )
 
-We can value the IRS in its local currency (USD) by default.
+We can value the IRS in its local currency (USD) by default, and see the generated
+cashflows.
 
 .. ipython:: python
 
    irs.npv(usd_curve)
 
-This is the most basic functionality *rateslib* offers, but other features
+.. ipython:: python
+
+   irs.cashflows(usd_curve)
+
+But this is only the the most basic functionality *rateslib* offers. Other features
 that will be explained below are:
 
 - how to parametrize ``Curves`` and how to calibrate them to market rates
@@ -59,7 +64,7 @@ that will be explained below are:
 - the various different ``Instruments`` that are offered and the various methods
   used to explore their construction, e.g. ``cashflows()``.
 - how ``FX`` is handled and how any value can be converted into another currency
-  **preserving fx rate sensitivty**.
+  **preserving fx rate sensitivity**.
 - how **risk sensitivity** is addressed.
 
 Reading the Guide

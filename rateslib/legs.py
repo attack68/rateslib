@@ -82,9 +82,9 @@ class BaseLeg(metaclass=ABCMeta):
         The modification rule, in {"F", "MF", "P", "MP"}
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
-        static data.
+        static data. See :meth:`~rateslib.calendars.get_calendar`.
     payment_lag : int, optional
-        The number of business days to lag payments by.
+        The number of business days to lag payments by on regular accrual periods.
     notional : float, optional
         The leg notional, which is applied to each period.
     currency : str, optional
@@ -119,6 +119,10 @@ class BaseLeg(metaclass=ABCMeta):
     If ``amortization`` is specified an exchanged notional equivalent to the
     amortization amount is added to the list of periods as interim exchanges if
     ``final_exchange`` is *True*. Payment dates adhere to the ``payment_lag_exchange``.
+
+    Examples
+    --------
+    See :ref:`Leg Examples<legs-doc>`
 
     Attributes
     ----------
@@ -539,8 +543,8 @@ class FixedLeg(BaseLeg, FixedLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     fixed_rate : float, optional
-        The rate applied to determine cashflows. Can be set to `None` and designated
-        later, perhaps after a mid-market rate for all periods has been calculated.
+        The rate applied to determine cashflows in % (i.e 5.0 = 5%). Can be set to `None` and
+        designated later, perhaps after a mid-market rate for all periods has been calculated.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
 
@@ -757,8 +761,8 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     float_spread : float, optional
-        The spread applied to determine cashflows. Can be set to `None` and designated
-        later, perhaps after a mid-market spread for all periods has been calculated.
+        The spread applied to determine cashflows in bps (i.e. 100 = 1%). Can be set to `None`
+        and designated later, perhaps after a mid-market spread for all periods has been calculated.
     spread_compound_method : str, optional
         The method to use for adding a floating spread to compounded rates. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
@@ -831,8 +835,40 @@ class FloatLeg(BaseLeg, FloatLegMixin):
        )
        float_leg.cashflows(curve)
 
+    It is **not** best practice to supply fixings as a list of values. It is better to supply
+    a *Series* indexed by IBOR publication date (in this case lagged by zero days).
+
+    .. ipython:: python
+
+       float_leg = FloatLeg(
+           effective=dt(2021, 9, 1),
+           termination="12M",
+           frequency="Q",
+           fixing_method="ibor",
+           method_param=0,
+           fixings=Series([1.00, 2.00], index=[dt(2021, 9, 1), dt(2021, 12, 1)])
+       )
+       float_leg.cashflows(curve)
+
     Set the initial RFR fixings in the first period of an RFR leg (notice the sublist
     and the implied -10% year end turn spread).
+
+    .. ipython:: python
+
+       swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
+       float_leg = FloatLeg(
+           effective=dt(2022, 12, 28),
+           termination="2M",
+           frequency="M",
+           fixings=[[1.19, 1.19, -8.81]],
+           currency="SEK",
+           calendar="stk"
+       )
+       float_leg.cashflows(swestr_curve)
+       float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
+
+    Again, this is poor practice. It is **best practice** to supply a *Series* of RFR rates by
+    reference value date.
 
     .. ipython:: python
 
@@ -840,11 +876,12 @@ class FloatLeg(BaseLeg, FloatLegMixin):
            effective=dt(2022, 12, 28),
            termination="2M",
            frequency="M",
-           fixings=[[1.19, 1.19, -8.81]],
+           fixings=Series([1.19, 1.19, -8.81], index=[dt(2022, 12, 28), dt(2022, 12, 29), dt(2022, 12, 30)]),
            currency="SEK",
+           calendar="stk",
        )
-       float_leg.cashflows(curve)
-       float_leg.fixings_table(curve)[dt(2022,12,28):dt(2023,1,4)]
+       float_leg.cashflows(swestr_curve)
+       float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
     """
 
     def __init__(
@@ -1077,6 +1114,19 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
        the leg is acceptable, i.e. a leg calendar of *"nyc,ldn,tgt"* and a curve
        calendar of *"ldn"* is valid, whereas only *"nyc,tgt"* may give errors.
 
+    Examples
+    --------
+    .. ipython:: python
+
+       zfl = ZeroFloatLeg(
+           effective=dt(2022, 1, 1),
+           termination="3Y",
+           frequency="S",
+           fixing_method="ibor",
+           method_param=0,
+           float_spread=100.0
+       )
+       zfl.cashflows(curve)
     """
 
     def __init__(
@@ -1179,6 +1229,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             return fx * value
 
     def fixings_table(self, curve: Curve):  # pragma: no cover
+        """Not yet implemented for ZeroFloatLeg"""
         # TODO: fixing table for ZeroFloatLeg
         raise NotImplementedError("fixings table on ZeroFloatLeg.")
 
@@ -1294,6 +1345,19 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
     .. math::
 
       A = N d v(m) \\left ( 1+ \\frac{R^{irr}}{f} \\right )^{df -1}
+
+    Examples
+    --------
+    .. ipython:: python
+
+       zfl = ZeroFixedLeg(
+           effective=dt(2022, 1, 1),
+           termination="3Y",
+           frequency="S",
+           convention="1+",
+           fixed_rate=5.0
+       )
+       zfl.cashflows(curve)
 
     """
 
@@ -1477,6 +1541,11 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
 
     Notes
     -----
+    .. warning::
+
+       Setting ``convention`` for a *ZeroIndexLeg* has no effect because the determination of the
+       cashflow within the *IndexFixedPeriod* will always have a DCF of 1.0.
+
     The fixed rate of the *IndexFixedPeriod* is set to 100% to index up the
     complete the notional. The offsetting *Cashflow* deducts the real notional.
 
@@ -1491,6 +1560,20 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
     .. math::
 
        A = 0
+
+    Examples
+    --------
+    .. ipython:: python
+
+       index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
+       zil = ZeroIndexLeg(
+           effective=dt(2022, 1, 15),
+           termination="3Y",
+           frequency="S",
+           index_method="monthly",
+           index_base=100.25,
+       )
+       zil.cashflows(index_curve, curve)
 
     """
 
@@ -2061,18 +2144,17 @@ class FixedLegMtm(BaseLegMtm, FixedLegMixin):
 
     .. warning::
 
-       ``amortization`` is **not** permitted for on ``FloatLegExchangeMtm``.
+       ``amortization`` is currently **not implemented** for on ``FloatLegExchangeMtm``.
 
-       ``notional`` is **not** used on an ``FloatLegExchangeMtm``. It is determined
+       ``notional`` is **not** used on an ``FloatLegMtm``. It is determined
        from ``alt_notional`` under given ``fx_fixings``.
 
-    The initial cashflow notional is set as the negative of the notional.
+       ``currency`` and ``alt_currency`` are required in order to determine FX fixings
+       from an :class:`~rateslib.fx.FXForwards` object at pricing time.
 
-    The final cashflow notional is set as the notional. The payment date is set equal
-    to the final period payment date (i.e. the end accrual date plus payment lag).
-
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods.
+    Examples
+    --------
+    For an example see :ref:`Mtm Legs<mtm-legs>`.
     """
 
     def __init__(
@@ -2144,48 +2226,17 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
 
     .. warning::
 
-       ``amortization`` is **not** permitted for on ``FloatLegMtm``.
+       ``amortization`` is currently **not implemented** for on ``FloatLegExchangeMtm``.
 
        ``notional`` is **not** used on an ``FloatLegMtm``. It is determined
        from ``alt_notional`` under given ``fx_fixings``.
 
-    .. note::
-
        ``currency`` and ``alt_currency`` are required in order to determine FX fixings
        from an :class:`~rateslib.fx.FXForwards` object at pricing time.
 
-    The initial cashflow notional is set as the negative of the notional.
-
-    The final cashflow notional is set as the end notional. The payment date is set
-    equal to the final period payment date (i.e. the end accrual date plus
-    ``payment_lag_exchange``).
-
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods.
-
     Examples
     --------
-    .. ipython:: python
-
-       usd_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
-       eur_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
-       fxr = FXRates({"usdeur": 0.98}, settlement=dt(2022, 1, 1))
-       fxf = FXForwards(
-           fxr, {"usdusd": usd_curve, "eureur": eur_curve, "eurusd": eur_curve}
-       )
-
-    .. ipython:: python
-
-       float_leg_exch_mtm = FloatLegMtm(
-           effective=dt(2022, 1, 1),
-           termination="9M",
-           frequency="Q",
-           currency="eur",
-           alt_currency="usd",
-           alt_notional=1000000,
-       )
-       float_leg_exch_mtm.cashflows(curve, None, fxf)
-
+    For an example see :ref:`Mtm Legs<mtm-legs>`.
     """
 
     def __init__(
@@ -2259,6 +2310,33 @@ class CustomLeg(BaseLeg):
     def _set_periods(self, periods):
         self.periods = periods
 
+    def npv(self, *args, **kwargs
+    ):
+        """
+        Return the NPV of the *CustomLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        """
+        Return the properties of the *CustomLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *CustomLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

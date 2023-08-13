@@ -83,8 +83,8 @@ currency.
 What is best practice?
 ------------------------
 
-If you want to return an *npv* value in local currency (or in *Leg1* currency for multi-currency
-instruments), then you do **not** need to supply ``base`` or ``fx`` arguments. However, to
+For single currency *Instruments*, if you want to return an *npv* value in its local currency
+then you do **not** need to supply ``base`` or ``fx`` arguments. However, to
 be explicit, *base* can also be specified.
 
 .. ipython:: python
@@ -106,6 +106,11 @@ and it does not preserve AD or any FX sensitivities. *base* is inferred from the
    irs.npv(fx=fxr, base="gbp")         # GBP is explicitly specified
    irs.npv(fx=fxr, base=fxr.base)      # GBP is fx's base currency
    irs.npv(solver=solver, base="gbp")  # GBP is explicitly specified
+
+For multi-currency *Instruments*, which include *FXSwaps*, *FXExchanges* and *XCSs*, these
+instruments typically rely on an *FXForwards* object to value correctly, in which case that will be
+supplied either via ``solver`` or via the ``fx`` argument. ``base`` can be set explicitly,
+or set as the same as ``fx.base``, or it will be taken as the local *Leg1* currency.
 
 Technical rules
 -----------------

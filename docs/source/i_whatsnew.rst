@@ -4,7 +4,63 @@
 Release Notes
 **************
 
-More detailed release notes started being recorded after version 0.3.x
+Rough Development Plan
+***********************
+
+The future development of *rateslib* is open to many avenues.
+Some possibilities are listed below. The author is very interested in any feedback
+and this can be given on the public **Issues** board at the project github
+repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
+email contact through **rateslib@gmail.com**.
+
+.. list-table::
+   :widths: 20 35 35 10
+   :header-rows: 1
+
+
+   * - Feature
+     - Description
+     - Consideration
+     - Timeframe
+   * - FX Spot and Repos
+     - Adding basic funding instruments.
+     - Likely (v1.0)
+     - End 2023
+   * - Coding Interest Rates
+     - Officially document this library's algorithms and release the book.
+     - Planned
+     - End 2023
+   * - Version 1.0
+     - Release the official first non-beta version of this library.
+     - Planned
+     - End 2023
+   * - Defaults
+     - Adding the ability to define parameters by specification, e.g. "sofr irs" or
+       "uk gilt", which set multiple default parameters.
+     - Likely, to improve UI. (v1.0?)
+     - By end 2023
+   * - Vanilla FX options and volatility products
+     - Adding option instruments and benchmark trades such as risk-reversals.
+     - Highly likely (v2.0?)
+     - By mid 2024
+   * - Vanilla Swaptions
+     - Adding the instruments priced by a volatility input.
+     - Likely (v2.0 or v3.0?)
+     - By end 2024
+   * - SABR model for options
+     - Adding the parameters to construct SABR vol surfaces/ cuves.
+     - Possible, with dependencies to other developments. (v3.0?)
+     - By end 2024
+   * - Optimization of code
+     - Using C extensions, or rust, or re-writing certain blocks to improve performance.
+     - Likely to some degree, depending upon community adoption and contributions.
+     - no ETA
+   * - AD backend
+     - Changing the AD implementation to another 3rd party (JAX, PyAudi)
+     - Very unlikely, maturity of those libraries must increase and the performance
+       improvements must be sufficient to warrant such a large codebase change.
+     - no ETA
+
 
 0.4.1 (not released)
 **********************
@@ -46,3 +102,67 @@ Bug Fixes
   combinations.
 - The ``payment_lag_exchange`` parameter for ``FXSwap`` was removed in favour of using
   ``payment_lag``.
+
+v 0.3.0 (29 Jul 2023)
+*********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Legs
+     - Added :class:`~rateslib.legs.IndexFixedLeg`,
+       :class:`~rateslib.legs.ZeroIndexLeg`,
+       and :class:`~rateslib.legs.IndexFixedLegExchange`.
+   * - Instruments
+     - Added :class:`~rateslib.instruments.IndexFixedRateBond`,
+       :class:`~rateslib.instruments.IIRS`, :class:`~rateslib.instruments.ZCIS`.
+   * - Curves
+     - Added :class:`~rateslib.curves.CompositeCurve`.
+
+v 0.2.0 (15 May 2023)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Instruments
+     - Added :class:`~rateslib.instruments.BondFuture`.
+   * - Curves
+     - Added :class:`~rateslib.curves.IndexCurve`.
+
+v 0.1.0 (24 Apr 2023)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Automatic Differentiation
+     - A toolset for making risk sensitivity and gradient based calculations.
+   * - Calendars
+     - A toolset for handling dates and holiday calendars for schedules.
+   * - Schedule
+     - A toolset for generating financial schedules of financial instruments.
+   * - Splines
+     - A toolset for allowing spline interpolation.
+   * - Curves
+     - Initial classes for DF bases and value based interest rate curves.
+   * - Periods
+     - Initial classes for handling fixed periods, float periods and cashflows.
+   * - Legs
+     - Initial classes for aggregating periods.
+   * - Instruments
+     - Adding standard financial instruments such as securities: bonds and bills,
+       and derivatives such as: IRS, SBS, FRA, XCS, FXSwap
+   * - Solver
+     - A set of algorithms for iteratively determining interest rate curves.
+   * - FX
+     - Initial classes for handling FX rates an Fx forwards.
