@@ -1032,6 +1032,23 @@ _DCF = {
     "1+": _dcf_1plus,
 }
 
+_DCF1d = {
+    "ACT365F": 1.0/365,
+    "ACT360": 1.0/360,
+    "30360": 1.0/365.25,
+    "360360": 1.0/365.25,
+    "BONDBASIS": 1.0/365.25,
+    "30E360": 1.0/365.25,
+    "EUROBONDBASIS": 1.0/365.25,
+    "30E360ISDA": 1.0/365.25,
+    "ACTACT": 1.0/365.25,
+    "ACTACTISDA": 1.0/365.25,
+    "ACTACTICMA": 1.0/365.25,
+    "ACTACTISMA": 1.0/365.25,
+    "ACTACTBOND": 1.0/365.25,
+    "1": None,
+    "1+": None,
+}
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

@@ -20,7 +20,7 @@ from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
 from rateslib.default import plot
-from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, CalInput
+from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, CalInput, _DCF1d
 
 from typing import TYPE_CHECKING
 
@@ -626,7 +626,7 @@ class Curve(Serialize, PlotCurve):
         self.spline.csolve(np.array(tau), np.array(y), left_n, right_n)
         return None
 
-    def shift(self, spread: float):
+    def shift(self, spread: float, composite: bool = False, id: Optional[str] = None):
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
@@ -698,6 +698,26 @@ class Curve(Serialize, PlotCurve):
            plt.show()
 
         """
+        if composite:
+            start, end = self.node_dates[0], self.node_dates[-1]
+            days = (end - start).days
+            d = _DCF1d[self.convention.upper()]
+            shifted = Curve(
+                nodes={
+                    start: 1.0,
+                    end: 1.0 / (1 + d * spread / 10000) ** days
+                },
+                convention=self.convention,
+                calendar=self.calendar,
+                modifier=self.modifier,
+                interpolation="log_linear",
+            )
+            return CompositeCurve(
+                nodes=[self, shifted],
+                id=id or uuid4().hex[:5] + "_",  # 1 in a million clash
+                multi_csa=False,
+            )
+
         v1v2 = [1.0] * (self.n - 1)
         n = [0] * (self.n - 1)
         d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
@@ -722,7 +742,7 @@ class Curve(Serialize, PlotCurve):
             t=self.t,
             c=None,
             endpoints=self.spline_endpoints,
-            id=None,
+            id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
             convention=self.convention,
             modifier=self.modifier,
             calendar=self.calendar,
