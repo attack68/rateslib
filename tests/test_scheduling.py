@@ -641,7 +641,7 @@ def test_schedule_bad_stub_combinations_raise():
 
 
 def test_schedule_bad_stub_combinations_raise2():
-    with pytest.raises(ValueError, match="`stub` is front sided but `back_stub` given"):
+    with pytest.raises(ValueError, match="`stub` is only front sided but `back_stub` given"):
         _ = Schedule(
             effective=dt(2022, 1, 1),
             termination=dt(2023, 1, 1),

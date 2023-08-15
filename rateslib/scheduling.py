@@ -346,7 +346,7 @@ class Schedule:
                 raise ValueError("date, stub and roll inputs are invalid")
             else:
                 self.ueffective = self.effective
-                self.utermination = self.termination_
+                self.utermination = self.termination
                 self.front_stub = parsed_args["ueffective"]
                 self.back_stub = parsed_args["utermination"]
                 self.roll = parsed_args["roll"]
