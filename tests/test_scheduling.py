@@ -827,3 +827,30 @@ def test_dead_stubs():
     )
     assert s.uschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 19)]
     assert s.aschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 21)]
+
+
+@pytest.mark.parametrize("mode, end, roll", [
+    (None, dt(2025, 8, 17), 17),
+    ("swaps_align", dt(2025, 8, 17), 17),
+    ("swaptions_align", dt(2025, 8, 19), 19),
+])
+def test_eval_mode(mode, end, roll):
+    sch = Schedule(
+        effective="1Y",
+        termination="1Y",
+        frequency="S",
+        calendar="tgt",
+        eval_date=dt(2023, 8, 17),
+        eval_mode=mode,
+    )
+    assert sch.roll == roll
+    assert sch.termination == end
+
+
+def test_eval_date_raises():
+    with pytest.raises(ValueError, match="For `effective` given as string tenor, must"):
+        Schedule(
+            effective="1Y",
+            termination="1Y",
+            frequency="S",
+        )

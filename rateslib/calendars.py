@@ -658,6 +658,7 @@ def add_tenor(
        :suppress:
 
        from rateslib.calendars import add_tenor, get_calendar, create_calendar, dcf
+       from rateslib.scheduling import Schedule
        from rateslib.curves import Curve, LineCurve, interpolate, index_left, IndexCurve
        from rateslib.dual import Dual, Dual2
        from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, IndexFixedPeriod, IndexCashflow

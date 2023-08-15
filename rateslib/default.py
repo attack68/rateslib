@@ -76,6 +76,7 @@ class Defaults:
     notional = 1.0e6
     stub = "SHORTFRONT"
     stub_length = "SHORT"
+    eval_mode = "swaps_align"
     modifier = "MF"
     index_lag = 3
     index_method = "daily"

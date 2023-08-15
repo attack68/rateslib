@@ -60,6 +60,11 @@ class Schedule:
         :meth:`~rateslib.calendars.get_calendar`.
     payment_lag: int, optional
         The number of business days to lag payments by.
+    eval_date: datetime, optional
+        Only required if ``effective`` is given as a string tenor, to provide a point of reference.
+    eval_mode: str in {"swaps_align", "swaptions_align"}
+        The method for determining the ``effective`` and ``termination`` dates if both are provided
+        as string tenors. See notes.
 
     Attributes
     ----------
@@ -80,12 +85,80 @@ class Schedule:
     aschedule : list[datetime]
     pschedule : list[datetime]
     stubs : list[bool]
+    eval_date : datetime
+    eval_mode : str
 
     Notes
     -----
     **Zero coupon schedules**
 
     If ``frequency`` is *Z* then stub arguments are ignored.
+
+    **Inferred termination date and roll from tenor - The 1Y1Y problem**
+
+    When generating schedules implied from tenor ``effective`` and ``termination`` dates there
+    exist two methods for doing this. **Both** have practical reasons to exist. This results in
+    the ``eval_mode`` argument which allows either *"swaps_align"* or *"swaptions_align"*. So,
+    what is the difference and the purpose?
+
+    **Swaps Align**
+
+    When a EUR swap dealer trades a 1Y1Y swap he will hedge it in the interbank market with a 1Y and
+    a 2Y swap. 1Y and 2Y swaps have roll days that are generated from the same evaluation date.
+    For a perfect hedge the 1Y1Y swap should also have the same roll day and its periods should
+    align with the second half of the 2Y swap. To achieve this, the ``effective`` date is
+    calculated **unadjusted** and the ``termination`` date is derived from that unadjusted date.
+    Then under *rateslib* inferral rules this will produce the correct schedule.
+
+    For example, today is Tue 15th Aug '23 and spot is Thu 17th Aug '23:
+
+    - A 1Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 19th Aug '24, 17.
+    - A 2Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 18th Aug '25, 17.
+    - A 1Y1Y trade has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
+
+    .. ipython:: python
+
+       sch = Schedule(
+           effective="1Y",
+           termination="1Y",
+           frequency="S",
+           calendar="tgt",
+           eval_date=dt(2023, 8, 17),
+           eval_mode="swaps_align",
+       )
+       sch
+
+    **Swaptions Align**
+
+    When a swaptions dealer trades a 1Y1Y swaption, that trade will settle against the 1Y swap
+    evaluated as of the expiry date (in 1Y) against the swap ISDA fixing.
+    The delta exposure the swaption trader experiences is best hedged with a swap matching those
+    dates. This means that the effective date of the swap should be derived from an **adjusted**
+    date.
+
+    For example, today is Tue 15th Aug '23:
+
+    - A 1Y expiring swaption has an expiry on Thu 15th Aug '24.
+    - At expiry a spot starting 1Y swap has effective, termination, and roll of:
+      Mon 19th Aug '24, Tue 19th Aug '25, 19.
+
+    .. ipython:: python
+
+       sch = Schedule(
+           effective="1Y",
+           termination="1Y",
+           frequency="S",
+           calendar="tgt",
+           eval_date=dt(2023, 8, 17),
+           eval_mode="swaptions_align",
+       )
+       sch
+
+    .. note::
+       To avoid these, it is recommended to provide ``effective``, ``termination``, as
+       **unadjusted dates** (and also ``front_stub`` and ``back_stub``) since this eliminates the
+       combinatorial aspect of date inference. Also providing ``roll`` is more
+       explicit.
 
     **Inferred stub dates from inputs**
 
@@ -158,24 +231,6 @@ class Schedule:
          - :meth:`_check_regular_swap`
          - :meth:`_infer_stub_date`
 
-    **Inferred termination date from tenor**
-
-    For termination date scheduling we adopt, by default, a European convention
-    so that a tenor is added to an unadjusted effective date to
-    determine an unadjusted termination, as
-    opposed to the British convention of first adjusting the effective date and
-    then deriving an unadjusted termination date. For example, for an unadjusted
-    effective date of Sat Mar 5th 2022 and a 6M tenor this will be:
-
-    - **European**: unadjusted termination of Mon 5th Sep 2022, with 5th rolls.
-    - British: unadjusted termination of Wed 7th Sep 2022, with 7th rolls.
-
-    .. note::
-       It is recommended to provide ``effective``, ``termination``, as **unadjusted**
-       (and also ``front_stub`` and ``back_stub``) since this eliminates the
-       combinatorial aspect of date inference. Also providing ``roll`` is more
-       explicit.
-
     **Handling stubs and rolls**
 
     If ``front_stub`` and ``back_stub`` are given, the ``stub`` is not used. There is
@@ -193,7 +248,7 @@ class Schedule:
 
     def __init__(
         self,
-        effective: datetime,
+        effective: Union[datetime, str],
         termination: Union[datetime, str],
         frequency: str,
         stub: Optional[str] = None,
@@ -204,10 +259,15 @@ class Schedule:
         modifier: Optional[Union[str, bool]] = False,
         calendar: Optional[Union[CustomBusinessDay, str]] = None,
         payment_lag: Optional[int] = None,
+        eval_date: Optional[datetime] = None,
+        eval_mode: Optional[str] = None,
     ):
         # Arg validation
         eom = defaults.eom if eom is None else eom
         self.eom = eom
+
+        self.eval_date = eval_date
+        self.eval_mode = defaults.eval_mode if eval_mode is None else eval_mode.lower()
 
         if isinstance(modifier, bool):  # then get default
             modifier_: Optional[str] = defaults.modifier
@@ -225,16 +285,29 @@ class Schedule:
             raise ValueError("`frequency` must be in {M, B, Q, T, S, A, Z}.")
         self.frequency = frequency
 
+        if isinstance(effective, str):
+            if self.eval_date is None:
+                raise ValueError(
+                    "For `effective` given as string tenor, must also supply a `base_eval` date."
+                )
+            if self.eval_mode == "swaps_align":
+                # effective date is calculated as unadjusted
+                effective_: datetime = add_tenor(self.eval_date, effective, None, None)
+            elif self.eval_mode == "swaptions_align":
+                effective_ = add_tenor(self.eval_date, effective, self.modifier, self.calendar)
+        else:
+            effective_ = effective
+        self.effective: datetime = effective_
+
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination_: datetime = add_tenor(effective, termination, None, None)
+            termination_: datetime = add_tenor(self.effective, termination, None, None)
         else:
             termination_ = termination
-
-        if termination_ <= effective:
-            raise ValueError("`termination` must be after `effective`.")
-        self.effective: datetime = effective
         self.termination: datetime = termination_
+
+        if self.termination <= self.effective:
+            raise ValueError("`termination` must be after `effective`.")
 
         if frequency == "Z":
             self.ueffective = None
@@ -265,8 +338,7 @@ class Schedule:
             self._back_sided_stub_parsing(front_stub, back_stub, roll)
         else:
             raise ValueError(
-                "`stub` should be combinations of {'SHORT', 'LONG'} with "
-                "{'FRONT', 'BACK'}."
+                "`stub` should be combinations of {'SHORT', 'LONG'} with {'FRONT', 'BACK'}."
             )
 
         self.uschedule = list(

@@ -2310,8 +2310,7 @@ class CustomLeg(BaseLeg):
     def _set_periods(self, periods):
         self.periods = periods
 
-    def npv(self, *args, **kwargs
-    ):
+    def npv(self, *args, **kwargs):
         """
         Return the NPV of the *CustomLeg* via summing all periods.
 
