@@ -17,6 +17,8 @@ from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
+from rateslib.solver import Solver
+from rateslib.instruments import IRS
 
 
 @pytest.fixture()
@@ -513,7 +515,8 @@ def test_index_left_raises():
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_curve_shift_ad_order(ad_order):
+@pytest.mark.parametrize("composite", [True, False])
+def test_curve_shift_ad_order(ad_order, composite):
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -537,7 +540,7 @@ def test_curve_shift_ad_order(ad_order):
         ],
         ad=ad_order,
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(25, composite=composite)
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -545,6 +548,25 @@ def test_curve_shift_ad_order(ad_order):
         ]
     )
     assert np.all(np.abs(diff) < 1e-7)
+
+
+def test_curve_shift_association():
+    args = (dt(2022, 2, 1), "1d")
+    curve = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.988},
+    )
+    solver = Solver(
+        curves=[curve], instruments=[IRS(dt(2022, 1, 1), "1Y", "A", curves=curve)], s=[2.0]
+    )
+    base = curve.rate(*args)
+    ass_shifted_curve = curve.shift(100)
+    stat_shifted_curve = curve.shift(100, composite=False)
+    assert abs(base - ass_shifted_curve.rate(*args) + 1.00) < 1e-5
+    assert abs(base - stat_shifted_curve.rate(*args) + 1.00) < 1e-5
+
+    solver.s = [3.0]
+    solver.iterate()
+    assert abs(ass_shifted_curve.rate(*args) - stat_shifted_curve.rate(*args)) > 0.95
 
 
 def test_curve_shift_dual_input():
@@ -584,13 +606,14 @@ def test_composite_curve_shift():
     c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
     c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
     cc = CompositeCurve([c1, c2])
-    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
+    result = cc.shift(20, composite=False).rate(dt(2022, 1, 1), "1d")
     expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
     assert abs(result - expected) < 1e-3
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_linecurve_shift(ad_order):
+@pytest.mark.parametrize("composite", [True, False])
+def test_linecurve_shift(ad_order, composite):
     curve = LineCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -614,7 +637,7 @@ def test_linecurve_shift(ad_order):
         ],
         ad=ad_order,
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(25, composite=composite)
     diff = np.array(
         [
             result_curve[_] - curve[_] - 0.25
@@ -658,7 +681,8 @@ def test_linecurve_shift_dual_input():
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_indexcurve_shift(ad_order):
+@pytest.mark.parametrize("composite", [True, False])
+def test_indexcurve_shift(ad_order, composite):
     curve = IndexCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -684,7 +708,7 @@ def test_indexcurve_shift(ad_order):
         index_base=110.0,
         interpolation="log_linear",
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(25, composite=composite)
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -1413,7 +1437,7 @@ class TestCompositeCurve:
             convention="Act365F",
         )
         cc = CompositeCurve([c1, c2, c3], multi_csa=True)
-        cc_shift = cc.shift(100)
+        cc_shift = cc.shift(100, composite=False)
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
             r2 = cc_shift.rate(dt(2022, 1, 2), "1d")

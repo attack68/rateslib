@@ -341,7 +341,7 @@ class Sensitivities:
             None, solver, None, fx, base, None
         )
         if local:
-           base_ = None
+            base_ = None
         return solver.delta(npv, base_, fx_)
 
     def gamma(
