@@ -20,7 +20,14 @@ from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
 from rateslib.default import plot
-from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, CalInput
+from rateslib.calendars import (
+    create_calendar,
+    get_calendar,
+    add_tenor,
+    dcf,
+    CalInput,
+    _DCF1d,
+)
 
 from typing import TYPE_CHECKING
 
@@ -626,7 +633,13 @@ class Curve(Serialize, PlotCurve):
         self.spline.csolve(np.array(tau), np.array(y), left_n, right_n)
         return None
 
-    def shift(self, spread: float):
+    def shift(
+        self,
+        spread: float,
+        id: Optional[str] = None,
+        composite: bool = True,
+        collateral: Optional[str] = None,
+    ):
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
@@ -640,10 +653,18 @@ class Curve(Serialize, PlotCurve):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+        id : str, optional
+            Set the id of the returned curve.
+        composite: bool, optional
+            If True will return a CompositeCurve that adds a flat curve to the existing curve.
+            This results in slower calculations but the curve will maintain a dynamic
+            association with the underlying curve and will change if the underlying curve changes.
+        collateral: str, optional
+            Designate a collateral tag for the curve which is used by other methods.
 
         Returns
         -------
-        Curve
+        Curve, CompositeCurve
 
         Examples
         --------
@@ -698,38 +719,79 @@ class Curve(Serialize, PlotCurve):
            plt.show()
 
         """
-        v1v2 = [1.0] * (self.n - 1)
-        n = [0] * (self.n - 1)
-        d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-        v_new = [1.0] * (self.n)
-        for i, (k, v) in enumerate(self.nodes.items()):
-            if i == 0:
-                continue
-            n[i - 1] = (k - self.node_dates[i - 1]).days
-            v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
-            v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
+        if composite:
+            start, end = self.node_dates[0], self.node_dates[-1]
+            days = (end - start).days
+            d = _DCF1d[self.convention.upper()]
+            if type(self) is Curve or type(self) is ProxyCurve:
+                shifted = Curve(
+                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
+                    convention=self.convention,
+                    calendar=self.calendar,
+                    modifier=self.modifier,
+                    interpolation="log_linear",
+                )
+            elif type(self) is LineCurve:
+                shifted = LineCurve(
+                    nodes={start: spread / 100.0, end: spread / 100.0},
+                    convention=self.convention,
+                    calendar=self.calendar,
+                    modifier=self.modifier,
+                    interpolation="linear",
+                )
+            else:  # type is IndexCurve
+                shifted = IndexCurve(
+                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
+                    convention=self.convention,
+                    calendar=self.calendar,
+                    modifier=self.modifier,
+                    interpolation="log_linear",
+                    index_base=self.index_base,
+                    index_lag=self.index_lag,
+                )
 
-        nodes = self.nodes.copy()
-        for i, (k, v) in enumerate(nodes.items()):
-            nodes[k] = v_new[i]
+            _ = CompositeCurve(
+                curves=[self, shifted],
+                id=id,
+                multi_csa=False,
+            )
+            _.collateral = collateral
+            return _
 
-        kwargs = {}
-        if type(self) is IndexCurve:
-            kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
-        _ = type(self)(
-            nodes=nodes,
-            interpolation=self.interpolation,
-            t=self.t,
-            c=None,
-            endpoints=self.spline_endpoints,
-            id=None,
-            convention=self.convention,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            ad=self.ad,
-            **kwargs,
-        )
-        return _
+        else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
+            v1v2 = [1.0] * (self.n - 1)
+            n = [0] * (self.n - 1)
+            d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
+            v_new = [1.0] * (self.n)
+            for i, (k, v) in enumerate(self.nodes.items()):
+                if i == 0:
+                    continue
+                n[i - 1] = (k - self.node_dates[i - 1]).days
+                v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
+                v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
+
+            nodes = self.nodes.copy()
+            for i, (k, v) in enumerate(nodes.items()):
+                nodes[k] = v_new[i]
+
+            kwargs = {}
+            if type(self) is IndexCurve:
+                kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
+            _ = type(self)(
+                nodes=nodes,
+                interpolation=self.interpolation,
+                t=self.t,
+                c=None,
+                endpoints=self.spline_endpoints,
+                id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
+                convention=self.convention,
+                modifier=self.modifier,
+                calendar=self.calendar,
+                ad=self.ad,
+                **kwargs,
+            )
+            _.collateral = collateral
+            return _
 
     def _translate_nodes(self, start: datetime):
         scalar = 1 / self[start]
@@ -1217,7 +1279,13 @@ class LineCurve(Curve):
         """
         return self[effective]
 
-    def shift(self, spread: float):
+    def shift(
+        self,
+        spread: float,
+        id: Optional[str] = None,
+        composite: bool = True,
+        collateral: Optional[str] = None
+    ):
         """
         Raise or lower the curve in parallel by a set number of basis points.
 
@@ -1225,6 +1293,14 @@ class LineCurve(Curve):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+        id : str, optional
+            Set the id of the returned curve.
+        composite: bool, optional
+            If True will return a CompositeCurve that adds a flat curve to the existing curve.
+            This results in slower calculations but the curve will maintain a dynamic
+            association with the underlying curve and will change if the underlying curve changes.
+        collateral: str, optional
+            Designate a collateral tag for the curve which is used by other methods.
 
         Returns
         -------
@@ -1283,18 +1359,21 @@ class LineCurve(Curve):
            plt.show()
 
         """
+        if composite:
+            return super().shift(spread, id, composite, collateral)
         _ = LineCurve(
             nodes={k: v + spread / 100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,
             t=self.t,
             c=None,
             endpoints=self.spline_endpoints,
-            id=None,
+            id=id,
             convention=self.convention,
             modifier=self.modifier,
             calendar=self.calendar,
             ad=self.ad,
         )
+        _.collateral = collateral
         return _
 
     def _translate_nodes(self, start: datetime):
@@ -1879,6 +1958,7 @@ class CompositeCurve(PlotCurve):
        %timeit curve.rate(dt(2022, 6, 1), "1y", approximate=False)
 
     """
+
     collateral = None
 
     def __init__(
@@ -1891,71 +1971,67 @@ class CompositeCurve(PlotCurve):
     ) -> None:
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
 
-        if multi_csa and isinstance(curves[0], (LineCurve, IndexCurve)):
-            raise TypeError("Multi-CSA curves must be of type `Curve`.")
         self.multi_csa = multi_csa
         self.multi_csa_min_step = max(1, multi_csa_min_step)
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
-        if self.multi_csa_min_step > self.multi_csa_max_step:
-            raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
-
-        # validate
-        self._base_type = curves[0]._base_type
-        for i in range(1, len(curves)):
-            if not type(curves[0]) is type(curves[i]):
-                if type(curves[0]) is Curve and type(curves[i]) is ProxyCurve:
-                    pass
-                elif type(curves[0]) is ProxyCurve and type(curves[i]) is Curve:
-                    pass
-                else:
-                    raise TypeError(
-                        "`curves` must be a list of similar type curves, got "
-                        f"{type(curves[0])} and {type(curves[i])}."
-                    )
-            if not curves[0].node_dates[0] == curves[i].node_dates[0]:
-                raise ValueError(
-                    "`curves` must share the same initial node date, got "
-                    f"{curves[0].node_dates[0]} and {curves[i].node_dates[0]}"
-                )
-
-        if not self.multi_csa:  # for multi_csa DF curve do not check calendars
-            for attr in [
-                "calendar",
-            ]:
-                for i in range(1, len(curves)):
-                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
-                        raise ValueError(
-                            "Cannot composite curves with different attributes, "
-                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
-                            f"'{getattr(curves[0], attr, None)}'."
-                        )
-        self.calendar = curves[0].calendar
-
-        if self._base_type == "dfs":
-            for attr in ["modifier", "convention"]:
-                for i in range(1, len(curves)):
-                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
-                        raise ValueError(
-                            "Cannot composite curves with different attributes, "
-                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
-                            f"'{getattr(curves[0], attr, None)}'."
-                        )
-            self.modifier = curves[0].modifier
-            self.convention = curves[0].convention
-        if isinstance(curves[0], IndexCurve):
-            for attr in ["index_base", "index_lag"]:
-                for i in range(1, len(curves)):
-                    if getattr(curves[i], attr, None) != getattr(curves[0], attr, None):
-                        raise ValueError(
-                            "Cannot composite curves with different attributes, "
-                            f"got {attr}s, '{getattr(curves[i], attr, None)}' and "
-                            f"'{getattr(curves[0], attr, None)}'."
-                        )
-            self.index_lag = curves[0].index_lag
-            self.index_base = curves[0].index_base
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
+        self.calendar = curves[0].calendar
+        self._base_type = curves[0]._base_type
+        if self._base_type == "dfs":
+            self.modifier = curves[0].modifier
+            self.convention = curves[0].convention
+        if type(curves[0]) is IndexCurve:
+            self.index_lag = curves[0].index_lag
+            self.index_base = curves[0].index_base
+
+        # validate
+        self._validate_curve_collection()
+
+    def _validate_curve_collection(self):
+        """Perform checks to ensure CompositeCurve can exist"""
+        if self.multi_csa and isinstance(self.curves[0], (LineCurve, IndexCurve)):
+            raise TypeError("Multi-CSA curves must be of type `Curve`.")
+
+        if self.multi_csa_min_step > self.multi_csa_max_step:
+            raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
+
+        types = [type(_) for _ in self.curves]
+        if any([_ is CompositeCurve for _ in types]):
+            raise TypeError(
+                "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented."
+            )
+
+        if not (
+            all([_ is Curve or _ is ProxyCurve for _ in types])
+            or all([_ is LineCurve for _ in types])
+            or all([_ is IndexCurve for _ in types])
+        ):
+            raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
+
+        ini_dates = [_.node_dates[0] for _ in self.curves]
+        if not all([_ == ini_dates[0] for _ in ini_dates[1:]]):
+            raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
+
+        if not self.multi_csa:  # for multi_csa DF curve do not check calendars
+            self._check_init_attribute("calendar")
+
+        if self._base_type == "dfs":
+            self._check_init_attribute("modifier")
+            self._check_init_attribute("convention")
+
+        if types[0] is IndexCurve:
+            self._check_init_attribute("index_base")
+            self._check_init_attribute("index_lag")
+
+    def _check_init_attribute(self, attr):
+        """Ensure attributes are the same across curve collection"""
+        attrs = [getattr(_, attr, None) for _ in self.curves]
+        if not all([_ == attrs[0] for _ in attrs[1:]]):
+            raise ValueError(
+                f"Cannot composite curves with different attributes, got for '{attr}': {attrs},"
+            )
 
     def rate(
         self,
@@ -1998,7 +2074,7 @@ class CompositeCurve(PlotCurve):
             if isinstance(termination, str):
                 termination = add_tenor(effective, termination, modifier, self.calendar)
 
-            d = 1.0 / 360 if "360" in self.convention else 1.0 / 365
+            d = _DCF1d[self.convention.upper()]
 
             if self.multi_csa:
                 n = (termination - effective).days
@@ -2039,8 +2115,10 @@ class CompositeCurve(PlotCurve):
     def __getitem__(self, date: datetime):
         if self._base_type == "dfs":
             # will return a composited discount factor
+            if date == self.curves[0].node_dates[0]:
+                return 1.0  # TODO (mid) this is not variable but maybe should be tagged as "id0"?
             days = (date - self.curves[0].node_dates[0]).days
-            d = 1.0 / 360 if self.convention == "ACT360" else 1.0 / 365
+            d = _DCF1d[self.convention.upper()]
 
             if not self.multi_csa:
                 total_rate = 0.0
@@ -2098,7 +2176,13 @@ class CompositeCurve(PlotCurve):
                 f"Base curve type is unrecognised: {self._base_type}"
             )  # pragma: no cover
 
-    def shift(self, spread: float) -> CompositeCurve:
+    def shift(
+        self,
+        spread: float,
+        id: Optional[str] = None,
+        composite: Optional[bool] = True,
+        collateral: Optional[str] = None,
+    ) -> CompositeCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
@@ -2112,23 +2196,41 @@ class CompositeCurve(PlotCurve):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+        id : str, optional
+            Set the id of the returned curve.
+        composite: bool, optional
+            If True will return a CompositeCurve that adds a flat curve to the existing curve.
+            This results in slower calculations but the curve will maintain a dynamic
+            association with the underlying curve and will change if the underlying curve changes.
+        collateral: str, optional
+            Designate a collateral tag for the curve which is used by other methods.
 
         Returns
         -------
         CompositeCurve
         """
-        curves = (self.curves[0].shift(spread),)
+        if composite:
+            # TODO (med) allow composite composite curves
+            raise ValueError(
+                "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented.\n"
+                "Set `composite` to False."
+            )
+
+        curves = (self.curves[0].shift(spread=spread, composite=composite),)
         if self.multi_csa:
             for curve in self.curves[1:]:
-                curves += (curve.shift(spread),)
+                curves += (curve.shift(spread=spread, composite=composite),)
         else:
             curves += self.curves[1:]
-        return CompositeCurve(
+        _ = CompositeCurve(
             curves=curves,
+            id=id,
             multi_csa=self.multi_csa,
             multi_csa_max_step=self.multi_csa_max_step,
             multi_csa_min_step=self.multi_csa_min_step,
         )
+        _.collateral = collateral
+        return _
 
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
         """
