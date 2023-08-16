@@ -944,16 +944,21 @@ class Curve(Serialize, PlotCurve):
         new_nodes = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
-        # TODO: shift the t knot sequence if the first knot begins at t-0.
-        new_t = None if self.t is None else self.t.copy()
-        if self.t and start <= self.t[0]:
-            pass  # do nothing to t
-        elif self.t and self.t[0] < start < self.t[4]:
-            if t:
-                for i in range(4):
-                    new_t[i] = start  # adjust left side of t to start
-        elif self.t and self.t[4] <= start:
-            raise ValueError("Cannot translate spline knots for given `start`, review the docs.")
+        if self.t is None:
+            new_t: Optional[list[datetime]] = None
+        else:
+            new_t = self.t.copy()
+
+            if start <= new_t[0]:
+                pass  # do nothing to t
+            elif new_t[0] < start < new_t[4]:
+                if t:
+                    for i in range(4):
+                        new_t[i] = start  # adjust left side of t to start
+            elif new_t[4] <= start:
+                raise ValueError(
+                    "Cannot translate spline knots for given `start`, review the docs."
+                )
 
         kwargs = {}
         if type(self) is IndexCurve:
@@ -1689,6 +1694,8 @@ class IndexCurve(Curve):
             return 0.0
             # return zero for index dates in the past
             # the proper way for instruments to deal with this is to supply i_fixings
+        elif date_ == self.node_dates[0]:
+            return self.index_base
         else:
             return self.index_base * 1 / self[date_]
 
@@ -1762,7 +1769,7 @@ class IndexCurve(Curve):
         return plot(x, y, labels)
 
 
-class CompositeCurve(PlotCurve):
+class CompositeCurve(IndexCurve):
     """
     A dynamic composition of a sequence of other curves.
 
@@ -2078,7 +2085,7 @@ class CompositeCurve(PlotCurve):
 
             if self.multi_csa:
                 n = (termination - effective).days
-                # TODO when these discount factors are looked up the curve repeats
+                # TODO (low:perf) when these discount factors are looked up the curve repeats
                 # the lookup could be vectorised to return two values at once.
                 df_num = self[effective]
                 df_den = self[termination]
@@ -2116,7 +2123,7 @@ class CompositeCurve(PlotCurve):
         if self._base_type == "dfs":
             # will return a composited discount factor
             if date == self.curves[0].node_dates[0]:
-                return 1.0  # TODO (mid) this is not variable but maybe should be tagged as "id0"?
+                return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
             days = (date - self.curves[0].node_dates[0]).days
             d = _DCF1d[self.convention.upper()]
 
@@ -2296,24 +2303,9 @@ class CompositeCurve(PlotCurve):
 
         See :meth:`IndexCurve.index_value()<rateslib.curves.IndexCurve.index_value>`
         """
-        # TODO: DRY inherit this method from IndexCurve.index_value.
         if not isinstance(self.curves[0], IndexCurve):
             raise TypeError("`index_value` not available on non `IndexCurve` types.")
-
-        if interpolation.lower() == "daily":
-            date_ = date
-        elif interpolation.lower() == "monthly":
-            date_ = datetime(date.year, date.month, 1)
-        else:
-            raise ValueError("`interpolation` for `index_value` must be in {'daily', 'monthly'}.")
-        if date_ < self.node_dates[0]:
-            return 0.0
-            # return zero for index dates in the past
-            # the proper way for instruments to deal with this is to supply i_fixings
-        elif date_ == self.node_dates[0]:
-            return self.index_base
-        else:
-            return self.index_base * 1 / self[date_]
+        return super().index_value(date, interpolation)
 
 
 class ProxyCurve(Curve):
