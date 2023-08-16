@@ -680,14 +680,26 @@ def add_tenor(
     if "D" in tenor:
         return _add_days(start, int(tenor[:-1]), modifier, calendar)
     elif "B" in tenor:
-        calendar_: CustomBusinessDay = get_calendar(calendar)  # type: ignore[assignment]
-        return (start + int(float(tenor[:-1])) * calendar_).to_pydatetime()  # type: ignore[attr-defined]
+        return _add_business_days(start, int(tenor[:-1]), modifier, calendar)
     elif "Y" in tenor:
         return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar)
     elif "M" in tenor:
         return _add_months(start, int(tenor[:-1]), modifier, calendar)
+    elif "W" in tenor:
+        return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
     else:
-        raise ValueError("`tenor` must identify frequency in {'B', 'D', 'M', 'Y'} e.g. '1Y'")
+        raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
+
+
+def _add_business_days(
+    start: datetime,
+    business_days: int,
+    modifier: Optional[str],
+    cal: CalInput,
+) -> datetime:
+    """add a given number of business days to an input date"""
+    calendar_: CustomBusinessDay = get_calendar(cal)  # type: ignore[assignment]
+    return (start + business_days * calendar_).to_pydatetime()  # type: ignore[attr-defined]
 
 
 def _add_months(
