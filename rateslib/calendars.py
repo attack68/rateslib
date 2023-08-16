@@ -542,6 +542,7 @@ def get_calendar(
        gbp_and_nyc_cal.calendar.holidays
 
     """
+    # TODO: rename calendars or make a more generalist statement about their names.
     if calendar is None:
         ret = (create_calendar([], weekmask="Mon Tue Wed Thu Fri Sat Sun"), "null")
     elif isinstance(calendar, str):

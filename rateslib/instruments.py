@@ -68,7 +68,7 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 
 def _get_curve_from_solver(curve, solver):
     if getattr(curve, "_is_proxy", False):
-        # TODO: consider also adding CompositeCurves as exceptions under the same rule
+        # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
         # proxy curves exist outside of solvers but still have Dual variables associated
         # with curves inside the solver, so can still generate risks to calibrating
         # instruments
@@ -528,13 +528,11 @@ class BaseMixin:
         leg1.
 
         .. note::
-           ``fixed_rate``, ``float_spread``, ``leg2_fixed_rate`` and
-           ``leg2_float_spread`` are attributes only applicable to certain
+           ``index_base`` and ``leg2_index_base`` are attributes only applicable to certain
            ``Instruments``. *AttributeErrors* are raised if calling or setting these
            is invalid.
 
         """
-        # TODO: re-write these docstrings to include index base mixin
         return self._index_base
 
     @index_base.setter
@@ -551,13 +549,11 @@ class BaseMixin:
         leg1.
 
         .. note::
-           ``fixed_rate``, ``float_spread``, ``leg2_fixed_rate`` and
-           ``leg2_float_spread`` are attributes only applicable to certain
+           ``index_base`` and ``leg2_index_base`` are attributes only applicable to certain
            ``Instruments``. *AttributeErrors* are raised if calling or setting these
            is invalid.
 
         """
-        # TODO: re-write these docstrings to include index base mixin
         return self._leg2_index_base
 
     @leg2_index_base.setter
@@ -1124,7 +1120,7 @@ class BondMixin:
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        # TODO note this formula does not account for back stubs
+        # TODO (mid) note this formula does not account for back stubs
         # this is also mentioned in Coding IRs
 
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
@@ -1585,7 +1581,6 @@ class BondMixin:
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """
-        # TODO validate against effective and termination?
         frac, acc_idx = self._accrued_frac(settlement)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period
@@ -1752,7 +1747,7 @@ class BondMixin:
 
 
 class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
-    # TODO ensure calculations work for amortizing bonds.
+    # TODO (mid) ensure calculations work for amortizing bonds.
     """
     Create a fixed rate bond security.
 
@@ -8170,7 +8165,14 @@ def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
 
 
 class Portfolio(Sensitivities):
-    # TODO document portfolio
+    """
+    Create a collection of *Instruments* to group metrics
+
+    Parameters
+    ----------
+    instruments : list
+        This should be a list of *Instruments*.
+    """
 
     def __init__(self, instruments):
         self.instruments = instruments

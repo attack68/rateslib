@@ -966,7 +966,7 @@ class FloatPeriod(BasePeriod):
             start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
             end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             return curve.rate(start, end) + self.float_spread / 100
-            # TODO: semi-efficient method for lockout under certain conditions
+            # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
             # return inefficient calculation
             return self._rfr_fixings_array(curve, fixing_exposure=False)[0]

@@ -17,7 +17,7 @@ class Fixings:
         target = os.path.join(abspath, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
-            # TODO remove when pandas min version is bumped to 2.0
+            # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
             df = read_csv(target)
             df["reference_date"] = df["reference_date"].map(lambda x: datetime.strptime(x, "%d-%m-%Y"))
             df = df.set_index("reference_date")
