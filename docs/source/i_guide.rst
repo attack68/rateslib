@@ -14,6 +14,8 @@ It is important to understand that the key elements of this library are
 All of these functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way.
 
+**A Trivial Minimalist Example**
+
 For example, we can construct a :ref:`Curve<c-curves-doc>` in a number of ways:
 here by direct specification of discount factors (DFs).
 
@@ -56,16 +58,19 @@ cashflows.
 
    irs.cashflows(usd_curve)
 
-But this is only the the most basic functionality *rateslib* offers. Other features
-that will be explained below are:
+But this is only the the most basic functionality *rateslib* offers. Many other features
+will be explained in subsequent sections.
 
-- how to parametrize ``Curves`` and how to calibrate them to market rates
-  using a :class:`~rateslib.solver.Solver`,
-- the various different ``Instruments`` that are offered and the various methods
-  used to explore their construction, e.g. ``cashflows()``.
-- how ``FX`` is handled and how any value can be converted into another currency
-  **preserving fx rate sensitivity**.
-- how **risk sensitivity** is addressed.
+If instead of this trivial, minimalist example you would like to see a real world
+example :ref:`replicating a Bloomberg SWPM function SOFR curve<swpm-doc>` please click the
+link.
+
+.. toctree::
+    :titlesonly:
+    :hidden:
+
+    z_swpm.rst
+
 
 Reading the Guide
 ==================
