@@ -65,21 +65,33 @@ email contact through **rateslib@gmail.com**.
 0.4.1 (not released)
 **********************
 
-New
----
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
 
-- The ``shift`` method of curves now defaults to using a ``CompositeCurve`` approach to preserve
-  association with the underlying curve. Shifted curves can also be assigned ``id`` and
-  ``collateral`` tags.
-- A ``Schedule`` can now be constructed with a tenor-tenor effective-termination input measured
-  from some ``eval_date`` under an ``eval_mode`` construction methodology.
+   * - Feature
+     - Description
+   * - Curves
+     - The :meth:`shift()<rateslib.curves.Curve.shift>` operation for *Curves* now defaults to using
+       a *CompositeCurve* approach to preserve a constant spread to the underlying *Curve* via
+       a dynamic association. Shifted curves can also optionally add ``id`` and ``collateral``
+       tags.
+   * - Schedule
+     - A :class:`~rateslib.scheduling.Schedule` now has the arguments ``eval_date`` and
+       ``eval_mode`` allow a tenor-tenor effective-termination input.
+   * - Defaults
+     - Change the default :class:`~rateslib.solver.Solver` algorithm to *"levenberg_marquardt"*
+       because it is more robust for new users, even if slower in general.
+   * - Bug
+     - :class:`~rateslib.instruments.FXExchange` can now be imported from *rateslib* and has been added
+       to ``__init__``.
+   * - Bug
+     - :meth:`~rateslib.instruments.Sensitivities.cashflows_table` no longer returns empty when
+       no collateral information is available.
+   * - Bug
+     - :meth:`~rateslib.periods.FloatPeriod.fixings_table` now properly represents published
+       fixing values as having zero nominal exposure.
 
-Bug Fixes
----------
-
-- ``FXExchange`` can now be imported from ``rateslib`` and has been added to ``__init__``.
-- ``cashflows_table`` no longer returns empty when no collateral information was available.
-- ``fixings_table`` didn't properly represent published fixing values as zero exposure.
 
 0.4.0 (12 Aug 2023)
 ********************
@@ -126,7 +138,7 @@ Bug Fixes
      - *CompositeCurve* can now be constructed from *ProxyCurve* and *Curve* combinations.
 
 
-v 0.3.0 (29 Jul 2023)
+0.3.1 (29 Jul 2023)
 *********************
 
 .. list-table::
@@ -145,7 +157,7 @@ v 0.3.0 (29 Jul 2023)
    * - Curves
      - Added :class:`~rateslib.curves.CompositeCurve`.
 
-v 0.2.0 (15 May 2023)
+0.2.0 (15 May 2023)
 **********************
 
 .. list-table::
@@ -159,7 +171,7 @@ v 0.2.0 (15 May 2023)
    * - Curves
      - Added :class:`~rateslib.curves.IndexCurve`.
 
-v 0.1.0 (24 Apr 2023)
+0.1.0 (24 Apr 2023)
 **********************
 
 .. list-table::

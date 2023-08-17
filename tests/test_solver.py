@@ -227,6 +227,7 @@ def test_basic_spline_solver():
         curves=[spline_curve],
         instruments=instruments,
         s=s,
+        algorithm="gauss_newton",
     )
     assert float(solver.g) < 1e-12
     assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
@@ -277,12 +278,13 @@ def test_basic_solver_weights():
         (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
     ]
     s = np.array([1.0, 1.6, 2.02, 1.98])  # average 3Y at approximately 2.0%
-    solver = Solver(
-        curves=[curve],
-        instruments=instruments,
-        s=s,
-        func_tol=0.00085,
-    )
+    with default_context("algorithm", "gauss_newton"):
+        solver = Solver(
+            curves=[curve],
+            instruments=instruments,
+            s=s,
+            func_tol=0.00085,
+        )
     assert float(solver.g) < 0.00085
     assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
@@ -295,6 +297,7 @@ def test_basic_solver_weights():
         s=s,
         weights=[1, 1, 1, 1e-6],
         func_tol=1e-7,
+        algorithm="gauss_newton",
     )
     assert abs(float(instruments[2][0].rate(curve)) - 2.02) < 1e-4
 
@@ -304,6 +307,7 @@ def test_basic_solver_weights():
         s=s,
         weights=[1, 1, 1e-6, 1],
         func_tol=1e-7,
+        algorithm="gauss_newton",
     )
     assert abs(float(instruments[2][0].rate(curve)) - 1.98) < 1e-4
 
@@ -463,13 +467,14 @@ def test_max_iterations():
         (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
     ]
     s = np.array([1.0, 1.6, 2.02, 1.98])  # average 3Y at approximately 2.0%
-    solver = Solver(
-        curves=[curve],
-        instruments=instruments,
-        s=s,
-        func_tol=1e-10,
-        max_iter=30,
-    )
+    with default_context("algorithm", "gauss_newton"):
+        solver = Solver(
+            curves=[curve],
+            instruments=instruments,
+            s=s,
+            func_tol=1e-10,
+            max_iter=30,
+        )
     assert len(solver.g_list) == 30
 
 
@@ -597,6 +602,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
         estr_s,
         id="estr",
         instrument_labels=estr_labels,
+        algorithm="gauss_newton"
     )
 
     ibor_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
@@ -613,6 +619,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
         id="ibor",
         instrument_labels=ibor_labels,
         pre_solvers=[estr_solver],
+        algorithm="gauss_newton",
     )
 
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6)
@@ -634,6 +641,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
         estr_s + ibor_s,
         id="simul",
         instrument_labels=estr_labels + ibor_labels,
+        algorithm="gauss_newton",
     )
     gamma_sim = eur_swap.gamma([ibor_curve2, estr_curve2], simultaneous_solver)
     delta_sim = eur_swap.delta([ibor_curve2, estr_curve2], simultaneous_solver)
@@ -697,7 +705,7 @@ def test_solver_grad_s_vT_methods_equivalent():
         (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
     ]
     s = [1.2, 1.4, 1.6, 1.7, 1.9]
-    solver = Solver([curve], instruments, s)
+    solver = Solver([curve], instruments, s, algorithm="gauss_newton")
 
     solver._grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
     grad_s_vT_final_iter_anal = solver.grad_s_vT
@@ -735,7 +743,7 @@ def test_solver_grad_s_vT_methods_equivalent_overspecified_curve():
         (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
     ]
     s = [1.2, 1.4, 1.6, 1.7, 1.9]
-    solver = Solver([curve], instruments, s)
+    solver = Solver([curve], instruments, s, algorithm="gauss_newton")
 
     solver._grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
     grad_s_vT_final_iter_anal = solver.grad_s_vT
@@ -866,11 +874,12 @@ def test_solver_grad_s_s_vt_methods_equivalent():
         IRS(dt(2022, 1, 1), "6y", "A", curves="curve"),
         IRS(dt(2022, 1, 1), "7y", "A", curves="curve"),
     ]
-    solver = Solver(
-        curves=[curve],
-        instruments=instruments,
-        s=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
-    )
+    with default_context("algorithm", "gauss_newton"):
+        solver = Solver(
+            curves=[curve],
+            instruments=instruments,
+            s=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
+        )
     grad_s_s_vt_fwddiff = solver._grad_s_s_vT_fwd_difference_method()
     solver._set_ad_order(order=2)
     grad_s_s_vt_final = solver._grad_s_s_vT_final_iteration_analytical()

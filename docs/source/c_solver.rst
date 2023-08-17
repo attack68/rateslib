@@ -235,11 +235,11 @@ Algorithms
 ***********
 
 In the ``defaults`` settings of ``rateslib``, :class:`~rateslib.solver.Solver` uses
-a *"gauss_newton"* algorithm.
+a *"levenberg_marquardt"* algorithm.
 
-In the rare cases that this fails to solve for sensible starting values, or if sensible
-starting values are not necessarily known, try using the *"levenberg_marquardt"*
-alternative.
+There is an option to use a *"gauss_newton*" algorithm which is faster if the
+initial guess is reasonable. This should be used where possible, but this is a more
+unstable algorithm so is not set as the default.
 
 For other debugging procedures the *"gradient_descent"* method is available although
 this is not recommended due to computational inefficiency.

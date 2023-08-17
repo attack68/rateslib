@@ -157,7 +157,7 @@ class Defaults:
         "index_base": "Index Base",
         "collateral": "Collateral",
     }
-    algorithm = "gauss_newton"
+    algorithm = "levenberg_marquardt"
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"
     pool = 1

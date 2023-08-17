@@ -839,7 +839,7 @@ class Solver(Gradients):
         The weights that should be used within the objective function when determining
         the loss function associated with each calibrating instrument. Should be of
         same length as ``instruments``. If not given defaults to all ones.
-    algorithm : str in {"gradient_descent", "gauss_newton", "levenberg_marquardt"}
+    algorithm : str in {"levenberg_marquardt", "gauss_newton", "gradient_descent"}
         The optimisation algorithm to use when solving curves via :meth:`iterate`.
     fx : FXForwards, optional
         The ``FXForwards`` object used in FX rate calculations for ``instruments``.

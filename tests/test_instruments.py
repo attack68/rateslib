@@ -3457,6 +3457,7 @@ class TestBondFuture:
             ]
             + bonds,
             s=[7.381345, 102.732, 131.461, 107.877, 134.455],
+            algorithm="gauss_newton",
         )  # note the repo rate as defined by 'gilt_curve' is set to analogue implied
         future = BondFuture(
             coupon=7.0,
@@ -3814,7 +3815,8 @@ def test_fx_settlements_table_no_fxf():
         instruments=[IRS(dt(2023, 8, 1), "1Y", "Q", curves="usd")],
         s=[2.0],
         instrument_labels=["1Y"],
-        id="us_rates"
+        id="us_rates",
+        algorithm="gauss_newton",
     )
     irs_mkt = IRS(
         dt(2023, 8, 1), "1Y", "Q", curves="usd", fixed_rate=2.0, notional=999556779.81,
