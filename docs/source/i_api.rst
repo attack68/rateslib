@@ -242,3 +242,11 @@ Solver
    :skip: Series
    :skip: CompositeCurve
    :skip: ProxyCurve
+
+Cookbook
+--------
+
+.. toctree::
+    :titlesonly:
+
+    z_swpm.rst

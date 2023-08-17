@@ -62,15 +62,8 @@ But this is only the the most basic functionality *rateslib* offers. Many other 
 will be explained in subsequent sections.
 
 If instead of this trivial, minimalist example you would like to see a real world
-example :ref:`replicating a Bloomberg SWPM function SOFR curve<swpm-doc>` please click the
-link.
-
-.. toctree::
-    :titlesonly:
-    :hidden:
-
-    z_swpm.rst
-
+example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
+click the link.
 
 Reading the Guide
 ==================
