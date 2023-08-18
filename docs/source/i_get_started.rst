@@ -24,7 +24,12 @@ environment.
 
    pip install rateslib
 
-``Conda`` support is coming soon, but not available yet.
+Or, it can be installed via the community ``conda-forge`` channel available from
+`Anaconda.org<https://anaconda.org/conda-forge/rateslib>`_
+
+.. code-block::
+
+   conda install --channel=conda-forge rateslib
 
 **Minimum Dependencies**
 
