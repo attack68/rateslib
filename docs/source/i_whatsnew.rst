@@ -91,6 +91,9 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.fixings_table` now properly represents published
        fixing values as having zero nominal exposure.
+   * - Bug
+     - ``solver.fx`` attribute is now properly passed through to the ``rate`` calculation
+       of multi-currency instruments when ``fx`` is *None*.
 
 
 0.4.0 (12 Aug 2023)

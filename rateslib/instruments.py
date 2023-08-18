@@ -6139,13 +6139,13 @@ class BaseXCS(BaseDerivative):
             # set the target fixed leg to a null fixed rate for calculation
             tgt_leg.fixed_rate = 0.0
 
-        self._set_fx_fixings(fx)
+        self._set_fx_fixings(fx_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
 
         tgt_leg_npv = tgt_leg.npv(tgt_fore_curve, tgt_disc_curve, fx_, base_)
         alt_leg_npv = alt_leg.npv(alt_fore_curve, alt_disc_curve, fx_, base_)
-        fx_a_delta = 1.0 if not tgt_leg._is_mtm else fx
+        fx_a_delta = 1.0 if not tgt_leg._is_mtm else fx_
         _ = tgt_leg._spread(
             -(tgt_leg_npv + alt_leg_npv), tgt_fore_curve, tgt_disc_curve, fx_a_delta
         )
