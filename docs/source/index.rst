@@ -5,13 +5,13 @@
 
 .. raw:: html
 
-   <div>
+   <div style="text-align: center">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.python&label=Python&color=blue" alt="Python">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.pypi&label=PyPi&color=blue" alt="PyPi">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.conda&label=Conda&color=blue" alt="Conda">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.licence&label=Licence&color=orange" alt="Licence">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.coverage&label=Coverage&color=green" alt="Coverage">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.black&label=Code%20Style&color=black" alt="Code Style">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.style&label=Code%20Style&color=black" alt="Code Style">
    </div>
 
 .. raw:: html
