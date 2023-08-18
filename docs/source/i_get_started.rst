@@ -25,7 +25,7 @@ environment.
    pip install rateslib
 
 Or, it can be installed via the community ``conda-forge`` channel available from
-`Anaconda.org<https://anaconda.org/conda-forge/rateslib>`_
+`Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_
 
 .. code-block::
 
