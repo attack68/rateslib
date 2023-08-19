@@ -28,7 +28,7 @@ The two, more complex, combination classes are:
 
 .. autosummary::
    rateslib.curves.CompositeCurve
-   rateslib.fx.ProxyCurve
+   rateslib.curves.ProxyCurve
 
 In *rateslib* **defining curves** and then **solving them with calibrating
 instruments** are two separate processes. This provides maximal flexibility whilst

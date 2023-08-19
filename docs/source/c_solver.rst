@@ -16,9 +16,8 @@ Solver
 ***********
 
 The ``rateslib.solver`` module includes a :class:`~rateslib.solver.Solver` class
-which iteratively solves the DFs of :class:`~rateslib.curves.Curve` objects, and
-values of :class:`~rateslib.curves.LineCurve` to fit given
-calibrating instruments.
+which iteratively solves for the parameters of :ref:`Curve <curves-doc>` objects, to
+fit the given market data of calibrating :ref:`Instruments <instruments-doc>`.
 
 This module relies on the utility module :ref:`dual<dual-doc>` for gradient based
 optimization.
@@ -122,7 +121,6 @@ the optimizer will update the curves.
 
 .. ipython:: python
 
-   s = np.array([1.0, 1.6, 2.0])
    solver = Solver(
        curves = [ll_curve],
        instruments = instruments,

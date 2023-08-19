@@ -668,7 +668,9 @@ def add_tenor(
        from rateslib.solver import Solver
        from rateslib.splines import bspldnev_single, PPSpline
        from datetime import datetime as dt
+       import pandas as pd
        from pandas import date_range, Series, DataFrame
+       pd.set_option("display.float_format", lambda x: '%.2f' % x)
 
     .. ipython:: python
 
