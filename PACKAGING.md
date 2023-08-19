@@ -4,8 +4,9 @@ On "main":
 
 1) Update the whatsnew with the target release date.
 2) Add a new entry to the switcher.json in main:docs/source/static, pushing stable to next version.
-3) Bump the "version" in pyproject.toml and check the dependencies.
-4) Checks should be OK in github actions but perform a local double check.
+3) Change the badges.json file is there is anything to add, e.g. versions.
+4) Bump the "version" in pyproject.toml and check the dependencies.
+5) Checks should be OK in github actions but perform a local double check.
 
 Checks:
 $ coverage run -m pytest
@@ -13,8 +14,8 @@ Perform this on development environment as well as specified minimum.
 $ pytest -W error
 Checking for uncaptured warnings.
 
-5) Commit and push any changes - this will temporarily break readthedocs which will build from push.
-6) Create a new release branch, e.g. '0.3.x' and checkout
+6) Commit and push any changes - this will temporarily break readthedocs which will build from push.
+7) Create a new release branch, e.g. '0.3.x' and checkout
 
 On "release branch":
 
