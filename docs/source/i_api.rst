@@ -250,3 +250,4 @@ Cookbook
     :titlesonly:
 
     z_swpm.rst
+    z_dependencychain.rst
