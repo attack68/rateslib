@@ -3898,7 +3898,6 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_currency=leg2_currency,
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
-            curves=curves,
         )
         self.curves = curves
 
@@ -4093,46 +4092,8 @@ class IRS(BaseDerivative):
         ))
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
-        self.leg1 = FixedLeg(
-            fixed_rate=fixed_rate,
-            effective=self.effective,
-            termination=self.termination,
-            frequency=self.frequency,
-            stub=self.stub,
-            front_stub=self.front_stub,
-            back_stub=self.back_stub,
-            roll=self.roll,
-            eom=self.eom,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            notional=self.notional,
-            currency=self.currency,
-            amortization=self.amortization,
-            convention=self.convention,
-        )
-        self.leg2 = FloatLeg(
-            float_spread=leg2_float_spread,
-            spread_compound_method=leg2_spread_compound_method,
-            fixings=leg2_fixings,
-            fixing_method=leg2_fixing_method,
-            method_param=leg2_method_param,
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency=self.leg2_frequency,
-            stub=self.leg2_stub,
-            front_stub=self.leg2_front_stub,
-            back_stub=self.leg2_back_stub,
-            roll=self.leg2_roll,
-            eom=self.leg2_eom,
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            amortization=self.leg2_amortization,
-            convention=self.leg2_convention,
-        )
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(
         self,
@@ -4481,74 +4442,30 @@ class IIRS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._index_base = index_base
-        self._fixed_rate = fixed_rate
         if leg2_payment_lag_exchange == "inherit":
             leg2_payment_lag_exchange = payment_lag_exchange
-
-        self.notional_exchange = notional_exchange
-        if not notional_exchange:
-            L1, L2 = IndexFixedLeg, FloatLeg
-            l1_args, l2_args = {}, {}
-        else:
-            L1, L2 = IndexFixedLeg, FloatLeg
-            l1_args = dict(
-                payment_lag_exchange=payment_lag_exchange,
-                initial_exchange=False,
-                final_exchange=True,
-            )
-            l2_args = dict(
-                payment_lag_exchange=leg2_payment_lag_exchange,
-                initial_exchange=False,
-                final_exchange=True,
-            )
-
-        self.leg1 = L1(
+        self.kwargs.update(dict(
             fixed_rate=fixed_rate,
-            effective=self.effective,
-            termination=self.termination,
-            frequency=self.frequency,
-            stub=self.stub,
-            front_stub=self.front_stub,
-            back_stub=self.back_stub,
-            roll=self.roll,
-            eom=self.eom,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            notional=self.notional,
-            currency=self.currency,
-            amortization=self.amortization,
-            convention=self.convention,
             index_base=index_base,
+            index_fixings=index_fixings,
             index_method=index_method,
             index_lag=index_lag,
-            index_fixings=index_fixings,
-            **l1_args,
-        )
-        self.leg2 = L2(
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency=self.leg2_frequency,
-            stub=self.leg2_stub,
-            front_stub=self.leg2_front_stub,
-            back_stub=self.leg2_back_stub,
-            roll=self.leg2_roll,
-            eom=self.leg2_eom,
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            amortization=self.leg2_amortization,
-            convention=self.leg2_convention,
-            float_spread=leg2_float_spread,
-            fixings=leg2_fixings,
-            fixing_method=leg2_fixing_method,
-            method_param=leg2_method_param,
-            spread_compound_method=leg2_spread_compound_method,
-            **l2_args,
-        )
+            initial_exchange=False,
+            final_exchange=notional_exchange,
+            payment_lag_exchange=payment_lag_exchange,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
+            leg2_initial_exchange=False,
+            leg2_final_exchange=notional_exchange,
+        ))
+        self._index_base = self.kwargs["index_base"]
+        self._fixed_rate = self.kwargs["fixed_rate"]
+        self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(
         self,
@@ -4857,48 +4774,18 @@ class ZCS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self.kwargs.update(dict(
+            fixed_rate=fixed_rate,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+        ))
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
-        self.leg1 = ZeroFixedLeg(
-            fixed_rate=fixed_rate,
-            effective=self.effective,
-            termination=self.termination,
-            frequency=self.frequency,
-            stub=self.stub,
-            front_stub=self.front_stub,
-            back_stub=self.back_stub,
-            roll=self.roll,
-            eom=self.eom,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            notional=self.notional,
-            currency=self.currency,
-            amortization=self.amortization,
-            convention=self.convention,
-        )
-        self.leg2 = ZeroFloatLeg(
-            float_spread=leg2_float_spread,
-            spread_compound_method=leg2_spread_compound_method,
-            fixings=leg2_fixings,
-            fixing_method=leg2_fixing_method,
-            method_param=leg2_method_param,
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency=self.leg2_frequency,
-            stub=self.leg2_stub,
-            front_stub=self.leg2_front_stub,
-            back_stub=self.leg2_back_stub,
-            roll=self.leg2_roll,
-            eom=self.leg2_eom,
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            amortization=self.leg2_amortization,
-            convention=self.leg2_convention,
-        )
+        self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = ZeroFloatLeg(**_get(self.kwargs, leg=2))
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -5137,47 +5024,17 @@ class ZCIS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self.kwargs.update(dict(
+            fixed_rate=fixed_rate,
+            leg2_index_base=leg2_index_base,
+            leg2_index_fixings=leg2_index_fixings,
+            leg2_index_lag=leg2_index_lag,
+            leg2_index_method=leg2_index_method,
+        ))
         self._fixed_rate = fixed_rate
         self._leg2_index_base = leg2_index_base
-        self.leg1 = ZeroFixedLeg(
-            fixed_rate=fixed_rate,
-            effective=self.effective,
-            termination=self.termination,
-            frequency=self.frequency,
-            stub=self.stub,
-            front_stub=self.front_stub,
-            back_stub=self.back_stub,
-            roll=self.roll,
-            eom=self.eom,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            notional=self.notional,
-            currency=self.currency,
-            amortization=self.amortization,
-            convention=self.convention,
-        )
-        self.leg2 = ZeroIndexLeg(
-            index_base=leg2_index_base,
-            index_method=leg2_index_method,
-            index_lag=leg2_index_lag,
-            index_fixings=leg2_index_fixings,
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency=self.leg2_frequency,
-            stub=self.leg2_stub,
-            front_stub=self.leg2_front_stub,
-            back_stub=self.leg2_back_stub,
-            roll=self.leg2_roll,
-            eom=self.leg2_eom,
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            amortization=self.leg2_amortization,
-            convention=self.leg2_convention,
-        )
+        self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = ZeroIndexLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(self, curves, solver):
         if self.fixed_rate is None:
@@ -5428,52 +5285,22 @@ class SBS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._float_spread = float_spread
-        self._leg2_float_spread = leg2_float_spread
-        self.leg1 = FloatLeg(
+        self.kwargs.update(dict(
             float_spread=float_spread,
             spread_compound_method=spread_compound_method,
             fixings=fixings,
             fixing_method=fixing_method,
             method_param=method_param,
-            effective=self.effective,
-            termination=self.termination,
-            frequency=self.frequency,
-            stub=self.stub,
-            front_stub=self.front_stub,
-            back_stub=self.back_stub,
-            roll=self.roll,
-            eom=self.eom,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            notional=self.notional,
-            currency=self.currency,
-            amortization=self.amortization,
-            convention=self.convention,
-        )
-        self.leg2 = FloatLeg(
-            float_spread=leg2_float_spread,
-            spread_compound_method=leg2_spread_compound_method,
-            fixings=leg2_fixings,
-            fixing_method=leg2_fixing_method,
-            method_param=leg2_method_param,
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency=self.leg2_frequency,
-            stub=self.leg2_stub,
-            front_stub=self.leg2_front_stub,
-            back_stub=self.leg2_back_stub,
-            roll=self.leg2_roll,
-            eom=self.leg2_eom,
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            amortization=self.leg2_amortization,
-            convention=self.leg2_convention,
-        )
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+        ))
+        self._float_spread = float_spread
+        self._leg2_float_spread = leg2_float_spread
+        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(self, curves, solver):
         if self.float_spread is None and self.leg2_float_spread is None:
@@ -5925,6 +5752,19 @@ class FRA(Sensitivities, BaseMixin):
 class BaseXCS(BaseDerivative):
     """
     Base class with common methods for multi-currency ``Derivatives``.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional arguments for :class:`~rateslib.instruments.BaseDerivative`.
+    payment_lag_exchange : int
+        The number of business days by which to delay notional exchanges, aligned with
+        the accrual schedule.
+    leg2_payment_lag_exchange : int
+        The number of business days by which to delay notional exchanges, aligned with
+        the accrual schedule.
+    kwargs : dict
+        Required keyword arguments for :class:`~rateslib.instruments.BaseDerivative`.
     """
 
     _is_mtm = False
@@ -5932,10 +5772,21 @@ class BaseXCS(BaseDerivative):
     def __init__(
         self,
         *args,
+        payment_lag_exchange: Optional[int] = None,
+        leg2_payment_lag_exchange: Optional[int] = "inherit",
         **kwargs,
     ):
-        # TODO set payment_lag_exchange and leg2.. in init here, including inherit and default lookup.
-        return super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+        if leg2_payment_lag_exchange == "inherit":
+            leg2_payment_lag_exchange = payment_lag_exchange
+        self.kwargs.update(dict(
+            payment_lag_exchange=payment_lag_exchange,
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
+            initial_exchange=True,
+            final_exchange=True,
+            leg2_initial_exchange=True,
+            leg2_final_exchange=True
+        ))
 
     @property
     def fx_fixings(self):
@@ -6245,7 +6096,7 @@ class NonMtmXCS(BaseXCS):
     Parameters
     ----------
     args : dict
-        Required positional args to :class:`BaseDerivative`.
+        Required positional args to :class:`BaseXCS`.
     fx_fixing : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for
@@ -6266,9 +6117,6 @@ class NonMtmXCS(BaseXCS):
         The method by which floating rates are determined, set by default. See notes.
     method_param : int, optional
         A parameter that is used for the various ``fixing_method`` s. See notes.
-    payment_lag_exchange : int
-        The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule.
     leg2_float_spread : float or None
         The float spread applied in a simple way (after daily compounding) to leg 2.
         If `None` will be set to zero.
@@ -6284,11 +6132,8 @@ class NonMtmXCS(BaseXCS):
         The method by which floating rates are determined, set by default. See notes.
     leg2_method_param : int, optional
         A parameter that is used for the various ``fixing_method`` s. See notes.
-    leg2_payment_lag_exchange : int
-        The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule.
     kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
+        Required keyword arguments to :class:`BaseXCS`.
 
     Notes
     -----
@@ -6317,70 +6162,31 @@ class NonMtmXCS(BaseXCS):
         fixing_method: Optional[str] = None,
         method_param: Optional[int] = None,
         spread_compound_method: Optional[str] = None,
-        payment_lag_exchange: Optional[int] = None,
         leg2_float_spread: Optional[float] = None,
         leg2_fixings: Optional[Union[float, list]] = None,
         leg2_fixing_method: Optional[str] = None,
         leg2_method_param: Optional[int] = None,
         leg2_spread_compound_method: Optional[str] = None,
-        leg2_payment_lag_exchange: Optional[int] = "inherit",
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        if leg2_payment_lag_exchange == "inherit":
-            leg2_payment_lag_exchange = payment_lag_exchange
-        self._leg2_float_spread = leg2_float_spread
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(
+        self.kwargs.update(dict(
             float_spread=float_spread,
+            spread_compound_method=spread_compound_method,
             fixings=fixings,
             fixing_method=fixing_method,
             method_param=method_param,
-            spread_compound_method=spread_compound_method,
-            effective=self.effective,
-            termination=self.termination,
-            frequency=self.frequency,
-            stub=self.stub,
-            front_stub=self.front_stub,
-            back_stub=self.back_stub,
-            roll=self.roll,
-            eom=self.eom,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            payment_lag=self.payment_lag,
-            payment_lag_exchange=payment_lag_exchange,
-            notional=self.notional,
-            currency=self.currency,
-            amortization=self.amortization,
-            convention=self.convention,
-            initial_exchange=True,
-            final_exchange=True,
-        )
-        self.leg2 = FloatLeg(
-            float_spread=leg2_float_spread,
-            fixings=leg2_fixings,
-            fixing_method=leg2_fixing_method,
-            method_param=leg2_method_param,
-            spread_compound_method=leg2_spread_compound_method,
-            effective=self.leg2_effective,
-            termination=self.leg2_termination,
-            frequency=self.leg2_frequency,
-            stub=self.leg2_stub,
-            front_stub=self.leg2_front_stub,
-            back_stub=self.leg2_back_stub,
-            roll=self.leg2_roll,
-            eom=self.leg2_eom,
-            modifier=self.leg2_modifier,
-            calendar=self.leg2_calendar,
-            payment_lag=self.leg2_payment_lag,
-            payment_lag_exchange=leg2_payment_lag_exchange,
-            notional=self.leg2_notional,
-            currency=self.leg2_currency,
-            amortization=self.leg2_amortization,
-            convention=self.leg2_convention,
-            initial_exchange=True,
-            final_exchange=True,
-        )
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+        ))
+
+        self._leg2_float_spread = leg2_float_spread
+        self._float_spread = float_spread
+        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
         self._initialise_fx_fixings(fx_fixing)
 
     # def _set_pricing_mid(
@@ -8434,3 +8240,11 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 #         steps_taken += 1
 #
 #     return x1, steps_taken
+
+
+def _get(kwargs, leg=1):
+    if leg == 1:
+        _ = {k: v for k, v in kwargs.items() if not "leg2" in k}
+    else:
+        _ = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k}
+    return _
