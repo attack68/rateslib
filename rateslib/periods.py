@@ -615,6 +615,10 @@ class FloatPeriod(BasePeriod):
       ``method_param`` as integer number of business days defines the
       observation offset, the DCFs remain static, measured between the start and end
       dates.
+    - **"rfr_payment_delay_avg", "rfr_observation_shift_avg", "rfr_lockout_avg",
+      "rfr_lookback_avg"**: these are the same as the previous conventions except that
+      the period rate is defined as the arithmetic average of the individual fixings,
+      weighted by the relevant DCF depending upon the method.
     - **"ibor"**: this the convention for determining IBOR rates from a curve. The
       ``method_param`` is the number of fixing lag days before the accrual start when
       the fixing is published. For example, Euribor or Stibor have 2.
