@@ -71,6 +71,9 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Periods
+     - :class:`~rateslib.periods.FloatPeriod` now allows **averaging** methods for
+       determining the rate.
    * - Curves
      - The :meth:`shift()<rateslib.curves.Curve.shift>` operation for *Curves* now defaults to using
        a *CompositeCurve* approach to preserve a constant spread to the underlying *Curve* via
