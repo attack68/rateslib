@@ -262,6 +262,17 @@ class TestFloatPeriod:
         result = float_period.npv(curve)
         assert abs(result + 9997768.95848275) < 1e-7
 
+    def test_rfr_avg_method_raises(self, curve):
+        period = FloatPeriod(
+            dt(2022, 1, 1), dt(2022, 1, 4), dt(2022, 1, 4), "Q",
+            fixing_method="rfr_payment_delay_avg",
+            spread_compound_method="isda_compounding",
+        )
+        msg = "`spread_compound` method must be 'none_simple' in an RFR averaging " \
+              "period."
+        with pytest.raises(ValueError, match=msg):
+            period.rate(curve)
+
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_payment_delay_method(self, curve_type, rfr_curve, line_curve):
         curve = rfr_curve if curve_type == "curve" else line_curve
@@ -285,6 +296,88 @@ class TestFloatPeriod:
         )
         result = period.rate(curve)
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) * (1 + 0.03 / 365) - 1) * 36500 / 3
+        assert abs(result - expected) < 1e-12
+
+    @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
+    def test_rfr_payment_delay_avg_method(self, curve_type, rfr_curve, line_curve):
+        curve = rfr_curve if curve_type == "curve" else line_curve
+        period = FloatPeriod(
+            dt(2022, 1, 1), dt(2022, 1, 4), dt(2022, 1, 4), "Q", fixing_method="rfr_payment_delay_avg"
+        )
+        result = period.rate(curve)
+        expected = (1.0 + 2.0 + 3.0) / 3
+        assert abs(result - expected) < 1e-11
+
+    @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
+    def test_rfr_payment_delay_avg_method_with_fixings(self, curve_type, rfr_curve, line_curve):
+        curve = rfr_curve if curve_type == "curve" else line_curve
+        period = FloatPeriod(
+            dt(2022, 1, 1),
+            dt(2022, 1, 4),
+            dt(2022, 1, 4),
+            "Q",
+            fixing_method="rfr_payment_delay_avg",
+            fixings=[10, 8],
+        )
+        result = period.rate(curve)
+        expected = (10.0 + 8.0 + 3.0) / 3
+        assert abs(result - expected) < 1e-11
+
+    @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
+    def test_rfr_lockout_avg_method(self, curve_type, rfr_curve, line_curve):
+        curve = rfr_curve if curve_type == "curve" else line_curve
+        period = FloatPeriod(
+            dt(2022, 1, 1),
+            dt(2022, 1, 4),
+            dt(2022, 1, 4),
+            "Q",
+            fixing_method="rfr_lockout_avg",
+            method_param=2,
+        )
+        assert period._is_inefficient is True  # lockout requires all fixings.
+        result = period.rate(curve)
+        expected = 1.0
+        assert abs(result - expected) < 1e-11
+
+        period = FloatPeriod(
+            dt(2022, 1, 2),
+            dt(2022, 1, 5),
+            dt(2022, 1, 5),
+            "Q",
+            fixing_method="rfr_lockout_avg",
+            method_param=1,
+        )
+        result = period.rate(rfr_curve)
+        expected = (2 + 3.0 + 3.0) / 3
+        assert abs(result - expected) < 1e-11
+
+    @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
+    def test_rfr_lockout_avg_method_with_fixings(self, curve_type, rfr_curve, line_curve):
+        curve = rfr_curve if curve_type == "curve" else line_curve
+        period = FloatPeriod(
+            dt(2022, 1, 1),
+            dt(2022, 1, 4),
+            dt(2022, 1, 4),
+            "Q",
+            fixing_method="rfr_lockout_avg",
+            method_param=2,
+            fixings=[10, 8],
+        )
+        result = period.rate(curve)
+        expected = 10.0
+        assert abs(result - expected) < 1e-12
+
+        period = FloatPeriod(
+            dt(2022, 1, 2),
+            dt(2022, 1, 5),
+            dt(2022, 1, 5),
+            "Q",
+            fixing_method="rfr_lockout_avg",
+            method_param=1,
+            fixings=[10, 8],
+        )
+        result = period.rate(rfr_curve)
+        expected = (10.0 + 8.0 + 8.0 ) /3
         assert abs(result - expected) < 1e-12
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
@@ -399,6 +492,62 @@ class TestFloatPeriod:
         result = period.rate(curve)
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) - 1) * 36500 / 2
         assert abs(result - expected) < 1e-12
+
+    @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
+    def test_rfr_observation_shift_avg_method(self, curve_type, rfr_curve, line_curve):
+        curve = rfr_curve if curve_type == "curve" else line_curve
+        period = FloatPeriod(
+            dt(2022, 1, 2),
+            dt(2022, 1, 5),
+            dt(2022, 1, 5),
+            "Q",
+            fixing_method="rfr_observation_shift_avg",
+            method_param=1,
+        )
+        result = period.rate(curve)
+        expected = (1.0 + 2 + 3) /3
+        assert abs(result - expected) < 1e-11
+
+        period = FloatPeriod(
+            dt(2022, 1, 3),
+            dt(2022, 1, 5),
+            dt(2022, 1, 5),
+            "Q",
+            fixing_method="rfr_observation_shift_avg",
+            method_param=2,
+        )
+        result = period.rate(curve)
+        expected = (1.0 + 2.0) / 2
+        assert abs(result - expected) < 1e-11
+
+    @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
+    def test_rfr_observation_shift_avg_method_with_fixings(self, curve_type, rfr_curve, line_curve):
+        curve = rfr_curve if curve_type == "curve" else line_curve
+        period = FloatPeriod(
+            dt(2022, 1, 2),
+            dt(2022, 1, 5),
+            dt(2022, 1, 5),
+            "Q",
+            fixing_method="rfr_observation_shift_avg",
+            method_param=1,
+            fixings=[10, 8],
+        )
+        result = period.rate(curve)
+        expected = (10.0 + 8.0 + 3.0) / 3
+        assert abs(result - expected) < 1e-11
+
+        period = FloatPeriod(
+            dt(2022, 1, 3),
+            dt(2022, 1, 5),
+            dt(2022, 1, 5),
+            "Q",
+            fixing_method="rfr_observation_shift_avg",
+            method_param=2,
+            fixings=[10, 8],
+        )
+        result = period.rate(curve)
+        expected = (10.0 + 8) / 2
+        assert abs(result - expected) < 1e-11
 
     def test_dcf_obs_period_raises(self):
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, calendar="ldn")
@@ -791,16 +940,8 @@ class TestFloatPeriod:
         with pytest.raises(ValueError, match="`fixings` cannot be supplied as list,"):
             float_period.rate(line_curve)
 
-    def test_rfr_fixings_table(self, curve):
-        float_period = FloatPeriod(
-            start=dt(2022, 12, 28),
-            end=dt(2023, 1, 2),
-            payment=dt(2023, 1, 2),
-            frequency="M",
-            fixings=[1.19, 1.19, -8.81],
-        )
-        result = float_period.fixings_table(curve)
-        expected = DataFrame(
+    @pytest.mark.parametrize("meth, exp", [
+        ("rfr_payment_delay", DataFrame(
             {
                 "obs_dates": [
                     dt(2022, 12, 28),
@@ -819,13 +960,44 @@ class TestFloatPeriod:
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             }
-        ).set_index("obs_dates")
-        assert_frame_equal(result, expected, rtol=1e-4)
+        ).set_index("obs_dates")),
+        ("rfr_payment_delay_avg", DataFrame(
+            {
+                "obs_dates": [
+                    dt(2022, 12, 28),
+                    dt(2022, 12, 29),
+                    dt(2022, 12, 30),
+                    dt(2022, 12, 31),
+                    dt(2023, 1, 1),
+                ],
+                "notional": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    -999888.52252,
+                    -1000000.00000,
+                ],
+                "dcf": [0.0027777777777777778] * 5,
+                "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
+            }
+        ).set_index("obs_dates"))
+    ])
+    def test_rfr_fixings_table(self, curve, meth, exp):
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 2),
+            payment=dt(2023, 1, 2),
+            frequency="M",
+            fixings=[1.19, 1.19, -8.81],
+            fixing_method=meth,
+        )
+        result = float_period.fixings_table(curve)
+        assert_frame_equal(result, exp, rtol=1e-4)
 
         curve._set_ad_order(order=1)
         # assert values are unchanged even if curve can calculate derivatives
         result = float_period.fixings_table(curve)
-        assert_frame_equal(result, expected)
+        assert_frame_equal(result, exp)
 
     @pytest.mark.parametrize(
         "method, param",
@@ -870,6 +1042,46 @@ class TestFloatPeriod:
             method_param=param,
             spread_compound_method=scm,
             float_spread=spd,
+        )
+        expected = float_period.fixings_table(crv)
+        result = float_period.fixings_table(crv, approximate=True)
+        assert_frame_equal(result, expected, rtol=1e-2)
+
+    @pytest.mark.parametrize(
+        "method, param",
+        [
+            ("rfr_payment_delay_avg", None),
+            ("rfr_lookback_avg", 4),
+            ("rfr_lockout_avg", 1),
+            ("rfr_observation_shift_avg", 2),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "crv",
+        [
+            Curve(
+                {
+                    dt(2022, 1, 1): 1.00,
+                    dt(2022, 4, 1): 0.99,
+                    dt(2022, 7, 1): 0.98,
+                    dt(2022, 10, 1): 0.97,
+                    dt(2023, 6, 1): 0.96,
+                },
+                interpolation="log_linear",
+                calendar="bus",
+            ),
+        ],
+    )
+    def test_rfr_fixings_table_fast_avg(self, method, param, crv):
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 3),
+            payment=dt(2023, 1, 3),
+            frequency="M",
+            fixing_method=method,
+            method_param=param,
+            spread_compound_method="none_simple",
+            float_spread=100.0,
         )
         expected = float_period.fixings_table(crv)
         result = float_period.fixings_table(crv, approximate=True)

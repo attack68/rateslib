@@ -502,6 +502,10 @@ def _validate_float_args(
         "rfr_observation_shift",
         "rfr_lockout",
         "rfr_lookback",
+        "rfr_payment_delay_avg",
+        "rfr_observation_shift_avg",
+        "rfr_lockout_avg",
+        "rfr_lookback_avg",
     ]:
         raise ValueError(
             "`fixing_method` must be in {'rfr_payment_delay', "
@@ -969,6 +973,7 @@ class FloatPeriod(BasePeriod):
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
             # return inefficient calculation
+            # this is also the path for all averaging methods
             return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
 
     def _ibor_rate_from_df_curve(self, curve: Curve):
@@ -1008,6 +1013,30 @@ class FloatPeriod(BasePeriod):
 
     def _rfr_rate_from_line_curve(self, curve: LineCurve):
         return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
+
+    def _avg_rate_with_spread(self, rates, dcf_vals):
+        """
+        Calculate all in rate with float spread under averaging.
+
+        Parameters
+        ----------
+        rates : Series
+            The rates which are expected for each daily period.
+        dcf_vals : Series
+            The weightings which are used for each rate in the compounding formula.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        dcf_vals = dcf_vals.set_axis(rates.index)
+        if self.spread_compound_method != "none_simple":
+            raise ValueError(
+                "`spread_compound` method must be 'none_simple' in an RFR averaging "
+                "period."
+            )
+        else:
+            return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
 
     def _isda_compounded_rate_with_spread(self, rates, dcf_vals):
         """
@@ -1311,9 +1340,12 @@ class FloatPeriod(BasePeriod):
                 "rfr_payment_delay",
                 "rfr_observation_shift",
                 "rfr_lockout",
+                "rfr_payment_delay_avg",
+                "rfr_observation_shift_avg",
+                "rfr_lockout_avg",
             ]:  # for all these methods there is no shift
                 dcf_of_r = dcf_vals.copy()
-            elif self.fixing_method == "rfr_lookback":
+            elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
                 dcf_of_r = Series(
                     [
                         dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
@@ -1322,7 +1354,7 @@ class FloatPeriod(BasePeriod):
                 )
             v_with_r = Series([disc_curve[obs_dates[i]] for i in range(1, len(dcf_dates.index))])
 
-        if self.fixing_method == "rfr_lockout":
+        if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
             # adjust the final rates values of the lockout arrays according to param
             try:
                 rates.iloc[-self.method_param :] = rates.iloc[-self.method_param - 1]
@@ -1334,9 +1366,12 @@ class FloatPeriod(BasePeriod):
                 [Dual(float(r), f"fixing_{i}") for i, (k, r) in enumerate(rates.items())],
                 index=rates.index,
             )
-            if self.fixing_method == "rfr_lockout":
+            if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
                 rates_dual.iloc[-self.method_param :] = rates_dual.iloc[-self.method_param - 1]
-            rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
+            if "avg" in self.fixing_method:
+                rate = self._avg_rate_with_spread(rates_dual, dcf_vals)
+            else:
+                rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
             notional_exposure = Series(
                 [rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
             )
@@ -1349,7 +1384,10 @@ class FloatPeriod(BasePeriod):
                 "notional": notional_exposure.apply(float, convert_dtype=float),
             }
         else:
-            rate = self._isda_compounded_rate_with_spread(rates, dcf_vals)
+            if "avg" in self.fixing_method:
+                rate = self._avg_rate_with_spread(rates, dcf_vals)
+            else:
+                rate = self._isda_compounded_rate_with_spread(rates, dcf_vals)
             extra_cols = {}
 
         if rates.isna().any():
@@ -1401,13 +1439,12 @@ class FloatPeriod(BasePeriod):
             v_vals = Series(np.exp(v_vals.to_numpy()), index=obs_vals.index)
 
             scalar = dcf_vals.values / obs_vals.values
-            if self.fixing_method == "rfr_lockout":
+            if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
                 scalar[-self.method_param :] = 0.0
                 scalar[-(self.method_param + 1)] = (
                     obs_vals.iloc[-(self.method_param + 1) :].sum()
                     / obs_vals.iloc[-(self.method_param + 1)]
                 )
-
             # perform an efficient rate approximation
             rate = curve.rate(
                 effective=obs_dates.iloc[0],
@@ -1418,7 +1455,9 @@ class FloatPeriod(BasePeriod):
             )
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
-            if self.spread_compound_method == "none_simple":
+            if "avg" in self.fixing_method:
+                drdri = (1 / n)
+            elif self.spread_compound_method == "none_simple":
                 drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
                 drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n - 1)
@@ -1495,21 +1534,22 @@ class FloatPeriod(BasePeriod):
 
     def _get_method_dcf_markers(self, curve: Union[Curve, LineCurve], endpoints=False):
         # Depending upon method get the observation dates and dcf dates
-        if self.fixing_method in ["rfr_payment_delay", "rfr_lockout"]:
+        if self.fixing_method in ["rfr_payment_delay", "rfr_lockout", "rfr_payment_delay_avg", "rfr_lockout_avg"]:
             start_obs, end_obs = self.start, self.end
             start_dcf, end_dcf = self.start, self.end
-        elif self.fixing_method == "rfr_observation_shift":
+        elif self.fixing_method in ["rfr_observation_shift", "rfr_observation_shift_avg"]:
             start_obs = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = start_obs, end_obs
-        elif self.fixing_method == "rfr_lookback":
+        elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
             start_obs = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = self.start, self.end
         else:
             raise NotImplementedError(
                 "`fixing_method` should be in {'rfr_payment_delay', 'rfr_lockout', "
-                "'rfr_lookback', 'rfr_observation_shift'}"
+                "'rfr_lookback', 'rfr_observation_shift'} or the same with '_avg' as "
+                "a suffix for averaging methods."
             )
 
         if endpoints:
