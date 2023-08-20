@@ -3867,7 +3867,41 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         leg2_convention: Optional[str] = "inherit",
         curves: Optional[Union[list, str, Curve]] = None,
     ):
+        self.kwargs = dict(
+            effective=effective,
+            termination=termination,
+            frequency=frequency,
+            stub=stub,
+            front_stub=front_stub,
+            back_stub=back_stub,
+            roll=roll,
+            eom=eom,
+            modifier=modifier,
+            calendar=calendar,
+            payment_lag=payment_lag,
+            notional=notional,
+            currency=currency,
+            amortization=amortization,
+            convention=convention,
+            leg2_effective=leg2_effective,
+            leg2_termination=leg2_termination,
+            leg2_frequency=leg2_frequency,
+            leg2_stub=leg2_stub,
+            leg2_front_stub=leg2_front_stub,
+            leg2_back_stub=leg2_back_stub,
+            leg2_roll=leg2_roll,
+            leg2_eom=leg2_eom,
+            leg2_modifier=leg2_modifier,
+            leg2_calendar=leg2_calendar,
+            leg2_payment_lag=leg2_payment_lag,
+            leg2_notional=leg2_notional,
+            leg2_currency=leg2_currency,
+            leg2_amortization=leg2_amortization,
+            leg2_convention=leg2_convention,
+            curves=curves,
+        )
         self.curves = curves
+
         notional = defaults.notional if notional is None else notional
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
@@ -3895,6 +3929,8 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
                 _ = None if val is None else val * -1
             else:
                 _ = leg2_val
+            self.kwargs[attribute] = val
+            self.kwargs[f"leg2_{attribute}"] = _
             setattr(self, attribute, val)
             setattr(self, f"leg2_{attribute}", _)
 
@@ -4047,6 +4083,14 @@ class IRS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self.kwargs.update(dict(
+            fixed_rate=fixed_rate,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+        ))
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FixedLeg(
