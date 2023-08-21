@@ -3824,3 +3824,9 @@ def test_fx_settlements_table_no_fxf():
     result = irs_mkt.cashflows_table(solver=solver)
     assert abs(result.iloc[0, 0] - 69.49810) < 1e-5
     assert abs(result.iloc[3, 0] - 69.49810) < 1e-5
+
+
+def test_push_dicts():
+    a = dict(a=10, b=None, c=20)
+    b = dict(a=None, b=30.0, d=15.0)
+    pass

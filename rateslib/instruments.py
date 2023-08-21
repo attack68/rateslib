@@ -3872,6 +3872,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         leg2_amortization: Optional[float] = "inherit_negate",
         leg2_convention: Optional[str] = "inherit",
         curves: Optional[Union[list, str, Curve]] = None,
+        spec: Optional[str] = None,
     ):
         self.kwargs = dict(
             effective=effective,
@@ -3905,6 +3906,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
         )
+
         self.curves = curves
 
         notional = defaults.notional if notional is None else notional
@@ -7636,10 +7638,22 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 #     return x1, steps_taken
 
 
-def _get(kwargs, leg=1):
+def _get(kwargs: dict, leg: int=1):
     """A parser to return kwarg dicts for relevant legs. Internal structuring only."""
     if leg == 1:
         _ = {k: v for k, v in kwargs.items() if not "leg2" in k}
     else:
         _ = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k}
     return _
+
+
+def _push(spec: Optional[str], kwargs: dict):
+    """Push user specified kwargs to a default specification"""
+    if spec is None:
+        return kwargs
+    else:
+        try:
+            default_kwargs = defaults.spec[spec.lower()]
+        except KeyError:
+            raise ValueError(f"Given `spec`, '{spec}', cannot be found in defaults.")
+        return {**default_kwargs, **kwargs}

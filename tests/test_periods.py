@@ -6,6 +6,7 @@ from pandas import DataFrame, Series
 import numpy as np
 
 import context
+from rateslib.default import NoInput
 from rateslib.periods import (
     Cashflow,
     FixedPeriod,
@@ -150,9 +151,9 @@ class TestFloatPeriod:
         "spread, crv, fx",
         [
             (4.00, True, 2.0),
-            (None, False, 2.0),
+            (NoInput(0), False, 2.0),
             (4.00, True, 10.0),
-            (None, False, 10.0),
+            (NoInput(0), False, 10.0),
         ],
     )
     def test_float_period_cashflows(self, curve, fxr, spread, crv, fx):
@@ -1002,7 +1003,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize(
         "method, param",
         [
-            ("rfr_payment_delay", None),
+            ("rfr_payment_delay", NoInput(0)),
             ("rfr_lookback", 4),
             ("rfr_lockout", 1),
             ("rfr_observation_shift", 2),
@@ -1243,7 +1244,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize(
         "meth, param, exp",
         [
-            ("rfr_payment_delay", None, 3.1183733605),
+            ("rfr_payment_delay", NoInput(0), 3.1183733605),
             ("rfr_observation_shift", 2, 3.085000395),
             ("rfr_lookback", 2, 3.05163645),
             ("rfr_lockout", 7, 3.00157855),
@@ -1303,9 +1304,9 @@ class TestFixedPeriod:
         "rate, crv, fx",
         [
             (4.00, True, 2.0),
-            (None, False, 2.0),
+            (NoInput(0), False, 2.0),
             (4.00, True, 10),
-            (None, False, 10),
+            (NoInput(0), False, 10),
         ],
     )
     def test_fixed_period_cashflows(self, curve, fxr, rate, crv, fx):
@@ -1321,7 +1322,7 @@ class TestFixedPeriod:
             fixed_rate=rate,
         )
 
-        cashflow = None if rate is None else rate * -1e9 * fixed_period.dcf / 100
+        cashflow = None if rate is NoInput.blank else rate * -1e9 * fixed_period.dcf / 100
         expected = {
             Defaults.headers["type"]: "FixedPeriod",
             Defaults.headers["stub_type"]: "Regular",

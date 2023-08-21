@@ -1,7 +1,5 @@
 # This module is a dependent of legs.py
 
-# TODO v2.0 Add float rate averaging to the available fixing_method (e.g. RIBAs and monthly fed funds futures)
-
 """
 .. ipython:: python
    :suppress:
@@ -32,6 +30,7 @@ import numpy as np
 from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday
 from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
 from rateslib.dual import Dual, Dual2, DualTypes
@@ -113,7 +112,7 @@ class BasePeriod(metaclass=ABCMeta):
         The adjusted end date of the calculation period.
     payment : Datetime
         The adjusted payment date of the period.
-    frequency : str, optional
+    frequency : str
         The frequency of the corresponding leg. Also used
         with specific values for ``convention``, or floating rate calculation.
     notional : float, optional, set by Default
@@ -146,19 +145,19 @@ class BasePeriod(metaclass=ABCMeta):
         end: datetime,
         payment: datetime,
         frequency: str,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        convention: Optional[str] = None,
-        termination: Optional[datetime] = None,
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        termination: Union[datetime, NoInput] = NoInput(0),
         stub: bool = False,
     ):
         if end < start:
             raise ValueError("`end` cannot be before `start`.")
         self.start, self.end, self.payment = start, end, payment
         self.frequency = frequency.upper()
-        self.notional = defaults.notional if notional is None else notional
-        self.currency = defaults.base_currency if currency is None else currency.lower()
-        self.convention = defaults.convention if convention is None else convention
+        self.notional = defaults.notional if notional is NoInput.blank else notional
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
+        self.convention = defaults.convention if convention is NoInput.blank else convention
         self.termination = termination
         self.freq_months = defaults.frequency_months[self.frequency]
         self.stub = stub
@@ -401,7 +400,12 @@ class FixedPeriod(BasePeriod):
 
     """
 
-    def __init__(self, *args, fixed_rate: Union[float, None] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        **kwargs
+    ):
         self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
@@ -418,9 +422,10 @@ class FixedPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        return (
-            None if self.fixed_rate is None else -self.notional * self.dcf * self.fixed_rate / 100
-        )
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            return -self.notional * self.dcf * self.fixed_rate / 100
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -484,9 +489,9 @@ class FixedPeriod(BasePeriod):
 
 
 def _validate_float_args(
-    fixing_method: Optional[str],
-    method_param: Optional[int],
-    spread_compound_method: Optional[str],
+    fixing_method: Union[str, NoInput],
+    method_param: Union[int, NoInput],
+    spread_compound_method: Union[str, NoInput],
 ):
     """
     Validate the argument input to float periods.
@@ -495,7 +500,10 @@ def _validate_float_args(
     -------
     tuple
     """
-    fixing_method_: str = defaults.fixing_method if fixing_method is None else fixing_method.lower()
+    if fixing_method is NoInput.blank:
+        fixing_method_: str = defaults.fixing_method
+    else:
+        fixing_method_ = fixing_method.lower()
     if fixing_method_ not in [
         "ibor",
         "rfr_payment_delay",
@@ -513,9 +521,10 @@ def _validate_float_args(
             f"got '{fixing_method_}'."
         )
 
-    method_param_ = (
-        defaults.fixing_method_param[fixing_method_] if method_param is None else method_param
-    )
+    if method_param is NoInput.blank:
+        method_param_: int = defaults.fixing_method_param[fixing_method_]
+    else:
+        method_param_ = method_param
     if method_param_ != 0 and fixing_method_ == "rfr_payment_delay":
         raise ValueError(
             "`method_param` should not be used (or a value other than 0) when "
@@ -528,7 +537,7 @@ def _validate_float_args(
             f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, ' f"got {method_param_}"
         )
 
-    if spread_compound_method is None:
+    if spread_compound_method is NoInput.blank:
         spread_compound_method_: str = defaults.spread_compound_method
     else:
         spread_compound_method_ = spread_compound_method.lower()
@@ -790,14 +799,14 @@ class FloatPeriod(BasePeriod):
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput(0)] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self.float_spread = 0 if float_spread is None else float_spread
+        self.float_spread = 0.0 if float_spread is NoInput.blank else float_spread
 
         (
             self.fixing_method,
@@ -1209,7 +1218,7 @@ class FloatPeriod(BasePeriod):
             disc_curve = curve
 
         if approximate:
-            if self.fixings is not None:
+            if self.fixings is not NoInput.blank:
                 warnings.warn("Cannot approximate a fixings table when some published fixings "
                               f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
                               f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
@@ -1287,7 +1296,7 @@ class FloatPeriod(BasePeriod):
         )
 
         rates = Series(NA, index=obs_dates[:-1])
-        if self.fixings is not None:
+        if self.fixings is not NoInput.blank:
             # then fixings will be a list or Series, scalars are already processed.
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
@@ -1525,7 +1534,7 @@ class FloatPeriod(BasePeriod):
         4) ``fixings`` are given which need to be incorporated into the calculation
         """
         if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
-            if self.fixings is not None:
+            if self.fixings is not NoInput.blank:
                 return True
             elif self.float_spread == 0 or self.spread_compound_method == "none_simple":
                 return False
@@ -2066,9 +2075,10 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         """
         float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
         """
-        return (
-            None if self.fixed_rate is None else -self.notional * self.dcf * self.fixed_rate / 100
-        )
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            return -self.notional * self.dcf * self.fixed_rate / 100
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
