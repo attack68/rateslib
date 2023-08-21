@@ -6476,11 +6476,11 @@ class NonMtmFixedFixedXCS(BaseXCS):
         super().__init__(*args, **kwargs)
         self.kwargs.update(dict(
             fixed_rate=fixed_rate,
-            leg2_fixed_rate=fixed_rate,
+            leg2_fixed_rate=leg2_fixed_rate,
         ))
 
-        self._leg2_fixed_rate = leg2_fixed_rate
-        self._fixed_rate = fixed_rate
+        self._leg2_fixed_rate = self.kwargs["leg2_fixed_rate"]
+        self._fixed_rate = self.kwargs["fixed_rate"]
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FixedLeg(**_get(self.kwargs, leg=2))
         self._initialise_fx_fixings(fx_fixing)
