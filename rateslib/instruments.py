@@ -6583,7 +6583,7 @@ class XCS(BaseXCS):
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
             leg2_alt_currency=self.kwargs["currency"],
-            leg2_alt_notional=self.kwargs["notional"],
+            leg2_alt_notional=-self.kwargs["notional"],
             leg2_fx_fixings=fx_fixings,
         ))
 
