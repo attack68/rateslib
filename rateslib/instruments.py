@@ -2440,8 +2440,6 @@ class Bill(FixedRateBond):
         settle: int = 1,
         curves: Optional[Union[list, str, Curve]] = None,
     ):
-        if payment_lag is None:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
         super().__init__(
             effective=effective,
             termination=termination,
