@@ -2287,7 +2287,7 @@ class TestFixedRateBond:
         expected = 113.22198344812742
         assert abs(result - expected) < 1e-6
 
-        gilt.settle = 1
+        gilt.kwargs["settle"] = 1
         result = gilt.npv(curve)  # bond is ex div on settlement 26th Nov 2010
         expected = 109.229489312983  # bond has dropped a coupon payment of 4.
         assert abs(result - expected) < 1e-6
@@ -2332,7 +2332,7 @@ class TestFixedRateBond:
         expected = -550.0
         assert abs(result - expected) < 1e-6
 
-        gilt.settle = 1
+        gilt.kwargs["settle"] = 1
         result = gilt.analytic_delta(curve)  # bond is ex div on settle 26th Nov 2010
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
@@ -2796,7 +2796,7 @@ class TestBill:
         expected = bill.ytm(99.9385705675, dt(2004, 1, 22))
         assert abs(result - expected) < 1e-6
 
-        bill.settle = 2  # set the bill to T+2 settlement and re-run the calculations
+        bill.kwargs['settle'] = 2  # set the bill to T+2 settlement and re-run the calculations
 
         result = bill.rate(curve, metric="price")
         expected = 99.94734388985547
@@ -3090,7 +3090,7 @@ class TestFloatRateBond:
         expected = -550.0
         assert abs(result - expected) < 1e-6
 
-        frn.settle = 1
+        frn.kwargs['settle'] = 1
         result = frn.analytic_delta(curve)  # bond is ex div on settle 26th Nov 2010
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6

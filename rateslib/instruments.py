@@ -1019,7 +1019,7 @@ class BondMixin:
         )
         ex_div_date = add_tenor(
             self.leg1.schedule.aschedule[prev_a_idx + 1],
-            f"{-self.ex_div_days}B",
+            f"{-self.kwargs['ex_div']}B",
             None,  # modifier not required for business day tenor
             self.leg1.schedule.calendar,
         )
@@ -1642,7 +1642,7 @@ class BondMixin:
         )
         settlement = add_tenor(
             curves[1].node_dates[0],
-            f"{self.settle}B",
+            f"{self.kwargs['settle']}B",
             None,
             self.leg1.schedule.calendar,
         )
@@ -1668,7 +1668,7 @@ class BondMixin:
         disc_curve = disc_curve or curve
         settlement = add_tenor(
             disc_curve.node_dates[0],
-            f"{self.settle}B",
+            f"{self.kwargs['settle']}B",
             None,
             self.leg1.schedule.calendar,
         )
@@ -1729,7 +1729,7 @@ class BondMixin:
         if settlement is None:
             settlement = add_tenor(
                 curves[1].node_dates[0],
-                f"{self.settle}B",
+                f"{self.kwargs['settle']}B",
                 None,
                 self.leg1.schedule.calendar,
             )
@@ -1943,10 +1943,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
-        self._fixed_rate = fixed_rate
-        self.ex_div_days = ex_div
-        self.settle = settle
-        self.leg1 = FixedLeg(
+
+        self.kwargs = dict(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -1958,7 +1956,6 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
-            payment_lag_exchange=payment_lag,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -1967,6 +1964,13 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             initial_exchange=False,
             final_exchange=True,
         )
+        self._fixed_rate = fixed_rate
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
+        self.kwargs.update(dict(
+            ex_div=ex_div,
+            settle=settle,
+        ))
+
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
             # go through and update all methods. Many rely on the quantity
@@ -2030,7 +2034,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         if metric in ["clean_price", "dirty_price", "ytm"]:
             settlement = add_tenor(
                 curves[1].node_dates[0],
-                f"{self.settle}B",
+                f"{self.kwargs['settle']}B",
                 None,
                 self.leg1.schedule.calendar,
             )
@@ -2126,9 +2130,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self._fixed_rate = fixed_rate
         self._index_base = index_base
-        self.ex_div_days = ex_div
-        self.settle = settle
-        self.leg1 = IndexFixedLeg(
+        self.kwargs = dict(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -2140,7 +2142,6 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
-            payment_lag_exchange=payment_lag,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -2153,6 +2154,11 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             index_lag=index_lag,
             index_fixings=index_fixings,
         )
+        self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1))
+        self.kwargs.update(dict(
+            ex_div=ex_div,
+            settle=settle,
+        ))
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
             # go through and update all methods. Many rely on the quantity
@@ -2239,7 +2245,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         ]:
             settlement = add_tenor(
                 curves[1].node_dates[0],
-                f"{self.settle}B",
+                f"{self.kwargs['settle']}B",
                 None,
                 self.leg1.schedule.calendar,
             )
@@ -2501,7 +2507,7 @@ class Bill(FixedRateBond):
         )
         settlement = add_tenor(
             curves[1].node_dates[0],
-            f"{self.settle}B",
+            f"{self.kwargs['settle']}B",
             None,
             self.leg1.schedule.calendar,
         )
@@ -2706,8 +2712,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             raise ValueError("FloatRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(
+        self.kwargs = dict(
             effective=effective,
             termination=termination,
             frequency=frequency,
@@ -2719,7 +2724,6 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
-            payment_lag_exchange=payment_lag,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -2732,13 +2736,17 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             initial_exchange=False,
             final_exchange=True,
         )
-        self.ex_div_days = ex_div
-        self.settle = settle
+        self._float_spread = float_spread
+        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
+        self.kwargs.update(dict(
+            ex_div=ex_div,
+            settle=settle,
+        ))
         if "rfr" in self.leg1.fixing_method:
-            if self.ex_div_days > self.leg1.method_param:
+            if self.kwargs["ex_div"] > self.leg1.method_param:
                 raise ValueError(
-                    "For RFR FRNs `ex_div` must be less than or equal to `method_param`"
-                    " otherwise negative accrued payments cannot be explicitly "
+                    "For RFR FRNs `ex_div` must be less than or equal to `method_param` "
+                    "otherwise negative accrued payments cannot be explicitly "
                     "determined due to unknown fixings."
                 )
 
@@ -2973,7 +2981,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         if metric in ["clean_price", "dirty_price", "spread"]:
             settlement = add_tenor(
                 curves[1].node_dates[0],
-                f"{self.settle}B",
+                f"{self.kwargs['settle']}B",
                 None,
                 self.leg1.schedule.calendar,
             )
