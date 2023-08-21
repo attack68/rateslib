@@ -19,7 +19,7 @@ from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
-from rateslib.default import plot
+from rateslib.default import plot, NoInput
 from rateslib.calendars import (
     create_calendar,
     get_calendar,
@@ -398,9 +398,9 @@ class Curve(Serialize, PlotCurve):
         c: Optional[list[float]] = None,
         endpoints: Optional[str] = None,
         id: Optional[str] = None,
-        convention: Optional[str] = None,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
+        convention: Union[str, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         ad: int = 0,
         **kwargs,
     ):
@@ -411,8 +411,8 @@ class Curve(Serialize, PlotCurve):
         self.interpolation = interpolation or defaults.interpolation[type(self).__name__]
 
         # Parameters for the rate derivation
-        self.convention = convention or defaults.convention
-        self.modifier = defaults.modifier if modifier is False else modifier
+        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.modifier = defaults.modifier if modifier is NoInput.blank else modifier
         self.calendar, self.calendar_type = get_calendar(calendar, kind=True)
         if self.calendar_type == "named":
             self.calendar_type = f"named: {calendar.lower()}"
@@ -472,7 +472,7 @@ class Curve(Serialize, PlotCurve):
         self,
         effective: datetime,
         termination: Union[datetime, str],
-        modifier: Optional[Union[str, bool]] = False,
+        modifier: Union[str, bool, NoInput] = NoInput(0),
         # calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
         # convention: Optional[str] = None,
         float_spread: float = None,
@@ -537,7 +537,7 @@ class Curve(Serialize, PlotCurve):
           rates and an approximation is used to derive to total rate.
 
         """
-        modifier = self.modifier if modifier is False else modifier
+        modifier = self.modifier if modifier is NoInput.blank else modifier
         # calendar = self.calendar if calendar is False else calendar
         # convention = self.convention if convention is None else convention
 

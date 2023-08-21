@@ -2,7 +2,7 @@ from pandas.tseries.offsets import BusinessDay
 from pandas import read_csv
 import pandas
 import os
-from enum import IntEnum
+from enum import Enum
 from packaging import version
 from datetime import datetime
 
@@ -38,7 +38,7 @@ INSTRUMENT_SPECS = {
 }
 
 
-class NoInput(IntEnum):
+class NoInput(Enum):
     blank = 0
     inherit = 1
     negate = -1

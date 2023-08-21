@@ -14,8 +14,9 @@ from pandas.tseries.holiday import (
     nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from rateslib.default import NoInput
 
-CalInput = Optional[Union[CustomBusinessDay, str]]
+CalInput = Union[CustomBusinessDay, str, NoInput]
 
 # Generic holidays
 Epiphany = Holiday("Epiphany", month=1, day=6)
@@ -543,7 +544,7 @@ def get_calendar(
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.
-    if calendar is None:
+    if calendar is NoInput.blank:
         ret = (create_calendar([], weekmask="Mon Tue Wed Thu Fri Sat Sun"), "null")
     elif isinstance(calendar, str):
         calendars = calendar.lower().split(",")

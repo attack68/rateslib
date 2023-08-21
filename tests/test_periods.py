@@ -182,7 +182,7 @@ class TestFloatPeriod:
             Defaults.headers["dcf"]: float_period.dcf,
             Defaults.headers["df"]: 0.9897791268897856 if crv else None,
             Defaults.headers["rate"]: rate,
-            Defaults.headers["spread"]: 0 if spread is None else spread,
+            Defaults.headers["spread"]: 0 if spread is NoInput.blank else spread,
             Defaults.headers["npv"]: -10096746.871171726 if crv else None,
             Defaults.headers["cashflow"]: cashflow,
             Defaults.headers["fx"]: fx,
