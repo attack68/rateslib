@@ -1967,7 +1967,7 @@ class TestFXSwap:
                 payment_lag=0,
                 notional=1e6,
             )
-            assert fxs._split is False
+            assert fxs._is_split is False
 
         with pytest.warns(UserWarning):
             fxs = FXSwap(
@@ -1981,7 +1981,7 @@ class TestFXSwap:
                 notional=1e6,
                 split_notional=1e6,
             )
-            assert fxs._split is True
+            assert fxs._is_split is True
 
     @pytest.mark.parametrize("fx_fixing, points, split_notional, expected", [
         (None, None, None, Dual(0, "fx_usdnok", [-1712.833785])),
