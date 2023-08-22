@@ -1883,10 +1883,10 @@ class IndexMixin(metaclass=ABCMeta):
     def _index_value(
         i_fixings: Union[float, Series, NoInput],
         i_date: datetime,
-        i_curve: Optional[IndexCurve],
+        i_curve: Union[IndexCurve, NoInput],
         i_lag: int,
         i_method: str,
-    ) -> Optional[DualTypes]:
+    ) -> Union[DualTypes, NoInput]:
         """
         Project an index rate, or lookup from provided fixings, for a given date.
 
@@ -1914,8 +1914,8 @@ class IndexMixin(metaclass=ABCMeta):
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
-                    if i_curve is None:
-                        return None
+                    if i_curve is NoInput.blank:
+                        return NoInput(0)
                     else:
                         return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
                     # raise ValueError(
@@ -2103,13 +2103,13 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             npv = None
             npv_fx = None
         else:
-            npv = float(self.npv(curve, disc_curve))
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
 
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
 
         return {
-            **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),
+            **super(FixedPeriod, self).cashflows(curve, disc_curve_, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["real_cashflow"]: self.real_cashflow,
