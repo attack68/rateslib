@@ -29,6 +29,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, Series
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import add_tenor
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, IndexCurve
@@ -153,19 +154,19 @@ class BaseLeg(metaclass=ABCMeta):
         effective: datetime,
         termination: Union[datetime, str],
         frequency: str,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        payment_lag_exchange: Optional[int] = None,
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
     ):
@@ -182,17 +183,17 @@ class BaseLeg(metaclass=ABCMeta):
             calendar,
             payment_lag,
         )
-        self.convention = defaults.convention if convention is None else convention
-        self.currency = defaults.base_currency if currency is None else currency.lower()
+        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
 
         self.payment_lag_exchange = (
-            defaults.payment_lag_exchange if payment_lag_exchange is None else payment_lag_exchange
+            defaults.payment_lag_exchange if payment_lag_exchange is NoInput.blank else payment_lag_exchange
         )
         self.initial_exchange = initial_exchange
         self.final_exchange = final_exchange
 
-        self._notional = defaults.notional if notional is None else notional
-        self._amortization = 0 if amortization is None else amortization
+        self._notional = defaults.notional if notional is NoInput.blank else notional
+        self._amortization = 0 if amortization is NoInput.blank else amortization
         if getattr(self, "_delay_set_periods", False):
             pass
         else:
@@ -580,7 +581,12 @@ class FixedLeg(BaseLeg, FixedLegMixin):
        fixed_leg_exch.npv(curve)
     """
 
-    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        **kwargs
+    ):
         self._fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
         self._set_periods()
@@ -636,7 +642,7 @@ class FloatLegMixin:
         Re-organises the fixings input to list structure for each period.
         Requires a ``schedule`` object and ``float_args``.
         """
-        if fixings is None:
+        if fixings is NoInput.blank:
             fixings = []
         elif isinstance(fixings, Series):
             last_fixing = fixings.index[-1]
@@ -887,11 +893,11 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -1132,11 +1138,11 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -1282,7 +1288,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         else:
             npv = float(self.npv(curve, disc_curve))
             npv_fx = npv * float(fx)
-        spread = 0.0 if self.float_spread is None else float(self.float_spread)
+        spread = 0.0 if self.float_spread is NoInput.blank else float(self.float_spread)  # WARNZ
         seq = [
             {
                 defaults.headers["type"]: type(self).__name__,
@@ -1361,7 +1367,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     """
 
-    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
+    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_rate = fixed_rate
 
@@ -1474,7 +1480,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         disc_curve_: Curve = disc_curve or curve
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:  # WARNZ
             return None
 
         f = 12 / defaults.frequency_months[self.schedule.frequency]
@@ -1580,14 +1586,14 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
     def __init__(
         self,
         *args,
-        index_base: Optional[Union[float, Series]] = None,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
+        index_base: Union[float, Series, NoInput] = NoInput(0),
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
         self.index_base = index_base  # set after periods initialised
@@ -1745,15 +1751,15 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         self,
         *args,
         index_base: float,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
-        fixed_rate: Optional[float] = None,
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
+        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)
@@ -1893,13 +1899,15 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def __init__(
         self,
         *args,
-        fx_fixings: Optional[Union[list, float, Dual, Dual2]] = None,
-        alt_currency: str = None,
-        alt_notional: Optional[float] = None,
+        fx_fixings: Union[list, float, Dual, Dual2, NoInput] = NoInput(0),
+        alt_currency: Union[str, NoInput] = NoInput(0),
+        alt_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
+        if alt_currency is NoInput.blank:
+            raise ValueError("`alt_currency` and `currency` must be supplied for MtmLeg.")
         self.alt_currency = alt_currency.lower()
-        self.alt_notional = defaults.notional if alt_notional is None else alt_notional
+        self.alt_notional = defaults.notional if alt_notional is NoInput.blank else alt_notional
         self._delay_set_periods = True
         if "initial_exchange" not in kwargs:
             kwargs["initial_exchange"] = True
@@ -1926,7 +1934,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     @fx_fixings.setter
     def fx_fixings(self, value):
-        if value is None:
+        if value is NoInput.blank:
             self._fx_fixings = []
         elif isinstance(value, list):
             self._fx_fixings = value
@@ -2160,22 +2168,14 @@ class FixedLegMtm(BaseLegMtm, FixedLegMixin):
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        fx_fixings: Optional[Union[list, float, Dual, Dual2]] = None,
-        alt_currency: Optional[str] = None,
-        alt_notional: Optional[float] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._fixed_rate = fixed_rate
-        # self._initialised = False
         super().__init__(
             *args,
-            fx_fixings=fx_fixings,
-            alt_currency=alt_currency,
-            alt_notional=alt_notional,
             **kwargs,
         )
-        # self._initialised = True
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2242,14 +2242,11 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
     def __init__(
         self,
         *args,
-        float_spread: Union[float, None] = None,
-        fixings: Optional[Union[float, list]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
-        fx_fixings: Optional[Union[list, float, Dual, Dual2]] = None,
-        alt_currency: Optional[str] = None,
-        alt_notional: Optional[float] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -2258,19 +2255,14 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
             self.method_param,
             self.spread_compound_method,
         ) = _validate_float_args(fixing_method, method_param, spread_compound_method)
-        # self._initialised = False  # flag for not calling fx_fixings in super()
 
         super().__init__(
             *args,
-            fx_fixings=fx_fixings,
-            alt_currency=alt_currency,
-            alt_notional=alt_notional,
             **kwargs,
         )
 
         self._set_fixings(fixings)
-        self.fx_fixings = fx_fixings  # sets fx_fixings and periods after initialising
-        # self._initialised = True  # once rates fixings are set can set periods
+        self.fx_fixings = self.fx_fixings  # sets fx_fixings and periods after initialising
 
 
 class CustomLeg(BaseLeg):
