@@ -1381,8 +1381,11 @@ class TestFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
         )
-        with pytest.raises(TypeError, match="`curves` have not been"):
-            fixed_period.npv(None)
+        with pytest.raises(
+            TypeError,
+            match=re.escape("FixedPeriod.npv() missing 1 required positional argument: 'curve'")
+        ):
+            fixed_period.npv()
 
 
 class TestCashflow:

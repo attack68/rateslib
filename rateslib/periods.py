@@ -236,10 +236,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
         """
-        if disc_curve is NoInput.blank:
-            disc_curve_: Curve = curve
-        else:
-            disc_curve_ = disc_curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         _ = fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
         return _
@@ -451,13 +448,12 @@ class FixedPeriod(BasePeriod):
         Return the NPV of the *FixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if disc_curve is NoInput.blank:
-            disc_curve = curve
-        if not isinstance(disc_curve, Curve):
-            raise TypeError(
-                "`curves` have not been supplied correctly. NoneType has been detected."
-            )
-        value = self.cashflow * disc_curve[self.payment]
+        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        # if not isinstance(disc_curve, Curve):
+        #     raise TypeError(
+        #         "`curves` have not been supplied correctly. NoneType has been detected."
+        #     )
+        value = self.cashflow * disc_curve_[self.payment]
         if local:
             return {self.currency: value}
         else:
