@@ -1254,7 +1254,7 @@ class TestFloatLegExchangeMtm:
             dt(2022, 4, 6),
             dt(2022, 7, 6),
         ]  # payment_lag_exchange is 3 days.
-        rate = [_ if _ is not None else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
+        rate = [_ if _ is not NoInput(0) else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
 
         float_leg_exch.cashflows(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         assert float(float_leg_exch.periods[0].cashflow - 10e6 * rate[0]) < 1e-6
@@ -1304,9 +1304,9 @@ class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
         "fx_fixings, exp",
         [
-            (None, [None, None, None]),
-            ([1.5], [1.5, None, None]),
-            (1.25, [1.25, None, None]),
+            (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
+            ([1.5], [1.5, NoInput(0), NoInput(0)]),
+            (1.25, [1.25, NoInput(0), NoInput(0)]),
         ],
     )
     def test_mtm_leg_fx_fixings_warn_raise(self, curve, fx_fixings, exp):
@@ -1399,9 +1399,9 @@ def test_custom_leg():
 @pytest.mark.parametrize(
     "fx_fixings, exp",
     [
-        (None, [None, None, None]),
-        ([1.5], [1.5, None, None]),
-        (1.25, [1.25, None, None]),
+        (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
+        ([1.5], [1.5, NoInput(0), NoInput(0)]),
+        (1.25, [1.25, NoInput(0), NoInput(0)]),
     ],
 )
 def test_fixed_leg_exchange_mtm(fx_fixings, exp):
@@ -1432,7 +1432,7 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp):
         dt(2022, 4, 6),
         dt(2022, 7, 6),
     ]  # payment_lag_exchange is 3 days.
-    rate = [_ if _ is not None else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
+    rate = [_ if _ is not NoInput(0) else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
 
     fixed_leg_exch.cashflows(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
     assert float(fixed_leg_exch.periods[0].cashflow - 10e6 * rate[0]) < 1e-6
@@ -1589,11 +1589,11 @@ def test_set_index_fixings_list_leg_types(klass, kwargs, expected):
 @pytest.mark.parametrize(
     "klass, kwargs, expected",
     [
-        (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, None, None]),
+        (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, NoInput(0), NoInput(0)]),
         (
             IndexFixedLeg,
             {"initial_exchange": False, "final_exchange": True, "index_fixings": 200.0},
-            [200.0, None, None, None],
+            [200.0, NoInput(0), NoInput(0), NoInput(0)],
         ),
         (ZeroIndexLeg, {"index_fixings": 400.0}, [400.0]),
     ],

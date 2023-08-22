@@ -35,6 +35,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, Series, MultiIndex
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import add_tenor, get_calendar, dcf
 
 # from rateslib.scheduling import Schedule
@@ -3841,38 +3842,38 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     @abc.abstractmethod
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str] = None,
-        frequency: Optional[int] = None,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        leg2_effective: Optional[datetime] = "inherit",
-        leg2_termination: Optional[Union[datetime, str]] = "inherit",
-        leg2_frequency: Optional[int] = "inherit",
-        leg2_stub: Optional[str] = "inherit",
-        leg2_front_stub: Optional[datetime] = "inherit",
-        leg2_back_stub: Optional[datetime] = "inherit",
-        leg2_roll: Optional[Union[str, int]] = "inherit",
-        leg2_eom: Optional[bool] = "inherit",
-        leg2_modifier: Optional[str] = "inherit",
-        leg2_calendar: Optional[Union[CustomBusinessDay, str]] = "inherit",
-        leg2_payment_lag: Optional[int] = "inherit",
-        leg2_notional: Optional[float] = "inherit_negate",
-        leg2_currency: Optional[str] = "inherit",
-        leg2_amortization: Optional[float] = "inherit_negate",
-        leg2_convention: Optional[str] = "inherit",
-        curves: Optional[Union[list, str, Curve]] = None,
-        spec: Optional[str] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[Union[str, int], NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        leg2_effective: Union[datetime, NoInput] = NoInput(1),
+        leg2_termination: Union[Union[datetime, str], NoInput] = NoInput(1),
+        leg2_frequency: Union[int, NoInput] = NoInput(1),
+        leg2_stub: Union[str, NoInput] = NoInput(1),
+        leg2_front_stub: Union[datetime, NoInput] = NoInput(1),
+        leg2_back_stub: Union[datetime, NoInput] = NoInput(1),
+        leg2_roll: Union[Union[str, int], NoInput] = NoInput(1),
+        leg2_eom: Union[bool, NoInput] = NoInput(1),
+        leg2_modifier: Union[str, NoInput] = NoInput(1),
+        leg2_calendar: Union[Union[CustomBusinessDay, str], NoInput] = NoInput(1),
+        leg2_payment_lag: Union[int, NoInput] = NoInput(1),
+        leg2_notional: Union[float, NoInput] = NoInput(-1),
+        leg2_currency: Union[str, NoInput] = NoInput(1),
+        leg2_amortization: Union[float, NoInput] = NoInput(-1),
+        leg2_convention: Union[str, NoInput] = NoInput(1),
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
         self.kwargs = dict(
             effective=effective,
@@ -3906,10 +3907,9 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
         )
-
         self.curves = curves
 
-        notional = defaults.notional if notional is None else notional
+        notional = defaults.notional if notional is NoInput.blank else notional
         if payment_lag is None:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         for attribute in [
@@ -3930,10 +3930,10 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             "currency",
         ]:
             leg2_val, val = vars()[f"leg2_{attribute}"], vars()[attribute]
-            if leg2_val == "inherit":
+            if leg2_val is NoInput.inherit:
                 _ = val
-            elif leg2_val == "inherit_negate":
-                _ = None if val is None else val * -1
+            elif leg2_val == NoInput.negate:
+                _ = NoInput(0) if val is NoInput(0) else val * -1
             else:
                 _ = leg2_val
             self.kwargs[attribute] = val
@@ -4081,12 +4081,12 @@ class IRS(BaseDerivative):
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_spread_compound_method: Optional[str] = None,
-        leg2_fixings: Optional[Union[float, list, Series]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -4105,11 +4105,11 @@ class IRS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
     ):
         # the test for an unpriced IRS is that its fixed rate is not set.
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of generic methods NPV will be zero.
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = float(mid_market_rate)

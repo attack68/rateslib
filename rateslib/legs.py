@@ -502,7 +502,7 @@ class FixedLegMixin:
     @property
     def fixed_rate(self):
         """
-        float or None : If set will also set the ``fixed_rate`` of
+        float or NoInput : If set will also set the ``fixed_rate`` of
             contained :class:`FixedPeriod` s.
         """
         return self._fixed_rate
@@ -510,7 +510,6 @@ class FixedLegMixin:
     @fixed_rate.setter
     def fixed_rate(self, value):
         self._fixed_rate = value
-        # if value is not None:
         for period in getattr(self, "periods", []):
             if isinstance(period, FixedPeriod):
                 period.fixed_rate = value
@@ -547,7 +546,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     fixed_rate : float, optional
-        The rate applied to determine cashflows in % (i.e 5.0 = 5%). Can be set to `None` and
+        The rate applied to determine cashflows in % (i.e 5.0 = 5%). Can be left unset and
         designated later, perhaps after a mid-market rate for all periods has been calculated.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
@@ -672,7 +671,7 @@ class FloatLegMixin:
     @property
     def float_spread(self):
         """
-        float or None : If set will also set the ``float_spread`` of contained
+        float or NoInput : If set will also set the ``float_spread`` of contained
             :class:`~rateslib.periods.FloatPeriod` s.
         """
         return self._float_spread
@@ -680,10 +679,13 @@ class FloatLegMixin:
     @float_spread.setter
     def float_spread(self, value):
         self._float_spread = value
-        # if value is not None:
+        if value is NoInput(0):
+            _ = 0.0
+        else:
+            _ = value
         for period in self.periods:
             if isinstance(period, FloatPeriod):
-                period.float_spread = value if value is not None else 0.0
+                period.float_spread = _
 
     # def fixings_table(self, curve: Curve):
     #     """
