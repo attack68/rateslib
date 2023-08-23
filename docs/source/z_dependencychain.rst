@@ -29,7 +29,7 @@ dependency chain constructing
 EUR and USD interest curves independently and then using them to price a
 cross-currency model.
 
-.. image:: _static/depchain_1.PNG
+.. image:: _static/depchain_1.png
   :alt: Curves in dependency chain
 
 The EUR Curve
