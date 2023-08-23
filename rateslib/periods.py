@@ -309,10 +309,10 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ) -> Union[DualTypes, dict[str, DualTypes]]:
         """
@@ -443,7 +443,7 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve,
+        curve: Union[Curve, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -454,10 +454,8 @@ class FixedPeriod(BasePeriod):
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
-        # if not isinstance(disc_curve, Curve):
-        #     raise TypeError(
-        #         "`curves` have not been supplied correctly. NoneType has been detected."
-        #     )
+        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
         if local:
             return {self.currency: value}

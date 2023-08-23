@@ -1369,7 +1369,7 @@ class TestFixedPeriod:
         result = fixed_period.npv(curve, curve, fxr, "nok")
         assert abs(result + 98977912.68897833) < 1e-6
 
-    def test_fixed_period_npv_raises(self):
+    def test_fixed_period_npv_raises(self, curve):
         fixed_period = FixedPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
@@ -1383,10 +1383,9 @@ class TestFixedPeriod:
         )
         with pytest.raises(
             TypeError,
-            match=re.escape("FixedPeriod.npv() missing 1 required positional argument: 'curve'")
+            match=re.escape("`curves` have not been supplied correctly.")
         ):
             fixed_period.npv()
-
 
 class TestCashflow:
     def test_cashflow_analytic_delta(self, curve):
