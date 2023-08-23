@@ -224,7 +224,7 @@ class BasePeriod(metaclass=ABCMeta):
         --------
         .. ipython:: python
 
-           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, "log_linear", id="SONIA")
+           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, interpolation="log_linear", id="SONIA")
            fxr = FXRates({"gbpusd": 1.25}, base="usd")
 
         .. ipython:: python
@@ -898,7 +898,7 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve,
+        curve: Union[Curve, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput(0)] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -909,11 +909,11 @@ class FloatPeriod(BasePeriod):
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
-        # if not isinstance(disc_curve_, Curve) is None or curve is None:
-        #     raise TypeError(
-        #         "`curves` have not been supplied correctly. NoneType has been detected."
-        #     )
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
+            raise TypeError(
+                "`curves` have not been supplied correctly."
+            )
         if self.payment < disc_curve_.node_dates[0]:
             return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional

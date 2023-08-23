@@ -178,8 +178,8 @@ class PlotCurve:
     def plot(
         self,
         tenor: str,
-        right: Optional[Union[datetime, str]] = None,
-        left: Optional[Union[datetime, str]] = None,
+        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: Union[datetime, str, NoInput] = NoInput(0),
         comparators: list[Curve] = [],
         difference: bool = False,
         labels: list[str] = [],
@@ -212,19 +212,19 @@ class PlotCurve:
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
-        if left is None:
+        if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, None, None)
+            left_ = add_tenor(self.node_dates[0], left, None, NoInput(0))
         elif isinstance(left, datetime):
             left_ = left
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
-        if right is None:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, None)
+        if right is NoInput.blank:
+            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, NoInput(0))
         elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, None, None)
+            right_ = add_tenor(self.node_dates[0], right, None, NoInput(0))
         elif isinstance(right, datetime):
             right_ = right
         else:

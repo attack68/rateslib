@@ -8,6 +8,7 @@ from math import log, exp
 
 import context
 from rateslib import default_context
+from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
 from rateslib.solver import Solver, Gradients
 from rateslib.dual import Dual, Dual2
@@ -572,19 +573,19 @@ def test_delta_gamma_calculation():
 
     # Mechanism 1: fails on None curve specification
     with pytest.raises(TypeError, match="`curves` have not been supplied correctly"):
-        assert eur_swap.delta(None, estr_solver)
+        assert eur_swap.delta(NoInput(0), estr_solver)
     with pytest.raises(TypeError, match="`curves` have not been supplied correctly"):
-        assert eur_swap.gamma(None, estr_solver)
+        assert eur_swap.gamma(NoInput(0), estr_solver)
 
     # Mechanism 2: static specific
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves=estr_curve)
-    assert 74430 < float(eur_swap.delta(None, estr_solver).sum().iloc[0]) < 74432
-    assert -229 < float(eur_swap.gamma(None, estr_solver).sum().sum()) < -228
+    assert 74430 < float(eur_swap.delta(NoInput(0), estr_solver).sum().iloc[0]) < 74432
+    assert -229 < float(eur_swap.gamma(NoInput(0), estr_solver).sum().sum()) < -228
 
     # Mechanism 2: static named
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves="estr_curve")
-    assert 74430 < float(eur_swap.delta(None, estr_solver).sum().iloc[0]) < 74432
-    assert -229 < float(eur_swap.gamma(None, estr_solver).sum().sum()) < -228
+    assert 74430 < float(eur_swap.delta(NoInput(0), estr_solver).sum().iloc[0]) < 74432
+    assert -229 < float(eur_swap.gamma(NoInput(0), estr_solver).sum().sum()) < -228
 
 
 def test_solver_pre_solver_dependency_generates_same_gamma():

@@ -1337,7 +1337,7 @@ class Solver(Gradients):
         self._reset_properties_()
         for _, curve in self.curves.items():
             curve._set_ad_order(order)
-        if self.fx is not None:
+        if self.fx is not NoInput.blank:
             self.fx._set_ad_order(order)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1610,7 +1610,7 @@ class Solver(Gradients):
 
         # new
         base, fx = self._get_base_and_fx(base, fx)
-        fx_vars = tuple() if fx is None else fx.variables
+        fx_vars = tuple() if fx is NoInput.blank else fx.variables
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = np.ones(len(fx_vars)) * 0.0001
@@ -1630,7 +1630,7 @@ class Solver(Gradients):
                 fx_scalar[:, None], fx_scalar[None, :]
             )
 
-            if base is not None and base != ccy:
+            if base is not NoInput.blank and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[(ccy, base)] = {}
@@ -1661,7 +1661,7 @@ class Solver(Gradients):
         # construct the DataFrame from container with hierarchical indexes
         currencies = list(npv.keys())
         local_keys = [(ccy, ccy) for ccy in currencies]
-        base_keys = [] if base is None else [(ccy, base) for ccy in currencies]
+        base_keys = [] if base is NoInput.blank else [(ccy, base) for ccy in currencies]
         all_keys = sorted(list(set(local_keys + base_keys)))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
@@ -1670,7 +1670,7 @@ class Solver(Gradients):
             [key for key in idx_tuples],
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
-        if base is not None:
+        if base is not NoInput.blank:
             ridx = ridx.append(
                 MultiIndex.from_tuples(
                     [("all", base) + _ for _ in inst_keys + fx_keys],
@@ -1691,7 +1691,7 @@ class Solver(Gradients):
             locator = key + (slice(None), slice(None), slice(None))
             df.loc[locator, :] = array
 
-        if base is not None:
+        if base is not NoInput.blank:
             # sum over all the base rows to aggregate
             gdf = (
                 df.loc[(currencies, base, slice(None), slice(None), slice(None)), :]

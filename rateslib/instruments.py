@@ -78,7 +78,7 @@ def _get_curve_from_solver(curve, solver):
         return curve
     elif isinstance(curve, str):
         return solver.pre_curves[curve]
-    elif curve is NoInput.blank:
+    elif curve is NoInput.blank or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
         return NoInput(0)
     else:
@@ -667,7 +667,7 @@ class BaseMixin:
         --------
         .. ipython:: python
 
-           irs.cashflows([curve], None, fxr)
+           irs.cashflows([curve], fx=fxr)
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
@@ -744,8 +744,8 @@ class BaseMixin:
         .. ipython:: python
 
            irs.npv(curve)
-           irs.npv([curve], None, fxr)
-           irs.npv([curve], None, fxr, "gbp")
+           irs.npv([curve], fx=fxr)
+           irs.npv([curve], fx=fxr, base="gbp")
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
@@ -3057,7 +3057,6 @@ class BondFuture(Sensitivities):
            frequency="S",
            ex_div=7,
            convention="ActActICMA",
-           calendar=None,
            currency="gbp",
            settle=1,
            curves="gilt_curve"
@@ -4378,7 +4377,6 @@ class IIRS(BaseDerivative):
           index_base=100.0,
           index_method="monthly",
           index_lag=3,
-          index_fixings=None,
           notional_exchange=True,
           leg2_convention="Act360",
           curves=["us_cpi", "usd", "usd", "usd"],
@@ -4970,7 +4968,6 @@ class ZCIS(BaseDerivative):
            leg2_index_base=100.0,
            leg2_index_method="monthly",
            leg2_index_lag=3,
-           leg2_index_fixings=None,
            curves=["usd", "usd", "us_cpi", "usd"],
        )
        zcis.rate(curves=[usd, usd, us_cpi, usd])
