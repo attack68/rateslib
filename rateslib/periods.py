@@ -1,7 +1,5 @@
 # This module is a dependent of legs.py
 
-# TODO v2.0 Add float rate averaging to the available fixing_method (e.g. RIBAs and monthly fed funds futures)
-
 """
 .. ipython:: python
    :suppress:
@@ -32,6 +30,7 @@ import numpy as np
 from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday
 from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
 from rateslib.dual import Dual, Dual2, DualTypes
@@ -45,17 +44,22 @@ from rateslib.fx import FXForwards, FXRates
 
 def _get_fx_and_base(
     currency: str,
-    fx: Optional[Union[float, FXRates, FXForwards]] = None,
-    base: Optional[str] = None,
+    fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+    base: Union[str, NoInput] = NoInput(0),
 ):
+    if fx is None:
+        raise NotImplementedError("TraceBack for NoInput")
+    if base is None:
+        raise NotImplementedError("TraceBack for NoInput")
+
     if isinstance(fx, (FXRates, FXForwards)):
-        base = fx.base if base is None else base.lower()
+        base = fx.base if base is NoInput.blank else base.lower()
         if base == currency:
             fx = 1.0
         else:
             fx = fx.rate(pair=f"{currency}{base}")
-    elif base is not None:  # and fx is then a float or None
-        if fx is None:
+    elif base is not NoInput.blank:  # and fx is then a float or None
+        if fx is NoInput.blank:
             if base.lower() != currency.lower():
                 raise ValueError(
                     f"`base` ({base}) cannot be requested without supplying `fx` as a "
@@ -80,7 +84,7 @@ def _get_fx_and_base(
                 )
             fx = fx
     else:  # base is None and fx is float or None.
-        if fx is None:
+        if fx is NoInput.blank:
             fx = 1.0
         else:
             if abs(fx - 1.0) < 1e-10:
@@ -113,7 +117,7 @@ class BasePeriod(metaclass=ABCMeta):
         The adjusted end date of the calculation period.
     payment : Datetime
         The adjusted payment date of the period.
-    frequency : str, optional
+    frequency : str
         The frequency of the corresponding leg. Also used
         with specific values for ``convention``, or floating rate calculation.
     notional : float, optional, set by Default
@@ -146,19 +150,19 @@ class BasePeriod(metaclass=ABCMeta):
         end: datetime,
         payment: datetime,
         frequency: str,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        convention: Optional[str] = None,
-        termination: Optional[datetime] = None,
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        termination: Union[datetime, NoInput] = NoInput(0),
         stub: bool = False,
     ):
         if end < start:
             raise ValueError("`end` cannot be before `start`.")
         self.start, self.end, self.payment = start, end, payment
         self.frequency = frequency.upper()
-        self.notional = defaults.notional if notional is None else notional
-        self.currency = defaults.base_currency if currency is None else currency.lower()
-        self.convention = defaults.convention if convention is None else convention
+        self.notional = defaults.notional if notional is NoInput.blank else notional
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
+        self.convention = defaults.convention if convention is NoInput.blank else convention
         self.termination = termination
         self.freq_months = defaults.frequency_months[self.frequency]
         self.stub = stub
@@ -186,10 +190,10 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> DualTypes:
         """
         Return the analytic delta of the period object.
@@ -220,7 +224,7 @@ class BasePeriod(metaclass=ABCMeta):
         --------
         .. ipython:: python
 
-           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, "log_linear", id="SONIA")
+           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, interpolation="log_linear", id="SONIA")
            fxr = FXRates({"gbpusd": 1.25}, base="usd")
 
         .. ipython:: python
@@ -237,7 +241,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
         """
-        disc_curve_: Curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         _ = fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
         return _
@@ -245,10 +249,10 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> dict:
         """
         Return the properties of the period used in calculating cashflows.
@@ -282,7 +286,12 @@ class BasePeriod(metaclass=ABCMeta):
 
            period.cashflows(curve, curve, fxr)
         """
-        disc_curve = disc_curve or curve
+        disc_curve: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        if disc_curve is NoInput.blank:
+            df, collateral = None, None
+        else:
+            df, collateral = float(disc_curve[self.payment]), disc_curve.collateral
+
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: "Stub" if self.stub else "Regular",
@@ -293,17 +302,17 @@ class BasePeriod(metaclass=ABCMeta):
             defaults.headers["convention"]: self.convention,
             defaults.headers["dcf"]: self.dcf,
             defaults.headers["notional"]: float(self.notional),
-            defaults.headers["df"]: None if disc_curve is None else float(disc_curve[self.payment]),
-            defaults.headers["collateral"]: None if disc_curve is None else disc_curve.collateral,
+            defaults.headers["df"]: df,
+            defaults.headers["collateral"]: collateral,
         }
 
     @abstractmethod
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ) -> Union[DualTypes, dict[str, DualTypes]]:
         """
@@ -401,7 +410,12 @@ class FixedPeriod(BasePeriod):
 
     """
 
-    def __init__(self, *args, fixed_rate: Union[float, None] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        **kwargs
+    ):
         self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
@@ -418,9 +432,10 @@ class FixedPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        return (
-            None if self.fixed_rate is None else -self.notional * self.dcf * self.fixed_rate / 100
-        )
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            return -self.notional * self.dcf * self.fixed_rate / 100
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -428,22 +443,20 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ) -> DualTypes:
         """
         Return the NPV of the *FixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve = disc_curve or curve
-        if disc_curve is None:
-            raise TypeError(
-                "`curves` have not been supplied correctly. NoneType has been detected."
-            )
-        value = self.cashflow * disc_curve[self.payment]
+        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        value = self.cashflow * disc_curve_[self.payment]
         if local:
             return {self.currency: value}
         else:
@@ -452,28 +465,28 @@ class FixedPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> dict:
         """
         Return the cashflows of the *FixedPeriod*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if disc_curve is None or self.fixed_rate is None:
+        if disc_curve_ is NoInput.blank or self.fixed_rate is NoInput.blank:
             npv = None
             npv_fx = None
         else:
-            npv = float(self.npv(curve, disc_curve))
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
 
         cashflow = None if self.cashflow is None else float(self.cashflow)
         return {
-            **super().cashflows(curve, disc_curve, fx, base),
+            **super().cashflows(curve, disc_curve_, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -484,9 +497,9 @@ class FixedPeriod(BasePeriod):
 
 
 def _validate_float_args(
-    fixing_method: Optional[str],
-    method_param: Optional[int],
-    spread_compound_method: Optional[str],
+    fixing_method: Union[str, NoInput],
+    method_param: Union[int, NoInput],
+    spread_compound_method: Union[str, NoInput],
 ):
     """
     Validate the argument input to float periods.
@@ -495,7 +508,10 @@ def _validate_float_args(
     -------
     tuple
     """
-    fixing_method_: str = defaults.fixing_method if fixing_method is None else fixing_method.lower()
+    if fixing_method is NoInput.blank:
+        fixing_method_: str = defaults.fixing_method
+    else:
+        fixing_method_ = fixing_method.lower()
     if fixing_method_ not in [
         "ibor",
         "rfr_payment_delay",
@@ -513,9 +529,10 @@ def _validate_float_args(
             f"got '{fixing_method_}'."
         )
 
-    method_param_ = (
-        defaults.fixing_method_param[fixing_method_] if method_param is None else method_param
-    )
+    if method_param is NoInput.blank:
+        method_param_: int = defaults.fixing_method_param[fixing_method_]
+    else:
+        method_param_ = method_param
     if method_param_ != 0 and fixing_method_ == "rfr_payment_delay":
         raise ValueError(
             "`method_param` should not be used (or a value other than 0) when "
@@ -528,7 +545,7 @@ def _validate_float_args(
             f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, ' f"got {method_param_}"
         )
 
-    if spread_compound_method is None:
+    if spread_compound_method is NoInput.blank:
         spread_compound_method_: str = defaults.spread_compound_method
     else:
         spread_compound_method_ = spread_compound_method.lower()
@@ -790,14 +807,14 @@ class FloatPeriod(BasePeriod):
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self.float_spread = 0 if float_spread is None else float_spread
+        self.float_spread = 0.0 if float_spread is NoInput.blank else float_spread
 
         (
             self.fixing_method,
@@ -819,10 +836,10 @@ class FloatPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the analytic delta of the *FloatPeriod*.
@@ -846,29 +863,29 @@ class FloatPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the cashflows of the *FloatPeriod*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve = disc_curve or curve
         fx, base = _get_fx_and_base(self.currency, fx, base)
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
 
-        cashflow = None if curve is None else float(self.cashflow(curve))
-        rate = None if curve is None else float(100 * cashflow / (-self.notional * self.dcf))
-        if disc_curve is None or rate is None:
-            npv, npv_fx = None, None
-        else:
-            npv = float(self.npv(curve, disc_curve))
+        if curve is not NoInput.blank:
+            cashflow = float(self.cashflow(curve))
+            rate = float(100 * cashflow / (-self.notional * self.dcf))
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
+        else:
+            cashflow, rate, npv, npv_fx = None, None, None, None
 
         return {
-            **super().cashflows(curve, disc_curve, fx, base),
+            **super().cashflows(curve, disc_curve_, fx, base),
             defaults.headers["rate"]: rate,
             defaults.headers["spread"]: float(self.float_spread),
             defaults.headers["cashflow"]: cashflow,
@@ -879,10 +896,10 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -890,14 +907,14 @@ class FloatPeriod(BasePeriod):
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve = disc_curve or curve
-        if disc_curve is None or curve is None:
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
             raise TypeError(
-                "`curves` have not been supplied correctly. NoneType has been detected."
+                "`curves` have not been supplied correctly."
             )
-        if self.payment < disc_curve.node_dates[0]:
+        if self.payment < disc_curve_.node_dates[0]:
             return 0.0  # payment date is in the past avoid issues with fixings or rates
-        value = self.rate(curve) / 100 * self.dcf * disc_curve[self.payment] * -self.notional
+        value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
         if local:
             return {self.currency: value}
         else:
@@ -1209,7 +1226,7 @@ class FloatPeriod(BasePeriod):
             disc_curve = curve
 
         if approximate:
-            if self.fixings is not None:
+            if self.fixings is not NoInput.blank:
                 warnings.warn("Cannot approximate a fixings table when some published fixings "
                               f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
                               f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
@@ -1287,7 +1304,7 @@ class FloatPeriod(BasePeriod):
         )
 
         rates = Series(NA, index=obs_dates[:-1])
-        if self.fixings is not None:
+        if self.fixings is not NoInput.blank:
             # then fixings will be a list or Series, scalars are already processed.
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
@@ -1525,7 +1542,7 @@ class FloatPeriod(BasePeriod):
         4) ``fixings`` are given which need to be incorporated into the calculation
         """
         if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
-            if self.fixings is not None:
+            if self.fixings is not NoInput.blank:
                 return True
             elif self.float_spread == 0 or self.spread_compound_method == "none_simple":
                 return False
@@ -1670,14 +1687,14 @@ class Cashflow:
         self,
         notional: float,
         payment: datetime,
-        currency: Optional[str] = None,
-        stub_type: Optional[str] = None,
-        rate: Optional[float] = None,
+        currency: Union[str, NoInput] = NoInput(0),
+        stub_type: Union[str, NoInput] = NoInput(0),
+        rate: Union[float, NoInput] = NoInput(0),
     ):
         self.notional, self.payment = notional, payment
-        self.currency = defaults.base_currency if currency is None else currency.lower()
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.stub_type = stub_type
-        self._rate = rate if rate is None else float(rate)
+        self._rate = rate if rate is NoInput.blank else float(rate)
 
     def rate(self):
         """
@@ -1687,10 +1704,10 @@ class Cashflow:
 
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -1698,12 +1715,10 @@ class Cashflow:
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve = disc_curve or curve
-        if disc_curve is None:
-            raise TypeError(
-                "`curves` have not been supplied correctly. NoneType has been detected."
-            )
-        value = self.cashflow * disc_curve[self.payment]
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        value = self.cashflow * disc_curve_[self.payment]
         if local:
             return {self.currency: value}
         else:
@@ -1712,33 +1727,36 @@ class Cashflow:
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> dict:
         """
         Return the cashflows of the *Cashflow*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if disc_curve is None:
-            npv, npv_fx = None, None
+        if disc_curve_ is NoInput.blank:
+            npv, npv_fx, df, collateral = None, None, None, None
         else:
-            npv = float(self.npv(curve, disc_curve))
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
+            df, collateral = float(disc_curve_[self.payment]), disc_curve_.collateral
 
         try:
             cashflow_ = float(self.cashflow)
         except TypeError:  # cashflow in superclass not a property
             cashflow_ = None
 
+        rate = None if self.rate() is NoInput.blank else self.rate()
+        stub_type = None if self.stub_type is NoInput.blank else self.stub_type
         return {
             defaults.headers["type"]: type(self).__name__,
-            defaults.headers["stub_type"]: self.stub_type,
+            defaults.headers["stub_type"]: stub_type,
             defaults.headers["currency"]: self.currency.upper(),
             defaults.headers["a_acc_start"]: None,
             defaults.headers["a_acc_end"]: None,
@@ -1746,14 +1764,14 @@ class Cashflow:
             defaults.headers["convention"]: None,
             defaults.headers["dcf"]: None,
             defaults.headers["notional"]: float(self.notional),
-            defaults.headers["df"]: None if disc_curve is None else float(disc_curve[self.payment]),
-            defaults.headers["rate"]: self.rate(),
+            defaults.headers["df"]: df,
+            defaults.headers["rate"]: rate,
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
-            defaults.headers["collateral"]: None if disc_curve is None else disc_curve.collateral,
+            defaults.headers["collateral"]: collateral,
         }
 
     @property
@@ -1785,14 +1803,14 @@ class IndexMixin(metaclass=ABCMeta):
     Abstract base class to include methods and properties related to indexed *Periods*.
     """
 
-    index_base: Optional[Union[float, Series]] = None
+    index_base: Union[float, Series, NoInput] = NoInput(0)
     index_method: str = ""
-    index_fixings: Optional[Union[float, Series]] = None
-    index_lag: Optional[int] = None
+    index_fixings: Union[float, Series, NoInput] = NoInput(0)
+    index_lag: Union[int, NoInput] = NoInput(0)
     payment: datetime = datetime(1990, 1, 1)
     currency: str = ""
 
-    def cashflow(self, curve: Optional[IndexCurve] = None) -> Optional[DualTypes]:
+    def cashflow(self, curve: Union[IndexCurve, NoInput] = NoInput(0)) -> Optional[DualTypes]:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
@@ -1810,7 +1828,7 @@ class IndexMixin(metaclass=ABCMeta):
             _ = self.real_cashflow * (index_ratio + _)
         return _
 
-    def index_ratio(self, curve: Optional[IndexCurve]) -> tuple:
+    def index_ratio(self, curve: Union[IndexCurve, NoInput] = NoInput(0)) -> tuple:
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
 
@@ -1849,11 +1867,11 @@ class IndexMixin(metaclass=ABCMeta):
     @staticmethod
     def _index_value_from_curve(
         i_date: datetime,
-        i_curve: Optional[IndexCurve],
+        i_curve: Union[IndexCurve, NoInput],
         i_lag: int,
         i_method: str,
     ) -> Optional[DualTypes]:
-        if i_curve is None:
+        if i_curve is NoInput.blank:
             return None
         elif (not isinstance(i_curve, IndexCurve) and not isinstance(i_curve, CompositeCurve)) or (
             isinstance(i_curve, CompositeCurve) and not isinstance(i_curve.curves[0], IndexCurve)
@@ -1866,12 +1884,12 @@ class IndexMixin(metaclass=ABCMeta):
 
     @staticmethod
     def _index_value(
-        i_fixings: Optional[Union[float, Series]],
+        i_fixings: Union[float, Series, NoInput],
         i_date: datetime,
-        i_curve: Optional[IndexCurve],
+        i_curve: Union[IndexCurve, NoInput],
         i_lag: int,
         i_method: str,
-    ) -> Optional[DualTypes]:
+    ) -> Union[DualTypes, NoInput]:
         """
         Project an index rate, or lookup from provided fixings, for a given date.
 
@@ -1886,7 +1904,7 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        if i_fixings is None:
+        if i_fixings is NoInput.blank:
             return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
         else:
             if isinstance(i_fixings, Series):
@@ -1899,8 +1917,8 @@ class IndexMixin(metaclass=ABCMeta):
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
-                    if i_curve is None:
-                        return None
+                    if i_curve is NoInput.blank:
+                        return NoInput(0)
                     else:
                         return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
                     # raise ValueError(
@@ -1920,23 +1938,20 @@ class IndexMixin(metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: IndexCurve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[IndexCurve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
         Return the cashflows of the *IndexPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve = disc_curve or curve
-        if disc_curve is None:
-            raise TypeError(
-                "`curves` have not been supplied correctly. NoneType has been detected."
-            )
-
-        value = self.cashflow(curve) * disc_curve[self.payment]
+        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        value = self.cashflow(curve) * disc_curve_[self.payment]
         if local:
             return {self.currency: value}
         else:
@@ -2028,10 +2043,10 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     def __init__(
         self,
         *args,
-        index_base: Optional[Union[float, Series]],
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
+        index_base: Union[float, Series, NoInput] = NoInput(0),
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         # if index_base is None:
@@ -2039,18 +2054,18 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_only = False
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super(IndexMixin, self).__init__(*args, **kwargs)
 
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the analytic delta of the *IndexFixedPeriod*.
@@ -2066,9 +2081,10 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         """
         float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
         """
-        return (
-            None if self.fixed_rate is None else -self.notional * self.dcf * self.fixed_rate / 100
-        )
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            return -self.notional * self.dcf * self.fixed_rate / 100
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2076,29 +2092,29 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: Optional[IndexCurve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[IndexCurve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if disc_curve is None or self.fixed_rate is None:
+        if disc_curve_ is NoInput.blank or self.fixed_rate is NoInput.blank:
             npv = None
             npv_fx = None
         else:
-            npv = float(self.npv(curve, disc_curve))
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
 
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
 
         return {
-            **super(FixedPeriod, self).cashflows(curve, disc_curve, fx, base),
+            **super(FixedPeriod, self).cashflows(curve, disc_curve_, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["real_cashflow"]: self.real_cashflow,
@@ -2200,20 +2216,20 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         self,
         *args,
         index_base: float,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
         index_only: bool = False,
-        end: Optional[datetime] = None,
+        end: Union[datetime, NoInput] = NoInput(0),
         **kwargs,
     ):
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = defaults.index_method if index_method is None else index_method.lower()
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
-        self.end = self.payment if end is None else end
+        self.end = self.payment if end is NoInput.blank else end
 
     @property
     def real_cashflow(self):
@@ -2221,10 +2237,10 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> dict:
         """
         Return the cashflows of the *IndexCashflow*.
@@ -2262,3 +2278,21 @@ def _float_or_none(val):
         return None
     else:
         return float(val)
+
+
+def _disc_from_curve(curve: Curve, disc_curve: Union[Curve, NoInput]) -> Curve:
+    if disc_curve is NoInput.blank:
+        _: Curve = curve
+    else:
+        _ = disc_curve
+    return _
+
+
+def _disc_maybe_from_curve(
+        curve: Union[Curve, NoInput], disc_curve: Union[Curve, NoInput]
+) -> Union[Curve, NoInput]:
+    if disc_curve is NoInput.blank:
+        _: Curve = curve
+    else:
+        _ = disc_curve
+    return _

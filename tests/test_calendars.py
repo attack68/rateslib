@@ -3,6 +3,7 @@ from pandas.tseries.holiday import Holiday
 from datetime import datetime as dt
 
 import context
+from rateslib.default import NoInput
 from rateslib.calendars import (
     create_calendar,
     _is_holiday,
@@ -155,13 +156,13 @@ def test_adjust_date(date, modifier, cal_, expected):
 
 
 def test_adjust_date_cal():
-    result = _adjust_date(dt(2022, 10, 1), "F", None)
+    result = _adjust_date(dt(2022, 10, 1), "F", NoInput(0))
     assert result == dt(2022, 10, 1)
 
 
 def test_adjust_date_raises():
     with pytest.raises(ValueError):
-        _adjust_date(dt(2000, 1, 1), "BAD_STRING", None)
+        _adjust_date(dt(2000, 1, 1), "BAD_STRING", NoInput(0))
 
 
 @pytest.mark.parametrize(

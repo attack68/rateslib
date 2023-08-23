@@ -1,4 +1,5 @@
 import pytest
+import re
 from datetime import datetime as dt
 from datetime import timedelta
 from pandas.testing import assert_frame_equal
@@ -6,6 +7,7 @@ from pandas import DataFrame, Series
 import numpy as np
 
 import context
+from rateslib.default import NoInput
 from rateslib.periods import (
     Cashflow,
     FixedPeriod,
@@ -150,9 +152,9 @@ class TestFloatPeriod:
         "spread, crv, fx",
         [
             (4.00, True, 2.0),
-            (None, False, 2.0),
+            (NoInput(0), False, 2.0),
             (4.00, True, 10.0),
-            (None, False, 10.0),
+            (NoInput(0), False, 10.0),
         ],
     )
     def test_float_period_cashflows(self, curve, fxr, spread, crv, fx):
@@ -181,7 +183,7 @@ class TestFloatPeriod:
             Defaults.headers["dcf"]: float_period.dcf,
             Defaults.headers["df"]: 0.9897791268897856 if crv else None,
             Defaults.headers["rate"]: rate,
-            Defaults.headers["spread"]: 0 if spread is None else spread,
+            Defaults.headers["spread"]: 0 if spread is NoInput.blank else spread,
             Defaults.headers["npv"]: -10096746.871171726 if crv else None,
             Defaults.headers["cashflow"]: cashflow,
             Defaults.headers["fx"]: fx,
@@ -192,13 +194,13 @@ class TestFloatPeriod:
             with pytest.warns(UserWarning):
                 # It is not best practice to provide `fx` as numeric
                 result = float_period.cashflows(
-                    curve if crv else None,
+                    curve if crv else NoInput(0),
                     fx=2.0,
-                    base=None,
+                    base=NoInput(0),
                 )
         else:
             result = float_period.cashflows(
-                curve if crv else None,
+                curve if crv else NoInput(0),
                 fx=fxr,
                 base="nok",
             )
@@ -1002,7 +1004,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize(
         "method, param",
         [
-            ("rfr_payment_delay", None),
+            ("rfr_payment_delay", NoInput(0)),
             ("rfr_lookback", 4),
             ("rfr_lockout", 1),
             ("rfr_observation_shift", 2),
@@ -1243,7 +1245,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize(
         "meth, param, exp",
         [
-            ("rfr_payment_delay", None, 3.1183733605),
+            ("rfr_payment_delay", NoInput(0), 3.1183733605),
             ("rfr_observation_shift", 2, 3.085000395),
             ("rfr_lookback", 2, 3.05163645),
             ("rfr_lockout", 7, 3.00157855),
@@ -1303,9 +1305,9 @@ class TestFixedPeriod:
         "rate, crv, fx",
         [
             (4.00, True, 2.0),
-            (None, False, 2.0),
+            (NoInput(0), False, 2.0),
             (4.00, True, 10),
-            (None, False, 10),
+            (NoInput(0), False, 10),
         ],
     )
     def test_fixed_period_cashflows(self, curve, fxr, rate, crv, fx):
@@ -1321,7 +1323,7 @@ class TestFixedPeriod:
             fixed_rate=rate,
         )
 
-        cashflow = None if rate is None else rate * -1e9 * fixed_period.dcf / 100
+        cashflow = None if rate is NoInput.blank else rate * -1e9 * fixed_period.dcf / 100
         expected = {
             Defaults.headers["type"]: "FixedPeriod",
             Defaults.headers["stub_type"]: "Regular",
@@ -1344,9 +1346,9 @@ class TestFixedPeriod:
         if fx == 2.0:
             with pytest.warns(UserWarning):
                 # supplying `fx` as numeric
-                result = fixed_period.cashflows(curve if crv else None, fx=2.0, base=None)
+                result = fixed_period.cashflows(curve if crv else NoInput(0), fx=2.0, base=NoInput(0))
         else:
-            result = fixed_period.cashflows(curve if crv else None, fx=fxr, base="nok")
+            result = fixed_period.cashflows(curve if crv else NoInput(0), fx=fxr, base="nok")
         assert result == expected
 
     def test_fixed_period_npv(self, curve, fxr):
@@ -1367,7 +1369,7 @@ class TestFixedPeriod:
         result = fixed_period.npv(curve, curve, fxr, "nok")
         assert abs(result + 98977912.68897833) < 1e-6
 
-    def test_fixed_period_npv_raises(self):
+    def test_fixed_period_npv_raises(self, curve):
         fixed_period = FixedPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
@@ -1379,8 +1381,11 @@ class TestFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
         )
-        with pytest.raises(TypeError, match="`curves` have not been"):
-            fixed_period.npv(None)
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly.")
+        ):
+            fixed_period.npv()
 
 
 class TestCashflow:
@@ -1399,7 +1404,7 @@ class TestCashflow:
     )
     def test_cashflow_cashflows(self, curve, fxr, crv, fx):
         cashflow = Cashflow(notional=1e9, payment=dt(2022, 4, 3))
-        curve = curve if crv else None
+        curve = curve if crv else NoInput(0)
         expected = {
             Defaults.headers["type"]: "Cashflow",
             Defaults.headers["stub_type"]: None,
@@ -1423,22 +1428,25 @@ class TestCashflow:
             with pytest.warns(UserWarning):
                 # supplying `fx` as numeric
                 result = cashflow.cashflows(
-                    curve if crv else None,
+                    curve if crv else NoInput(0),
                     fx=2.0,
-                    base=None,
+                    base=NoInput(0),
                 )
         else:
             result = cashflow.cashflows(
-                curve if crv else None,
+                curve if crv else NoInput(0),
                 fx=fxr,
                 base="nok",
             )
         assert result == expected
 
     def test_cashflow_npv_raises(self, curve):
-        with pytest.raises(TypeError, match="`curves` have not been supplied"):
+        with pytest.raises(
+            TypeError,
+            match="`curves` have not been supplied correctly."
+        ):
             cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
-            cashflow.npv(None)
+            cashflow.npv()
         cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
         assert cashflow.analytic_delta(curve) == 0
 
@@ -1603,12 +1611,15 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        with pytest.raises(TypeError, match="`curves` have not been supplied"):
-            index_period.npv(None)
+        with pytest.raises(
+                TypeError,
+                match=re.escape("`curves` have not been supplied correctly.")
+        ):
+            index_period.npv()
 
     @pytest.mark.parametrize("curve_", [True, False])
     def test_period_cashflows(self, curve, curve_):
-        curve = curve if curve_ else None
+        curve = curve if curve_ else NoInput(0)
         index_period = IndexFixedPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),

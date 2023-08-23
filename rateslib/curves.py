@@ -19,7 +19,7 @@ from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
-from rateslib.default import plot
+from rateslib.default import plot, NoInput
 from rateslib.calendars import (
     create_calendar,
     get_calendar,
@@ -53,7 +53,7 @@ class Serialize:
         -------
         str
         """
-        if self.t is None:
+        if self.t is NoInput.blank:
             t = None
         else:
             t = [t.strftime("%Y-%m-%d") for t in self.t]
@@ -126,6 +126,8 @@ class Serialize:
 
         if serial["t"] is not None:
             serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
+
+        serial ={k: v for k, v in serial.items() if v is not None}
         return cls(**{**serial, **kwargs})
 
     def copy(self):
@@ -176,8 +178,8 @@ class PlotCurve:
     def plot(
         self,
         tenor: str,
-        right: Optional[Union[datetime, str]] = None,
-        left: Optional[Union[datetime, str]] = None,
+        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: Union[datetime, str, NoInput] = NoInput(0),
         comparators: list[Curve] = [],
         difference: bool = False,
         labels: list[str] = [],
@@ -210,19 +212,19 @@ class PlotCurve:
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
-        if left is None:
+        if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, None, None)
+            left_ = add_tenor(self.node_dates[0], left, None, NoInput(0))
         elif isinstance(left, datetime):
             left_ = left
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
-        if right is None:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, None)
+        if right is NoInput.blank:
+            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, NoInput(0))
         elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, None, None)
+            right_ = add_tenor(self.node_dates[0], right, None, NoInput(0))
         elif isinstance(right, datetime):
             right_ = right
         else:
@@ -393,32 +395,33 @@ class Curve(Serialize, PlotCurve):
     def __init__(
         self,
         nodes: dict,
-        interpolation: Optional[Union[str, Callable]] = None,
-        t: Optional[list[datetime]] = None,
-        c: Optional[list[float]] = None,
-        endpoints: Optional[str] = None,
-        id: Optional[str] = None,
-        convention: Optional[str] = None,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
+        *,
+        interpolation: Union[str, Callable, NoInput] = NoInput(0),
+        t: Union[list[datetime], NoInput] = NoInput(0),
+        c: Union[list[float], NoInput] = NoInput(0),
+        endpoints: Union[str, NoInput] = NoInput(0),
+        id: Union[str, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         ad: int = 0,
         **kwargs,
     ):
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
-        self.interpolation = interpolation or defaults.interpolation[type(self).__name__]
+        self.interpolation = defaults.interpolation[type(self).__name__] if interpolation is NoInput.blank else interpolation
 
         # Parameters for the rate derivation
-        self.convention = convention or defaults.convention
-        self.modifier = defaults.modifier if modifier is False else modifier
+        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.modifier = defaults.modifier if modifier is NoInput.blank else modifier
         self.calendar, self.calendar_type = get_calendar(calendar, kind=True)
         if self.calendar_type == "named":
             self.calendar_type = f"named: {calendar.lower()}"
 
         # Parameters for PPSpline
-        if endpoints is None:
+        if endpoints is NoInput.blank:
             self.spline_endpoints = [defaults.endpoints, defaults.endpoints]
         elif isinstance(endpoints, str):
             self.spline_endpoints = [endpoints.lower(), endpoints.lower()]
@@ -426,8 +429,8 @@ class Curve(Serialize, PlotCurve):
             self.spline_endpoints = [_.lower() for _ in endpoints]
 
         self.t = t
-        self.c_init = False if c is None else True
-        if t is not None:
+        self.c_init = False if c is NoInput.blank else True
+        if t is not NoInput.blank:
             self.spline = PPSpline(4, t, c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
@@ -472,7 +475,7 @@ class Curve(Serialize, PlotCurve):
         self,
         effective: datetime,
         termination: Union[datetime, str],
-        modifier: Optional[Union[str, bool]] = False,
+        modifier: Union[str, bool, NoInput] = NoInput(0),
         # calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
         # convention: Optional[str] = None,
         float_spread: float = None,
@@ -537,7 +540,7 @@ class Curve(Serialize, PlotCurve):
           rates and an approximation is used to derive to total rate.
 
         """
-        modifier = self.modifier if modifier is False else modifier
+        modifier = self.modifier if modifier is NoInput.blank else modifier
         # calendar = self.calendar if calendar is False else calendar
         # convention = self.convention if convention is None else convention
 
@@ -781,7 +784,7 @@ class Curve(Serialize, PlotCurve):
                 nodes=nodes,
                 interpolation=self.interpolation,
                 t=self.t,
-                c=None,
+                c=NoInput(0),
                 endpoints=self.spline_endpoints,
                 id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
                 convention=self.convention,
@@ -944,8 +947,8 @@ class Curve(Serialize, PlotCurve):
         new_nodes = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
-        if self.t is None:
-            new_t: Optional[list[datetime]] = None
+        if self.t is NoInput.blank:
+            new_t: Union[list[datetime], NoInput] = NoInput(0)
         else:
             new_t = self.t.copy()
 
@@ -970,12 +973,12 @@ class Curve(Serialize, PlotCurve):
             nodes=new_nodes,
             interpolation=self.interpolation,
             t=new_t,
-            c=None,
+            c=NoInput(0),
             endpoints=self.spline_endpoints,
             modifier=self.modifier,
             calendar=self.calendar,
             convention=self.convention,
-            id=None,
+            id=NoInput(0),
             ad=self.ad,
             **kwargs,
         )
@@ -1091,14 +1094,17 @@ class Curve(Serialize, PlotCurve):
 
         """
         if isinstance(tenor, str):
-            tenor = add_tenor(self.node_dates[0], tenor, None, None)
+            tenor = add_tenor(self.node_dates[0], tenor, None, NoInput(0))
 
         if tenor == self.node_dates[0]:
             return self.copy()
 
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
-        new_t = [_ + timedelta(days=days) for _ in self.t] if self.t else None
+        if self.t is not NoInput.blank:
+            new_t = [_ + timedelta(days=days) for _ in self.t]
+        else:
+            new_t = NoInput(0)
         if type(self) is IndexCurve:
             xtra = dict(index_lag=self.index_lag, index_base=self.index_base)
         else:
@@ -1107,7 +1113,7 @@ class Curve(Serialize, PlotCurve):
             nodes=new_nodes,
             interpolation=self.interpolation,
             t=new_t,
-            c=None,
+            c=NoInput(0),
             endpoints=self.spline_endpoints,
             modifier=self.modifier,
             calendar=self.calendar,
@@ -1370,7 +1376,7 @@ class LineCurve(Curve):
             nodes={k: v + spread / 100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,
             t=self.t,
-            c=None,
+            c=NoInput(0),
             endpoints=self.spline_endpoints,
             id=id,
             convention=self.convention,
@@ -1637,13 +1643,13 @@ class IndexCurve(Curve):
     def __init__(
         self,
         *args,
-        index_base: Optional[float] = None,
-        index_lag: Optional[int] = None,
+        index_base: Union[float, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         self.index_base = index_base
-        if self.index_base is None:
+        if self.index_base is NoInput.blank:
             raise ValueError("`index_base` must be given for IndexCurve.")
         super().__init__(*args, **{**{"interpolation": "linear_index"}, **kwargs})
 
@@ -1971,8 +1977,9 @@ class CompositeCurve(IndexCurve):
     def __init__(
         self,
         curves: Union[list, tuple],
-        id: Optional[str] = None,
         multi_csa: bool = False,
+        *,
+        id: Union[str, NoInput] = NoInput(0),
         multi_csa_min_step: Optional[int] = 1,
         multi_csa_max_step: Optional[int] = 1825,
     ) -> None:

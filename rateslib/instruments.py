@@ -35,6 +35,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, Series, MultiIndex
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import add_tenor, get_calendar, dcf
 
 # from rateslib.scheduling import Schedule
@@ -46,6 +47,8 @@ from rateslib.periods import (
     FloatPeriod,
     _get_fx_and_base,
     IndexMixin,
+    _disc_from_curve,
+    _disc_maybe_from_curve,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -75,9 +78,9 @@ def _get_curve_from_solver(curve, solver):
         return curve
     elif isinstance(curve, str):
         return solver.pre_curves[curve]
-    elif curve is None:
+    elif curve is NoInput.blank or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
-        return None
+        return NoInput(0)
     else:
         try:
             # it is a safeguard to load curves from solvers when a solver is
@@ -150,7 +153,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
     """
-    if fx is None and base is None:
+    if fx is NoInput.blank and base is NoInput.blank:
         # base will not be inherited from a 2nd level inherited object, i.e.
         # from solver.fx, to preserve single currency instruments being defaulted
         # to their local currency.
@@ -158,19 +161,19 @@ def _get_curves_fx_and_base_maybe_from_solver(
     else:
         base_ = base
 
-    if fx is None:
-        if solver is None:
-            fx_ = None
+    if fx is NoInput.blank:
+        if solver is NoInput.blank:
+            fx_ = NoInput(0)
             # fx_ = 1.0
-        elif solver is not None:
-            if solver.fx is None:
-                fx_ = None
+        elif solver is not NoInput.blank:
+            if solver.fx is NoInput.blank:
+                fx_ = NoInput(0)
                 # fx_ = 1.0
             else:
                 fx_ = solver.fx
     else:
         fx_ = fx
-        if solver is not None and solver.fx is not None and id(fx) != id(solver.fx):
+        if solver is not NoInput.blank and solver.fx is not NoInput.blank and id(fx) != id(solver.fx):
             warnings.warn(
                 "Solver contains an `fx` attribute but an `fx` argument has been "
                 "supplied which will be used but is not the same. This can lead "
@@ -178,18 +181,20 @@ def _get_curves_fx_and_base_maybe_from_solver(
                 UserWarning,
             )
 
-    if curves is None and curves_attr is None:
-        return (None, None, None, None), fx_, base_
-    elif curves is None:
+    if curves is NoInput.blank and curves_attr is NoInput.blank:
+        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0)), fx_, base_
+    elif curves is NoInput.blank:
         curves = curves_attr
 
     if isinstance(curves, (Curve, str, CompositeCurve)):
         curves = [curves]
-    if solver is None:
+    if solver is NoInput.blank:
 
         def check_curve(curve):
             if isinstance(curve, str):
                 raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
+            elif curve is None or curve is NoInput(0):
+                return NoInput(0)
             return curve
 
         curves_ = tuple(check_curve(curve) for curve in curves)
@@ -238,12 +243,12 @@ def _get_curves_fx_and_base_maybe_from_solver(
 #     discounting curve for both legs.
 #     """
 #
-#     if fx is None:
-#         if solver is None:
+#     if fx is NoInput.blank:
+#         if solver is NoInput.blank:
 #             fx_ = None
 #             # fx_ = 1.0
-#         elif solver is not None:
-#             if solver.fx is None:
+#         elif solver is not NoInput.blank:
+#             if solver.fx is NoInput.blank:
 #                 fx_ = None
 #                 # fx_ = 1.0
 #             else:
@@ -251,12 +256,12 @@ def _get_curves_fx_and_base_maybe_from_solver(
 #     else:
 #         fx_ = fx
 #
-#     if curves is None:
+#     if curves is NoInput.blank:
 #         return (None, None, None, None), fx_
 #
 #     if isinstance(curves, (Curve, str)):
 #         curves = [curves]
-#     if solver is None:
+#     if solver is NoInput.blank:
 #         def check_curve(curve):
 #             if isinstance(curve, str):
 #                 raise ValueError(
@@ -293,10 +298,10 @@ class Sensitivities:
 
     def delta(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -334,22 +339,22 @@ class Sensitivities:
         -------
         DataFrame
         """
-        if solver is None:
+        if solver is NoInput.blank:
             raise ValueError("`solver` is required for delta/gamma methods.")
         npv = self.npv(curves, solver, fx, base, local=True)
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            None, solver, None, fx, base, None
+            NoInput(0), solver, NoInput(0), fx, base, NoInput(0)
         )
         if local:
-            base_ = None
+            base_ = NoInput(0)
         return solver.delta(npv, base_, fx_)
 
     def gamma(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False
     ):
         """
@@ -387,16 +392,16 @@ class Sensitivities:
         -------
         DataFrame
         """
-        if solver is None:
+        if solver is NoInput.blank:
             raise ValueError("`solver` is required for delta/gamma methods.")
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            None, solver, None, fx, base, None
+            NoInput(0), solver, NoInput(0), fx, base, NoInput(0)
         )
         if local:
-            base_ = None
+            base_ = NoInput(0)
 
         # store original order
-        if fx_ is not None:
+        if fx_ is not NoInput.blank:
             _ad2 = fx_._ad
             fx_._set_ad_order(2)
 
@@ -407,7 +412,7 @@ class Sensitivities:
         grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
-        if fx_ is not None:
+        if fx_ is not NoInput.blank:
             fx_._set_ad_order(_ad2)
         solver._set_ad_order(_ad1)
 
@@ -415,10 +420,10 @@ class Sensitivities:
 
     def cashflows_table(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         cashflows = self.cashflows(curves, solver, fx, base)
         cashflows = cashflows[[
@@ -499,7 +504,7 @@ class BaseMixin:
             raise AttributeError("Cannot set `float_spread` for this Instrument.")
         self._float_spread = value
         self.leg1.float_spread = value
-        # if getattr(self, "_float_mixin_leg", None) is None:
+        # if getattr(self, "_float_mixin_leg", None) is NoInput.blank:
         #     self.leg1.float_spread = value
         # else:
         #     # allows fixed_rate and float_rate to exist simultaneously for diff legs.
@@ -608,10 +613,10 @@ class BaseMixin:
     @abstractmethod
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the properties of all legs used in calculating cashflows.
@@ -662,7 +667,7 @@ class BaseMixin:
         --------
         .. ipython:: python
 
-           irs.cashflows([curve], None, fxr)
+           irs.cashflows([curve], fx=fxr)
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
@@ -679,10 +684,10 @@ class BaseMixin:
     @abc.abstractmethod
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -739,8 +744,8 @@ class BaseMixin:
         .. ipython:: python
 
            irs.npv(curve)
-           irs.npv([curve], None, fxr)
-           irs.npv([curve], None, fxr, "gbp")
+           irs.npv([curve], fx=fxr)
+           irs.npv([curve], fx=fxr, base="gbp")
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
@@ -818,10 +823,10 @@ class Value(BaseMixin):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the forecasting :class:`~rateslib.curves.Curve` or
@@ -829,7 +834,7 @@ class Value(BaseMixin):
         instrument.
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, None, None, "_"
+            self.curves, solver, curves, NoInput(0), NoInput(0), "_"
         )
         return curves[0][self.effective]
 
@@ -849,19 +854,19 @@ class FXExchange(Sensitivities, BaseMixin):
         settlement: datetime,
         currency: str,
         leg2_currency: str,
-        fx_rate: Optional[float] = None,
-        notional: Optional[float] = None,
-        curves: Optional[Union[list, str, Curve]] = None,
+        fx_rate: Union[float, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         self.settlement = settlement
         self.pair = f"{currency.lower()}{leg2_currency.lower()}"
         self.leg1 = Cashflow(
-            notional=defaults.notional if notional is None else notional,
+            notional=defaults.notional if notional is NoInput.blank else notional,
             currency=currency.lower(),
             payment=settlement,
             stub_type="Exchange",
-            rate=None,
+            rate=NoInput(0),
         )
         self.leg2 = Cashflow(
             notional=1.0,  # will be determined by setting fx_rate
@@ -879,26 +884,26 @@ class FXExchange(Sensitivities, BaseMixin):
     @fx_rate.setter
     def fx_rate(self, value):
         self._fx_rate = value
-        self.leg2.notional = 0.0 if value is None else value * -self.leg1.notional
+        self.leg2.notional = 0.0 if value is NoInput.blank else value * -self.leg1.notional
         self.leg2._rate = value
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[Dual, float, FXRates, FXForwards]] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
     ):
-        if self.fx_rate is None:
+        if self.fx_rate is NoInput.blank:
             mid_market_rate = self.rate(curves, solver, fx)
             self.fx_rate = float(mid_market_rate)
-            self._fx_rate = None
+            self._fx_rate = NoInput(0)
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -912,7 +917,7 @@ class FXExchange(Sensitivities, BaseMixin):
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
-        if fx_ is None:
+        if fx_ is NoInput.blank:
             raise ValueError(
                 "Must have some FX information to price FXExchange, either `fx` or "
                 "`solver` containing an FX object."
@@ -924,9 +929,9 @@ class FXExchange(Sensitivities, BaseMixin):
             warnings.warn(
                 "When valuing multi-currency derivatives it not best practice to "
                 "supply `fx` as numeric.\nYour input:\n"
-                f"`npv(solver={'None' if solver is None else '<Solver>'}, fx={fx}, base='{base if base is not None else 'None'}')\n"
+                f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, fx={fx}, base='{base if base is not NoInput.blank else 'None'}')\n"
                 "has been implicitly converted into the following by this operation:\n"
-                f"`npv(solver={'None' if solver is None else '<Solver>'}, "
+                f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, "
                 f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), base='{self.leg2.currency}')\n.",
                 UserWarning,
             )
@@ -943,10 +948,10 @@ class FXExchange(Sensitivities, BaseMixin):
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the cashflows of the *FXExchange* by aggregating legs.
@@ -955,7 +960,7 @@ class FXExchange(Sensitivities, BaseMixin):
         """
         self._set_pricing_mid(curves, solver, fx)
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, None
+            self.curves, solver, curves, fx, base, NoInput(0)
         )
         seq = [
             self.leg1.cashflows(curves[0], curves[1], fx_, base_),
@@ -967,10 +972,10 @@ class FXExchange(Sensitivities, BaseMixin):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market rate of the instrument.
@@ -994,7 +999,7 @@ class FXExchange(Sensitivities, BaseMixin):
 
 class BondMixin:
     def _set_base_index_if_none(self, curve: IndexCurve):
-        if self._index_base_mixin and self.index_base is None:
+        if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
                 self.leg1.schedule.effective, self.leg1.index_method
             )
@@ -1044,8 +1049,8 @@ class BondMixin:
         self,
         curve: Union[Curve, LineCurve],
         disc_curve: Curve,
-        fx: Optional[Union[float, FXRates, FXForwards]],
-        base: Optional[str],
+        fx: Union[float, FXRates, FXForwards, NoInput],
+        base: Union[str, NoInput],
         settlement: datetime,
         projection: datetime,
     ):
@@ -1110,7 +1115,7 @@ class BondMixin:
             # deduct coupon after settlement which is also unpaid
             npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
 
-        if projection is None:
+        if projection is NoInput.blank:
             return npv
         else:
             return npv / disc_curve[projection]
@@ -1417,7 +1422,7 @@ class BondMixin:
         settlement: datetime,
         forward_settlement: datetime,
         repo_rate: Union[float, Dual, Dual2],
-        convention: Optional[str] = None,
+        convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -1448,7 +1453,7 @@ class BondMixin:
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        convention = defaults.convention if convention is None else convention
+        convention = defaults.convention if convention is NoInput.blank else convention
         dcf_ = dcf(settlement, forward_settlement, convention)
         if not dirty:
             d_price = price + self.accrued(settlement)
@@ -1495,7 +1500,7 @@ class BondMixin:
         settlement: datetime,
         forward_settlement: datetime,
         forward_price: Union[float, Dual, Dual2],
-        convention: Optional[str] = None,
+        convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -1526,7 +1531,7 @@ class BondMixin:
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        convention = defaults.convention if convention is None else convention
+        convention = defaults.convention if convention is NoInput.blank else convention
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
             p_t = forward_price + self.accrued(forward_settlement)
@@ -1589,10 +1594,10 @@ class BondMixin:
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -1647,7 +1652,7 @@ class BondMixin:
             self.leg1.schedule.calendar,
         )
         base_ = self.leg1.currency if local else base
-        npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, None)
+        npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, NoInput(0))
         if local:
             return {self.leg1.currency: npv}
         else:
@@ -1655,24 +1660,24 @@ class BondMixin:
 
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the analytic delta of the security via summing all periods.
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         settlement = add_tenor(
-            disc_curve.node_dates[0],
+            disc_curve_.node_dates[0],
             f"{self.kwargs['settle']}B",
             None,
             self.leg1.schedule.calendar,
         )
-        a_delta = self.leg1.analytic_delta(curve, disc_curve, fx, base)
+        a_delta = self.leg1.analytic_delta(curve, disc_curve_, fx, base)
         if self.ex_div(settlement):
             # deduct the next coupon which has otherwise been included in valuation
             current_period = index_left(
@@ -1680,16 +1685,16 @@ class BondMixin:
                 self.leg1.schedule.n_periods + 1,
                 settlement,
             )
-            a_delta -= self.leg1.periods[current_period].analytic_delta(curve, disc_curve, fx, base)
+            a_delta -= self.leg1.periods[current_period].analytic_delta(curve, disc_curve_, fx, base)
         return a_delta
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
-        settlement: datetime = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        settlement: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return the properties of the security used in calculating cashflows.
@@ -1726,7 +1731,7 @@ class BondMixin:
         )
         self._set_base_index_if_none(curves[0])
 
-        if settlement is None:
+        if settlement is NoInput.blank:
             settlement = add_tenor(
                 curves[1].node_dates[0],
                 f"{self.kwargs['settle']}B",
@@ -1918,30 +1923,30 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str] = None,
-        frequency: str = None,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        fixed_rate: Optional[float] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
         ex_div: int = 0,
         settle: int = 1,
-        curves: Optional[Union[list, str, Curve]] = None,
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         if frequency.lower() == "z":
             raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is None:
+        if payment_lag is NoInput.blank:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
 
         self.kwargs = dict(
@@ -1985,12 +1990,12 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         metric: str = "clean_price",
-        forward_settlement: Optional[datetime] = None,
+        forward_settlement: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return various pricing metrics of the security calculated from
@@ -2050,7 +2055,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                 return self.ytm(dirty_price, settlement, True)
 
         elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
-            if forward_settlement is None:
+            if forward_settlement is NoInput.blank:
                 raise ValueError("`forward_settlement` needed to determine forward price.")
             npv = self._npv_local(
                 curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
@@ -2099,34 +2104,34 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str] = None,
-        frequency: str = None,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        fixed_rate: Optional[float] = None,
-        index_base: Optional[Union[float, Series]] = None,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        index_base: Union[float, Series, NoInput] = NoInput(0),
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
         ex_div: int = 0,
         settle: int = 1,
-        curves: Optional[Union[list, str, Curve]] = None,
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         if frequency.lower() == "z":
             raise ValueError("IndexFixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is None:
+        if payment_lag is NoInput.blank:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self._fixed_rate = fixed_rate
         self._index_base = index_base
@@ -2165,8 +2170,8 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
-    def index_ratio(self, settlement: datetime, curve: Optional[IndexCurve]):
-        if self.leg1.index_fixings is not None and not isinstance(self.leg1.index_fixings, Series):
+    def index_ratio(self, settlement: datetime, curve: Union[IndexCurve, NoInput]):
+        if self.leg1.index_fixings is not NoInput.blank and not isinstance(self.leg1.index_fixings, Series):
             raise ValueError(
                 "Must provide `index_fixings` as a Series for inter-period settlement."
             )
@@ -2189,12 +2194,12 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         metric: str = "clean_price",
-        forward_settlement: Optional[datetime] = None,
+        forward_settlement: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return various pricing metrics of the security calculated from
@@ -2272,7 +2277,7 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
             "fwd_index_clean_price",
             "fwd_index_dirty_price",
         ]:
-            if forward_settlement is None:
+            if forward_settlement is NoInput.blank:
                 raise ValueError("`forward_settlement` needed to determine forward price.")
             npv = self._npv_local(
                 curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
@@ -2428,33 +2433,33 @@ class Bill(FixedRateBond):
 
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str] = None,
-        frequency: str = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        convention: Optional[str] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
         settle: int = 1,
-        curves: Optional[Union[list, str, Curve]] = None,
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         super().__init__(
             effective=effective,
             termination=termination,
             frequency=frequency,
-            stub=None,
-            front_stub=None,
-            back_stub=None,
-            roll=None,
-            eom=None,
+            stub=NoInput(0),
+            front_stub=NoInput(0),
+            back_stub=NoInput(0),
+            roll=NoInput(0),
+            eom=NoInput(0),
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
             notional=notional,
             currency=currency,
-            amortization=None,
+            amortization=NoInput(0),
             convention=convention,
             fixed_rate=0,
             ex_div=0,
@@ -2464,10 +2469,10 @@ class Bill(FixedRateBond):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         metric="price",
     ):
         """
@@ -2681,34 +2686,34 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str] = None,
-        frequency: str = None,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        float_spread: Union[float] = NoInput(0),
+        fixings: Union[float, list, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         ex_div: int = 0,
         settle: int = 1,
-        curves: Optional[Union[list, str, Curve]] = None,
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         if frequency.lower() == "z":
             raise ValueError("FloatRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is None:
+        if payment_lag is NoInput.blank:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self.kwargs = dict(
             effective=effective,
@@ -2752,7 +2757,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         self,
         settlement: datetime,
         forecast: bool = False,
-        curve: Curve = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
     ):
         """
         Calculate the accrued amount per nominal par value of 100.
@@ -2929,12 +2934,12 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Union[Curve, str, list],
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         metric="clean_price",
-        forward_settlement: Optional[datetime] = None,
+        forward_settlement: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return various pricing metrics of the security calculated from
@@ -2993,11 +2998,11 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                 return dirty_price - self.accrued(settlement)
             elif metric == "spread":
                 _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
-                z = 0.0 if self.float_spread is None else self.float_spread
+                z = 0.0 if self.float_spread is NoInput.blank else self.float_spread
                 return _ + z
 
         elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
-            if forward_settlement is None:
+            if forward_settlement is NoInput.blank:
                 raise ValueError("`forward_settlement` needed to determine forward price.")
             npv = self._npv_local(
                 curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
@@ -3052,7 +3057,6 @@ class BondFuture(Sensitivities):
            frequency="S",
            ex_div=7,
            convention="ActActICMA",
-           calendar=None,
            currency="gbp",
            settle=1,
            curves="gilt_curve"
@@ -3173,12 +3177,12 @@ class BondFuture(Sensitivities):
         delivery: Union[datetime, tuple[datetime, datetime]],
         basket: tuple[FixedRateBond],
         # last_trading: Optional[int] = None,
-        nominal: Optional[float] = None,
-        contracts: Optional[int] = None,
-        calendar: Optional[str] = None,
-        currency: Optional[str] = None,
+        nominal: Union[float, NoInput] = NoInput(0),
+        contracts: Union[int, NoInput] = NoInput(0),
+        calendar: Union[str, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
     ):
-        self.currency = defaults.base_currency if currency is None else currency.lower()
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.coupon = coupon
         if isinstance(delivery, datetime):
             self.delivery = (delivery, delivery)
@@ -3186,10 +3190,10 @@ class BondFuture(Sensitivities):
             self.delivery = tuple(delivery)
         self.basket = tuple(basket)
         self.calendar = get_calendar(calendar)
-        # self.last_trading = delivery[1] if last_trading is None else
-        self.nominal = defaults.notional if nominal is None else nominal
-        self.contracts = 1 if contracts is None else contracts
-        self._cfs = None
+        # self.last_trading = delivery[1] if last_trading is NoInput.blank else
+        self.nominal = defaults.notional if nominal is NoInput.blank else nominal
+        self.contracts = 1 if contracts is NoInput.blank else contracts
+        self._cfs = NoInput(0)
 
     @property
     def notional(self):
@@ -3259,7 +3263,7 @@ class BondFuture(Sensitivities):
            future.cfs
 
         """
-        if self._cfs is None:
+        if self._cfs is NoInput.blank:
             self._cfs = self._conversion_factors()
         return self._cfs
 
@@ -3272,8 +3276,8 @@ class BondFuture(Sensitivities):
         prices: list[float, Dual, Dual2],
         repo_rate: Union[float, Dual, Dual2, list, tuple],
         settlement: datetime,
-        delivery: Optional[datetime] = None,
-        convention: Optional[str] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -3342,7 +3346,7 @@ class BondFuture(Sensitivities):
         self,
         future_price: Union[float, Dual, Dual2],
         prices: list[float, Dual, Dual2],
-        settlement: datetime = None,
+        settlement: Union[datetime, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -3377,8 +3381,8 @@ class BondFuture(Sensitivities):
         prices: list[float, Dual, Dual2],
         repo_rate: Union[float, Dual, Dual2, list, tuple],
         settlement: datetime,
-        delivery: Optional[datetime] = None,
-        convention: Optional[str] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -3407,7 +3411,7 @@ class BondFuture(Sensitivities):
         -------
         tuple
         """
-        if delivery is None:
+        if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
@@ -3429,8 +3433,8 @@ class BondFuture(Sensitivities):
         future_price: Union[float, Dual, Dual2],
         prices: list[float, Dual, Dual2],
         settlement: datetime,
-        delivery: Optional[datetime] = None,
-        convention: Optional[str] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -3457,7 +3461,7 @@ class BondFuture(Sensitivities):
         -------
         tuple
         """
-        if delivery is None:
+        if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
@@ -3480,7 +3484,7 @@ class BondFuture(Sensitivities):
     def ytm(
         self,
         future_price: Union[float, Dual, Dual2],
-        delivery: Optional[datetime] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Calculate the yield-to-maturity of the bond future.
@@ -3497,7 +3501,7 @@ class BondFuture(Sensitivities):
         -------
         tuple
         """
-        if delivery is None:
+        if delivery is NoInput.blank:
             settlement = self.delivery[1]
         else:
             settlement = delivery
@@ -3511,7 +3515,7 @@ class BondFuture(Sensitivities):
         self,
         future_price: float,
         metric: str = "risk",
-        delivery: Optional[datetime] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return the (negated) derivative of ``price`` w.r.t. ``ytm`` .
@@ -3548,7 +3552,7 @@ class BondFuture(Sensitivities):
            future.ytm(112.98)
            future.ytm(112.98 + risk[0] / 100)
         """
-        if delivery is None:
+        if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
@@ -3566,7 +3570,7 @@ class BondFuture(Sensitivities):
     def convexity(
         self,
         future_price: float,
-        delivery: Optional[datetime] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return the second derivative of ``price`` w.r.t. ``ytm`` .
@@ -3602,7 +3606,7 @@ class BondFuture(Sensitivities):
            future.duration(112.98)
            future.duration(112.98 + risk[0] / 100)
         """
-        if delivery is None:
+        if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
@@ -3619,7 +3623,7 @@ class BondFuture(Sensitivities):
         future_price: float,
         prices: Union[list, tuple],
         settlement: datetime,
-        delivery: Optional[datetime] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
         dirty: bool = False,
     ):
         """
@@ -3654,12 +3658,12 @@ class BondFuture(Sensitivities):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         metric: str = "future_price",
-        delivery: Optional[datetime] = None,
+        delivery: Union[datetime, NoInput] = NoInput(0),
     ):
         """
         Return various pricing metrics of the security calculated from
@@ -3703,7 +3707,7 @@ class BondFuture(Sensitivities):
         if metric not in ["future_price", "ytm"]:
             raise ValueError("`metric` must be in {'future_price', 'ytm'}.")
 
-        if delivery is None:
+        if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
@@ -3722,10 +3726,10 @@ class BondFuture(Sensitivities):
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -3841,37 +3845,38 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     @abc.abstractmethod
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str] = None,
-        frequency: Optional[int] = None,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        leg2_effective: Optional[datetime] = "inherit",
-        leg2_termination: Optional[Union[datetime, str]] = "inherit",
-        leg2_frequency: Optional[int] = "inherit",
-        leg2_stub: Optional[str] = "inherit",
-        leg2_front_stub: Optional[datetime] = "inherit",
-        leg2_back_stub: Optional[datetime] = "inherit",
-        leg2_roll: Optional[Union[str, int]] = "inherit",
-        leg2_eom: Optional[bool] = "inherit",
-        leg2_modifier: Optional[str] = "inherit",
-        leg2_calendar: Optional[Union[CustomBusinessDay, str]] = "inherit",
-        leg2_payment_lag: Optional[int] = "inherit",
-        leg2_notional: Optional[float] = "inherit_negate",
-        leg2_currency: Optional[str] = "inherit",
-        leg2_amortization: Optional[float] = "inherit_negate",
-        leg2_convention: Optional[str] = "inherit",
-        curves: Optional[Union[list, str, Curve]] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        leg2_effective: Union[datetime, NoInput] = NoInput(1),
+        leg2_termination: Union[datetime, str, NoInput] = NoInput(1),
+        leg2_frequency: Union[int, NoInput] = NoInput(1),
+        leg2_stub: Union[str, NoInput] = NoInput(1),
+        leg2_front_stub: Union[datetime, NoInput] = NoInput(1),
+        leg2_back_stub: Union[datetime, NoInput] = NoInput(1),
+        leg2_roll: Union[str, int, NoInput] = NoInput(1),
+        leg2_eom: Union[bool, NoInput] = NoInput(1),
+        leg2_modifier: Union[str, NoInput] = NoInput(1),
+        leg2_calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(1),
+        leg2_payment_lag: Union[int, NoInput] = NoInput(1),
+        leg2_notional: Union[float, NoInput] = NoInput(-1),
+        leg2_currency: Union[str, NoInput] = NoInput(1),
+        leg2_amortization: Union[float, NoInput] = NoInput(-1),
+        leg2_convention: Union[str, NoInput] = NoInput(1),
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
         self.kwargs = dict(
             effective=effective,
@@ -3907,8 +3912,8 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         )
         self.curves = curves
 
-        notional = defaults.notional if notional is None else notional
-        if payment_lag is None:
+        notional = defaults.notional if notional is NoInput.blank else notional
+        if payment_lag is NoInput.blank:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
         for attribute in [
             "effective",
@@ -3928,10 +3933,10 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             "currency",
         ]:
             leg2_val, val = vars()[f"leg2_{attribute}"], vars()[attribute]
-            if leg2_val == "inherit":
+            if leg2_val is NoInput.inherit:
                 _ = val
-            elif leg2_val == "inherit_negate":
-                _ = None if val is None else val * -1
+            elif leg2_val == NoInput.negate:
+                _ = NoInput(0) if val is NoInput(0) else val * -1
             else:
                 _ = leg2_val
             self.kwargs[attribute] = val
@@ -4079,12 +4084,12 @@ class IRS(BaseDerivative):
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_spread_compound_method: Optional[str] = None,
-        leg2_fixings: Optional[Union[float, list, Series]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -4103,11 +4108,11 @@ class IRS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
     ):
         # the test for an unpriced IRS is that its fixed rate is not set.
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of generic methods NPV will be zero.
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = float(mid_market_rate)
@@ -4122,10 +4127,10 @@ class IRS(BaseDerivative):
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -4138,10 +4143,10 @@ class IRS(BaseDerivative):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market rate of the IRS.
@@ -4182,10 +4187,10 @@ class IRS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the properties of all legs used in calculating cashflows.
@@ -4201,10 +4206,10 @@ class IRS(BaseDerivative):
 
     def spread(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market float spread (bps) required to equate to the fixed rate.
@@ -4278,7 +4283,7 @@ class IRS(BaseDerivative):
         is 1/10000th of a basis point.
         """
         irs_npv = self.npv(curves, solver)
-        specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
+        specified_spd = 0 if self.leg2.float_spread is NoInput(0) else self.leg2.float_spread
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
@@ -4372,7 +4377,6 @@ class IIRS(BaseDerivative):
           index_base=100.0,
           index_method="monthly",
           index_lag=3,
-          index_fixings=None,
           notional_exchange=True,
           leg2_convention="Act360",
           curves=["us_cpi", "usd", "usd", "usd"],
@@ -4432,23 +4436,23 @@ class IIRS(BaseDerivative):
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        index_base: Optional[Union[float, Series]] = None,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
-        notional_exchange: Optional[bool] = False,
-        payment_lag_exchange: Optional[int] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_fixings: Optional[Union[float, list]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
-        leg2_spread_compound_method: Optional[str] = None,
-        leg2_payment_lag_exchange: Optional[int] = "inherit",
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        index_base: Union[float, Series, NoInput] = NoInput(0),
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
+        notional_exchange: Union[bool, NoInput] = False,
+        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        if leg2_payment_lag_exchange == "inherit":
+        if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
         self.kwargs.update(dict(
             fixed_rate=fixed_rate,
@@ -4475,59 +4479,59 @@ class IIRS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
     ):
         mid_market_rate = self.rate(curves, solver)
         self.leg1.fixed_rate = float(mid_market_rate)
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        if self.index_base is None:
+        if self.index_base is NoInput.blank:
             # must forecast for the leg
             self.leg1.index_base = curves[0].index_value(
                 self.leg1.schedule.effective, self.leg1.index_method
             )
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx_, base_, local)
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        if self.index_base is None:
+        if self.index_base is NoInput.blank:
             # must forecast for the leg
             self.leg1.index_base = curves[0].index_value(
                 self.leg1.schedule.effective, self.leg1.index_method
             )
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx_, base_)
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market rate of the IRS.
@@ -4561,14 +4565,14 @@ class IIRS(BaseDerivative):
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        if self.index_base is None:
+        if self.index_base is NoInput.blank:
             # must forecast for the leg
             self.leg1.index_base = curves[0].index_value(
                 self.leg1.schedule.effective, self.leg1.index_method
             )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
 
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             self.leg1.fixed_rate = 0.0
         _existing = self.leg1.fixed_rate
         leg1_npv = self.leg1.npv(curves[0], curves[1])
@@ -4578,10 +4582,10 @@ class IIRS(BaseDerivative):
 
     def spread(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market float spread (bps) required to equate to the fixed rate.
@@ -4655,7 +4659,7 @@ class IIRS(BaseDerivative):
         is 1/10000th of a basis point.
         """
         irs_npv = self.npv(curves, solver)
-        specified_spd = 0 if self.leg2.float_spread is None else self.leg2.float_spread
+        specified_spd = 0 if self.leg2.float_spread is NoInput.blank else self.leg2.float_spread
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
@@ -4771,12 +4775,12 @@ class ZCS(BaseDerivative):
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_spread_compound_method: Optional[str] = None,
-        leg2_fixings: Optional[Union[float, list, Series]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -4802,17 +4806,17 @@ class ZCS(BaseDerivative):
         return super().analytic_delta(*args, **kwargs)
 
     def _set_pricing_mid(self, curves, solver):
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = float(mid_market_rate)
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -4825,10 +4829,10 @@ class ZCS(BaseDerivative):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market rate of the ZCS.
@@ -4876,10 +4880,10 @@ class ZCS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the properties of all legs used in calculating cashflows.
@@ -4964,7 +4968,6 @@ class ZCIS(BaseDerivative):
            leg2_index_base=100.0,
            leg2_index_method="monthly",
            leg2_index_lag=3,
-           leg2_index_fixings=None,
            curves=["usd", "usd", "us_cpi", "usd"],
        )
        zcis.rate(curves=[usd, usd, us_cpi, usd])
@@ -5022,11 +5025,11 @@ class ZCIS(BaseDerivative):
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        leg2_index_base: Optional[Union[float, Series]] = None,
-        leg2_index_fixings: Optional[Union[float, Series]] = None,
-        leg2_index_method: Optional[str] = None,
-        leg2_index_lag: Optional[int] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_index_base: Union[float, Series, NoInput] = NoInput(0),
+        leg2_index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        leg2_index_method: Union[str, NoInput] = NoInput(0),
+        leg2_index_lag: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -5043,27 +5046,27 @@ class ZCIS(BaseDerivative):
         self.leg2 = ZeroIndexLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(self, curves, solver):
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = float(mid_market_rate)
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx, base)
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         self._set_pricing_mid(curves, solver)
@@ -5071,10 +5074,10 @@ class ZCIS(BaseDerivative):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the mid-market IRR rate of the ZCIS.
@@ -5108,7 +5111,7 @@ class ZCIS(BaseDerivative):
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        if self.leg2_index_base is None:
+        if self.leg2_index_base is NoInput.blank:
             # must forecast for the leg
             self.leg2.index_base = curves[2].index_value(
                 self.leg2.schedule.effective, self.leg2.index_method
@@ -5278,16 +5281,16 @@ class SBS(BaseDerivative):
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        spread_compound_method: Optional[str] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_spread_compound_method: Optional[str] = None,
-        leg2_fixings: Optional[Union[float, list, Series]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -5309,7 +5312,7 @@ class SBS(BaseDerivative):
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(self, curves, solver):
-        if self.float_spread is None and self.leg2_float_spread is None:
+        if self.float_spread is NoInput.blank and self.leg2_float_spread is NoInput.blank:
             # set a pricing parameter for the purpose of pricing NPV at zero.
             rate = self.rate(curves, solver)
             self.leg1.float_spread = float(rate)
@@ -5324,10 +5327,10 @@ class SBS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the properties of all legs used in calculating cashflows.
@@ -5339,10 +5342,10 @@ class SBS(BaseDerivative):
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -5355,10 +5358,10 @@ class SBS(BaseDerivative):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         leg: int = 1,
     ):
         """
@@ -5392,7 +5395,7 @@ class SBS(BaseDerivative):
         else:
             leg_obj, args = self.leg2, (curves[2], curves[3])
 
-        specified_spd = 0 if leg_obj.float_spread is None else leg_obj.float_spread
+        specified_spd = 0 if leg_obj.float_spread is NoInput.blank else leg_obj.float_spread
         return leg_obj._spread(-core_npv, *args) + specified_spd
 
         # irs_npv = self.npv(curves, solver)
@@ -5403,7 +5406,7 @@ class SBS(BaseDerivative):
         #     args = (curves[2], curves[3])
         # leg_analytic_delta = getattr(self, f"leg{leg}").analytic_delta(*args)
         # adjust = getattr(self, f"leg{leg}").float_spread
-        # adjust = 0 if adjust is None else adjust
+        # adjust = 0 if adjust is NoInput.blank else adjust
         # _ = irs_npv / leg_analytic_delta + adjust
         # return _
 
@@ -5525,30 +5528,32 @@ class FRA(Sensitivities, BaseMixin):
 
     def __init__(
         self,
-        effective: datetime,
-        termination: Union[datetime, str],
-        frequency: str,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        notional: Optional[float] = None,
-        convention: Optional[str] = None,
-        method_param: Optional[int] = None,
-        payment_lag: Optional[int] = None,
-        fixed_rate: Optional[float] = None,
-        fixings: Optional[Union[float, Series]] = None,
-        currency: Optional[str] = None,
-        curves: Optional[Union[str, list, Curve]] = None,
+        effective: Union[datetime, NoInput] = NoInput(0),
+        termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[int, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, Series, NoInput] = NoInput(0),
+        curves: Union[str, list, Curve, NoInput] = NoInput(0),
     ) -> None:
         self.curves = curves
-        self.currency = defaults.base_currency if currency is None else currency.lower()
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
 
-        if isinstance(modifier, bool):  # then get default
+        if modifier is NoInput.blank:  # then get default
             modifier_: Optional[str] = defaults.modifier
         else:
             modifier_ = modifier.upper()
         self.modifier = modifier_
 
-        if payment_lag is None:
+        if payment_lag is NoInput.blank:
             self.payment_lag = defaults.payment_lag_specific["FRA"]
         else:
             self.payment_lag = payment_lag
@@ -5559,9 +5564,9 @@ class FRA(Sensitivities, BaseMixin):
             # if termination is string the end date is calculated as unadjusted
             termination = add_tenor(effective, termination, self.modifier, self.calendar)
 
-        self.notional = defaults.notional if notional is None else notional
+        self.notional = defaults.notional if notional is NoInput.blank else notional
 
-        convention = defaults.convention if convention is None else convention
+        convention = defaults.convention if convention is NoInput.blank else convention
 
         self._fixed_rate = fixed_rate
         self.leg1 = FixedPeriod(
@@ -5593,37 +5598,37 @@ class FRA(Sensitivities, BaseMixin):
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
     ) -> None:
-        if self.fixed_rate is None:
+        if self.fixed_rate is NoInput.blank:
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = mid_market_rate.real
 
     def analytic_delta(
         self,
         curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> DualTypes:
         """
         Return the analytic delta of the FRA.
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         rate = self.rate([curve])
-        _ = self.notional * self.leg1.dcf * disc_curve[self.payment] / 10000
+        _ = self.notional * self.leg1.dcf * disc_curve_[self.payment] / 10000
         return fx * _ / (1 + self.leg1.dcf * rate / 100)
 
     def npv(
         self,
-        curves: Optional[Union[str, list, Curve]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ) -> DualTypes:
         """
@@ -5645,10 +5650,10 @@ class FRA(Sensitivities, BaseMixin):
 
     def rate(
         self,
-        curves: Optional[Union[str, list, Curve]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> DualTypes:
         """
         Return the mid-market rate of the FRA.
@@ -5694,14 +5699,14 @@ class FRA(Sensitivities, BaseMixin):
         """
         cf1 = self.leg1.cashflow
         cf2 = self.leg2.cashflow(curve)
-        if cf1 is not None and cf2 is not None:
+        if cf1 is not NoInput.blank and cf2 is not NoInput.blank:
             cf = cf1 + cf2
         else:
             return None
-        rate = None if curve is None else 100 * cf2 / (self.notional * self.leg2.dcf)
+        rate = None if curve is NoInput.blank else 100 * cf2 / (self.notional * self.leg2.dcf)
         cf /= 1 + self.leg1.dcf * rate / 100
 
-        # if self.fixed_rate is None:
+        # if self.fixed_rate is NoInput.blank:
         #     return 0  # set the fixed rate = to floating rate netting to zero
         # rate = self.leg2.rate(curve)
         # cf = self.notional * self.leg1.dcf * (rate - self.fixed_rate) / 100
@@ -5710,10 +5715,10 @@ class FRA(Sensitivities, BaseMixin):
 
     def cashflows(
         self,
-        curves: Optional[Union[str, list, Curve]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> DataFrame:
         """
         Return the properties of the leg used in calculating cashflows.
@@ -5738,8 +5743,8 @@ class FRA(Sensitivities, BaseMixin):
         cf = float(self.cashflow(curves[0]))
         npv_local = self.cashflow(curves[0]) * curves[1][self.payment]
 
-        _fix = None if self.fixed_rate is None else -float(self.fixed_rate)
-        _spd = None if curves[1] is None else -float(self.rate(curves[1])) * 100
+        _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
+        _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
         cfs = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
         cfs[defaults.headers["type"]] = "FRA"
         cfs[defaults.headers["payment"]] = self.payment
@@ -5778,12 +5783,12 @@ class BaseXCS(BaseDerivative):
     def __init__(
         self,
         *args,
-        payment_lag_exchange: Optional[int] = None,
-        leg2_payment_lag_exchange: Optional[int] = "inherit",
+        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
+        leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        if leg2_payment_lag_exchange == "inherit":
+        if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
         self.kwargs.update(dict(
             payment_lag_exchange=payment_lag_exchange,
@@ -5810,7 +5815,7 @@ class BaseXCS(BaseDerivative):
         """
         if not self._is_mtm:
             self.pair = self.leg1.currency + self.leg2.currency
-            # if self.fx_fixing is None this indicates the swap is unfixed and will be set
+            # if self.fx_fixing is NoInput.blank this indicates the swap is unfixed and will be set
             # later. If a fixing is given this means the notional is fixed without any
             # further sensitivity, hence the downcast to a float below.
             if isinstance(fx_fixings, FXForwards):
@@ -5820,7 +5825,7 @@ class BaseXCS(BaseDerivative):
             elif isinstance(fx_fixings, (float, Dual, Dual2)):
                 self.fx_fixings = float(fx_fixings)
             else:
-                self._fx_fixings = None
+                self._fx_fixings = NoInput(0)
 
     def _set_fx_fixings(self, fx):
         """
@@ -5830,8 +5835,8 @@ class BaseXCS(BaseDerivative):
         initialised but required for pricing and can be inferred from an FX object.
         """
         if not self._is_mtm:  # then we manage the initial FX from the pricing object.
-            if self.fx_fixings is None:
-                if fx is None:
+            if self.fx_fixings is NoInput.blank:
+                if fx is NoInput.blank:
                     if defaults.no_fx_fixings_for_xcs.lower() == "raise":
                         raise ValueError(
                             "`fx` is required when `fx_fixing` is not pre-set and "
@@ -5883,38 +5888,38 @@ class BaseXCS(BaseDerivative):
             return True
         if self._fixed_rate_mixin and self._leg2_fixed_rate_mixin:
             # Fixed/Fixed where one leg is unpriced.
-            if self.fixed_rate is None or self.leg2_fixed_rate is None:
+            if self.fixed_rate is NoInput.blank or self.leg2_fixed_rate is NoInput.blank:
                 return True
             return False
-        elif self._fixed_rate_mixin and self.fixed_rate is None:
+        elif self._fixed_rate_mixin and self.fixed_rate is NoInput.blank:
             # Fixed/Float where fixed leg is unpriced
             return True
-        elif self._float_spread_mixin and self.float_spread is None:
+        elif self._float_spread_mixin and self.float_spread is NoInput.blank:
             # Float leg1 where leg1 is
             pass  # goto 2)
         else:
             return False
 
         # 2) leg1 is Float
-        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is None:
+        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is NoInput.blank:
             return True
-        elif self._leg2_float_spread_mixin and self.leg2_float_spread is None:
+        elif self._leg2_float_spread_mixin and self.leg2_float_spread is NoInput.blank:
             return True
         else:
             return False
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
     ):
         leg: int = 1
         lookup = {
             1: ["_fixed_rate_mixin", "_float_spread_mixin"],
             2: ["_leg2_fixed_rate_mixin", "_leg2_float_spread_mixin"],
         }
-        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is None:
+        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is NoInput.blank:
             # Fixed/Fixed or Float/Fixed
             leg = 2
 
@@ -5929,10 +5934,10 @@ class BaseXCS(BaseDerivative):
 
     def npv(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -5963,9 +5968,9 @@ class BaseXCS(BaseDerivative):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
         leg: int = 1,
     ):
         """
@@ -6009,7 +6014,7 @@ class BaseXCS(BaseDerivative):
         --------
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, None, self.leg1.currency
+            self.curves, solver, curves, fx, NoInput(0), self.leg1.currency
         )
 
         if leg == 1:
@@ -6026,17 +6031,17 @@ class BaseXCS(BaseDerivative):
 
         _is_float_tgt_leg = "Float" in type(tgt_leg).__name__
         _is_float_alt_leg = "Float" in type(alt_leg).__name__
-        if not _is_float_alt_leg and getattr(alt_leg, "fixed_rate") is None:
+        if not _is_float_alt_leg and getattr(alt_leg, "fixed_rate") is NoInput.blank:
             raise ValueError(
                 "Cannot solve for a `fixed_rate` or `float_spread` where the "
-                "`fixed_rate` on the non-solvable leg is None."
+                "`fixed_rate` on the non-solvable leg is NoInput.blank."
             )
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-        if not _is_float_tgt_leg and getattr(tgt_leg, "fixed_rate") is None:
+        if not _is_float_tgt_leg and getattr(tgt_leg, "fixed_rate") is NoInput.blank:
             # set the target fixed leg to a null fixed rate for calculation
             tgt_leg.fixed_rate = 0.0
 
@@ -6052,7 +6057,7 @@ class BaseXCS(BaseDerivative):
         )
 
         specified_spd = 0.0
-        if _is_float_tgt_leg and not (getattr(tgt_leg, "float_spread") is None):
+        if _is_float_tgt_leg and not (getattr(tgt_leg, "float_spread") is NoInput.blank):
             specified_spd = tgt_leg.float_spread
         elif not _is_float_tgt_leg:
             specified_spd = tgt_leg.fixed_rate * 100
@@ -6072,10 +6077,10 @@ class BaseXCS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
@@ -6162,17 +6167,17 @@ class NonMtmXCS(BaseXCS):
     def __init__(
         self,
         *args,
-        fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_fixings: Optional[Union[float, list]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
-        leg2_spread_compound_method: Optional[str] = None,
+        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        float_spread: Union[float, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6245,13 +6250,13 @@ class NonMtmFixedFloatXCS(BaseXCS):
     def __init__(
         self,
         *args,
-        fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-        fixed_rate: Optional[float] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_fixings: Optional[Union[float, list]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
-        leg2_spread_compound_method: Optional[str] = None,
+        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6307,9 +6312,9 @@ class NonMtmFixedFixedXCS(BaseXCS):
     def __init__(
         self,
         *args,
-        fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-        fixed_rate: Optional[float] = None,
-        leg2_fixed_rate: Optional[float] = None,
+        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6397,16 +6402,16 @@ class XCS(BaseXCS):
         self,
         *args,
         fx_fixings: Union[list, float, Dual, Dual2] = [],
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_fixings: Optional[Union[float, list]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
-        leg2_spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6426,7 +6431,7 @@ class XCS(BaseXCS):
             leg2_fx_fixings=fx_fixings,
         ))
 
-        if fx_fixings is None:
+        if fx_fixings is NoInput.blank:
             raise ValueError(
                 "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
             )
@@ -6446,12 +6451,12 @@ class FixedFloatXCS(BaseXCS):
         self,
         *args,
         fx_fixings: Union[list, float, Dual, Dual2] = [],
-        fixed_rate: Optional[float] = None,
-        leg2_float_spread: Optional[float] = None,
-        leg2_fixings: Optional[Union[float, list]] = None,
-        leg2_fixing_method: Optional[str] = None,
-        leg2_method_param: Optional[int] = None,
-        leg2_spread_compound_method: Optional[str] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6467,7 +6472,7 @@ class FixedFloatXCS(BaseXCS):
             leg2_fx_fixings=fx_fixings,
         ))
 
-        if fx_fixings is None:
+        if fx_fixings is NoInput.blank:
             raise ValueError(
                 "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
             )
@@ -6487,8 +6492,8 @@ class FixedFixedXCS(BaseXCS):
         self,
         *args,
         fx_fixings: Union[list, float, Dual, Dual2] = [],
-        fixed_rate: Optional[float] = None,
-        leg2_fixed_rate: Optional[float] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6500,7 +6505,7 @@ class FixedFixedXCS(BaseXCS):
             leg2_fx_fixings=fx_fixings,
         ))
 
-        if fx_fixings is None:
+        if fx_fixings is NoInput.blank:
             raise ValueError(
                 "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
             )
@@ -6521,12 +6526,12 @@ class FloatFixedXCS(BaseXCS):
         self,
         *args,
         fx_fixings: Union[list, float, Dual, Dual2] = [],
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
-        leg2_fixed_rate: Optional[float] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -6542,7 +6547,7 @@ class FloatFixedXCS(BaseXCS):
             leg2_fx_fixings=fx_fixings,
         ))
 
-        if fx_fixings is None:
+        if fx_fixings is NoInput.blank:
             raise ValueError(
                 "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
             )
@@ -6649,11 +6654,11 @@ class FloatFixedXCS(BaseXCS):
 #         # leg2_payment_lag_exchange: Optional[int] = "inherit",
 #         **kwargs,
 #     ):
-#         if fx_fixing is None and points is not None:
+#         if fx_fixing is NoInput.blank and points is not NoInput.blank:
 #             raise ValueError(
 #                 "Cannot set `points` on FXSwap initialisation without giving an `fx_fixing`."
 #             )
-#         elif fx_fixing is not None and points is None:
+#         elif fx_fixing is not NoInput.blank and points is NoInput.blank:
 #             warnings.warn(
 #                 "`fx_fixing` has been provided to FXSwap initialisation but `points` has not.\n"
 #                 "Although this will still work this is not a recommended way to initialise this "
@@ -6707,7 +6712,7 @@ class FloatFixedXCS(BaseXCS):
 #         self._unpriced = False
 #         self._points = value
 #         self._leg2_fixed_rate = None
-#         if value is not None:
+#         if value is not NoInput.blank:
 #             fixed_rate = (
 #                 value
 #                 * -self.notional
@@ -6943,23 +6948,23 @@ class FXSwap(BaseXCS):
         Determine the rules for a priced, unpriced or partially priced derivative and whether
         it is inferred as split notional or not.
         """
-        is_none = [_ is None for _ in [fx_fixing, points, split_notional]]
+        is_none = [_ is NoInput.blank for _ in [fx_fixing, points, split_notional]]
         if all(is_none) or not any(is_none):
             self._is_split = True
-        elif split_notional is None and not any([_ is None for _ in [fx_fixing, points]]):
+        elif split_notional is NoInput.blank and not any([_ is NoInput.blank for _ in [fx_fixing, points]]):
             self._is_split = False
-        elif fx_fixing is not None:
+        elif fx_fixing is not NoInput.blank:
             warnings.warn(
                 "Initialising FXSwap with `fx_fixing` but without `points` is unconventional.\n"
                 "Pricing can still be performed to determine `points`.",
                 UserWarning
             )
-            if split_notional is not None:
+            if split_notional is not NoInput.blank:
                 self._is_split = True
             else:
                 self._is_split = False
         else:
-            if points is not None:
+            if points is not NoInput.blank:
                 raise ValueError(
                     "Cannot initialise FXSwap with `points` but without `fx_fixing`."
                 )
@@ -6968,7 +6973,11 @@ class FXSwap(BaseXCS):
                     "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
                 )
 
-    def _set_split_notional(self, curve: Optional[Curve] = None, at_init: bool = False):
+    def _set_split_notional(
+        self,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        at_init: bool = False
+    ):
         """
         Will set the fixed rate, if not zero, for leg1, given provided split not or forecast splnot.
 
@@ -6977,7 +6986,7 @@ class FXSwap(BaseXCS):
         if not self._is_split:
             self._split_notional = self.kwargs["notional"]
             # fixed rate at zero remains
-        elif self.kwargs["split_notional"] is not None:
+        elif self.kwargs["split_notional"] is not NoInput.blank:
             if at_init:  # this will be run for one time only at initialisation
                 self._split_notional = self.kwargs["split_notional"]
                 self._set_leg1_fixed_rate()
@@ -6998,9 +7007,9 @@ class FXSwap(BaseXCS):
     def __init__(
         self,
         *args,
-        fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-        points: Optional[float] = None,
-        split_notional: Optional[float] = None,
+        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        points: Union[float, NoInput] = NoInput(0),
+        split_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._parse_split_flag(fx_fixing, points, split_notional)
@@ -7011,7 +7020,7 @@ class FXSwap(BaseXCS):
             fixed_rate=0.0,
             payment_lag_exchange=self.kwargs["payment_lag"],
             leg2_payment_lag_exchange=self.kwargs["leg2_payment_lag_exchange"],
-            leg2_fixed_rate=None,
+            leg2_fixed_rate=NoInput(0),
             leg2_frequency="Z",
         ))
 
@@ -7032,11 +7041,11 @@ class FXSwap(BaseXCS):
     def points(self, value):
         self._unpriced = False
         self._points = value
-        self._leg2_fixed_rate = None
+        self._leg2_fixed_rate = NoInput(0)
 
         # setting points requires leg1.notional leg1.split_notional, fx_fixing and points value
 
-        if value is not None:
+        if value is not NoInput.blank:
             # leg2 should have been properly set as part of fx_fixings and set_leg2_notional
             fx_fixing = self.leg2.notional / -self.leg1.notional
 
@@ -7052,9 +7061,10 @@ class FXSwap(BaseXCS):
 
     def _set_pricing_mid(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+
     ):
         # This function ASSUMES that the instrument is unpriced, i.e. all of
         # split_notional, fx_fixing and points have been initialised as None.
@@ -7066,9 +7076,9 @@ class FXSwap(BaseXCS):
 
     def rate(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
         fixed_rate: bool = False,
     ):
         """
@@ -7098,14 +7108,14 @@ class FXSwap(BaseXCS):
         float, Dual or Dual2
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, None, self.leg1.currency
+            self.curves, solver, curves, fx, NoInput(0), self.leg1.currency
         )
         # set the split notional from the curve if not available
         self._set_split_notional(curve=curves[1])
         # then we will set the fx_fixing and leg2 initial notional.
 
         # self._set_fx_fixings(fx) # this will be done by super().rate()
-        leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
+        leg2_fixed_rate = super().rate(curves, solver, fx_, leg=2)
 
         if fixed_rate:
             return leg2_fixed_rate
@@ -7118,10 +7128,10 @@ class FXSwap(BaseXCS):
 
     def cashflows(
         self,
-        curves: Optional[Union[Curve, str, list]] = None,
-        solver: Optional[Solver] = None,
-        fx: Optional[FXForwards] = None,
-        base: Optional[str] = None,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         if self._is_unpriced:
             self._set_pricing_mid(curves, solver, fx)
@@ -7636,10 +7646,22 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 #     return x1, steps_taken
 
 
-def _get(kwargs, leg=1):
+def _get(kwargs: dict, leg: int=1):
     """A parser to return kwarg dicts for relevant legs. Internal structuring only."""
     if leg == 1:
         _ = {k: v for k, v in kwargs.items() if not "leg2" in k}
     else:
         _ = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k}
     return _
+
+
+def _push(spec: Optional[str], kwargs: dict):
+    """Push user specified kwargs to a default specification"""
+    if spec is NoInput.blank:
+        return kwargs
+    else:
+        try:
+            default_kwargs = defaults.spec[spec.lower()]
+        except KeyError:
+            raise ValueError(f"Given `spec`, '{spec}', cannot be found in defaults.")
+        return {**default_kwargs, **kwargs}

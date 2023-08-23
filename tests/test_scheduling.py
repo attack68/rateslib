@@ -6,7 +6,7 @@ from pandas.testing import assert_index_equal
 from datetime import datetime as dt
 
 import context
-from rateslib.default import Defaults
+from rateslib.default import Defaults, NoInput
 from rateslib.calendars import create_calendar
 from rateslib.scheduling import (
     _check_unadjusted_regular_swap,
@@ -108,7 +108,7 @@ def test_get_default_stub():
     ],
 )
 def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, None, None, "MF", False, None, cal_)
+    result = _infer_stub_date(e, t, "Q", stub, NoInput(0), NoInput(0), "MF", False, NoInput(0), cal_)
     assert result[0]
     if "FRONT" in stub:
         assert result[1]["front_stub"] == exp_stub
@@ -128,7 +128,7 @@ def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_):
     ],
 )
 def test_infer_stub_date_no_inference_on_regular(e, t, stub, exp_roll, exp_stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, None, None, "MF", False, None, cal_)
+    result = _infer_stub_date(e, t, "Q", stub, NoInput(0), NoInput(0), "MF", False, NoInput(0), cal_)
     assert result[0]
     if "FRONT" in stub:
         assert result[1]["front_stub"] == exp_stub
@@ -144,11 +144,11 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_):
         dt(2024, 4, 26),
         "Q",
         "SHORTFRONTBACK",
-        None,
+        NoInput(0),
         dt(2024, 2, 26),
         "MF",
-        False,
-        None,
+        NoInput(0),
+        NoInput(0),
         cal_,
     )
     assert result[0]
@@ -161,10 +161,10 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_):
         "Q",
         "FRONTSHORTBACK",
         dt(2022, 4, 26),
-        None,
+        NoInput(0),
         "MF",
-        False,
-        None,
+        NoInput(0),
+        NoInput(0),
         cal_,
     )
     assert result[0]
@@ -182,7 +182,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_):
     ],
 )
 def test_infer_stub_date_invalid_roll(e, t, stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, None, None, "MF", False, 14, cal_)
+    result = _infer_stub_date(e, t, "Q", stub, NoInput(0), NoInput(0), "MF", NoInput(0), 14, cal_)
     assert result[0] is False
 
 
@@ -194,7 +194,7 @@ def test_infer_stub_date_invalid_roll(e, t, stub, cal_):
     ],
 )
 def test_infer_stub_date_dual_sided(e, fs, t, stub, exp_roll, exp_stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, fs, None, "MF", False, None, cal_)
+    result = _infer_stub_date(e, t, "Q", stub, fs, NoInput(0), "MF", NoInput(0), NoInput(0), cal_)
     assert result[0]
     assert result[1]["ueffective"] == e
     assert result[1]["front_stub"] == fs
@@ -211,7 +211,7 @@ def test_infer_stub_date_dual_sided(e, fs, t, stub, exp_roll, exp_stub, cal_):
     ],
 )
 def test_infer_stub_date_dual_sided2(e, bs, t, stub, exp_roll, exp_stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, None, bs, "MF", False, None, cal_)
+    result = _infer_stub_date(e, t, "Q", stub, NoInput(0), bs, "MF", False, NoInput(0), cal_)
     assert result[0]
     assert result[1]["ueffective"] == e
     assert result[1]["front_stub"] == exp_stub
@@ -237,7 +237,7 @@ def test_infer_stub_date_dual_sided_invalid(cal_):
 
 
 def test_schedule_repr(cal_):
-    schedule = Schedule(dt(2022, 1, 1), "2M", "M", None, None, None, None, False, "MF", cal_, 1)
+    schedule = Schedule(dt(2022, 1, 1), "2M", "M", NoInput(0), NoInput(0), NoInput(0), NoInput(0), False, "MF", cal_, 1)
     expected = "freq: M,  stub: SHORTFRONT,  roll: 1,  pay lag: 1,  modifier: MF\n"
     df = DataFrame(
         {
@@ -308,7 +308,7 @@ def test_schedule_raises(cal_):
 @pytest.mark.parametrize(
     "eff, term, f, roll, exp",
     [
-        (dt(2022, 3, 16), dt(2022, 6, 30), "S", None, False),  # frequency
+        (dt(2022, 3, 16), dt(2022, 6, 30), "S", NoInput(0), False),  # frequency
         (dt(2022, 3, 15), dt(2022, 9, 21), "Q", "imm", False),  # non-imm eff
         (dt(2022, 3, 16), dt(2024, 9, 10), "Q", "imm", False),  # non-imm term
         (dt(2022, 3, 30), dt(2029, 3, 31), "A", "eom", False),  # non-eom eff
@@ -323,9 +323,9 @@ def test_schedule_raises(cal_):
         (dt(2022, 2, 20), dt(2025, 8, 20), "S", 20, True),  # OK
         (dt(2022, 2, 20), dt(2025, 8, 21), "S", 20, False),  # roll
         (dt(2022, 2, 21), dt(2025, 8, 20), "S", 20, False),  # roll
-        (dt(2022, 2, 22), dt(2024, 2, 15), "S", None, False),  # no valid roll
-        (dt(2022, 2, 28), dt(2024, 2, 29), "S", None, True),  # 29 or eom
-        (dt(2022, 6, 30), dt(2024, 12, 30), "S", None, True),  # 30
+        (dt(2022, 2, 22), dt(2024, 2, 15), "S", NoInput(0), False),  # no valid roll
+        (dt(2022, 2, 28), dt(2024, 2, 29), "S", NoInput(0), True),  # 29 or eom
+        (dt(2022, 6, 30), dt(2024, 12, 30), "S", NoInput(0), True),  # 30
     ],
 )
 def test_unadjusted_regular_swap(eff, term, f, roll, exp):
@@ -336,7 +336,7 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp):
 @pytest.mark.parametrize(
     "eff, term, f, m, roll, exp",
     [
-        (dt(2022, 3, 16), dt(2022, 6, 30), "S", None, None, False),  # frequency
+        (dt(2022, 3, 16), dt(2022, 6, 30), "S", None, NoInput(0), False),  # frequency
         (dt(2022, 3, 15), dt(2022, 9, 21), "Q", None, "imm", False),  # non-imm eff
         (dt(2022, 3, 16), dt(2024, 9, 10), "Q", None, "imm", False),  # non-imm term
         (dt(2022, 3, 30), dt(2029, 3, 31), "A", None, "eom", False),  # non-eom eff
@@ -351,9 +351,9 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp):
         (dt(2022, 2, 20), dt(2025, 8, 20), "S", None, 20, True),  # OK
         (dt(2022, 2, 20), dt(2025, 8, 21), "S", None, 20, False),  # roll
         (dt(2022, 2, 21), dt(2025, 8, 20), "S", None, 20, False),  # roll
-        (dt(2022, 2, 22), dt(2024, 2, 15), "S", None, None, False),  # no valid roll
-        (dt(2022, 2, 28), dt(2024, 2, 29), "S", None, None, True),  # 29 or eom
-        (dt(2022, 6, 30), dt(2024, 12, 30), "S", None, None, True),  # 30
+        (dt(2022, 2, 22), dt(2024, 2, 15), "S", None, NoInput(0), False),  # no valid roll
+        (dt(2022, 2, 28), dt(2024, 2, 29), "S", None, NoInput(0), True),  # 29 or eom
+        (dt(2022, 6, 30), dt(2024, 12, 30), "S", None, NoInput(0), True),  # 30
     ],
 )
 def test_check_regular_swap(eff, term, f, m, roll, exp, cal_):
@@ -368,15 +368,15 @@ def test_check_regular_swap(eff, term, f, m, roll, exp, cal_):
     [
         (dt(2022, 2, 11), dt(2022, 3, 11), 11, True, dt(2022, 2, 11), dt(2022, 3, 11), 11),
         (dt(2022, 2, 14), dt(2022, 3, 14), 14, True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
-        (dt(2022, 2, 14), dt(2022, 3, 14), None, True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
-        (dt(2022, 2, 13), dt(2022, 3, 14), None, True, dt(2022, 2, 13), dt(2022, 3, 13), 13),
-        (dt(2022, 2, 13), dt(2022, 3, 12), None, False, None, None, None),
-        (dt(2022, 2, 12), dt(2022, 3, 14), None, True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 12), dt(2022, 3, 13), None, False, None, None, None),
-        (dt(2022, 2, 14), dt(2022, 3, 12), None, True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 14), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
+        (dt(2022, 2, 13), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 13), dt(2022, 3, 13), 13),
+        (dt(2022, 2, 13), dt(2022, 3, 12), NoInput(0), False, None, None, None),
+        (dt(2022, 2, 12), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 12), dt(2022, 3, 13), NoInput(0), False, None, None, None),
+        (dt(2022, 2, 14), dt(2022, 3, 12), NoInput(0), True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
         (dt(2022, 2, 14), dt(2022, 3, 14), 12, True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
         (dt(2022, 2, 14), dt(2022, 3, 14), 11, False, None, None, None),
-        (dt(2022, 2, 28), dt(2022, 3, 31), None, True, dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (dt(2022, 2, 28), dt(2022, 3, 31), NoInput(0), True, dt(2022, 2, 28), dt(2022, 3, 31), 31),
         (dt(2022, 2, 28), dt(2022, 3, 31), 28, False, None, None, None),
         (dt(2022, 2, 28), dt(2022, 3, 31), "eom", True, dt(2022, 2, 28), dt(2022, 3, 31), "eom"),
     ],
@@ -535,16 +535,16 @@ def test_regular_n_periods_raises():
 @pytest.mark.parametrize(
     "eff, term, freq, ss, eom, roll, expected",
     [
-        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "FRONT", False, None, dt(2022, 1, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "FRONT", False, None, dt(2022, 2, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "FRONT", False, None, dt(2022, 2, 15)),
-        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "FRONT", False, None, dt(2022, 8, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "BACK", False, None, dt(2023, 2, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "BACK", False, None, dt(2023, 1, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "BACK", False, None, dt(2023, 1, 1)),
-        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "BACK", False, None, dt(2022, 8, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 28), "M", "FRONT", True, None, dt(2022, 1, 31)),
-        (dt(2022, 3, 1), dt(2023, 2, 28), "Q", "FRONT", True, None, dt(2022, 5, 31)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "FRONT", False, NoInput(0), dt(2022, 1, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "FRONT", False, NoInput(0), dt(2022, 2, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "FRONT", False, NoInput(0), dt(2022, 2, 15)),
+        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "FRONT", False, NoInput(0), dt(2022, 8, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "BACK", False, NoInput(0), dt(2023, 2, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "BACK", False, NoInput(0), dt(2023, 1, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "BACK", False, NoInput(0), dt(2023, 1, 1)),
+        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "BACK", False, NoInput(0), dt(2022, 8, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 28), "M", "FRONT", True, NoInput(0), dt(2022, 1, 31)),
+        (dt(2022, 3, 1), dt(2023, 2, 28), "Q", "FRONT", True, NoInput(0), dt(2022, 5, 31)),
         (dt(2022, 3, 1), dt(2023, 2, 18), "Q", "FRONT", False, 17, dt(2022, 5, 17)),
     ],
 )
@@ -556,16 +556,16 @@ def test_get_unadjusted_short_stub_date(eff, term, freq, ss, eom, roll, expected
 @pytest.mark.parametrize(
     "eff, term, freq, stub, eom, roll, expected",
     [
-        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "SHORTFRONT", False, None, dt(2022, 1, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "SHORTFRONT", False, None, dt(2022, 2, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "SHORTFRONT", False, None, dt(2022, 2, 15)),
-        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "SHORTFRONT", False, None, dt(2022, 8, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "SHORTBACK", False, None, dt(2023, 2, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "SHORTBACK", False, None, dt(2023, 1, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "SHORTBACK", False, None, dt(2023, 1, 1)),
-        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "SHORTBACK", False, None, dt(2022, 8, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 28), "M", "SHORTFRONT", True, None, dt(2022, 1, 31)),
-        (dt(2022, 3, 1), dt(2023, 2, 28), "Q", "SHORTFRONT", True, None, dt(2022, 5, 31)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "SHORTFRONT", False, NoInput(0), dt(2022, 1, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "SHORTFRONT", False, NoInput(0), dt(2022, 2, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "SHORTFRONT", False, NoInput(0), dt(2022, 2, 15)),
+        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "SHORTFRONT", False, NoInput(0), dt(2022, 8, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "SHORTBACK", False, NoInput(0), dt(2023, 2, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "SHORTBACK", False, NoInput(0), dt(2023, 1, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "SHORTBACK", False, NoInput(0), dt(2023, 1, 1)),
+        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "SHORTBACK", False, NoInput(0), dt(2022, 8, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 28), "M", "SHORTFRONT", True, NoInput(0), dt(2022, 1, 31)),
+        (dt(2022, 3, 1), dt(2023, 2, 28), "Q", "SHORTFRONT", True, NoInput(0), dt(2022, 5, 31)),
         (dt(2022, 3, 1), dt(2023, 2, 18), "Q", "SHORTFRONT", False, 17, dt(2022, 5, 17)),
     ],
 )
@@ -578,18 +578,18 @@ def test_get_unadjusted_stub_date_mirror(eff, term, freq, stub, eom, roll, expec
 @pytest.mark.parametrize(
     "eff, term, freq, stub, eom, roll, expected",
     [
-        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "LONGFRONT", False, None, dt(2022, 2, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "LONGFRONT", False, None, dt(2022, 5, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "LONGFRONT", False, None, dt(2022, 8, 15)),
-        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "LONGFRONT", False, None, dt(2023, 2, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "LONGBACK", False, None, dt(2023, 1, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "LONGBACK", False, None, dt(2022, 10, 1)),
-        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "LONGBACK", False, None, dt(2022, 7, 1)),
-        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "LONGBACK", False, None, dt(2022, 2, 15)),
-        (dt(2022, 1, 1), dt(2023, 2, 28), "M", "LONGFRONT", True, None, dt(2022, 2, 28)),
-        (dt(2022, 3, 1), dt(2023, 2, 28), "Q", "LONGFRONT", True, None, dt(2022, 8, 31)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "LONGFRONT", False, NoInput(0), dt(2022, 2, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "LONGFRONT", False, NoInput(0), dt(2022, 5, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "LONGFRONT", False, NoInput(0), dt(2022, 8, 15)),
+        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "LONGFRONT", False, NoInput(0), dt(2023, 2, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "M", "LONGBACK", False, NoInput(0), dt(2023, 1, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "LONGBACK", False, NoInput(0), dt(2022, 10, 1)),
+        (dt(2022, 1, 1), dt(2023, 2, 15), "S", "LONGBACK", False, NoInput(0), dt(2022, 7, 1)),
+        (dt(2022, 2, 15), dt(2023, 2, 1), "S", "LONGBACK", False, NoInput(0), dt(2022, 2, 15)),
+        (dt(2022, 1, 1), dt(2023, 2, 28), "M", "LONGFRONT", True, NoInput(0), dt(2022, 2, 28)),
+        (dt(2022, 3, 1), dt(2023, 2, 28), "Q", "LONGFRONT", True, NoInput(0), dt(2022, 8, 31)),
         (dt(2022, 3, 1), dt(2023, 2, 18), "Q", "LONGFRONT", False, 17, dt(2022, 8, 17)),
-        (dt(2022, 4, 30), dt(2023, 2, 18), "Q", "LONGBACK", True, None, dt(2022, 10, 31)),
+        (dt(2022, 4, 30), dt(2023, 2, 18), "Q", "LONGBACK", True, NoInput(0), dt(2022, 10, 31)),
     ],
 )
 def test_get_unadjusted_stub_date_long(eff, term, freq, stub, eom, roll, expected):
@@ -600,8 +600,8 @@ def test_get_unadjusted_stub_date_long(eff, term, freq, stub, eom, roll, expecte
 @pytest.mark.parametrize(
     "e, t, r, exp_roll, exp_ue, exp_ut",
     [
-        (dt(2020, 8, 31), dt(2021, 2, 26), None, 31, dt(2020, 8, 31), dt(2021, 2, 28)),
-        (dt(2021, 2, 26), dt(2021, 8, 31), None, 31, dt(2021, 2, 28), dt(2021, 8, 31)),
+        (dt(2020, 8, 31), dt(2021, 2, 26), NoInput(0), 31, dt(2020, 8, 31), dt(2021, 2, 28)),
+        (dt(2021, 2, 26), dt(2021, 8, 31), NoInput(0), 31, dt(2021, 2, 28), dt(2021, 8, 31)),
         (dt(2021, 2, 26), dt(2021, 8, 30), 29, 29, dt(2021, 2, 28), dt(2021, 8, 29)),
     ],
 )
@@ -615,8 +615,8 @@ def test_schedule_eom(e, t, r, exp_roll, exp_ue, exp_ut, cal_):
 @pytest.mark.parametrize(
     "e, t, r, exp_roll, exp_ue, exp_ut",
     [
-        (dt(2020, 8, 31), dt(2021, 2, 26), None, 31, dt(2020, 8, 31), dt(2021, 2, 28)),
-        (dt(2021, 2, 26), dt(2021, 8, 31), None, 31, dt(2021, 2, 28), dt(2021, 8, 31)),
+        (dt(2020, 8, 31), dt(2021, 2, 26), NoInput(0), 31, dt(2020, 8, 31), dt(2021, 2, 28)),
+        (dt(2021, 2, 26), dt(2021, 8, 31), NoInput(0), 31, dt(2021, 2, 28), dt(2021, 8, 31)),
         (dt(2021, 2, 26), dt(2021, 8, 30), 29, 29, dt(2021, 2, 28), dt(2021, 8, 29)),
     ],
 )
@@ -655,13 +655,13 @@ def test_schedule_bad_stub_combinations_raise2():
 @pytest.mark.parametrize(
     "st, fs, bs",
     [
-        ("FRONTBACK", None, dt(2023, 1, 1)),
-        ("FRONTBACK", dt(2022, 2, 1), None),
+        ("FRONTBACK", NoInput(0), dt(2023, 1, 1)),
+        ("FRONTBACK", dt(2022, 2, 1), NoInput(0)),
         ("FRONTBACK", dt(2022, 4, 15), dt(2023, 10, 15)),
-        ("FRONT", None, None),
-        ("FRONT", dt(2022, 2, 1), None),
-        ("BACK", None, dt(2023, 1, 1)),
-        ("BACK", None, None),
+        ("FRONT", NoInput(0), NoInput(0)),
+        ("FRONT", dt(2022, 2, 1), NoInput(0)),
+        ("BACK", NoInput(0), dt(2023, 1, 1)),
+        ("BACK", NoInput(0), NoInput(0)),
     ],
 )
 def test_schedule_combinations_valid(st, fs, bs):
@@ -678,13 +678,13 @@ def test_schedule_combinations_valid(st, fs, bs):
 @pytest.mark.parametrize(
     "st, fs, bs, roll",
     [
-        ("FRONTBACK", None, dt(2023, 1, 15), 20),
-        ("FRONTBACK", dt(2022, 2, 1), None, 20),
-        ("FRONTBACK", dt(2022, 4, 15), dt(2023, 11, 25), None),
-        ("FRONT", None, None, 20),
-        ("FRONT", dt(2022, 3, 12), None, 20),
-        ("BACK", None, dt(2022, 12, 5), 20),
-        ("BACK", None, None, 20),
+        ("FRONTBACK", NoInput(0), dt(2023, 1, 15), 20),
+        ("FRONTBACK", dt(2022, 2, 1), NoInput(0), 20),
+        ("FRONTBACK", dt(2022, 4, 15), dt(2023, 11, 25), NoInput(0)),
+        ("FRONT", NoInput(0), NoInput(0), 20),
+        ("FRONT", dt(2022, 3, 12), NoInput(0), 20),
+        ("BACK", NoInput(0), dt(2022, 12, 5), 20),
+        ("BACK", NoInput(0), NoInput(0), 20),
     ],
 )
 def test_schedule_combinations_invalid(st, fs, bs, roll):
@@ -743,13 +743,13 @@ def test_dead_stubs():
         dt(2046, 5, 3),
         "A",
         "SHORTFRONT",
-        None,
-        None,
-        None,
-        None,
-        False,
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
         "bus",
-        None,
+        NoInput(0),
     )
     assert s.uschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
     assert s.aschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
@@ -760,13 +760,13 @@ def test_dead_stubs():
         dt(2046, 6, 3),
         "A",
         "SHORTFRONTSHORTBACK",
-        None,
+        NoInput(0),
         dt(2046, 5, 3),  # back stub means front stub is inferred
-        None,
-        None,
-        False,
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
         "bus",
-        None,
+        NoInput(0),
     )
     assert s.uschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
     assert s.aschedule[0:2] == [dt(2027, 5, 3), dt(2028, 5, 3)]
@@ -780,13 +780,13 @@ def test_dead_stubs():
         dt(2069, 12, 21),
         "A",
         "SHORTFRONT",
-        None,
-        None,
-        None,
-        None,
-        False,
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
         "bus",
-        None,
+        NoInput(0),
     )
     assert s.uschedule[0:2] == [dt(2025, 12, 21), dt(2026, 12, 21)]
     assert s.aschedule[0:2] == [dt(2025, 12, 22), dt(2026, 12, 21)]
@@ -800,13 +800,13 @@ def test_dead_stubs():
         dt(2047, 10, 20),
         "A",
         "SHORTBACK",
-        None,
-        None,
-        None,
-        None,
-        False,
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
         "bus",
-        None,
+        NoInput(0),
     )
     assert s.uschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 19)]
     assert s.aschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 21)]
@@ -818,19 +818,19 @@ def test_dead_stubs():
         "A",
         "SHORTFRONTSHORTBACK",
         dt(2027, 10, 19),
-        None,
-        None,
-        None,
-        False,
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
         "bus",
-        None,
+        NoInput(0),
     )
     assert s.uschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 19)]
     assert s.aschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 21)]
 
 
 @pytest.mark.parametrize("mode, end, roll", [
-    (None, dt(2025, 8, 17), 17),
+    (NoInput(0), dt(2025, 8, 17), 17),
     ("swaps_align", dt(2025, 8, 17), 17),
     ("swaptions_align", dt(2025, 8, 19), 19),
 ])

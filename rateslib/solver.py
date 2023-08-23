@@ -9,9 +9,10 @@ import warnings
 from pandas import DataFrame, MultiIndex, concat, Series
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
-from rateslib.fx import FXForwards, ProxyCurve
-from rateslib.curves import CompositeCurve
+from rateslib.curves import CompositeCurve, ProxyCurve
+from rateslib.fx import FXRates, FXForwards
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -919,7 +920,7 @@ class Solver(Gradients):
         s: list[float] = [],
         weights: Optional[list] = None,
         algorithm: Optional[str] = None,
-        fx: Optional[FXForwards] = None,
+        fx: Union[FXForwards, FXRates, NoInput] = NoInput(0),
         instrument_labels: Optional[tuple[str], list[str]] = None,
         id: Optional[str] = None,
         pre_solvers: Union[tuple[Solver], list[Solver]] = (),
@@ -1264,7 +1265,7 @@ class Solver(Gradients):
         return v_1
 
     def _update_fx(self):
-        if self.fx is not None:
+        if self.fx is not NoInput.blank:
             self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
@@ -1336,14 +1337,14 @@ class Solver(Gradients):
         self._reset_properties_()
         for _, curve in self.curves.items():
             curve._set_ad_order(order)
-        if self.fx is not None:
+        if self.fx is not NoInput.blank:
             self.fx._set_ad_order(order)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def delta(self, npv, base=None, fx=None):
+    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=None):
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
@@ -1410,7 +1411,7 @@ class Solver(Gradients):
         emitted if they are not the same object.
         """
         base, fx = self._get_base_and_fx(base, fx)
-        fx_vars = tuple() if fx is None else fx.variables
+        fx_vars = tuple() if fx is NoInput.blank else fx.variables
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = 0.0001
@@ -1419,7 +1420,7 @@ class Solver(Gradients):
             container[("instruments", ccy, ccy)] = self.grad_s_Ploc(npv[ccy]) * inst_scalar
             container[("fx", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], fx_vars) * fx_scalar
 
-            if base is not None and base != ccy:
+            if base is not NoInput.blank and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[("instruments", ccy, base)] = (
@@ -1448,21 +1449,24 @@ class Solver(Gradients):
         for key, array in container.items():
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
-        if base is not None:
+        if base is not NoInput.blank:
             df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
 
-    def _get_base_and_fx(self, base, fx):
-        if base is not None and self.fx is None and fx is None:
+    def _get_base_and_fx(
+        self, base: Union[str, NoInput],
+        fx: Union[FXForwards, FXRates, float, NoInput]
+    ):
+        if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
             raise ValueError(
                 "`base` is given but `fx` is not and Solver does not "
                 "contain an attached FXForwards object."
             )
-        elif fx is None:
+        elif fx is NoInput.blank:
             fx = self.fx
-        elif fx is not None and self.fx is not None:
+        elif fx is not NoInput.blank and self.fx is not NoInput.blank:
             if id(fx) != id(self.fx):
                 warnings.warn(
                     "Solver contains an `fx` attribute but an `fx` argument has been "
@@ -1470,7 +1474,7 @@ class Solver(Gradients):
                     "inconsistencies, mathematically.",
                     UserWarning,
                 )
-        if base is not None:
+        if base is not NoInput.blank:
             base = base.lower()
         return base, fx
 
@@ -1606,7 +1610,7 @@ class Solver(Gradients):
 
         # new
         base, fx = self._get_base_and_fx(base, fx)
-        fx_vars = tuple() if fx is None else fx.variables
+        fx_vars = tuple() if fx is NoInput.blank else fx.variables
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = np.ones(len(fx_vars)) * 0.0001
@@ -1626,7 +1630,7 @@ class Solver(Gradients):
                 fx_scalar[:, None], fx_scalar[None, :]
             )
 
-            if base is not None and base != ccy:
+            if base is not NoInput.blank and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[(ccy, base)] = {}
@@ -1657,7 +1661,7 @@ class Solver(Gradients):
         # construct the DataFrame from container with hierarchical indexes
         currencies = list(npv.keys())
         local_keys = [(ccy, ccy) for ccy in currencies]
-        base_keys = [] if base is None else [(ccy, base) for ccy in currencies]
+        base_keys = [] if base is NoInput.blank else [(ccy, base) for ccy in currencies]
         all_keys = sorted(list(set(local_keys + base_keys)))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
@@ -1666,7 +1670,7 @@ class Solver(Gradients):
             [key for key in idx_tuples],
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
-        if base is not None:
+        if base is not NoInput.blank:
             ridx = ridx.append(
                 MultiIndex.from_tuples(
                     [("all", base) + _ for _ in inst_keys + fx_keys],
@@ -1687,7 +1691,7 @@ class Solver(Gradients):
             locator = key + (slice(None), slice(None), slice(None))
             df.loc[locator, :] = array
 
-        if base is not None:
+        if base is not NoInput.blank:
             # sum over all the base rows to aggregate
             gdf = (
                 df.loc[(currencies, base, slice(None), slice(None), slice(None)), :]

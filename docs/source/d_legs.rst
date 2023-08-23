@@ -67,10 +67,10 @@ For complete documentation of some of these inputs see :ref:`Scheduling<schedule
        effective=dt(2022, 1, 15),        # <- Scheduling options start here
        termination=dt(2022, 12, 7),
        frequency="Q",
-       stub=None,
+       stub="ShortFrontShortBack",
        front_stub=dt(2022, 2, 28),
        back_stub=dt(2022, 11, 30),
-       roll=None,
+       roll=31,
        eom=True,
        modifier="MF",
        calendar="nyc",
@@ -95,10 +95,10 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
        effective=dt(2022, 1, 15),           # <- Scheduling options start here
        termination=dt(2022, 12, 7),
        frequency="Q",
-       stub=None,
+       stub="ShortFrontShortBack",
        front_stub=dt(2022, 2, 28),
        back_stub=dt(2022, 11, 30),
-       roll=None,
+       roll=31,
        eom=True,
        modifier="MF",
        calendar="nyc",
@@ -111,9 +111,9 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
        initial_exchange=False,
        final_exchange=False,
        float_spread=1.0,                    # <- FloatLeg only options start here
-       fixings=None,
+       fixings=NoInput(0),
        fixing_method="rfr_payment_delay",
-       method_param=None,
+       method_param=NoInput(0),
        spread_compound_method="none_simple",
    )
    float_leg.cashflows(curve)
@@ -148,10 +148,10 @@ on *CrossCurrencySwaps* for example.
        effective=dt(2022, 1, 15),       # <- Scheduling options start here
        termination=dt(2022, 7, 15),
        frequency="Q",
-       stub=None,
-       front_stub=None,
-       back_stub=None,
-       roll=None,
+       stub=NoInput(0),
+       front_stub=NoInput(0),
+       back_stub=NoInput(0),
+       roll=NoInput(0),
        eom=True,
        modifier="MF",
        calendar="nyc",
@@ -193,10 +193,10 @@ and :class:`~rateslib.legs.FloatLeg`.
        effective=dt(2022, 1, 3),         # <- Scheduling options start here
        termination=dt(2022, 7, 3),
        frequency="Q",
-       stub=None,
-       front_stub=None,
-       back_stub=None,
-       roll=None,
+       stub=NoInput(0),
+       front_stub=NoInput(0),
+       back_stub=NoInput(0),
+       roll=NoInput(0),
        eom=True,
        modifier="MF",
        calendar="nyc",
@@ -204,18 +204,18 @@ and :class:`~rateslib.legs.FloatLeg`.
        payment_lag_exchange=0,
        notional=None,                    # <- Generic options start here
        currency="usd",
-       amortization=None,
+       amortization=NoInput(0),
        convention="act360",
        initial_exchange=True,
        final_exchange=True,
        float_spread=0.0,                 # <- FloatLeg only options start here
-       fixings=None,
+       fixings=NoInput(0),
        fixing_method="rfr_payment_delay",
-       method_param=None,
+       method_param=NoInput(0),
        spread_compound_method="none_simple",
        alt_notional=2000000,             # <- MtmLeg only options start here
        alt_currency="eur",
-       fx_fixings=None,
+       fx_fixings=NoInput(0),
    )
    fxr = FXRates({"eurusd": 1.05}, settlement = dt(2022, 1, 3))
    fxf = FXForwards(fxr, {

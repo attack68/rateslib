@@ -39,6 +39,7 @@ Defaults
    :skip: plot
    :skip: BusinessDay
    :skip: datetime
+   :skip: Enum
 
 Calendars
 ---------
@@ -64,6 +65,7 @@ Scheduling
    :skip: datetime
    :skip: product
    :skip: timedelta
+   :skip: NoInput
 
 Highlighted private functions
 *****************************
@@ -100,6 +102,7 @@ Curves
 .. automodapi:: rateslib.curves
    :no-heading:
    :inherited-members:
+   :skip: NoInput
    :skip: set_order_convert
    :skip: add_tenor
    :skip: create_calendar
@@ -125,6 +128,7 @@ FX
 
 .. automodapi:: rateslib.fx
    :no-heading:
+   :skip: NoInput
    :skip: Curve
    :skip: LineCurve
    :skip: ProxyCurve
@@ -148,6 +152,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 .. automodapi:: rateslib.periods
    :no-heading:
+   :skip: NoInput
    :skip: ABCMeta
    :skip: IndexCurve
    :skip: Curve
@@ -167,6 +172,7 @@ Legs
 
 .. automodapi:: rateslib.legs
    :no-heading:
+   :skip: NoInput
    :skip: ABCMeta
    :skip: Curve
    :skip: CustomBusinessDay
@@ -192,6 +198,7 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :skip: NoInput
    :skip: IndexCurve
    :skip: IndexFixedLeg
    :skip: IndexMixin
@@ -233,6 +240,8 @@ Solver
 
 .. automodapi:: rateslib.solver
    :no-heading:
+   :skip: NoInput
+   :skip: FXRates
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
