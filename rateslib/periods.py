@@ -1940,7 +1940,7 @@ class IndexMixin(metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: IndexCurve,
+        curve: Union[IndexCurve, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -1951,6 +1951,8 @@ class IndexMixin(metaclass=ABCMeta):
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow(curve) * disc_curve_[self.payment]
         if local:
             return {self.currency: value}

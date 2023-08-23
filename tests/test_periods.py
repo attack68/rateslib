@@ -1387,6 +1387,7 @@ class TestFixedPeriod:
         ):
             fixed_period.npv()
 
+
 class TestCashflow:
     def test_cashflow_analytic_delta(self, curve):
         cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
@@ -1612,7 +1613,7 @@ class TestIndexFixedPeriod:
         )
         with pytest.raises(
                 TypeError,
-                match=re.escape("IndexMixin.npv() missing 1 required positional argument: 'curve'")
+                match=re.escape("`curves` have not been supplied correctly.")
         ):
             index_period.npv()
 
