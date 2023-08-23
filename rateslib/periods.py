@@ -47,6 +47,11 @@ def _get_fx_and_base(
     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
     base: Union[str, NoInput] = NoInput(0),
 ):
+    if fx is None:
+        raise NotImplementedError("TraceBack for NoInput")
+    if base is None:
+        raise NotImplementedError("TraceBack for NoInput")
+
     if isinstance(fx, (FXRates, FXForwards)):
         base = fx.base if base is NoInput.blank else base.lower()
         if base == currency:
@@ -1684,14 +1689,14 @@ class Cashflow:
         self,
         notional: float,
         payment: datetime,
-        currency: Optional[str] = None,
-        stub_type: Optional[str] = None,
-        rate: Optional[float] = None,
+        currency: Union[str, NoInput] = NoInput(0),
+        stub_type: Union[str, NoInput] = NoInput(0),
+        rate: Union[float, NoInput] = NoInput(0),
     ):
         self.notional, self.payment = notional, payment
-        self.currency = defaults.base_currency if currency is None else currency.lower()
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.stub_type = stub_type
-        self._rate = rate if rate is None else float(rate)
+        self._rate = rate if rate is NoInput.blank else float(rate)
 
     def rate(self):
         """
@@ -1751,9 +1756,11 @@ class Cashflow:
         except TypeError:  # cashflow in superclass not a property
             cashflow_ = None
 
+        rate = None if self.rate() is NoInput.blank else self.rate()
+        stub_type = None if self.stub_type is NoInput.blank else self.stub_type
         return {
             defaults.headers["type"]: type(self).__name__,
-            defaults.headers["stub_type"]: self.stub_type,
+            defaults.headers["stub_type"]: stub_type,
             defaults.headers["currency"]: self.currency.upper(),
             defaults.headers["a_acc_start"]: None,
             defaults.headers["a_acc_end"]: None,
@@ -1762,7 +1769,7 @@ class Cashflow:
             defaults.headers["dcf"]: None,
             defaults.headers["notional"]: float(self.notional),
             defaults.headers["df"]: df,
-            defaults.headers["rate"]: self.rate(),
+            defaults.headers["rate"]: rate,
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,

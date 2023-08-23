@@ -1383,7 +1383,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
     def _set_periods(self):
         self.periods = [
             FixedPeriod(
-                fixed_rate=None,
+                fixed_rate=NoInput(0),
                 start=self.schedule.effective,
                 end=self.schedule.termination,
                 payment=self.schedule.pschedule[-1],
@@ -1633,8 +1633,8 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
                 notional=-self.notional,
                 payment=self.schedule.pschedule[-1],
                 currency=self.currency,
-                stub_type=None,
-                rate=None,
+                stub_type=NoInput(0),
+                rate=NoInput(0),
             ),
         ]
 
@@ -1833,7 +1833,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                     payment=self.schedule.pschedule[1 + i],
                     currency=self.currency,
                     stub_type="Amortization",
-                    rate=None,
+                    rate=NoInput(0),
                     index_base=self.index_base,
                     index_fixings=self.index_fixings,
                     index_method=self.index_method,
@@ -1861,7 +1861,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                     ),
                     currency=self.currency,
                     stub_type="Exchange",
-                    rate=None,
+                    rate=NoInput(0),
                     index_base=self.index_base,
                     index_fixings=self.index_fixings,
                     index_method=self.index_method,

@@ -6,6 +6,7 @@ import numpy as np
 
 import context
 from rateslib import defaults, default_context
+from rateslib.default import NoInput
 from rateslib.instruments import (
     IRS,
     IIRS,
@@ -116,7 +117,7 @@ class TestCurvesandSolver:
 
     @pytest.mark.parametrize("solver", [True, False])
     @pytest.mark.parametrize("fxf", [True, False])
-    @pytest.mark.parametrize("fx", [None, 2.0])
+    @pytest.mark.parametrize("fx", [NoInput(0), 2.0])
     @pytest.mark.parametrize("crv", [True, False])
     def test_get_curves_and_fx_from_solver(self, usdusd, usdeur, eureur, solver, fxf, fx, crv):
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
@@ -125,31 +126,31 @@ class TestCurvesandSolver:
             FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
         )
-        solver = Solver([curve], inst, [0.975], fx=fxfs if fxf else None) if solver else None
-        curve = curve if crv else None
+        solver = Solver([curve], inst, [0.975], fx=fxfs if fxf else NoInput(0)) if solver else NoInput(0)
+        curve = curve if crv else NoInput(0)
 
-        if solver and fxf and fx is not None:
+        if solver is not NoInput(0) and fxf and fx is not NoInput(0):
             with pytest.warns(UserWarning):
                 #  Solver contains an `fx` attribute but an `fx` argument has been supplied
                 crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-                    None, solver, curve, fx, None, "usd"
+                    NoInput(0), solver, curve, fx, NoInput(0), "usd"
                 )
         else:
             crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-                None, solver, curve, fx, None, "usd"
+                NoInput(0), solver, curve, fx, NoInput(0), "usd"
             )
 
         # check the fx results. If fx is specified directly it is returned
         # otherwsie it is returned from a solver object if it is available.
-        if fx is not None:
+        if fx is not NoInput(0):
             assert fx_result == 2.0
-        elif solver is None:
-            assert fx_result is None
+        elif solver is NoInput(0):
+            assert fx_result is NoInput(0)
         else:
             if fxf:
                 assert fx_result == fxfs
             else:
-                assert fx_result is None
+                assert fx_result is NoInput(0)
 
         assert crv_result == (curve, curve, curve, curve)
 
@@ -161,13 +162,13 @@ class TestCurvesandSolver:
         solver = Solver([curve], inst, [0.975])
 
         with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
-            _get_curves_fx_and_base_maybe_from_solver(None, None, "tagged", None, None, "")
+            _get_curves_fx_and_base_maybe_from_solver(NoInput(0), NoInput(0), "tagged", NoInput(0), NoInput(0), "")
 
         with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
-            _get_curves_fx_and_base_maybe_from_solver(None, solver, "bad_id", None, None, "")
+            _get_curves_fx_and_base_maybe_from_solver(NoInput(0), solver, "bad_id", NoInput(0), NoInput(0), "")
 
         with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
-            _get_curves_fx_and_base_maybe_from_solver(None, solver, ["tagged"] * 5, None, None, "")
+            _get_curves_fx_and_base_maybe_from_solver(NoInput(0), solver, ["tagged"] * 5, NoInput(0), NoInput(0), "")
 
     @pytest.mark.parametrize("num", [1, 2, 3, 4])
     def test_get_curves_from_solver_multiply(self, num):
@@ -177,7 +178,7 @@ class TestCurvesandSolver:
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         solver = Solver([curve], inst, [0.975])
         result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            None, solver, ["tagged"] * num, None, None, ""
+            NoInput(0), solver, ["tagged"] * num, NoInput(0), NoInput(0), ""
         )
         assert result == (curve, curve, curve, curve)
 
@@ -268,7 +269,7 @@ class TestSolverFXandBase:
         result = self.irs.npv(solver=self.solver, base="eur")
         expected = 330.4051154763001 / 1.1
         assert abs(result - expected) < 1e-4
-        self.solver.fx = None
+        self.solver.fx = NoInput(0)
 
     def test_base_and_fx_and_solverfx(self):
         # should take fx and ignore solver.fx
@@ -286,7 +287,7 @@ class TestSolverFXandBase:
             expected = 330.4051154763001 / 1.1
             assert abs(result - expected) < 1e-4
 
-        self.solver.fx = None
+        self.solver.fx = NoInput(0)
 
     def test_base_only(self):
         # calculable since base aligns with local currency
@@ -337,7 +338,7 @@ class TestSolverFXandBase:
             expected = 330.4051154763001 / 1.25  # base in this case inferred as GBP
             assert abs(result - expected) < 1e-4
 
-        self.solver.fx = None
+        self.solver.fx = NoInput(0)
 
     def test_solverfx(self):
         fxr = FXRates({"eurusd": 1.2}, base="eur")
@@ -348,7 +349,7 @@ class TestSolverFXandBase:
         expected = 330.4051154763001  # base in this should be local currency not eur.
         assert abs(result - expected) < 1e-4
 
-        self.solver.fx = None
+        self.solver.fx = NoInput(0)
 
 
 class TestNullPricing:
@@ -522,7 +523,7 @@ class TestNullPricing:
         (ZCS(dt(2022, 1, 1), "1Y", "Q", curves=["usdusd"]), "fixed_rate"),
         (ZCIS(dt(2022, 1, 1), "1Y", "A", curves=["usdusd", "usdusd", "eu_cpi", "usdusd"]), "fixed_rate"),
         (IIRS(dt(2022, 1, 1), "1Y", "Q", curves=["eu_cpi", "usdusd", "usdusd", "usdusd"]), "fixed_rate"),
-        (FXExchange(dt(2022, 3, 1), currency="usd", leg2_currency="eur", curves=[None, "usdusd", None, "eurusd"]), "fx_rate")
+        (FXExchange(dt(2022, 3, 1), currency="usd", leg2_currency="eur", curves=[NoInput(0), "usdusd", NoInput(0), "eurusd"]), "fx_rate")
     ])
     def test_null_priced_delta_round_trip_one_pricing_param(self, inst, param):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
@@ -556,7 +557,7 @@ class TestNullPricing:
         assert_frame_equal(unpriced_delta, priced_delta)
 
     @pytest.mark.parametrize("inst, param", [
-        (FXSwap(dt(2022, 2, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=[None, "eurusd", None, "usdusd"]), "points"),
+        (FXSwap(dt(2022, 2, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=[NoInput(0), "eurusd", NoInput(0), "usdusd"]), "points"),
     ])
     def test_null_priced_delta_round_trip_one_pricing_param_fx_fix(self, inst, param):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
@@ -746,7 +747,7 @@ class TestIRS:
             convention="Act360",
             frequency="Q",
             fixed_rate=4.035,
-            leg2_float_spread=None,
+            leg2_float_spread=NoInput(0),
             stub="ShortFront",
         )
         result = irs.cashflows(curve)
@@ -769,14 +770,14 @@ class TestIRS:
         irs.fixed_rate = 1.0  # pay fixed low rate implies positive NPV
         assert irs.npv(curve) > 1
 
-        irs.fixed_rate = None  # fixed rate set back to initial
+        irs.fixed_rate = NoInput(0)  # fixed rate set back to initial
         assert abs(irs.npv(curve)) < 1e-8
 
         irs.fixed_rate = float(irs.rate(curve))
         irs.leg2_float_spread = 100
         assert irs.npv(curve) > 1
 
-        irs.leg2_float_spread = None
+        irs.leg2_float_spread = NoInput(0)
         assert abs(irs.npv(curve)) < 1e-8
 
     def test_sbs_float_spread_raises(self, curve):
@@ -808,7 +809,7 @@ class TestIIRS:
             notional_exchange=False,
         )
         for period in iirs.leg1.periods:
-            assert period.index_base is None
+            assert period.index_base is NoInput(0)
         iirs.rate(curves=[i_curve, curve])
         for period in iirs.leg1.periods:
             assert period.index_base == 200.0
@@ -835,8 +836,8 @@ class TestIIRS:
         iirs.index_base = 1000.0  # high index base implies positive NPV
         assert iirs.npv([i_curve, curve]) > 1
 
-        iirs.index_base = None  # index_base set back to initial
-        iirs.fixed_rate = None
+        iirs.index_base = NoInput(0)  # index_base set back to initial
+        iirs.fixed_rate = NoInput(0)
         assert abs(iirs.npv([i_curve, curve])) < 1e-8
 
         mid_fixed = float(iirs.rate([i_curve, curve]))
@@ -1021,7 +1022,7 @@ class TestFRA:
         fra.fixed_rate = 1.0  # pay fixed low rate implies positive NPV
         assert fra.npv(curve) > 1
 
-        fra.fixed_rate = None  # fixed rate set back to initial
+        fra.fixed_rate = NoInput(0)  # fixed rate set back to initial
         assert abs(fra.npv(curve)) < 1e-9
 
 
@@ -1140,9 +1141,9 @@ class TestFXExchange:
         )
         if not isinstance(fx, FXRates):
             with pytest.warns(UserWarning):
-                result = fxe.npv([None, curve, None, curve2], None, fx, base, local=False)
+                result = fxe.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fx, base, local=False)
         else:
-            result = fxe.npv([None, curve, None, curve2], None, fx, base, local=False)
+            result = fxe.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fx, base, local=False)
         assert abs(result - 0.0) < 1e-8
 
     def test_rate(self, curve, curve2):
@@ -1152,7 +1153,7 @@ class TestFXExchange:
             leg2_currency="usd",
             fx_rate=1.2080131682341035,
         )
-        result = fxe.rate([None, curve, None, curve2], None, 1.20)
+        result = fxe.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), 1.20)
         expected = 1.2080131682341035
         assert abs(result - expected) < 1e-7
 
@@ -1202,7 +1203,7 @@ class TestFXExchange:
 #     assert fxs.leg2.periods[1].notional == 10110.5
 #     assert fxs.leg2.periods[1].payment == dt(2022, 4, 15)
 #
-#     fxs.fx_fixing_points = None
+#     fxs.fx_fixing_points = NoInput(0)
 #     points = fxs._rate_alt(curve, curve2, 10.0)
 #     npv = fxs._npv_alt(curve, curve2, 10.0)
 #     assert abs(npv) < 1e-9
@@ -1212,7 +1213,7 @@ class TestFXExchange:
 #         {"eureur": curve, "seksek": curve2, "sekeur": curve2}
 #     )
 #     points2 = fxs.rate(fxf)
-#     npv2 = fxs.npv(fxf, None, "eur")
+#     npv2 = fxs.npv(fxf, NoInput(0), "eur")
 #     assert abs(npv2) < 1e-9
 
 
@@ -1233,7 +1234,7 @@ class TestNonMtmXCS:
             payment_lag_exchange=0,
         )
         # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
-        npv = xcs.npv([curve2, curve2, curve, curve], None, fxf)
+        npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
         xcs = NonMtmXCS(
@@ -1247,7 +1248,7 @@ class TestNonMtmXCS:
             payment_lag_exchange=0,
         )
         # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
-        npv = xcs.npv([curve2, curve2, curve, curve], None, fxf)
+        npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
     def test_nonmtmxcs_fx_notional(self):
@@ -1292,15 +1293,15 @@ class TestNonMtmXCS:
             leg2_spread_compound_method=compound,
         )
 
-        result = xcs.rate([curve, curve, curve2, curve2], None, fxf, 2)
+        result = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
         assert abs(result - expected) < 1e-4
-        alias = xcs.spread([curve, curve, curve2, curve2], None, fxf, 2)
+        alias = xcs.spread([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
         assert alias == result
 
         xcs.leg2_float_spread = result
-        validate = xcs.npv([curve, curve, curve2, curve2], None, fxf)
+        validate = xcs.npv([curve, curve, curve2, curve2], NoInput(0), fxf)
         assert abs(validate) < 1e-2
-        result2 = xcs.rate([curve, curve, curve2, curve2], None, fxf, 2)
+        result2 = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
         assert abs(result - result2) < 1e-3
 
         # reverse legs
@@ -1316,7 +1317,7 @@ class TestNonMtmXCS:
             leg2_float_spread=float_spd,
             spread_compound_method=compound,
         )
-        result = xcs_reverse.rate([curve2, curve2, curve, curve], None, fxf, 1)
+        result = xcs_reverse.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
         assert abs(result - expected) < 1e-4
 
     def test_no_fx_raises(self, curve, curve2):
@@ -1361,7 +1362,7 @@ class TestNonMtmXCS:
             notional=10e6,
         )
 
-        result = xcs.cashflows([curve, curve, curve2, curve2], None, fxf)
+        result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod"],
@@ -1431,12 +1432,12 @@ class TestNonMtmFixedFloatXCS:
             leg2_float_spread=float_spd,
         )
 
-        result = xcs.rate([curve2, curve2, curve, curve], None, fxf, 1)
+        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
         assert abs(result - expected) < 1e-4
-        assert abs(xcs.npv([curve2, curve2, curve, curve], None, fxf)) < 1e-6
+        assert abs(xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)) < 1e-6
 
         xcs.fixed_rate = result  # set the fixed rate and check revalues to zero
-        assert abs(xcs.npv([curve2, curve2, curve, curve], None, fxf)) < 1e-6
+        assert abs(xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)) < 1e-6
 
         irs = IRS(
             dt(2022, 2, 1),
@@ -1501,7 +1502,7 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        result = xcs.cashflows([curve, curve, curve2, curve2], None, fxf)
+        result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod"],
@@ -1563,7 +1564,7 @@ class TestNonMtmFixedFloatXCS:
         )
 
         with pytest.raises(ValueError, match="Cannot solve for a"):
-            xcs.rate([curve, curve, curve2, curve2], None, fxf, leg=2)
+            xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, leg=2)
 
 
 class TestNonMtmFixedFixedXCS:
@@ -1582,12 +1583,12 @@ class TestNonMtmFixedFixedXCS:
     #         leg2_spread_compound_method=compound, leg2_float_spread=float_spd
     #      )
     #
-    #     result = xcs.rate([curve2, curve2, curve, curve], None, fxf, 1)
+    #     result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
     #     assert abs(result - expected) < 1e-4
-    #     assert abs(xcs.npv([curve2, curve2, curve, curve], None, fxf)) < 1e-6
+    #     assert abs(xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)) < 1e-6
     #
     #     xcs.fixed_rate = result  # set the fixed rate and check revalues to zero
-    #     assert abs(xcs.npv([curve2, curve2, curve, curve], None, fxf)) < 1e-6
+    #     assert abs(xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)) < 1e-6
     #
     #     irs = IRS(dt(2022, 2, 1), "8M", "M",
     #         payment_lag=0, currency="nok",
@@ -1622,7 +1623,7 @@ class TestNonMtmFixedFixedXCS:
     #                     payment_lag=0, currency="nok", leg2_currency="usd",
     #                     payment_lag_exchange=0, notional=10e6)
     #
-    #     result = xcs.cashflows([curve, curve, curve2, curve2], None, fxf)
+    #     result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
     #     expected = DataFrame({
     #         "Type": ["Cashflow", "FloatPeriod"],
     #         "Period": ["Exchange", "Regular"],
@@ -1678,7 +1679,7 @@ class TestNonMtmFixedFixedXCS:
         )
 
         with pytest.raises(ValueError, match="Cannot solve for a"):
-            xcs.rate([curve, curve, curve2, curve2], None, fxf, leg=2)
+            xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, leg=2)
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_float_spread` for"):
             xcs.leg2_float_spread = 2.0
@@ -1701,7 +1702,7 @@ class TestXCS:
             payment_lag_exchange=0,
         )
 
-        npv = xcs.npv([curve2, curve2, curve, curve], None, fxf)
+        npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
     def test_mtmxcs_cashflows(self, curve, curve2):
@@ -1721,7 +1722,7 @@ class TestXCS:
             notional=10e6,
         )
 
-        result = xcs.cashflows([curve, curve, curve2, curve2], None, fxf)
+        result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod", "Cashflow"],
@@ -1743,16 +1744,16 @@ class TestXCS:
 
     def test_mtmxcs_fx_fixings_raises(self):
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=None)
+            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = FixedFloatXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=None)
+            _ = FixedFloatXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = FixedFixedXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=None)
+            _ = FixedFixedXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = FloatFixedXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=None)
+            _ = FloatFixedXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
 
     @pytest.mark.parametrize(
         "float_spd, compound, expected",
@@ -1782,15 +1783,15 @@ class TestXCS:
             leg2_spread_compound_method=compound,
         )
 
-        result = xcs.rate([curve2, curve2, curve, curve], None, fxf, 2)
+        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - expected) < 1e-4
-        alias = xcs.spread([curve2, curve2, curve, curve], None, fxf, 2)
+        alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert alias == result
 
         xcs.leg2_float_spread = result
-        validate = xcs.npv([curve2, curve2, curve, curve], None, fxf)
+        validate = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(validate) < 1e-2
-        result2 = xcs.rate([curve2, curve2, curve, curve], None, fxf, 2)
+        result2 = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - result2) < 1e-3
 
 
@@ -1812,12 +1813,12 @@ class TestFixedFloatXCS:
             notional=10e6,
         )
 
-        result = xcs.rate([curve2, curve2, curve, curve], None, fxf, 1)
+        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", currency="nok", payment_lag=0)
         validate = irs.rate(curve2)
         assert abs(result - validate) < 1e-4
-        # alias = xcs.spread([curve2, curve2, curve, curve], None, fxf, 2)
+        # alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
 
     def test_mtmfixxcs_rate_reversed(self, curve, curve2):
         fxf = FXForwards(
@@ -1836,12 +1837,12 @@ class TestFixedFloatXCS:
             notional=10e6,
         )
 
-        result = xcs.rate([curve, curve, curve2, curve2], None, fxf, 2)
+        result = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", currency="nok", payment_lag=0)
         validate = irs.rate(curve2)
         assert abs(result - validate) < 1e-2
-        alias = xcs.spread([curve, curve, curve2, curve2], None, fxf, 2)
+        alias = xcs.spread([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
         assert abs(result - alias) < 1e-4
 
 
@@ -1865,20 +1866,20 @@ class TestFixedFixedXCS:
             notional=10e6,
             fixed_rate=nok_rate,
         )
-        result = xcs.rate([curve2, curve2, curve, curve], None, fxf, 2)
+        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         validate = irs.rate(curve)
         assert abs(result - validate) < 1e-4
-        alias = xcs.spread([curve2, curve2, curve, curve], None, fxf, 2)
+        alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - alias) < 1e-8
 
         # test reverse
         usd_rate = float(irs.rate(curve))
-        xcs.fixed_rate = None
+        xcs.fixed_rate = NoInput(0)
         xcs.leg2_fixed_rate = usd_rate
-        result = xcs.rate([curve2, curve2, curve, curve], None, fxf, 1)
+        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
         validate = irs.rate(curve2)
         assert abs(result - validate) < 1e-4
-        alias = xcs.spread([curve2, curve2, curve, curve], None, fxf, 1)
+        alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
         assert abs(result - alias) < 1e-8
 
 
@@ -1898,7 +1899,7 @@ class TestFXSwap:
             notional=1e6,
         )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
-        result = fxs.rate([None, curve, None, curve2], None, fxf)
+        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
         assert result == expected
 
     def test_fxswap_npv(self, curve, curve2):
@@ -1916,17 +1917,17 @@ class TestFXSwap:
             notional=1e6,
         )
 
-        assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
+        assert abs(fxs.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)) < 1e-7
 
-        result = fxs.rate([None, curve, None, curve2], None, fxf, fixed_rate=True)
+        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf, fixed_rate=True)
         fxs.leg2_fixed_rate = result
-        assert abs(fxs.npv([None, curve, None, curve2], None, fxf)) < 1e-7
+        assert abs(fxs.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)) < 1e-7
 
     @pytest.mark.parametrize("points, split_notional", [
-        (100, 1e6), (None, 1e6), (100, None)
+        (100, 1e6), (NoInput(0), 1e6), (100, NoInput(0))
     ])
     def test_fxswap_points_raises(self, points, split_notional):
-        if points is not None:
+        if points is not NoInput(0):
             msg = "Cannot initialise FXSwap with `points` but without `fx_fixing`."
             with pytest.raises(ValueError, match=msg):
                 FXSwap(
@@ -1984,10 +1985,10 @@ class TestFXSwap:
             assert fxs._is_split is True
 
     @pytest.mark.parametrize("fx_fixing, points, split_notional, expected", [
-        (None, None, None, Dual(0, "fx_usdnok", [-1712.833785])),
-        (11.0, 1800.0, None, Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
-        (11.0, 1754.5623360395632, None, Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
-        (10.032766762996951, 1754.5623360395632, None, Dual(0, "fx_usdnok", [2654.42027107])),
+        (NoInput(0), NoInput(0), NoInput(0), Dual(0, "fx_usdnok", [-1712.833785])),
+        (11.0, 1800.0, NoInput(0), Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
+        (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
+        (10.032766762996951, 1754.5623360395632, NoInput(0), Dual(0, "fx_usdnok", [2654.42027107])),
         (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, "fx_usdnok", [0.0]))
     ])
     def test_fxswap_parameter_combinations_off_mids_given(
@@ -2020,7 +2021,7 @@ class TestFXSwap:
             notional=1e6,
         )
         assert fxs.points == points
-        result = fxs.npv(curves=[None, curve, None, curve2], fx=fxf, base="usd")
+        result = fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf, base="usd")
         assert expected.__eq_coeffs__(result, 1e-4)
 
     def test_rate_with_fixed_parameters(self, curve, curve2):
@@ -2040,7 +2041,7 @@ class TestFXSwap:
             payment_lag=0,
             notional=1e6,
         )
-        result = fxs.rate([None, curve, None, curve2], fx=fxf)
+        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], fx=fxf)
         expected = 1746.59802
         assert abs(result - expected) < 1e-4
 
@@ -2054,8 +2055,8 @@ class TestFXSwap:
     #                         currency="usd", leg2_currency="nok",
     #                         payment_lag_exchange=0, notional=1e6,
     #                         leg2_fixed_rate=-1.0)
-    #     npv_nok = fxs.npv([None, fxf.curve("usd", "nok"), None, curve2], None, fxf)
-    #     npv_usd = fxs.npv([None, curve, None, fxf.curve("nok", "usd")], None, fxf)
+    #     npv_nok = fxs.npv([NoInput(0), fxf.curve("usd", "nok"), NoInput(0), curve2], NoInput(0), fxf)
+    #     npv_usd = fxs.npv([NoInput(0), curve, NoInput(0), fxf.curve("nok", "usd")], NoInput(0), fxf)
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
 
 
@@ -2310,7 +2311,7 @@ class TestFixedRateBond:
             notional=-100,
             settle=0,
         )
-        result = gilt._npv_local(None, curve, None, None, dt(2010, 11, 26), dt(2010, 11, 25))
+        result = gilt._npv_local(NoInput(0), curve, NoInput(0), NoInput(0), dt(2010, 11, 26), dt(2010, 11, 25))
         expected = 109.229489312983  # npv should match associated test
         assert abs(result - expected) < 1e-6
 
@@ -2409,7 +2410,7 @@ class TestFixedRateBond:
             effective=dt(2001, 1, 1),
             termination=dt(2002, 1, 1),
             frequency="S",
-            calendar=None,
+            calendar=NoInput(0),
             currency="gbp",
             convention="Act365f",
             ex_div=0,
@@ -2432,7 +2433,7 @@ class TestFixedRateBond:
             effective=dt(2001, 1, 1),
             termination=dt(2002, 1, 1),
             frequency="S",
-            calendar=None,
+            calendar=NoInput(0),
             currency="gbp",
             convention="Act365f",
             ex_div=0,
@@ -2480,7 +2481,7 @@ class TestFixedRateBond:
             effective=dt(2001, 1, 1),
             termination=dt(2002, 1, 1),
             frequency="S",
-            calendar=None,
+            calendar=NoInput(0),
             currency="gbp",
             convention="Act365f",
             ex_div=0,
@@ -2503,7 +2504,7 @@ class TestFixedRateBond:
             effective=dt(2001, 1, 1),
             termination=dt(2002, 1, 1),
             frequency="S",
-            calendar=None,
+            calendar=NoInput(0),
             currency="gbp",
             convention="Act365f",
             ex_div=0,
@@ -2591,7 +2592,7 @@ class TestIndexFixedRateBond:
 
     @pytest.mark.parametrize(
         "i_fixings, expected",
-        [(None, 1.161227269), (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00)],
+        [(NoInput(0), 1.161227269), (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00)],
     )
     def test_index_ratio(self, i_fixings, expected):
         i_curve = IndexCurve(
@@ -2654,7 +2655,7 @@ class TestIndexFixedRateBond:
             index_lag=3,
             index_method="daily",
         )
-        result = gilt._npv_local(index_curve, curve, None, None, dt(2010, 11, 26), dt(2010, 11, 25))
+        result = gilt._npv_local(index_curve, curve, NoInput(0), NoInput(0), dt(2010, 11, 26), dt(2010, 11, 25))
         expected = 109.229489312983 * 2.0  # npv should match associated test
         assert abs(result - expected) < 1e-6
 
@@ -2671,7 +2672,7 @@ class TestIndexFixedRateBond:
             convention="ActActICMA",
             fixed_rate=4,
             ex_div=0,
-            calendar=None,
+            calendar=NoInput(0),
             index_method="daily",
             settle=0,
         )
@@ -2834,18 +2835,18 @@ class TestFloatRateBond:
     @pytest.mark.parametrize(
         "curve_spd, method, float_spd, expected",
         [
-            (10, None, 0, 10.055032859883),
-            (500, None, 0, 508.93107035125325),
-            (-200, None, 0, -200.053341848676),
+            (10, NoInput(0), 0, 10.055032859883),
+            (500, NoInput(0), 0, 508.93107035125325),
+            (-200, NoInput(0), 0, -200.053341848676),
             (10, "isda_compounding", 0, 10.00000120),
             (500, "isda_compounding", 0, 500.050371345),
             (-200, "isda_compounding", 0, -200.003309580533),
-            (10, None, 25, 10.055032859883),
-            (500, None, 250, 508.93107035125325),
+            (10, NoInput(0), 25, 10.055032859883),
+            (500, NoInput(0), 250, 508.93107035125325),
             (10, "isda_compounding", 25, 10.00000120),
             (500, "isda_compounding", 250, 500.00635330533544),
-            (10, None, -25, 10.055032859883),
-            (500, None, -250, 508.93107035125325),
+            (10, NoInput(0), -25, 10.055032859883),
+            (500, NoInput(0), -250, 508.93107035125325),
             (10, "isda_compounding", -25, 10.00000120),
             (500, "isda_compounding", -250, 500.16850637415),
         ],
@@ -2988,7 +2989,7 @@ class TestFloatRateBond:
                 ex_div=3,
                 float_spread=100,
                 fixing_method="rfr_observation_shift",
-                fixings=None,
+                fixings=NoInput(0),
                 method_param=5,
                 spread_compound_method="none_simple",
             )
@@ -3012,7 +3013,7 @@ class TestFloatRateBond:
             fixings=fixings,
             method_param=5,
             spread_compound_method="none_simple",
-            calendar=None,
+            calendar=NoInput(0),
         )
         result = bond.accrued(dt(2010, 3, 11))
 
@@ -3022,7 +3023,7 @@ class TestFloatRateBond:
     @pytest.mark.parametrize(
         "fixings",
         [
-            None,
+            NoInput(0),
             [2.0, 2.0],
         ],
     )
@@ -3038,7 +3039,7 @@ class TestFloatRateBond:
             fixings=fixings,
             method_param=5,
             spread_compound_method="none_simple",
-            calendar=None,
+            calendar=NoInput(0),
         )
         with pytest.raises(TypeError, match="`fixings` are not available for RFR"):
             bond.accrued(dt(2010, 3, 11))
@@ -3062,10 +3063,10 @@ class TestFloatRateBond:
             ex_div=0,
             float_spread=0,
             fixing_method="rfr_observation_shift",
-            fixings=None,
+            fixings=NoInput(0),
             method_param=0,
             spread_compound_method="none_simple",
-            calendar=None,
+            calendar=NoInput(0),
         )
         result = bond.accrued(dt(2010, 3, 16))
         assert result == 0.0
@@ -3158,10 +3159,10 @@ class TestFloatRateBond:
             settle=2,
         )
         with pytest.raises(ValueError, match="`forward_settlement` needed to "):
-            bond.rate(None, metric="fwd_clean_price", forward_settlement=None)
+            bond.rate(NoInput(0), metric="fwd_clean_price", forward_settlement=NoInput(0))
 
         with pytest.raises(ValueError, match="`metric` must be in"):
-            bond.rate(None, metric="BAD")
+            bond.rate(NoInput(0), metric="BAD")
 
     def test_forecast_ibor(self, curve):
         f_curve = LineCurve({dt(2022, 1, 1): 3.0, dt(2022, 2, 1): 4.0})
@@ -3238,7 +3239,7 @@ class TestBondFuture:
         assert abs(result[0] - exp) < 1e-6
 
     def test_dlv_screen_print(self):
-        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=NoInput(0))
         bonds = [
             FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
             FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
@@ -3288,7 +3289,7 @@ class TestBondFuture:
         assert future.notional == -1e6
 
     def test_dirty_in_methods(self):
-        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=NoInput(0))
         bonds = [
             FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
             FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
@@ -3305,7 +3306,7 @@ class TestBondFuture:
         assert result == expected
 
     def test_delivery_in_methods(self):
-        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=NoInput(0))
         bonds = [
             FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
             FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
@@ -3331,7 +3332,7 @@ class TestBondFuture:
         assert result == expected
 
     def test_ctd_index(self):
-        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=None)
+        kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=NoInput(0))
         bonds = [
             FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
             FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
@@ -3343,7 +3344,7 @@ class TestBondFuture:
         assert future.ctd_index(112.98, prices, dt(2000, 3, 16)) == 0
 
     @pytest.mark.parametrize("metric, expected", [("future_price", 112.98), ("ytm", 5.301975)])
-    @pytest.mark.parametrize("delivery", [None, dt(2000, 6, 30)])
+    @pytest.mark.parametrize("delivery", [NoInput(0), dt(2000, 6, 30)])
     def test_futures_rates(self, metric, expected, delivery):
         curve = Curve(
             nodes={
@@ -3361,7 +3362,7 @@ class TestBondFuture:
             ex_div=7,
             frequency="S",
             convention="ActActICMA",
-            calendar=None,
+            calendar=NoInput(0),
             settle=1,
             curves="gilt_curve",
         )
@@ -3390,7 +3391,7 @@ class TestBondFuture:
             delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
             basket=bonds,
         )
-        result = future.rate(None, solver, metric=metric, delivery=delivery)
+        result = future.rate(NoInput(0), solver, metric=metric, delivery=delivery)
         assert abs(result - expected) < 1e-3
 
     def test_future_rate_raises(self):
@@ -3398,7 +3399,7 @@ class TestBondFuture:
             ex_div=7,
             frequency="S",
             convention="ActActICMA",
-            calendar=None,
+            calendar=NoInput(0),
             settle=1,
             curves="gilt_curve",
         )
@@ -3433,7 +3434,7 @@ class TestBondFuture:
             ex_div=7,
             frequency="S",
             convention="ActActICMA",
-            calendar=None,
+            calendar=NoInput(0),
             settle=1,
             curves="gilt_curve",
             currency="gbp",
@@ -3467,20 +3468,20 @@ class TestBondFuture:
             contracts=10,
             currency="gbp",
         )
-        result = future.npv(None, solver, local=False)
+        result = future.npv(NoInput(0), solver, local=False)
         expected = 1129798.770872
         assert abs(result - expected) < 1e-5
 
-        result2 = future.npv(None, solver, local=True)
+        result2 = future.npv(NoInput(0), solver, local=True)
         assert abs(result2["gbp"] - expected) < 1e-5
 
-    @pytest.mark.parametrize("delivery", [None, dt(2000, 6, 30)])
+    @pytest.mark.parametrize("delivery", [NoInput(0), dt(2000, 6, 30)])
     def test_futures_duration_and_convexity(self, delivery):
         kws = dict(
             ex_div=7,
             frequency="S",
             convention="ActActICMA",
-            calendar=None,
+            calendar=NoInput(0),
             settle=1,
             curves="gilt_curve",
         )
@@ -3567,7 +3568,7 @@ class TestPricingMechanism:
             "S",
             currency="usd",
             leg2_currency="eur",
-            curves=[curve, None, curve2, None],
+            curves=[curve, NoInput(0), curve2, NoInput(0)],
             **kwargs,
         )
         fxf = FXForwards(
@@ -3632,8 +3633,8 @@ class TestPortfolio:
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
     def test_fly_npv(self, curve, mechanism):
-        mechanism = curve if mechanism else None
-        inverse = curve if mechanism is None else None
+        mechanism = curve if mechanism else NoInput(0)
+        inverse = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0, curves=mechanism)
@@ -3642,8 +3643,8 @@ class TestFly:
 
     @pytest.mark.parametrize("mechanism", [False, True])
     def test_fly_rate(self, curve, mechanism):
-        mechanism = curve if mechanism else None
-        inv = curve if mechanism is None else None
+        mechanism = curve if mechanism else NoInput(0)
+        inv = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0, curves=mechanism)
@@ -3674,8 +3675,8 @@ class TestFly:
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
     def test_spread_npv(self, curve, mechanism):
-        mechanism = curve if mechanism else None
-        inverse = curve if mechanism is None else None
+        mechanism = curve if mechanism else NoInput(0)
+        inverse = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         spd = Spread(irs1, irs2)
@@ -3683,8 +3684,8 @@ class TestSpread:
 
     @pytest.mark.parametrize("mechanism", [False, True])
     def test_spread_rate(self, curve, mechanism):
-        mechanism = curve if mechanism else None
-        inverse = curve if mechanism is None else None
+        mechanism = curve if mechanism else NoInput(0)
+        inverse = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         spd = Spread(irs1, irs2)
