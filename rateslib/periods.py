@@ -811,7 +811,7 @@ class FloatPeriod(BasePeriod):
         *args,
         float_spread: Union[float, NoInput] = NoInput(0),
         fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput(0)] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
         method_param: Union[int, NoInput] = NoInput(0),
         spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
