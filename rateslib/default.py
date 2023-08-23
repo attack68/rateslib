@@ -33,7 +33,7 @@ INSTRUMENT_SPECS = {
         roll=None,
         leg2_roll=None,
         payment_lag=2,
-        leg2_payment_lag=2
+        leg2_payment_lag=2,
     )
 }
 
@@ -53,7 +53,9 @@ class Fixings:
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
             df = read_csv(target)
-            df["reference_date"] = df["reference_date"].map(lambda x: datetime.strptime(x, "%d-%m-%Y"))
+            df["reference_date"] = df["reference_date"].map(
+                lambda x: datetime.strptime(x, "%d-%m-%Y")
+            )
             df = df.set_index("reference_date")
         else:
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")

@@ -410,12 +410,7 @@ class FixedPeriod(BasePeriod):
 
     """
 
-    def __init__(
-        self,
-        *args,
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs
-    ):
+    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
@@ -909,9 +904,7 @@ class FloatPeriod(BasePeriod):
         """
         disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
-            raise TypeError(
-                "`curves` have not been supplied correctly."
-            )
+            raise TypeError("`curves` have not been supplied correctly.")
         if self.payment < disc_curve_.node_dates[0]:
             return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
@@ -1053,8 +1046,7 @@ class FloatPeriod(BasePeriod):
         dcf_vals = dcf_vals.set_axis(rates.index)
         if self.spread_compound_method != "none_simple":
             raise ValueError(
-                "`spread_compound` method must be 'none_simple' in an RFR averaging "
-                "period."
+                "`spread_compound` method must be 'none_simple' in an RFR averaging " "period."
             )
         else:
             return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
@@ -1227,11 +1219,13 @@ class FloatPeriod(BasePeriod):
 
         if approximate:
             if self.fixings is not NoInput.blank:
-                warnings.warn("Cannot approximate a fixings table when some published fixings "
-                              f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
-                              f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
-                              f"period.",
-                              UserWarning)
+                warnings.warn(
+                    "Cannot approximate a fixings table when some published fixings "
+                    f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
+                    f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
+                    f"period.",
+                    UserWarning,
+                )
             else:
                 return self._fixings_table_fast(curve, disc_curve)
 
@@ -1477,7 +1471,7 @@ class FloatPeriod(BasePeriod):
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
             if "avg" in self.fixing_method:
-                drdri = (1 / n)
+                drdri = 1 / n
             elif self.spread_compound_method == "none_simple":
                 drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
@@ -1555,7 +1549,12 @@ class FloatPeriod(BasePeriod):
 
     def _get_method_dcf_markers(self, curve: Union[Curve, LineCurve], endpoints=False):
         # Depending upon method get the observation dates and dcf dates
-        if self.fixing_method in ["rfr_payment_delay", "rfr_lockout", "rfr_payment_delay_avg", "rfr_lockout_avg"]:
+        if self.fixing_method in [
+            "rfr_payment_delay",
+            "rfr_lockout",
+            "rfr_payment_delay_avg",
+            "rfr_lockout_avg",
+        ]:
             start_obs, end_obs = self.start, self.end
             start_dcf, end_dcf = self.start, self.end
         elif self.fixing_method in ["rfr_observation_shift", "rfr_observation_shift_avg"]:
@@ -2054,7 +2053,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_only = False
-        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
@@ -2225,7 +2226,9 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     ):
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
@@ -2289,7 +2292,7 @@ def _disc_from_curve(curve: Curve, disc_curve: Union[Curve, NoInput]) -> Curve:
 
 
 def _disc_maybe_from_curve(
-        curve: Union[Curve, NoInput], disc_curve: Union[Curve, NoInput]
+    curve: Union[Curve, NoInput], disc_curve: Union[Curve, NoInput]
 ) -> Union[Curve, NoInput]:
     if disc_curve is NoInput.blank:
         _: Curve = curve

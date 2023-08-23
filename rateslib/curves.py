@@ -127,7 +127,7 @@ class Serialize:
         if serial["t"] is not None:
             serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
 
-        serial ={k: v for k, v in serial.items() if v is not None}
+        serial = {k: v for k, v in serial.items() if v is not None}
         return cls(**{**serial, **kwargs})
 
     def copy(self):
@@ -411,7 +411,11 @@ class Curve(Serialize, PlotCurve):
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
-        self.interpolation = defaults.interpolation[type(self).__name__] if interpolation is NoInput.blank else interpolation
+        self.interpolation = (
+            defaults.interpolation[type(self).__name__]
+            if interpolation is NoInput.blank
+            else interpolation
+        )
 
         # Parameters for the rate derivation
         self.convention = defaults.convention if convention is NoInput.blank else convention
@@ -1295,7 +1299,7 @@ class LineCurve(Curve):
         spread: float,
         id: Optional[str] = None,
         composite: bool = True,
-        collateral: Optional[str] = None
+        collateral: Optional[str] = None,
     ):
         """
         Raise or lower the curve in parallel by a set number of basis points.

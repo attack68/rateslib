@@ -190,7 +190,9 @@ class BaseLeg(metaclass=ABCMeta):
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
 
         self.payment_lag_exchange = (
-            defaults.payment_lag_exchange if payment_lag_exchange is NoInput.blank else payment_lag_exchange
+            defaults.payment_lag_exchange
+            if payment_lag_exchange is NoInput.blank
+            else payment_lag_exchange
         )
         self.initial_exchange = initial_exchange
         self.final_exchange = final_exchange
@@ -388,7 +390,9 @@ class BaseLeg(metaclass=ABCMeta):
 
         return _
 
-    def _spread_isda_dual2(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):  # pragma: no cover
+    def _spread_isda_dual2(
+        self, target_npv, fore_curve, disc_curve, fx=NoInput(0)
+    ):  # pragma: no cover
         # This method is unused and untested, superseded by _spread_isda_approx_rate
 
         # This method creates a dual2 variable for float spread and obtains derivatives automatically
@@ -583,12 +587,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
        fixed_leg_exch.npv(curve)
     """
 
-    def __init__(
-        self,
-        *args,
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs
-    ):
+    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         self._fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
         self._set_periods()
@@ -1317,7 +1316,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
                 defaults.headers["npv"]: npv,
                 defaults.headers["fx"]: float(fx),
                 defaults.headers["npv_fx"]: npv_fx,
-                defaults.headers["collateral"]: collateral
+                defaults.headers["collateral"]: collateral,
             }
         ]
         return DataFrame.from_records(seq)
@@ -1605,7 +1604,9 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         index_lag: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        )
         self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
@@ -1772,7 +1773,9 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
     ) -> None:
         self._fixed_rate = fixed_rate
         self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
-        self.index_method = defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        self.index_method = (
+            defaults.index_method if index_method is NoInput.blank else index_method.lower()
+        )
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)
@@ -2341,6 +2344,7 @@ class CustomLeg(BaseLeg):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         return super().analytic_delta(*args, **kwargs)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

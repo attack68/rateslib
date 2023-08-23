@@ -1456,8 +1456,7 @@ class Solver(Gradients):
         return df.loc[:, sorted_cols].astype("float64")
 
     def _get_base_and_fx(
-        self, base: Union[str, NoInput],
-        fx: Union[FXForwards, FXRates, float, NoInput]
+        self, base: Union[str, NoInput], fx: Union[FXForwards, FXRates, float, NoInput]
     ):
         if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
             raise ValueError(
