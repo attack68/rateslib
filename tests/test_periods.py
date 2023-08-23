@@ -1443,7 +1443,7 @@ class TestCashflow:
     def test_cashflow_npv_raises(self, curve):
         with pytest.raises(
             TypeError,
-            match=re.escape("Cashflow.npv() missing 1 required positional argument: 'curve'")
+            match="`curves` have not been supplied correctly."
         ):
             cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
             cashflow.npv()

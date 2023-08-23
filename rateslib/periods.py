@@ -1704,7 +1704,7 @@ class Cashflow:
 
     def npv(
         self,
-        curve: Curve,
+        curve: Union[Curve, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -1715,11 +1715,9 @@ class Cashflow:
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
-        # if disc_curve is None:
-        #     raise TypeError(
-        #         "`curves` have not been supplied correctly. NoneType has been detected."
-        #     )
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
         if local:
             return {self.currency: value}
