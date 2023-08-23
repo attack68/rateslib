@@ -840,7 +840,7 @@ class FloatPeriod(BasePeriod):
         self,
         curve: Union[Curve, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards] = 1.0,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
     ):
         """
@@ -900,7 +900,7 @@ class FloatPeriod(BasePeriod):
         self,
         curve: Union[Curve, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput(0)] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
@@ -2222,7 +2222,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         index_method: Union[str, NoInput] = NoInput(0),
         index_lag: Union[int, NoInput] = NoInput(0),
         index_only: bool = False,
-        end: Union[datetime, NoInput(0)] = NoInput(0),
+        end: Union[datetime, NoInput] = NoInput(0),
         **kwargs,
     ):
         self.index_base = index_base
