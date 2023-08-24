@@ -3929,39 +3929,46 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
         )
-        self.curves = curves
+        self.kwargs = _push(spec, self.kwargs)
 
-        notional = defaults.notional if notional is NoInput.blank else notional
-        if payment_lag is NoInput.blank:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
-        for attribute in [
-            "effective",
-            "termination",
-            "frequency",
-            "stub",
-            "front_stub",
-            "back_stub",
-            "roll",
-            "eom",
-            "modifier",
-            "calendar",
-            "payment_lag",
-            "convention",
-            "notional",
-            "amortization",
-            "currency",
-        ]:
-            leg2_val, val = vars()[f"leg2_{attribute}"], vars()[attribute]
-            if leg2_val is NoInput.inherit:
-                _ = val
-            elif leg2_val == NoInput.negate:
-                _ = NoInput(0) if val is NoInput(0) else val * -1
-            else:
-                _ = leg2_val
-            self.kwargs[attribute] = val
-            self.kwargs[f"leg2_{attribute}"] = _
-            # setattr(self, attribute, val)
-            # setattr(self, f"leg2_{attribute}", _)
+        self.curves = curves
+        self.spec = spec
+
+        self.kwargs["notional"] = defaults.notional if self.kwargs["notional"] is NoInput.blank else self.kwargs["notional"]
+        if self.kwargs["notional"] is NoInput.blank:
+            self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
+
+        self.kwargs = _inherit_or_negate(self.kwargs)
+
+        #
+        # for attribute in [
+        #     "effective",
+        #     "termination",
+        #     "frequency",
+        #     "stub",
+        #     "front_stub",
+        #     "back_stub",
+        #     "roll",
+        #     "eom",
+        #     "modifier",
+        #     "calendar",
+        #     "payment_lag",
+        #     "convention",
+        #     "notional",
+        #     "amortization",
+        #     "currency",
+        # ]:
+        #     leg2_val, val = self.kwargs[f"leg2_{attribute}"], self.kwargs[attribute]
+        #     if leg2_val is NoInput.inherit:
+        #         _ = val
+        #     elif leg2_val == NoInput.negate:
+        #         _ = NoInput(0) if val is NoInput(0) else val * -1
+        #     else:
+        #         _ = leg2_val
+        #     self.kwargs[attribute] = val
+        #     self.kwargs[f"leg2_{attribute}"] = _
+        #     # setattr(self, attribute, val)
+        #     # setattr(self, f"leg2_{attribute}", _)
 
     @abstractmethod
     def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
@@ -4122,6 +4129,8 @@ class IRS(BaseDerivative):
                 leg2_method_param=leg2_method_param,
             )
         )
+        self.kwargs = _push(self.spec, self.kwargs)
+
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
@@ -7706,7 +7715,28 @@ def _push(spec: Optional[str], kwargs: dict):
         return kwargs
     else:
         try:
-            default_kwargs = defaults.spec[spec.lower()]
+            spec_kwargs = defaults.spec[spec.lower()]
         except KeyError:
             raise ValueError(f"Given `spec`, '{spec}', cannot be found in defaults.")
-        return {**default_kwargs, **kwargs}
+
+        user = {k: v for k, v in kwargs.items() if v not in [NoInput(0), NoInput(1), NoInput(-1)]}
+        return {**kwargs, **spec_kwargs, **user}
+
+
+def _inherit_or_negate(kwargs: dict):
+    """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
+
+    def _replace(k, v):
+        # either inherit or negate the value in leg2 from that in leg1
+        if "leg2_" in k:
+            _ = kwargs[k[5:]]
+            if v is NoInput(-1):
+                if _ is NoInput(0):
+                    return NoInput(0)
+                else:
+                    return _ * -1.0
+            elif v is NoInput(1):
+                return _
+        return v
+
+    return {k: _replace(k, v) for k, v in kwargs.items()}

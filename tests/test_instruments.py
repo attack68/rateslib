@@ -793,6 +793,18 @@ class TestIRS:
         with pytest.raises(AttributeError, match="Cannot set `leg2_index_base`"):
             irs.leg2_index_base = 1.0
 
+    def test_spec(self):
+         irs = IRS(
+             effective=dt(2022, 1, 1),
+             termination="2Y",
+             calendar="tgt",
+             frequency="Q",
+             leg2_method_param=4,
+             spec="testing_only",
+         )
+         expected = {}
+         assert irs.kwargs == expected
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve):

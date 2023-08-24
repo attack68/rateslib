@@ -11,7 +11,36 @@ from datetime import datetime
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+class NoInput(Enum):
+    blank = 0
+    inherit = 1
+    negate = -1
+
+
 INSTRUMENT_SPECS = {
+    "use_only_for_tests": dict(
+        currency="TES",
+        frequency="M",
+        leg2_frequency="M",
+        convention="TEST",
+        leg2_convention="TEST",
+        calendar="nyc,tgt,ldn",
+        leg2_calendar="nyc,tgt,ldn",
+        modifier="P",
+        leg2_modifier="P",
+        stub="SHORTFRONT",
+        leg2_stub="SHORTFRONT",
+        front_stub=NoInput(0),
+        leg2_front_stub=NoInput(0),
+        back_stub=NoInput(0),
+        leg2_back_stub=NoInput(0),
+        eom=False,
+        leg2_eom=False,
+        roll=NoInput(0),
+        leg2_roll=NoInput(0),
+        payment_lag=2,
+        leg2_payment_lag=2,
+    ),
     "usd_sofr_irs": dict(
         currency="usd",
         frequency="A",
@@ -36,12 +65,6 @@ INSTRUMENT_SPECS = {
         leg2_payment_lag=2,
     )
 }
-
-
-class NoInput(Enum):
-    blank = 0
-    inherit = 1
-    negate = -1
 
 
 class Fixings:
@@ -223,6 +246,7 @@ class Defaults:
             setattr(self, attr, getattr(base, attr))
 
     spec = {
+        "testing_only": INSTRUMENT_SPECS["use_only_for_tests"],
         "usd_irs": INSTRUMENT_SPECS["usd_sofr_irs"],
         "sofr": INSTRUMENT_SPECS["usd_sofr_irs"],
     }
