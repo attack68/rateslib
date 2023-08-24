@@ -200,6 +200,7 @@ class Defaults:
         "testing_only": INSTRUMENT_SPECS["use_only_for_tests"],
         "us_irs": INSTRUMENT_SPECS["us_irs"],
         "sofr": INSTRUMENT_SPECS["us_irs"],
+        "eu_sbs_6m3m": INSTRUMENT_SPECS["eu_sbs_6m3m"],
     }
 
 

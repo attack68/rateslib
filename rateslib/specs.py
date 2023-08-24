@@ -38,6 +38,34 @@ SOFR_FLOAT_AVG = dict(
     spread_compound_method="none_simple",
 )
 
+EURIBOR_3M = dict(
+    frequency="Q",
+    stub="SHORTFRONT",
+    eom=False,
+    modifier="MF",
+    calendar="tgt",
+    payment_lag=0,
+    currency="eur",
+    convention="Act360",
+    fixing_method="ibor",
+    method_param=2,
+    spread_compound_method="none_simple",
+)
+
+EURIBOR_6M = dict(
+    frequency="S",
+    stub="SHORTFRONT",
+    eom=False,
+    modifier="MF",
+    calendar="tgt",
+    payment_lag=0,
+    currency="eur",
+    convention="Act360",
+    fixing_method="ibor",
+    method_param=2,
+    spread_compound_method="none_simple",
+)
+
 INSTRUMENT_SPECS = {
     "use_only_for_tests": dict(
         currency="TES",
@@ -62,5 +90,8 @@ INSTRUMENT_SPECS = {
     ),
     "us_irs_avg": dict(
         **SOFR_FIXED, **{"leg2_"+k: v for k, v in SOFR_FLOAT_AVG.items()}
-    )
+    ),
+    "eu_sbs_6m3m": dict(
+        **EURIBOR_6M, **{"leg2_"+k: v for k, v in EURIBOR_3M.items()}
+    ),
 }

@@ -793,58 +793,6 @@ class TestIRS:
         with pytest.raises(AttributeError, match="Cannot set `leg2_index_base`"):
             irs.leg2_index_base = 1.0
 
-    def test_spec(self):
-         irs = IRS(
-             effective=dt(2022, 1, 1),
-             termination=dt(2024, 2, 26),
-             calendar="tgt",
-             frequency="Q",
-             leg2_method_param=0,
-             notional=250.0,
-             spec="testing_only",
-         )
-         expected = dict(
-             effective=dt(2022, 1, 1),
-             termination=dt(2024, 2, 26),
-             frequency="Q",
-             stub="LONGFRONT",
-             front_stub=NoInput(0),
-             back_stub=NoInput(0),
-             roll=NoInput(0),
-             eom=False,
-             modifier="P",
-             calendar="tgt",
-             payment_lag=4,
-             notional=250.0,
-             currency="TES",
-             amortization=NoInput(0),
-             convention="TEST",
-             leg2_effective=dt(2022, 1, 1),
-             leg2_termination=dt(2024, 2, 26),
-             leg2_frequency="Q",
-             leg2_stub="LONGBACK",
-             leg2_front_stub=NoInput(0),
-             leg2_back_stub=NoInput(0),
-             leg2_roll=1,
-             leg2_eom=False,
-             leg2_modifier="MP",
-             leg2_calendar="tgt",
-             leg2_payment_lag=3,
-             leg2_notional=-250.0,
-             leg2_currency="TES",
-             leg2_convention="TEST2",
-             leg2_amortization=NoInput(0),
-
-
-             fixed_rate=NoInput(0),
-             leg2_fixing_method=NoInput(0),
-             leg2_method_param=0,
-             leg2_spread_compound_method=NoInput(0),
-             leg2_fixings=NoInput(0),
-             leg2_float_spread=NoInput(0),
-         )
-         assert irs.kwargs == expected
-
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve):
@@ -3769,6 +3717,82 @@ class TestSensitivities:
 
         with pytest.raises(ValueError, match="`solver` is required"):
             irs.gamma()
+
+
+class TestSpec:
+
+    def test_spec_overwrites(self):
+         irs = IRS(
+             effective=dt(2022, 1, 1),
+             termination=dt(2024, 2, 26),
+             calendar="tgt",
+             frequency="Q",
+             leg2_method_param=0,
+             notional=250.0,
+             spec="testing_only",
+         )
+         expected = dict(
+             effective=dt(2022, 1, 1),
+             termination=dt(2024, 2, 26),
+             frequency="Q",
+             stub="LONGFRONT",
+             front_stub=NoInput(0),
+             back_stub=NoInput(0),
+             roll=NoInput(0),
+             eom=False,
+             modifier="P",
+             calendar="tgt",
+             payment_lag=4,
+             notional=250.0,
+             currency="TES",
+             amortization=NoInput(0),
+             convention="TEST",
+             leg2_effective=dt(2022, 1, 1),
+             leg2_termination=dt(2024, 2, 26),
+             leg2_frequency="M",
+             leg2_stub="LONGBACK",
+             leg2_front_stub=NoInput(0),
+             leg2_back_stub=NoInput(0),
+             leg2_roll=1,
+             leg2_eom=False,
+             leg2_modifier="MP",
+             leg2_calendar="nyc,tgt,ldn",
+             leg2_payment_lag=3,
+             leg2_notional=-250.0,
+             leg2_currency="TES",
+             leg2_convention="TEST2",
+             leg2_amortization=NoInput(0),
+             fixed_rate=NoInput(0),
+             leg2_fixing_method=NoInput(0),
+             leg2_method_param=0,
+             leg2_spread_compound_method=NoInput(0),
+             leg2_fixings=NoInput(0),
+             leg2_float_spread=NoInput(0),
+         )
+         assert irs.kwargs == expected
+
+    def test_irs(self):
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="us_irs",
+            convention="30e360"
+        )
+        assert irs.kwargs["convention"] == "30e360"
+        assert irs.kwargs["leg2_convention"] == "Act360"
+        assert irs.kwargs["currency"] == "usd"
+
+    def test_sbs(self):
+        sbs = SBS(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="eu_sbs_6m3m",
+            convention="30e360",
+        )
+        assert sbs.kwargs["convention"] == "30e360"
+        assert sbs.kwargs["leg2_convention"] == "Act360"
+        assert sbs.kwargs["currency"] == "eur"
+        assert sbs.kwargs["fixing_method"] == "ibor"
 
 
 @pytest.mark.parametrize("inst, expected", [

@@ -3929,11 +3929,10 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
         )
-        self.kwargs = _inherit_or_negate(self.kwargs, ignore_blank=True)  # will inherit or negate pure user input
-        self.kwargs = _push(spec, self.kwargs)  # will add spec args to missing values
+        self.kwargs = _push(spec, self.kwargs)
         # set some defaults if missing
         self.kwargs["notional"] = defaults.notional if self.kwargs["notional"] is NoInput.blank else self.kwargs["notional"]
-        if self.kwargs["notional"] is NoInput.blank:
+        if self.kwargs["payment_lag"] is NoInput.blank:
             self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
         self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
@@ -4119,17 +4118,15 @@ class IRS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
         )
-        self.kwargs = _push(self.spec, self.kwargs)
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
 
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
@@ -5330,20 +5327,19 @@ class SBS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
+        user_kwargs = dict(
+            float_spread=float_spread,
+            spread_compound_method=spread_compound_method,
+            fixings=fixings,
+            fixing_method=fixing_method,
+            method_param=method_param,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
         self._float_spread = float_spread
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
@@ -7701,7 +7697,11 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 
 
 def _get(kwargs: dict, leg: int = 1):
-    """A parser to return kwarg dicts for relevant legs. Internal structuring only."""
+    """
+    A parser to return kwarg dicts for relevant legs.
+    Internal structuring only.
+    Will return kwargs relevant to leg1 OR leg2.
+    """
     if leg == 1:
         _ = {k: v for k, v in kwargs.items() if not "leg2" in k}
     else:
@@ -7710,7 +7710,10 @@ def _get(kwargs: dict, leg: int = 1):
 
 
 def _push(spec: Optional[str], kwargs: dict):
-    """Push user specified kwargs to a default specification"""
+    """
+    Push user specified kwargs to a default specification.
+    Values from the `spec` dict will not overwrite specific user values already in `kwargs`.
+    """
     if spec is NoInput.blank:
         return kwargs
     else:
@@ -7723,6 +7726,14 @@ def _push(spec: Optional[str], kwargs: dict):
         return {**kwargs, **spec_kwargs, **user}
 
 
+def _update_not_noinput(base_kwargs, new_kwargs):
+    """
+    Update the `base_kwargs` with `new_kwargs` unless those new values are NoInput.
+    """
+    updaters = {k: v for k, v in new_kwargs.items() if k not in base_kwargs or not isinstance(v, NoInput)}
+    return {**base_kwargs, **updaters}
+
+
 def _inherit_or_negate(kwargs: dict, ignore_blank=False):
     """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
 
@@ -7732,7 +7743,11 @@ def _inherit_or_negate(kwargs: dict, ignore_blank=False):
             if not isinstance(v, NoInput):
                 return v  # do nothing if the attribute is an input
 
-            leg1_v = kwargs[k[5:]]
+            try:
+                leg1_v = kwargs[k[5:]]
+            except KeyError:
+                return v
+
             if leg1_v is NoInput.blank:
                 if ignore_blank:
                     return v  # this allows an inheritor or negator to be called a second time
