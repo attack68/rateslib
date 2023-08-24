@@ -3929,16 +3929,16 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
         )
-        self.kwargs = _push(spec, self.kwargs)
-
-        self.curves = curves
-        self.spec = spec
-
+        self.kwargs = _inherit_or_negate(self.kwargs, ignore_blank=True)  # will inherit or negate pure user input
+        self.kwargs = _push(spec, self.kwargs)  # will add spec args to missing values
+        # set some defaults if missing
         self.kwargs["notional"] = defaults.notional if self.kwargs["notional"] is NoInput.blank else self.kwargs["notional"]
         if self.kwargs["notional"] is NoInput.blank:
             self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
+        self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
-        self.kwargs = _inherit_or_negate(self.kwargs)
+        self.curves = curves
+        self.spec = spec
 
         #
         # for attribute in [
@@ -7723,20 +7723,26 @@ def _push(spec: Optional[str], kwargs: dict):
         return {**kwargs, **spec_kwargs, **user}
 
 
-def _inherit_or_negate(kwargs: dict):
+def _inherit_or_negate(kwargs: dict, ignore_blank=False):
     """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
 
     def _replace(k, v):
         # either inherit or negate the value in leg2 from that in leg1
         if "leg2_" in k:
-            _ = kwargs[k[5:]]
-            if v is NoInput(-1):
-                if _ is NoInput(0):
-                    return NoInput(0)
+            if not isinstance(v, NoInput):
+                return v  # do nothing if the attribute is an input
+
+            leg1_v = kwargs[k[5:]]
+            if leg1_v is NoInput.blank:
+                if ignore_blank:
+                    return v  # this allows an inheritor or negator to be called a second time
                 else:
-                    return _ * -1.0
+                    return NoInput(0)
+
+            if v is NoInput(-1):
+                return leg1_v * -1.0
             elif v is NoInput(1):
-                return _
-        return v
+                return leg1_v
+        return v  # do nothing to leg1 attributes
 
     return {k: _replace(k, v) for k, v in kwargs.items()}

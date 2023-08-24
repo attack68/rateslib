@@ -5,6 +5,7 @@ import os
 from enum import Enum
 from packaging import version
 from datetime import datetime
+from rateslib.specs import INSTRUMENT_SPECS
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -15,56 +16,6 @@ class NoInput(Enum):
     blank = 0
     inherit = 1
     negate = -1
-
-
-INSTRUMENT_SPECS = {
-    "use_only_for_tests": dict(
-        currency="TES",
-        frequency="M",
-        leg2_frequency="M",
-        convention="TEST",
-        leg2_convention="TEST",
-        calendar="nyc,tgt,ldn",
-        leg2_calendar="nyc,tgt,ldn",
-        modifier="P",
-        leg2_modifier="P",
-        stub="SHORTFRONT",
-        leg2_stub="SHORTFRONT",
-        front_stub=NoInput(0),
-        leg2_front_stub=NoInput(0),
-        back_stub=NoInput(0),
-        leg2_back_stub=NoInput(0),
-        eom=False,
-        leg2_eom=False,
-        roll=NoInput(0),
-        leg2_roll=NoInput(0),
-        payment_lag=2,
-        leg2_payment_lag=2,
-    ),
-    "usd_sofr_irs": dict(
-        currency="usd",
-        frequency="A",
-        leg2_frequency="A",
-        convention="Act360",
-        leg2_convention="Act360",
-        calendar="nyc",
-        leg2_calendar="nyc",
-        modifier="MF",
-        leg2_modifier="MF",
-        stub="SHORTFRONT",
-        leg2_stub="SHORTFRONT",
-        front_stub=None,
-        leg2_front_stub=None,
-        back_stub=None,
-        leg_back_stub=None,
-        eom=False,
-        leg2_eom=False,
-        roll=None,
-        leg2_roll=None,
-        payment_lag=2,
-        leg2_payment_lag=2,
-    )
-}
 
 
 class Fixings:
@@ -247,8 +198,8 @@ class Defaults:
 
     spec = {
         "testing_only": INSTRUMENT_SPECS["use_only_for_tests"],
-        "usd_irs": INSTRUMENT_SPECS["usd_sofr_irs"],
-        "sofr": INSTRUMENT_SPECS["usd_sofr_irs"],
+        "us_irs": INSTRUMENT_SPECS["us_irs"],
+        "sofr": INSTRUMENT_SPECS["us_irs"],
     }
 
 
