@@ -3776,23 +3776,71 @@ class TestSpec:
             effective=dt(2022, 1, 1),
             termination="1Y",
             spec="us_irs",
-            convention="30e360"
+            convention="30e360",
+            fixed_rate=2.0
         )
         assert irs.kwargs["convention"] == "30e360"
         assert irs.kwargs["leg2_convention"] == "Act360"
         assert irs.kwargs["currency"] == "usd"
+        assert irs.kwargs["fixed_rate"] == 2.0
 
     def test_sbs(self):
-        sbs = SBS(
+        inst = SBS(
             effective=dt(2022, 1, 1),
             termination="1Y",
             spec="eu_sbs_6m3m",
             convention="30e360",
         )
-        assert sbs.kwargs["convention"] == "30e360"
-        assert sbs.kwargs["leg2_convention"] == "Act360"
-        assert sbs.kwargs["currency"] == "eur"
-        assert sbs.kwargs["fixing_method"] == "ibor"
+        assert inst.kwargs["convention"] == "30e360"
+        assert inst.kwargs["leg2_convention"] == "Act360"
+        assert inst.kwargs["currency"] == "eur"
+        assert inst.kwargs["fixing_method"] == "ibor"
+
+    def test_zcis(self):
+        inst = ZCIS(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="eu_zcis",
+            leg2_calendar="nyc,tgt",
+            calendar="nyc,tgt",
+        )
+        assert inst.kwargs["convention"] == "1+"
+        assert inst.kwargs["leg2_convention"] == "1+"
+        assert inst.kwargs["currency"] == "eur"
+        assert inst.kwargs["leg2_index_method"] == "monthly"
+        assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
+
+    def test_zcs(self):
+        inst = ZCS(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="gb_zcs",
+            leg2_calendar="nyc,tgt",
+            calendar="nyc,tgt",
+            fixed_rate=3.0,
+        )
+        assert inst.kwargs["convention"] == "Act365F"
+        assert inst.kwargs["leg2_frequency"] == "Z"
+        assert inst.kwargs["currency"] == "gbp"
+        assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
+        assert inst.kwargs["fixed_rate"] == 3.0
+        assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
+
+    def test_iirs(self):
+        inst = IIRS(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="gb_zcs",
+            leg2_calendar="nyc,tgt",
+            calendar="nyc,tgt",
+            fixed_rate=3.0,
+        )
+        assert inst.kwargs["convention"] == "Act365F"
+        assert inst.kwargs["leg2_frequency"] == "Z"
+        assert inst.kwargs["currency"] == "gbp"
+        assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
+        assert inst.kwargs["fixed_rate"] == 3.0
+        assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
 
 @pytest.mark.parametrize("inst, expected", [

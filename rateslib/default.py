@@ -197,10 +197,18 @@ class Defaults:
             setattr(self, attr, getattr(base, attr))
 
     spec = {
-        "testing_only": INSTRUMENT_SPECS["use_only_for_tests"],
+        #standard names
         "us_irs": INSTRUMENT_SPECS["us_irs"],
-        "sofr": INSTRUMENT_SPECS["us_irs"],
+
         "eu_sbs_6m3m": INSTRUMENT_SPECS["eu_sbs_6m3m"],
+        "eu_zcis": INSTRUMENT_SPECS["eu_zcis"],
+
+        "gb_zcs": INSTRUMENT_SPECS["gb_zcs"],
+
+        # pseudonyms
+        "sofr": INSTRUMENT_SPECS["us_irs"],
+
+        "testing_only": INSTRUMENT_SPECS["use_only_for_tests"],
     }
 
 

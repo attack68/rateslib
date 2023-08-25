@@ -4813,16 +4813,15 @@ class ZCS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
@@ -5064,15 +5063,14 @@ class ZCIS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_index_base=leg2_index_base,
-                leg2_index_fixings=leg2_index_fixings,
-                leg2_index_lag=leg2_index_lag,
-                leg2_index_method=leg2_index_method,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            leg2_index_base=leg2_index_base,
+            leg2_index_fixings=leg2_index_fixings,
+            leg2_index_lag=leg2_index_lag,
+            leg2_index_method=leg2_index_method,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_index_base = leg2_index_base
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
