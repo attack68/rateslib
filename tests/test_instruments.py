@@ -2072,10 +2072,10 @@ class TestFixedRateBond:
             ex_div=7,
             calendar="ldn",
         )
-        assert bond.price(4.445, dt(1999, 5, 24), True) - 145.012268 < 1e-6
-        assert bond.price(4.445, dt(1999, 5, 26), True) - 145.047301 < 1e-6
-        assert bond.price(4.445, dt(1999, 5, 27), True) - 141.070132 < 1e-6
-        assert bond.price(4.445, dt(1999, 6, 7), True) - 141.257676 < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 5, 24), True) - 145.012268) < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 5, 26), True) - 145.047301) < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 5, 27), True) - 141.070132) < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 6, 7), True) - 141.257676) < 1e-6
 
         bond = FixedRateBond(
             dt(1997, 1, 1),
@@ -2086,10 +2086,10 @@ class TestFixedRateBond:
             ex_div=7,
             calendar="ldn",
         )
-        assert bond.price(4.634, dt(1999, 5, 10), True) - 113.315543 < 1e-6
-        assert bond.price(4.634, dt(1999, 5, 17), True) - 113.415969 < 1e-6
-        assert bond.price(4.634, dt(1999, 5, 18), True) - 110.058738 < 1e-6
-        assert bond.price(4.634, dt(1999, 5, 26), True) - 110.170218 < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 10), True) - 113.315543) < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 17), True) - 113.415969) < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 18), True) - 110.058738) < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 26), True) - 110.170218) < 1e-6
 
     def test_fixed_rate_bond_yield(self):
         # test pricing functions against Gilt Example prices from UK DMO

@@ -8,7 +8,7 @@
    from rateslib.instruments import *
    from rateslib.curves import Curve
    from datetime import datetime as dt
-   from pandas import Series, date_range
+   from pandas import Series, date_range, option_context
    curve = Curve(
        nodes={
            dt(2022,1,1): 1.0,
@@ -1037,7 +1037,7 @@ class BondMixin:
             None,  # modifier not required for business day tenor
             self.leg1.schedule.calendar,
         )
-        return True if settlement >= ex_div_date else False
+        return True if settlement > ex_div_date else False
 
     def _accrued_frac(self, settlement: datetime):
         """
@@ -1049,9 +1049,17 @@ class BondMixin:
             len(self.leg1.schedule.aschedule),
             settlement,
         )
-        _ = (settlement - self.leg1.schedule.aschedule[acc_idx]) / (
-            self.leg1.schedule.aschedule[acc_idx + 1] - self.leg1.schedule.aschedule[acc_idx]
-        )
+        r = settlement - self.leg1.schedule.aschedule[acc_idx]
+        s = self.leg1.schedule.aschedule[acc_idx + 1] - self.leg1.schedule.aschedule[acc_idx]
+
+        if self.calc_mode == "sgb":
+            # sgb use a 30e360 convention for accrual and stub but actacticma for reg coup
+            _ = dcf(settlement, self.leg1.schedule.aschedule[acc_idx + 1], "30e360")
+            _ = 1 - _
+        else:
+            # ukg and ust have a linearly proportioned accrual
+            _ = r / s
+
         return _, acc_idx
 
     def _npv_local(
@@ -1141,11 +1149,6 @@ class BondMixin:
         v = 1 / (1 + ytm / (100 * f))
 
         acc_frac, acc_idx = self._accrued_frac(settlement)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
 
         d = 0
         for i, p_idx in enumerate(range(acc_idx, len(self.leg1.schedule.aschedule) - 1)):
@@ -1155,7 +1158,28 @@ class BondMixin:
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v**i
                 # d += self.leg1.periods[p_idx].cashflow * v ** i
         d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v**i
-        p = v**fd0 * d / -self.leg1.notional * 100
+
+        # TODO read swedish securities amrkets rule for this
+        # is unlikely mixing conventions allows this to work for sgb
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        else:
+            fd0 = 1 - acc_frac
+
+        if self.calc_mode == "ust":
+            # the rules for ust in the stub period use a discount approach
+            # rather than a ytm compounding
+            if fd0 > 1.0:
+                v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
+            else:
+                v_ = 1 / (1 + fd0 * ytm / (100 * f))
+        else:
+            # this might have top be changed and merged with above for sgb.
+            # ukg needs no adjustment this is the default calculation.
+            v_ = v ** fd0
+
+        p = v_ * d / -self.leg1.notional * 100
         return p if dirty else p - self.accrued(settlement)
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
@@ -1816,6 +1840,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
+    calc_mode : str in {"ukg", "ust", "sgb"}
+        A calculation mode for dealing with bonds that are in short stub or accrual
+        periods. All modes give the same value for YTM at issue date for regular
+        bonds but differ slightly for bonds with stubs or with accrued.
     curves : CurveType, str or list of such, optional
         A single *Curve* or string id or a list of such.
 
@@ -1830,6 +1858,147 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     settle : int
     curves : str, list, CurveType
     leg1 : FixedLeg
+
+    Notes
+    -----
+    Bond YTM formulae have different treatments for different conventions.
+    *Rateslib* currently identifies three different ``calc_mode`` options;
+    *'ukg', 'ust', 'sgb'* for UK gilt, US treasury and Swedish government bond.
+    More details available in supplementary materials. The table below
+    outlines the *rateslib* price result relative to the calculation examples provided
+    from official sources.
+
+    .. ipython:: python
+       :suppress:
+
+       sgb = FixedRateBond(
+           effective=dt(2022, 3, 30), termination=dt(2039, 3, 30),
+           frequency="A", convention="ActActICMA", calc_mode="SGB",
+           fixed_rate=3.5, calendar="stk"
+       )
+       s1c = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=False)
+       s1d = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=True)
+
+       uk1 = FixedRateBond(
+           effective=dt(1995, 1, 1), termination=dt(2015, 12, 7),
+           frequency="S", convention="ActActICMA", calc_mode="UKG",
+           fixed_rate=8.0, calendar="ldn", ex_div=7,
+       )
+       uk11c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=False)
+       uk11d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=True)
+       uk12c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 26), dirty=False)
+       uk12d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 26), dirty=True)
+       uk13c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=False)
+       uk13d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=True)
+       uk14c = uk1.price(ytm=4.445, settlement=dt(1999, 6, 7), dirty=False)
+       uk14d = uk1.price(ytm=4.445, settlement=dt(1999, 6, 7), dirty=True)
+
+       uk2 = FixedRateBond(
+           effective=dt(1998, 11, 26), termination=dt(2004, 11, 26),
+           frequency="S", convention="ActActICMA", calc_mode="UKG",
+           fixed_rate=6.75, calendar="ldn", ex_div=7,
+       )
+       uk21c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=False)
+       uk21d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=True)
+       uk22c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 17), dirty=False)
+       uk22d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 17), dirty=True)
+       uk23c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 18), dirty=False)
+       uk23d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 18), dirty=True)
+       uk24c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 26), dirty=False)
+       uk24d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 26), dirty=True)
+
+       usA = FixedRateBond(
+           effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=8.75, calendar="nyc", ex_div=1,
+       )
+
+       usAc = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=False)
+       usAd = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=True)
+
+       usB = FixedRateBond(
+           effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=8.5, calendar="nyc", ex_div=1,
+       )
+
+       usBc = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=False)
+       usBd = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=True)
+
+       usC = FixedRateBond(
+           effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
+           stub="LONGFRONT",
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=8.5, calendar="nyc", ex_div=1,
+       )
+
+       usCc = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=False)
+       usCd = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=True)
+
+       usD = FixedRateBond(
+           effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=9.5, calendar="nyc", ex_div=1,
+       )
+
+       usDc = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=False)
+       usDd = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=True)
+
+       usE = FixedRateBond(
+           effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
+           front_stub=dt(1986, 2, 15),
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=10.75, calendar="nyc", ex_div=1,
+       )
+
+       usEc = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=False)
+       usEd = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=True)
+
+       usF = FixedRateBond(
+           effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=10.50, calendar="nyc", ex_div=1,
+       )
+
+       usFc = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=False)
+       usFd = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=True)
+
+       usG = FixedRateBond(
+           effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
+           front_stub=dt(1989, 6, 15),
+           frequency="S", convention="ActActICMA", calc_mode="UST",
+           fixed_rate=9.75, calendar="nyc", ex_div=1,
+       )
+
+       usGc = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=False)
+       usGd = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=True)
+
+       data = DataFrame(data=[
+               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "sgb", s1c, s1d],
+               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "ukg", uk11c, uk11d],
+               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "ukg", uk12c, uk12d],
+               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "ukg", uk13c, uk13d],
+               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "ukg", uk14c, uk14d],
+               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "ukg", uk21c, uk21d],
+               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "ukg", uk22c, uk22d],
+               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "ukg", uk23c, uk23d],
+               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "ukg", uk24c, uk24d],
+               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust", usAc, usAd],
+               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust", usBc, usBd],
+               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust", usCc, usCd],
+               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust", usDc, usDd],
+               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust", usEc, usEd],
+               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust", usFc, usFd],
+               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust", usGc, usGd],
+           ],
+           columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
+       )
+
+    .. ipython:: python
+
+       from pandas import option_context
+       with option_context("display.float_format", lambda x: '%.6f' % x):
+           print(data)
 
     Examples
     --------
@@ -1950,11 +2119,13 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         amortization: Union[float, NoInput] = NoInput(0),
         convention: Union[str, NoInput] = NoInput(0),
         fixed_rate: Union[float, NoInput] = NoInput(0),
-        ex_div: int = 0,
-        settle: int = 1,
+        ex_div: Union[int, NoInput] = NoInput(0),
+        settle: Union[int, NoInput] = NoInput(0),
+        calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
+        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
         if frequency.lower() == "z":
             raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is NoInput.blank:
@@ -1984,8 +2155,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.kwargs.update(
             dict(
-                ex_div=ex_div,
-                settle=settle,
+                ex_div=defaults.ex_div if ex_div is NoInput.blank else ex_div,
+                settle=defaults.settle if settle is NoInput.blank else settle,
             )
         )
 
@@ -2725,9 +2896,11 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         spread_compound_method: Union[str, NoInput] = NoInput(0),
         ex_div: int = 0,
         settle: int = 1,
+        calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
+        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
         if frequency.lower() == "z":
             raise ValueError("FloatRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is NoInput.blank:
