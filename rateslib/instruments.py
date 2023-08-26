@@ -5748,6 +5748,7 @@ class FRA(Sensitivities, BaseMixin):
     ) -> None:
         self.curves = curves
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
+        self.eom = defaults.eom if eom is NoInput.blank else eom
 
         if modifier is NoInput.blank:  # then get default
             modifier_: Optional[str] = defaults.modifier
@@ -5764,7 +5765,7 @@ class FRA(Sensitivities, BaseMixin):
 
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination = add_tenor(effective, termination, self.modifier, self.calendar)
+            termination = add_tenor(effective, termination, self.modifier, self.calendar, self.eom)
 
         self.notional = defaults.notional if notional is NoInput.blank else notional
 

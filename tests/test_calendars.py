@@ -118,7 +118,22 @@ def test_add_tenor(tenor, expected):
     ],
 )
 def test_add_negative_tenor(tenor, expected):
-    result = add_tenor(dt(2022, 2, 28), tenor, None, None)
+    result = add_tenor(dt(2022, 2, 28), tenor, None, NoInput(0), False)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "tenor, expected",
+    [
+        ("-1M", dt(2022, 1, 31)),
+        ("-2m", dt(2021, 12, 31)),
+        ("-1Y", dt(2021, 2, 28)),
+        ("-1d", dt(2022, 2, 27)),
+        ("-2y", dt(2020, 2, 29)),
+    ],
+)
+def test_add_negative_tenor_eom(tenor, expected):
+    result = add_tenor(dt(2022, 2, 28), tenor, None, NoInput(0), True)
     assert result == expected
 
 
