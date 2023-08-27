@@ -31,7 +31,7 @@ from pandas import DataFrame, date_range, Series, NA, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday
+from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday, CalInput
 from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
@@ -133,6 +133,10 @@ class BasePeriod(metaclass=ABCMeta):
     stub : bool, optional
         Records whether the period is a stub or regular. Used by certain day count
         convention calculations.
+    roll : int, str, optional
+        Used only by ``stub`` periods and for specific values of ``convention``.
+    calendar : CustomBusinessDay, str, optional
+        Used only by ``stub`` periods and for specific values of ``convention``.
 
     See Also
     --------
@@ -155,6 +159,8 @@ class BasePeriod(metaclass=ABCMeta):
         convention: Union[str, NoInput] = NoInput(0),
         termination: Union[datetime, NoInput] = NoInput(0),
         stub: bool = False,
+        roll: Union[int, str, NoInput] = NoInput(0),
+        calendar: CalInput = NoInput(0),
     ):
         if end < start:
             raise ValueError("`end` cannot be before `start`.")
@@ -166,6 +172,8 @@ class BasePeriod(metaclass=ABCMeta):
         self.termination = termination
         self.freq_months = defaults.frequency_months[self.frequency]
         self.stub = stub
+        self.roll = roll
+        self.calendar = calendar
 
     def __repr__(self):
         return (
@@ -185,6 +193,8 @@ class BasePeriod(metaclass=ABCMeta):
             self.termination,
             self.freq_months,
             self.stub,
+            self.roll,
+            self.calendar,
         )
 
     @abstractmethod
