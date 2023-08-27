@@ -737,7 +737,6 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
             date = _get_imm(month, year)
     else:
         try:
-            assert isinstance(roll, int)
             date = datetime(year, month, roll)
         except ValueError:  # day is out of range for month, i.e. 30 or 31
             date = _get_eom(month, year)
