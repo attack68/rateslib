@@ -1,13 +1,13 @@
 from typing import Optional, Union, Any
-from math import floor
 import calendar as calendar_mod
 from itertools import product
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pandas import DataFrame
-from pandas.tseries.offsets import CustomBusinessDay, Day
+from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import (
     get_calendar,
     _is_holiday,
@@ -19,6 +19,7 @@ from rateslib.calendars import (
     _get_imm,
     _is_imm,
     _is_som,
+    _get_roll,
 )
 
 
@@ -61,6 +62,11 @@ class Schedule:
         :meth:`~rateslib.calendars.get_calendar`.
     payment_lag: int, optional
         The number of business days to lag payments by.
+    eval_date: datetime, optional
+        Only required if ``effective`` is given as a string tenor, to provide a point of reference.
+    eval_mode: str in {"swaps_align", "swaptions_align"}
+        The method for determining the ``effective`` and ``termination`` dates if both are provided
+        as string tenors. See notes.
 
     Attributes
     ----------
@@ -81,12 +87,80 @@ class Schedule:
     aschedule : list[datetime]
     pschedule : list[datetime]
     stubs : list[bool]
+    eval_date : datetime
+    eval_mode : str
 
     Notes
     -----
     **Zero coupon schedules**
 
     If ``frequency`` is *Z* then stub arguments are ignored.
+
+    **Inferred termination date and roll from tenor - The 1Y1Y problem**
+
+    When generating schedules implied from tenor ``effective`` and ``termination`` dates there
+    exist two methods for doing this. **Both** have practical reasons to exist. This results in
+    the ``eval_mode`` argument which allows either *"swaps_align"* or *"swaptions_align"*. So,
+    what is the difference and the purpose?
+
+    **Swaps Align**
+
+    When a EUR swap dealer trades a 1Y1Y swap he will hedge it in the interbank market with a 1Y and
+    a 2Y swap. 1Y and 2Y swaps have roll days that are generated from the same evaluation date.
+    For a perfect hedge the 1Y1Y swap should also have the same roll day and its periods should
+    align with the second half of the 2Y swap. To achieve this, the ``effective`` date is
+    calculated **unadjusted** and the ``termination`` date is derived from that unadjusted date.
+    Then under *rateslib* inferral rules this will produce the correct schedule.
+
+    For example, today is Tue 15th Aug '23 and spot is Thu 17th Aug '23:
+
+    - A 1Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 19th Aug '24, 17.
+    - A 2Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 18th Aug '25, 17.
+    - A 1Y1Y trade has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
+
+    .. ipython:: python
+
+       sch = Schedule(
+           effective="1Y",
+           termination="1Y",
+           frequency="S",
+           calendar="tgt",
+           eval_date=dt(2023, 8, 17),
+           eval_mode="swaps_align",
+       )
+       sch
+
+    **Swaptions Align**
+
+    When a swaptions dealer trades a 1Y1Y swaption, that trade will settle against the 1Y swap
+    evaluated as of the expiry date (in 1Y) against the swap ISDA fixing.
+    The delta exposure the swaption trader experiences is best hedged with a swap matching those
+    dates. This means that the effective date of the swap should be derived from an **adjusted**
+    date.
+
+    For example, today is Tue 15th Aug '23:
+
+    - A 1Y expiring swaption has an expiry on Thu 15th Aug '24.
+    - At expiry a spot starting 1Y swap has effective, termination, and roll of:
+      Mon 19th Aug '24, Tue 19th Aug '25, 19.
+
+    .. ipython:: python
+
+       sch = Schedule(
+           effective="1Y",
+           termination="1Y",
+           frequency="S",
+           calendar="tgt",
+           eval_date=dt(2023, 8, 17),
+           eval_mode="swaptions_align",
+       )
+       sch
+
+    .. note::
+       To avoid these, it is recommended to provide ``effective``, ``termination``, as
+       **unadjusted dates** (and also ``front_stub`` and ``back_stub``) since this eliminates the
+       combinatorial aspect of date inference. Also providing ``roll`` is more
+       explicit.
 
     **Inferred stub dates from inputs**
 
@@ -159,24 +233,6 @@ class Schedule:
          - :meth:`_check_regular_swap`
          - :meth:`_infer_stub_date`
 
-    **Inferred termination date from tenor**
-
-    For termination date scheduling we adopt, by default, a European convention
-    so that a tenor is added to an unadjusted effective date to
-    determine an unadjusted termination, as
-    opposed to the British convention of first adjusting the effective date and
-    then deriving an unadjusted termination date. For example, for an unadjusted
-    effective date of Sat Mar 5th 2022 and a 6M tenor this will be:
-
-    - **European**: unadjusted termination of Mon 5th Sep 2022, with 5th rolls.
-    - British: unadjusted termination of Wed 7th Sep 2022, with 7th rolls.
-
-    .. note::
-       It is recommended to provide ``effective``, ``termination``, as **unadjusted**
-       (and also ``front_stub`` and ``back_stub``) since this eliminates the
-       combinatorial aspect of date inference. Also providing ``roll`` is more
-       explicit.
-
     **Handling stubs and rolls**
 
     If ``front_stub`` and ``back_stub`` are given, the ``stub`` is not used. There is
@@ -194,30 +250,38 @@ class Schedule:
 
     def __init__(
         self,
-        effective: datetime,
+        effective: Union[datetime, str],
         termination: Union[datetime, str],
         frequency: str,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        eval_date: Union[datetime, NoInput] = NoInput(0),
+        eval_mode: Union[str, NoInput] = NoInput(0),
     ):
         # Arg validation
-        eom = defaults.eom if eom is None else eom
+        eom = defaults.eom if eom is NoInput.blank else eom
         self.eom = eom
 
-        if isinstance(modifier, bool):  # then get default
+        self.eval_date = eval_date
+        self.eval_mode = defaults.eval_mode if eval_mode is NoInput.blank else eval_mode.lower()
+
+        if modifier is NoInput.blank:  # then get default
             modifier_: Optional[str] = defaults.modifier
         else:
             modifier_ = modifier
         self.modifier = modifier_
 
-        payment_lag = defaults.payment_lag if payment_lag is None else payment_lag
-        self.payment_lag = payment_lag
+        if payment_lag is NoInput.blank:
+            payment_lag_: int = defaults.payment_lag
+        else:
+            payment_lag_ = payment_lag
+        self.payment_lag = payment_lag_
 
         self.calendar = get_calendar(calendar)
 
@@ -226,16 +290,29 @@ class Schedule:
             raise ValueError("`frequency` must be in {M, B, Q, T, S, A, Z}.")
         self.frequency = frequency
 
+        if isinstance(effective, str):
+            if self.eval_date is NoInput.blank:
+                raise ValueError(
+                    "For `effective` given as string tenor, must also supply a `base_eval` date."
+                )
+            if self.eval_mode == "swaps_align":
+                # effective date is calculated as unadjusted
+                effective_: datetime = add_tenor(self.eval_date, effective, None, None)
+            elif self.eval_mode == "swaptions_align":
+                effective_ = add_tenor(self.eval_date, effective, self.modifier, self.calendar)
+        else:
+            effective_ = effective
+        self.effective: datetime = effective_
+
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination_: datetime = add_tenor(effective, termination, None, None)
+            termination_: datetime = add_tenor(self.effective, termination, None, None)
         else:
             termination_ = termination
-
-        if termination_ <= effective:
-            raise ValueError("`termination` must be after `effective`.")
-        self.effective: datetime = effective
         self.termination: datetime = termination_
+
+        if self.termination <= self.effective:
+            raise ValueError("`termination` must be after `effective`.")
 
         if frequency == "Z":
             self.ueffective = None
@@ -248,185 +325,29 @@ class Schedule:
             self._attribute_schedules()
             return None
 
-        if stub is None:
+        if stub is NoInput.blank:
             # if specific stub dates are given we cannot know if these are long or short
-            if front_stub is None:
-                stub = defaults.stub if back_stub is None else "BACK"
+            if front_stub is NoInput.blank:
+                stub = defaults.stub if back_stub is NoInput.blank else "BACK"
             else:
-                stub = "FRONT" if back_stub is None else "FRONTBACK"
+                stub = "FRONT" if back_stub is NoInput.blank else "FRONTBACK"
         else:
             stub = stub.upper()
         self.stub = stub
 
         if "FRONT" in stub and "BACK" in stub:
-            if front_stub is None:
-                if back_stub is None:
-                    raise ValueError(
-                        "Must supply at least one stub date with dual sided stub type."
-                    )
-                else:
-                    valid, parsed_args = _infer_stub_date(
-                        effective,
-                        termination_,
-                        frequency,
-                        stub,
-                        front_stub,
-                        back_stub,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        self.ueffective = parsed_args["ueffective"]
-                        self.utermination = parsed_args["utermination"]
-                        self.front_stub = parsed_args["front_stub"]
-                        self.back_stub = parsed_args["back_stub"]
-                        self.roll = parsed_args["roll"]
-            else:
-                if back_stub is None:
-                    valid, parsed_args = _infer_stub_date(
-                        effective,
-                        termination_,
-                        frequency,
-                        stub,
-                        front_stub,
-                        back_stub,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        self.ueffective = parsed_args["ueffective"]
-                        self.utermination = parsed_args["utermination"]
-                        self.front_stub = parsed_args["front_stub"]
-                        self.back_stub = parsed_args["back_stub"]
-                        self.roll = parsed_args["roll"]
-                else:
-                    # check regular swap and populate attributes
-                    valid, parsed_args = _check_regular_swap(
-                        front_stub,
-                        back_stub,
-                        frequency,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        self.ueffective = effective
-                        self.utermination = termination_
-                        self.front_stub = parsed_args["ueffective"]
-                        self.back_stub = parsed_args["utermination"]
-                        self.roll = parsed_args["roll"]
+            self._dual_sided_stub_parsing(front_stub, back_stub, roll)
         elif "FRONT" in stub:
-            if front_stub is None:
-                if back_stub is None:
-                    valid, parsed_args = _infer_stub_date(
-                        effective,
-                        termination_,
-                        frequency,
-                        stub,
-                        front_stub,
-                        back_stub,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        self.ueffective = parsed_args["ueffective"]
-                        self.utermination = parsed_args["utermination"]
-                        self.front_stub = parsed_args["front_stub"]
-                        self.back_stub = parsed_args["back_stub"]
-                        self.roll = parsed_args["roll"]
-                else:
-                    raise ValueError("`stub` is front sided but `back_stub` given.")
-            else:
-                if back_stub is None:
-                    # check regular swap and populate attibutes
-                    valid, parsed_args = _check_regular_swap(
-                        front_stub,
-                        termination_,
-                        frequency,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        # stub inference is not required, no stubs are necessary
-                        self.ueffective = effective
-                        self.utermination = parsed_args["utermination"]
-                        self.front_stub = parsed_args["ueffective"]
-                        self.back_stub = None
-                        self.roll = parsed_args["roll"]
-                else:
-                    raise ValueError("`stub` is front sided but `back_stub` given.")
+            self._front_sided_stub_parsing(front_stub, back_stub, roll)
         elif "BACK" in stub:
-            if front_stub is None:
-                if back_stub is None:
-                    valid, parsed_args = _infer_stub_date(
-                        effective,
-                        termination_,
-                        frequency,
-                        stub,
-                        front_stub,
-                        back_stub,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        self.ueffective = parsed_args["ueffective"]
-                        self.utermination = parsed_args["utermination"]
-                        self.front_stub = parsed_args["front_stub"]
-                        self.back_stub = parsed_args["back_stub"]
-                        self.roll = parsed_args["roll"]
-                else:
-                    # check regular swap and populate attributes
-                    valid, parsed_args = _check_regular_swap(
-                        effective,
-                        back_stub,
-                        frequency,
-                        self.modifier,
-                        eom,
-                        roll,
-                        self.calendar,
-                    )
-                    if not valid:
-                        raise ValueError("date, stub and roll inputs are invalid")
-                    else:
-                        self.ueffective = parsed_args["ueffective"]
-                        self.utermination = termination_
-                        self.front_stub = None
-                        self.back_stub = parsed_args["utermination"]
-                        self.roll = parsed_args["roll"]
-            else:
-                raise ValueError("`stub` is only back sided but `front_stub` given.")
+            self._back_sided_stub_parsing(front_stub, back_stub, roll)
         else:
             raise ValueError(
-                "`stub` should be combinations of {'SHORT', 'LONG'} with "
-                "{'FRONT', 'BACK'}."
+                "`stub` should be combinations of {'SHORT', 'LONG'} with {'FRONT', 'BACK'}."
             )
 
-        self.uschedule = [
-            dt
-            for dt in _generate_irregular_schedule_unadjusted(
+        self.uschedule = list(
+            _generate_irregular_schedule_unadjusted(
                 self.ueffective,
                 self.utermination,
                 self.frequency,
@@ -434,19 +355,173 @@ class Schedule:
                 self.front_stub,
                 self.back_stub,
             )
-        ]
+        )
         self._attribute_schedules()
-
         return None
+
+    def _dual_sided_stub_parsing(self, front_stub, back_stub, roll):
+        """This is called when the provided `stub` argument implies dual sided stubs."""
+        if front_stub is NoInput.blank and back_stub is NoInput.blank:
+            raise ValueError(
+                "Must supply at least one stub date with dual sided stub type.\n"
+                "Require `front_stub` or `back_stub` or both."
+            )
+        elif front_stub is NoInput.blank:
+            valid, parsed_args = _infer_stub_date(
+                self.effective,
+                self.termination,
+                self.frequency,
+                self.stub,
+                front_stub,
+                back_stub,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                self.ueffective = parsed_args["ueffective"]
+                self.utermination = parsed_args["utermination"]
+                self.front_stub = parsed_args["front_stub"]
+                self.back_stub = parsed_args["back_stub"]
+                self.roll = parsed_args["roll"]
+        elif back_stub is NoInput.blank:
+            valid, parsed_args = _infer_stub_date(
+                self.effective,
+                self.termination,
+                self.frequency,
+                self.stub,
+                front_stub,
+                back_stub,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                self.ueffective = parsed_args["ueffective"]
+                self.utermination = parsed_args["utermination"]
+                self.front_stub = parsed_args["front_stub"]
+                self.back_stub = parsed_args["back_stub"]
+                self.roll = parsed_args["roll"]
+        else:
+            # check regular swap and populate attributes
+            valid, parsed_args = _check_regular_swap(
+                front_stub,
+                back_stub,
+                self.frequency,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                self.ueffective = self.effective
+                self.utermination = self.termination
+                self.front_stub = parsed_args["ueffective"]
+                self.back_stub = parsed_args["utermination"]
+                self.roll = parsed_args["roll"]
+
+    def _front_sided_stub_parsing(self, front_stub, back_stub, roll):
+        if back_stub is not NoInput.blank:
+            raise ValueError("`stub` is only front sided but `back_stub` given.")
+        if front_stub is NoInput.blank:
+            valid, parsed_args = _infer_stub_date(
+                self.effective,
+                self.termination,
+                self.frequency,
+                self.stub,
+                front_stub,
+                back_stub,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                self.ueffective = parsed_args["ueffective"]
+                self.utermination = parsed_args["utermination"]
+                self.front_stub = parsed_args["front_stub"]
+                self.back_stub = parsed_args["back_stub"]
+                self.roll = parsed_args["roll"]
+        else:
+            # check regular swap and populate attibutes
+            valid, parsed_args = _check_regular_swap(
+                front_stub,
+                self.termination,
+                self.frequency,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                # stub inference is not required, no stubs are necessary
+                self.ueffective = self.effective
+                self.utermination = parsed_args["utermination"]
+                self.front_stub = parsed_args["ueffective"]
+                self.back_stub = None
+                self.roll = parsed_args["roll"]
+
+    def _back_sided_stub_parsing(self, front_stub, back_stub, roll):
+        if front_stub is not NoInput.blank:
+            raise ValueError("`stub` is only back sided but `front_stub` given.")
+        if back_stub is NoInput.blank:
+            valid, parsed_args = _infer_stub_date(
+                self.effective,
+                self.termination,
+                self.frequency,
+                self.stub,
+                front_stub,
+                back_stub,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                self.ueffective = parsed_args["ueffective"]
+                self.utermination = parsed_args["utermination"]
+                self.front_stub = parsed_args["front_stub"]
+                self.back_stub = parsed_args["back_stub"]
+                self.roll = parsed_args["roll"]
+        else:
+            # check regular swap and populate attributes
+            valid, parsed_args = _check_regular_swap(
+                self.effective,
+                back_stub,
+                self.frequency,
+                self.modifier,
+                self.eom,
+                roll,
+                self.calendar,
+            )
+            if not valid:
+                raise ValueError("date, stub and roll inputs are invalid")
+            else:
+                self.ueffective = parsed_args["ueffective"]
+                self.utermination = self.termination
+                self.front_stub = None
+                self.back_stub = parsed_args["utermination"]
+                self.roll = parsed_args["roll"]
 
     def _attribute_schedules(self):
         """Attributes additional schedules according to date adjust and payment lag."""
-        self.aschedule = [
-            _adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule
-        ]
+        self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
-            add_tenor(dt, f"{self.payment_lag}B", None, self.calendar)
-            for dt in self.aschedule
+            add_tenor(dt, f"{self.payment_lag}B", None, self.calendar) for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
         if self.front_stub is not None:
@@ -468,9 +543,7 @@ class Schedule:
         """
         df = DataFrame(
             {
-                defaults.headers["stub_type"]: [
-                    "Stub" if _ else "Regular" for _ in self.stubs
-                ],
+                defaults.headers["stub_type"]: ["Stub" if _ else "Regular" for _ in self.stubs],
                 defaults.headers["u_acc_start"]: self.uschedule[:-1],
                 defaults.headers["u_acc_end"]: self.uschedule[1:],
                 defaults.headers["a_acc_start"]: self.aschedule[:-1],
@@ -688,13 +761,9 @@ def _check_unadjusted_regular_swap(
 
     if isinstance(roll, int):
         if roll in [29, 30]:
-            if ueffective.day != roll and not (
-                ueffective.month == 2 and _is_eom(ueffective)
-            ):
+            if ueffective.day != roll and not (ueffective.month == 2 and _is_eom(ueffective)):
                 return False, f"Effective date not aligned with {roll} rolls."
-            if utermination.day != roll and not (
-                utermination.month == 2 and _is_eom(utermination)
-            ):
+            if utermination.day != roll and not (utermination.month == 2 and _is_eom(utermination)):
                 return False, f"Termination date not aligned with {roll} rolls."
         else:
             if ueffective.day != roll:
@@ -702,10 +771,10 @@ def _check_unadjusted_regular_swap(
             if utermination.day != roll:
                 return False, f"Termination date not aligned with {roll} rolls."
 
-    if roll is None:
+    if roll is NoInput.blank:
         roll = _get_unadjusted_roll(ueffective, utermination, eom)
         if roll == 0:
-            return False, f"Roll day could not be inferred from given dates."
+            return False, "Roll day could not be inferred from given dates."
 
     return True, {
         "ueffective": ueffective,
@@ -827,11 +896,11 @@ def _infer_stub_date(
     termination: datetime,
     frequency: str,
     stub: str,
-    front_stub: Optional[datetime],
-    back_stub: Optional[datetime],
-    modifier: Optional[str],
+    front_stub: Union[datetime, NoInput],
+    back_stub: Union[datetime, NoInput],
+    modifier: Union[str, None],
     eom: bool,
-    roll: Optional[Union[str, int]],
+    roll: Union[str, int, NoInput],
     calendar: CustomBusinessDay,
 ) -> tuple[bool, Any]:
     """
@@ -878,7 +947,7 @@ def _infer_stub_date(
     """
     if "FRONT" in stub and "BACK" in stub:  # stub is dual sided
         dead_front_stub, dead_back_stub = False, False
-        if front_stub is None:
+        if front_stub is NoInput.blank:
             assert isinstance(back_stub, datetime)
             valid, parsed_args = _check_regular_swap(
                 effective, back_stub, frequency, modifier, eom, roll, calendar
@@ -930,18 +999,10 @@ def _infer_stub_date(
             return valid, parsed_args
         else:
             return True, {
-                "ueffective": effective
-                if not dead_front_stub
-                else parsed_args["ueffective"],
-                "utermination": termination
-                if not dead_back_stub
-                else parsed_args["utermination"],
-                "front_stub": parsed_args["ueffective"]
-                if not dead_front_stub
-                else None,
-                "back_stub": parsed_args["utermination"]
-                if not dead_back_stub
-                else None,
+                "ueffective": effective if not dead_front_stub else parsed_args["ueffective"],
+                "utermination": termination if not dead_back_stub else parsed_args["utermination"],
+                "front_stub": parsed_args["ueffective"] if not dead_front_stub else None,
+                "back_stub": parsed_args["utermination"] if not dead_back_stub else None,
                 "roll": parsed_args["roll"],
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
@@ -968,9 +1029,7 @@ def _infer_stub_date(
 
             # The following check prohibits stubs that are too short under calendar,
             # e.g. 2 May 27 is a Sunday and 3 May 27 is a Monday => dead_stub is True
-            dead_stub = _is_invalid_very_short_stub(
-                effective, front_stub, modifier, calendar
-            )
+            dead_stub = _is_invalid_very_short_stub(effective, front_stub, modifier, calendar)
 
             valid, parsed_args = _check_regular_swap(
                 front_stub, termination, frequency, modifier, eom, roll, calendar
@@ -979,9 +1038,7 @@ def _infer_stub_date(
                 return valid, parsed_args
             else:
                 return True, {
-                    "ueffective": effective
-                    if not dead_stub
-                    else parsed_args["ueffective"],
+                    "ueffective": effective if not dead_stub else parsed_args["ueffective"],
                     "utermination": parsed_args["utermination"],
                     "front_stub": parsed_args["ueffective"] if not dead_stub else None,
                     "back_stub": None,
@@ -1011,9 +1068,7 @@ def _infer_stub_date(
 
             # The following check prohibits stubs that are too short under calendar,
             # 19 Oct 47 is a Saturday and 20 Oct 47 is a Sunday => dead_stub is True
-            dead_stub = _is_invalid_very_short_stub(
-                back_stub, termination, modifier, calendar
-            )
+            dead_stub = _is_invalid_very_short_stub(back_stub, termination, modifier, calendar)
 
             valid, parsed_args = _check_regular_swap(
                 effective, back_stub, frequency, modifier, eom, roll, calendar
@@ -1023,9 +1078,7 @@ def _infer_stub_date(
             else:
                 return True, {
                     "ueffective": parsed_args["ueffective"],
-                    "utermination": termination
-                    if not dead_stub
-                    else parsed_args["utermination"],
+                    "utermination": termination if not dead_stub else parsed_args["utermination"],
                     "front_stub": None,
                     "back_stub": parsed_args["utermination"] if not dead_stub else None,
                     "roll": parsed_args["roll"],
@@ -1134,7 +1187,7 @@ def _get_unadjusted_short_stub_date(
     else:  # stub_side == "BACK":
         stub_side_dt, reg_side_dt, direction = utermination, ueffective, -1
 
-    if roll is None:
+    if roll is NoInput.blank:
         roll = "eom" if (eom and _is_eom(reg_side_dt)) else reg_side_dt.day
 
     frequency_months = defaults.frequency_months[frequency]
@@ -1143,7 +1196,7 @@ def _get_unadjusted_short_stub_date(
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = _add_months(ueffective, frequency_months * direction, None, None)
+                _ = _add_months(ueffective, frequency_months * direction, None, None, NoInput(0))
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = ueffective
@@ -1152,7 +1205,7 @@ def _get_unadjusted_short_stub_date(
         else:  # stub_side == "BACK"
             comparison = _get_roll(utermination.month, utermination.year, roll)
             if utermination.day < comparison.day:
-                _ = _add_months(utermination, frequency_months * direction, None, None)
+                _ = _add_months(utermination, frequency_months * direction, None, None, NoInput(0))
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = utermination
@@ -1160,7 +1213,7 @@ def _get_unadjusted_short_stub_date(
 
     else:
         for month_offset in range(1, 12):
-            stub_date = _add_months(stub_side_dt, month_offset * direction, None, None)
+            stub_date = _add_months(stub_side_dt, month_offset * direction, None, None, NoInput(0))
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
         _ = _get_roll(stub_date.month, stub_date.year, roll)
@@ -1250,7 +1303,7 @@ def _generate_regular_schedule_unadjusted(
     _ = ueffective
     yield _
     for i in range(int(n_periods)):
-        _ = _add_months(_, defaults.frequency_months[frequency], None, None)
+        _ = _add_months(_, defaults.frequency_months[frequency], None, None, NoInput(0))
         _ = _get_roll(_.month, _.year, roll)
         yield _
 
@@ -1323,28 +1376,10 @@ def _get_n_periods_in_regular(
     if frequency == "Z":
         return 1
     frequency_months = defaults.frequency_months[frequency]
-    n_months = (
-        (termination.year - effective.year) * 12 + termination.month - effective.month
-    )
+    n_months = (termination.year - effective.year) * 12 + termination.month - effective.month
     if n_months % frequency_months != 0:
         raise ValueError("Regular schedule not implied by `frequency` and dates.")
     return int(n_months / frequency_months)
-
-
-def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
-    if roll == "eom":
-        date = _get_eom(month, year)
-    elif roll == "som":
-        date = datetime(year, month, 1)
-    elif roll == "imm":
-        date = _get_imm(month, year)
-    else:
-        try:
-            assert isinstance(roll, int)
-            date = datetime(year, month, roll)
-        except ValueError:  # day is out of range for month, i.e. 30 or 31
-            date = _get_eom(month, year)
-    return date
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

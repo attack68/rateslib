@@ -21,7 +21,7 @@ from rateslib.legs import (
     Cashflow,
 )
 from rateslib.fx import FXRates, FXForwards
-from rateslib.default import Defaults
+from rateslib.default import Defaults, NoInput
 from rateslib.curves import Curve, IndexCurve
 
 
@@ -87,12 +87,22 @@ class TestFloatLeg:
         ],
     )
     def test_float_leg_analytic_delta_with_npv(self, curve, obj):
-        result = 5 * obj.analytic_delta(curve, curve)
-        before_npv = -obj.npv(curve, curve)
-        obj.float_spread = 5
-        after_npv = -obj.npv(curve, curve)
-        expected = after_npv - before_npv
-        assert abs(result - expected) < 1e-7
+        if type(obj) is FloatLegMtm:
+            with pytest.warns(UserWarning):
+                # Using 1.0 for FX, no `fx` or `fx_fixing` given to object
+                result = 5 * obj.analytic_delta(curve, curve)
+                before_npv = -obj.npv(curve, curve)
+                obj.float_spread = 5
+                after_npv = -obj.npv(curve, curve)
+                expected = after_npv - before_npv
+                assert abs(result - expected) < 1e-7
+        else:
+            result = 5 * obj.analytic_delta(curve, curve)
+            before_npv = -obj.npv(curve, curve)
+            obj.float_spread = 5
+            after_npv = -obj.npv(curve, curve)
+            expected = after_npv - before_npv
+            assert abs(result - expected) < 1e-7
 
     def test_float_leg_analytic_delta(self, curve):
         float_leg = FloatLeg(
@@ -108,7 +118,7 @@ class TestFloatLeg:
 
     def test_float_leg_cashflows(self, curve):
         float_leg = FloatLeg(
-            float_spread=None,
+            float_spread=NoInput(0),
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
             payment_lag=2,
@@ -124,7 +134,7 @@ class TestFloatLeg:
 
     def test_float_leg_npv(self, curve):
         float_leg = FloatLeg(
-            float_spread=None,
+            float_spread=NoInput(0),
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
             payment_lag=2,
@@ -139,7 +149,7 @@ class TestFloatLeg:
         float_leg = FloatLeg(dt(2022, 2, 1), "9M", "Q", payment_lag=0, fixings=[10, 20])
         assert float_leg.periods[0].fixings == 10
         assert float_leg.periods[1].fixings == 20
-        assert float_leg.periods[2].fixings is None
+        assert float_leg.periods[2].fixings is NoInput(0)
 
     def test_float_leg_fixings_series(self, curve):
         fixings = Series(0.5, index=date_range(dt(2021, 11, 1), dt(2022, 2, 15)))
@@ -147,18 +157,18 @@ class TestFloatLeg:
         assert_series_equal(float_leg.periods[0].fixings, fixings)  # december fixings
         assert_series_equal(float_leg.periods[1].fixings, fixings)  # january fixings
         assert_series_equal(float_leg.periods[2].fixings, fixings)  # february fixings
-        assert float_leg.periods[4].fixings is None  # no march fixings
+        assert float_leg.periods[4].fixings is NoInput(0)  # no march fixings
 
     def test_float_leg_fixings_scalar(self, curve):
         float_leg = FloatLeg(dt(2022, 2, 1), "9M", "Q", payment_lag=0, fixings=5.0)
         assert float_leg.periods[0].fixings == 5.0
-        assert float_leg.periods[1].fixings is None
-        assert float_leg.periods[2].fixings is None
+        assert float_leg.periods[1].fixings is NoInput(0)
+        assert float_leg.periods[2].fixings is NoInput(0)
 
     @pytest.mark.parametrize(
         "method, param",
         [
-            ("rfr_payment_delay", None),
+            ("rfr_payment_delay", NoInput(0)),
             ("rfr_lockout", 1),
             ("rfr_observation_shift", 0),
         ],
@@ -183,6 +193,7 @@ class TestFloatLeg:
             currency="SEK",
             fixing_method=method,
             method_param=param,
+            payment_lag=0,
         )
         float_leg.cashflows(curve)
         result = float_leg.fixings_table(curve)[dt(2022, 12, 28) : dt(2023, 1, 1)]
@@ -196,17 +207,17 @@ class TestFloatLeg:
                     dt(2023, 1, 1),
                 ],
                 "notional": [
-                    -1002914.0840790921,
-                    -1002914.0840790921,
-                    -1003192.739517848,
-                    -1002835.4299274746,
-                    -1002835.4299274748,
+                    0.0,
+                    0.0,
+                    0.0,
+                    -999821.37380,
+                    -999932.84380,
                 ],
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             }
         ).set_index("obs_dates")
-        assert_frame_equal(result, expected)
+        assert_frame_equal(result, expected, rtol=1e-5)
 
     def test_float_leg_set_float_spread(self, curve):
         float_leg = FloatLeg(
@@ -217,7 +228,7 @@ class TestFloatLeg:
             convention="Act360",
             frequency="Q",
         )
-        assert float_leg.float_spread is None
+        assert float_leg.float_spread is NoInput(0)
         assert float_leg.periods[0].float_spread == 0
 
         float_leg.float_spread = 2.0
@@ -227,7 +238,7 @@ class TestFloatLeg:
     @pytest.mark.parametrize(
         "method, spread_method, expected",
         [
-            ("ibor", None, True),
+            ("ibor", NoInput(0), True),
             ("rfr_payment_delay", "none_simple", True),
             ("rfr_payment_delay", "isda_compounding", False),
             ("rfr_payment_delay", "isda_flat_compounding", False),
@@ -348,9 +359,7 @@ class TestFloatLeg:
         ],
     )
     def test_leg_periods_adj_dates(self, eff, term, freq, stub, expected):
-        leg = FloatLeg(
-            effective=eff, termination=term, frequency=freq, stub=stub, calendar="bus"
-        )
+        leg = FloatLeg(effective=eff, termination=term, frequency=freq, stub=stub, calendar="bus")
         assert leg.schedule.aschedule == expected
 
     @pytest.mark.parametrize(
@@ -400,6 +409,37 @@ class TestFloatLeg:
         with pytest.raises(ValueError, match="`spread_compound_method`"):
             FloatLeg(dt(2022, 2, 1), "9M", "Q", spread_compound_method="bad")
 
+    def test_float_leg_fixings_table_with_defined_fixings(self):
+        swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
+        float_leg = FloatLeg(
+            effective=dt(2022, 12, 28),
+            termination="2M",
+            frequency="M",
+            fixings=[[1.19, 1.19, -8.81]],
+            currency="SEK",
+            calendar="stk"
+        )
+        result = float_leg.fixings_table(swestr_curve)[dt(2022, 12, 28):dt(2023, 1, 4)]
+        assert result.iloc[0, 0] == 0.0
+        assert result.iloc[1, 0] == 0.0
+        assert result.iloc[2, 0] == 0.0
+
+    def test_float_leg_fixings_table_with_defined_fixings_approximate(self):
+        swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
+        float_leg = FloatLeg(
+            effective=dt(2022, 12, 28),
+            termination="2M",
+            frequency="M",
+            fixings=[[1.19, 1.19, -8.81]],
+            currency="SEK",
+            calendar="stk"
+        )
+        with pytest.warns(UserWarning):
+            result = float_leg.fixings_table(swestr_curve, approximate=True)
+        assert result.iloc[0, 0] == 0.0
+        assert result.iloc[1, 0] == 0.0
+        assert result.iloc[2, 0] == 0.0
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve):
@@ -411,7 +451,7 @@ class TestZeroFloatLeg:
             convention="Act360",
             frequency="Q",
         )
-        assert float_leg.float_spread is None
+        assert float_leg.float_spread is NoInput(0)
         assert float_leg.periods[0].float_spread == 0
 
         float_leg.float_spread = 2.0
@@ -420,7 +460,7 @@ class TestZeroFloatLeg:
 
     def test_zero_float_leg_amort_raise(self):
         with pytest.raises(NotImplementedError, match="`ZeroFloatLeg` cannot accept"):
-            float_leg = ZeroFloatLeg(
+            ZeroFloatLeg(
                 effective=dt(2022, 1, 1),
                 termination=dt(2022, 6, 1),
                 payment_lag=2,
@@ -479,9 +519,7 @@ class TestZeroFloatLeg:
                 "Spread": [500.0],
             }
         )
-        assert_frame_equal(
-            result[["Type", "Acc Start", "Acc End", "DCF", "Spread"]], expected
-        )
+        assert_frame_equal(result[["Type", "Acc Start", "Acc End", "DCF", "Spread"]], expected)
 
     def test_zero_float_leg_npv(self, curve):
         ftl = ZeroFloatLeg(
@@ -533,7 +571,7 @@ class TestZeroFixedLeg:
         [
             ("A", 13140821.29, 2.50),
             ("S", 13227083.80, 2.50),
-            ("A", None, None),
+            ("A", None, NoInput(0)),
         ],
     )
     def test_zero_fixed_leg_cashflows(self, freq, cash, rate, curve):
@@ -602,9 +640,9 @@ class TestZeroFixedLeg:
             notional=-1e8,
             convention="ActAct",
             frequency="A",
-            fixed_rate=None,
+            fixed_rate=NoInput(0),
         )
-        result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], None, curve)
+        result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], NoInput(0), curve)
         assert (result / 100 - 2.50) < 1e-3
 
     def test_analytic_delta_no_fixed_rate(self, curve):
@@ -615,7 +653,7 @@ class TestZeroFixedLeg:
             notional=-1e8,
             convention="ActAct",
             frequency="A",
-            fixed_rate=None,
+            fixed_rate=NoInput(0),
         )
         result = zfl.analytic_delta(curve)
         assert result is None
@@ -625,11 +663,11 @@ class TestZeroIndexLeg:
     @pytest.mark.parametrize(
         "index_base, index_fixings, meth, exp",
         [
-            (None, None, "monthly", -61855.670),
-            (None, None, "daily", -61782.379),
-            (100.0, None, "monthly", -61855.670),
-            (None, 110.0, "monthly", -100000.0),
-            (None, 110.0, "daily", -98696.645),
+            (NoInput(0), NoInput(0), "monthly", -61855.670),
+            (NoInput(0), NoInput(0), "daily", -61782.379),
+            (100.0, NoInput(0), "monthly", -61855.670),
+            (NoInput(0), 110.0, "monthly", -100000.0),
+            (NoInput(0), 110.0, "daily", -98696.645),
             (100.0, 110.0, "monthly", -100000.0),
             (100.0, 110.0, "daily", -100000.0),
         ],
@@ -695,17 +733,32 @@ class TestZeroIndexLeg:
             convention="1+",
         )
         result = zil.cashflows(index_curve, curve)
-        expected = DataFrame({
-            "Type": ["ZeroIndexLeg"],
-            "Notional": [1000000.],
-            "Real Cashflow": [-1000000.],
-            "Index Base": [100.11863],
-            "Index Ratio": [1.06178],
-            "Cashflow": [-61782.379],
-            "NPV": [-58053.47605],
-        })
-        assert_frame_equal(result[["Type", "Notional", "Real Cashflow", "Index Base",
-                                   "Index Ratio", "Cashflow", "NPV"]], expected, rtol=1e-3)
+        expected = DataFrame(
+            {
+                "Type": ["ZeroIndexLeg"],
+                "Notional": [1000000.0],
+                "Real Cashflow": [-1000000.0],
+                "Index Base": [100.11863],
+                "Index Ratio": [1.06178],
+                "Cashflow": [-61782.379],
+                "NPV": [-58053.47605],
+            }
+        )
+        assert_frame_equal(
+            result[
+                [
+                    "Type",
+                    "Notional",
+                    "Real Cashflow",
+                    "Index Base",
+                    "Index Ratio",
+                    "Cashflow",
+                    "NPV",
+                ]
+            ],
+            expected,
+            rtol=1e-3,
+        )
 
 
 class TestFloatLegExchange:
@@ -757,7 +810,7 @@ class TestFloatLegExchange:
             initial_exchange=True,
             final_exchange=True,
         )
-        assert float_leg_exc.float_spread is None
+        assert float_leg_exc.float_spread is NoInput(0)
         float_leg_exc.float_spread = 2.0
         assert float_leg_exc.float_spread == 2.0
         for period in float_leg_exc.periods:
@@ -777,25 +830,29 @@ class TestFloatLegExchange:
         )
         assert len(leg.periods) == 9
         for i in [0, 2, 4, 6, 8]:
-            assert type(leg.periods[i]) == Cashflow
+            assert type(leg.periods[i]) is Cashflow
         for i in [1, 3, 5, 7]:
-            assert type(leg.periods[i]) == FloatPeriod
+            assert type(leg.periods[i]) is FloatPeriod
         assert leg.periods[1].notional == 5e6
         assert leg.periods[7].notional == 2e6
         assert leg.periods[8].notional == 2e6
         assert abs(leg.npv(curve).real) < 1e-9
 
     def test_float_leg_exchange_npv(self, curve):
-        fle = FloatLeg(dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True)
+        fle = FloatLeg(
+            dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True
+        )
         result = fle.npv(curve)
         assert abs(result) < 1e-9
 
     def test_float_leg_exchange_fixings_table(self, curve):
-        fle = FloatLeg(dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True)
+        fle = FloatLeg(
+            dt(2022, 2, 1), "6M", "Q", payment_lag=0, initial_exchange=True, final_exchange=True
+        )
         result = fle.fixings_table(curve)
         expected = DataFrame(
             {
-                "notional": [-1009872.33778, -1010201.55052],
+                "notional": [-1009872.33778, -1000000.00000],
                 "dcf": [0.002777777777777778, 0.002777777777777778],
                 "rates": [4.01655, 4.01655],
             },
@@ -855,8 +912,8 @@ class TestFixedLeg:
             convention="Act360",
             frequency="Q",
         )
-        assert fixed_leg.fixed_rate is None
-        assert fixed_leg.periods[0].fixed_rate is None
+        assert fixed_leg.fixed_rate is NoInput(0)
+        assert fixed_leg.periods[0].fixed_rate is NoInput(0)
 
         fixed_leg.fixed_rate = 2.0
         assert fixed_leg.fixed_rate == 2.0
@@ -867,7 +924,7 @@ class TestIndexFixedLegExchange:
     @pytest.mark.parametrize(
         "i_fixings",
         [
-            None,
+            NoInput(0),
             [210, 220, 230],
             210,
             Series(
@@ -936,7 +993,7 @@ class TestIndexFixedLegExchange:
 
     def test_args_raises(self):
         with pytest.raises(ValueError, match="`index_method` must be in"):
-            leg = IndexFixedLeg(
+            IndexFixedLeg(
                 effective=dt(2022, 3, 15),
                 termination="9M",
                 frequency="Q",
@@ -967,10 +1024,11 @@ class TestIndexFixedLegExchange:
 
     def test_npv(self):
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-        index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-                                 index_base=100.0)
+        index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0)
         index_leg_exch = IndexFixedLeg(
-            dt(2022, 1, 1), "9M", "Q",
+            dt(2022, 1, 1),
+            "9M",
+            "Q",
             notional=1000000,
             amortization=200000,
             index_base=100.0,
@@ -980,14 +1038,14 @@ class TestIndexFixedLegExchange:
         )
         result = index_leg_exch.npv(index_curve, curve)
         expected = -999971.65702
-        assert abs(result-expected) < 1e-4
+        assert abs(result - expected) < 1e-4
 
 
 class TestIndexFixedLeg:
     @pytest.mark.parametrize(
         "i_fixings, meth",
         [
-            (None, "daily"),
+            (NoInput(0), "daily"),
             ([210, 220, 230], "daily"),
             (210, "daily"),
             (
@@ -1051,10 +1109,7 @@ class TestIndexFixedLeg:
         for key in set(expected.keys()) & set(flow.keys()):
             assert equals_with_tol(expected[key], flow[key])
 
-    @pytest.mark.parametrize(
-        "meth, exp",
-        [("daily", 230.0), ("monthly", 227.91208)]
-    )
+    @pytest.mark.parametrize("meth, exp", [("daily", 230.0), ("monthly", 227.91208)])
     def test_missing_fixings(self, meth, exp):
         i_fixings = Series(
             [210, 220],
@@ -1102,10 +1157,13 @@ class TestIndexFixedLeg:
         for period in leg.periods:
             assert period.index_base == 205.0
 
-    @pytest.mark.parametrize("i_base", [
-        200.0,
-        Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]),
-    ])
+    @pytest.mark.parametrize(
+        "i_base",
+        [
+            200.0,
+            Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]),
+        ],
+    )
     def test_set_index_base(self, curve, i_base):
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
@@ -1123,12 +1181,15 @@ class TestIndexFixedLeg:
         assert leg.index_base == 200.0
         assert leg.periods[0].index_base == 200.0
 
-    @pytest.mark.parametrize("i_base, exp", [
-        (Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]), 200.0),
-        (Series([1.0, 2.0], index=[dt(2000, 1, 1), dt(2000, 12, 1)]), None),
-        (None, None),
-        (110.0, 110.0),
-    ])
+    @pytest.mark.parametrize(
+        "i_base, exp",
+        [
+            (Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]), 200.0),
+            (Series([1.0, 2.0], index=[dt(2000, 1, 1), dt(2000, 12, 1)]), NoInput(0)),
+            (NoInput(0), NoInput(0)),
+            (110.0, 110.0),
+        ],
+    )
     def test_initialise_index_base(self, i_base, exp):
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
@@ -1143,7 +1204,7 @@ class TestIndexFixedLeg:
 
     # this test is for coverage. When implemented this is OK to remove.
     def test_initial_exchange_raises(self):
-        with pytest.raises(NotImplementedError, match="Cannot construct `IndexFixedL" ):
+        with pytest.raises(NotImplementedError, match="Cannot construct `IndexFixedL"):
             IndexFixedLeg(
                 effective=dt(2022, 1, 1),
                 termination=dt(2022, 6, 1),
@@ -1160,9 +1221,9 @@ class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
         "fx_fixings, exp",
         [
-            (None, [None, None, None]),
-            ([1.5], [1.5, None, None]),
-            (1.25, [1.25, None, None]),
+            (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
+            ([1.5], [1.5, NoInput(0), NoInput(0)]),
+            (1.25, [1.25, NoInput(0), NoInput(0)]),
         ],
     )
     def test_float_leg_exchange_mtm(self, fx_fixings, exp):
@@ -1193,20 +1254,12 @@ class TestFloatLegExchangeMtm:
             dt(2022, 4, 6),
             dt(2022, 7, 6),
         ]  # payment_lag_exchange is 3 days.
-        rate = [
-            _ if _ is not None else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)
-        ]
+        rate = [_ if _ is not NoInput(0) else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
 
         float_leg_exch.cashflows(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         assert float(float_leg_exch.periods[0].cashflow - 10e6 * rate[0]) < 1e-6
-        assert (
-            float(float_leg_exch.periods[2].cashflow - 10e6 * (rate[1] - rate[0]))
-            < 1e-6
-        )
-        assert (
-            float(float_leg_exch.periods[4].cashflow - 10e6 * (rate[2] - rate[1]))
-            < 1e-6
-        )
+        assert float(float_leg_exch.periods[2].cashflow - 10e6 * (rate[1] - rate[0])) < 1e-6
+        assert float(float_leg_exch.periods[4].cashflow - 10e6 * (rate[2] - rate[1])) < 1e-6
         assert float_leg_exch.periods[4].payment == d[-1]
 
         assert float_leg_exch.periods[1].notional == 10e6 * rate[0]
@@ -1242,9 +1295,7 @@ class TestFloatLegExchangeMtm:
         )
 
         npv = leg.npv(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
-        a_delta = leg.analytic_delta(
-            fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf
-        )
+        # a_delta = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         result = leg._spread(100, fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         leg.float_spread = result
         npv2 = leg.npv(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
@@ -1253,9 +1304,9 @@ class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
         "fx_fixings, exp",
         [
-            (None, [None, None, None]),
-            ([1.5], [1.5, None, None]),
-            (1.25, [1.25, None, None]),
+            (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
+            ([1.5], [1.5, NoInput(0), NoInput(0)]),
+            (1.25, [1.25, NoInput(0), NoInput(0)]),
         ],
     )
     def test_mtm_leg_fx_fixings_warn_raise(self, curve, fx_fixings, exp):
@@ -1339,9 +1390,7 @@ def test_custom_leg_raises():
 
 
 def test_custom_leg():
-    float_leg = FloatLeg(
-        effective=dt(2022, 1, 1), termination=dt(2023, 1, 1), frequency="S"
-    )
+    float_leg = FloatLeg(effective=dt(2022, 1, 1), termination=dt(2023, 1, 1), frequency="S")
     custom_leg = CustomLeg(periods=float_leg.periods)
     for i, period in enumerate(custom_leg.periods):
         assert period == float_leg.periods[i]
@@ -1350,9 +1399,9 @@ def test_custom_leg():
 @pytest.mark.parametrize(
     "fx_fixings, exp",
     [
-        (None, [None, None, None]),
-        ([1.5], [1.5, None, None]),
-        (1.25, [1.25, None, None]),
+        (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
+        ([1.5], [1.5, NoInput(0), NoInput(0)]),
+        (1.25, [1.25, NoInput(0), NoInput(0)]),
     ],
 )
 def test_fixed_leg_exchange_mtm(fx_fixings, exp):
@@ -1383,7 +1432,7 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp):
         dt(2022, 4, 6),
         dt(2022, 7, 6),
     ]  # payment_lag_exchange is 3 days.
-    rate = [_ if _ is not None else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
+    rate = [_ if _ is not NoInput(0) else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
 
     fixed_leg_exch.cashflows(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
     assert float(fixed_leg_exch.periods[0].cashflow - 10e6 * rate[0]) < 1e-6
@@ -1458,12 +1507,12 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw):
         },
     )
 
-    d = [
-        dt(2022, 1, 6),
-        dt(2022, 4, 6),
-        dt(2022, 7, 6),
-    ]  # payment_lag_exchange is 3 days.
-    rate = [fxf.rate("eurusd", d[i]) for i in range(3)]
+    # d = [
+    #     dt(2022, 1, 6),
+    #     dt(2022, 4, 6),
+    #     dt(2022, 7, 6),
+    # ]  # payment_lag_exchange is 3 days.
+    # rate = [fxf.rate("eurusd", d[i]) for i in range(3)]
 
     result = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
     assert float(result - expected[0]) < 1e-6
@@ -1472,15 +1521,22 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw):
     assert float(result - expected[1]) < 1e-6
 
 
-@pytest.mark.parametrize("klass, kwargs, expected", [
-    (IndexFixedLeg, {}, [200.0, 300.0, 400.0]),
-    (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True}, [200.0, 300.0, 400.0, 400.0]),
-    (ZeroIndexLeg, {}, [400.0])
-])
+@pytest.mark.parametrize(
+    "klass, kwargs, expected",
+    [
+        (IndexFixedLeg, {}, [200.0, 300.0, 400.0]),
+        (
+            IndexFixedLeg,
+            {"initial_exchange": False, "final_exchange": True},
+            [200.0, 300.0, 400.0, 400.0],
+        ),
+        (ZeroIndexLeg, {}, [400.0]),
+    ],
+)
 def test_set_index_fixings_series_leg_types(klass, kwargs, expected):
     index_fixings = Series(
         [100.0, 200.0, 300, 399.0, 401.0],
-        index=[dt(2022, 1, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 10, 31), dt(2022, 11, 2)]
+        index=[dt(2022, 1, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 10, 31), dt(2022, 11, 2)],
     )
     obj = klass(
         effective=dt(2022, 2, 5),
@@ -1498,11 +1554,22 @@ def test_set_index_fixings_series_leg_types(klass, kwargs, expected):
         assert period.index_fixings == expected[i]
 
 
-@pytest.mark.parametrize("klass, kwargs, expected", [
-    (IndexFixedLeg, {"index_fixings": [200.0, 300.0, 400.0]}, [200.0, 300.0, 400.0]),
-    (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True, "index_fixings": [200.0, 300.0, 400.0, 400.0]}, [200.0, 300.0, 400.0, 400.0]),
-    (ZeroIndexLeg, {"index_fixings": [400.0]}, [400.0])
-])
+@pytest.mark.parametrize(
+    "klass, kwargs, expected",
+    [
+        (IndexFixedLeg, {"index_fixings": [200.0, 300.0, 400.0]}, [200.0, 300.0, 400.0]),
+        (
+            IndexFixedLeg,
+            {
+                "initial_exchange": False,
+                "final_exchange": True,
+                "index_fixings": [200.0, 300.0, 400.0, 400.0],
+            },
+            [200.0, 300.0, 400.0, 400.0],
+        ),
+        (ZeroIndexLeg, {"index_fixings": [400.0]}, [400.0]),
+    ],
+)
 def test_set_index_fixings_list_leg_types(klass, kwargs, expected):
     obj = klass(
         effective=dt(2022, 2, 5),
@@ -1519,11 +1586,18 @@ def test_set_index_fixings_list_leg_types(klass, kwargs, expected):
         assert period.index_fixings == expected[i]
 
 
-@pytest.mark.parametrize("klass, kwargs, expected", [
-    (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, None, None]),
-    (IndexFixedLeg, {"initial_exchange": False, "final_exchange": True, "index_fixings": 200.0}, [200.0, None, None, None]),
-    (ZeroIndexLeg, {"index_fixings": 400.0}, [400.0])
-])
+@pytest.mark.parametrize(
+    "klass, kwargs, expected",
+    [
+        (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, NoInput(0), NoInput(0)]),
+        (
+            IndexFixedLeg,
+            {"initial_exchange": False, "final_exchange": True, "index_fixings": 200.0},
+            [200.0, NoInput(0), NoInput(0), NoInput(0)],
+        ),
+        (ZeroIndexLeg, {"index_fixings": 400.0}, [400.0]),
+    ],
+)
 def test_set_index_fixings_float_leg_types(klass, kwargs, expected):
     obj = klass(
         effective=dt(2022, 2, 5),

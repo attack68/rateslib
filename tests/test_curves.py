@@ -1,6 +1,5 @@
 import pytest
 from datetime import datetime as dt
-from pandas import DataFrame
 import numpy as np
 from math import log, exp
 from matplotlib import pyplot as plt
@@ -18,6 +17,8 @@ from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import get_calendar
+from rateslib.solver import Solver
+from rateslib.instruments import IRS
 
 
 @pytest.fixture()
@@ -103,11 +104,14 @@ def test_line_curve_rate(line_curve):
     assert line_curve.rate(effective=dt(2022, 3, 16)) == expected
 
 
-@pytest.mark.parametrize("scm, exp", [
-    ("none_simple", 5.56617834937),
-    ("isda_flat_compounding", 5.57234801943),
-    ("isda_compounding", 5.58359355318),
-])
+@pytest.mark.parametrize(
+    "scm, exp",
+    [
+        ("none_simple", 5.56617834937),
+        ("isda_flat_compounding", 5.57234801943),
+        ("isda_compounding", 5.58359355318),
+    ],
+)
 def test_curve_rate_floating_spread(scm, exp):
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.9985, dt(2022, 3, 1): 0.995})
     result = curve.rate(dt(2022, 1, 1), dt(2022, 3, 1), None, 250, scm)
@@ -116,24 +120,25 @@ def test_curve_rate_floating_spread(scm, exp):
 
 def test_curve_rate_raises(curve):
     with pytest.raises(ValueError, match="Must supply a valid `spread_compound"):
-        curve.rate(
-            dt(2022, 3, 3), "7d", float_spread=10.0, spread_compound_method="bad"
-        )
+        curve.rate(dt(2022, 3, 3), "7d", float_spread=10.0, spread_compound_method="bad")
 
 
-@pytest.mark.parametrize("li, ll, val, expected", [
-    ([0, 1, 2, 3, 4], 5, 0, 0),
-    ([0, 1, 2, 3, 4], 5, 0.5, 0),
-    ([0, 1, 2, 3, 4], 5, 1, 0),
-    ([0, 1, 2, 3, 4], 5, 1.5, 1),
-    ([0, 1, 2, 3, 4], 5, 2, 1),
-    ([0, 1, 2, 3, 4], 5, 2.5, 2),
-    ([0, 1, 2, 3, 4], 5, 3, 2),
-    ([0, 1, 2, 3, 4], 5, 3.5, 3),
-    ([0, 1, 2, 3, 4], 5, 4, 3),
-    ([0, 1, 2, 3, 4], 5, 4.5, 3),  # extrapolate
-    ([0, 1, 2, 3, 4], 5, -0.5, 0),  # extrapolate
-])
+@pytest.mark.parametrize(
+    "li, ll, val, expected",
+    [
+        ([0, 1, 2, 3, 4], 5, 0, 0),
+        ([0, 1, 2, 3, 4], 5, 0.5, 0),
+        ([0, 1, 2, 3, 4], 5, 1, 0),
+        ([0, 1, 2, 3, 4], 5, 1.5, 1),
+        ([0, 1, 2, 3, 4], 5, 2, 1),
+        ([0, 1, 2, 3, 4], 5, 2.5, 2),
+        ([0, 1, 2, 3, 4], 5, 3, 2),
+        ([0, 1, 2, 3, 4], 5, 3.5, 3),
+        ([0, 1, 2, 3, 4], 5, 4, 3),
+        ([0, 1, 2, 3, 4], 5, 4.5, 3),  # extrapolate
+        ([0, 1, 2, 3, 4], 5, -0.5, 0),  # extrapolate
+    ],
+)
 def test_index_left(li, ll, val, expected):
     result = index_left(li, ll, val)
     assert result == expected
@@ -142,8 +147,12 @@ def test_index_left(li, ll, val, expected):
 def test_zero_rate_plot():
     # test calcs without raise
     curve_zero = Curve(
-        nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99,
-               dt(2024, 1, 1): 0.979, dt(2025, 1, 1): 0.967},
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 0.99,
+            dt(2024, 1, 1): 0.979,
+            dt(2025, 1, 1): 0.967,
+        },
         interpolation="linear_zero_rate",
     )
     curve_zero.plot("1d")
@@ -192,9 +201,17 @@ def test_serialization_round_trip_spline():
         id="v",
         convention="Act360",
         ad=1,
-        t=[dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1),
-           dt(2022, 6, 4),
-           dt(2022, 7, 4), dt(2022, 7, 4), dt(2022, 7, 4), dt(2022, 7, 4)]
+        t=[
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 6, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+        ],
     )
 
     serial = curve.to_json()
@@ -249,15 +266,18 @@ def test_copy_curve(curve, line_curve):
     assert id(copied) != id(line_curve)
 
 
-@pytest.mark.parametrize("attr, val", [
-    ("nodes", {dt(2022, 3, 1): 1.00}),
-    ("interpolation", "log_linear"),
-    ("id", "x"),
-    ("ad", 0),
-    ("convention", "actact"),
-    ("t", [dt(2022, 1, 1)]),
-    ("calendar_type", "bad")
-])
+@pytest.mark.parametrize(
+    "attr, val",
+    [
+        ("nodes", {dt(2022, 3, 1): 1.00}),
+        ("interpolation", "log_linear"),
+        ("id", "x"),
+        ("ad", 0),
+        ("convention", "actact"),
+        ("t", [dt(2022, 1, 1)]),
+        ("calendar_type", "bad"),
+    ],
+)
 def test_curve_equality_checks(attr, val, curve):
     copied_curve = curve.copy()
     setattr(copied_curve, attr, val)
@@ -277,9 +297,17 @@ def test_curve_equality_spline_coeffs():
         id="v",
         convention="Act360",
         ad=0,
-        t=[dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1),
-           dt(2022, 6, 4),
-           dt(2022, 7, 4), dt(2022, 7, 4), dt(2022, 7, 4), dt(2022, 7, 4)]
+        t=[
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 6, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+        ],
     )
     curve2 = Curve(
         nodes={
@@ -293,9 +321,17 @@ def test_curve_equality_spline_coeffs():
         id="v",
         convention="Act360",
         ad=0,
-        t=[dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1),
-           dt(2022, 6, 4),
-           dt(2022, 7, 4), dt(2022, 7, 4), dt(2022, 7, 4), dt(2022, 7, 4)]
+        t=[
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 5, 1),
+            dt(2022, 6, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+            dt(2022, 7, 4),
+        ],
     )
     curve2.nodes[dt(2022, 7, 4)] = 0.96  # set a specific node without recalc spline
     assert curve2 != curve  # should detect on curve2.spline.c
@@ -325,15 +361,18 @@ def test_df_is_zero_in_past(curve):
 
 def test_curve_none_return(curve):
     result = curve.rate(dt(2022, 2, 1), dt(2022, 2, 2))
-    assert result  is None
+    assert result is None
 
 
-@pytest.mark.parametrize("endpoints, expected", [
-    ("natural", [1.0, 0.995913396831872, 0.9480730429565414, 0.95]),
-    ("not_a_knot", [1.0, 0.9967668788593117, 0.9461282456344617, 0.95]),
-    (("not_a_knot", "natural"), [1.0, 0.9965809643843604, 0.9480575781858877, 0.95]),
-    (("natural", "not_a_knot"), [1.0, 0.9959615881004005, 0.9461971628597721, 0.95])
-])
+@pytest.mark.parametrize(
+    "endpoints, expected",
+    [
+        ("natural", [1.0, 0.995913396831872, 0.9480730429565414, 0.95]),
+        ("not_a_knot", [1.0, 0.9967668788593117, 0.9461282456344617, 0.95]),
+        (("not_a_knot", "natural"), [1.0, 0.9965809643843604, 0.9480575781858877, 0.95]),
+        (("natural", "not_a_knot"), [1.0, 0.9959615881004005, 0.9461971628597721, 0.95]),
+    ],
+)
 def test_spline_endpoints(endpoints, expected):
     curve = Curve(
         nodes={
@@ -344,22 +383,28 @@ def test_spline_endpoints(endpoints, expected):
             dt(2026, 1, 1): 0.95,
         },
         endpoints=endpoints,
-        t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-           dt(2023, 1, 1),
-           dt(2024, 1, 1),
-           dt(2025, 1, 1),
-           dt(2026, 1, 1), dt(2026, 1, 1), dt(2026, 1, 1), dt(2026, 1, 1)],
+        t=[
+            dt(2022, 1, 1),
+            dt(2022, 1, 1),
+            dt(2022, 1, 1),
+            dt(2022, 1, 1),
+            dt(2023, 1, 1),
+            dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2026, 1, 1),
+            dt(2026, 1, 1),
+            dt(2026, 1, 1),
+        ],
     )
-    for i, date in enumerate(
-        [dt(2022, 1, 1), dt(2022, 7, 1), dt(2025, 7, 1), dt(2026, 1, 1)]
-    ):
+    for i, date in enumerate([dt(2022, 1, 1), dt(2022, 7, 1), dt(2025, 7, 1), dt(2026, 1, 1)]):
         assert curve[date] == expected[i]
 
 
 @pytest.mark.parametrize("endpoints", [("natural", "bad"), ("bad", "natural")])
 def test_spline_endpoints_raise(endpoints):
     with pytest.raises(NotImplementedError, match="Endpoint method"):
-        curve = Curve(
+        Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.99,
@@ -368,26 +413,42 @@ def test_spline_endpoints_raise(endpoints):
                 dt(2026, 1, 1): 0.95,
             },
             endpoints=endpoints,
-            t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-               dt(2023, 1, 1),
-               dt(2024, 1, 1),
-               dt(2025, 1, 1),
-               dt(2026, 1, 1), dt(2026, 1, 1), dt(2026, 1, 1), dt(2026, 1, 1)],
+            t=[
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2026, 1, 1),
+                dt(2026, 1, 1),
+                dt(2026, 1, 1),
+            ],
         )
 
 
 def test_not_a_knot_raises():
     with pytest.raises(ValueError, match="`endpoints` cannot be 'not_a_knot'"):
-        curve = Curve(
+        Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2024, 1, 1): 0.97,
                 dt(2026, 1, 1): 0.95,
             },
             endpoints="not_a_knot",
-            t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-               dt(2024, 1, 1),
-               dt(2026, 1, 1), dt(2026, 1, 1), dt(2026, 1, 1), dt(2026, 1, 1)],
+            t=[
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2024, 1, 1),
+                dt(2026, 1, 1),
+                dt(2026, 1, 1),
+                dt(2026, 1, 1),
+                dt(2026, 1, 1),
+            ],
         )
 
 
@@ -454,7 +515,8 @@ def test_index_left_raises():
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_curve_shift_ad_order(ad_order):
+@pytest.mark.parametrize("composite", [True, False])
+def test_curve_shift_ad_order(ad_order, composite):
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -462,23 +524,49 @@ def test_curve_shift_ad_order(ad_order):
             dt(2024, 1, 1): 0.975,
             dt(2025, 1, 1): 0.965,
             dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
+            dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
         ad=ad_order,
     )
-    result_curve = curve.shift(25)
-    diff = np.array([
-        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
-            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    result_curve = curve.shift(25, composite=composite)
+    diff = np.array(
+        [
+            result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
+            for _ in [dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < 1e-7)
+
+
+def test_curve_shift_association():
+    args = (dt(2022, 2, 1), "1d")
+    curve = Curve(
+        nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.988},
+    )
+    solver = Solver(
+        curves=[curve], instruments=[IRS(dt(2022, 1, 1), "1Y", "A", curves=curve)], s=[2.0]
+    )
+    base = curve.rate(*args)
+    ass_shifted_curve = curve.shift(100)
+    stat_shifted_curve = curve.shift(100, composite=False)
+    assert abs(base - ass_shifted_curve.rate(*args) + 1.00) < 1e-5
+    assert abs(base - stat_shifted_curve.rate(*args) + 1.00) < 1e-5
+
+    solver.s = [3.0]
+    solver.iterate()
+    assert abs(ass_shifted_curve.rate(*args) - stat_shifted_curve.rate(*args)) > 0.95
 
 
 def test_curve_shift_dual_input():
@@ -489,21 +577,28 @@ def test_curve_shift_dual_input():
             dt(2024, 1, 1): 0.975,
             dt(2025, 1, 1): 0.965,
             dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
+            dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
     )
     result_curve = curve.shift(Dual(25, "z"))
-    diff = np.array([
-        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
-            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    diff = np.array(
+        [
+            result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
+            for _ in [dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < 1e-7)
 
 
@@ -511,13 +606,14 @@ def test_composite_curve_shift():
     c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
     c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
     cc = CompositeCurve([c1, c2])
-    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
+    result = cc.shift(20, composite=False).rate(dt(2022, 1, 1), "1d")
     expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
     assert abs(result - expected) < 1e-3
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_linecurve_shift(ad_order):
+@pytest.mark.parametrize("composite", [True, False])
+def test_linecurve_shift(ad_order, composite):
     curve = LineCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -528,19 +624,26 @@ def test_linecurve_shift(ad_order):
             dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
-        ad=ad_order
+        ad=ad_order,
     )
-    result_curve = curve.shift(25)
-    diff = np.array([
-        result_curve[_] - curve[_] - 0.25 for _ in [
-            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    result_curve = curve.shift(25, composite=composite)
+    diff = np.array(
+        [
+            result_curve[_] - curve[_] - 0.25
+            for _ in [dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < 1e-7)
 
 
@@ -555,23 +658,31 @@ def test_linecurve_shift_dual_input():
             dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
     )
     result_curve = curve.shift(Dual(25, "z"))
-    diff = np.array([
-        result_curve[_] - curve[_] - 0.25 for _ in [
-            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    diff = np.array(
+        [
+            result_curve[_] - curve[_] - 0.25
+            for _ in [dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < 1e-7)
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_indexcurve_shift(ad_order):
+@pytest.mark.parametrize("composite", [True, False])
+def test_indexcurve_shift(ad_order, composite):
     curve = IndexCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -582,21 +693,28 @@ def test_indexcurve_shift(ad_order):
             dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
         ad=ad_order,
-        index_base=110.,
+        index_base=110.0,
         interpolation="log_linear",
     )
-    result_curve = curve.shift(25)
-    diff = np.array([
-        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
-            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    result_curve = curve.shift(25, composite=composite)
+    diff = np.array(
+        [
+            result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
+            for _ in [dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < 1e-7)
     assert result_curve.index_base == curve.index_base
 
@@ -612,155 +730,227 @@ def test_indexcurve_shift_dual_input():
             dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
         index_base=110.0,
         interpolation="log_linear",
     )
     result_curve = curve.shift(Dual(25, "z"))
-    diff = np.array([
-        result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25 for _ in [
-            dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    diff = np.array(
+        [
+            result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
+            for _ in [dt(2022, 1, 10), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < 1e-7)
     assert result_curve.index_base == curve.index_base
 
 
-@pytest.mark.parametrize("crv, t, tol", [
-    (Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2023, 1, 1): 0.988,
-            dt(2024, 1, 1): 0.975,
-            dt(2025, 1, 1): 0.965,
-            dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
-        },
-        t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-    ), False, 1e-8),
-    (IndexCurve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2023, 1, 1): 0.988,
-            dt(2024, 1, 1): 0.975,
-            dt(2025, 1, 1): 0.965,
-            dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
-        },
-        t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-        index_base=110.,
-    ), False, 1e-8),
-    (LineCurve(
-        nodes={
-            dt(2022, 1, 1): 1.7,
-            dt(2023, 1, 1): 1.65,
-            dt(2024, 1, 1): 1.4,
-            dt(2025, 1, 1): 1.3,
-            dt(2026, 1, 1): 1.25,
-            dt(2027, 1, 1): 1.35
-        },
-        t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-    ), False, 1e-8),
-    (Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2023, 1, 2): 0.988,
-            dt(2024, 1, 1): 0.975,
-            dt(2025, 1, 1): 0.965,
-            dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
-        },
-        t=[
-            dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-            dt(2023, 1, 2),
-            dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-    ), True, 1e-3),
-])
+@pytest.mark.parametrize(
+    "crv, t, tol",
+    [
+        (
+            Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.988,
+                    dt(2024, 1, 1): 0.975,
+                    dt(2025, 1, 1): 0.965,
+                    dt(2026, 1, 1): 0.955,
+                    dt(2027, 1, 1): 0.9475,
+                },
+                t=[
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+            ),
+            False,
+            1e-8,
+        ),
+        (
+            IndexCurve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.988,
+                    dt(2024, 1, 1): 0.975,
+                    dt(2025, 1, 1): 0.965,
+                    dt(2026, 1, 1): 0.955,
+                    dt(2027, 1, 1): 0.9475,
+                },
+                t=[
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+                index_base=110.0,
+            ),
+            False,
+            1e-8,
+        ),
+        (
+            LineCurve(
+                nodes={
+                    dt(2022, 1, 1): 1.7,
+                    dt(2023, 1, 1): 1.65,
+                    dt(2024, 1, 1): 1.4,
+                    dt(2025, 1, 1): 1.3,
+                    dt(2026, 1, 1): 1.25,
+                    dt(2027, 1, 1): 1.35,
+                },
+                t=[
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+            ),
+            False,
+            1e-8,
+        ),
+        (
+            Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 2): 0.988,
+                    dt(2024, 1, 1): 0.975,
+                    dt(2025, 1, 1): 0.965,
+                    dt(2026, 1, 1): 0.955,
+                    dt(2027, 1, 1): 0.9475,
+                },
+                t=[
+                    dt(2022, 1, 1),
+                    dt(2022, 1, 1),
+                    dt(2022, 1, 1),
+                    dt(2022, 1, 1),
+                    dt(2023, 1, 2),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+            ),
+            True,
+            1e-3,
+        ),
+    ],
+)
 def test_curve_translate(crv, t, tol):
     result_curve = crv.translate(dt(2023, 1, 1), t=t)
-    diff = np.array([
-        result_curve.rate(_, "1D") - crv.rate(_, "1D") for _ in [
-            dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+    diff = np.array(
+        [
+            result_curve.rate(_, "1D") - crv.rate(_, "1D")
+            for _ in [dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(diff) < tol)
     if type(crv) is IndexCurve:
         assert result_curve.index_base == crv.index_value(dt(2023, 1, 1))
 
 
-@pytest.mark.parametrize("crv", [
-    Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2023, 1, 1): 0.988,
-            dt(2024, 1, 1): 0.975,
-            dt(2025, 1, 1): 0.965,
-            dt(2026, 1, 1): 0.955,
-            dt(2027, 1, 1): 0.9475
-        },
-        t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-    ),
-    LineCurve(
-        nodes={
-            dt(2022, 1, 1): 1.7,
-            dt(2023, 1, 1): 1.65,
-            dt(2024, 1, 1): 1.4,
-            dt(2025, 1, 1): 1.3,
-            dt(2026, 1, 1): 1.25,
-            dt(2027, 1, 1): 1.35
-        },
-        t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-        ],
-    )
-])
+@pytest.mark.parametrize(
+    "crv",
+    [
+        Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.988,
+                dt(2024, 1, 1): 0.975,
+                dt(2025, 1, 1): 0.965,
+                dt(2026, 1, 1): 0.955,
+                dt(2027, 1, 1): 0.9475,
+            },
+            t=[
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+            ],
+        ),
+        LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.7,
+                dt(2023, 1, 1): 1.65,
+                dt(2024, 1, 1): 1.4,
+                dt(2025, 1, 1): 1.3,
+                dt(2026, 1, 1): 1.25,
+                dt(2027, 1, 1): 1.35,
+            },
+            t=[
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+            ],
+        ),
+    ],
+)
 def test_curve_roll(crv):
     rolled_curve = crv.roll("10d")
     rolled_curve2 = crv.roll("-10d")
 
-    expected = np.array([crv.rate(_, "1D") for _ in [
-            dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)
+    expected = np.array(
+        [
+            crv.rate(_, "1D")
+            for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)]
         ]
-    ])
-    result = np.array([rolled_curve.rate(_, "1D") for _ in [
-            dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)
+    )
+    result = np.array(
+        [
+            rolled_curve.rate(_, "1D")
+            for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)]
         ]
-    ])
-    result2 = np.array([rolled_curve2.rate(_, "1D") for _ in [
-            dt(2023, 1, 5), dt(2023, 3, 5), dt(2024, 11, 5), dt(2026, 4, 5)
+    )
+    result2 = np.array(
+        [
+            rolled_curve2.rate(_, "1D")
+            for _ in [dt(2023, 1, 5), dt(2023, 3, 5), dt(2024, 11, 5), dt(2026, 4, 5)]
         ]
-    ])
+    )
     assert np.all(np.abs(result - expected) < 1e-7)
     assert np.all(np.abs(result2 - expected) < 1e-7)
 
@@ -781,10 +971,16 @@ def test_index_curve_roll():
             dt(2027, 1, 1): 0.9475,
         },
         t=[
-            dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
+            dt(2024, 1, 1),
             dt(2025, 1, 1),
             dt(2026, 1, 1),
-            dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
         ],
         index_base=110.0,
         interpolation="log_linear",
@@ -792,18 +988,24 @@ def test_index_curve_roll():
     rolled_curve = crv.roll("10d")
     rolled_curve2 = crv.roll("-10d")
 
-    expected = np.array([crv.rate(_, "1D") for _ in [
-        dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)
-    ]
-                         ])
-    result = np.array([rolled_curve.rate(_, "1D") for _ in [
-        dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)
-    ]
-                       ])
-    result2 = np.array([rolled_curve2.rate(_, "1D") for _ in [
-        dt(2023, 1, 5), dt(2023, 3, 5), dt(2024, 11, 5), dt(2026, 4, 5)
-    ]
-                        ])
+    expected = np.array(
+        [
+            crv.rate(_, "1D")
+            for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)]
+        ]
+    )
+    result = np.array(
+        [
+            rolled_curve.rate(_, "1D")
+            for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)]
+        ]
+    )
+    result2 = np.array(
+        [
+            rolled_curve2.rate(_, "1D")
+            for _ in [dt(2023, 1, 5), dt(2023, 3, 5), dt(2024, 11, 5), dt(2026, 4, 5)]
+        ]
+    )
     assert np.all(np.abs(result - expected) < 1e-7)
     assert np.all(np.abs(result2 - expected) < 1e-7)
     assert rolled_curve.index_base == crv.index_base
@@ -820,7 +1022,6 @@ def test_curve_zero_width_rate_raises(curve):
 
 
 class TestIndexCurve:
-
     def test_curve_translate_knots_raises(self, curve):
         curve = Curve(
             nodes={
@@ -829,14 +1030,21 @@ class TestIndexCurve:
                 dt(2024, 1, 1): 0.975,
                 dt(2025, 1, 1): 0.965,
                 dt(2026, 1, 1): 0.955,
-                dt(2027, 1, 1): 0.9475
+                dt(2027, 1, 1): 0.9475,
             },
-            t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-               dt(2022, 12, 1),
-               dt(2024, 1, 1),
-               dt(2025, 1, 1),
-               dt(2026, 1, 1),
-               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            t=[
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 12, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
             ],
         )
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
@@ -857,38 +1065,46 @@ class TestIndexCurve:
 
     def test_indexcurve_raises(self):
         with pytest.raises(ValueError, match="`index_base` must be given"):
-            curve = IndexCurve({dt(2022, 1, 1): 1.0})
+            IndexCurve({dt(2022, 1, 1): 1.0})
 
     def test_index_value_raises(self):
         curve = IndexCurve({dt(2022, 1, 1): 1.0}, index_base=100.0)
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
             curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
-    def test_roll_preserves_ad(self):
+    @pytest.mark.parametrize("ad", [0, 1, 2])
+    def test_roll_preserves_ad(self, ad):
         curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
             id="tags_",
-            ad=1,
+            ad=ad,
         )
         new_curve = curve.roll("1m")
-        pass
+        assert new_curve.ad == curve.ad
 
 
 class TestCompositeCurve:
-
     def test_curve_df_based(self):
         curve1 = Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.98,
                 dt(2024, 1, 1): 0.965,
-                dt(2025, 1, 1): 0.955
+                dt(2025, 1, 1): 0.955,
             },
-            t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
-               dt(2024, 1, 1),
-               dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+            t=[
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+            ],
         )
         curve2 = Curve(
             nodes={
@@ -930,11 +1146,19 @@ class TestCompositeCurve:
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.98,
                 dt(2024, 1, 1): 0.965,
-                dt(2025, 1, 1): 0.955
+                dt(2025, 1, 1): 0.955,
             },
-            t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
-               dt(2024, 1, 1),
-               dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+            t=[
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+            ],
         )
         curve2 = Curve(
             nodes={
@@ -955,11 +1179,12 @@ class TestCompositeCurve:
         crv = CompositeCurve([curve1, curve2])
 
         result_curve = crv.translate(dt(2022, 3, 1))
-        diff = np.array([
-            result_curve.rate(_, "1D") - crv.rate(_, "1D") for _ in [
-                dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)
+        diff = np.array(
+            [
+                result_curve.rate(_, "1D") - crv.rate(_, "1D")
+                for _ in [dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
             ]
-        ])
+        )
         assert np.all(np.abs(diff) < 1e-5)
 
     def test_composite_curve_roll(self):
@@ -968,11 +1193,19 @@ class TestCompositeCurve:
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.98,
                 dt(2024, 1, 1): 0.965,
-                dt(2025, 1, 1): 0.955
+                dt(2025, 1, 1): 0.955,
             },
-            t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
-               dt(2024, 1, 1),
-               dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1), dt(2025, 1, 1)],
+            t=[
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+            ],
         )
         curve2 = Curve(
             nodes={
@@ -993,14 +1226,18 @@ class TestCompositeCurve:
         crv = CompositeCurve([curve1, curve2])
 
         rolled_curve = crv.roll("10d")
-        expected = np.array([crv.rate(_, "1D") for _ in [
-            dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)
-        ]
-                             ])
-        result = np.array([rolled_curve.rate(_, "1D") for _ in [
-            dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)
-        ]
-        ])
+        expected = np.array(
+            [
+                crv.rate(_, "1D")
+                for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)]
+            ]
+        )
+        result = np.array(
+            [
+                rolled_curve.rate(_, "1D")
+                for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)]
+            ]
+        )
 
         assert np.all(np.abs(result - expected) < 1e-7)
 
@@ -1010,11 +1247,14 @@ class TestCompositeCurve:
         with pytest.raises(TypeError, match="`curves` must be a list of"):
             CompositeCurve([curve, line_curve])
 
-    @pytest.mark.parametrize("attribute, val", [
-        ("modifier", ["MF", "MP"]),
-        ("calendar", ["ldn", "tgt"]),
-        ("convention", ["act360", "act365f"])
-    ])
+    @pytest.mark.parametrize(
+        "attribute, val",
+        [
+            ("modifier", ["MF", "MP"]),
+            ("calendar", ["ldn", "tgt"]),
+            ("convention", ["act360", "act365f"]),
+        ],
+    )
     def test_attribute_error_raises(self, attribute, val):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, **{attribute: val[0]})
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, **{attribute: val[1]})
@@ -1038,38 +1278,42 @@ class TestCompositeCurve:
         with pytest.raises(ValueError, match="`curves` must share the same ini"):
             CompositeCurve([c1, c2])
 
-    @pytest.mark.parametrize("lag, base", [
-        ([2, 3], [100.0, 100.0]),
-        ([3, 3], [100.0, 100.001])
-    ])
+    @pytest.mark.parametrize("lag, base", [([2, 3], [100.0, 100.0]), ([3, 3], [100.0, 100.001])])
     def test_index_curves_raises(self, lag, base):
         ic1 = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-            index_lag=lag[0],
-            index_base=base[0]
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=lag[0], index_base=base[0]
         )
         ic2 = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-            index_lag=lag[1],
-            index_base=base[1]
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=lag[1], index_base=base[1]
         )
         with pytest.raises(ValueError, match="Cannot composite curves with different"):
             CompositeCurve([ic1, ic2])
 
     def test_index_curves_attributes(self):
-        ic1 = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-            index_lag=3,
-            index_base=101.1
-        )
-        ic2 = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-            index_lag=3,
-            index_base=101.1
-        )
+        ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
         assert cc.index_lag == 3
         assert cc.index_base == 101.1
+
+        result = cc.index_value(dt(2022, 1, 31), interpolation="monthly")
+        expected = 101.1
+        assert abs(result - expected) < 1e-5
+
+        result = cc.index_value(dt(1999, 1, 1))
+        expected = 0.0
+        assert abs(result - expected) < 1e-5
+
+        result = cc.index_value(dt(2022, 1, 1))
+        expected = 101.1
+        assert abs(result - expected) < 1e-5
+
+    def test_index_curves_interp_raises(self):
+        ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        cc = CompositeCurve([ic1, ic2])
+        with pytest.raises(ValueError, match="`interpolation` for `index_value` must"):
+            cc.index_value(dt(2022, 1, 31), interpolation="bad interp")
 
     def test_multi_csa(self):
         c1 = Curve(
@@ -1079,7 +1323,7 @@ class TestCompositeCurve:
                 dt(2022, 1, 3): 0.99991781,  # 2%
                 dt(2022, 1, 4): 0.99983564,  # 3%
                 dt(2022, 1, 5): 0.99972608,  # 4%
-             },
+            },
             convention="Act365F",
         )
         c2 = Curve(
@@ -1103,7 +1347,7 @@ class TestCompositeCurve:
             convention="Act365F",
         )
         cc = CompositeCurve([c1, c2, c3], multi_csa=True)
-        with default_context("multi_csa_granularity", 1):
+        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc.rate(dt(2022, 1, 1), "1d")
             r2 = cc.rate(dt(2022, 1, 2), "1d")
             r3 = cc.rate(dt(2022, 1, 3), "1d")
@@ -1122,8 +1366,8 @@ class TestCompositeCurve:
         )
 
         r1 = cc.rate(dt(2052, 5, 24), "1d")
-        r2 = cc.rate(dt(2052, 5, 25), "1d")
-        r3 = cc.rate(dt(2052, 5, 26), "1d")
+        # r2 = cc.rate(dt(2052, 5, 25), "1d")
+        # r3 = cc.rate(dt(2052, 5, 26), "1d")
 
         assert abs(r1 - 1.448374) < 1e-3
 
@@ -1132,40 +1376,86 @@ class TestCompositeCurve:
         ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="ee")
         eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.992}, id="eu")
         fxf = FXForwards(
-            fx_rates = FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1)),
-            fx_curves= {
+            fx_rates=FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1)),
+            fx_curves={
                 "usdusd": uu,
                 "eureur": ee,
                 "eurusd": eu,
             },
         )
-        pc = CompositeCurve([
-            uu,
-            fxf.curve("usd", "eur")
-        ], multi_csa=True)
+        pc = CompositeCurve([uu, fxf.curve("usd", "eur")], multi_csa=True)
         result = pc[dt(2023, 1, 1)]
         expected = 0.98900
         assert abs(result - expected) < 1e-4
 
-        pc = CompositeCurve([
-            fxf.curve("usd", "eur"),
-            uu,
-        ], multi_csa=True)
+        pc = CompositeCurve(
+            [
+                fxf.curve("usd", "eur"),
+                uu,
+            ],
+            multi_csa=True,
+        )
         result = pc[dt(2023, 1, 1)]
         assert abs(result - expected) < 1e-4
 
     def test_multi_raises(self, line_curve, curve):
         with pytest.raises(TypeError, match="Multi-CSA curves must"):
-            cc = CompositeCurve([line_curve], multi_csa=True)
+            CompositeCurve([line_curve], multi_csa=True)
 
         with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
-            cc = CompositeCurve(
-                [curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4
-            )
+            CompositeCurve([curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4)
+
+    def test_multi_csa_shift(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        c3 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99979455,  # 3.5%
+                dt(2022, 1, 4): 0.99969869,  # 3.5%
+                dt(2022, 1, 5): 0.99958915,  # 4%
+            },
+            convention="Act365F",
+        )
+        cc = CompositeCurve([c1, c2, c3], multi_csa=True)
+        cc_shift = cc.shift(100, composite=False)
+        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
+            r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
+            r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
+            r3 = cc_shift.rate(dt(2022, 1, 3), "1d")
+            r4 = cc_shift.rate(dt(2022, 1, 4), "1d")
+
+        assert abs(r1 - 5.0) < 1e-3
+        assert abs(r2 - 4.5) < 1e-3
+        assert abs(r3 - 4.5) < 1e-3
+        assert abs(r4 - 5.0) < 1e-3
+
+    def test_composite_curve_no_index_value_raises(self, curve):
+        cc = CompositeCurve([curve])
+        with pytest.raises(TypeError, match="`index_value` not available"):
+            cc.index_value(dt(2022, 1, 1))
 
 
 class TestPlotCurve:
-
     def test_plot_curve(self, curve):
         fig, ax, lines = curve.plot("1d")
         result = lines[0].get_data()

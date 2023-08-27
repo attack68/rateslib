@@ -1,8 +1,106 @@
 from pandas.tseries.offsets import BusinessDay
+from pandas import read_csv
+import pandas
+import os
+from enum import Enum
+from packaging import version
+from datetime import datetime
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+INSTRUMENT_SPECS = {
+    "usd_sofr_irs": dict(
+        currency="usd",
+        frequency="A",
+        leg2_frequency="A",
+        convention="Act360",
+        leg2_convention="Act360",
+        calendar="nyc",
+        leg2_calendar="nyc",
+        modifier="MF",
+        leg2_modifier="MF",
+        stub="SHORTFRONT",
+        leg2_stub="SHORTFRONT",
+        front_stub=None,
+        leg2_front_stub=None,
+        back_stub=None,
+        leg_back_stub=None,
+        eom=False,
+        leg2_eom=False,
+        roll=None,
+        leg2_roll=None,
+        payment_lag=2,
+        leg2_payment_lag=2,
+    )
+}
+
+
+class NoInput(Enum):
+    blank = 0
+    inherit = 1
+    negate = -1
+
+
+class Fixings:
+    @staticmethod
+    def _load_csv(path):
+        abspath = os.path.dirname(os.path.abspath(__file__))
+        target = os.path.join(abspath, path)
+        if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
+            # this is tested by the minimum version gitflow actions.
+            # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
+            df = read_csv(target)
+            df["reference_date"] = df["reference_date"].map(
+                lambda x: datetime.strptime(x, "%d-%m-%Y")
+            )
+            df = df.set_index("reference_date")
+        else:
+            df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
+        return df["rate"].sort_index(ascending=True)
+
+    def __init__(self):
+        self._sonia = None
+        self._estr = None
+        self._sofr = None
+        self._swestr = None
+        self._nowa = None
+
+    @property
+    def sonia(self):
+        if self._sonia is None:
+            self._sonia = self._load_csv("data/sonia.csv")
+        return self._sonia
+
+    @property
+    def estr(self):
+        if self._estr is None:
+            self._estr = self._load_csv("data/estr.csv")
+        return self._estr
+
+    @property
+    def sofr(self):
+        if self._sofr is None:
+            self._sofr = self._load_csv("data/sofr.csv")
+        return self._sofr
+
+    @property
+    def swestr(self):
+        if self._swestr is None:
+            self._swestr = self._load_csv("data/swestr.csv")
+        return self._swestr
+
+    @property
+    def nowa(self):
+        if self._nowa is None:
+            self._nowa = self._load_csv("data/nowa.csv")
+        return self._nowa
+
+    @property
+    def saron(self):
+        raise NotImplementedError("Swiss SIX exchange licence not available.")
 
 
 class Defaults:
@@ -14,6 +112,7 @@ class Defaults:
     notional = 1.0e6
     stub = "SHORTFRONT"
     stub_length = "SHORT"
+    eval_mode = "swaps_align"
     modifier = "MF"
     index_lag = 3
     index_method = "daily"
@@ -63,6 +162,10 @@ class Defaults:
         "rfr_observation_shift": 2,
         "rfr_lockout": 2,
         "rfr_lookback": 2,
+        "rfr_payment_delay_avg": 0,  # no observation shift - use payment_delay param
+        "rfr_observation_shift_avg": 2,
+        "rfr_lockout_avg": 2,
+        "rfr_lookback_avg": 2,
         "ibor": 2,
     }
     spread_compound_method = "none_simple"
@@ -92,8 +195,9 @@ class Defaults:
         "index_value": "Index Val",
         "index_ratio": "Index Ratio",
         "index_base": "Index Base",
+        "collateral": "Collateral",
     }
-    algorithm = "gauss_newton"
+    algorithm = "levenberg_marquardt"
     curve_not_in_solver = "ignore"
     no_fx_fixings_for_xcs = "warn"
     pool = 1
@@ -110,10 +214,18 @@ class Defaults:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+    # fixings data
+    fixings = Fixings()
+
     def reset_defaults(self):
         base = Defaults()
         for attr in [_ for _ in dir(self) if "__" != _[:2]]:
             setattr(self, attr, getattr(base, attr))
+
+    spec = {
+        "usd_irs": INSTRUMENT_SPECS["usd_sofr_irs"],
+        "sofr": INSTRUMENT_SPECS["usd_sofr_irs"],
+    }
 
 
 def plot(x, y: list, labels=[]):

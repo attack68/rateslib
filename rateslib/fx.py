@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Optional, Union
 import numpy as np
 from pandas import DataFrame, Series
 from pandas.tseries.offsets import CustomBusinessDay
@@ -11,7 +11,7 @@ from rateslib import defaults
 from rateslib.dual import Dual, dual_solve, set_order, DualTypes
 from rateslib.default import plot
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, LineCurve, ProxyCurve
+from rateslib.curves import Curve, LineCurve, ProxyCurve, CompositeCurve
 
 """
 .. ipython:: python
@@ -128,11 +128,7 @@ class FXRates:
         self.currencies = {
             k: i
             for i, k in enumerate(
-                list(
-                    dict.fromkeys(
-                        [p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]
-                    )
-                )
+                list(dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]))
             )
         }
         self.currencies_list = list(self.currencies.keys())
@@ -165,7 +161,10 @@ class FXRates:
             A[i + 1, domestic_idx] = -1.0
             A[i + 1, foreign_idx] = 1 / self.fx_rates[pair]
             b[i + 1] = 0
-        x = dual_solve(A, b[:, np.newaxis])[:, 0]
+        try:
+            x = dual_solve(A, b[:, np.newaxis])[:, 0]
+        except ArithmeticError:
+            return self._solve_error()
         self.fx_vector = x
 
         # solve fx_rates array
@@ -173,6 +172,28 @@ class FXRates:
         for i in range(self.q):
             for j in range(i + 1, self.q):
                 self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
+
+    def _solve_error(self):
+        """
+        Is called when `dual_solve` returns an ArithmeticError for partial
+        pivoting fail. Used to indicate obvious errors to users for bad FX pairs.
+        """
+        reversed_pairs = [_[3:6] + _[:3] for _ in self.pairs]
+        report = []
+        for pair in self.pairs:
+            if pair in reversed_pairs:
+                report.append(pair)
+        if len(report) > 1:
+            raise ValueError(
+                "FX rates cannot be solved because redundant information has been "
+                f"supplied.\nPairs and their reverse have been detected. "
+                f"Inspect '{','.join(report)}'"
+            )
+        else:
+            # Do not yet know the conditions in which this will raise. TODO (low) find a way to test
+            raise ArithmeticError(  # pragma: no cover
+                "The FX Matrix has failed to solve. Partial pivoting has failed."
+            )
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
         """
@@ -208,10 +229,7 @@ class FXRates:
             return self.copy()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
-            {
-                pair: self.rate(pair) if keep_ad else self.rate(pair).real
-                for pair in pairs
-            },
+            {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
             self.settlement,
         )
         return restated_fx_rates
@@ -338,9 +356,7 @@ class FXRates:
         if isinstance(value, (float, int)):
             value = Dual(value)
         base = self.base if base is None else base.lower()
-        _ = np.array(
-            [0 if ccy != base else float(value) for ccy in self.currencies_list]
-        )
+        _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = value.gradient(pair)[0]
@@ -401,13 +417,13 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def update(self, fx_rates: dict):
+    def update(self, fx_rates: Optional[dict] = None):
         """
         Update all or some of the FX rates of the instance.
 
         Parameters
         ----------
-        fx_rates : dict
+        fx_rates : dict, optional
             Dict whose keys are 6-character domestic-foreign currency pairs and
             which are present in FXRates.pairs, and whose
             values are the relevant rates to update.
@@ -469,6 +485,8 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
+        if fx_rates is None:
+            return None
         fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
         pairs = list(fx_rates_.keys())
         if len(set(pairs).difference(set(self.pairs))) != 0:
@@ -568,7 +586,7 @@ class FXRates:
 
     def __eq__(self, other):
         """Test two FXRates are identical"""
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         for attr in [
             "pairs",
@@ -586,9 +604,7 @@ class FXRates:
         return not self.__eq__(other)
 
     def copy(self):
-        return FXRates(
-            fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base
-        )
+        return FXRates(fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base)
 
 
 class FXForwards:
@@ -778,7 +794,9 @@ class FXForwards:
             self.fx_curves = {k.lower(): v for k, v in fx_curves.items()}
 
             self.terminal = datetime(2200, 1, 1)
-            for flag, (_, curve) in enumerate(self.fx_curves.items()):
+            for flag, (k, curve) in enumerate(self.fx_curves.items()):
+                curve.collateral = k[3:6]  # label curves with collateral
+
                 if flag == 0:
                     self.immediate: datetime = curve.node_dates[0]
                 elif self.immediate != curve.node_dates[0]:
@@ -825,9 +843,7 @@ class FXForwards:
                     sub_curves = self._get_curves_for_currencies(
                         self.fx_curves, fx_rates_obj.currencies_list + pre_currencies
                     )
-                    acyclic_fxf = FXForwards(
-                        fx_rates=combined_fx_rates, fx_curves=sub_curves
-                    )
+                    acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
 
             if base is not None:
                 acyclic_fxf.base = base.lower()
@@ -866,9 +882,7 @@ class FXForwards:
     @staticmethod
     def _get_curves_for_currencies(fx_curves, currencies):
         ps = product(currencies, currencies)
-        ret = {
-            p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves
-        }
+        ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
         return ret
 
     @staticmethod
@@ -886,9 +900,7 @@ class FXForwards:
             try:
                 cash_idx, coll_idx = currencies[cash], currencies[coll]
             except KeyError:
-                raise ValueError(
-                    f"`fx_curves` contains an unexpected currency: {cash} or {coll}"
-                )
+                raise ValueError(f"`fx_curves` contains an unexpected currency: {cash} or {coll}")
             T[cash_idx, coll_idx] = 1
 
         if T.sum() > (2 * q) - 1:
@@ -998,12 +1010,15 @@ class FXForwards:
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
                 settlement = self.fx_rates.settlement
+                if settlement is None:
+                    raise ValueError(
+                        "`fx_rates` as FXRates supplied to FXForwards must contain a "
+                        "`settlement` argument."
+                    )
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
                 pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update(
-                    {pair: self.fx_rates.fx_array[row, col] * v_i / w_i}
-                )
+                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
         fx_rates_immediate = FXRates(fx_rates_immediate, self.immediate)
         return fx_rates_immediate.restate(self.fx_rates.pairs, keep_ad=True)
@@ -1058,9 +1073,7 @@ class FXForwards:
 
         """
 
-        def _get_d_f_idx_and_path(
-            pair, path: Optional[list[dict]]
-        ) -> tuple[int, int, list[dict]]:
+        def _get_d_f_idx_and_path(pair, path: Optional[list[dict]]) -> tuple[int, int, list[dict]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
@@ -1080,10 +1093,7 @@ class FXForwards:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
                 return rate_, path
             return rate_
-        elif (
-            isinstance(self.fx_rates, FXRates)
-            and settlement == self.fx_rates.settlement
-        ):
+        elif isinstance(self.fx_rates, FXRates) and settlement == self.fx_rates.settlement:
             rate_ = self.fx_rates.rate(pair)
             if return_path:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
@@ -1185,7 +1195,8 @@ class FXForwards:
                         df = df.add(_.to_frame(), fill_value=0.0)
 
         if aggregate:
-            return df.sum(axis=1)
+            _ = df.sum(axis=1).rename(dates[0])
+            return _
         else:
             return df.sort_index(axis=1)
 
@@ -1334,9 +1345,7 @@ class FXForwards:
         elif isinstance(array, DataFrame):
             array_ = array
         else:
-            array_ = DataFrame(
-                {self.immediate: np.asarray(array)}, index=self.currencies_list
-            )
+            array_ = DataFrame({self.immediate: np.asarray(array)}, index=self.currencies_list)
 
         # j = self.currencies[base]
         # return np.sum(array_ * self.fx_array[:, j])
@@ -1441,9 +1450,9 @@ class FXForwards:
         ----------
         cashflow : str
             The currency in which cashflows are represented (3-digit code).
-        collateral : str
+        collateral : str, or list/tuple of such
             The currency of the CSA against which cashflows are collateralised (3-digit
-            code).
+            code). If a list or tuple will return a CompositeCurve in multi-CSA mode.
         convention : str
             The day count convention used for calculating rates. If `None` defaults
             to the convention in the local cashflow currency.
@@ -1459,7 +1468,7 @@ class FXForwards:
 
         Returns
         -------
-        Curve or ProxyCurve
+        Curve, ProxyCurve or CompositeCurve
 
         Notes
         -----
@@ -1477,6 +1486,18 @@ class FXForwards:
         from the combination of curves and FX rates that are available within
         the given :class:`FXForwards` instance.
         """
+        if isinstance(collateral, (list, tuple)):
+            curves = []
+            for coll in collateral:
+                curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
+            _ = CompositeCurve(
+                curves=curves,
+                id=id,
+                multi_csa=True,
+            )
+            _.collateral = ",".join([__.lower() for __ in collateral])
+            return _
+
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         pair = f"{cash_ccy}{coll_ccy}"
         if pair in self.fx_curves:
@@ -1609,7 +1630,7 @@ class FXForwards:
 
     def __eq__(self, other):
         """Test two FXForwards are identical"""
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         for attr in ["base"]:
             if getattr(self, attr, None) != getattr(other, attr, None):
@@ -1653,3 +1674,97 @@ class FXForwards:
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def forward_fx(
+    date: datetime,
+    curve_domestic: Curve,
+    curve_foreign: Curve,
+    fx_rate: Union[float, Dual],
+    fx_settlement: Optional[datetime] = None,
+) -> Dual:
+    """
+    Return a forward FX rate based on interest rate parity.
+
+    Parameters
+    ----------
+    date : datetime
+        The target date to determine the adjusted FX rate for.
+    curve_domestic : Curve
+        The discount curve for the domestic currency. Should be FX swap / XCS adjusted.
+    curve_foreign : Curve
+        The discount curve for the foreign currency. Should be FX swap / XCS consistent
+        with ``domestic curve``.
+    fx_rate : float or Dual
+        The known FX rate, typically spot FX given with a spot settlement date.
+    fx_settlement : datetime, optional
+        The date the given ``fx_rate`` will settle, i.e spot T+2. If `None` is assumed
+        to be immediate settlement, i.e. date upon which both ``curves`` have a DF
+        of precisely 1.0. Method is more efficient if ``fx_rate`` is given for
+        immediate settlement.
+
+    Returns
+    -------
+    float, Dual, Dual2
+
+    Notes
+    -----
+    We use the formula,
+
+    .. math::
+
+       (EURUSD) f_i = \\frac{(EUR:USD-CSA) w^*_i}{(USD:USD-CSA) v_i} F_0 = \\frac{(EUR:EUR-CSA) v^*_i}{(USD:EUR-CSA) w_i} F_0
+
+    where :math:`w` is a cross currency adjusted discount curve and :math:`v` is the
+    locally derived discount curve in a given currency, and `*` denotes the domestic
+    currency. :math:`F_0` is the immediate FX rate, i.e. aligning with the initial date
+    on curves such that discounts factors are precisely 1.0.
+
+    This implies that given the dates and rates supplied,
+
+    .. math::
+
+       f_i = \\frac{w^*_iv_j}{v_iw_j^*} f_j = \\frac{v^*_iw_j}{w_iv_j^*} f_j
+
+    where `j` denotes the settlement date provided.
+
+    Examples
+    --------
+    Using this function directly.
+
+    .. ipython:: python
+
+       domestic_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96})
+       foreign_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+       forward_fx(
+           date=dt(2022, 7, 1),
+           curve_domestic=domestic_curve,
+           curve_foreign=foreign_curve,
+           fx_rate=2.0,
+           fx_settlement=dt(2022, 1, 3)
+       )
+
+    Best practice is to use :class:`FXForwards` classes but this method provides
+    an efficient alternative and is occasionally used internally in the library.
+
+    .. ipython:: python
+
+       fxr = FXRates({"usdgbp": 2.0}, settlement=dt(2022, 1, 3))
+       fxf = FXForwards(fxr, {
+           "usdusd": domestic_curve,
+           "gbpgbp": foreign_curve,
+           "gbpusd": foreign_curve,
+       })
+       fxf.rate("usdgbp", dt(2022, 7, 1))
+    """
+    if date == fx_settlement:
+        return fx_rate
+    elif date == curve_domestic.node_dates[0] and fx_settlement is None:
+        return fx_rate
+
+    _ = curve_domestic[date] / curve_foreign[date]
+    if fx_settlement is not None:
+        _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
+    # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
+    _ *= fx_rate
+    return _

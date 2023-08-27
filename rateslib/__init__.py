@@ -12,7 +12,7 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.default import Defaults
+from rateslib.default import Defaults, NoInput
 
 defaults = Defaults()
 
@@ -33,9 +33,7 @@ class default_context(ContextDecorator):
 
     def __init__(self, *args) -> None:
         if len(args) % 2 != 0 or len(args) < 2:
-            raise ValueError(
-                "Need to invoke as option_context(pat, val, [(pat, val), ...])."
-            )
+            raise ValueError("Need to invoke as option_context(pat, val, [(pat, val), ...]).")
 
         self.ops = list(zip(args[::2], args[1::2]))
 
@@ -111,6 +109,7 @@ from rateslib.instruments import (
     Swap,
     SBS,
     FXSwap,
+    FXExchange,
     NonMtmXCS,
     NonMtmFixedFixedXCS,
     NonMtmFixedFloatXCS,
@@ -141,6 +140,7 @@ in Python.
 __all__ = [
     "dt",
     "defaults",
+    "NoInput",
     # dual.py
     "Dual",
     "Dual2",
@@ -202,6 +202,7 @@ __all__ = [
     "ZCIS",
     "SBS",
     "FXSwap",
+    "FXExchange",
     "NonMtmXCS",
     "NonMtmFixedFixedXCS",
     "NonMtmFixedFloatXCS",

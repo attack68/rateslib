@@ -29,6 +29,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, Series
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.calendars import add_tenor
 from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, IndexCurve
@@ -41,6 +42,8 @@ from rateslib.periods import (
     IndexMixin,
     _validate_float_args,
     _get_fx_and_base,
+    _disc_from_curve,
+    _disc_maybe_from_curve,
 )
 from rateslib.dual import Dual, Dual2, set_order, DualTypes
 from rateslib.fx import FXForwards, FXRates
@@ -82,9 +85,9 @@ class BaseLeg(metaclass=ABCMeta):
         The modification rule, in {"F", "MF", "P", "MP"}
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
-        static data.
+        static data. See :meth:`~rateslib.calendars.get_calendar`.
     payment_lag : int, optional
-        The number of business days to lag payments by.
+        The number of business days to lag payments by on regular accrual periods.
     notional : float, optional
         The leg notional, which is applied to each period.
     currency : str, optional
@@ -120,6 +123,10 @@ class BaseLeg(metaclass=ABCMeta):
     amortization amount is added to the list of periods as interim exchanges if
     ``final_exchange`` is *True*. Payment dates adhere to the ``payment_lag_exchange``.
 
+    Examples
+    --------
+    See :ref:`Leg Examples<legs-doc>`
+
     Attributes
     ----------
     schedule : Schedule
@@ -149,19 +156,20 @@ class BaseLeg(metaclass=ABCMeta):
         effective: datetime,
         termination: Union[datetime, str],
         frequency: str,
-        stub: Optional[str] = None,
-        front_stub: Optional[datetime] = None,
-        back_stub: Optional[datetime] = None,
-        roll: Optional[Union[str, int]] = None,
-        eom: Optional[bool] = None,
-        modifier: Optional[str] = False,
-        calendar: Optional[Union[CustomBusinessDay, str]] = None,
-        payment_lag: Optional[int] = None,
-        notional: Optional[float] = None,
-        currency: Optional[str] = None,
-        amortization: Optional[float] = None,
-        convention: Optional[str] = None,
-        payment_lag_exchange: Optional[int] = None,
+        *,
+        stub: Union[str, NoInput] = NoInput(0),
+        front_stub: Union[datetime, NoInput] = NoInput(0),
+        back_stub: Union[datetime, NoInput] = NoInput(0),
+        roll: Union[str, int, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
+        modifier: Union[str, None, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        payment_lag: Union[int, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        currency: Union[str, NoInput] = NoInput(0),
+        amortization: Union[float, NoInput] = NoInput(0),
+        convention: Union[str, NoInput] = NoInput(0),
+        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
     ):
@@ -178,19 +186,19 @@ class BaseLeg(metaclass=ABCMeta):
             calendar,
             payment_lag,
         )
-        self.convention = defaults.convention if convention is None else convention
-        self.currency = defaults.base_currency if currency is None else currency.lower()
+        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
 
         self.payment_lag_exchange = (
             defaults.payment_lag_exchange
-            if payment_lag_exchange is None
+            if payment_lag_exchange is NoInput.blank
             else payment_lag_exchange
         )
         self.initial_exchange = initial_exchange
         self.final_exchange = final_exchange
 
-        self._notional = defaults.notional if notional is None else notional
-        self._amortization = 0 if amortization is None else amortization
+        self._notional = defaults.notional if notional is NoInput.blank else notional
+        self._amortization = 0 if amortization is NoInput.blank else amortization
         if getattr(self, "_delay_set_periods", False):
             pass
         else:
@@ -251,7 +259,7 @@ class BaseLeg(metaclass=ABCMeta):
                 Cashflow(
                     self.amortization,
                     add_tenor(
-                        self.schedule.aschedule[i+1],
+                        self.schedule.aschedule[i + 1],
                         f"{self.payment_lag_exchange}B",
                         None,
                         self.schedule.calendar,
@@ -347,10 +355,7 @@ class BaseLeg(metaclass=ABCMeta):
         bool
         """
         if "Float" in type(self).__name__:
-            if (
-                "rfr" in self.fixing_method
-                and self.spread_compound_method != "none_simple"
-            ):
+            if "rfr" in self.fixing_method and self.spread_compound_method != "none_simple":
                 return False
         return True
 
@@ -362,9 +367,7 @@ class BaseLeg(metaclass=ABCMeta):
         a, b = 0.0, 0.0
         for period in self.periods:
             try:
-                a_, b_ = period._get_analytic_delta_quadratic_coeffs(
-                    fore_curve, disc_curve
-                )
+                a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
                 a += a_
                 b += b_
             except AttributeError:
@@ -388,7 +391,7 @@ class BaseLeg(metaclass=ABCMeta):
         return _
 
     def _spread_isda_dual2(
-        self, target_npv, fore_curve, disc_curve, fx=None
+        self, target_npv, fore_curve, disc_curve, fx=NoInput(0)
     ):  # pragma: no cover
         # This method is unused and untested, superseded by _spread_isda_approx_rate
 
@@ -434,8 +437,7 @@ class BaseLeg(metaclass=ABCMeta):
             # this is to avoid divide by zero errors and return an approximation
             _ = _1
             warnings.warn(
-                "Divide by zero encountered and the spread is approximated to "
-                "first order.",
+                "Divide by zero encountered and the spread is approximated to " "first order.",
                 UserWarning,
             )
 
@@ -449,7 +451,7 @@ class BaseLeg(metaclass=ABCMeta):
 
         return _
 
-    def _spread(self, target_npv, fore_curve, disc_curve, fx=None):
+    def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
         a specific target NPV.
@@ -504,7 +506,7 @@ class FixedLegMixin:
     @property
     def fixed_rate(self):
         """
-        float or None : If set will also set the ``fixed_rate`` of
+        float or NoInput : If set will also set the ``fixed_rate`` of
             contained :class:`FixedPeriod` s.
         """
         return self._fixed_rate
@@ -512,7 +514,6 @@ class FixedLegMixin:
     @fixed_rate.setter
     def fixed_rate(self, value):
         self._fixed_rate = value
-        # if value is not None:
         for period in getattr(self, "periods", []):
             if isinstance(period, FixedPeriod):
                 period.fixed_rate = value
@@ -537,6 +538,8 @@ class FixedLegMixin:
             convention=self.convention,
             termination=self.schedule.termination,
             stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
         )
 
 
@@ -549,8 +552,8 @@ class FixedLeg(BaseLeg, FixedLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     fixed_rate : float, optional
-        The rate applied to determine cashflows. Can be set to `None` and designated
-        later, perhaps after a mid-market rate for all periods has been calculated.
+        The rate applied to determine cashflows in % (i.e 5.0 = 5%). Can be left unset and
+        designated later, perhaps after a mid-market rate for all periods has been calculated.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
 
@@ -560,7 +563,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
 
     .. math::
 
-       P = \\underbrace{- R \\sum_{i=1}^n {N_i d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
+       P = \\underbrace{- R \\sum_{i=1}^n {N_i d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \\sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
 
     The analytic delta is the sum of the period analytic deltas.
 
@@ -586,7 +589,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
        fixed_leg_exch.npv(curve)
     """
 
-    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
+    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         self._fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
         self._set_periods()
@@ -642,7 +645,7 @@ class FloatLegMixin:
         Re-organises the fixings input to list structure for each period.
         Requires a ``schedule`` object and ``float_args``.
         """
-        if fixings is None:
+        if fixings is NoInput.blank:
             fixings = []
         elif isinstance(fixings, Series):
             last_fixing = fixings.index[-1]
@@ -660,19 +663,16 @@ class FloatLegMixin:
                 )
                 for i in range(self.schedule.n_periods)
             ]
-            fixings = [
-                fixings if last_fixing >= day else None for day in first_required_day
-            ]
+            fixings = [fixings if last_fixing >= day else NoInput(0) for day in first_required_day]
         elif not isinstance(fixings, list):
             fixings = [fixings]
 
-        self.fixings = fixings + [None] * (self.schedule.n_periods - len(fixings))
-        return None
+        self.fixings = fixings + [NoInput(0)] * (self.schedule.n_periods - len(fixings))
 
     @property
     def float_spread(self):
         """
-        float or None : If set will also set the ``float_spread`` of contained
+        float or NoInput : If set will also set the ``float_spread`` of contained
             :class:`~rateslib.periods.FloatPeriod` s.
         """
         return self._float_spread
@@ -680,10 +680,13 @@ class FloatLegMixin:
     @float_spread.setter
     def float_spread(self, value):
         self._float_spread = value
-        # if value is not None:
+        if value is NoInput(0):
+            _ = 0.0
+        else:
+            _ = value
         for period in self.periods:
             if isinstance(period, FloatPeriod):
-                period.float_spread = value if value is not None else 0.0
+                period.float_spread = _
 
     # def fixings_table(self, curve: Curve):
     #     """
@@ -753,6 +756,8 @@ class FloatLegMixin:
             convention=self.convention,
             termination=self.schedule.termination,
             stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
             fixings=self.fixings[iterator],
             fixing_method=self.fixing_method,
             method_param=self.method_param,
@@ -769,8 +774,8 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     float_spread : float, optional
-        The spread applied to determine cashflows. Can be set to `None` and designated
-        later, perhaps after a mid-market spread for all periods has been calculated.
+        The spread applied to determine cashflows in bps (i.e. 100 = 1%). Can be set to `None`
+        and designated later, perhaps after a mid-market spread for all periods has been calculated.
     spread_compound_method : str, optional
         The method to use for adding a floating spread to compounded rates. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
@@ -794,7 +799,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
 
     .. math::
 
-       P = \\underbrace{- \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
+       P = \\underbrace{- \\sum_{i=1}^n {N_i r_i(r_j, z) d_i v_i(m_i)}}_{\\text{regular flows}} \\underbrace{+ N_1 v(m_0) - \\sum_{i=1}^{n-1}v(m_i)(N_{i}-N_{i+1})  - N_n v(m_n)}_{\\text{exchange flows}}
 
     The analytic delta is the sum of the period analytic deltas.
 
@@ -843,8 +848,40 @@ class FloatLeg(BaseLeg, FloatLegMixin):
        )
        float_leg.cashflows(curve)
 
+    It is **not** best practice to supply fixings as a list of values. It is better to supply
+    a *Series* indexed by IBOR publication date (in this case lagged by zero days).
+
+    .. ipython:: python
+
+       float_leg = FloatLeg(
+           effective=dt(2021, 9, 1),
+           termination="12M",
+           frequency="Q",
+           fixing_method="ibor",
+           method_param=0,
+           fixings=Series([1.00, 2.00], index=[dt(2021, 9, 1), dt(2021, 12, 1)])
+       )
+       float_leg.cashflows(curve)
+
     Set the initial RFR fixings in the first period of an RFR leg (notice the sublist
     and the implied -10% year end turn spread).
+
+    .. ipython:: python
+
+       swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
+       float_leg = FloatLeg(
+           effective=dt(2022, 12, 28),
+           termination="2M",
+           frequency="M",
+           fixings=[[1.19, 1.19, -8.81]],
+           currency="SEK",
+           calendar="stk"
+       )
+       float_leg.cashflows(swestr_curve)
+       float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
+
+    Again, this is poor practice. It is **best practice** to supply a *Series* of RFR rates by
+    reference value date.
 
     .. ipython:: python
 
@@ -852,21 +889,22 @@ class FloatLeg(BaseLeg, FloatLegMixin):
            effective=dt(2022, 12, 28),
            termination="2M",
            frequency="M",
-           fixings=[[1.19, 1.19, -8.81]],
+           fixings=Series([1.19, 1.19, -8.81], index=[dt(2022, 12, 28), dt(2022, 12, 29), dt(2022, 12, 30)]),
            currency="SEK",
+           calendar="stk",
        )
-       float_leg.cashflows(curve)
-       float_leg.fixings_table(curve)[dt(2022,12,28):dt(2023,1,4)]
+       float_leg.cashflows(swestr_curve)
+       float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
     """
 
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -1004,16 +1042,16 @@ class IndexLegMixin:
                         i_method=self.index_method,
                         i_lag=self.index_lag,
                         i_date=period.end,
-                        i_curve=None,  # not required because i_fixings is Series
+                        i_curve=NoInput(0),  # not required because i_fixings is Series
                     )
                 elif isinstance(value, list):
                     if i >= len(value):
-                        _ = None  # some fixings are unknown, list size is limited
+                        _ = NoInput(0)  # some fixings are unknown, list size is limited
                     else:
                         _ = value[i]
                 else:
                     # value is float or None
-                    _ = value if i == 0 else None
+                    _ = value if i == 0 else NoInput(0)
                 period.index_fixings = _
 
     @property
@@ -1028,7 +1066,7 @@ class IndexLegMixin:
                 i_method=self.index_method,
                 i_lag=self.index_lag,
                 i_date=self.schedule.effective,
-                i_curve=None,  # not required becuase i_fixings is Series
+                i_curve=NoInput(0),  # not required because i_fixings is Series
             )
         self._index_base = value
         # if value is not None:
@@ -1089,16 +1127,29 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
        the leg is acceptable, i.e. a leg calendar of *"nyc,ldn,tgt"* and a curve
        calendar of *"ldn"* is valid, whereas only *"nyc,tgt"* may give errors.
 
+    Examples
+    --------
+    .. ipython:: python
+
+       zfl = ZeroFloatLeg(
+           effective=dt(2022, 1, 1),
+           termination="3Y",
+           frequency="S",
+           fixing_method="ibor",
+           method_param=0,
+           float_spread=100.0
+       )
+       zfl.cashflows(curve)
     """
 
     def __init__(
         self,
         *args,
-        float_spread: Optional[float] = None,
-        fixings: Optional[Union[float, list, Series]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -1128,6 +1179,8 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
                 stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
                 fixing_method=self.fixing_method,
                 fixings=self.fixings[i],
                 method_param=self.method_param,
@@ -1165,9 +1218,9 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
     def npv(
         self,
         curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         """
@@ -1176,13 +1229,13 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)
             / 100
             * self.dcf
-            * disc_curve[self.schedule.pschedule[-1]]
+            * disc_curve_[self.schedule.pschedule[-1]]
             * -self.notional
         )
         if local:
@@ -1191,15 +1244,16 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
             return fx * value
 
     def fixings_table(self, curve: Curve):  # pragma: no cover
+        """Not yet implemented for ZeroFloatLeg"""
         # TODO: fixing table for ZeroFloatLeg
         raise NotImplementedError("fixings table on ZeroFloatLeg.")
 
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the analytic delta of the *ZeroFloatLeg* from all periods.
@@ -1207,18 +1261,15 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        compounded_rate, total_dcf = 1.0, 0.0
+        compounded_rate = 1.0
         for period in self.periods:
             compounded_rate *= 1 + period.dcf * period.rate(curve) / 100
 
         a_sum = 0.0
         for period in self.periods:
-            _ = (
-                period.analytic_delta(curve, disc_curve_, fx, base)
-                / disc_curve_[period.payment]
-            )
+            _ = period.analytic_delta(curve, disc_curve_, fx, base) / disc_curve_[period.payment]
             _ *= compounded_rate / (1 + period.dcf * period.rate(curve) / 100)
             a_sum += _
         a_sum *= disc_curve_[self.schedule.pschedule[-1]] * fx
@@ -1226,10 +1277,10 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the properties of the *ZeroFloatLeg* used in calculating cashflows.
@@ -1237,18 +1288,22 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
-        rate = None if curve is None else float(self.rate(curve))
-        cashflow = (
-            None if rate is None else -float(self.notional * self.dcf * rate / 100)
-        )
-        if disc_curve is None or rate is None:
-            npv, npv_fx = None, None
+
+        if curve is NoInput.blank:
+            rate, cashflow = None, None
+            if disc_curve_ is NoInput.blank:
+                npv, npv_fx, df, collateral = None, None, None, None
         else:
-            npv = float(self.npv(curve, disc_curve))
+            rate = float(self.rate(curve))
+            cashflow = -float(self.notional * self.dcf * rate / 100)
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
-        spread = 0.0 if self.float_spread is None else float(self.float_spread)
+            df = float(disc_curve_[self.schedule.pschedule[-1]])
+            collateral = disc_curve_.collateral
+
+        spread = 0.0 if self.float_spread is NoInput.blank else float(self.float_spread)
         seq = [
             {
                 defaults.headers["type"]: type(self).__name__,
@@ -1260,15 +1315,14 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
                 defaults.headers["convention"]: self.convention,
                 defaults.headers["dcf"]: self.dcf,
                 defaults.headers["notional"]: float(self.notional),
-                defaults.headers["df"]: None
-                if disc_curve is None
-                else float(disc_curve[self.schedule.pschedule[-1]]),
+                defaults.headers["df"]: df,
                 defaults.headers["rate"]: rate,
                 defaults.headers["spread"]: spread,
                 defaults.headers["cashflow"]: cashflow,
                 defaults.headers["npv"]: npv,
                 defaults.headers["fx"]: float(fx),
                 defaults.headers["npv_fx"]: npv_fx,
+                defaults.headers["collateral"]: collateral,
             }
         ]
         return DataFrame.from_records(seq)
@@ -1312,16 +1366,29 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
       A = N d v(m) \\left ( 1+ \\frac{R^{irr}}{f} \\right )^{df -1}
 
+    Examples
+    --------
+    .. ipython:: python
+
+       zfl = ZeroFixedLeg(
+           effective=dt(2022, 1, 1),
+           termination="3Y",
+           frequency="S",
+           convention="1+",
+           fixed_rate=5.0
+       )
+       zfl.cashflows(curve)
+
     """
 
-    def __init__(self, *args, fixed_rate: Optional[float] = None, **kwargs):
+    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_rate = fixed_rate
 
     def _set_periods(self):
         self.periods = [
             FixedPeriod(
-                fixed_rate=None,
+                fixed_rate=NoInput(0),
                 start=self.schedule.effective,
                 end=self.schedule.termination,
                 payment=self.schedule.pschedule[-1],
@@ -1331,6 +1398,8 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
                 stub=False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
             )
         ]
 
@@ -1347,12 +1416,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         # overload the setter for a zero coupon to convert from irr to period rate
         self._fixed_rate = value
         f = 12 / defaults.frequency_months[self.schedule.frequency]
-        if value is not None:
-            period_rate = (
-                100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
-            )
+        if value is not NoInput.blank:
+            period_rate = 100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
         else:
-            period_rate = None
+            period_rate = NoInput(0)
 
         for period in self.periods:
             if isinstance(period, FixedPeriod):
@@ -1371,10 +1438,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Return the cashflows of the *ZeroFixedLeg* from all periods.
@@ -1382,15 +1449,19 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
         """
-        disc_curve = disc_curve or curve
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         rate = self.fixed_rate
         cashflow = self.periods[0].cashflow
-        if disc_curve is None or rate is None:
-            npv, npv_fx = None, None
+
+        if disc_curve is NoInput.blank or rate is NoInput.blank:
+            npv, npv_fx, df, collateral = None, None, None, None
         else:
-            npv = float(self.npv(curve, disc_curve))
+            npv = float(self.npv(curve, disc_curve_))
             npv_fx = npv * float(fx)
+            df = float(disc_curve_[self.schedule.pschedule[-1]])
+            collateral = disc_curve_.collateral
+
         seq = [
             {
                 defaults.headers["type"]: type(self).__name__,
@@ -1402,25 +1473,24 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
                 defaults.headers["convention"]: self.convention,
                 defaults.headers["dcf"]: self.dcf,
                 defaults.headers["notional"]: float(self.notional),
-                defaults.headers["df"]: None
-                if disc_curve is None
-                else float(disc_curve[self.schedule.pschedule[-1]]),
+                defaults.headers["df"]: df,
                 defaults.headers["rate"]: self.fixed_rate,
                 defaults.headers["spread"]: None,
                 defaults.headers["cashflow"]: cashflow,
                 defaults.headers["npv"]: npv,
                 defaults.headers["fx"]: float(fx),
                 defaults.headers["npv_fx"]: npv_fx,
+                defaults.headers["collateral"]: collateral,
             }
         ]
         return DataFrame.from_records(seq)
 
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ) -> DualTypes:
         """
         Return the analytic delta of the *ZeroFixedLeg* from all periods.
@@ -1428,14 +1498,15 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Curve = disc_curve or curve
-        if self.fixed_rate is None:
+        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+        if self.fixed_rate is NoInput.blank:
             return None
 
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         _ = self.notional * self.dcf * disc_curve_[self.periods[0].payment]
         _ *= (1 + self.fixed_rate / (100 * f)) ** (self.dcf * f - 1)
-        return _ / 10000
+        return _ / 10000 * fx
 
     def _analytic_delta(self, *args, **kwargs) -> DualTypes:
         """
@@ -1446,7 +1517,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
             _ += period.analytic_delta(*args, **kwargs)
         return _
 
-    def _spread(self, target_npv, fore_curve, disc_curve, fx=None):
+    def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
         """
         Overload the _spread calc to use analytic delta based on period rate
         """
@@ -1496,6 +1567,11 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
 
     Notes
     -----
+    .. warning::
+
+       Setting ``convention`` for a *ZeroIndexLeg* has no effect because the determination of the
+       cashflow within the *IndexFixedPeriod* will always have a DCF of 1.0.
+
     The fixed rate of the *IndexFixedPeriod* is set to 100% to index up the
     complete the notional. The offsetting *Cashflow* deducts the real notional.
 
@@ -1511,21 +1587,35 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
 
        A = 0
 
+    Examples
+    --------
+    .. ipython:: python
+
+       index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
+       zil = ZeroIndexLeg(
+           effective=dt(2022, 1, 15),
+           termination="3Y",
+           frequency="S",
+           index_method="monthly",
+           index_base=100.25,
+       )
+       zil.cashflows(index_curve, curve)
+
     """
 
     def __init__(
         self,
         *args,
-        index_base: Optional[Union[float, Series]] = None,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
+        index_base: Union[float, Series, NoInput] = NoInput(0),
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
         **kwargs,
     ):
         self.index_method = (
-            defaults.index_method if index_method is None else index_method.lower()
+            defaults.index_method if index_method is NoInput.blank else index_method.lower()
         )
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
         self.index_base = index_base  # set after periods initialised
@@ -1543,6 +1633,8 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
                 currency=self.currency,
                 termination=self.schedule.termination,
                 stub=False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
                 index_base=self.index_base,
                 index_fixings=self.index_fixings,
                 index_lag=self.index_lag,
@@ -1552,8 +1644,8 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
                 notional=-self.notional,
                 payment=self.schedule.pschedule[-1],
                 currency=self.currency,
-                stub_type=None,
-                rate=None,
+                stub_type=NoInput(0),
+                rate=NoInput(0),
             ),
         ]
 
@@ -1649,7 +1741,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
 
     .. math::
 
-       P = - R \\sum_{i=1}^n N_i d_i v(m_i) I(m_i) - \sum_{i=1}^{n-1}(N_{i}-N_{i+1})v(m_i)I(m_i)  - N_n v(m_n)I(m_n)
+       P = - R \\sum_{i=1}^n N_i d_i v(m_i) I(m_i) - \\sum_{i=1}^{n-1}(N_{i}-N_{i+1})v(m_i)I(m_i)  - N_n v(m_n)I(m_n)
 
     The analytic delta is defined as that of a *FixedLeg*.
 
@@ -1683,16 +1775,16 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         self,
         *args,
         index_base: float,
-        index_fixings: Optional[Union[float, Series]] = None,
-        index_method: Optional[str] = None,
-        index_lag: Optional[int] = None,
-        fixed_rate: Optional[float] = None,
+        index_fixings: Union[float, Series, NoInput] = NoInput(0),
+        index_method: Union[str, NoInput] = NoInput(0),
+        index_lag: Union[int, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self.index_lag = defaults.index_lag if index_lag is None else index_lag
+        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
         self.index_method = (
-            defaults.index_method if index_method is None else index_method.lower()
+            defaults.index_method if index_method is NoInput.blank else index_method.lower()
         )
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
@@ -1741,6 +1833,8 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
                 stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
                 index_base=self.index_base,
                 index_method=self.index_method,
                 index_fixings=self.index_fixings,
@@ -1754,7 +1848,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                     payment=self.schedule.pschedule[1 + i],
                     currency=self.currency,
                     stub_type="Amortization",
-                    rate=None,
+                    rate=NoInput(0),
                     index_base=self.index_base,
                     index_fixings=self.index_fixings,
                     index_method=self.index_method,
@@ -1773,8 +1867,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         if self.final_exchange:
             self.periods.append(
                 IndexCashflow(
-                    notional=self.notional
-                    - self.amortization * (self.schedule.n_periods - 1),
+                    notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
                     payment=add_tenor(
                         self.schedule.aschedule[-1],
                         f"{self.payment_lag_exchange}B",
@@ -1783,7 +1876,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                     ),
                     currency=self.currency,
                     stub_type="Exchange",
-                    rate=None,
+                    rate=NoInput(0),
                     index_base=self.index_base,
                     index_fixings=self.index_fixings,
                     index_method=self.index_method,
@@ -1834,22 +1927,22 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def __init__(
         self,
         *args,
-        fx_fixings: Optional[Union[list, float, Dual, Dual2]] = None,
-        alt_currency: str = None,
-        alt_notional: Optional[float] = None,
+        fx_fixings: Union[list, float, Dual, Dual2, NoInput] = NoInput(0),
+        alt_currency: Union[str, NoInput] = NoInput(0),
+        alt_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
+        if alt_currency is NoInput.blank:
+            raise ValueError("`alt_currency` and `currency` must be supplied for MtmLeg.")
         self.alt_currency = alt_currency.lower()
-        self.alt_notional = defaults.notional if alt_notional is None else alt_notional
+        self.alt_notional = defaults.notional if alt_notional is NoInput.blank else alt_notional
         self._delay_set_periods = True
         if "initial_exchange" not in kwargs:
             kwargs["initial_exchange"] = True
         kwargs["final_exchange"] = True
         super().__init__(*args, **kwargs)
         if self.amortization != 0:
-            raise ValueError(
-                "`amortization` cannot be supplied to a `FixedLegExchangeMtm` type."
-            )
+            raise ValueError("`amortization` cannot be supplied to a `FixedLegExchangeMtm` type.")
         self.fx_fixings = fx_fixings  # calls the setter
 
     @property
@@ -1869,7 +1962,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     @fx_fixings.setter
     def fx_fixings(self, value):
-        if value is None:
+        if value is NoInput.blank:
             self._fx_fixings = []
         elif isinstance(value, list):
             self._fx_fixings = value
@@ -1994,9 +2087,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             )
             for i in range(len(fx_fixings) - 1)
         ]
-        interleaved_periods = [
-            val for pair in zip(regular_periods, mtm_flows) for val in pair
-        ]
+        interleaved_periods = [val for pair in zip(regular_periods, mtm_flows) for val in pair]
         interleaved_periods.append(regular_periods[-1])
         self.periods.extend(interleaved_periods)
 
@@ -2019,9 +2110,9 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def npv(
         self,
         curve: Curve,
-        disc_curve: Optional[Curve] = None,
-        fx: Optional[Union[float, FXRates, FXForwards]] = None,
-        base: Optional[str] = None,
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
     ):
         if not self._do_not_repeat_set_periods:
@@ -2032,10 +2123,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def cashflows(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
@@ -2045,10 +2136,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def analytic_delta(
         self,
-        curve: Optional[Curve] = None,
-        disc_curve: Optional[Curve] = None,
-        fx: Union[float, FXRates, FXForwards] = 1.0,
-        base: Optional[str] = None,
+        curve: Union[Curve, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
@@ -2089,39 +2180,30 @@ class FixedLegMtm(BaseLegMtm, FixedLegMixin):
 
     .. warning::
 
-       ``amortization`` is **not** permitted for on ``FloatLegExchangeMtm``.
+       ``amortization`` is currently **not implemented** for on ``FloatLegExchangeMtm``.
 
-       ``notional`` is **not** used on an ``FloatLegExchangeMtm``. It is determined
+       ``notional`` is **not** used on an ``FloatLegMtm``. It is determined
        from ``alt_notional`` under given ``fx_fixings``.
 
-    The initial cashflow notional is set as the negative of the notional.
+       ``currency`` and ``alt_currency`` are required in order to determine FX fixings
+       from an :class:`~rateslib.fx.FXForwards` object at pricing time.
 
-    The final cashflow notional is set as the notional. The payment date is set equal
-    to the final period payment date (i.e. the end accrual date plus payment lag).
-
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods.
+    Examples
+    --------
+    For an example see :ref:`Mtm Legs<mtm-legs>`.
     """
 
     def __init__(
         self,
         *args,
-        fixed_rate: Optional[float] = None,
-        fx_fixings: Optional[Union[list, float, Dual, Dual2]] = None,
-        alt_currency: Optional[str] = None,
-        alt_notional: Optional[float] = None,
+        fixed_rate: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._fixed_rate = fixed_rate
-        # self._initialised = False
         super().__init__(
             *args,
-            fx_fixings=fx_fixings,
-            alt_currency=alt_currency,
-            alt_notional=alt_notional,
             **kwargs,
         )
-        # self._initialised = True
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2172,61 +2254,27 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
 
     .. warning::
 
-       ``amortization`` is **not** permitted for on ``FloatLegMtm``.
+       ``amortization`` is currently **not implemented** for on ``FloatLegExchangeMtm``.
 
        ``notional`` is **not** used on an ``FloatLegMtm``. It is determined
        from ``alt_notional`` under given ``fx_fixings``.
 
-    .. note::
-
        ``currency`` and ``alt_currency`` are required in order to determine FX fixings
        from an :class:`~rateslib.fx.FXForwards` object at pricing time.
 
-    The initial cashflow notional is set as the negative of the notional.
-
-    The final cashflow notional is set as the end notional. The payment date is set
-    equal to the final period payment date (i.e. the end accrual date plus
-    ``payment_lag_exchange``).
-
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods.
-
     Examples
     --------
-    .. ipython:: python
-
-       usd_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
-       eur_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
-       fxr = FXRates({"usdeur": 0.98}, settlement=dt(2022, 1, 1))
-       fxf = FXForwards(
-           fxr, {"usdusd": usd_curve, "eureur": eur_curve, "eurusd": eur_curve}
-       )
-
-    .. ipython:: python
-
-       float_leg_exch_mtm = FloatLegMtm(
-           effective=dt(2022, 1, 1),
-           termination="9M",
-           frequency="Q",
-           currency="eur",
-           alt_currency="usd",
-           alt_notional=1000000,
-       )
-       float_leg_exch_mtm.cashflows(curve, None, fxf)
-
+    For an example see :ref:`Mtm Legs<mtm-legs>`.
     """
 
     def __init__(
         self,
         *args,
-        float_spread: Union[float, None] = None,
-        fixings: Optional[Union[float, list]] = None,
-        fixing_method: Optional[str] = None,
-        method_param: Optional[int] = None,
-        spread_compound_method: Optional[str] = None,
-        fx_fixings: Optional[Union[list, float, Dual, Dual2]] = None,
-        alt_currency: Optional[str] = None,
-        alt_notional: Optional[float] = None,
+        float_spread: Union[float, NoInput] = NoInput(0),
+        fixings: Union[float, list, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -2235,19 +2283,14 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
             self.method_param,
             self.spread_compound_method,
         ) = _validate_float_args(fixing_method, method_param, spread_compound_method)
-        # self._initialised = False  # flag for not calling fx_fixings in super()
 
         super().__init__(
             *args,
-            fx_fixings=fx_fixings,
-            alt_currency=alt_currency,
-            alt_notional=alt_notional,
             **kwargs,
         )
 
         self._set_fixings(fixings)
-        self.fx_fixings = fx_fixings  # sets fx_fixings and periods after initialising
-        # self._initialised = True  # once rates fixings are set can set periods
+        self.fx_fixings = self.fx_fixings  # sets fx_fixings and periods after initialising
 
 
 class CustomLeg(BaseLeg):
@@ -2278,18 +2321,41 @@ class CustomLeg(BaseLeg):
     """
 
     def __init__(self, periods):
-        if not all(
-            isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods
-        ):
+        if not all(isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods):
             raise ValueError(
-                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, "
-                "Cashflow}."
+                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}."
             )
         self._set_periods(periods)
 
     def _set_periods(self, periods):
         self.periods = periods
 
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *CustomLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs):
+        """
+        Return the properties of the *CustomLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *CustomLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

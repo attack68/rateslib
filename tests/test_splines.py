@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 import context
-from rateslib.splines import *
+from rateslib.splines import PPSpline
 
 
 @pytest.fixture()
@@ -16,64 +16,76 @@ def x():
     return np.linspace(1, 4, 7)
 
 
-@pytest.mark.parametrize("i, expected", [
-    (0, np.array([1., 0.125, 0., 0., 0., 0., 0.])),
-    (1, np.array([0., 0.375, 0., 0., 0., 0., 0.])),
-    (2, np.array([0., 0.375, 0., 0., 0., 0., 0.])),
-    (3, np.array([0., 0.125, 1., 0.125, 0., 0., 0.])),
-    (4, np.array([0., 0., 0., 0.59375, 0.25, 0.03125, 0.])),
-    (5, np.array([0., 0., 0., 0.25, 0.5, 0.25, 0.])),
-    (6, np.array([0., 0., 0., 0.03125, 0.25, 0.59375, 0.])),
-    (7, np.array([0., 0., 0., 0., 0., 0.125, 1.])),
-])
+@pytest.mark.parametrize(
+    "i, expected",
+    [
+        (0, np.array([1.0, 0.125, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (1, np.array([0.0, 0.375, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (2, np.array([0.0, 0.375, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (3, np.array([0.0, 0.125, 1.0, 0.125, 0.0, 0.0, 0.0])),
+        (4, np.array([0.0, 0.0, 0.0, 0.59375, 0.25, 0.03125, 0.0])),
+        (5, np.array([0.0, 0.0, 0.0, 0.25, 0.5, 0.25, 0.0])),
+        (6, np.array([0.0, 0.0, 0.0, 0.03125, 0.25, 0.59375, 0.0])),
+        (7, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.125, 1.0])),
+    ],
+)
 def test_individual_bsplines(t, x, i, expected):
     bs = PPSpline(k=4, t=t)
     result = bs.bsplev(x, i=i)
     assert (result == expected).all()
 
 
-@pytest.mark.parametrize("i, expected", [
-    (0, np.array([-3., -0.75, 0., 0., 0., 0., 0.])),
-    (1, np.array([3., -0.75, 0., 0., 0., 0., 0.])),
-    (2, np.array([0., 0.75, 0., 0., 0., 0., 0.])),
-    (3, np.array([0., 0.75, -3., -0.75, 0., 0., 0.])),
-    (4, np.array([0., 0., 3., -0.1875, -0.75, -0.1875, 0.])),
-    (5, np.array([0., 0., 0., 0.75, 0., -0.75, 0.])),
-    (6, np.array([0., 0., 0., 0.1875, 0.75, 0.1875, -3.])),
-    (7, np.array([0., 0., 0., 0., 0., 0.75, 3.])),
-])
+@pytest.mark.parametrize(
+    "i, expected",
+    [
+        (0, np.array([-3.0, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (1, np.array([3.0, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (2, np.array([0.0, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (3, np.array([0.0, 0.75, -3.0, -0.75, 0.0, 0.0, 0.0])),
+        (4, np.array([0.0, 0.0, 3.0, -0.1875, -0.75, -0.1875, 0.0])),
+        (5, np.array([0.0, 0.0, 0.0, 0.75, 0.0, -0.75, 0.0])),
+        (6, np.array([0.0, 0.0, 0.0, 0.1875, 0.75, 0.1875, -3.0])),
+        (7, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.75, 3.0])),
+    ],
+)
 def test_first_derivative_endpoint_support(t, x, i, expected):
     bs = PPSpline(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=1)
     assert (result == expected).all()
 
 
-@pytest.mark.parametrize("i, expected", [
-    (0, np.array([6., 3., 0., 0., 0., 0., 0.])),
-    (1, np.array([-12., -3., 0., 0., 0., 0., 0.])),
-    (2, np.array([6., -3., 0., 0., 0., 0., 0.])),
-    (3, np.array([0., 3., 6., 3., 0., 0., 0.])),
-    (4, np.array([0., 0., -9., -3.75, 1.5, 0.75, 0.])),
-    (5, np.array([0., 0., 3., 0., -3., 0., 3.])),
-    (6, np.array([0., 0., 0., 0.75, 1.5, -3.75, -9.])),
-    (7, np.array([0., 0., 0., 0., 0., 3., 6.])),
-])
+@pytest.mark.parametrize(
+    "i, expected",
+    [
+        (0, np.array([6.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (1, np.array([-12.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (2, np.array([6.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (3, np.array([0.0, 3.0, 6.0, 3.0, 0.0, 0.0, 0.0])),
+        (4, np.array([0.0, 0.0, -9.0, -3.75, 1.5, 0.75, 0.0])),
+        (5, np.array([0.0, 0.0, 3.0, 0.0, -3.0, 0.0, 3.0])),
+        (6, np.array([0.0, 0.0, 0.0, 0.75, 1.5, -3.75, -9.0])),
+        (7, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 6.0])),
+    ],
+)
 def test_second_derivative_endpoint_support(t, x, i, expected):
     bs = PPSpline(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=2)
     assert (result == expected).all()
 
 
-@pytest.mark.parametrize("i, expected", [
-    (0, np.array([-6., -6., 0., 0., 0., 0., 0.])),
-    (1, np.array([18., 18., 0., 0., 0., 0., 0.])),
-    (2, np.array([-18., -18., 0., 0., 0., 0., 0.])),
-    (3, np.array([6., 6., -6., -6., 0., 0., 0.])),
-    (4, np.array([0., 0., 10.5, 10.5, -1.5, -1.5, -1.5])),
-    (5, np.array([0., 0., -6., -6., 6., 6., 6.])),
-    (6, np.array([0., 0., 1.5, 1.5, -10.5, -10.5, -10.5])),
-    (7, np.array([0., 0., 0., 0., 6., 6., 6.])),
-])
+@pytest.mark.parametrize(
+    "i, expected",
+    [
+        (0, np.array([-6.0, -6.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (1, np.array([18.0, 18.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (2, np.array([-18.0, -18.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+        (3, np.array([6.0, 6.0, -6.0, -6.0, 0.0, 0.0, 0.0])),
+        (4, np.array([0.0, 0.0, 10.5, 10.5, -1.5, -1.5, -1.5])),
+        (5, np.array([0.0, 0.0, -6.0, -6.0, 6.0, 6.0, 6.0])),
+        (6, np.array([0.0, 0.0, 1.5, 1.5, -10.5, -10.5, -10.5])),
+        (7, np.array([0.0, 0.0, 0.0, 0.0, 6.0, 6.0, 6.0])),
+    ],
+)
 def test_third_derivative_endpoint_support(t, x, i, expected):
     bs = PPSpline(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=3)
@@ -82,7 +94,7 @@ def test_third_derivative_endpoint_support(t, x, i, expected):
 
 def test_fourth_derivative_endpoint_support(t, x):
     bs = PPSpline(k=4, t=t)
-    expected = np.array([0., 0., 0., 0., 0., 0., 0.])
+    expected = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     for i in range(8):
         test = bs.bspldnev(x, i=i, m=4) == expected
         assert test.all()
@@ -132,11 +144,14 @@ def test_csolve_lsq():
         assert abs(expected[i] - res) < 1e-5
 
 
-@pytest.mark.parametrize("tau, val, allow", [
-    ([0, 1, 2, 3], [0, 0, 2, 2, 5], False),
-    ([0, 1, 2, 3, 5], [0, 0, 2, 2], False),
-    ([0, 1, 2, 3], [0, 0, 2, 2, 5], True),
-])
+@pytest.mark.parametrize(
+    "tau, val, allow",
+    [
+        ([0, 1, 2, 3], [0, 0, 2, 2, 5], False),
+        ([0, 1, 2, 3, 5], [0, 0, 2, 2], False),
+        ([0, 1, 2, 3], [0, 0, 2, 2, 5], True),
+    ],
+)
 def test_csolve_raises(tau, val, allow):
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array(tau)

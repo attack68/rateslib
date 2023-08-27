@@ -45,23 +45,23 @@ def bsplev_single(x, i, k, t, org_k=None):
 
     .. math::
 
-       B_{i,k,\mathbf{t}}(x) = \\frac{x-t_i}{t_{i+k-1}-t_i}B_{i,k-1,\mathbf{t}}(x) + \\frac{t_{i+k}-x}{t_{i+k}-t_{i+1}}B_{i+1,k-1,\mathbf{t}}(x)
+       B_{i,k,\\mathbf{t}}(x) = \\frac{x-t_i}{t_{i+k-1}-t_i}B_{i,k-1,\\mathbf{t}}(x) + \\frac{t_{i+k}-x}{t_{i+k}-t_{i+1}}B_{i+1,k-1,\\mathbf{t}}(x)
 
     and such that the basic, stepwise, b-spline or order 1 are:
 
     .. math::
 
-       B_{i,1,\mathbf{t}}(x) = \\left \{ \\begin{matrix} 1, & t_i \leq x < t_{i+1} \\\\ 0, & \\text{otherwise} \end{matrix} \\right .
+       B_{i,1,\\mathbf{t}}(x) = \\left \{ \\begin{matrix} 1, & t_i \leq x < t_{i+1} \\\\ 0, & \\text{otherwise} \end{matrix} \\right .
 
     For continuity on the right boundary the rightmost basic b-spline is also set equal
-    to 1 there: :math:`B_{n,1,\mathbf{t}}(t_{n+k})=1`.
+    to 1 there: :math:`B_{n,1,\\mathbf{t}}(t_{n+k})=1`.
     """
-    ## Right side endpoint support
+    # Right side endpoint support
     org_k = org_k or k  # original_k adds support for derivative recursion
     if x == t[-1] and i >= (len(t) - org_k - 1):
         return 1
 
-    ## Recursion
+    # Recursion
     if k == 1:
         if t[i] <= x < t[i + 1]:
             return 1
@@ -71,11 +71,7 @@ def bsplev_single(x, i, k, t, org_k=None):
         if t[i] != t[i + k - 1]:
             left = (x - t[i]) / (t[i + k - 1] - t[i]) * bsplev_single(x, i, k - 1, t)
         if t[i + 1] != t[i + k]:
-            right = (
-                (t[i + k] - x)
-                / (t[i + k] - t[i + 1])
-                * bsplev_single(x, i + 1, k - 1, t)
-            )
+            right = (t[i + k] - x) / (t[i + k] - t[i + 1]) * bsplev_single(x, i + 1, k - 1, t)
         return left + right
 
 
@@ -110,16 +106,16 @@ def bspldnev_single(x, i, k, t, m, org_k=None):
 
     .. math::
 
-       \\frac{d}{dx}B_{i,k,\mathbf{t}}(x) = (k-1) \\left ( \\frac{B_{i,k-1,\mathbf{t}}(x)}{t_{i+k-1}-t_i} - \\frac{B_{i+1,k-1,\mathbf{t}}(x)}{t_{i+k}-t_{i+1}} \\right )
+       \\frac{d}{dx}B_{i,k,\\mathbf{t}}(x) = (k-1) \\left ( \\frac{B_{i,k-1,\\mathbf{t}}(x)}{t_{i+k-1}-t_i} - \\frac{B_{i+1,k-1,\\mathbf{t}}(x)}{t_{i+k}-t_{i+1}} \\right )
 
     and such that the basic, stepwise, b-spline derivative is:
 
     .. math::
 
-       \\frac{d}{dx}B_{i,1,\mathbf{t}}(x) = 0
+       \\frac{d}{dx}B_{i,1,\\mathbf{t}}(x) = 0
 
     During this recursion the original order of the spline is registered so that under
-    the given knot sequence, :math:`\mathbf{t}`, lower order b-splines which are not
+    the given knot sequence, :math:`\\mathbf{t}`, lower order b-splines which are not
     the rightmost will register a unit value. For example, the 4'th order knot sequence
     [1,1,1,1,2,2,2,3,4,4,4,4] defines 8 b-splines. The rightmost is measured
     across the knots [3,4,4,4,4]. When the knot sequence remains constant and the
@@ -206,10 +202,10 @@ class PPSpline:
 
     .. math::
 
-       $_{k, \mathbf{t}}(x) = \sum_{i=1}^n c_i B_{i,k,\mathbf{t}}(x)
+       $_{k, \\mathbf{t}}(x) = \\sum_{i=1}^n c_i B_{i,k,\\mathbf{t}}(x)
 
-    where :math:`B_{i,k,\mathbf{t}}(x)` is one of the *n* b-splines, of order *k* over
-    knot sequence :math:`\mathbf{t}`, evaluated at *x*,
+    where :math:`B_{i,k,\\mathbf{t}}(x)` is one of the *n* b-splines, of order *k* over
+    knot sequence :math:`\\mathbf{t}`, evaluated at *x*,
     and :math:`c_i` is the coefficient of the *i*'th b-spline for this specific
     piecewise polynomial.
     """
@@ -241,9 +237,7 @@ class PPSpline:
                 return False
         if self.c is None and other.c is None:
             return True
-        elif (self.c is None and other.c is not None) or (
-            self.c is not None and other.c is None
-        ):
+        elif (self.c is None and other.c is not None) or (self.c is not None and other.c is None):
             return False
         elif not all(self.c == other.c):
             return False
@@ -318,7 +312,7 @@ class PPSpline:
 
         .. math::
 
-           [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\\tau})]_{j,i} = B_{i,k,\mathbf{t}}(\\tau_j)
+           [\\mathbf{B}_{k, \\mathbf{t}}(\\mathbf{\\tau})]_{j,i} = B_{i,k,\\mathbf{t}}(\\tau_j)
 
         where each row is a call to :meth:`bsplev`, except the top and bottom rows
         which can be specifically adjusted to account for
@@ -326,7 +320,7 @@ class PPSpline:
 
         .. math::
 
-           [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\\tau})]_{1,i} = \\frac{d^n}{dx}B_{i,k,\mathbf{t}}(\\tau_1)
+           [\\mathbf{B}_{k, \\mathbf{t}}(\\mathbf{\\tau})]_{1,i} = \\frac{d^n}{dx}B_{i,k,\\mathbf{t}}(\\tau_1)
         """
         B_ji = np.zeros(shape=(len(tau), self.n))
         for i in range(self.n):
@@ -369,7 +363,7 @@ class PPSpline:
 
         .. math::
 
-           \mathbf{B}_{k, \mathbf{t}}(\mathbf{\\tau}) \mathbf{c} = g(\mathbf{\\tau}), \quad \\text{where} \quad [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\\tau})]_{j,i} = B_{i,k,\mathbf{t}}(\\tau_j)
+           \\mathbf{B}_{k, \\mathbf{t}}(\\mathbf{\\tau}) \\mathbf{c} = g(\\mathbf{\\tau}), \quad \\text{where} \quad [\\mathbf{B}_{k, \\mathbf{t}}(\\mathbf{\\tau})]_{j,i} = B_{i,k,\\mathbf{t}}(\\tau_j)
 
         Where the top and bottom rows of the spline collocation matrix are adjusted
         to account for the specified derivatives.
@@ -385,8 +379,7 @@ class PPSpline:
                 )
         if len(tau) != len(y):
             raise ValueError(
-                f"`tau` and `y` must have the same length, "
-                f"`tau`: {len(tau)}, `y`: {len(y)}"
+                f"`tau` and `y` must have the same length, " f"`tau`: {len(tau)}, `y`: {len(y)}"
             )
         y = np.asarray(y)
         B_ji = self.bsplmatrix(tau, left_n, right_n)
@@ -419,7 +412,7 @@ class PPSpline:
 
         .. math::
 
-           \\$(x) = \sum_{i=1}^n c_i B_{(i,k,\\mathbf{t})}(x)
+           \\$(x) = \\sum_{i=1}^n c_i B_{(i,k,\\mathbf{t})}(x)
         """
         sum = 0
         for i, c_ in enumerate(self.c):
@@ -472,7 +465,7 @@ class PPSpline:
 
         .. math::
 
-           \\frac{d^m\\$(x)}{d x^m} = \sum_{i=1}^n c_i \\frac{d^m B_{(i,k,\\mathbf{t})}(x)}{d x^m}
+           \\frac{d^m\\$(x)}{d x^m} = \\sum_{i=1}^n c_i \\frac{d^m B_{(i,k,\\mathbf{t})}(x)}{d x^m}
         """
         sum = 0
         for i, c_ in enumerate(self.c):

@@ -1,14 +1,26 @@
+For preparing a new release:
 
-Branch to version: x.x.x, e.g. 0.2.x
-Update "release" in docs/source/conf.py, e.g. to 0.2.x
-Update the switcher.json in main:docs/source/static
-Update pyproject.toml with new version.
-Delete the switcher in the releases branch since this is taken from main.
-Add release date to whatsnew file.
+On "main":
+
+1) Update the whatsnew with the target release date.
+2) Add a new entry to the switcher.json in main:docs/source/static, pushing stable to next version.
+3) Change the badges.json file is there is anything to add, e.g. versions.
+4) Bump the "version" in pyproject.toml and check the dependencies.
+5) Checks should be OK in github actions but perform a local double check.
 
 Checks:
 $ coverage run -m pytest
 Perform this on development environment as well as specified minimum.
+$ pytest -W error
+Checking for uncaptured warnings.
+
+6) Commit and push any changes - this will temporarily break readthedocs which will build from push.
+7) Create a new release branch, e.g. '0.3.x' and checkout
+
+On "release branch":
+
+1) Update the "release" field in docs/source/conf.py, e.g. to '0.3.x'
+2) Delete the switcher in the releases branch since this is taken from main branch
 
 Build:
 $ pip install build twine
@@ -20,5 +32,6 @@ $ twine upload dist/*
 check:
 $ pip install -i https://test.pypi.org/simple rateslib
 
-docs:
-Goto read-the-docs.io and add a new branch.
+In Read-the-Docs admin console:
+
+1) Add a new branch for auto built docs.

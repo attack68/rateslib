@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'RatesLib'
 copyright = '2022, JHM Darbyshire'
 author = 'JHM Darbyshire'
-release = '0.3.x'
+release = 'dev'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -29,7 +29,7 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
     'sphinx_automodapi.automodapi'
 ]
-numpydoc_show_class_members = False  # for sphinx automod accoridng to docs
+numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 
 templates_path = ['_templates']

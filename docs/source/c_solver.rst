@@ -16,9 +16,8 @@ Solver
 ***********
 
 The ``rateslib.solver`` module includes a :class:`~rateslib.solver.Solver` class
-which iteratively solves the DFs of :class:`~rateslib.curves.Curve` objects, and
-values of :class:`~rateslib.curves.LineCurve` to fit given
-calibrating instruments.
+which iteratively solves for the parameters of :ref:`Curve <curves-doc>` objects, to
+fit the given market data of calibrating :ref:`Instruments <instruments-doc>`.
 
 This module relies on the utility module :ref:`dual<dual-doc>` for gradient based
 optimization.
@@ -122,7 +121,6 @@ the optimizer will update the curves.
 
 .. ipython:: python
 
-   s = np.array([1.0, 1.6, 2.0])
    solver = Solver(
        curves = [ll_curve],
        instruments = instruments,
@@ -235,11 +233,11 @@ Algorithms
 ***********
 
 In the ``defaults`` settings of ``rateslib``, :class:`~rateslib.solver.Solver` uses
-a *"gauss_newton"* algorithm.
+a *"levenberg_marquardt"* algorithm.
 
-In the rare cases that this fails to solve for sensible starting values, or if sensible
-starting values are not necessarily known, try using the *"levenberg_marquardt"*
-alternative.
+There is an option to use a *"gauss_newton*" algorithm which is faster if the
+initial guess is reasonable. This should be used where possible, but this is a more
+unstable algorithm so is not set as the default.
 
 For other debugging procedures the *"gradient_descent"* method is available although
 this is not recommended due to computational inefficiency.

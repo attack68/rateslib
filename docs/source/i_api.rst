@@ -38,6 +38,8 @@ Defaults
    :no-inheritance-diagram:
    :skip: plot
    :skip: BusinessDay
+   :skip: datetime
+   :skip: Enum
 
 Calendars
 ---------
@@ -47,6 +49,8 @@ Calendars
    :skip: floor
    :skip: next_monday
    :skip: next_monday_or_tuesday
+   :skip: nearest_workday
+   :skip: sunday_to_monday
 
 Scheduling
 ----------
@@ -57,11 +61,11 @@ Scheduling
    :skip: Any
    :skip: CustomBusinessDay
    :skip: DataFrame
-   :skip: Day
    :skip: Iterator
    :skip: datetime
    :skip: product
    :skip: timedelta
+   :skip: NoInput
 
 Highlighted private functions
 *****************************
@@ -98,6 +102,7 @@ Curves
 .. automodapi:: rateslib.curves
    :no-heading:
    :inherited-members:
+   :skip: NoInput
    :skip: set_order_convert
    :skip: add_tenor
    :skip: create_calendar
@@ -111,7 +116,6 @@ Curves
    :skip: Any
    :skip: CustomBusinessDay
    :skip: Dual
-   :skip: Dual2
    :skip: PPSpline
    :skip: datetime
    :skip: timedelta
@@ -124,10 +128,11 @@ FX
 
 .. automodapi:: rateslib.fx
    :no-heading:
-   :skip: Any
+   :skip: NoInput
    :skip: Curve
    :skip: LineCurve
    :skip: ProxyCurve
+   :skip: CompositeCurve
    :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
@@ -135,6 +140,10 @@ FX
    :skip: datetime
    :skip: product
    :skip: timedelta
+   :skip: add_tenor
+   :skip: dual_solve
+   :skip: plot
+   :skip: set_order
 
 Periods
 -------
@@ -143,10 +152,10 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 .. automodapi:: rateslib.periods
    :no-heading:
+   :skip: NoInput
    :skip: ABCMeta
    :skip: IndexCurve
    :skip: Curve
-   :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
@@ -163,6 +172,7 @@ Legs
 
 .. automodapi:: rateslib.legs
    :no-heading:
+   :skip: NoInput
    :skip: ABCMeta
    :skip: Curve
    :skip: CustomBusinessDay
@@ -188,23 +198,22 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :skip: NoInput
    :skip: IndexCurve
    :skip: IndexFixedLeg
    :skip: IndexMixin
    :skip: ZeroIndexLeg
    :skip: forward_fx
-   :skip: sqrt
    :skip: abstractmethod
    :skip: add_tenor
    :skip: concat
-   :skip: date_range
    :skip: dcf
    :skip: get_calendar
    :skip: index_left
-   :skip: set_order
    :skip: ABCMeta
    :skip: Curve
    :skip: CustomBusinessDay
+   :skip: MultiIndex
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
@@ -215,8 +224,6 @@ Instruments
    :skip: Cashflow
    :skip: FixedPeriod
    :skip: FloatPeriod
-   :skip: Schedule
-   :skip: CustomLeg
    :skip: FixedLeg
    :skip: FixedLegMtm
    :skip: FloatLeg
@@ -226,12 +233,15 @@ Instruments
    :skip: Solver
    :skip: CompositeCurve
    :skip: ZeroFixedLeg
+   :skip: forward_fx
 
 Solver
 ------
 
 .. automodapi:: rateslib.solver
    :no-heading:
+   :skip: NoInput
+   :skip: FXRates
    :skip: DataFrame
    :skip: Dual
    :skip: Dual2
@@ -241,3 +251,12 @@ Solver
    :skip: Series
    :skip: CompositeCurve
    :skip: ProxyCurve
+
+Cookbook
+--------
+
+.. toctree::
+    :titlesonly:
+
+    z_swpm.rst
+    z_dependencychain.rst
