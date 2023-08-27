@@ -36,7 +36,7 @@ from pandas import DataFrame, concat, Series, MultiIndex
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf
+from rateslib.calendars import add_tenor, get_calendar, dcf, _is_eom_cal
 
 # from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
@@ -3080,6 +3080,8 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                 fixings=self.leg1.fixings[acc_idx],
                 method_param=self.leg1.method_param,
                 spread_compound_method=self.leg1.spread_compound_method,
+                roll=self.leg1.schedule.roll,
+                calendar=self.leg1.schedule.calendar,
             )
 
             if forecast:
@@ -5750,7 +5752,6 @@ class FRA(Sensitivities, BaseMixin):
     ) -> None:
         self.curves = curves
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
-        self.eom = defaults.eom if eom is NoInput.blank else eom
 
         if modifier is NoInput.blank:  # then get default
             modifier_: Optional[str] = defaults.modifier
@@ -5765,9 +5766,16 @@ class FRA(Sensitivities, BaseMixin):
         self.calendar = get_calendar(calendar)
         self.payment = add_tenor(effective, f"{self.payment_lag}B", None, self.calendar)
 
+        self.eom = defaults.eom if eom is NoInput.blank else eom
+        if roll is NoInput.blank:
+            # attempt roll inferral
+            self.roll = "eom" if (_is_eom_cal(effective, self.calendar) and self.eom) else effective.day
+        else:
+            self.roll = roll
+
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination = add_tenor(effective, termination, self.modifier, self.calendar, self.eom)
+            termination = add_tenor(effective, termination, self.modifier, self.calendar, self.roll)
 
         self.notional = defaults.notional if notional is NoInput.blank else notional
 
@@ -5784,6 +5792,8 @@ class FRA(Sensitivities, BaseMixin):
             currency=self.currency,
             fixed_rate=fixed_rate,
             notional=notional,
+            calendar=self.calendar,
+            roll=self.roll,
         )
 
         self.leg2 = FloatPeriod(
@@ -5799,6 +5809,8 @@ class FRA(Sensitivities, BaseMixin):
             stub=False,
             currency=self.currency,
             notional=-self.notional,
+            calendar=self.calendar,
+            roll=self.roll,
         )  # FloatPeriod is used only to access the rate method for calculations.
 
     def _set_pricing_mid(

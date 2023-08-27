@@ -1025,6 +1025,17 @@ class TestFRA:
         fra.fixed_rate = NoInput(0)  # fixed rate set back to initial
         assert abs(fra.npv(curve)) < 1e-9
 
+    @pytest.mark.parametrize("eom, exp", [(True, dt(2021, 5, 31)), (False, dt(2021, 5, 26))])
+    def test_fra_roll_inferral(self, eom, exp):
+        fra = FRA(
+            effective=dt(2021, 2, 26),
+            termination="3m",
+            frequency="Q",
+            eom=eom,
+            calendar="bus",
+        )
+        assert fra.leg1.end == exp
+
 
 class TestZCS:
     @pytest.mark.parametrize("freq, exp", [("Q", 3.529690979), ("S", 3.54526437721296)])
