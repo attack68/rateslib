@@ -123,17 +123,18 @@ def test_add_negative_tenor(tenor, expected):
 
 
 @pytest.mark.parametrize(
-    "tenor, expected",
+    "tenor, expected, roll",
     [
-        ("-1M", dt(2022, 1, 31)),
-        ("-2m", dt(2021, 12, 31)),
-        ("-1Y", dt(2021, 2, 28)),
-        ("-1d", dt(2022, 2, 27)),
-        ("-2y", dt(2020, 2, 29)),
+        ("-1M", dt(2022, 1, 31), "eom"),
+        ("-2m", dt(2021, 12, 31), 31),
+        ("-1Y", dt(2021, 2, 28), NoInput(0)),
+        ("-1d", dt(2022, 2, 27), NoInput(0)),
+        ("-2y", dt(2020, 2, 29), "eom"),
+        ("-2y", dt(2020, 2, 28), NoInput(0)),
     ],
 )
-def test_add_negative_tenor_eom(tenor, expected):
-    result = add_tenor(dt(2022, 2, 28), tenor, None, NoInput(0), True)
+def test_add_negative_tenor_eom(tenor, expected, roll):
+    result = add_tenor(dt(2022, 2, 28), tenor, None, NoInput(0), roll)
     assert result == expected
 
 
