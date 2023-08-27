@@ -2308,11 +2308,13 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         index_fixings: Union[float, Series, NoInput] = NoInput(0),
         index_method: Union[str, NoInput] = NoInput(0),
         index_lag: Union[int, NoInput] = NoInput(0),
-        ex_div: int = 0,
-        settle: int = 1,
+        ex_div: Union[int, NoInput] = NoInput(0),
+        settle: Union[int, NoInput] = NoInput(0),
+        calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
+        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
         if frequency.lower() == "z":
             raise ValueError("IndexFixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is NoInput.blank:
@@ -2346,8 +2348,8 @@ class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1))
         self.kwargs.update(
             dict(
-                ex_div=ex_div,
-                settle=settle,
+                ex_div=defaults.ex_div if ex_div is NoInput.blank else ex_div,
+                settle=defaults.settle if settle is NoInput.blank else settle,
             )
         )
         if self.leg1.amortization != 0:
@@ -2938,9 +2940,9 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             )
         )
         if "rfr" in self.leg1.fixing_method:
-            if self.kwargs["ex_div"] > self.leg1.method_param:
+            if self.kwargs["ex_div"] > (self.leg1.method_param + 1):
                 raise ValueError(
-                    "For RFR FRNs `ex_div` must be less than or equal to `method_param` "
+                    "For RFR FRNs `ex_div` must be less than or equal to (`method_param` + 1) "
                     "otherwise negative accrued payments cannot be explicitly "
                     "determined due to unknown fixings."
                 )

@@ -2315,8 +2315,8 @@ class TestFixedRateBond:
         expected = 113.22198344812742
         assert abs(result - expected) < 1e-6
 
-        gilt.kwargs["settle"] = 1
-        result = gilt.npv(curve)  # bond is ex div on settlement 26th Nov 2010
+        gilt.kwargs["settle"] = 2
+        result = gilt.npv(curve)  # bond is ex div on settlement 27th Nov 2010
         expected = 109.229489312983  # bond has dropped a coupon payment of 4.
         assert abs(result - expected) < 1e-6
 
@@ -2324,7 +2324,7 @@ class TestFixedRateBond:
         assert abs(result["gbp"] - expected) < 1e-6
 
     def test_fixed_rate_bond_npv_private(self):
-        # this test shadows 'fixed_rate_bond_npv' but extends it for projection
+        # this test shadows 'fixed_rate_bond_npv' but extends it for projection on 27th Nov ex div.
         curve = Curve({dt(2004, 11, 25): 1.0, dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
@@ -2338,7 +2338,7 @@ class TestFixedRateBond:
             notional=-100,
             settle=0,
         )
-        result = gilt._npv_local(NoInput(0), curve, NoInput(0), NoInput(0), dt(2010, 11, 26), dt(2010, 11, 25))
+        result = gilt._npv_local(NoInput(0), curve, NoInput(0), NoInput(0), dt(2010, 11, 27), dt(2010, 11, 25))
         expected = 109.229489312983  # npv should match associated test
         assert abs(result - expected) < 1e-6
 
@@ -2360,8 +2360,8 @@ class TestFixedRateBond:
         expected = -550.0
         assert abs(result - expected) < 1e-6
 
-        gilt.kwargs["settle"] = 1
-        result = gilt.analytic_delta(curve)  # bond is ex div on settle 26th Nov 2010
+        gilt.kwargs["settle"] = 2
+        result = gilt.analytic_delta(curve)  # bond is ex div on settle 27th Nov 2010
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
 
@@ -2463,7 +2463,7 @@ class TestFixedRateBond:
             calendar=NoInput(0),
             currency="gbp",
             convention="Act365f",
-            ex_div=0,
+            ex_div=1,
             fixed_rate=1.0,
             notional=-100,
             settle=0,
@@ -2474,10 +2474,10 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         "s, f_s, exp",
         [
-            (dt(2010, 11, 25), dt(2011, 11, 25), 99.9975000187),
-            (dt(2010, 11, 28), dt(2011, 11, 28), 99.9975000187),
-            (dt(2010, 11, 28), dt(2011, 11, 25), 99.997419419),
-            (dt(2010, 11, 25), dt(2011, 11, 28), 99.997579958),
+            (dt(2010, 11, 25), dt(2011, 11, 25), 99.9975000187), # div div
+            (dt(2010, 11, 28), dt(2011, 11, 29), 99.997471945), # ex-div ex-div
+            (dt(2010, 11, 28), dt(2011, 11, 25), 99.997419419), # ex-div div
+            (dt(2010, 11, 25), dt(2011, 11, 29), 99.9975516607),  # div ex-div
         ],
     )
     def test_fixed_rate_bond_forward_price_analogue_ex_div(self, s, f_s, exp):
@@ -2534,7 +2534,7 @@ class TestFixedRateBond:
             calendar=NoInput(0),
             currency="gbp",
             convention="Act365f",
-            ex_div=0,
+            ex_div=1,
             fixed_rate=1.0,
             notional=-100,
             settle=0,
@@ -2557,10 +2557,10 @@ class TestIndexFixedRateBond:
             calendar="ldn",
             index_base=100.0,
         )
-        assert bond.price(4.445, dt(1999, 5, 24), True) - 145.012268 < 1e-6
-        assert bond.price(4.445, dt(1999, 5, 26), True) - 145.047301 < 1e-6
-        assert bond.price(4.445, dt(1999, 5, 27), True) - 141.070132 < 1e-6
-        assert bond.price(4.445, dt(1999, 6, 7), True) - 141.257676 < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 5, 24), True) - 145.012268) < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 5, 26), True) - 145.047301) < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 5, 27), True) - 141.070132) < 1e-6
+        assert abs(bond.price(4.445, dt(1999, 6, 7), True) - 141.257676) < 1e-6
 
         bond = IndexFixedRateBond(
             dt(1997, 1, 1),
@@ -2572,10 +2572,10 @@ class TestIndexFixedRateBond:
             calendar="ldn",
             index_base=100.0,
         )
-        assert bond.price(4.634, dt(1999, 5, 10), True) - 113.315543 < 1e-6
-        assert bond.price(4.634, dt(1999, 5, 17), True) - 113.415969 < 1e-6
-        assert bond.price(4.634, dt(1999, 5, 18), True) - 110.058738 < 1e-6
-        assert bond.price(4.634, dt(1999, 5, 26), True) - 110.170218 < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 10), True) - 113.315543) < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 17), True) - 113.415969) < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 18), True) - 110.058738) < 1e-6
+        assert abs(bond.price(4.634, dt(1999, 5, 26), True) - 110.170218) < 1e-6
 
     def test_fixed_rate_bond_zero_frequency_raises(self):
         with pytest.raises(ValueError, match="FixedRateBond `frequency`"):
@@ -2682,7 +2682,7 @@ class TestIndexFixedRateBond:
             index_lag=3,
             index_method="daily",
         )
-        result = gilt._npv_local(index_curve, curve, NoInput(0), NoInput(0), dt(2010, 11, 26), dt(2010, 11, 25))
+        result = gilt._npv_local(index_curve, curve, NoInput(0), NoInput(0), dt(2010, 11, 27), dt(2010, 11, 25))
         expected = 109.229489312983 * 2.0  # npv should match associated test
         assert abs(result - expected) < 1e-6
 
@@ -3034,7 +3034,7 @@ class TestFloatRateBond:
             termination=dt(2017, 3, 16),
             frequency="Q",
             convention="Act365f",
-            ex_div=5,
+            ex_div=6,
             float_spread=0,
             fixing_method="rfr_observation_shift",
             fixings=fixings,
@@ -3045,7 +3045,7 @@ class TestFloatRateBond:
         result = bond.accrued(dt(2010, 3, 11))
 
         # approximate calculation 5 days of negative accrued at 2% = -0.027397
-        assert abs(result + 0.027397) < 1e-3
+        assert abs(result + 2 * 5 / 365) < 1e-3
 
     @pytest.mark.parametrize(
         "fixings",
@@ -3076,7 +3076,7 @@ class TestFloatRateBond:
                 effective=dt(2009, 9, 16),
                 termination=dt(2017, 3, 16),
                 frequency="Q",
-                ex_div=4,
+                ex_div=5,
                 fixing_method="rfr_observation_shift",
                 method_param=3,
             )
@@ -3118,8 +3118,8 @@ class TestFloatRateBond:
         expected = -550.0
         assert abs(result - expected) < 1e-6
 
-        frn.kwargs['settle'] = 1
-        result = frn.analytic_delta(curve)  # bond is ex div on settle 26th Nov 2010
+        frn.kwargs['settle'] = 2
+        result = frn.analytic_delta(curve)  # bond is ex div on settle 27th Nov 2010
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
 
