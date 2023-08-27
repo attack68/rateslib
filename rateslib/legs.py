@@ -538,6 +538,8 @@ class FixedLegMixin:
             convention=self.convention,
             termination=self.schedule.termination,
             stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
         )
 
 
@@ -754,6 +756,8 @@ class FloatLegMixin:
             convention=self.convention,
             termination=self.schedule.termination,
             stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
             fixings=self.fixings[iterator],
             fixing_method=self.fixing_method,
             method_param=self.method_param,
@@ -1175,6 +1179,8 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
                 stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
                 fixing_method=self.fixing_method,
                 fixings=self.fixings[i],
                 method_param=self.method_param,
@@ -1392,6 +1398,8 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
                 stub=False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
             )
         ]
 
@@ -1625,6 +1633,8 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
                 currency=self.currency,
                 termination=self.schedule.termination,
                 stub=False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
                 index_base=self.index_base,
                 index_fixings=self.index_fixings,
                 index_lag=self.index_lag,
@@ -1823,6 +1833,8 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
                 stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                roll=self.schedule.roll,
+                calendar=self.schedule.calendar,
                 index_base=self.index_base,
                 index_method=self.index_method,
                 index_fixings=self.index_fixings,

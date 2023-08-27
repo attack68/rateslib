@@ -14,6 +14,7 @@ from pandas.tseries.holiday import (
     nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from rateslib import defaults
 from rateslib.default import NoInput
 
 CalInput = Union[CustomBusinessDay, str, NoInput]
@@ -688,8 +689,10 @@ def add_tenor(
     elif "B" in tenor:
         return _add_business_days(start, int(tenor[:-1]), modifier, calendar)
     elif "Y" in tenor:
+        eom = defaults.eom if eom is NoInput.blank else eom
         return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, eom)
     elif "M" in tenor:
+        eom = defaults.eom if eom is NoInput.blank else eom
         return _add_months(start, int(tenor[:-1]), modifier, calendar, eom)
     elif "W" in tenor:
         return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
@@ -724,7 +727,7 @@ def _add_months(
     except ValueError:  # day is out of range for month, i.e. 30 or 31
         end = _get_eom(month, start.year + year_roll)
 
-    if eom and _is_eom(start) and not _is_eom(end):
+    if eom and not _is_eom(end) and _is_eom_cal(start, cal):
         # adjust for eom if required
         end = _get_eom(end.month, end.year)
 
@@ -801,6 +804,14 @@ def _is_eom(date: datetime) -> bool:
     return date.day == calendar_mod.monthrange(date.year, date.month)[1]
 
 
+def _is_eom_cal(date: datetime, cal: CalInput):
+    """Test whether a given date is end of month under a specific calendar"""
+    udate = calendar_mod.monthrange(date.year, date.month)[1]
+    udate = datetime(date.year, date.month, udate)
+    aeom = _adjust_date(udate, "P", cal)
+    return date == aeom
+
+
 def _get_eom(month: int, year: int) -> datetime:
     """
     Get the day in the month corresponding to last day.
@@ -847,7 +858,8 @@ def dcf(
     termination: Union[datetime, NoInput] = NoInput(0),  # required for 30E360ISDA and ActActICMA
     frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
     stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    eom: Union[bool, NoInput] = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    roll: Union[str, int, NoInput] = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    cal: CalInput = NoInput(0)
 ) -> float:
     """
     Calculate the day count fraction of a period.
@@ -930,7 +942,7 @@ def dcf(
     """
     convention = convention.upper()
     try:
-        return _DCF[convention](start, end, termination, frequency_months, stub, eom)
+        return _DCF[convention](start, end, termination, frequency_months, stub, roll in [31, "eom"], cal)
     except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
@@ -999,7 +1011,8 @@ def _dcf_actacticma(
     termination: Optional[datetime],
     frequency_months: Optional[int],
     stub: Optional[bool],
-    eom: Union[bool, NoInput],
+    eom: bool,
+    cal: CalInput
 ):
     if frequency_months is None:
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
@@ -1010,24 +1023,25 @@ def _dcf_actacticma(
     if not stub:
         return frequency_months / 12
     else:
+        # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, None, NoInput(0), eom)
+            fwd_end = _add_months(start, frequency_months, None, cal, eom)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
                 fraction += 1
                 fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, None, NoInput(0), eom) - fwd_end
+                    _add_months(start, 2 * frequency_months, None, cal, eom) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
             return fraction * frequency_months / 12
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, None, NoInput(0), eom)
+            prev_start = _add_months(end, -frequency_months, None, cal, eom)
             fraction = 0
             if start < prev_start:  # stub is LONG
                 fraction += 1
                 r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, None, NoInput(0), eom)
+                s = prev_start - _add_months(end, -2 * frequency_months, None, cal, eom)
                 fraction += r / s
             else:
                 r = end - start
