@@ -636,9 +636,10 @@ def add_tenor(
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
-    Note this function does **not** implement the `modified following month end` rule,
-    where tenors starting on month end are adjusted to end on month end. For example
-    a 3-month tenor starting 28th Feb 2022 would be adjusted to end on 31st May 2022.
+    Note this function does not validate the ``roll`` input, but expects it to be correct.
+    This can be used to correctly replicate a schedule under a given roll day. For example
+    a modified 29th May +3M will default to 29th Aug, but can be made to match 31 Aug with *'eom'*
+    rolls.
 
     Parameters
     ----------
@@ -653,7 +654,7 @@ def add_tenor(
         The calendar for use with business day adjustment and modification.
     roll : str, int, optional
         This is only required if the tenor is given in months or years. Ensures the tenor period
-        associates with the roll day.
+        associates with a schedule's roll day.
 
     Returns
     -------

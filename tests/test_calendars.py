@@ -122,6 +122,19 @@ def test_add_negative_tenor(tenor, expected):
     assert result == expected
 
 
+@pytest.mark.parametrize("date, tenor, mod, roll, cal, expected", [
+    (dt(1990, 9, 28), "-6m", None, 31, NoInput(0), dt(1990, 3, 31)),
+    (dt(1990, 9, 28), "-6m", None, 29, NoInput(0), dt(1990, 3, 29)),
+    (dt(1990, 5, 29), "3m", None, NoInput(0), NoInput(0), dt(1990, 8, 29)),
+    (dt(1990, 5, 29), "3m", None,  31, NoInput(0), dt(1990, 8, 31)),
+    (dt(1990, 3, 31), "6m", "MF", 31, "nyc", dt(1990, 9, 28)),
+])
+def test_add_tenor_special_cases(date, tenor, mod, roll, cal, expected):
+    end = add_tenor(date, tenor, mod, cal, roll)
+    assert end == expected
+
+
+
 @pytest.mark.parametrize(
     "month, year, expected",
     [
