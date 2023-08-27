@@ -94,7 +94,7 @@ required.
 .. ipython:: python
    :okwarning:
 
-   from datetime import datetime as dt
+   from rateslib import dt
    curve = Curve(
        nodes={
            dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
@@ -196,7 +196,7 @@ and :class:`~rateslib.curves.LineCurve`.
 
    from rateslib.curves import *
    import matplotlib.pyplot as plt
-   from datetime import datetime as dt
+   from rateslib import dt
    import numpy as np
    curve = Curve(
        nodes={
@@ -257,7 +257,7 @@ The available basic local interpolation options are:
 
    from rateslib.curves import *
    import matplotlib.pyplot as plt
-   from datetime import datetime as dt
+   from rateslib import dt
    import numpy as np
    curve = Curve(
        nodes={
@@ -309,7 +309,7 @@ those copied from the curve.
 
    from rateslib.curves import *
    import matplotlib.pyplot as plt
-   from datetime import datetime as dt
+   from rateslib import dt
    import numpy as np
 
    curve = Curve(
@@ -396,7 +396,7 @@ the curve. This is common practice for interest rate curves usually with a
 
    from rateslib.curves import *
    import matplotlib.pyplot as plt
-   from datetime import datetime as dt
+   from rateslib import dt
    import numpy as np
    curve = Curve(
        nodes={
