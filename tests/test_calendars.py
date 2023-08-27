@@ -134,7 +134,6 @@ def test_add_tenor_special_cases(date, tenor, mod, roll, cal, expected):
     assert end == expected
 
 
-
 @pytest.mark.parametrize(
     "month, year, expected",
     [
