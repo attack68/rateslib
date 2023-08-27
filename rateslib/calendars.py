@@ -868,7 +868,7 @@ def dcf(
     frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
     stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
     roll: Union[str, int, NoInput] = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
-    cal: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
     Calculate the day count fraction of a period.
@@ -951,7 +951,7 @@ def dcf(
     """
     convention = convention.upper()
     try:
-        return _DCF[convention](start, end, termination, frequency_months, stub, roll, cal)
+        return _DCF[convention](start, end, termination, frequency_months, stub, roll, calendar)
     except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
@@ -1021,7 +1021,7 @@ def _dcf_actacticma(
     frequency_months: Optional[int],
     stub: Optional[bool],
     roll: Union[str, int, NoInput],
-    cal: CalInput
+    calendar: CalInput
 ):
     if frequency_months is None:
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
@@ -1034,23 +1034,23 @@ def _dcf_actacticma(
     else:
         # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, None, cal, roll)
+            fwd_end = _add_months(start, frequency_months, None, calendar, roll)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
                 fraction += 1
                 fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, None, cal, roll) - fwd_end
+                    _add_months(start, 2 * frequency_months, None, calendar, roll) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
             return fraction * frequency_months / 12
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, None, cal, roll)
+            prev_start = _add_months(end, -frequency_months, None, calendar, roll)
             fraction = 0
             if start < prev_start:  # stub is LONG
                 fraction += 1
                 r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, None, cal, roll)
+                s = prev_start - _add_months(end, -2 * frequency_months, None, calendar, roll)
                 fraction += r / s
             else:
                 r = end - start
