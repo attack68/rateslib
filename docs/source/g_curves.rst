@@ -62,7 +62,7 @@ generalised process of:
    from rateslib.curves import Curve
    from rateslib.solver import Solver
    from rateslib.instruments import IRS
-   from datetime import datetime as dt
+   from rateslib import dt
 
    sofr = Curve(
        nodes={
@@ -98,7 +98,7 @@ generalised process of:
    from rateslib.curves import Curve
    from rateslib.solver import Solver
    from rateslib.instruments import IRS
-   from datetime import datetime as dt
+   from rateslib import dt
 
    sofr = Curve(
        nodes={
