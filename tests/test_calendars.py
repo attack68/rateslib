@@ -129,6 +129,7 @@ def test_add_negative_tenor(tenor, expected):
     (dt(1990, 5, 29), "3m", None,  31, NoInput(0), dt(1990, 8, 31)),
     (dt(1990, 3, 31), "6m", "MF", 31, "nyc", dt(1990, 9, 28)),
     (dt(2023, 4, 21), "-3m", "P", 23, "bus", dt(2023, 1, 23)),
+    (dt(2023, 6, 23), "-3m", "P", 25, "bus", dt(2023, 3, 24)),
 ])
 def test_add_tenor_special_cases(date, tenor, mod, roll, cal, expected):
     end = add_tenor(date, tenor, mod, cal, roll)
