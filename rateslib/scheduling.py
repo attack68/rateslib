@@ -19,6 +19,7 @@ from rateslib.calendars import (
     _get_imm,
     _is_imm,
     _is_som,
+    _get_roll,
 )
 
 
@@ -296,16 +297,16 @@ class Schedule:
                 )
             if self.eval_mode == "swaps_align":
                 # effective date is calculated as unadjusted
-                effective_: datetime = add_tenor(self.eval_date, effective, None, NoInput(0), self.eom)
+                effective_: datetime = add_tenor(self.eval_date, effective, None, NoInput(0), roll)
             elif self.eval_mode == "swaptions_align":
-                effective_ = add_tenor(self.eval_date, effective, self.modifier, self.calendar, self.eom)
+                effective_ = add_tenor(self.eval_date, effective, self.modifier, self.calendar, roll)
         else:
             effective_ = effective
         self.effective: datetime = effective_
 
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination_: datetime = add_tenor(self.effective, termination, None, NoInput(0), self.eom)
+            termination_: datetime = add_tenor(self.effective, termination, None, NoInput(0), roll)
         else:
             termination_ = termination
         self.termination: datetime = termination_
@@ -520,7 +521,7 @@ class Schedule:
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
-            add_tenor(dt, f"{self.payment_lag}B", None, self.calendar, self.eom) for dt in self.aschedule
+            add_tenor(dt, f"{self.payment_lag}B", None, self.calendar, NoInput(0)) for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
         if self.front_stub is not None:
@@ -1195,8 +1196,8 @@ def _get_unadjusted_short_stub_date(
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = _add_months(ueffective, frequency_months * direction, None, NoInput(0), eom)
-                _ = _get_roll(_.month, _.year, roll)
+                _ = _add_months(ueffective, frequency_months * direction, None, NoInput(0), roll)
+                # _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = ueffective
                 _ = _get_roll(_.month, _.year, roll)
@@ -1204,18 +1205,19 @@ def _get_unadjusted_short_stub_date(
         else:  # stub_side == "BACK"
             comparison = _get_roll(utermination.month, utermination.year, roll)
             if utermination.day < comparison.day:
-                _ = _add_months(utermination, frequency_months * direction, None, NoInput(0), eom)
-                _ = _get_roll(_.month, _.year, roll)
+                _ = _add_months(utermination, frequency_months * direction, None, NoInput(0), roll)
+                # _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = utermination
                 _ = _get_roll(_.month, _.year, roll)
 
     else:
         for month_offset in range(1, 12):
-            stub_date = _add_months(stub_side_dt, month_offset * direction, None, NoInput(0), eom)
+            stub_date = _add_months(stub_side_dt, month_offset * direction, None, NoInput(0), roll)
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
-        _ = _get_roll(stub_date.month, stub_date.year, roll)
+        # _ = _get_roll(stub_date.month, stub_date.year, roll)
+        _ = stub_date
 
     return _
 
@@ -1299,12 +1301,11 @@ def _generate_regular_schedule_unadjusted(
     associated with ``ueffective``.
     """
     n_periods = _get_n_periods_in_regular(ueffective, utermination, frequency)
-    eom = (roll == "eom" or roll == 31)
     _ = ueffective
     yield _
     for i in range(int(n_periods)):
-        _ = _add_months(_, defaults.frequency_months[frequency], None, NoInput(0), eom)
-        _ = _get_roll(_.month, _.year, roll)
+        _ = _add_months(_, defaults.frequency_months[frequency], None, NoInput(0), roll)
+        # _ = _get_roll(_.month, _.year, roll)
         yield _
 
 
@@ -1380,22 +1381,6 @@ def _get_n_periods_in_regular(
     if n_months % frequency_months != 0:
         raise ValueError("Regular schedule not implied by `frequency` and dates.")
     return int(n_months / frequency_months)
-
-
-def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
-    if roll == "eom":
-        date = _get_eom(month, year)
-    elif roll == "som":
-        date = datetime(year, month, 1)
-    elif roll == "imm":
-        date = _get_imm(month, year)
-    else:
-        try:
-            assert isinstance(roll, int)
-            date = datetime(year, month, roll)
-        except ValueError:  # day is out of range for month, i.e. 30 or 31
-            date = _get_eom(month, year)
-    return date
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

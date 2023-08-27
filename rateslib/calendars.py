@@ -631,14 +631,15 @@ def add_tenor(
     tenor: str,
     modifier: Optional[str],
     calendar: CalInput,
-    eom: Union[bool, NoInput] = NoInput(0),
+    roll: Union[str, int, NoInput] = NoInput(0),
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
-    Note this function does **not** implement the `modified following month end` rule,
-    where tenors starting on month end are adjusted to end on month end. For example
-    a 3-month tenor starting 28th Feb 2022 would be adjusted to end on 31st May 2022.
+    Note this function does not validate the ``roll`` input, but expects it to be correct.
+    This can be used to correctly replicate a schedule under a given roll day. For example
+    a modified 29th May +3M will default to 29th Aug, but can be made to match 31 Aug with *'eom'*
+    rolls.
 
     Parameters
     ----------
@@ -651,8 +652,9 @@ def add_tenor(
         The modification rule to apply if the tenor is calendar days, months or years.
     calendar : CustomBusinessDay or str, optional
         The calendar for use with business day adjustment and modification.
-    eom : bool, optional
-        This is only required if the tenor is given in months or years.
+    roll : str, int, optional
+        This is only required if the tenor is given in months or years. Ensures the tenor period
+        associates with a schedule's roll day.
 
     Returns
     -------
@@ -689,11 +691,9 @@ def add_tenor(
     elif "B" in tenor:
         return _add_business_days(start, int(tenor[:-1]), modifier, calendar)
     elif "Y" in tenor:
-        eom = defaults.eom if eom is NoInput.blank else eom
-        return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, eom)
+        return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, roll)
     elif "M" in tenor:
-        eom = defaults.eom if eom is NoInput.blank else eom
-        return _add_months(start, int(tenor[:-1]), modifier, calendar, eom)
+        return _add_months(start, int(tenor[:-1]), modifier, calendar, roll)
     elif "W" in tenor:
         return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
     else:
@@ -716,22 +716,31 @@ def _add_months(
     months: int,
     modifier: Optional[str],
     cal: CalInput,
-    eom: bool,
+    roll: Union[str, int, NoInput],
 ) -> datetime:
     """add a given number of months to an input date"""
     year_roll = floor((start.month + months - 1) / 12)
     month = (start.month + months) % 12
     month = 12 if month == 0 else month
-    try:
-        end = datetime(start.year + year_roll, month, start.day)
-    except ValueError:  # day is out of range for month, i.e. 30 or 31
-        end = _get_eom(month, start.year + year_roll)
-
-    if eom and not _is_eom(end) and _is_eom_cal(start, cal):
-        # adjust for eom if required
-        end = _get_eom(end.month, end.year)
-
+    roll = start.day if roll is NoInput.blank else roll
+    end = _get_roll(month, start.year + year_roll, roll)
     return _adjust_date(end, modifier, cal)
+
+
+def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
+    if isinstance(roll, str):
+        if roll == "eom":
+            date = _get_eom(month, year)
+        elif roll == "som":
+            date = datetime(year, month, 1)
+        elif roll == "imm":
+            date = _get_imm(month, year)
+    else:
+        try:
+            date = datetime(year, month, roll)
+        except ValueError:  # day is out of range for month, i.e. 30 or 31
+            date = _get_eom(month, year)
+    return date
 
 
 def _add_days(
@@ -859,7 +868,7 @@ def dcf(
     frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
     stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
     roll: Union[str, int, NoInput] = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
-    cal: CalInput = NoInput(0)
+    calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
     Calculate the day count fraction of a period.
@@ -942,7 +951,7 @@ def dcf(
     """
     convention = convention.upper()
     try:
-        return _DCF[convention](start, end, termination, frequency_months, stub, roll in [31, "eom"], cal)
+        return _DCF[convention](start, end, termination, frequency_months, stub, roll, calendar)
     except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
@@ -1011,8 +1020,8 @@ def _dcf_actacticma(
     termination: Optional[datetime],
     frequency_months: Optional[int],
     stub: Optional[bool],
-    eom: bool,
-    cal: CalInput
+    roll: Union[str, int, NoInput],
+    calendar: CalInput
 ):
     if frequency_months is None:
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
@@ -1025,23 +1034,23 @@ def _dcf_actacticma(
     else:
         # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, None, cal, eom)
+            fwd_end = _add_months(start, frequency_months, None, calendar, roll)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
                 fraction += 1
                 fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, None, cal, eom) - fwd_end
+                    _add_months(start, 2 * frequency_months, None, calendar, roll) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
             return fraction * frequency_months / 12
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, None, cal, eom)
+            prev_start = _add_months(end, -frequency_months, None, calendar, roll)
             fraction = 0
             if start < prev_start:  # stub is LONG
                 fraction += 1
                 r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, None, cal, eom)
+                s = prev_start - _add_months(end, -2 * frequency_months, None, calendar, roll)
                 fraction += r / s
             else:
                 r = end - start
