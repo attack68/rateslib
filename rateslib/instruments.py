@@ -1927,7 +1927,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usC = FixedRateBond(
            effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
-           stub="LONGFRONT",
+           front_stub=dt(1990, 11, 15),
            frequency="S", convention="ActActICMA", calc_mode="UST",
            fixed_rate=8.5, calendar="nyc", ex_div=1,
        )
