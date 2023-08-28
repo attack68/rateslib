@@ -1007,6 +1007,7 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class BondMixin:
+
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -1039,148 +1040,126 @@ class BondMixin:
         )
         return True if settlement > ex_div_date else False
 
+    def _accrued_frac_default(self, settlement: datetime, *args):
+        """
+        The default accrual fraction is set equal to the UK gilt DMO method.
+        """
+        return self._accrued_frac_ukg(settlement, *args)
+
+    def _accrued_frac_ukg(self, settlement: datetime, acc_idx: int, *args):
+        """
+        Method uses a linear proportion of days between payments to allocate accrued interest.
+        """
+        r = settlement - self.leg1.schedule.aschedule[acc_idx]
+        s = self.leg1.schedule.aschedule[acc_idx + 1] - self.leg1.schedule.aschedule[acc_idx]
+        return r / s
+
+    def _accrued_frac_ust(self, settlement: datetime, acc_idx: int, *args):
+        # replicate ukg
+        return self._accrued_frac_ukg(settlement, acc_idx, *args)
+
+    def _accrued_frac_sgb(self, settlement: datetime, acc_idx: int, *args):
+        """
+        Ignoring the convention on the leg uses a 30E360 DCF to determine the accrual fraction.
+        """
+        _ = dcf(settlement, self.leg1.schedule.aschedule[acc_idx + 1], "30e360")
+        _ = 1 - _
+        return _
+
     def _accrued_frac(self, settlement: datetime):
         """
         Return the accrual fraction of period between last coupon and settlement and
-        coupon period left index
+        coupon period left index.
+
+        Branches to a calculation based on the bond `calc_mode`.
         """
+        acc_frac_funcs = {
+            NoInput(0): self._accrued_frac_default,
+            "ukg": self._accrued_frac_ukg,
+            "ust": self._accrued_frac_ust,
+            "sgb": self._accrued_frac_sgb,
+        }
         acc_idx = index_left(
             self.leg1.schedule.aschedule,
             len(self.leg1.schedule.aschedule),
             settlement,
         )
-        r = settlement - self.leg1.schedule.aschedule[acc_idx]
-        s = self.leg1.schedule.aschedule[acc_idx + 1] - self.leg1.schedule.aschedule[acc_idx]
+        try:
+            return acc_frac_funcs[self.calc_mode](settlement, acc_idx), acc_idx
+        except KeyError:
+            raise ValueError(f"Cannot calculate for `calc_mode`: {self.calc_mode}")
 
-        if self.calc_mode == "sgb":
-            # sgb use a 30e360 convention for accrual and stub but actacticma for reg coup
-            _ = dcf(settlement, self.leg1.schedule.aschedule[acc_idx + 1], "30e360")
-            _ = 1 - _
-        else:
-            # ukg and ust have a linearly proportioned accrual
-            _ = r / s
+    def _price_from_ytm_default(self, ytm: DualTypes, settlement: datetime, dirty: bool):
+        return self._price_from_ytm_ukg(ytm, settlement, dirty)
 
-        return _, acc_idx
-
-    def _npv_local(
-        self,
-        curve: Union[Curve, LineCurve],
-        disc_curve: Curve,
-        fx: Union[float, FXRates, FXForwards, NoInput],
-        base: Union[str, NoInput],
-        settlement: datetime,
-        projection: datetime,
-    ):
-        """
-        Return the NPV (local) of the security by summing cashflow valuations.
-
-        Parameters
-        ----------
-        curve : Curve or LineCurve
-            A curve used for projecting cashflows of floating rates.
-        disc_curve : Curve, str or list of such
-            A single :class:`Curve` for discounting cashflows.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        settlement : datetime
-            The date of settlement of the bond which declares which cashflows are
-            unpaid and therefore valid for the calculation.
-        projection : datetime, optional
-           Curves discount cashflows to the initial node of the Curve. This parameter
-           allows the NPV to be projected forward to a future date under the appropriate
-           discounting mechanism. If *None* is not projected forward.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        The cashflows for determination (excluding an ``ex_div`` cashflow) are
-        evaluated by ``settlement``.
-
-        The date for which the PV is returned is by ``projection``, and not the
-        initial node date of the ``disc_curve``.
-        """
-        self._set_base_index_if_none(curve)
-        npv = self.leg1.npv(curve, disc_curve, fx, base)
-
-        # now must systematically deduct any cashflow between the initial node date
-        # and the settlement date, including the cashflow after settlement if ex_div.
-        initial_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            disc_curve.node_dates[0],
-        )
-        settle_idx = index_left(
-            self.leg1.schedule.aschedule,
-            self.leg1.schedule.n_periods + 1,
-            settlement,
-        )
-
-        for period_idx in range(initial_idx, settle_idx):
-            # deduct coupon period
-            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
-
-        if self.ex_div(settlement):
-            # deduct coupon after settlement which is also unpaid
-            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
-
-        if projection is NoInput.blank:
-            return npv
-        else:
-            return npv / disc_curve[projection]
-
-    def _price_from_ytm(self, ytm: float, settlement: datetime, dirty: bool = False):
-        """
-        Loop through all future cashflows and discount them with ``ytm`` to achieve
-        correct price.
-        """
-        # TODO (mid) note this formula does not account for back stubs
-        # this is also mentioned in Coding IRs
-
+    def _price_from_ytm_ust(self, ytm: DualTypes, settlement: datetime, dirty: bool):
+        acc_frac, acc_idx = self._accrued_frac(settlement)
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         v = 1 / (1 + ytm / (100 * f))
-
-        acc_frac, acc_idx = self._accrued_frac(settlement)
-
         d = 0
         for i, p_idx in enumerate(range(acc_idx, len(self.leg1.schedule.aschedule) - 1)):
             if i == 0 and self.ex_div(settlement):
                 continue
             else:
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v**i
-                # d += self.leg1.periods[p_idx].cashflow * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v**i
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
 
-        # TODO read swedish securities amrkets rule for this
-        # is unlikely mixing conventions allows this to work for sgb
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
             fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
         else:
             fd0 = 1 - acc_frac
 
-        if self.calc_mode == "ust":
-            # the rules for ust in the stub period use a discount approach
-            # rather than a ytm compounding
-            if fd0 > 1.0:
-                v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
-            else:
-                v_ = 1 / (1 + fd0 * ytm / (100 * f))
+        if fd0 > 1.0:
+            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
         else:
-            # this might have top be changed and merged with above for sgb.
-            # ukg needs no adjustment this is the default calculation.
-            v_ = v ** fd0
+            v_ = 1 / (1 + fd0 * ytm / (100 * f))
 
         p = v_ * d / -self.leg1.notional * 100
         return p if dirty else p - self.accrued(settlement)
+
+    def _price_from_ytm_ukg(self, ytm: DualTypes, settlement: datetime, dirty: bool):
+        # TODO (mid) note this formula does not account for back stubs
+        # this is also mentioned in Coding IRs
+        acc_frac, acc_idx = self._accrued_frac(settlement)
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+        v = 1 / (1 + ytm / (100 * f))
+        d = 0
+        for i, p_idx in enumerate(range(acc_idx, len(self.leg1.schedule.aschedule) - 1)):
+            if i == 0 and self.ex_div(settlement):
+                continue
+            else:
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
+
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        else:
+            fd0 = 1 - acc_frac
+
+        v_ = v ** fd0
+        p = v_ * d / -self.leg1.notional * 100
+        return p if dirty else p - self.accrued(settlement)
+
+    def _price_from_ytm_sgb(self, ytm: DualTypes, settlement: datetime, dirty: bool):
+        return self._price_from_ytm_ukg(ytm, settlement, dirty)
+
+    def _price_from_ytm(self, ytm: float, settlement: datetime, dirty: bool = False):
+        """
+        Loop through all future cashflows and discount them with ``ytm`` to achieve
+        correct price.
+        """
+        price_from_ytm_funcs = {
+            NoInput(0): self._price_from_ytm_default,
+            "ukg": self._price_from_ytm_ukg,
+            "ust": self._price_from_ytm_ust,
+            "sgb": self._price_from_ytm_sgb,
+        }
+        try:
+            return price_from_ytm_funcs[self.calc_mode](ytm, settlement, dirty)
+        except KeyError:
+            raise ValueError(f"Cannot calculate with `calc_mode`: {self.calc_mode}")
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
         """
@@ -1251,6 +1230,109 @@ class BondMixin:
 
         """
         return self._price_from_ytm(ytm, settlement, dirty)
+
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the accrued amount per nominal par value of 100.
+
+        Parameters
+        ----------
+        settlement : datetime
+            The settlement date which to measure accrued interest against.
+
+        Notes
+        -----
+        Fractionally apportions the coupon payment based on calendar days.
+
+        .. math::
+
+           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
+
+        """
+        frac, acc_idx = self._accrued_frac(settlement)
+        if self.ex_div(settlement):
+            frac = frac - 1  # accrued is negative in ex-div period
+        _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
+        return frac * _ / -self.leg1.notional * 100
+
+    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
+        """
+        Calculate the yield-to-maturity of the security given its price.
+
+        Parameters
+        ----------
+        price : float
+            The price, per 100 nominal, against which to determine the yield.
+        settlement : datetime
+            The settlement date on which to determine the price.
+        dirty : bool, optional
+            If `True` will assume the
+            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        If ``price`` is given as :class:`~rateslib.dual.Dual` or
+        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
+        as the same type with the variables passed through accordingly.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.ytm(
+               price=141.0701315,
+               settlement=dt(1999,5,27),
+               dirty=True
+           )
+           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+
+        """
+
+        def root(y):
+            # we set this to work in float arithmetic for efficiency. Dual is added
+            # back below, see PR GH3
+            return self._price_from_ytm(y, settlement, dirty) - float(price)
+
+        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
+        # x, iters = _brents(root, -99, 10000)  # use own local brents code
+        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
+
+        if isinstance(price, Dual):
+            # use the inverse function theorem to express x as a Dual
+            p = self._price_from_ytm(Dual(x, "y"), settlement, dirty)
+            return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
+        elif isinstance(price, Dual2):
+            # use the IFT in 2nd order to express x as a Dual2
+            p = self._price_from_ytm(Dual2(x, "y"), settlement, dirty)
+            dydP = 1 / p.gradient("y")[0]
+            d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
+            return Dual2(
+                x,
+                price.vars,
+                dydP * price.dual,
+                0.5
+                * (
+                    dydP * price.gradient(price.vars, order=2)
+                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
+                ),
+            )
+        else:
+            return x
 
     def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
         """
@@ -1369,85 +1451,6 @@ class BondMixin:
            gilt.duration(4.455, dt(1999, 5, 27))
         """
         return self.price(Dual2(float(ytm), "y"), settlement).gradient("y", 2)[0][0]
-
-    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
-        """
-        Calculate the yield-to-maturity of the security given its price.
-
-        Parameters
-        ----------
-        price : float
-            The price, per 100 nominal, against which to determine the yield.
-        settlement : datetime
-            The settlement date on which to determine the price.
-        dirty : bool, optional
-            If `True` will assume the
-            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        If ``price`` is given as :class:`~rateslib.dual.Dual` or
-        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
-        as the same type with the variables passed through accordingly.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.ytm(
-               price=141.0701315,
-               settlement=dt(1999,5,27),
-               dirty=True
-           )
-           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-
-        """
-
-        def root(y):
-            # we set this to work in float arithmetic for efficiency. Dual is added
-            # back below, see PR GH3
-            return self._price_from_ytm(y, settlement, dirty) - float(price)
-
-        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
-        # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
-
-        if isinstance(price, Dual):
-            # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(Dual(x, "y"), settlement, dirty)
-            return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
-        elif isinstance(price, Dual2):
-            # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(Dual2(x, "y"), settlement, dirty)
-            dydP = 1 / p.gradient("y")[0]
-            d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
-            return Dual2(
-                x,
-                price.vars,
-                dydP * price.dual,
-                0.5
-                * (
-                    dydP * price.gradient(price.vars, order=2)
-                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
-                ),
-            )
-        else:
-            return x
 
     def fwd_from_repo(
         self,
@@ -1601,29 +1604,80 @@ class BondMixin:
 
         return numerator / denominator * 100
 
-    def accrued(self, settlement: datetime):
+    def _npv_local(
+        self,
+        curve: Union[Curve, LineCurve],
+        disc_curve: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput],
+        base: Union[str, NoInput],
+        settlement: datetime,
+        projection: datetime,
+    ):
         """
-        Calculate the accrued amount per nominal par value of 100.
+        Return the NPV (local) of the security by summing cashflow valuations.
 
         Parameters
         ----------
+        curve : Curve or LineCurve
+            A curve used for projecting cashflows of floating rates.
+        disc_curve : Curve, str or list of such
+            A single :class:`Curve` for discounting cashflows.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         settlement : datetime
-            The settlement date which to measure accrued interest against.
+            The date of settlement of the bond which declares which cashflows are
+            unpaid and therefore valid for the calculation.
+        projection : datetime, optional
+           Curves discount cashflows to the initial node of the Curve. This parameter
+           allows the NPV to be projected forward to a future date under the appropriate
+           discounting mechanism. If *None* is not projected forward.
+
+        Returns
+        -------
+        float, Dual, Dual2
 
         Notes
         -----
-        Fractionally apportions the coupon payment based on calendar days.
+        The cashflows for determination (excluding an ``ex_div`` cashflow) are
+        evaluated by ``settlement``.
 
-        .. math::
-
-           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
-
+        The date for which the PV is returned is by ``projection``, and not the
+        initial node date of the ``disc_curve``.
         """
-        frac, acc_idx = self._accrued_frac(settlement)
+        self._set_base_index_if_none(curve)
+        npv = self.leg1.npv(curve, disc_curve, fx, base)
+
+        # now must systematically deduct any cashflow between the initial node date
+        # and the settlement date, including the cashflow after settlement if ex_div.
+        initial_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            disc_curve.node_dates[0],
+        )
+        settle_idx = index_left(
+            self.leg1.schedule.aschedule,
+            self.leg1.schedule.n_periods + 1,
+            settlement,
+        )
+
+        for period_idx in range(initial_idx, settle_idx):
+            # deduct coupon period
+            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
+
         if self.ex_div(settlement):
-            frac = frac - 1  # accrued is negative in ex-div period
-        _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
-        return frac * _ / -self.leg1.notional * 100
+            # deduct coupon after settlement which is also unpaid
+            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
+
+        if projection is NoInput.blank:
+            return npv
+        else:
+            return npv / disc_curve[projection]
 
     def npv(
         self,

@@ -2092,6 +2092,7 @@ class TestFixedRateBond:
             convention="ActActICMA",
             calc_mode="ust",
             ex_div=1,
+            modifier="F",
         )
         res1 = ust.price(ytm=y, settlement=se, dirty=False)
         res2 = ust.price(ytm=y, settlement=se, dirty=True)
@@ -2117,13 +2118,14 @@ class TestFixedRateBond:
             convention="ActActICMA",
             calc_mode="ust",
             ex_div=1,
+            modifier="F",
         )
         res1 = ust.price(ytm=y, settlement=se, dirty=False)
         res2 = ust.price(ytm=y, settlement=se, dirty=True)
         assert abs(res1-ec) < 3e-3
         assert abs(res2-ed) < 3e-3
 
-    def test_fixed_rate_bond_price(self):
+    def test_fixed_rate_bond_price_ukg(self):
         # test pricing functions against Gilt Example prices from UK DMO
         bond = FixedRateBond(
             dt(1995, 1, 1),
@@ -2133,6 +2135,7 @@ class TestFixedRateBond:
             fixed_rate=8,
             ex_div=7,
             calendar="ldn",
+            modifier="F",
         )
         assert abs(bond.price(4.445, dt(1999, 5, 24), True) - 145.012268) < 1e-6
         assert abs(bond.price(4.445, dt(1999, 5, 26), True) - 145.047301) < 1e-6
@@ -2147,13 +2150,14 @@ class TestFixedRateBond:
             fixed_rate=6.75,
             ex_div=7,
             calendar="ldn",
+            modifier="F"
         )
         assert abs(bond.price(4.634, dt(1999, 5, 10), True) - 113.315543) < 1e-6
         assert abs(bond.price(4.634, dt(1999, 5, 17), True) - 113.415969) < 1e-6
         assert abs(bond.price(4.634, dt(1999, 5, 18), True) - 110.058738) < 1e-6
         assert abs(bond.price(4.634, dt(1999, 5, 26), True) - 110.170218) < 1e-6
 
-    def test_fixed_rate_bond_yield(self):
+    def test_fixed_rate_bond_yield_ukg(self):
         # test pricing functions against Gilt Example prices from UK DMO
         bond = FixedRateBond(
             dt(1995, 1, 1),
@@ -2163,6 +2167,7 @@ class TestFixedRateBond:
             fixed_rate=8,
             ex_div=7,
             calendar="ldn",
+            modifier="F",
         )
         assert bond.ytm(135.0, dt(1999, 5, 24), True) - 5.1620635 < 1e-6
         assert bond.ytm(135.0, dt(1999, 5, 26), True) - 5.1649111 < 1e-6
@@ -2177,6 +2182,7 @@ class TestFixedRateBond:
             fixed_rate=6.75,
             ex_div=7,
             calendar="ldn",
+            modifier="F",
         )
         assert bond.ytm(108.0, dt(1999, 5, 10), True) - 5.7009527 < 1e-6
         assert bond.ytm(108.0, dt(1999, 5, 17), True) - 5.7253361 < 1e-6
