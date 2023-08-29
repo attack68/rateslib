@@ -1058,11 +1058,11 @@ class BondMixin:
         # replicate ukg
         return self._accrued_frac_ukg(settlement, acc_idx, *args)
 
-    def _accrued_frac_sgb(self, settlement: datetime, acc_idx: int, *args):
+    def _accrued_frac_sgb(self, settlement: datetime, acc_idx: int, f: int, *args):
         """
         Ignoring the convention on the leg uses a 30E360 DCF to determine the accrual fraction.
         """
-        _ = dcf(settlement, self.leg1.schedule.aschedule[acc_idx + 1], "30e360")
+        _ = dcf(settlement, self.leg1.schedule.aschedule[acc_idx + 1], "30e360") * f
         _ = 1 - _
         return _
 
@@ -1073,6 +1073,7 @@ class BondMixin:
 
         Branches to a calculation based on the bond `calc_mode`.
         """
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         acc_frac_funcs = {
             NoInput(0): self._accrued_frac_default,
             "ukg": self._accrued_frac_ukg,
@@ -1085,7 +1086,7 @@ class BondMixin:
             settlement,
         )
         try:
-            return acc_frac_funcs[self.calc_mode](settlement, acc_idx), acc_idx
+            return acc_frac_funcs[self.calc_mode](settlement, acc_idx, f), acc_idx
         except KeyError:
             raise ValueError(f"Cannot calculate for `calc_mode`: {self.calc_mode}")
 
@@ -1121,16 +1122,20 @@ class BondMixin:
     def _price_from_ytm_ukg(self, ytm: DualTypes, settlement: datetime, dirty: bool):
         # TODO (mid) note this formula does not account for back stubs
         # this is also mentioned in Coding IRs
-        acc_frac, acc_idx = self._accrued_frac(settlement)
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+        acc_frac, acc_idx = self._accrued_frac(settlement)
         v = 1 / (1 + ytm / (100 * f))
         d = 0
-        for i, p_idx in enumerate(range(acc_idx, len(self.leg1.schedule.aschedule) - 1)):
+        for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
             if i == 0 and self.ex_div(settlement):
                 continue
+            elif p_idx == (self.leg1.schedule.n_periods - 1):  # last period
+                v_last = v ** (self.leg1.periods[p_idx].dcf * f)  # compounded
+                # v_last = 1 / (1 + self.leg1.periods[p_idx].dcf * ytm / 100)  # simple
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** (i-1) * v_last
             else:
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** (i-1) * v_last
 
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
@@ -1143,7 +1148,30 @@ class BondMixin:
         return p if dirty else p - self.accrued(settlement)
 
     def _price_from_ytm_sgb(self, ytm: DualTypes, settlement: datetime, dirty: bool):
-        return self._price_from_ytm_ukg(ytm, settlement, dirty)
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+        acc_frac, acc_idx = self._accrued_frac(settlement)
+        v = 1 / (1 + ytm / 100) ** (1 / f)  # sgb always compound annually
+        d = 0
+        for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
+            if i == 0 and self.ex_div(settlement):
+                continue
+            elif p_idx == (self.leg1.schedule.n_periods - 1):  # last period
+                # v_last_ = v ** (self.leg1.periods[p_idx].dcf * f)  # compounded
+                v_last = 1 / (1 + self.leg1.periods[p_idx].dcf * ytm / 100)  # simple interest
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** (i-1) * v_last
+            else:
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
+        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** (i-1) * v_last
+
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * (1 - acc_frac)  # * f = 1.0
+        else:
+            fd0 = 1 - acc_frac
+
+        v_ = v ** fd0
+        p = v_ * d / -self.leg1.notional * 100
+        return p if dirty else p - self.accrued(settlement)
 
     def _price_from_ytm(self, ytm: float, settlement: datetime, dirty: bool = False):
         """
@@ -1249,6 +1277,7 @@ class BondMixin:
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """
+
         frac, acc_idx = self._accrued_frac(settlement)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period

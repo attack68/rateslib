@@ -2157,6 +2157,42 @@ class TestFixedRateBond:
         assert abs(bond.price(4.634, dt(1999, 5, 18), True) - 110.058738) < 1e-6
         assert abs(bond.price(4.634, dt(1999, 5, 26), True) - 110.170218) < 1e-6
 
+    def test_fixed_rate_bond_price_ukg_back_stub(self):
+        bond = FixedRateBond(
+            dt(1995, 12, 7),
+            dt(2015, 1, 23),
+            "S",
+            stub="SHORTBACK",
+            roll=7,
+            convention="ActActICMA",
+            fixed_rate=8,
+            ex_div=7,
+            calendar="ldn",
+            modifier="F",
+            calc_mode="ukg",
+        )
+        result = bond.price(ytm=8.00, settlement=dt(1995, 12, 7))
+        expected = 100.00330579126  # compounded back stub does not yield par
+        assert abs(result - expected) < 1e-9
+
+    def test_fixed_rate_bond_price_sgb_back_stub(self):
+        bond = FixedRateBond(
+            dt(1995, 12, 7),
+            dt(2015, 1, 23),
+            "A",
+            stub="SHORTBACK",
+            roll=7,
+            convention="ActActICMA",
+            fixed_rate=8,
+            ex_div=7,
+            calendar="ldn",
+            modifier="F",
+            calc_mode="sgb",
+        )
+        result = bond.price(ytm=8.00, settlement=dt(1995, 12, 7))
+        expected = 100.001697449  # simple period back stub yields close to par
+        assert abs(result - expected) < 1e-9
+
     def test_fixed_rate_bond_yield_ukg(self):
         # test pricing functions against Gilt Example prices from UK DMO
         bond = FixedRateBond(
