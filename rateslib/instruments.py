@@ -1016,7 +1016,7 @@ class BondMixin:
 
     def ex_div(self, settlement: datetime):
         """
-        Return a boolean whether the security is ex-div on the settlement.
+        Return a boolean whether the security is ex-div at the given settlement.
 
         Parameters
         ----------
@@ -1026,14 +1026,28 @@ class BondMixin:
         Returns
         -------
         bool
+
+        Notes
+        -----
+        Uses the UK DMO convention of returning False if ``settlement`` **is on or before** the
+        ex-div date.
+
+        Ex-div dates are determined as measured by the number of ``ex_div`` business days prior
+        to the unadjusted coupon end date.
+
+        With an ``ex_div`` of 1, a ``settlement`` that occurs on the coupon payment date will be
+        classified as ex-dividend and not receive that coupon.
+
+        With an ``ex_div`` of 0, a ``settlement`` that occurs on the coupon payment date will
+        **not** be classified as ex-dividend and will receive that coupon.
         """
         prev_a_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
+            self.leg1.schedule.uschedule,
+            len(self.leg1.schedule.uschedule),
             settlement,
         )
         ex_div_date = add_tenor(
-            self.leg1.schedule.aschedule[prev_a_idx + 1],
+            self.leg1.schedule.uschedule[prev_a_idx + 1],
             f"{-self.kwargs['ex_div']}B",
             None,  # modifier not required for business day tenor
             self.leg1.schedule.calendar,

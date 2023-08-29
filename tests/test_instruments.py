@@ -2073,6 +2073,24 @@ class TestFXSwap:
 
 class TestFixedRateBond:
 
+    @pytest.mark.parametrize("settlement, exp", [
+        (dt(1999, 5, 24), False),
+        (dt(1999, 5, 26), False),
+        (dt(1999, 5, 27), True),
+        (dt(1999, 6, 7), True)  # on payment date the
+    ])
+    def test_ex_div(self, settlement, exp):
+        ukg = FixedRateBond(
+            effective=dt(1998, 1, 1),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            fixed_rate=8.0,
+            convention="ActActICMA",
+            calendar="ldn",
+            ex_div=7,
+        )
+        assert ukg.ex_div(settlement) is exp
+
     @pytest.mark.parametrize("e, t, s, fr, ec, ed, y, se", [
         (dt(1990, 5, 15), dt(2020, 5, 15), NoInput(0), 8.75, 99.057893, 99.057893, 8.84, dt(1990, 5, 15)),  # A
         (dt(1990, 3, 1), dt(1995, 5, 15), dt(1990, 11, 15), 8.5, 99.805118, 99.805118, 8.53, dt(1990, 3, 1)),  # C
