@@ -585,7 +585,7 @@ def _is_holiday(date: datetime, calendar: CustomBusinessDay):
 
 def _adjust_date(
     date: datetime,
-    modifier: Optional[str],
+    modifier: str,
     calendar: CalInput,
 ) -> datetime:
     """
@@ -595,21 +595,22 @@ def _adjust_date(
     ----------
     date : datetime
         The date to be adjusted.
-    modifier : str or None
-        The modification rule, in {"F", "MF", "P", "MP"}. If *None* returns date.
+    modifier : str
+        The modification rule, in {"NONE", "F", "MF", "P", "MP"}. If *'NONE'* returns date.
     calendar : calendar, optional
-        The holiday calendar object to use. Required only if `modifier` is not *None*.
-        If *None* a calendar is created where every day including weekends is valid.
+        The holiday calendar object to use. Required only if `modifier` is not *'NONE'*.
+        If not given a calendar is created where every day including weekends is valid.
 
     Returns
     -------
     datetime
     """
-    if modifier is None:
-        return date
     modifier = modifier.upper()
+    if modifier == "NONE":
+        return date
+
     if modifier not in ["F", "MF", "P", "MP"]:
-        raise ValueError("`modifier` must be in {None, 'F', 'MF', 'P', 'MP'}")
+        raise ValueError("`modifier` must be in {'NONE', 'F', 'MF', 'P', 'MP'}")
 
     (adj_op, mod_op) = (
         ("rollforward", "rollback") if "F" in modifier else ("rollback", "rollforward")
@@ -629,8 +630,8 @@ def _adjust_date(
 def add_tenor(
     start: datetime,
     tenor: str,
-    modifier: Optional[str],
-    calendar: CalInput,
+    modifier: str,
+    calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
 ) -> datetime:
     """
@@ -681,7 +682,7 @@ def add_tenor(
 
     .. ipython:: python
 
-       add_tenor(dt(2022, 2, 28), "3M", None, None)
+       add_tenor(dt(2022, 2, 28), "3M", "NONE")
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
     """
@@ -703,7 +704,7 @@ def add_tenor(
 def _add_business_days(
     start: datetime,
     business_days: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
 ) -> datetime:
     """add a given number of business days to an input date"""
@@ -714,7 +715,7 @@ def _add_business_days(
 def _add_months(
     start: datetime,
     months: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
     roll: Union[str, int, NoInput],
 ) -> datetime:
@@ -746,7 +747,7 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
 def _add_days(
     start: datetime,
     days: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
 ) -> datetime:
     end = start + timedelta(days=days)
@@ -982,8 +983,8 @@ def _dcf_30e360(start: datetime, end: datetime, *args):
     return y + m + (de - ds) / 360
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: Optional[datetime], *args):
-    if termination is None:
+def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
+    if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
     def _is_end_feb(date):
@@ -1017,40 +1018,40 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
 def _dcf_actacticma(
     start: datetime,
     end: datetime,
-    termination: Optional[datetime],
-    frequency_months: Optional[int],
-    stub: Optional[bool],
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
     roll: Union[str, int, NoInput],
     calendar: CalInput
 ):
-    if frequency_months is None:
+    if frequency_months is NoInput.blank:
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
-    if termination is None:
+    if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
-    if stub is None:
+    if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if not stub:
         return frequency_months / 12
     else:
         # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, None, calendar, roll)
+            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
                 fraction += 1
                 fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, None, calendar, roll) - fwd_end
+                    _add_months(start, 2 * frequency_months, "NONE", calendar, roll) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
             return fraction * frequency_months / 12
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, None, calendar, roll)
+            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
             fraction = 0
             if start < prev_start:  # stub is LONG
                 fraction += 1
                 r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, None, calendar, roll)
+                s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
                 fraction += r / s
             else:
                 r = end - start

@@ -215,16 +215,16 @@ class PlotCurve:
         if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, None, NoInput(0))
+            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
         elif isinstance(left, datetime):
             left_ = left
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
         if right is NoInput.blank:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, None, NoInput(0))
+            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, "NONE", NoInput(0))
         elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, None, NoInput(0))
+            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
         elif isinstance(right, datetime):
             right_ = right
         else:
@@ -249,7 +249,7 @@ class PlotCurve:
         self,
         curve_foreign: Curve,
         fx_rate: Union[float, Dual],
-        fx_settlement: Optional[datetime] = None,
+        fx_settlement: Union[datetime, NoInput] = NoInput(0),
         left: datetime = None,
         right: datetime = None,
         points: int = None,
@@ -260,7 +260,7 @@ class PlotCurve:
 
         def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
             _ = self[date] / curve_foreign[date]
-            if fx_settlement is not None:
+            if fx_settlement is not NoInput.blank:
                 _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
             _ *= fx_rate
             return _
@@ -402,7 +402,7 @@ class Curve(Serialize, PlotCurve):
         endpoints: Union[str, NoInput] = NoInput(0),
         id: Union[str, NoInput] = NoInput(0),
         convention: Union[str, NoInput] = NoInput(0),
-        modifier: Union[str, None, NoInput] = NoInput(0),
+        modifier: Union[str, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         ad: int = 0,
         **kwargs,
@@ -1003,7 +1003,7 @@ class Curve(Serialize, PlotCurve):
         -------
         dict
         """
-        on_rate = self.rate(self.node_dates[0], "1d", None)
+        on_rate = self.rate(self.node_dates[0], "1d", "NONE")
         d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
         scalar = 1 / ((1 + on_rate * d / 100) ** days)
         new_nodes = {k + timedelta(days=days): v * scalar for k, v in self.nodes.items()}
@@ -1098,7 +1098,7 @@ class Curve(Serialize, PlotCurve):
 
         """
         if isinstance(tenor, str):
-            tenor = add_tenor(self.node_dates[0], tenor, None, NoInput(0))
+            tenor = add_tenor(self.node_dates[0], tenor, "NONE", NoInput(0))
 
         if tenor == self.node_dates[0]:
             return self.copy()
@@ -1711,8 +1711,8 @@ class IndexCurve(Curve):
 
     def plot_index(
         self,
-        right: Optional[Union[datetime, str]] = None,
-        left: Optional[Union[datetime, str]] = None,
+        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: Union[datetime, str, NoInput] = NoInput(0),
         comparators: list[Curve] = [],
         difference: bool = False,
         labels: list[str] = [],
@@ -1745,19 +1745,19 @@ class IndexCurve(Curve):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
-        if left is None:
+        if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, None, None)
+            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
         elif isinstance(left, datetime):
             left_ = left
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
-        if right is None:
+        if right is NoInput.blank:
             right_: datetime = self.node_dates[-1]
         elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, None, None)
+            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
         elif isinstance(right, datetime):
             right_ = right
         else:

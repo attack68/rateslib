@@ -13,6 +13,7 @@ from rateslib.curves import (
     IndexCurve,
     CompositeCurve,
 )
+from rateslib.default import NoInput
 from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
 from rateslib.dual import Dual, Dual2
@@ -1513,8 +1514,8 @@ class TestPlotCurve:
         assert result[1][0] == 0
         plt.close("all")
 
-    @pytest.mark.parametrize("left", [None, dt(2022, 1, 1), "0d"])
-    @pytest.mark.parametrize("right", [None, dt(2022, 2, 1), "0d"])
+    @pytest.mark.parametrize("left", [NoInput(0), dt(2022, 1, 1), "0d"])
+    @pytest.mark.parametrize("right", [NoInput(0), dt(2022, 2, 1), "0d"])
     def test_plot_index(self, left, right):
         i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
         fig, ax, lines = i_curve.plot_index(left=left, right=right)

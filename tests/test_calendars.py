@@ -103,7 +103,7 @@ def test_add_tenor_raises():
     ],
 )
 def test_add_tenor(tenor, expected):
-    result = add_tenor(dt(2021, 12, 31), tenor, None, None)
+    result = add_tenor(dt(2021, 12, 31), tenor, "NONE", NoInput(0))
     assert result == expected
 
 
@@ -120,16 +120,16 @@ def test_add_tenor(tenor, expected):
         ("-2y", dt(2020, 2, 28), NoInput(0)),
     ],
 )
-def test_add_negative_tenor_roll(tenor, expected, roll):
-    result = add_tenor(dt(2022, 2, 28), tenor, None, NoInput(0), roll)
+def test_add_negative_tenor(tenor, expected, roll):
+    result = add_tenor(dt(2022, 2, 28), tenor, "NONE", NoInput(0), roll)
     assert result == expected
 
 
 @pytest.mark.parametrize("date, tenor, mod, roll, cal, expected", [
-    (dt(1990, 9, 28), "-6m", None, 31, NoInput(0), dt(1990, 3, 31)),
-    (dt(1990, 9, 28), "-6m", None, 29, NoInput(0), dt(1990, 3, 29)),
-    (dt(1990, 5, 29), "3m", None, NoInput(0), NoInput(0), dt(1990, 8, 29)),
-    (dt(1990, 5, 29), "3m", None,  31, NoInput(0), dt(1990, 8, 31)),
+    (dt(1990, 9, 28), "-6m", "NONE", 31, NoInput(0), dt(1990, 3, 31)),
+    (dt(1990, 9, 28), "-6m", "NONE", 29, NoInput(0), dt(1990, 3, 29)),
+    (dt(1990, 5, 29), "3m", "NONE", NoInput(0), NoInput(0), dt(1990, 8, 29)),
+    (dt(1990, 5, 29), "3m", "NONE",  31, NoInput(0), dt(1990, 8, 31)),
     (dt(1990, 3, 31), "6m", "MF", 31, "nyc", dt(1990, 9, 28)),
     (dt(2023, 4, 21), "-3m", "P", 23, "bus", dt(2023, 1, 23)),
     (dt(2023, 6, 23), "-3m", "P", 25, "bus", dt(2023, 3, 24)),
@@ -155,12 +155,12 @@ def test_get_eom(month, year, expected):
 @pytest.mark.parametrize(
     "date, modifier, expected",
     [
-        (dt(2022, 1, 3), None, dt(2022, 1, 3)),
+        (dt(2022, 1, 3), "NONE", dt(2022, 1, 3)),
         (dt(2022, 1, 3), "F", dt(2022, 1, 4)),
         (dt(2022, 1, 3), "MF", dt(2022, 1, 4)),
         (dt(2022, 1, 3), "P", dt(2021, 12, 31)),
         (dt(2022, 1, 3), "MP", dt(2022, 1, 4)),
-        (dt(2022, 7, 30), None, dt(2022, 7, 30)),
+        (dt(2022, 7, 30), "NONE", dt(2022, 7, 30)),
         (dt(2022, 7, 30), "f", dt(2022, 8, 1)),
         (dt(2022, 7, 30), "mf", dt(2022, 7, 29)),
         (dt(2022, 7, 30), "p", dt(2022, 7, 29)),
@@ -185,7 +185,7 @@ def test_adjust_date_raises():
 @pytest.mark.parametrize(
     "modifier, expected",
     [
-        (None, dt(2022, 1, 3)),
+        ("None", dt(2022, 1, 3)),
         ("F", dt(2022, 1, 4)),
         ("MF", dt(2022, 1, 4)),
         ("P", dt(2021, 12, 31)),
@@ -200,7 +200,7 @@ def test_modifiers_som(cal_, modifier, expected):
 @pytest.mark.parametrize(
     "modifier, expected",
     [
-        (None, dt(2021, 2, 28)),
+        ("None", dt(2021, 2, 28)),
         ("F", dt(2021, 3, 1)),
         ("MF", dt(2021, 2, 26)),
         ("P", dt(2021, 2, 26)),
@@ -281,12 +281,12 @@ def test_dcf(start, end, conv, expected):
 @pytest.mark.parametrize(
     "start, end, conv, expected, freq_m, term, stub",
     [
-        (dt(2022, 6, 30), dt(2022, 7, 31), "30360", 1 / 12, None, None, None),
-        (dt(2022, 6, 30), dt(2022, 7, 31), "30E360", 1 / 12, None, None, None),
+        (dt(2022, 6, 30), dt(2022, 7, 31), "30360", 1 / 12, NoInput(0), None, None),
+        (dt(2022, 6, 30), dt(2022, 7, 31), "30E360", 1 / 12, NoInput(0), None, None),
         (dt(2022, 6, 30), dt(2022, 7, 31), "30E360ISDA", 1 / 12, 12, dt(2022, 7, 31), None),
-        (dt(2022, 6, 29), dt(2022, 7, 31), "30360", 1 / 12 + 2 / 360, None, None, None),
-        (dt(2022, 6, 29), dt(2022, 7, 31), "30E360", 1 / 12 + 1 / 360, None, None, None),
-        (dt(2022, 2, 28), dt(2022, 3, 31), "30E360", 1 / 12 + 2 / 360, None, None, None),
+        (dt(2022, 6, 29), dt(2022, 7, 31), "30360", 1 / 12 + 2 / 360, NoInput(0), None, None),
+        (dt(2022, 6, 29), dt(2022, 7, 31), "30E360", 1 / 12 + 1 / 360, NoInput(0), None, None),
+        (dt(2022, 2, 28), dt(2022, 3, 31), "30E360", 1 / 12 + 2 / 360, NoInput(0), None, None),
         (dt(2022, 2, 28), dt(2022, 3, 31), "30E360ISDA", 1 / 12, 12, dt(2022, 3, 3), None),
         (
             dt(1999, 2, 1),
@@ -337,11 +337,11 @@ def test_dcf_special(start, end, conv, expected, freq_m, term, stub):
 @pytest.mark.parametrize(
     "conv, freq_m, term, stub",
     [
-        ("ACTACTICMA", None, None, None),
-        ("ACTACTICMA", 3, None, None),
-        ("30E360ISDA", 3, None, None),
-        ("ACTACTICMA", 3, dt(2022, 4, 1), None),
-        ("BadConv", None, None, None),
+        ("ACTACTICMA", NoInput(0), NoInput(0), NoInput(0)),
+        ("ACTACTICMA", 3, NoInput(0), NoInput(0)),
+        ("30E360ISDA", 3, NoInput(0), NoInput(0)),
+        ("ACTACTICMA", 3, dt(2022, 4, 1), NoInput(0)),
+        ("BadConv", NoInput(0), NoInput(0), NoInput(0)),
     ],
 )
 def test_dcf_raises(conv, freq_m, term, stub):
