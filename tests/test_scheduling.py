@@ -336,24 +336,24 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp):
 @pytest.mark.parametrize(
     "eff, term, f, m, roll, exp",
     [
-        (dt(2022, 3, 16), dt(2022, 6, 30), "S", None, NoInput(0), False),  # frequency
-        (dt(2022, 3, 15), dt(2022, 9, 21), "Q", None, "imm", False),  # non-imm eff
-        (dt(2022, 3, 16), dt(2024, 9, 10), "Q", None, "imm", False),  # non-imm term
-        (dt(2022, 3, 30), dt(2029, 3, 31), "A", None, "eom", False),  # non-eom eff
-        (dt(2022, 3, 31), dt(2023, 3, 30), "A", None, "eom", False),  # non-eom term
-        (dt(2022, 3, 2), dt(2029, 3, 1), "A", None, "som", False),  # non-som eff
-        (dt(2022, 3, 1), dt(2023, 3, 2), "A", None, "som", False),  # non-som term
-        (dt(2022, 3, 30), dt(2023, 9, 30), "S", None, 31, False),  # non-eom
-        (dt(2024, 2, 28), dt(2025, 8, 30), "S", None, 30, False),  # is leap
-        (dt(2022, 2, 28), dt(2024, 2, 28), "S", None, 30, False),  # is leap
-        (dt(2024, 2, 29), dt(2025, 8, 30), "S", None, 30, True),  # is leap
-        (dt(2022, 2, 28), dt(2025, 8, 29), "S", None, 29, True),  # is end feb
-        (dt(2022, 2, 20), dt(2025, 8, 20), "S", None, 20, True),  # OK
-        (dt(2022, 2, 20), dt(2025, 8, 21), "S", None, 20, False),  # roll
-        (dt(2022, 2, 21), dt(2025, 8, 20), "S", None, 20, False),  # roll
-        (dt(2022, 2, 22), dt(2024, 2, 15), "S", None, NoInput(0), False),  # no valid roll
-        (dt(2022, 2, 28), dt(2024, 2, 29), "S", None, NoInput(0), True),  # 29 or eom
-        (dt(2022, 6, 30), dt(2024, 12, 30), "S", None, NoInput(0), True),  # 30
+        (dt(2022, 3, 16), dt(2022, 6, 30), "S", "NONE", NoInput(0), False),  # frequency
+        (dt(2022, 3, 15), dt(2022, 9, 21), "Q", "NONE", "imm", False),  # non-imm eff
+        (dt(2022, 3, 16), dt(2024, 9, 10), "Q", "NONE", "imm", False),  # non-imm term
+        (dt(2022, 3, 30), dt(2029, 3, 31), "A", "NONE", "eom", False),  # non-eom eff
+        (dt(2022, 3, 31), dt(2023, 3, 30), "A", "NONE", "eom", False),  # non-eom term
+        (dt(2022, 3, 2), dt(2029, 3, 1), "A", "NONE", "som", False),  # non-som eff
+        (dt(2022, 3, 1), dt(2023, 3, 2), "A", "NONE", "som", False),  # non-som term
+        (dt(2022, 3, 30), dt(2023, 9, 30), "S", "NONE", 31, False),  # non-eom
+        (dt(2024, 2, 28), dt(2025, 8, 30), "S", "NONE", 30, False),  # is leap
+        (dt(2022, 2, 28), dt(2024, 2, 28), "S", "NONE", 30, False),  # is leap
+        (dt(2024, 2, 29), dt(2025, 8, 30), "S", "NONE", 30, True),  # is leap
+        (dt(2022, 2, 28), dt(2025, 8, 29), "S", "NONE", 29, True),  # is end feb
+        (dt(2022, 2, 20), dt(2025, 8, 20), "S", "NONE", 20, True),  # OK
+        (dt(2022, 2, 20), dt(2025, 8, 21), "S", "NONE", 20, False),  # roll
+        (dt(2022, 2, 21), dt(2025, 8, 20), "S", "NONE", 20, False),  # roll
+        (dt(2022, 2, 22), dt(2024, 2, 15), "S", "NONE", NoInput(0), False),  # no valid roll
+        (dt(2022, 2, 28), dt(2024, 2, 29), "S", "NONE", NoInput(0), True),  # 29 or eom
+        (dt(2022, 6, 30), dt(2024, 12, 30), "S", "NONE", NoInput(0), True),  # 30
     ],
 )
 def test_check_regular_swap(eff, term, f, m, roll, exp, cal_):
