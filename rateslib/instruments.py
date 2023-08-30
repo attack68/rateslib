@@ -1029,8 +1029,10 @@ class BondMixin:
 
         Notes
         -----
-        Uses the UK DMO convention of returning False if ``settlement`` **is on or before** the
-        ex-div date.
+        By default uses the UK DMO convention of returning *False* if ``settlement``
+        **is on or before** the ex-div date.
+
+        Some ``calc_mode`` options return *True* if ``settlement`` **is on** the ex-div date.
 
         Ex-div dates are determined as measured by the number of ``ex_div`` business days prior
         to the unadjusted coupon end date.
@@ -1039,7 +1041,8 @@ class BondMixin:
         classified as ex-dividend and not receive that coupon.
 
         With an ``ex_div`` of 0, a ``settlement`` that occurs on the coupon payment date will
-        **not** be classified as ex-dividend and will receive that coupon.
+        **not** be classified as ex-dividend and will receive that coupon (in the default
+        calculation mode).
         """
         prev_a_idx = index_left(
             self.leg1.schedule.uschedule,
@@ -1052,7 +1055,10 @@ class BondMixin:
             None,  # modifier not required for business day tenor
             self.leg1.schedule.calendar,
         )
-        return True if settlement > ex_div_date else False
+        if self.calc_mode in []:  # currently no identified calc_modes
+            return True if settlement >= ex_div_date else False
+        else:
+            return True if settlement > ex_div_date else False
 
     def _accrued_frac_default(self, settlement: datetime, *args):
         """
@@ -1064,8 +1070,8 @@ class BondMixin:
         """
         Method uses a linear proportion of days between payments to allocate accrued interest.
         """
-        r = settlement - self.leg1.schedule.aschedule[acc_idx]
-        s = self.leg1.schedule.aschedule[acc_idx + 1] - self.leg1.schedule.aschedule[acc_idx]
+        r = settlement - self.leg1.schedule.uschedule[acc_idx]
+        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
         return r / s
 
     def _accrued_frac_ust(self, settlement: datetime, acc_idx: int, *args):
@@ -1076,7 +1082,7 @@ class BondMixin:
         """
         Ignoring the convention on the leg uses a 30E360 DCF to determine the accrual fraction.
         """
-        _ = dcf(settlement, self.leg1.schedule.aschedule[acc_idx + 1], "30e360") * f
+        _ = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
         _ = 1 - _
         return _
 
@@ -1095,8 +1101,8 @@ class BondMixin:
             "sgb": self._accrued_frac_sgb,
         }
         acc_idx = index_left(
-            self.leg1.schedule.aschedule,
-            len(self.leg1.schedule.aschedule),
+            self.leg1.schedule.uschedule,
+            len(self.leg1.schedule.uschedule),
             settlement,
         )
         try:

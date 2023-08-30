@@ -2208,8 +2208,34 @@ class TestFixedRateBond:
             calc_mode="sgb",
         )
         result = bond.price(ytm=8.00, settlement=dt(1995, 12, 7))
-        expected = 100.001697449  # simple period back stub yields close to par
+        expected = 100.0  # simple period back stub yields close to par
         assert abs(result - expected) < 1e-9
+
+    @pytest.mark.parametrize("settlement, exp_accrued, exp_price", [
+        (dt(2024, 5, 3), 0.73125, 88.134),
+        # (dt(2024, 5, 5), 0.735417, 88.150), # ambiguous Sunday
+        (dt(2024, 5, 6), -0.0125, 88.158),
+        (dt(2024, 5, 7), -0.0104, 88.165),
+        (dt(2024, 5, 8), -0.008333, 88.173),
+        (dt(2024, 5, 12), 0.0, 88.203),
+        (dt(2024, 5, 13), 0.002083, 88.210),
+    ])
+    def test_sgb_1060s_price_and_accrued(self, settlement, exp_accrued, exp_price):
+        sgb = FixedRateBond(
+            effective=dt(2023, 5, 12),
+            termination=dt(2028, 5, 12),
+            frequency="A",
+            convention="ActActICMA",
+            calendar="stk",
+            ex_div=5,
+            modifier="F",
+            fixed_rate=0.75,
+            calc_mode="sgb",
+        )
+        accrued = sgb.accrued(settlement)
+        assert abs(accrued-exp_accrued) < 1e-4
+        price = sgb.price(ytm=4.0, settlement=settlement, dirty=False)
+        assert abs(price-exp_price) < 1e-3
 
     def test_fixed_rate_bond_yield_ukg(self):
         # test pricing functions against Gilt Example prices from UK DMO
