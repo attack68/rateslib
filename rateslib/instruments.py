@@ -1236,17 +1236,17 @@ class BondMixin:
         """
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
-            d_ = dcf(
-                start=self.leg1.schedule.uschedule[acc_idx],
-                end=self.leg1.schedule.uschedule[acc_idx+1],
-                convention="ActActICMA",
-                frequency_months=f,
-                stub=True,
-                roll=self.leg1.schedule.roll,
-                calendar=NoInput(0),
-            )
-            # fd0 = self.leg1.periods[acc_idx].dcf * f * 1
-            fd0 = d_ * f
+            # d_ = dcf(
+            #     start=self.leg1.schedule.uschedule[acc_idx],
+            #     end=self.leg1.schedule.uschedule[acc_idx+1],
+            #     convention="ActActICMA",
+            #     frequency_months=f,
+            #     stub=True,
+            #     roll=self.leg1.schedule.roll,
+            #     calendar=NoInput(0),
+            # )
+            fd0 = self.leg1.periods[acc_idx].dcf * f * 1
+            # fd0 = d_ * f
         else:
             fd0 = 1
         return v ** fd0
@@ -1261,8 +1261,8 @@ class BondMixin:
         *args,
     ):
         d_ = dcf(
-            self.leg1.schedule.uschedule[acc_idx],
-            self.leg1.schedule.uschedule[acc_idx+1],
+            self.leg1.periods[acc_idx].start,
+            self.leg1.periods[acc_idx].end,
             "30E360"
         )
         return 1 / (1 + d_ * ytm / 100)  # simple interest

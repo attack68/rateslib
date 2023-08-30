@@ -1196,7 +1196,7 @@ def _get_unadjusted_short_stub_date(
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = _add_months(ueffective, frequency_months * direction, "NONE", NoInput(0), NoInput(0), roll)
+                _ = _add_months(ueffective, frequency_months * direction, "NONE", NoInput(0), roll)
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = ueffective
@@ -1205,7 +1205,7 @@ def _get_unadjusted_short_stub_date(
         else:  # stub_side == "BACK"
             comparison = _get_roll(utermination.month, utermination.year, roll)
             if utermination.day < comparison.day:
-                _ = _add_months(utermination, frequency_months * direction, "NONE", NoInput(0), NoInput(0), roll)
+                _ = _add_months(utermination, frequency_months * direction, "NONE", NoInput(0), roll)
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = utermination
@@ -1213,7 +1213,7 @@ def _get_unadjusted_short_stub_date(
 
     else:
         for month_offset in range(1, 12):
-            stub_date = _add_months(stub_side_dt, month_offset * direction, "NONE", NoInput(0), NoInput(0), roll)
+            stub_date = _add_months(stub_side_dt, month_offset * direction, "NONE", NoInput(0), roll)
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
         # _ = _get_roll(stub_date.month, stub_date.year, roll)

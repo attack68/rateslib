@@ -2186,11 +2186,11 @@ class TestFixedRateBond:
             fixed_rate=8,
             ex_div=7,
             calendar="ldn",
-            modifier="F",
+            modifier="NONE",
             calc_mode="ukg",
         )
         result = bond.price(ytm=8.00, settlement=dt(1995, 12, 7))
-        expected = 100.00330579126  # compounded back stub does not yield par
+        expected = 100.00334028292  # compounded back stub does not yield par
         assert abs(result - expected) < 1e-9
 
     def test_fixed_rate_bond_price_sgb_back_stub(self):
@@ -2204,11 +2204,11 @@ class TestFixedRateBond:
             fixed_rate=8,
             ex_div=7,
             calendar="ldn",
-            modifier="F",
+            modifier="NONE",
             calc_mode="sgb",
         )
         result = bond.price(ytm=8.00, settlement=dt(1995, 12, 7))
-        expected = 100.0  # simple period back stub yields close to par
+        expected = 100.0018153890108  # simple period back stub yields close to par
         assert abs(result - expected) < 1e-9
 
     @pytest.mark.parametrize("settlement, exp_accrued, exp_price", [
