@@ -108,12 +108,27 @@ class Defaults:
     Test docs
     """
 
-    convention = "ACT360"
-    notional = 1.0e6
+    # Scheduling
     stub = "SHORTFRONT"
     stub_length = "SHORT"
     eval_mode = "swaps_align"
     modifier = "MF"
+    calendar = BusinessDay()
+    frequency_months = {
+        "M": 1,
+        "B": 2,
+        "Q": 3,
+        "T": 4,
+        "S": 6,
+        "A": 12,
+        "Z": 1e8,
+    }
+    eom = False
+
+    # Instrument parameterisation
+
+    convention = "ACT360"
+    notional = 1.0e6
     index_lag = 3
     index_method = "daily"
     payment_lag = 2
@@ -139,23 +154,6 @@ class Defaults:
         "Bill": 0,
         "FRA": 0,
     }
-    calendar = BusinessDay()
-    interpolation = {
-        "Curve": "log_linear",
-        "LineCurve": "linear",
-        "IndexCurve": "linear_index",
-    }
-    endpoints = "natural"
-    frequency_months = {
-        "M": 1,
-        "B": 2,
-        "Q": 3,
-        "T": 4,
-        "S": 6,
-        "A": 12,
-        "Z": 1e8,
-    }
-    eom = False
     fixing_method = "rfr_payment_delay"
     fixing_method_param = {
         "rfr_payment_delay": 0,  # no observation shift - use payment_delay param
@@ -171,6 +169,18 @@ class Defaults:
     spread_compound_method = "none_simple"
     base_currency = "usd"
     fx_swap_base = "foreign"
+
+    # Curves
+
+    interpolation = {
+        "Curve": "log_linear",
+        "LineCurve": "linear",
+        "IndexCurve": "linear_index",
+    }
+    endpoints = "natural"
+
+    # Solver
+
     tag = "v"
     headers = {
         "type": "Type",
