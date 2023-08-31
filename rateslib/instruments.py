@@ -1022,7 +1022,7 @@ class BondMixin:
         Parameters
         ----------
         settlement : datetime
-             The settlement date to test.
+            The settlement date to test.
 
         Returns
         -------
@@ -1053,7 +1053,7 @@ class BondMixin:
         ex_div_date = add_tenor(
             self.leg1.schedule.uschedule[prev_a_idx + 1],
             f"{-self.kwargs['ex_div']}B",
-            None,  # modifier not required for business day tenor
+            NoInput(0),  # modifier not required for business day tenor
             self.leg1.schedule.calendar,
         )
         if self.calc_mode in []:  # currently no identified calc_modes
@@ -1064,6 +1064,7 @@ class BondMixin:
     def _acc_index(self, settlement: datetime):
         """
         Get the coupon period index for that which the settlement date fall within.
+        Uses unadjusted dates.
         """
         _ = index_left(
             self.leg1.schedule.uschedule,
@@ -1087,55 +1088,94 @@ class BondMixin:
 
         Branches to a calculation based on the bond `calc_mode`.
         """
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         acc_frac_funcs = {
-            NoInput(0): self._accrued_frac_default,
-            "ukg": self._accrued_frac_ukg,
-            "ust": self._accrued_frac_ust,
-            "sgb": self._accrued_frac_sgb,
+            NoInput(0): self._acc_lin_days,
+            "ukg": self._acc_lin_days,
+            "ust": self._acc_lin_days_long_split,
+            "sgb": self._acc_30e360,
+            "cadgb": self._acc_act365_1y,
+            "cadgb-ytm": self._acc_lin_days,
         }
         try:
-            return acc_frac_funcs[calc_mode](settlement, acc_idx, f)
+            return acc_frac_funcs[calc_mode](settlement, acc_idx)
         except KeyError:
             raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
 
-    def _accrued_frac_default(self, settlement: datetime, *args):
-        """
-        The default accrual fraction is set equal to the UK gilt DMO method.
-        """
-        return self._accrued_frac_ukg(settlement, *args)
-
-    def _accrued_act_act(self, settlement: datetime, acc_idx: int, *args):
+    def _acc_lin_days(self, settlement: datetime, acc_idx: int, *args):
         """
         Method uses a linear proportion of days between payments to allocate accrued interest.
+        Measures between unadjusted coupon dates.
         """
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
         return r / s
 
-    def _accrued_frac_ukg(self, settlement: datetime, acc_idx: int, *args):
+    def _acc_lin_days_long_split(self, settlement: datetime, acc_idx: int, *args):
         """
-        Method uses a linear proportion of days between payments to allocate accrued interest.
+        For long stub periods this splits the accrued interest into two components.
+        Otherwise, returns the regular linear proportion.
         """
-        r = settlement - self.leg1.schedule.uschedule[acc_idx]
-        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        return r / s
+        if self.leg1.periods[acc_idx].stub:
+            fm = defaults.frequency_months[self.leg1.schedule.frequency]
+            f = 12 / fm
+            if self.leg1.periods[acc_idx].dcf * f > 1:
+                # long stub
+                quasi_coupon = add_tenor(
+                    self.leg1.schedule.uschedule[acc_idx+1],
+                    f"-{fm}M",
+                    "NONE",
+                    NoInput(0),
+                    self.leg1.schedule.roll,
+                )
+                quasi_start = add_tenor(
+                    quasi_coupon,
+                    f"-{fm}M",
+                    "NONE",
+                    NoInput(0),
+                    self.leg1.schedule.roll,
+                )
+                if settlement <= quasi_coupon:
+                    # then first part of long stub
+                    r = quasi_coupon - settlement
+                    s = quasi_coupon - quasi_start
+                    r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
+                    _ = (r_ - r) / s
+                    return _ / (self.leg1.periods[acc_idx].dcf * f)
+                else:
+                    # then second part of long stub
+                    r = self.leg1.schedule.uschedule[acc_idx+1] - settlement
+                    s = self.leg1.schedule.uschedule[acc_idx+1] - quasi_coupon
+                    r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
+                    s_ = quasi_coupon - quasi_start
+                    _ = r_ / s_ + (s-r) / s
+                    return _ / (self.leg1.periods[acc_idx].dcf * f)
 
-    def _accrued_frac_ust(self, settlement: datetime, acc_idx: int, *args):
-        # replicate ukg
-        return self._accrued_frac_ukg(settlement, acc_idx, *args)
+        return self._acc_lin_days(settlement, acc_idx, *args)
 
-    def _accrued_frac_sgb(self, settlement: datetime, acc_idx: int, f: int, *args):
+    def _acc_30e360(self, settlement: datetime, acc_idx: int, *args):
         """
-        Ignoring the convention on the leg uses a 30E360 DCF to determine the accrual fraction.
+        Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
+        Measures between unadjusted date and settlement.
         """
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         _ = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
         _ = 1 - _
         return _
 
-
-    def _price_from_ytm_default(self, ytm: DualTypes, settlement: datetime, dirty: bool):
-        return self._price_from_ytm_ukg(ytm, settlement, dirty)
+    def _acc_act365_1y(self, settlement:datetime, acc_idx: int, *args):
+        """
+        Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
+        Measures between unadjusted date and settlement.
+        Special adjustment if number of days is greater than 365.
+        """
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+        r = settlement - self.leg1.schedule.uschedule[acc_idx]
+        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
+        if r.days > 365.0 / f:
+            _ = 1 - ((s - r).days * f) / 365.0 # counts remaining days
+        else:
+            _ = f * r.days / 365.0
+        return _
 
     def _price_from_ytm_ust(self, ytm: DualTypes, settlement: datetime, dirty: bool):
         acc_frac, acc_idx = self._accrued_frac(settlement)
@@ -1147,7 +1187,7 @@ class BondMixin:
                 continue
             else:
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
+                d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
 
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
@@ -1187,7 +1227,7 @@ class BondMixin:
         for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
             if i == 0 and self.ex_div(settlement):
                 continue
-            elif p_idx == (self.leg1.schedule.n_periods - 1):  # last period
+            elif p_idx == (self.leg1.schedule.n_periods - 1): # last period
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i-1) * v3
             else:
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** i
@@ -1197,6 +1237,13 @@ class BondMixin:
         return p if dirty else p - self._accrued(settlement, accrual_calc_mode)
 
     def _v2_(self, ytm: DualTypes, f: int, *args):
+        """
+        The default method for a single regular period discounted in the regular portion of bond.
+        Implies compounding at the same frequency as the coupons.
+        """
+        return 1 / (1 + ytm / (100 * f))
+
+    def _v2_1y_simple(self, ytm: DualTypes, f: int, *args):
         """
         The default method for a single regular period discounted in the regular portion of bond.
         Implies compounding at the same frequency as the coupons.
@@ -1225,6 +1272,60 @@ class BondMixin:
             fd0 = 1 - acc_frac
         return v ** fd0
 
+    def _v1_simple(
+        self,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v: DualTypes,
+        accrual_calc_mode: Union[str, NoInput],
+        *args,
+    ):
+        """
+        The initial period discounts by a simple interest amount
+        """
+        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        else:
+            fd0 = 1 - acc_frac
+
+        if fd0 > 1.0:
+            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
+        else:
+            v_ = 1 / (1 + fd0 * ytm / (100 * f))
+
+        return v_
+
+    def _v1_simple(
+        self,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v: DualTypes,
+        accrual_calc_mode: Union[str, NoInput],
+        *args,
+    ):
+        """
+        The initial period discounts by a simple interest amount
+        """
+        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        else:
+            fd0 = 1 - acc_frac
+
+        if fd0 > 1.0:
+            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
+        else:
+            v_ = 1 / (1 + fd0 * ytm / (100 * f))
+
+        return v_
+
     def _v3_dcf_comp(
         self,
         ytm: DualTypes,
@@ -1240,16 +1341,6 @@ class BondMixin:
         """
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
-            # d_ = dcf(
-            #     start=self.leg1.schedule.uschedule[acc_idx],
-            #     end=self.leg1.schedule.uschedule[acc_idx+1],
-            #     convention="ActActICMA",
-            #     frequency_months=f,
-            #     stub=True,
-            #     roll=self.leg1.schedule.roll,
-            #     calendar=NoInput(0),
-            # )
-            # fd0 = d_ * f
             fd0 = self.leg1.periods[acc_idx].dcf * f
         else:
             fd0 = 1
@@ -1274,84 +1365,22 @@ class BondMixin:
         )
         return 1 / (1 + d_ * ytm / 100)  # simple interest
 
-    def _price_from_ytm_ukg(self, ytm: DualTypes, settlement: datetime, dirty: bool):
-        # TODO (mid) note this formula does not account for back stubs
-        # this is also mentioned in Coding IRs
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        acc_frac, acc_idx = self._accrued_frac(settlement)
-        v = 1 / (1 + ytm / (100 * f))
-        d = 0
-        for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
-            if i == 0 and self.ex_div(settlement):
-                continue
-            elif p_idx == (self.leg1.schedule.n_periods - 1):  # last period
-                v_last = v ** (self.leg1.periods[p_idx].dcf * f)  # compounded
-                # v_last = 1 / (1 + self.leg1.periods[p_idx].dcf * ytm / 100)  # simple
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** (i-1) * v_last
-            else:
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** (i-1) * v_last
-
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        v_ = v ** fd0
-        p = v_ * d / -self.leg1.notional * 100
-        return p if dirty else p - self.accrued(settlement)
-
-    def _price_from_ytm_sgb(self, ytm: DualTypes, settlement: datetime, dirty: bool):
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        acc_idx = self._acc_index(settlement)
-        acc_frac = self._accrued_frac(settlement, "sgb", acc_idx)
-        v = 1 / (1 + ytm / 100) ** (1 / f)  # sgb always compound annually
-        d = 0
-        for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
-            if i == 0 and self.ex_div(settlement):
-                continue
-            elif p_idx == (self.leg1.schedule.n_periods - 1):  # last period
-                # v_last_ = v ** (self.leg1.periods[p_idx].dcf * f)  # compounded
-                v_last = 1 / (1 + self.leg1.periods[p_idx].dcf * ytm / 100)  # simple interest
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** (i-1) * v_last
-            else:
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** (i-1) * v_last
-
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * (1 - acc_frac)  # * f = 1.0
-        else:
-            fd0 = 1 - acc_frac
-
-        v_ = v ** fd0
-        p = v_ * d / -self.leg1.notional * 100
-        return p if dirty else p - self.accrued(settlement)
-
     def _price_from_ytm(self, ytm: float, settlement: datetime, calc_mode: Union[str, NoInput], dirty: bool = False):
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        # price_from_ytm_funcs = {
-        #     NoInput(0): self._price_from_ytm_default,
-        #     "ukg": self._price_from_ytm_ukg,
-        #     "ust": self._price_from_ytm_ust,
-        #     "sgb": self._price_from_ytm_sgb,
-        # }
         price_from_ytm_funcs = {
+            NoInput(0): partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode=NoInput(0)),
             "ukg": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ukg"),
+            "ust": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
             "sgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
-            "ust": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
+            "cadgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cadgb-ytm"),
         }
         try:
             return price_from_ytm_funcs[calc_mode](ytm, settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
-
-
-
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
         """

@@ -2093,9 +2093,12 @@ class TestFixedRateBond:
 
     @pytest.mark.parametrize("e, t, s, fr, ec, ed, y, se", [
         (dt(1990, 5, 15), dt(2020, 5, 15), NoInput(0), 8.75, 99.057893, 99.057893, 8.84, dt(1990, 5, 15)),  # A
+        (dt(1990, 4, 2), dt(1992, 3, 31), NoInput(0), 8.5, 99.838183, 99.838183, 8.59, dt(1990, 4, 2)),  # B
         (dt(1990, 3, 1), dt(1995, 5, 15), dt(1990, 11, 15), 8.5, 99.805118, 99.805118, 8.53, dt(1990, 3, 1)),  # C
         (dt(1985, 11, 15), dt(1995, 11, 15), NoInput(0), 9.5, 99.730918, 100.098321, 9.54, dt(1985, 11, 29)),  # D
+        (dt(1985, 7, 2), dt(2005, 8, 15), dt(1986, 2, 15), 10.75, 102.214586, 105.887384, 10.47, dt(1985, 11, 4)),  # E
         (dt(1983, 5, 16), dt(1991, 5, 15), dt(1983, 11, 15), 10.5, 99.777074, 102.373541, 10.53, dt(1983, 8, 15)),  # F
+        (dt(1988, 10, 15), dt(1994, 12, 15), dt(1989, 6, 15), 9.75, 99.738045, 100.563865, 9.79, dt(1988, 11, 15)),  # G
     ])
     def test_fixed_rate_bond_price_ust(self, e, t, s, fr, ec, ed, y, se):
         # The UST tests are from:
@@ -2110,38 +2113,12 @@ class TestFixedRateBond:
             convention="ActActICMA",
             calc_mode="ust",
             ex_div=1,
-            modifier="F",
+            modifier="NONE",
         )
         res1 = ust.price(ytm=y, settlement=se, dirty=False)
         res2 = ust.price(ytm=y, settlement=se, dirty=True)
         assert abs(res1-ec) < 1e-6
         assert abs(res2-ed) < 1e-6
-
-    @pytest.mark.parametrize("e, t, s, fr, ec, ed, y, se", [
-        (dt(1990, 4, 2), dt(1992, 3, 31), NoInput(0), 8.5, 99.838183, 99.838183, 8.59, dt(1990, 4, 2)),  # B
-        (dt(1985, 7, 2), dt(2005, 8, 15), dt(1986, 2, 15), 10.75, 102.214586, 105.887384, 10.47, dt(1985, 11, 4)),  # E
-        (dt(1988, 10, 15), dt(1994, 12, 15), dt(1989, 6, 15), 9.75, 99.738045, 100.563865, 9.79, dt(1988, 11, 15)),  # G
-    ])
-    def test_fixed_rate_bond_price_ust_inexact(self, e, t, s, fr, ec, ed, y, se):
-        # These UST tests are inexact for a number of reasons: the calculations require specific
-        # paths based on accrued, stub periods and do not conform to general equation these are
-        # specific calculations based on each scenario
-        ust = FixedRateBond(
-            effective=e,
-            termination=t,
-            front_stub=s,
-            fixed_rate=fr,
-            frequency="S",
-            calendar="nyc",
-            convention="ActActICMA",
-            calc_mode="ust",
-            ex_div=1,
-            modifier="F",
-        )
-        res1 = ust.price(ytm=y, settlement=se, dirty=False)
-        res2 = ust.price(ytm=y, settlement=se, dirty=True)
-        assert abs(res1-ec) < 3e-3
-        assert abs(res2-ed) < 3e-3
 
     def test_fixed_rate_bond_price_ukg(self):
         # test pricing functions against Gilt Example prices from UK DMO
