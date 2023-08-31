@@ -1163,8 +1163,6 @@ class BondMixin:
         p = v_ * d / -self.leg1.notional * 100
         return p if dirty else p - self.accrued(settlement)
 
-
-
     def _generic_ytm(
         self,
         ytm: DualTypes,
@@ -1175,6 +1173,9 @@ class BondMixin:
         f3: callable,
         accrual_calc_mode: Union[str, NoInput],
     ):
+        """
+        Refer to supplementary material.
+        """
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         acc_idx = self._acc_index(settlement)
 
@@ -1195,13 +1196,14 @@ class BondMixin:
         p = v1 * d / -self.leg1.notional * 100
         return p if dirty else p - self._accrued(settlement, accrual_calc_mode)
 
-    def _v2_reg_same_freq(self, ytm: DualTypes, f: int, *args):
+    def _v2_(self, ytm: DualTypes, f: int, *args):
         """
         The default method for a single regular period discounted in the regular portion of bond.
+        Implies compounding at the same frequency as the coupons.
         """
         return 1 / (1 + ytm / (100 * f))
 
-    def _v1_moded_comp(
+    def _v1_comp(
         self,
         ytm: DualTypes,
         f: int,
@@ -1212,7 +1214,8 @@ class BondMixin:
         *args,
     ):
         """
-        The initial period is regular ActActICMA accrued compounded
+        The initial period uses a compounding approach where the power is determined by the
+        accrual fraction under the specified accrual mode.
         """
         acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
         if self.leg1.periods[acc_idx].stub:
@@ -1222,7 +1225,7 @@ class BondMixin:
             fd0 = 1 - acc_frac
         return v ** fd0
 
-    def _v3_act_act_comp(
+    def _v3_dcf_comp(
         self,
         ytm: DualTypes,
         f: int,
@@ -1232,7 +1235,8 @@ class BondMixin:
         *args,
     ):
         """
-        Final period is regular ActActICMA compounded
+        Final period uses a compounding approach where the power is determined by the DCF of that
+        period under the bond's specified convention.
         """
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
@@ -1245,8 +1249,8 @@ class BondMixin:
             #     roll=self.leg1.schedule.roll,
             #     calendar=NoInput(0),
             # )
-            fd0 = self.leg1.periods[acc_idx].dcf * f * 1
             # fd0 = d_ * f
+            fd0 = self.leg1.periods[acc_idx].dcf * f
         else:
             fd0 = 1
         return v ** fd0
@@ -1260,6 +1264,9 @@ class BondMixin:
         v: DualTypes,
         *args,
     ):
+        """
+        The final period is discounted by a simple interest method under a 30E360 convention.
+        """
         d_ = dcf(
             self.leg1.periods[acc_idx].start,
             self.leg1.periods[acc_idx].end,
@@ -1334,8 +1341,9 @@ class BondMixin:
         #     "sgb": self._price_from_ytm_sgb,
         # }
         price_from_ytm_funcs = {
-            "ukg": partial(self._generic_ytm, f1=self._v1_moded_comp, f2=self._v2_reg_same_freq, f3=self._v3_act_act_comp, accrual_calc_mode="ukg"),
-            "sgb": partial(self._generic_ytm, f1=self._v1_moded_comp, f2=self._v2_reg_same_freq, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
+            "ukg": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ukg"),
+            "sgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
+            "ust": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
         }
         try:
             return price_from_ytm_funcs[calc_mode](ytm, settlement, dirty)
@@ -1486,7 +1494,7 @@ class BondMixin:
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
-            return self._price_from_ytm(y, settlement, dirty) - float(price)
+            return self._price_from_ytm(y, settlement, self.calc_mode, dirty) - float(price)
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
@@ -1494,11 +1502,11 @@ class BondMixin:
 
         if isinstance(price, Dual):
             # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(Dual(x, "y"), settlement, dirty)
+            p = self._price_from_ytm(Dual(x, "y"), settlement, self.calc_mode, dirty)
             return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
         elif isinstance(price, Dual2):
             # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(Dual2(x, "y"), settlement, dirty)
+            p = self._price_from_ytm(Dual2(x, "y"), settlement, self.calc_mode, dirty)
             dydP = 1 / p.gradient("y")[0]
             d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
             return Dual2(
