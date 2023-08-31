@@ -1177,32 +1177,6 @@ class BondMixin:
             _ = f * r.days / 365.0
         return _
 
-    def _price_from_ytm_ust(self, ytm: DualTypes, settlement: datetime, dirty: bool):
-        acc_frac, acc_idx = self._accrued_frac(settlement)
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        v = 1 / (1 + ytm / (100 * f))
-        d = 0
-        for i, p_idx in enumerate(range(acc_idx, len(self.leg1.schedule.aschedule) - 1)):
-            if i == 0 and self.ex_div(settlement):
-                continue
-            else:
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v ** i
-                d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v ** i
-
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        if fd0 > 1.0:
-            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
-        else:
-            v_ = 1 / (1 + fd0 * ytm / (100 * f))
-
-        p = v_ * d / -self.leg1.notional * 100
-        return p if dirty else p - self.accrued(settlement)
-
     def _generic_ytm(
         self,
         ytm: DualTypes,
@@ -1271,33 +1245,6 @@ class BondMixin:
         else:
             fd0 = 1 - acc_frac
         return v ** fd0
-
-    def _v1_simple(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual_calc_mode: Union[str, NoInput],
-        *args,
-    ):
-        """
-        The initial period discounts by a simple interest amount
-        """
-        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        if fd0 > 1.0:
-            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
-        else:
-            v_ = 1 / (1 + fd0 * ytm / (100 * f))
-
-        return v_
 
     def _v1_simple(
         self,
