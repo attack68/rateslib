@@ -1093,7 +1093,7 @@ class BondMixin:
             "ukg": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
             "sgb": self._acc_30e360,
-            "cadgb": self._acc_act365_1y,
+            "cadgb": self._acc_act365_1y_stub,
             "cadgb-ytm": self._acc_lin_days,
         }
         try:
@@ -1105,6 +1105,7 @@ class BondMixin:
         """
         Method uses a linear proportion of days between payments to allocate accrued interest.
         Measures between unadjusted coupon dates.
+        This is a general method, used for example by [UK Gilts].
         """
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
@@ -1114,6 +1115,7 @@ class BondMixin:
         """
         For long stub periods this splits the accrued interest into two components.
         Otherwise, returns the regular linear proportion.
+        [Designed primarily for US Treasuries]
         """
         if self.leg1.periods[acc_idx].stub:
             fm = defaults.frequency_months[self.leg1.schedule.frequency]
@@ -1156,23 +1158,28 @@ class BondMixin:
         """
         Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
         Measures between unadjusted date and settlement.
+        [Designed primarily for Swedish Government Bonds]
         """
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         _ = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
         _ = 1 - _
         return _
 
-    def _acc_act365_1y(self, settlement:datetime, acc_idx: int, *args):
+    def _acc_act365_1y_stub(self, settlement: datetime, acc_idx: int, *args):
         """
         Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
         Measures between unadjusted date and settlement.
         Special adjustment if number of days is greater than 365.
+        If the period is a stub reverts to a straight line interpolation
+        [this is primarily designed for Canadian Government Bonds]
         """
+        if self.leg1.periods[acc_idx].stub:
+            return self._acc_lin_days(settlement, acc_idx)
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
         if r.days > 365.0 / f:
-            _ = 1 - ((s - r).days * f) / 365.0 # counts remaining days
+            _ = 1 - ((s - r).days * f) / 365.0  # counts remaining days
         else:
             _ = f * r.days / 365.0
         return _

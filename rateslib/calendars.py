@@ -1060,6 +1060,58 @@ def _dcf_actacticma(
             return fraction * frequency_months / 12
 
 
+def _dcf_actacticma_stub365f(
+    start: datetime,
+    end: datetime,
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
+    roll: Union[str, int, NoInput],
+    calendar: CalInput
+):
+    """
+    Applies regular actacticma unless a stub period where Act365F is used.
+    [designed for Canadian Government Bonds with stubs]
+    """
+    if frequency_months is NoInput.blank:
+        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
+    if termination is NoInput.blank:
+        raise ValueError("`termination` must be supplied with specified `convention`.")
+    if stub is NoInput.blank:
+        raise ValueError("`stub` must be supplied with specified `convention`.")
+    if not stub:
+        return frequency_months / 12
+    else:
+        # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        if end == termination:  # stub is a BACK stub:
+            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
+            r = (end - start).days
+            s = (fwd_end - start).days
+            if end > fwd_end:  # stub is LONG
+                d_ = frequency_months / 12.0
+                d_ += (r - s) / 365.0
+            else:  # stub is SHORT
+                if r < (365.0 / (12 / frequency_months)):
+                    d_ = r / 365.0
+                else:
+                    d_ = frequency_months / 12 - (s-r) / 365.0
+
+        else:  # stub is a FRONT stub
+            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
+            r = (end - start).days
+            s = (end - prev_start).days
+            if start < prev_start:  # stub is LONG
+                d_ = frequency_months / 12.0
+                d_ += (r - s) / 365.0
+            else:
+                if r < 365.0 / (12 / frequency_months):
+                    d_ = r / 365.0
+                else:
+                    d_ = frequency_months / 12 - (s-r) / 365.0
+
+        return d_
+
+
 def _dcf_1(*args):
     return 1.0
 
@@ -1080,6 +1132,7 @@ _DCF = {
     "ACTACT": _dcf_actactisda,
     "ACTACTISDA": _dcf_30e360isda,
     "ACTACTICMA": _dcf_actacticma,
+    "ACTACTICMA_STUB365F": _dcf_actacticma_stub365f,
     "ACTACTISMA": _dcf_actacticma,
     "ACTACTBOND": _dcf_actacticma,
     "1": _dcf_1,
@@ -1098,6 +1151,7 @@ _DCF1d = {
     "ACTACT": 1.0 / 365.25,
     "ACTACTISDA": 1.0 / 365.25,
     "ACTACTICMA": 1.0 / 365.25,
+    "ACTACTICMA_STUB365F": 1/365.25,
     "ACTACTISMA": 1.0 / 365.25,
     "ACTACTBOND": 1.0 / 365.25,
     "1": None,
