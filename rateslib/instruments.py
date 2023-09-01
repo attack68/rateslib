@@ -1197,27 +1197,43 @@ class BondMixin:
         v1 = f1(ytm, f, settlement, acc_idx, v2, accrual_calc_mode)
         v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2)
 
+        # Sum up the coupon cashflows discounted by the calculated factors
         d = 0
         for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
             if i == 0 and self.ex_div(settlement):
+                # no coupon cashflow is receiveable so no addition to the sum
                 continue
-            elif p_idx == (self.leg1.schedule.n_periods - 1): # last period
+            elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
+                # the last period is the first period so discounting handled only by v1 at end
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute)
+            elif p_idx == (self.leg1.schedule.n_periods - 1):
+                # this is last period, but it is not the first (i>0). Tag on v3 at end.
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i-1) * v3
             else:
+                # this is not the first and not the last period. Discount only with v1 and v2.
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** i
-        d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v2 ** (i-1) * v3
 
+        # Add the redemption payment discounted by relevant factors
+        if i == 0:  # only looped 1 period, no need for v2 and v3
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute)
+        elif i == 1:  # only looped 2 periods, no need for v2
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v3
+        else:  # looped more than 2 periods, regular formula applied
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v2 ** (i-1) * v3
+
+        # discount all by the first period factor and scaled to price
         p = v1 * d / -self.leg1.notional * 100
+
         return p if dirty else p - self._accrued(settlement, accrual_calc_mode)
 
-    def _v2_(self, ytm: DualTypes, f: int, *args):
+    def _v2_(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
         """
         The default method for a single regular period discounted in the regular portion of bond.
         Implies compounding at the same frequency as the coupons.
         """
         return 1 / (1 + ytm / (100 * f))
 
-    def _v2_1y_simple(self, ytm: DualTypes, f: int, *args):
+    def _v2_1y_simple(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
         """
         The default method for a single regular period discounted in the regular portion of bond.
         Implies compounding at the same frequency as the coupons.
@@ -2851,6 +2867,7 @@ class Bill(FixedRateBond):
         currency: Union[str, NoInput] = NoInput(0),
         convention: Union[str, NoInput] = NoInput(0),
         settle: int = 1,
+        calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         super().__init__(
@@ -2953,7 +2970,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement)[0]) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
         return ((100 / price - 1) / dcf) * 100
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -2971,7 +2988,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement)[0]) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
 
@@ -2996,7 +3013,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement)[0]) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
         return 100 - discount_rate * dcf
 
 

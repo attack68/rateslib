@@ -2884,9 +2884,43 @@ class TestBill:
 
         assert bill.discount_rate(99.93777, dt(2004, 1, 22)) == 0.8000999999999543
         assert bill.price(0.800, dt(2004, 1, 22)) == 99.93777777777778
+
+    def test_bill_ytm(self):
+        bill = Bill(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            frequency="A",
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+        )
         # this YTM is equivalent to the FixedRateBond ytm with coupon of 0.0
+
+        bond = FixedRateBond(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            frequency="A",
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+            fixed_rate=0.0,
+            modifier="NONE",
+            calc_mode="ust",
+        )
+        bond.price(ytm=0.8, settlement=dt(2004, 1, 22))
+        example = bond.ytm(price=99.937778, settlement=dt(2004, 1, 22))
+
         assert abs(bill.ytm(99.937778, dt(2004, 1, 22)) - 0.8034566609543146) < 1e-9
 
+    def test_bill_simple_rate(self):
+        bill = Bill(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            frequency="A",
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+        )
         d = dcf(dt(2004, 1, 22), dt(2004, 2, 19), "Act360")
         expected = 100 * (1 / (1 - 0.0080009999999 * d) - 1) / d  # floating point truncation
         expected = 100 * (100 / 99.93777777777778 - 1) / d
