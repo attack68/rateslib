@@ -14,14 +14,17 @@ It is important to understand that the key elements of this library are
 All of these functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way.
 
+Let's start with a basic *Curve* and *Instrument*.
+
 A Trivial Minimalist Example
 ----------------------------
 
-For example, we can construct a :ref:`Curve<c-curves-doc>` in a number of ways:
-here by direct specification of discount factors (DFs).
+For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
+here we create one by directly specifying discount factors (DFs) on certain node dates.
 
 .. ipython:: python
 
+   from rateslib import dt
    from rateslib.curves import Curve
    usd_curve = Curve(
        nodes={
@@ -32,8 +35,9 @@ here by direct specification of discount factors (DFs).
        calendar="nyc",
    )
 
-We can construct an :ref:`Instrument<instruments-toc-doc>`: here a short dated RFR interest rate swap
-(:class:`~rateslib.instruments.IRS`).
+We can then construct an :ref:`Instrument<instruments-toc-doc>`. Here we create a short dated
+RFR interest rate swap (:class:`~rateslib.instruments.IRS`) using market specification pre-defined
+by *rateslib*. You can read more about arguments for instruments :ref:`here<>`.
 
 .. ipython:: python
 
