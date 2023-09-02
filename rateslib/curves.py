@@ -416,6 +416,8 @@ class Curve(Serialize, PlotCurve):
             if interpolation is NoInput.blank
             else interpolation
         )
+        if isinstance(self.interpolation, str):
+            self.interpolation = self.interpolation.lower()
 
         # Parameters for the rate derivation
         self.convention = defaults.convention if convention is NoInput.blank else convention
@@ -2532,6 +2534,8 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
         if x <= x_1:
             return y_1
         return y_2
+    else:
+        raise TypeError(f'interpolation was set to: {interpolation}, it must be one of "linear", "log_linear", "linear_zero_rate", "flat_forward", "flat_backward"')
     ret = op(y_1 + (y_2 - y_1) * ((x - x_1) / (x_2 - x_1)))
     return ret
 
