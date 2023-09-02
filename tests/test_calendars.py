@@ -263,6 +263,11 @@ def test_is_eom_som(date, expected):
     "start, end, conv, expected",
     [
         (dt(2022, 1, 1), dt(2022, 4, 1), "ACT365F", 0.2465753424657534),
+        (dt(2021, 1, 1), dt(2022, 4, 1), "ACT365F+", 1.2465753424657535),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "ACT365F+", 0.2465753424657534),
+        (dt(2020, 6, 1), dt(2022, 4, 1), "ACT365F+", 1.832876712328767),
+        (dt(2020, 1, 1), dt(2052, 1, 2), "ACT365F", 32.02465753424657),
+        (dt(2020, 1, 1), dt(2052, 1, 2), "ACT365F+", 32.0027397260274),
         (dt(2022, 1, 1), dt(2022, 4, 1), "1", 1.0),
         (dt(2022, 1, 1), dt(2022, 4, 1), "ACT360", 0.2465753424657534 * 365 / 360),
         (dt(2022, 1, 1), dt(2022, 4, 1), "30360", 0.250),
@@ -275,7 +280,7 @@ def test_is_eom_som(date, expected):
 )
 def test_dcf(start, end, conv, expected):
     result = dcf(start, end, conv)
-    assert result == expected
+    assert abs(result - expected) < 1e-14
 
 
 @pytest.mark.parametrize(

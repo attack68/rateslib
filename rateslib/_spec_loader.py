@@ -95,6 +95,8 @@ INSTRUMENT_SPECS = {
     "nok_irs6": _get_kwargs("nok_irs6"),
     "chf_irs": _get_kwargs("chf_irs"),
 
+    "eur_sbs36": _get_kwargs("eur_sbs36"),
+
     "eurusd_xcs": _get_kwargs("eurusd_xcs"),
     "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
     "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),
@@ -102,4 +104,6 @@ INSTRUMENT_SPECS = {
     "eur_zcis": _get_kwargs("eur_zcis"),
     "gbp_zcis": _get_kwargs("gbp_zcis"),
     "usd_zcis": _get_kwargs("usd_zcis"),
+
+    "gbp_zcs": _get_kwargs("gbp_zcs"),
 }

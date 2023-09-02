@@ -2336,16 +2336,15 @@ class TestSpec:
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
 
-    @pytest.mark.skip(reason="no spec default for SBS")
     def test_sbs(self):
         inst = SBS(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="eu_sbs_6m3m",
+            spec="eur_sbs36",
             convention="30e360",
         )
         assert inst.kwargs["convention"] == "30e360"
-        assert inst.kwargs["leg2_convention"] == "Act360"
+        assert inst.kwargs["leg2_convention"] == "act360"
         assert inst.kwargs["currency"] == "eur"
         assert inst.kwargs["fixing_method"] == "ibor"
 
@@ -2363,18 +2362,17 @@ class TestSpec:
         assert inst.kwargs["leg2_index_method"] == "monthly"
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
 
-    @pytest.mark.skip(reason="no spec default for ZCS")
     def test_zcs(self):
         inst = ZCS(
             effective=dt(2022, 1, 1),
-            termination="1Y",
+            termination="5Y",
             spec="gbp_zcs",
             leg2_calendar="nyc,tgt",
             calendar="nyc,tgt",
             fixed_rate=3.0,
         )
         assert inst.kwargs["convention"] == "act365f"
-        assert inst.kwargs["leg2_frequency"] == "Z"
+        assert inst.kwargs["leg2_frequency"] == "a"
         assert inst.kwargs["currency"] == "gbp"
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
         assert inst.kwargs["fixed_rate"] == 3.0

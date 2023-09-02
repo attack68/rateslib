@@ -888,15 +888,16 @@ def dcf(
 
         - `"30E360ISDA"` (since end Feb is adjusted to 30 unless it aligns with
           ``termination`` of a leg)
-        - `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND"` (if the period is a stub
-          the ``termination`` of the leg is used to assess front or back stubs and
+        - `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`, (if the period is
+          a stub the ``termination`` of the leg is used to assess front or back stubs and
           adjust the calculation accordingly)
 
     frequency_months : int, optional
         The number of months according to the frequency of the period. Required only
         with specific values for ``convention``.
     stub : bool, optional
-        Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND"`. Non-stub periods will
+        Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`.
+        Non-stub periods will
         return a fraction equal to the frequency, e.g. 0.25 for quarterly.
 
     Returns
@@ -910,6 +911,8 @@ def dcf(
     - `"1"`: Returns 1 for any period.
     - `"1+"`: Returns the number of months between dates divided by 12.
     - `"Act365F"`: Returns actual number of days divided by a fixed 365 denominator.
+    - `"Act365F+"`: Returns the number of years and the actual number of days in the fractional year
+       divided by a fixed 365 denominator.
     - `"Act360"`: Returns actual number of days divided by a fixed 360 denominator.
     - `"30E360"`, `"EuroBondBasis"`: Months are treated as having 30 days and start
       and end dates are converted under the rule:
@@ -933,7 +936,7 @@ def dcf(
 
     - `"ActAct"`, `"ActActISDA"`: Calendar days between start and end are divided
       by 365 or 366 dependent upon whether they fall within a leap year or not.
-    - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`:
+    - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`, `"ActActICMA_stub365f"`:
 
     Further information can be found in the
     :download:`2006 ISDA definitions <_static/2006_isda_definitions.pdf>` and
@@ -964,6 +967,16 @@ def dcf(
 
 def _dcf_act365f(start: datetime, end: datetime, *args):
     return (end - start) / timedelta(days=365)
+
+
+def _dcf_act365fplus(start: datetime, end: datetime, *args):
+    """count the number of the years and then add a fractional ACT365F peruiod."""
+    if end <= datetime(start.year + 1, start.month, start.day):
+        return _dcf_act365f(start, end)
+    elif end <= datetime(end.year, start.month, start.day):
+        return end.year - start.year + _dcf_act365f(datetime(end.year, start.month, start.day), end)
+    else:
+        return end.year - start.year - 1 + _dcf_act365f(datetime(end.year-1, start.month, start.day), end)
 
 
 def _dcf_act360(start: datetime, end: datetime, *args):
@@ -1122,6 +1135,7 @@ def _dcf_1plus(start: datetime, end: datetime, *args):
 
 _DCF = {
     "ACT365F": _dcf_act365f,
+    "ACT365F+": _dcf_act365fplus,
     "ACT360": _dcf_act360,
     "30360": _dcf_30360,
     "360360": _dcf_30360,
