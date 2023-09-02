@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import Optional, Union
 import abc
 import warnings
-from functools import partialmethod, partial
+from functools import partial
 
 # from math import sqrt
 
@@ -1343,6 +1343,7 @@ class BondMixin:
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
+        # fmt: off
         price_from_ytm_funcs = {
             NoInput(0): partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode=NoInput(0)),
             "ukg": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ukg"),
@@ -1351,6 +1352,7 @@ class BondMixin:
             "sgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
             "cadgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cadgb-ytm"),
         }
+        # fmt: on
         try:
             return price_from_ytm_funcs[calc_mode](ytm, settlement, dirty)
         except KeyError:

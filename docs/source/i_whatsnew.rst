@@ -62,7 +62,7 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-0.4.1 (not released)
+0.5.0 (not released)
 **********************
 
 .. list-table::
@@ -71,6 +71,13 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Instruments
+     - Add a ``spec`` keyword argument to allow instruments to be pre-defined and follow
+       market conventions without the user needing to input these directly, but preserving an
+       ability to overwrite specific values.
+   * - Instruments
+     - Add ``calc_mode`` to *Bonds* to provide mechanisms to perform YTM calculations under
+       different conventions and geographies.
    * - Periods
      - :class:`~rateslib.periods.FloatPeriod` now allows **averaging** methods for
        determining the rate.
