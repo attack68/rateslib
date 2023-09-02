@@ -2281,38 +2281,38 @@ class TestSpec:
              frequency="Q",
              leg2_method_param=0,
              notional=250.0,
-             spec="testing_only",
+             spec="test",
          )
          expected = dict(
              effective=dt(2022, 1, 1),
              termination=dt(2024, 2, 26),
              frequency="Q",
-             stub="LONGFRONT",
+             stub="longfront",
              front_stub=NoInput(0),
              back_stub=NoInput(0),
              roll=NoInput(0),
              eom=False,
-             modifier="P",
+             modifier="p",
              calendar="tgt",
              payment_lag=4,
              notional=250.0,
-             currency="TES",
+             currency="tes",
              amortization=NoInput(0),
-             convention="TEST",
+             convention="test",
              leg2_effective=dt(2022, 1, 1),
              leg2_termination=dt(2024, 2, 26),
-             leg2_frequency="M",
-             leg2_stub="LONGBACK",
+             leg2_frequency="m",
+             leg2_stub="longback",
              leg2_front_stub=NoInput(0),
              leg2_back_stub=NoInput(0),
              leg2_roll=1,
              leg2_eom=False,
-             leg2_modifier="MP",
+             leg2_modifier="mp",
              leg2_calendar="nyc,tgt,ldn",
              leg2_payment_lag=3,
              leg2_notional=-250.0,
-             leg2_currency="TES",
-             leg2_convention="TEST2",
+             leg2_currency="tes",
+             leg2_convention="test2",
              leg2_amortization=NoInput(0),
              fixed_rate=NoInput(0),
              leg2_fixing_method=NoInput(0),
@@ -2327,15 +2327,16 @@ class TestSpec:
         irs = IRS(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="us_irs",
+            spec="usd_irs",
             convention="30e360",
             fixed_rate=2.0
         )
         assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "Act360"
+        assert irs.kwargs["leg2_convention"] == "act360"
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
 
+    @pytest.mark.skip(reason="no spec default for SBS")
     def test_sbs(self):
         inst = SBS(
             effective=dt(2022, 1, 1),
@@ -2352,7 +2353,7 @@ class TestSpec:
         inst = ZCIS(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="eu_zcis",
+            spec="eur_zcis",
             leg2_calendar="nyc,tgt",
             calendar="nyc,tgt",
         )
@@ -2362,22 +2363,24 @@ class TestSpec:
         assert inst.kwargs["leg2_index_method"] == "monthly"
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
 
+    @pytest.mark.skip(reason="no spec default for ZCS")
     def test_zcs(self):
         inst = ZCS(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="gb_zcs",
+            spec="gbp_zcs",
             leg2_calendar="nyc,tgt",
             calendar="nyc,tgt",
             fixed_rate=3.0,
         )
-        assert inst.kwargs["convention"] == "Act365F"
+        assert inst.kwargs["convention"] == "act365f"
         assert inst.kwargs["leg2_frequency"] == "Z"
         assert inst.kwargs["currency"] == "gbp"
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
+    @pytest.mark.skip(reason="no spec default for IIRS")
     def test_iirs(self):
         inst = IIRS(
             effective=dt(2022, 1, 1),

@@ -5,7 +5,7 @@ import os
 from enum import Enum
 from packaging import version
 from datetime import datetime
-from rateslib.specs import INSTRUMENT_SPECS
+from rateslib._spec_loader import INSTRUMENT_SPECS
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -211,20 +211,7 @@ class Defaults:
         for attr in [_ for _ in dir(self) if "__" != _[:2]]:
             setattr(self, attr, getattr(base, attr))
 
-    spec = {
-        #standard names
-        "us_irs": INSTRUMENT_SPECS["us_irs"],
-
-        "eu_sbs_6m3m": INSTRUMENT_SPECS["eu_sbs_6m3m"],
-        "eu_zcis": INSTRUMENT_SPECS["eu_zcis"],
-
-        "gb_zcs": INSTRUMENT_SPECS["gb_zcs"],
-
-        # pseudonyms
-        "sofr": INSTRUMENT_SPECS["us_irs"],
-
-        "testing_only": INSTRUMENT_SPECS["use_only_for_tests"],
-    }
+    spec = INSTRUMENT_SPECS
 
 
 def plot(x, y: list, labels=[]):
