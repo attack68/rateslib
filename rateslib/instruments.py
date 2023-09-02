@@ -1057,7 +1057,7 @@ class BondMixin:
             self.leg1.schedule.calendar,
         )
         if self.calc_mode in []:  # currently no identified calc_modes
-            return True if settlement >= ex_div_date else False
+            return True if settlement >= ex_div_date else False  # pragma: no cover
         else:
             return True if settlement > ex_div_date else False
 
