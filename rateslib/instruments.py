@@ -1057,7 +1057,7 @@ class BondMixin:
             self.leg1.schedule.calendar,
         )
         if self.calc_mode in []:  # currently no identified calc_modes
-            return True if settlement >= ex_div_date else False
+            return True if settlement >= ex_div_date else False  # pragma: no cover
         else:
             return True if settlement > ex_div_date else False
 
@@ -4355,39 +4355,45 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
         )
-        self.curves = curves
+        self.kwargs = _push(spec, self.kwargs)
+        # set some defaults if missing
+        self.kwargs["notional"] = defaults.notional if self.kwargs["notional"] is NoInput.blank else self.kwargs["notional"]
+        if self.kwargs["payment_lag"] is NoInput.blank:
+            self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
+        self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
-        notional = defaults.notional if notional is NoInput.blank else notional
-        if payment_lag is NoInput.blank:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
-        for attribute in [
-            "effective",
-            "termination",
-            "frequency",
-            "stub",
-            "front_stub",
-            "back_stub",
-            "roll",
-            "eom",
-            "modifier",
-            "calendar",
-            "payment_lag",
-            "convention",
-            "notional",
-            "amortization",
-            "currency",
-        ]:
-            leg2_val, val = vars()[f"leg2_{attribute}"], vars()[attribute]
-            if leg2_val is NoInput.inherit:
-                _ = val
-            elif leg2_val == NoInput.negate:
-                _ = NoInput(0) if val is NoInput(0) else val * -1
-            else:
-                _ = leg2_val
-            self.kwargs[attribute] = val
-            self.kwargs[f"leg2_{attribute}"] = _
-            # setattr(self, attribute, val)
-            # setattr(self, f"leg2_{attribute}", _)
+        self.curves = curves
+        self.spec = spec
+
+        #
+        # for attribute in [
+        #     "effective",
+        #     "termination",
+        #     "frequency",
+        #     "stub",
+        #     "front_stub",
+        #     "back_stub",
+        #     "roll",
+        #     "eom",
+        #     "modifier",
+        #     "calendar",
+        #     "payment_lag",
+        #     "convention",
+        #     "notional",
+        #     "amortization",
+        #     "currency",
+        # ]:
+        #     leg2_val, val = self.kwargs[f"leg2_{attribute}"], self.kwargs[attribute]
+        #     if leg2_val is NoInput.inherit:
+        #         _ = val
+        #     elif leg2_val == NoInput.negate:
+        #         _ = NoInput(0) if val is NoInput(0) else val * -1
+        #     else:
+        #         _ = leg2_val
+        #     self.kwargs[attribute] = val
+        #     self.kwargs[f"leg2_{attribute}"] = _
+        #     # setattr(self, attribute, val)
+        #     # setattr(self, f"leg2_{attribute}", _)
 
     @abstractmethod
     def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
@@ -4538,16 +4544,16 @@ class IRS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
@@ -5233,16 +5239,15 @@ class ZCS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
@@ -5484,15 +5489,14 @@ class ZCIS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_index_base=leg2_index_base,
-                leg2_index_fixings=leg2_index_fixings,
-                leg2_index_lag=leg2_index_lag,
-                leg2_index_method=leg2_index_method,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            leg2_index_base=leg2_index_base,
+            leg2_index_fixings=leg2_index_fixings,
+            leg2_index_lag=leg2_index_lag,
+            leg2_index_method=leg2_index_method,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_index_base = leg2_index_base
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
@@ -5747,20 +5751,19 @@ class SBS(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
+        user_kwargs = dict(
+            float_spread=float_spread,
+            spread_compound_method=spread_compound_method,
+            fixings=fixings,
+            fixing_method=fixing_method,
+            method_param=method_param,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
         self._float_spread = float_spread
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
@@ -8129,7 +8132,11 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 
 
 def _get(kwargs: dict, leg: int = 1):
-    """A parser to return kwarg dicts for relevant legs. Internal structuring only."""
+    """
+    A parser to return kwarg dicts for relevant legs.
+    Internal structuring only.
+    Will return kwargs relevant to leg1 OR leg2.
+    """
     if leg == 1:
         _ = {k: v for k, v in kwargs.items() if not "leg2" in k}
     else:
@@ -8138,12 +8145,54 @@ def _get(kwargs: dict, leg: int = 1):
 
 
 def _push(spec: Optional[str], kwargs: dict):
-    """Push user specified kwargs to a default specification"""
+    """
+    Push user specified kwargs to a default specification.
+    Values from the `spec` dict will not overwrite specific user values already in `kwargs`.
+    """
     if spec is NoInput.blank:
         return kwargs
     else:
         try:
-            default_kwargs = defaults.spec[spec.lower()]
+            spec_kwargs = defaults.spec[spec.lower()]
         except KeyError:
             raise ValueError(f"Given `spec`, '{spec}', cannot be found in defaults.")
-        return {**default_kwargs, **kwargs}
+
+        user = {k: v for k, v in kwargs.items() if v not in [NoInput(0), NoInput(1), NoInput(-1)]}
+        return {**kwargs, **spec_kwargs, **user}
+
+
+def _update_not_noinput(base_kwargs, new_kwargs):
+    """
+    Update the `base_kwargs` with `new_kwargs` unless those new values are NoInput.
+    """
+    updaters = {k: v for k, v in new_kwargs.items() if k not in base_kwargs or not isinstance(v, NoInput)}
+    return {**base_kwargs, **updaters}
+
+
+def _inherit_or_negate(kwargs: dict, ignore_blank=False):
+    """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
+
+    def _replace(k, v):
+        # either inherit or negate the value in leg2 from that in leg1
+        if "leg2_" in k:
+            if not isinstance(v, NoInput):
+                return v  # do nothing if the attribute is an input
+
+            try:
+                leg1_v = kwargs[k[5:]]
+            except KeyError:
+                return v
+
+            if leg1_v is NoInput.blank:
+                if ignore_blank:
+                    return v  # this allows an inheritor or negator to be called a second time
+                else:
+                    return NoInput(0)
+
+            if v is NoInput(-1):
+                return leg1_v * -1.0
+            elif v is NoInput(1):
+                return leg1_v
+        return v  # do nothing to leg1 attributes
+
+    return {k: _replace(k, v) for k, v in kwargs.items()}
