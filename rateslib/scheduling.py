@@ -19,6 +19,7 @@ from rateslib.calendars import (
     _get_imm,
     _is_imm,
     _is_som,
+    _get_roll,
 )
 
 
@@ -55,7 +56,7 @@ class Schedule:
         Use an end of month preference rather than regular rolls for inference. Set by
         default. Not required if ``roll`` is specified.
     modifier : str, optional
-        The modification rule, in {"F", "MF", "P", "MP"}
+        The modification rule, in {"NONE", "F", "MF", "P", "MP"}
     calendar : calendar or str, optional
         The holiday calendar object to use. If string will call
         :meth:`~rateslib.calendars.get_calendar`.
@@ -257,7 +258,7 @@ class Schedule:
         back_stub: Union[datetime, NoInput] = NoInput(0),
         roll: Union[str, int, NoInput] = NoInput(0),
         eom: Union[bool, NoInput] = NoInput(0),
-        modifier: Union[str, None, NoInput] = NoInput(0),
+        modifier: Union[str, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         payment_lag: Union[int, NoInput] = NoInput(0),
         eval_date: Union[datetime, NoInput] = NoInput(0),
@@ -271,7 +272,7 @@ class Schedule:
         self.eval_mode = defaults.eval_mode if eval_mode is NoInput.blank else eval_mode.lower()
 
         if modifier is NoInput.blank:  # then get default
-            modifier_: Optional[str] = defaults.modifier
+            modifier_: str = defaults.modifier
         else:
             modifier_ = modifier
         self.modifier = modifier_
@@ -296,16 +297,16 @@ class Schedule:
                 )
             if self.eval_mode == "swaps_align":
                 # effective date is calculated as unadjusted
-                effective_: datetime = add_tenor(self.eval_date, effective, None, None)
+                effective_: datetime = add_tenor(self.eval_date, effective, "NONE", NoInput(0), roll)
             elif self.eval_mode == "swaptions_align":
-                effective_ = add_tenor(self.eval_date, effective, self.modifier, self.calendar)
+                effective_ = add_tenor(self.eval_date, effective, self.modifier, self.calendar, roll)
         else:
             effective_ = effective
         self.effective: datetime = effective_
 
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
-            termination_: datetime = add_tenor(self.effective, termination, None, None)
+            termination_: datetime = add_tenor(self.effective, termination, "NONE", NoInput(0), roll)
         else:
             termination_ = termination
         self.termination: datetime = termination_
@@ -520,7 +521,7 @@ class Schedule:
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
-            add_tenor(dt, f"{self.payment_lag}B", None, self.calendar) for dt in self.aschedule
+            add_tenor(dt, f"{self.payment_lag}B", "NONE", self.calendar, NoInput(0)) for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
         if self.front_stub is not None:
@@ -788,7 +789,7 @@ def _check_regular_swap(
     effective: datetime,
     termination: datetime,
     frequency: str,
-    modifier: Optional[str],
+    modifier: str,
     eom: bool,
     roll: Optional[Union[str, int]],
     calendar: CustomBusinessDay,
@@ -804,8 +805,8 @@ def _check_regular_swap(
         The adjusted or unadjusted termination date.
     frequency : str in {}, optional
         aml
-    modifier : str, optional
-        The date modification rule in {'F', 'MF', 'P', 'MP'}.
+    modifier : str,
+        The date modification rule in {'NONE', 'F', 'MF', 'P', 'MP'}.
     eom : bool
         Use an end of month preference for rolls instead of 28, 29, or 30.
     roll : str, int, optional, set by Default
@@ -897,7 +898,7 @@ def _infer_stub_date(
     stub: str,
     front_stub: Union[datetime, NoInput],
     back_stub: Union[datetime, NoInput],
-    modifier: Union[str, None],
+    modifier: str,
     eom: bool,
     roll: Union[str, int, NoInput],
     calendar: CustomBusinessDay,
@@ -922,8 +923,8 @@ def _infer_stub_date(
         An adjusted or unadjusted date for the back stub period.
         See notes for combining ``stub``, ``front_stub`` and ``back_stub``
         and any automatic stub inference.
-    modifier : str, optional
-        The date modification rule in {'F', 'MF', 'P', 'MP'}.
+    modifier : str
+        The date modification rule in {'NONE', 'F', 'MF', 'P', 'MP'}.
     eom : bool
         Use an end of month preference for rolls instead of 28, 29, or 30.
     roll : str, int, optional, set by Default
@@ -1195,7 +1196,7 @@ def _get_unadjusted_short_stub_date(
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = _add_months(ueffective, frequency_months * direction, None, None)
+                _ = _add_months(ueffective, frequency_months * direction, "NONE", NoInput(0), roll)
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = ueffective
@@ -1204,7 +1205,7 @@ def _get_unadjusted_short_stub_date(
         else:  # stub_side == "BACK"
             comparison = _get_roll(utermination.month, utermination.year, roll)
             if utermination.day < comparison.day:
-                _ = _add_months(utermination, frequency_months * direction, None, None)
+                _ = _add_months(utermination, frequency_months * direction, "NONE", NoInput(0), roll)
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = utermination
@@ -1212,10 +1213,11 @@ def _get_unadjusted_short_stub_date(
 
     else:
         for month_offset in range(1, 12):
-            stub_date = _add_months(stub_side_dt, month_offset * direction, None, None)
+            stub_date = _add_months(stub_side_dt, month_offset * direction, "NONE", NoInput(0), roll)
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
-        _ = _get_roll(stub_date.month, stub_date.year, roll)
+        # _ = _get_roll(stub_date.month, stub_date.year, roll)
+        _ = stub_date
 
     return _
 
@@ -1302,8 +1304,8 @@ def _generate_regular_schedule_unadjusted(
     _ = ueffective
     yield _
     for i in range(int(n_periods)):
-        _ = _add_months(_, defaults.frequency_months[frequency], None, None)
-        _ = _get_roll(_.month, _.year, roll)
+        _ = _add_months(_, defaults.frequency_months[frequency], "NONE", NoInput(0), roll)
+        # _ = _get_roll(_.month, _.year, roll)
         yield _
 
 
@@ -1311,7 +1313,7 @@ def _generate_regular_schedule_unadjusted(
 
 
 def _get_unadjusted_date_alternatives(
-    date: datetime, modifier: Optional[str], cal: CustomBusinessDay
+    date: datetime, modifier: str, cal: CustomBusinessDay
 ):
     """
     Return all possible unadjusted dates that result in given date under modifier/cal.
@@ -1320,7 +1322,7 @@ def _get_unadjusted_date_alternatives(
     ----------
     date : Datetime
         Adjusted date for which unadjusted dates can be modified to.
-    modifier : str, optional
+    modifier : str
         |modifier|
     calendar : Calendar
         |calendar|
@@ -1379,22 +1381,6 @@ def _get_n_periods_in_regular(
     if n_months % frequency_months != 0:
         raise ValueError("Regular schedule not implied by `frequency` and dates.")
     return int(n_months / frequency_months)
-
-
-def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
-    if roll == "eom":
-        date = _get_eom(month, year)
-    elif roll == "som":
-        date = datetime(year, month, 1)
-    elif roll == "imm":
-        date = _get_imm(month, year)
-    else:
-        try:
-            assert isinstance(roll, int)
-            date = datetime(year, month, roll)
-        except ValueError:  # day is out of range for month, i.e. 30 or 31
-            date = _get_eom(month, year)
-    return date
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

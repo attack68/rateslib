@@ -14,6 +14,7 @@ from pandas.tseries.holiday import (
     nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from rateslib import defaults
 from rateslib.default import NoInput
 
 CalInput = Union[CustomBusinessDay, str, NoInput]
@@ -584,7 +585,7 @@ def _is_holiday(date: datetime, calendar: CustomBusinessDay):
 
 def _adjust_date(
     date: datetime,
-    modifier: Optional[str],
+    modifier: str,
     calendar: CalInput,
 ) -> datetime:
     """
@@ -594,21 +595,22 @@ def _adjust_date(
     ----------
     date : datetime
         The date to be adjusted.
-    modifier : str or None
-        The modification rule, in {"F", "MF", "P", "MP"}. If *None* returns date.
+    modifier : str
+        The modification rule, in {"NONE", "F", "MF", "P", "MP"}. If *'NONE'* returns date.
     calendar : calendar, optional
-        The holiday calendar object to use. Required only if `modifier` is not *None*.
-        If *None* a calendar is created where every day including weekends is valid.
+        The holiday calendar object to use. Required only if `modifier` is not *'NONE'*.
+        If not given a calendar is created where every day including weekends is valid.
 
     Returns
     -------
     datetime
     """
-    if modifier is None:
-        return date
     modifier = modifier.upper()
+    if modifier == "NONE":
+        return date
+
     if modifier not in ["F", "MF", "P", "MP"]:
-        raise ValueError("`modifier` must be in {None, 'F', 'MF', 'P', 'MP'}")
+        raise ValueError("`modifier` must be in {'NONE', 'F', 'MF', 'P', 'MP'}")
 
     (adj_op, mod_op) = (
         ("rollforward", "rollback") if "F" in modifier else ("rollback", "rollforward")
@@ -628,15 +630,17 @@ def _adjust_date(
 def add_tenor(
     start: datetime,
     tenor: str,
-    modifier: Optional[str],
-    calendar: CalInput,
+    modifier: str,
+    calendar: CalInput = NoInput(0),
+    roll: Union[str, int, NoInput] = NoInput(0),
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
-    Note this function does **not** implement the `modified following month end` rule,
-    where tenors starting on month end are adjusted to end on month end. For example
-    a 3-month tenor starting 28th Feb 2022 would be adjusted to end on 31st May 2022.
+    Note this function does not validate the ``roll`` input, but expects it to be correct.
+    This can be used to correctly replicate a schedule under a given roll day. For example
+    a modified 29th May +3M will default to 29th Aug, but can be made to match 31 Aug with *'eom'*
+    rolls.
 
     Parameters
     ----------
@@ -649,6 +653,9 @@ def add_tenor(
         The modification rule to apply if the tenor is calendar days, months or years.
     calendar : CustomBusinessDay or str, optional
         The calendar for use with business day adjustment and modification.
+    roll : str, int, optional
+        This is only required if the tenor is given in months or years. Ensures the tenor period
+        associates with a schedule's roll day.
 
     Returns
     -------
@@ -675,7 +682,7 @@ def add_tenor(
 
     .. ipython:: python
 
-       add_tenor(dt(2022, 2, 28), "3M", None, None)
+       add_tenor(dt(2022, 2, 28), "3M", "NONE")
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
     """
@@ -685,9 +692,9 @@ def add_tenor(
     elif "B" in tenor:
         return _add_business_days(start, int(tenor[:-1]), modifier, calendar)
     elif "Y" in tenor:
-        return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar)
+        return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, roll)
     elif "M" in tenor:
-        return _add_months(start, int(tenor[:-1]), modifier, calendar)
+        return _add_months(start, int(tenor[:-1]), modifier, calendar, roll)
     elif "W" in tenor:
         return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
     else:
@@ -697,7 +704,7 @@ def add_tenor(
 def _add_business_days(
     start: datetime,
     business_days: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
 ) -> datetime:
     """add a given number of business days to an input date"""
@@ -708,24 +715,39 @@ def _add_business_days(
 def _add_months(
     start: datetime,
     months: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
+    roll: Union[str, int, NoInput],
 ) -> datetime:
     """add a given number of months to an input date"""
     year_roll = floor((start.month + months - 1) / 12)
     month = (start.month + months) % 12
     month = 12 if month == 0 else month
-    try:
-        end = datetime(start.year + year_roll, month, start.day)
-    except ValueError:  # day is out of range for month, i.e. 30 or 31
-        end = _get_eom(month, start.year + year_roll)
+    roll = start.day if roll is NoInput.blank else roll
+    end = _get_roll(month, start.year + year_roll, roll)
     return _adjust_date(end, modifier, cal)
+
+
+def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
+    if isinstance(roll, str):
+        if roll == "eom":
+            date = _get_eom(month, year)
+        elif roll == "som":
+            date = datetime(year, month, 1)
+        elif roll == "imm":
+            date = _get_imm(month, year)
+    else:
+        try:
+            date = datetime(year, month, roll)
+        except ValueError:  # day is out of range for month, i.e. 30 or 31
+            date = _get_eom(month, year)
+    return date
 
 
 def _add_days(
     start: datetime,
     days: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
 ) -> datetime:
     end = start + timedelta(days=days)
@@ -792,6 +814,14 @@ def _is_eom(date: datetime) -> bool:
     return date.day == calendar_mod.monthrange(date.year, date.month)[1]
 
 
+def _is_eom_cal(date: datetime, cal: CalInput):
+    """Test whether a given date is end of month under a specific calendar"""
+    udate = calendar_mod.monthrange(date.year, date.month)[1]
+    udate = datetime(date.year, date.month, udate)
+    aeom = _adjust_date(udate, "P", cal)
+    return date == aeom
+
+
 def _get_eom(month: int, year: int) -> datetime:
     """
     Get the day in the month corresponding to last day.
@@ -835,9 +865,11 @@ def dcf(
     start: datetime,
     end: datetime,
     convention: str,
-    termination: Optional[datetime] = None,  # required for 30E360ISDA and ActActICMA
-    frequency_months: Optional[int] = None,  # req. ActActICMA = ActActISMA = ActActBond
-    stub: Optional[bool] = None,  # required for ActActICMA = ActActISMA = ActActBond
+    termination: Union[datetime, NoInput] = NoInput(0),  # required for 30E360ISDA and ActActICMA
+    frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
+    stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
+    roll: Union[str, int, NoInput] = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
     Calculate the day count fraction of a period.
@@ -920,7 +952,7 @@ def dcf(
     """
     convention = convention.upper()
     try:
-        return _DCF[convention](start, end, termination, frequency_months, stub)
+        return _DCF[convention](start, end, termination, frequency_months, stub, roll, calendar)
     except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
@@ -951,8 +983,8 @@ def _dcf_30e360(start: datetime, end: datetime, *args):
     return y + m + (de - ds) / 360
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: Optional[datetime], *args):
-    if termination is None:
+def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
+    if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
     def _is_end_feb(date):
@@ -986,41 +1018,98 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
 def _dcf_actacticma(
     start: datetime,
     end: datetime,
-    termination: Optional[datetime],
-    frequency_months: Optional[int],
-    stub: Optional[bool],
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
+    roll: Union[str, int, NoInput],
+    calendar: CalInput
 ):
-    if frequency_months is None:
+    if frequency_months is NoInput.blank:
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
-    if termination is None:
+    if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
-    if stub is None:
+    if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if not stub:
         return frequency_months / 12
     else:
+        # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, None, None)
+            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
                 fraction += 1
                 fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, None, None) - fwd_end
+                    _add_months(start, 2 * frequency_months, "NONE", calendar, roll) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
             return fraction * frequency_months / 12
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, None, None)
+            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
             fraction = 0
             if start < prev_start:  # stub is LONG
                 fraction += 1
-                fraction += (prev_start - start) / (
-                    prev_start - _add_months(end, -2 * frequency_months, None, None)
-                )
+                r = prev_start - start
+                s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
+                fraction += r / s
             else:
-                fraction += (end - start) / (end - prev_start)
+                r = end - start
+                s = end - prev_start
+                fraction += r / s
             return fraction * frequency_months / 12
+
+
+def _dcf_actacticma_stub365f(
+    start: datetime,
+    end: datetime,
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
+    roll: Union[str, int, NoInput],
+    calendar: CalInput
+):
+    """
+    Applies regular actacticma unless a stub period where Act365F is used.
+    [designed for Canadian Government Bonds with stubs]
+    """
+    if frequency_months is NoInput.blank:
+        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
+    if termination is NoInput.blank:
+        raise ValueError("`termination` must be supplied with specified `convention`.")
+    if stub is NoInput.blank:
+        raise ValueError("`stub` must be supplied with specified `convention`.")
+    if not stub:
+        return frequency_months / 12
+    else:
+        # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        if end == termination:  # stub is a BACK stub:
+            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
+            r = (end - start).days
+            s = (fwd_end - start).days
+            if end > fwd_end:  # stub is LONG
+                d_ = frequency_months / 12.0
+                d_ += (r - s) / 365.0
+            else:  # stub is SHORT
+                if r < (365.0 / (12 / frequency_months)):
+                    d_ = r / 365.0
+                else:
+                    d_ = frequency_months / 12 - (s-r) / 365.0
+
+        else:  # stub is a FRONT stub
+            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
+            r = (end - start).days
+            s = (end - prev_start).days
+            if start < prev_start:  # stub is LONG
+                d_ = frequency_months / 12.0
+                d_ += (r - s) / 365.0
+            else:
+                if r < 365.0 / (12 / frequency_months):
+                    d_ = r / 365.0
+                else:
+                    d_ = frequency_months / 12 - (s-r) / 365.0
+
+        return d_
 
 
 def _dcf_1(*args):
@@ -1043,6 +1132,7 @@ _DCF = {
     "ACTACT": _dcf_actactisda,
     "ACTACTISDA": _dcf_30e360isda,
     "ACTACTICMA": _dcf_actacticma,
+    "ACTACTICMA_STUB365F": _dcf_actacticma_stub365f,
     "ACTACTISMA": _dcf_actacticma,
     "ACTACTBOND": _dcf_actacticma,
     "1": _dcf_1,
@@ -1061,6 +1151,7 @@ _DCF1d = {
     "ACTACT": 1.0 / 365.25,
     "ACTACTISDA": 1.0 / 365.25,
     "ACTACTICMA": 1.0 / 365.25,
+    "ACTACTICMA_STUB365F": 1/365.25,
     "ACTACTISMA": 1.0 / 365.25,
     "ACTACTBOND": 1.0 / 365.25,
     "1": None,
