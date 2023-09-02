@@ -108,17 +108,20 @@ def test_add_tenor(tenor, expected):
 
 
 @pytest.mark.parametrize(
-    "tenor, expected",
+    "tenor, expected, roll",
     [
-        ("-1M", dt(2022, 1, 28)),
-        ("-2m", dt(2021, 12, 28)),
-        ("-1Y", dt(2021, 2, 28)),
-        ("-1d", dt(2022, 2, 27)),
-        ("-2y", dt(2020, 2, 28)),
+        ("-1M", dt(2022, 1, 31), "eom"),
+        ("-1M", dt(2022, 1, 28), NoInput(0)),
+        ("-2m", dt(2021, 12, 31), 31),
+        ("-2m", dt(2021, 12, 28), NoInput(0)),
+        ("-1Y", dt(2021, 2, 28), NoInput(0)),
+        ("-1d", dt(2022, 2, 27), NoInput(0)),
+        ("-2y", dt(2020, 2, 29), "eom"),
+        ("-2y", dt(2020, 2, 28), NoInput(0)),
     ],
 )
-def test_add_negative_tenor(tenor, expected):
-    result = add_tenor(dt(2022, 2, 28), tenor, "NONE", NoInput(0))
+def test_add_negative_tenor(tenor, expected, roll):
+    result = add_tenor(dt(2022, 2, 28), tenor, "NONE", NoInput(0), roll)
     assert result == expected
 
 
@@ -323,6 +326,44 @@ def test_dcf(start, end, conv, expected):
             True,
         ),  # long back
         (dt(2002, 8, 31), dt(2002, 11, 30), "ACTACTICMA", 0.25, 3, dt(2004, 11, 30), False),
+        (
+                dt(1999, 2, 1),
+                dt(1999, 7, 1),
+                "ACTACTICMA_STUB365F",
+                150 / 365,
+                12,
+                dt(2000, 7, 1),
+                True,
+        ),  # short first
+        (
+                dt(2002, 8, 15),
+                dt(2003, 7, 15),
+                "ACTACTICMA_STUB365F",
+                0.5 + 153 / 365,
+                6,
+                dt(2004, 1, 15),
+                True,
+        ),  # long first
+        (
+                dt(2000, 1, 30),
+                dt(2000, 6, 30),
+                "ACTACTICMA_STUB365F",
+                152 / 365,
+                6,
+                dt(2000, 6, 30),
+                True,
+        ),  # short back
+        # (dt(1999, 11, 30), dt(2000, 4, 30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),  # long back : SKIP the _add_tenor does not account for month end roll here
+        (
+                dt(1999, 11, 15),
+                dt(2000, 4, 15),
+                "ACTACTICMA_STUB365F",
+                0.25 + 60 / 365,
+                3,
+                dt(2000, 4, 15),
+                True,
+        ),  # long back
+        (dt(2002, 8, 31), dt(2002, 11, 30), "ACTACTICMA_STUB365F", 0.25, 3, dt(2004, 11, 30), False),
     ],
 )
 def test_dcf_special(start, end, conv, expected, freq_m, term, stub):

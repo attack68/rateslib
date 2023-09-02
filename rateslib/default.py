@@ -212,6 +212,11 @@ class Defaults:
     no_fx_fixings_for_xcs = "warn"
     pool = 1
 
+    # bonds
+    calc_mode = "ukg"
+    settle = 1
+    ex_div = 0
+
     # fmt: off
     multi_csa_steps = [
        2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
