@@ -220,6 +220,27 @@ class TestFixedRateBond:
         assert abs(res1-ec) < 1e-6
         assert abs(res2-ed) < 1e-6
 
+    @pytest.mark.parametrize("s, exp, acc", [
+        (dt(2025, 2, 14), 99.106414, 1.926970),
+        (dt(2025, 2, 18), 99.107179, 0.032113),
+        (dt(2025, 8, 15), 99.151393, 0.0)
+    ])
+    def test_ust_price_street(self, s, exp, acc):
+        bond = FixedRateBond(
+            effective=dt(2023, 8, 15),
+            termination=dt(2033, 8, 15),
+            fixed_rate=3.875,
+            modifier="NONE",
+            convention="ActActICMA",
+            frequency="S",
+            calc_mode="ust_street",
+            ex_div=1,
+        )
+        result = bond.price(ytm=4, settlement=s)
+        accrued = bond.accrued(settlement=s)
+        assert abs(accrued - acc) < 1e-6
+        assert abs(result - exp) < 1e-5
+
     # Swedish Government Bond Tests. Data from alternative systems.
 
     @pytest.mark.parametrize("settlement, exp_accrued, exp_price", [
@@ -269,12 +290,91 @@ class TestFixedRateBond:
     # Canadian Government Bond Tests. Data from alternative systems
     # and from https://iiac-accvm.ca/wp-content/uploads/Canadian-Conventions-in-FI-Markets-Release-1.3.pdf
 
+    @pytest.mark.parametrize("settlement, exp", [
+        (dt(2005, 12, 1), 1.671232),
+        (dt(2006, 1, 31), 2.486301),
+    ])
+    def test_settlement_accrued(self, settlement, exp):
+        bond = FixedRateBond(
+            effective=dt(2004, 8, 1),
+            termination=dt(2008, 2, 1),
+            fixed_rate=5.0,
+            modifier="NONE",
+            frequency="S",
+            convention="ActActICMA_stub365f",
+            calc_mode="cadgb",
+            ex_div=1,
+        )
+        result = bond.accrued(settlement=settlement)
+        assert abs(result-exp) < 1e-6
 
+    @pytest.mark.skip(reason="<1Y CAD bonds NotImplemented")
+    @pytest.mark.parametrize("s, exp, acc", [
+        (dt(2024, 8, 1), 99.839907, 0.0),
+        (dt(2024, 7, 17), 99.866051, 1.715753),
+        (dt(2024, 8, 7), 99.842641, 0.061644),
+    ])
+    def test_cadgb_price(self, s, exp, acc):
+        bond = FixedRateBond(
+            effective=dt(2022, 11, 2),
+            termination=dt(2025, 2, 1),
+            fixed_rate=3.75,
+            modifier="NONE",
+            convention="ActActICMA_STUB365f",
+            frequency="S",
+            calc_mode="cadgb",
+            roll=1,
+            stub="FRONT",
+            ex_div=1,
+        )
+        result = bond.price(ytm=4.0, settlement=s)
+        accrued = bond.accrued(settlement=s)
+        assert abs(accrued-acc) < 1e-6
+        # Price fails becuase bond is <1Y from maturity needs a branched formula.
+        assert abs(result-exp) < 1e-6
 
+    @pytest.mark.parametrize("s, exp, acc", [
+        (dt(2024, 11, 26), 91.055145, 1.341096),
+        (dt(2024, 12, 2), 91.069934, 0.007534),
+        (dt(2024, 6, 3), 90.634570, 0.015068),
+    ])
+    def test_cadgb_price2(self, s, exp, acc):
+        bond = FixedRateBond(
+            effective=dt(2023, 2, 2),
+            termination=dt(2033, 6, 1),
+            fixed_rate=2.75,
+            modifier="NONE",
+            convention="ActActICMA_STUB365f",
+            frequency="S",
+            calc_mode="cadgb",
+            roll=1,
+            stub="FRONT",
+            ex_div=1,
+        )
+        result = bond.price(ytm=4.0, settlement=s)
+        accrued = bond.accrued(settlement=s)
+        assert abs(accrued - acc) < 1e-6
+        assert abs(result - exp) < 1e-6
 
-
-
-
+    def test_cadgb_price3(self):
+        bond = FixedRateBond(
+            effective=dt(2018, 7, 27),
+            termination=dt(2029, 6, 1),
+            fixed_rate=2.25,
+            modifier="NONE",
+            convention="ActActICMA_STUB365f",
+            frequency="S",
+            calc_mode="cadgb",
+            roll=1,
+            stub="FRONT",
+            ex_div=1,
+        )
+        result = bond.price(ytm=2.249977, settlement=dt(2018, 10, 16))
+        accrued = bond.accrued(settlement=dt(2018, 10, 16))
+        stub_cash = bond.leg1.periods[0].cashflow
+        assert abs(accrued - 0.499315) < 1e-6
+        assert abs(result - 100.00) < 1e-5
+        assert abs(stub_cash + 7828.77) < 1e-2
 
     # General Method Coverage
 

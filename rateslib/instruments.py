@@ -1092,6 +1092,7 @@ class BondMixin:
             NoInput(0): self._acc_lin_days,
             "ukg": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
+            "ust_street": self._acc_lin_days_long_split,
             "sgb": self._acc_30e360,
             "cadgb": self._acc_act365_1y_stub,
             "cadgb-ytm": self._acc_lin_days,
@@ -1178,8 +1179,10 @@ class BondMixin:
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        if r.days > 365.0 / f:
-            _ = 1 - ((s - r).days * f) / 365.0  # counts remaining days
+        if r == s:
+            _ = 1.0  # then settlement falls on the coupon date
+        elif r.days > 365.0 / f:
+            _ = 1.0 - ((s - r).days * f) / 365.0  # counts remaining days
         else:
             _ = f * r.days / 365.0
         return _
@@ -1343,6 +1346,7 @@ class BondMixin:
         price_from_ytm_funcs = {
             NoInput(0): partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode=NoInput(0)),
             "ukg": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ukg"),
+            "ust_street": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
             "ust": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
             "sgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
             "cadgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cadgb-ytm"),
@@ -2367,7 +2371,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     ):
         self.curves = curves
         self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
-        if frequency.lower() == "z":
+        if frequency is NoInput.blank:
+            raise ValueError("`frequency` must be provided for Bond.")
+        elif frequency.lower() == "z":
             raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
         if payment_lag is NoInput.blank:
             payment_lag = defaults.payment_lag_specific[type(self).__name__]
@@ -3282,7 +3288,8 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
            frn.accrued(dt(2000, 6, 4))
         """
         if self.leg1.fixing_method == "ibor":
-            frac, acc_idx = self._accrued_frac(settlement)
+            acc_idx = self._acc_index(settlement)
+            frac = self._accrued_frac(settlement, self.calc_mode, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
