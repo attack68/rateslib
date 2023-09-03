@@ -2535,7 +2535,10 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
             return y_1
         return y_2
     else:
-        raise TypeError(f'interpolation was set to: {interpolation}, it must be one of "linear", "log_linear", "linear_zero_rate", "flat_forward", "flat_backward"')
+        raise ValueError(
+            '`interpolation` must be in {"linear", "log_linear", "linear_index", '
+            '"linear_zero_rate", "flat_forward", "flat_backward"}, got: '
+            f'{interpolation}.')
     ret = op(y_1 + (y_2 - y_1) * ((x - x_1) / (x_2 - x_1)))
     return ret
 
