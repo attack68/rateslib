@@ -33,11 +33,11 @@ The NoInput argument
 .. warning::
 
    When an argument is not provided this actually assumes a defined datatype in
-   *rateslib* called :class:`~rateslib.defaults.NoInput`. **Never** use *None* as an entry to
+   *rateslib* called :class:`~rateslib.default.NoInput`. **Never** use *None* as an entry to
    an argument, this will typically create downstream errors. It is better to omit the argument
    entry entirely and let *rateslib* control the *NoInput* value.
 
-There are 3 types of :class:`~rateslib.defaults.NoInput` that work behind the scenes:
+There are 3 types of :class:`~rateslib.default.NoInput` that work behind the scenes:
 
 - **NoInput.blank**: this specifies the user has provided no input for this argument and if there
   is a default value that will be used instead. For example, not providing a ``convention`` will
@@ -67,10 +67,10 @@ of a swap to infer what a user might expect when just inputting a small subset o
    irs.leg1.schedule.payment_lag
    irs.leg1.notional
    irs.leg1.amortization
-   irs.leg2.schedule.frequency
-   irs.leg2.schedule.payment_lag
-   irs.leg2.notional
-   irs.leg2.amortization
+   irs.leg2.schedule.frequency  # <- Inherited
+   irs.leg2.schedule.payment_lag  # <- Inherited
+   irs.leg2.notional  # <- Inherited with negate
+   irs.leg2.amortization  # <- Inherited with negate
 
 
 Defaults
@@ -94,6 +94,25 @@ The defaults values can be seen by calling its :meth:`~rateslib.defaults.Default
    from rateslib import defaults
    print(defaults.print())
 
+These values can also be set:
+
+.. ipython:: python
+
+   defaults.convention = "ACT365F"
+   defaults.base_currency = "gbp"
+   irs = IRS(effective=dt(2022, 1, 1), termination="1Y", frequency="A")
+   irs.leg1.convention  # <- uses new default value
+   irs.leg1.currency  # <- uses new default value
+
+.. ipython:: python
+
+   defaults.convention = "ACT365F"
+   defaults.base_currency = "gbp"
+   irs = IRS(effective=dt(2022, 1, 1), termination="1Y", frequency="A")
+   irs.leg1.convention  # <- uses new default value
+   irs.leg1.currency  # <- uses new default value
+
+   defaults.reset_defaults()  # <- reverse the changes.
 
 Market conventions and the ``spec`` argument
 --------------------------------------------

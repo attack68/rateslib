@@ -142,7 +142,6 @@ class Defaults:
     }
     spread_compound_method = "none_simple"
     base_currency = "usd"
-    fx_swap_base = "foreign"
 
     # Curves
 
@@ -209,6 +208,16 @@ class Defaults:
     fixings = Fixings()
 
     def reset_defaults(self):
+        """
+        Revert defaults back to their initialisation status.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           from rateslib import defaults
+           defaults.reset_defaults()
+        """
         base = Defaults()
         for attr in [_ for _ in dir(self) if "__" != _[:2]]:
             setattr(self, attr, getattr(base, attr))
@@ -216,6 +225,9 @@ class Defaults:
     spec = INSTRUMENT_SPECS
 
     def print(self):
+        """
+        Return a string representation of the current values in the defaults object.
+        """
         def _t_n(v):
             return f"\t{v}\n"
 
@@ -240,7 +252,6 @@ Instruments:\n
     'fixing_method_param',
     'spread_compound_method',
     'base_currency',
-    'fx_swap_base',
 ]])}
 Curves:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
