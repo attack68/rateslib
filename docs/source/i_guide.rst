@@ -79,7 +79,8 @@ parametrised by some exchange rates.
 .. ipython:: python
 
    from rateslib.fx import FXRates, FXForwards
-   fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
+   fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25})
+   fxr.rates_table()
 
 We now have a mechanism by which to specify values in other currencies.
 
@@ -88,7 +89,7 @@ We now have a mechanism by which to specify values in other currencies.
    irs.npv(usd_curve, fx=fxr, base="usd")
    irs.npv(usd_curve, fx=fxr, base="eur")
 
-One observes that the value returned here is not a float but as a :class:`~rateslib.dual.Dual`
+One observes that the value returned here is not a float but a :class:`~rateslib.dual.Dual`
 which is part of *rateslib's* AD framework. One can read more about this particular treatment of FX
 :ref:`here<fx-dual-doc>` and more generally about the dual AD framework :ref:`here<dual-doc>`.
 
@@ -114,7 +115,7 @@ rates curves that are used for all the FX-interest rate parity derivations.
        dt(2023, 1, 1): 0.981}
    )
    fxf = FXForwards(
-       fx_rates=fxr,
+       fx_rates=FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1)),
        fx_curves={
            "usdusd": usd_curve,
            "eureur": eur_curve,
