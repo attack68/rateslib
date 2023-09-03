@@ -8161,7 +8161,7 @@ def _get(kwargs: dict, leg: int = 1, filter=[]):
     Does not return keys that are specified in the filter.
     """
     if leg == 1:
-        _ = {k: v for k, v in kwargs.items() if not "leg2" in k and k not in filter}
+        _ = {k: v for k, v in kwargs.items() if "leg2" not in k and k not in filter}
     else:
         _ = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k and k not in filter}
     return _

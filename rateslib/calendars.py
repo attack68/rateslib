@@ -14,7 +14,6 @@ from pandas.tseries.holiday import (
     nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
-from rateslib import defaults
 from rateslib.default import NoInput
 
 CalInput = Union[CustomBusinessDay, str, NoInput]
