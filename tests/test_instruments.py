@@ -2378,19 +2378,18 @@ class TestSpec:
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
-    @pytest.mark.skip(reason="no spec default for IIRS")
     def test_iirs(self):
         inst = IIRS(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="gb_zcs",
+            spec="sek_iirs",
             leg2_calendar="nyc,tgt",
             calendar="nyc,tgt",
             fixed_rate=3.0,
         )
-        assert inst.kwargs["convention"] == "Act365F"
-        assert inst.kwargs["leg2_frequency"] == "Z"
-        assert inst.kwargs["currency"] == "gbp"
+        assert inst.kwargs["convention"] == "actacticma"
+        assert inst.kwargs["leg2_frequency"] == "q"
+        assert inst.kwargs["currency"] == "sek"
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"

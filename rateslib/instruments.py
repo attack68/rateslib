@@ -4927,26 +4927,26 @@ class IIRS(BaseDerivative):
         super().__init__(*args, **kwargs)
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                index_base=index_base,
-                index_fixings=index_fixings,
-                index_method=index_method,
-                index_lag=index_lag,
-                initial_exchange=False,
-                final_exchange=notional_exchange,
-                payment_lag_exchange=payment_lag_exchange,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-                leg2_payment_lag_exchange=leg2_payment_lag_exchange,
-                leg2_initial_exchange=False,
-                leg2_final_exchange=notional_exchange,
-            )
+        user_kwargs = dict(
+            fixed_rate=fixed_rate,
+            index_base=index_base,
+            index_fixings=index_fixings,
+            index_method=index_method,
+            index_lag=index_lag,
+            initial_exchange=False,
+            final_exchange=notional_exchange,
+            payment_lag_exchange=payment_lag_exchange,
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
+            leg2_initial_exchange=False,
+            leg2_final_exchange=notional_exchange,
         )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+
         self._index_base = self.kwargs["index_base"]
         self._fixed_rate = self.kwargs["fixed_rate"]
         self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1))

@@ -82,7 +82,7 @@ def _get_kwargs(spec):
 
 
 INSTRUMENT_SPECS = {
-    "usd_irs": _get_kwargs("usd_irs"),
+    "usd_irs": _get_kwargs("usd_irs"),   # IRS
     "gbp_irs": _get_kwargs("gbp_irs"),
     "eur_irs": _get_kwargs("eur_irs"),
     "eur_irs3": _get_kwargs("eur_irs3"),
@@ -93,16 +93,20 @@ INSTRUMENT_SPECS = {
     "nok_irs3": _get_kwargs("nok_irs3"),
     "nok_irs6": _get_kwargs("nok_irs6"),
     "chf_irs": _get_kwargs("chf_irs"),
-    "eur_sbs36": _get_kwargs("eur_sbs36"),
-    "eurusd_xcs": _get_kwargs("eurusd_xcs"),
+    "eur_sbs36": _get_kwargs("eur_sbs36"),  # SBS
+    "eurusd_xcs": _get_kwargs("eurusd_xcs"),  # XCS
     "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
     "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),
-    "eur_zcis": _get_kwargs("eur_zcis"),
+    "eur_zcis": _get_kwargs("eur_zcis"),  # ZCIS
     "gbp_zcis": _get_kwargs("gbp_zcis"),
     "usd_zcis": _get_kwargs("usd_zcis"),
-    "gbp_zcs": _get_kwargs("gbp_zcs"),
-    "usd_gb": _get_kwargs("usd_gb"),
-    "test": _get_kwargs("test"),
+    "gbp_zcs": _get_kwargs("gbp_zcs"),  # ZCS
+    "sek_iirs": _get_kwargs("sek_iirs"),  # IIRS
+    "usd_gb": _get_kwargs("usd_gb"),  # FRB
+    "gbp_gb": _get_kwargs("gbp_gb"),
+    "cad_gb": _get_kwargs("cad_gb"),
+    "sek_gb": _get_kwargs("sek_gb"),
+    "test": _get_kwargs("test"),  # TEST
 }
 
 # add some aliases
@@ -111,4 +115,7 @@ INSTRUMENT_SPECS = {
     **INSTRUMENT_SPECS,
     "sofr": INSTRUMENT_SPECS["usd_irs"],
     "ust": INSTRUMENT_SPECS["usd_gb"],
+    "ukg": INSTRUMENT_SPECS["gbp_gb"],
+    "cadgb": INSTRUMENT_SPECS["cad_gb"],
+    "sgb": INSTRUMENT_SPECS["sek_gb"],
 }
