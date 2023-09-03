@@ -87,7 +87,7 @@ class Defaults:
     stub_length = "SHORT"
     eval_mode = "swaps_align"
     modifier = "MF"
-    calendar = BusinessDay()
+    # calendar = BusinessDay()
     frequency_months = {
         "M": 1,
         "B": 2,
@@ -142,7 +142,6 @@ class Defaults:
     }
     spread_compound_method = "none_simple"
     base_currency = "usd"
-    fx_swap_base = "foreign"
 
     # Curves
 
@@ -152,10 +151,29 @@ class Defaults:
         "IndexCurve": "linear_index",
     }
     endpoints = "natural"
+    # fmt: off
+    multi_csa_steps = [
+       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
+       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
+       1808, 1821, 1824, 1825,
+    ]
+    # fmt: on
 
     # Solver
 
     tag = "v"
+    algorithm = "levenberg_marquardt"
+    curve_not_in_solver = "ignore"
+
+    # bonds
+    calc_mode = "ukg"
+    settle = 1
+    ex_div = 1
+
+    # misc
+
+    pool = 1
+    no_fx_fixings_for_xcs = "warn"
     headers = {
         "type": "Type",
         "stub_type": "Period",
@@ -181,23 +199,6 @@ class Defaults:
         "index_base": "Index Base",
         "collateral": "Collateral",
     }
-    algorithm = "levenberg_marquardt"
-    curve_not_in_solver = "ignore"
-    no_fx_fixings_for_xcs = "warn"
-    pool = 1
-
-    # bonds
-    calc_mode = "ukg"
-    settle = 1
-    ex_div = 0
-
-    # fmt: off
-    multi_csa_steps = [
-       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
-       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
-       1808, 1821, 1824, 1825,
-    ]
-    # fmt: on
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -207,11 +208,71 @@ class Defaults:
     fixings = Fixings()
 
     def reset_defaults(self):
+        """
+        Revert defaults back to their initialisation status.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           from rateslib import defaults
+           defaults.reset_defaults()
+        """
         base = Defaults()
         for attr in [_ for _ in dir(self) if "__" != _[:2]]:
             setattr(self, attr, getattr(base, attr))
 
     spec = INSTRUMENT_SPECS
+
+    def print(self):
+        """
+        Return a string representation of the current values in the defaults object.
+        """
+        def _t_n(v):
+            return f"\t{v}\n"
+
+        _ = f"""\
+Scheduling:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'stub', 
+    'stub_length', 
+    'modifier', 
+    'eom', 
+    'eval_mode', 
+    'frequency_months'
+]])}
+Instruments:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'convention', 
+    'payment_lag', 
+    'payment_lag_exchange', 
+    'payment_lag_specific', 
+    'notional', 
+    'fixing_method',
+    'fixing_method_param',
+    'spread_compound_method',
+    'base_currency',
+]])}
+Curves:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'interpolation',
+    'endpoints',
+    'multi_csa_steps',        
+]])}
+Solver:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'algorithm',
+    'tag',
+    'curve_not_in_solver',         
+]])}
+Miscellaneous:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'headers',
+    'no_fx_fixings_for_xcs',
+    'pool',         
+]])}
+"""
+        return _
 
 
 def plot(x, y: list, labels=[]):

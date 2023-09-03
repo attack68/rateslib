@@ -234,6 +234,7 @@ Instruments
    :skip: CompositeCurve
    :skip: ZeroFixedLeg
    :skip: forward_fx
+   :skip: partial
 
 Solver
 ------

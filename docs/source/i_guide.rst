@@ -14,14 +14,17 @@ It is important to understand that the key elements of this library are
 All of these functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way.
 
+Let's start with a basic *Curve* and *Instrument*.
+
 A Trivial Minimalist Example
 ----------------------------
 
-For example, we can construct a :ref:`Curve<c-curves-doc>` in a number of ways:
-here by direct specification of discount factors (DFs).
+For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
+here we create one by directly specifying discount factors (DFs) on certain node dates.
 
 .. ipython:: python
 
+   from rateslib import dt
    from rateslib.curves import Curve
    usd_curve = Curve(
        nodes={
@@ -32,8 +35,9 @@ here by direct specification of discount factors (DFs).
        calendar="nyc",
    )
 
-We can construct an :ref:`Instrument<instruments-toc-doc>`: here a short dated RFR interest rate swap
-(:class:`~rateslib.instruments.IRS`).
+We can then construct an :ref:`Instrument<instruments-toc-doc>`. Here we create a short dated
+RFR interest rate swap (:class:`~rateslib.instruments.IRS`) using market specification pre-defined
+by *rateslib*. You can read more about arguments for instruments :ref:`here<defaults-doc>`.
 
 .. ipython:: python
 
@@ -41,11 +45,9 @@ We can construct an :ref:`Instrument<instruments-toc-doc>`: here a short dated R
    irs = IRS(
        effective=dt(2022, 2, 15),
        termination="6m",
-       frequency="M",
-       currency="usd",
-       calendar="nyc",
-       fixed_rate=2.0,
        notional=1000000000,
+       fixed_rate=2.0,
+       spec="usd_irs"
    )
 
 We can value the IRS in its local currency (USD) by default, and see the generated
@@ -59,9 +61,6 @@ cashflows.
 
    irs.cashflows(usd_curve)
 
-But this is only the the most basic functionality *rateslib* offers. Many other features
-will be explained in subsequent sections.
-
 If instead of this trivial, minimalist example you would like to see a real world
 example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
 click the link.
@@ -69,15 +68,19 @@ click the link.
 Quick look at FX
 ==================
 
+Spot rates and conversion
+-------------------------
+
 The above values were all calculated and displayed in USD. That is the default
-currency in *rateslib* and, as yet, there is nothing to suggest otherwise. Enter,
-the :class:`~rateslib.fx.FXRates` class. This is a basic class which is
+currency in *rateslib* and the local currency of the swap. We can convert this value to another
+currency using the :class:`~rateslib.fx.FXRates` class. This is a basic class which is
 parametrised by some exchange rates.
 
 .. ipython:: python
 
    from rateslib.fx import FXRates, FXForwards
-   fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
+   fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25})
+   fxr.rates_table()
 
 We now have a mechanism by which to specify values in other currencies.
 
@@ -86,10 +89,17 @@ We now have a mechanism by which to specify values in other currencies.
    irs.npv(usd_curve, fx=fxr, base="usd")
    irs.npv(usd_curve, fx=fxr, base="eur")
 
-For multi-currency features we need more than some basic exchange rates and need
+One observes that the value returned here is not a float but a :class:`~rateslib.dual.Dual`
+which is part of *rateslib's* AD framework. One can read more about this particular treatment of FX
+:ref:`here<fx-dual-doc>` and more generally about the dual AD framework :ref:`here<dual-doc>`.
+
+FX Forwards
+------------
+
+For multi-currency derivatives we need more than some basic exchange rates and need
 a complete framework for forward FX rates. These we can set with an
 :class:`~rateslib.fx.FXForwards` class. This stores the FX rates and the interest
-rates curves that are used for all the derivations.
+rates curves that are used for all the FX-interest rate parity derivations.
 
 .. ipython:: python
 
@@ -105,7 +115,7 @@ rates curves that are used for all the derivations.
        dt(2023, 1, 1): 0.981}
    )
    fxf = FXForwards(
-       fx_rates=fxr,
+       fx_rates=FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1)),
        fx_curves={
            "usdusd": usd_curve,
            "eureur": eur_curve,

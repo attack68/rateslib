@@ -63,53 +63,6 @@ def index_curve():
     )
 
 
-def test_curve_interp_err():
-    interp = 'linea'  # Wrongly spelled interpolation method
-    curve = Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2022, 2, 1): 0.9,
-        },
-        id='curve',
-        interpolation=interp
-    )
-
-    err = 'interpolation was set to: ' + interp + ', it must be one of "linear", "log_linear", "linear_zero_rate", "flat_forward", "flat_backward"'
-    with pytest.raises(TypeError, match=err):
-        curve[dt(2022, 1, 15)]
-
-
-def test_interp_err():
-    interp = 'linea'  # Wrongly spelled interpolation method
-    err = 'interpolation was set to: ' + interp + ', it must be one of "linear", "log_linear", "linear_zero_rate", "flat_forward", "flat_backward"'
-    with pytest.raises(TypeError, match=err):
-        interpolate(1.5, 1, 5, 2, 10, interp)
-
-
-def test_diff_casing_interp():
-    curve_lower = Curve(
-        nodes={
-            dt(2022, 3, 1): 1.00,
-            dt(2022, 3, 31): 0.99,
-        },
-        interpolation="log_linear",
-        id="id",
-        convention="Act360",
-        ad=1,
-    )
-    curve_upper = Curve(
-        nodes={
-            dt(2022, 3, 1): 1.00,
-            dt(2022, 3, 31): 0.99,
-        },
-        interpolation="LOG_LINEAR",
-        id="id",
-        convention="Act360",
-        ad=1,
-    )
-    assert curve_lower[dt(2022, 3, 16)] == curve_upper[dt(2022, 3, 16)]
-
-
 @pytest.mark.parametrize("method", ["flat_forward", "flat_backward"])
 def test_flat_interp(method):
     assert interpolate(1, 1, 5, 2, 10, method) == 5
@@ -383,6 +336,53 @@ def test_curve_equality_spline_coeffs():
     )
     curve2.nodes[dt(2022, 7, 4)] = 0.96  # set a specific node without recalc spline
     assert curve2 != curve  # should detect on curve2.spline.c
+
+
+def test_curve_interp_raises():
+    interp = 'BAD'
+    curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 2, 1): 0.9,
+        },
+        id='curve',
+        interpolation=interp
+    )
+
+    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
+    with pytest.raises(ValueError, match=err):
+        curve[dt(2022, 1, 15)]
+
+
+def test_interp_raises():
+    interp = 'linea'  # Wrongly spelled interpolation method
+    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
+    with pytest.raises(ValueError, match=err):
+        interpolate(1.5, 1, 5, 2, 10, interp)
+
+
+def test_curve_interp_case():
+    curve_lower = Curve(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolation="log_linear",
+        id="id",
+        convention="Act360",
+        ad=1,
+    )
+    curve_upper = Curve(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolation="LOG_LINEAR",
+        id="id",
+        convention="Act360",
+        ad=1,
+    )
+    assert curve_lower[dt(2022, 3, 16)] == curve_upper[dt(2022, 3, 16)]
 
 
 def test_custom_interpolator():
