@@ -96,10 +96,11 @@ which is part of *rateslib's* AD framework. One can read more about this particu
 FX Forwards
 ------------
 
-For multi-currency derivatives we need more than some basic exchange rates and need
-a complete framework for forward FX rates. These we can set with an
+For multi-currency derivatives we need more than basic, spot exchange rates.
+We can also create an
 :class:`~rateslib.fx.FXForwards` class. This stores the FX rates and the interest
-rates curves that are used for all the FX-interest rate parity derivations.
+rates curves that are used for all the FX-interest rate parity derivations. With these
+we can calculate forward FX rates and also ad-hoc FX swap rates.
 
 .. ipython:: python
 
@@ -123,6 +124,7 @@ rates curves that are used for all the FX-interest rate parity derivations.
        }
    )
    fxf.rate("eurusd", settlement=dt(2023, 1, 1))
+   fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 1)])
 
 *FXForwards* objects are comprehensive and more information regarding all of the
 :ref:`FX features<fx-doc>` is available in this link.
@@ -145,6 +147,9 @@ then :ref:`Legs<legs-doc>`, since
 the documentation for these building blocks provides technical descriptions of the
 parameters that are used to build up the instruments.
 
+Multi-currency instruments
+--------------------------
+
 Lets take a quick look at a multi-currency instrument: the
 :class:`~rateslib.instruments.FXSwap`. All instruments have a mid-market pricing
 function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>` which is used as the
@@ -162,6 +167,27 @@ target for the *Solver*.
        curves=[None, eurusd_curve, None, usd_curve]
    )
    fxs.rate(fx=fxf)
+
+Securities and bonds
+--------------------
+
+A very common instrument in financial investing is a :class:`~rateslib.instruments.FixedRateBond`.
+At time of writing the on-the-run 10Y US treasury was the 3.875% Aug 2033 bond. Here we can
+construct this using the street convention and derive the price from yield-to-maturity and
+risk calculations.
+
+.. ipython:: python
+
+   from rateslib import FixedRateBond
+   fxb = FixedRateBond(
+       effective=dt(2023, 8, 15),
+       termination=dt(2033, 8, 15),
+       fixed_rate=3.875,
+       spec="ust"
+   )
+   fxb.accrued(settlement=dt(2025, 2, 14))
+   fxb.price(ytm=4.0, settlement=dt(2025, 2, 14))
+   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="duration")
 
 .. toctree::
     :hidden:

@@ -105,5 +105,15 @@ INSTRUMENT_SPECS = {
 
     "gbp_zcs": _get_kwargs("gbp_zcs"),
 
+    "usd_gb": _get_kwargs("usd_gb"),
+
     "test": _get_kwargs("test"),
+}
+
+# add some aliases
+
+INSTRUMENT_SPECS = {
+    **INSTRUMENT_SPECS,
+    "sofr": INSTRUMENT_SPECS["usd_irs"],
+    "ust": INSTRUMENT_SPECS["usd_gb"]
 }
