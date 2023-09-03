@@ -75,6 +75,8 @@ Or, other currencies too, that are non-base, can also be displayed upon request.
 
    swap.npv(curve, fx=fxr, base="NOK")
 
+.. _fx-dual-doc:
+
 Sensitivity Management
 ----------------------
 
@@ -108,7 +110,7 @@ The above value has an *"fx_eursek"* dual value of 100 (SEK). This means that fo
 EURSEK rate to increase by 1.0 from 10.85 to 11.85 the base (SEK) value would
 increase by 100, from 1,085 SEK to 1,185 SEK. In this case this is exact, but the
 figure of *"100"* represents an instantaneous derivative. When dealing with reverse
-exposures this becomes apparent.
+exposures (i.e SEKEUR) this becomes apparent.
 
 .. ipython:: python
 

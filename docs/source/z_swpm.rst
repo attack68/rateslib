@@ -8,7 +8,7 @@
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
-   from pandas import DataFrame
+   from pandas import DataFrame, option_context
 
 Replicating a SOFR Curve & Swap from Bloomberg's SWPM
 ******************************************************
@@ -28,7 +28,8 @@ We can replicate the input data for the :class:`~rateslib.curves.Curve` in a tab
        "Rate": [5.30111, 5.30424, 5.30657, 5.31100, 5.34800, 5.38025, 5.40915, 5.43078, 5.44235, 5.44950, 5.44878, 5.44100, 5.42730, 5.40747, 5.3839, 5.09195, 4.85785, 4.51845, 4.31705],
    })
    data["Termination"] = [add_tenor(dt(2023, 8, 21), _, "F", "nyc") for _ in data["Term"]]
-   data
+   with option_context("display.float_format", lambda x: '%.6f' % x):
+       print(data)
 
 Bloomberg defaults to a "Step Forward (cont)" ``interpolation`` mode, this is effectively the
 same as "log_linear" in *rateslib's* formulation for *Curves*. We will configure DF
@@ -70,7 +71,8 @@ Now we will calibrate the curve to the given swap market prices, using a global
        id="us_rates",
    )
    data["DF"] = [float(sofr[_]) for _ in data["Termination"]]
-   data
+   with option_context("display.float_format", lambda x: '%.6f' % x):
+       print(data)
 
 Notice that the DFs are the same as those in SWPM (at least to a visible 1e-6 tolerance).
 
