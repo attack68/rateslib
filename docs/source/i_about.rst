@@ -60,7 +60,7 @@ philosophy.
 2) Prioritise sensitivities above valuation
 -----------------------------------------------------
 
-This is functionality objective. Risk sensitivities are harder to calculate than
+This is a functionality objective. Risk sensitivities are harder to calculate than
 valuation. To calculate risk it is
 necessary to be able to calculate value. To calculate value it is not necessary
 to calculate risk. Therefore making design choices around calculating risk avoids

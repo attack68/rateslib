@@ -124,7 +124,7 @@ we can calculate forward FX rates and also ad-hoc FX swap rates.
        }
    )
    fxf.rate("eurusd", settlement=dt(2023, 1, 1))
-   fxf.swap("eurusd", settlement=[dt(2022, 2, 1), dt(2022, 6, 1)]
+   fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 1)])
 
 *FXForwards* objects are comprehensive and more information regarding all of the
 :ref:`FX features<fx-doc>` is available in this link.
@@ -171,8 +171,23 @@ target for the *Solver*.
 Securities and bonds
 --------------------
 
-A very common instrument in financial investing is a :class:`~rateslib.instrument.FixedRateBond`.
-At time of writing the ...
+A very common instrument in financial investing is a :class:`~rateslib.instruments.FixedRateBond`.
+At time of writing the on-the-run 10Y US treasury was the 3.875% Aug 2033 bond. Here we can
+construct this using the street convention and derive the price from yield-to-maturity and
+risk calculations.
+
+.. ipython:: python
+
+   from rateslib import FixedRateBond
+   fxb = FixedRateBond(
+       effective=dt(2023, 8, 15),
+       termination=dt(2033, 8, 15),
+       fixed_rate=3.875,
+       spec="ust"
+   )
+   fxb.accrued(settlement=dt(2025, 2, 14))
+   fxb.price(ytm=4.0, settlement=dt(2025, 2, 14))
+   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="duration")
 
 .. toctree::
     :hidden:
