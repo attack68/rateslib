@@ -2098,6 +2098,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         - Forecasting *Curve* for ``leg1``.
         - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
 
     Attributes
     ----------
@@ -2370,16 +2373,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         settle: Union[int, NoInput] = NoInput(0),
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
-        self.curves = curves
-        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
-        if frequency is NoInput.blank:
-            raise ValueError("`frequency` must be provided for Bond.")
-        elif frequency.lower() == "z":
-            raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is NoInput.blank:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
-
         self.kwargs = dict(
             effective=effective,
             termination=termination,
@@ -2397,17 +2392,36 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             amortization=amortization,
             convention=convention,
             fixed_rate=fixed_rate,
+            initial_exchange=NoInput(0),
+            final_exchange=NoInput(0),
+            ex_div=ex_div,
+            settle=settle,
+            calc_mode=calc_mode
+        )
+        self.kwargs = _push(spec, self.kwargs)
+
+        # set defaults for missing values
+        default_kwargs = dict(
+            calc_mode=defaults.calc_mode,
             initial_exchange=False,
             final_exchange=True,
+            payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            ex_div=defaults.ex_div,
+            settle=defaults.settle,
         )
+        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
+
+        if self.kwargs["frequency"] is NoInput.blank:
+            raise ValueError("`frequency` must be provided for Bond.")
+        elif self.kwargs["frequency"].lower() == "z":
+            raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
+
+        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.curves = curves
+        self.spec = spec
+
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.kwargs.update(
-            dict(
-                ex_div=defaults.ex_div if ex_div is NoInput.blank else ex_div,
-                settle=defaults.settle if settle is NoInput.blank else settle,
-            )
-        )
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"]))
 
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
@@ -4256,6 +4270,9 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         - Forecasting :class:`~rateslib.curves.Curve` or
           :class:`~rateslib.curves.LineCurve` for ``leg2``.
         - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
 
     Attributes
     ----------
@@ -8133,16 +8150,17 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 #     return x1, steps_taken
 
 
-def _get(kwargs: dict, leg: int = 1):
+def _get(kwargs: dict, leg: int = 1, filter=[]):
     """
     A parser to return kwarg dicts for relevant legs.
     Internal structuring only.
     Will return kwargs relevant to leg1 OR leg2.
+    Does not return keys that are specified in the filter.
     """
     if leg == 1:
-        _ = {k: v for k, v in kwargs.items() if not "leg2" in k}
+        _ = {k: v for k, v in kwargs.items() if not "leg2" in k and k not in filter}
     else:
-        _ = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k}
+        _ = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k and k not in filter}
     return _
 
 
@@ -8165,9 +8183,17 @@ def _push(spec: Optional[str], kwargs: dict):
 
 def _update_not_noinput(base_kwargs, new_kwargs):
     """
-    Update the `base_kwargs` with `new_kwargs` unless those new values are NoInput.
+    Update the `base_kwargs` with `new_kwargs` (user values) unless those new values are NoInput.
     """
     updaters = {k: v for k, v in new_kwargs.items() if k not in base_kwargs or not isinstance(v, NoInput)}
+    return {**base_kwargs, **updaters}
+
+
+def _update_with_defaults(base_kwargs, default_kwargs):
+    """
+    Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
+    """
+    updaters = {k: v for k, v in default_kwargs.items() if k in base_kwargs and base_kwargs[k] is NoInput.blank}
     return {**base_kwargs, **updaters}
 
 
