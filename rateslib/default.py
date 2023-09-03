@@ -228,6 +228,7 @@ class Defaults:
         """
         Return a string representation of the current values in the defaults object.
         """
+
         def _t_n(v):
             return f"\t{v}\n"
 

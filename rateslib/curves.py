@@ -2538,7 +2538,8 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
         raise ValueError(
             '`interpolation` must be in {"linear", "log_linear", "linear_index", '
             '"linear_zero_rate", "flat_forward", "flat_backward"}, got: '
-            f'{interpolation}.')
+            f"{interpolation}."
+        )
     ret = op(y_1 + (y_2 - y_1) * ((x - x_1) / (x_2 - x_1)))
     return ret
 

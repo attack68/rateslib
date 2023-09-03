@@ -13,6 +13,7 @@ def _append_kwargs_name(df):
 
 def _parse_bool(df):
     """parse data input as bools to return True and False dtypes."""
+
     def _map_true_false(v):
         try:
             if v.upper() == "TRUE":
@@ -92,21 +93,15 @@ INSTRUMENT_SPECS = {
     "nok_irs3": _get_kwargs("nok_irs3"),
     "nok_irs6": _get_kwargs("nok_irs6"),
     "chf_irs": _get_kwargs("chf_irs"),
-
     "eur_sbs36": _get_kwargs("eur_sbs36"),
-
     "eurusd_xcs": _get_kwargs("eurusd_xcs"),
     "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
     "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),
-
     "eur_zcis": _get_kwargs("eur_zcis"),
     "gbp_zcis": _get_kwargs("gbp_zcis"),
     "usd_zcis": _get_kwargs("usd_zcis"),
-
     "gbp_zcs": _get_kwargs("gbp_zcs"),
-
     "usd_gb": _get_kwargs("usd_gb"),
-
     "test": _get_kwargs("test"),
 }
 
@@ -115,5 +110,5 @@ INSTRUMENT_SPECS = {
 INSTRUMENT_SPECS = {
     **INSTRUMENT_SPECS,
     "sofr": INSTRUMENT_SPECS["usd_irs"],
-    "ust": INSTRUMENT_SPECS["usd_gb"]
+    "ust": INSTRUMENT_SPECS["usd_gb"],
 }

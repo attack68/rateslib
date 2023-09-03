@@ -1008,7 +1008,6 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class BondMixin:
-
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -1124,7 +1123,7 @@ class BondMixin:
             if self.leg1.periods[acc_idx].dcf * f > 1:
                 # long stub
                 quasi_coupon = add_tenor(
-                    self.leg1.schedule.uschedule[acc_idx+1],
+                    self.leg1.schedule.uschedule[acc_idx + 1],
                     f"-{fm}M",
                     "NONE",
                     NoInput(0),
@@ -1146,11 +1145,11 @@ class BondMixin:
                     return _ / (self.leg1.periods[acc_idx].dcf * f)
                 else:
                     # then second part of long stub
-                    r = self.leg1.schedule.uschedule[acc_idx+1] - settlement
-                    s = self.leg1.schedule.uschedule[acc_idx+1] - quasi_coupon
+                    r = self.leg1.schedule.uschedule[acc_idx + 1] - settlement
+                    s = self.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon
                     r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
                     s_ = quasi_coupon - quasi_start
-                    _ = r_ / s_ + (s-r) / s
+                    _ = r_ / s_ + (s - r) / s
                     return _ / (self.leg1.periods[acc_idx].dcf * f)
 
         return self._acc_lin_days(settlement, acc_idx, *args)
@@ -1218,10 +1217,10 @@ class BondMixin:
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute)
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i-1) * v3
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i - 1) * v3
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** i
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2**i
 
         # Add the redemption payment discounted by relevant factors
         if i == 0:  # only looped 1 period, no need for v2 and v3
@@ -1229,7 +1228,7 @@ class BondMixin:
         elif i == 1:  # only looped 2 periods, no need for v2
             d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v3
         else:  # looped more than 2 periods, regular formula applied
-            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v2 ** (i-1) * v3
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v2 ** (i - 1) * v3
 
         # discount all by the first period factor and scaled to price
         p = v1 * d / -self.leg1.notional * 100
@@ -1270,7 +1269,7 @@ class BondMixin:
             fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
         else:
             fd0 = 1 - acc_frac
-        return v ** fd0
+        return v**fd0
 
     def _v1_simple(
         self,
@@ -1317,7 +1316,7 @@ class BondMixin:
             fd0 = self.leg1.periods[acc_idx].dcf * f
         else:
             fd0 = 1
-        return v ** fd0
+        return v**fd0
 
     def _v3_30e360_u_simple(
         self,
@@ -1331,14 +1330,12 @@ class BondMixin:
         """
         The final period is discounted by a simple interest method under a 30E360 convention.
         """
-        d_ = dcf(
-            self.leg1.periods[acc_idx].start,
-            self.leg1.periods[acc_idx].end,
-            "30E360"
-        )
+        d_ = dcf(self.leg1.periods[acc_idx].start, self.leg1.periods[acc_idx].end, "30E360")
         return 1 / (1 + d_ * ytm / 100)  # simple interest
 
-    def _price_from_ytm(self, ytm: float, settlement: datetime, calc_mode: Union[str, NoInput], dirty: bool = False):
+    def _price_from_ytm(
+        self, ytm: float, settlement: datetime, calc_mode: Union[str, NoInput], dirty: bool = False
+    ):
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
@@ -2396,7 +2393,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             final_exchange=NoInput(0),
             ex_div=ex_div,
             settle=settle,
-            calc_mode=calc_mode
+            calc_mode=calc_mode,
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -4376,7 +4373,11 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         )
         self.kwargs = _push(spec, self.kwargs)
         # set some defaults if missing
-        self.kwargs["notional"] = defaults.notional if self.kwargs["notional"] is NoInput.blank else self.kwargs["notional"]
+        self.kwargs["notional"] = (
+            defaults.notional
+            if self.kwargs["notional"] is NoInput.blank
+            else self.kwargs["notional"]
+        )
         if self.kwargs["payment_lag"] is NoInput.blank:
             self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
         self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
@@ -6040,7 +6041,9 @@ class FRA(Sensitivities, BaseMixin):
         self.eom = defaults.eom if eom is NoInput.blank else eom
         if roll is NoInput.blank:
             # attempt roll inferral
-            self.roll = "eom" if (_is_eom_cal(effective, self.calendar) and self.eom) else effective.day
+            self.roll = (
+                "eom" if (_is_eom_cal(effective, self.calendar) and self.eom) else effective.day
+            )
         else:
             self.roll = roll
 
@@ -8185,7 +8188,9 @@ def _update_not_noinput(base_kwargs, new_kwargs):
     """
     Update the `base_kwargs` with `new_kwargs` (user values) unless those new values are NoInput.
     """
-    updaters = {k: v for k, v in new_kwargs.items() if k not in base_kwargs or not isinstance(v, NoInput)}
+    updaters = {
+        k: v for k, v in new_kwargs.items() if k not in base_kwargs or not isinstance(v, NoInput)
+    }
     return {**base_kwargs, **updaters}
 
 
@@ -8193,7 +8198,11 @@ def _update_with_defaults(base_kwargs, default_kwargs):
     """
     Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
     """
-    updaters = {k: v for k, v in default_kwargs.items() if k in base_kwargs and base_kwargs[k] is NoInput.blank}
+    updaters = {
+        k: v
+        for k, v in default_kwargs.items()
+        if k in base_kwargs and base_kwargs[k] is NoInput.blank
+    }
     return {**base_kwargs, **updaters}
 
 
