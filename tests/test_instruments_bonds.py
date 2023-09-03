@@ -211,7 +211,7 @@ class TestFixedRateBond:
             frequency="S",
             calendar="nyc",
             convention="ActActICMA",
-            calc_mode="ust",
+            calc_mode="ust_31Bii",
             ex_div=1,
             modifier="NONE",
         )
@@ -230,11 +230,7 @@ class TestFixedRateBond:
             effective=dt(2023, 8, 15),
             termination=dt(2033, 8, 15),
             fixed_rate=3.875,
-            modifier="NONE",
-            convention="ActActICMA",
-            frequency="S",
-            calc_mode="ust_street",
-            ex_div=1,
+            spec="ust"
         )
         result = bond.price(ytm=4, settlement=s)
         accrued = bond.accrued(settlement=s)
