@@ -1,3 +1,5 @@
+.. _cal-doc:
+
 .. ipython:: python
    :suppress:
 

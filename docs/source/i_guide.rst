@@ -5,7 +5,7 @@
 User Guide
 ==========
 
-Where to Start?
+Where to start?
 ===============
 
 It is important to understand that the key elements of this library are
@@ -16,7 +16,7 @@ other. This guide's intention is to introduce them in a structured way.
 
 Let's start with a basic *Curve* and *Instrument*.
 
-A Trivial Minimalist Example
+A trivial example
 ----------------------------
 
 For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
@@ -33,6 +33,7 @@ here we create one by directly specifying discount factors (DFs) on certain node
            dt(2023, 1, 1): 0.95
        },
        calendar="nyc",
+       id="sofr",
    )
 
 We can then construct an :ref:`Instrument<instruments-toc-doc>`. Here we create a short dated
@@ -93,7 +94,7 @@ One observes that the value returned here is not a float but a :class:`~rateslib
 which is part of *rateslib's* AD framework. One can read more about this particular treatment of FX
 :ref:`here<fx-dual-doc>` and more generally about the dual AD framework :ref:`here<dual-doc>`.
 
-FX Forwards
+FX forwards
 ------------
 
 For multi-currency derivatives we need more than basic, spot exchange rates.
@@ -136,7 +137,7 @@ we can calculate forward FX rates and also ad-hoc FX swap rates.
 
     g_fx.rst
 
-More about Instruments
+More about instruments
 ======================
 
 We saw an example of the :class:`~rateslib.instruments.IRS` instrument above.
@@ -196,12 +197,8 @@ risk calculations.
 
     g_instruments.rst
 
-Combining Curves and Solver
-============================
-
-.. The *Curves* and *Solver* contained within *rateslib* are completely
-   generalised. Behind the scenes the same basic optimisation routine is utilised for any
-   complex structure one can craft that is mathematically valid
+Calibrating curves with a solver
+=================================
 
 The guide for :ref:`Constructing Curves<curves-doc>` introduces the main
 curve classes,
@@ -217,59 +214,51 @@ and :class:`~rateslib.curves.ProxyCurve`.
 
     g_curves.rst
 
-We can see an example of a *ProxyCurve* if we observe that the *FXForwards* class
-we created was derived by EUR cashflows collateralised in USD. That object can
-auto-generate the discount factors for USD cashflows collateralised in EUR:
+Calibrating curves is a very natural thing to do in fixed income. We typically use
+market prices of commonly traded instruments to set values.
+
+Below we demonstrate how to calibrate the :class:`~rateslib.curves.Curve` that
+we created above in the initial trivial example using SOFR swap market data. First, we
+are reminded of the discount factors (DFs) currently set on that curve.
 
 .. ipython:: python
 
-   fxf.curve(cashflow="usd", collateral="eur")
+   usd_curve.nodes
 
-For derivatives collateralised according to a multi-currency CSA this
-curve can also be auto-generated and it results in an intrinsic composition
-of the *"usdeur* and *usdusd* curves.
-
-.. ipython:: python
-
-   fxf.curve(cashflow="usd", collateral=["eur", "usd"])
-
-The :class:`~rateslib.solver.Solver` is an advanced global optimiser which can
-solve one or any number of curves simultaneously. *Solver* can even be combined in a
-dependency chain so that ceratin curves might be solved before others, which is common
-in a fixed income trading team with segregated responsibilities.
-
-We have so far defined 3 base curves which each have 2 degrees of freedom. In order to
-solver this system we need 6 market instruments. These will be 2 *IRS* for controlling
-the EUR curve, 2 *IRS* for the USD curve, and 2 *FXSwaps* for controlling the basis
-curve.
+Now we will instruct a :class:`~rateslib.solver.Solver` to recalibrate those value to match
+a set of instrument prices, ``s``.
 
 .. ipython:: python
 
+   from rateslib.solver import Solver
+   usd_args = dict(
+       effective=dt(2022, 1, 1),
+       spec="usd_irs",
+       curves="sofr"
+   )
    solver = Solver(
-       curves=[eur_curve, usd_curve, eurusd_curve],
+       curves=[usd_curve],
        instruments=[
-           IRS(dt(2022, 1, 1), "6M", "A", calendar="tgt", currency="eur", curves=eur_curve),
-           IRS(dt(2022, 1, 1), "1Y", "A", calendar="tgt", currency="eur", curves=eur_curve),
-           IRS(dt(2022, 1, 1), "6M", "A", calendar="nyc", currency="usd", curves=usd_curve),
-           IRS(dt(2022, 1, 1), "1Y", "A", calendar="nyc", currency="usd", curves=usd_curve),
-           FXSwap(dt(2022, 1, 1), "6M", currency="eur", leg2_currency="usd", curves=[None, eurusd_curve, None, usd_curve]),
-           FXSwap(dt(2022, 1, 1), "1Y", currency="eur", leg2_currency="usd", curves=[None, eurusd_curve, None, usd_curve]),
+           IRS(**usd_args, termination="6M"),
+           IRS(**usd_args, termination="1Y"),
        ],
-       s=[2.25, 2.5, 4.5, 5.0, 30, 75],
-       instrument_labels=["Eur 6M", "Eur 1Y", "Usd 6M", "Usd 1Y", "EurUsd 6M", "EurUsd 1Y"],
-       fx=fxf,
+       s=[4.35, 4.85],
+       instrument_labels=["6M", "1Y"],
+       id="us_rates"
    )
 
-The *Curves* have all been dynamically updated according to the *Solver's*
-optimisation routines. We can plots these resultant curves.
+Solving was a success! Observe the DFs on the *Curve* have been updated:
 
 .. ipython:: python
 
-   usd_curve.plot(
-       "1b",
-       comparators=[fxf.curve("usd", "eur"), eur_curve, eurusd_curve],
-       labels=["usd:usd", "usd:eur", "eur:eur", "eur:usd"]
-   )
+   usd_curve.nodes
+
+We can plot the overnight rates for the calibrated curve. This curve uses *'log_linear'*
+interpolation so the overnight forward rates are constant between node dates.
+
+.. ipython:: python
+
+   usd_curve.plot("1b", labels=["SOFR o/n"])
 
 .. plot::
 
@@ -284,42 +273,24 @@ optimisation routines. We can plots these resultant curves.
            dt(2023, 1, 1): 0.95
        },
        calendar="nyc",
+       id="sofr",
    )
-   eur_curve = Curve({
-       dt(2022, 1, 1): 1.0,
-       dt(2022, 7, 1): 0.972,
-       dt(2023, 1, 1): 0.98}
+   usd_args = dict(
+       effective=dt(2022, 1, 1),
+       spec="usd_irs",
+       curves="sofr"
    )
-   eurusd_curve = Curve({
-       dt(2022, 1, 1): 1.0,
-       dt(2022, 7, 1): 0.973,
-       dt(2023, 1, 1): 0.981}
-   )
-   fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
-   fxf = FXForwards(
-       fx_rates=fxr,
-       fx_curves={
-           "usdusd": usd_curve,
-           "eureur": eur_curve,
-           "eurusd": eurusd_curve,
-       }
-   )
-   fxf.rate("eurusd", settlement=dt(2023, 1, 1))
    solver = Solver(
-       curves=[eur_curve, usd_curve, eurusd_curve],
+       curves=[usd_curve],
        instruments=[
-           IRS(dt(2022, 1, 1), "6M", "A", calendar="tgt", currency="eur", curves=eur_curve),
-           IRS(dt(2022, 1, 1), "1Y", "A", calendar="tgt", currency="eur", curves=eur_curve),
-           IRS(dt(2022, 1, 1), "6M", "A", calendar="nyc", currency="usd", curves=usd_curve),
-           IRS(dt(2022, 1, 1), "1Y", "A", calendar="nyc", currency="usd", curves=usd_curve),
-           FXSwap(dt(2022, 1, 1), "6M", currency="eur", leg2_currency="usd", curves=[None, eurusd_curve, None, usd_curve]),
-           FXSwap(dt(2022, 1, 1), "1Y", currency="eur", leg2_currency="usd", curves=[None, eurusd_curve, None, usd_curve]),
+           IRS(**usd_args, termination="6M"),
+           IRS(**usd_args, termination="1Y"),
        ],
-       s=[2.25, 2.5, 4.5, 5.0, 30, 75],
-       instrument_labels=["Eur 6M", "Eur 1Y", "Usd 6M", "Usd 1Y", "EurUsd 6M", "EurUsd 1Y"],
-       fx=fxf,
+       s=[4.35, 4.85],
+       instrument_labels=["6M", "1Y"],
+       id="us_rates"
    )
-   fig, ax, line = usd_curve.plot("1b", comparators=[fxf.curve("usd", "eur"), eur_curve, eurusd_curve], labels=["usd:usd", "usd:eur", "eur:eur", "eur:usd"])
+   fig, ax, line = usd_curve.plot("1b", labels=["SOFR o/n"])
    plt.show()
 
 
@@ -357,8 +328,16 @@ Utilities
 ==========
 
 *Rateslib* could not function without some utility libraries. These are often
-referenced in other guides as they come up and can also be linked to from those
+referenced in other guides as they arise and can also be linked to from those
 sections.
+
+Specifically those utilities are:
+
+- :ref:`Holiday calendars and day count conventions<cal-doc>`
+- :ref:`Schedule building<schedule-doc>`
+- :ref:`Piecewise polynomial splines for curve interpolation<splines-doc>`
+- :ref:`Forward mode automatic differentiation (AD) and Dual numbers<dual-doc>`
+- :ref:`Defaults used for instrument specification<defaults-doc>`
 
 .. toctree::
     :hidden:
@@ -367,10 +346,7 @@ sections.
 
     g_utilities.rst
 
-Coverage
-==========
 
-The current test coverage status of *rateslib* is shown at around 97%.
 
 .. toctree::
     :hidden:
