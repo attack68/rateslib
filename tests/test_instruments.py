@@ -8,6 +8,7 @@ import context
 from rateslib import defaults, default_context
 from rateslib.default import NoInput
 from rateslib.instruments import (
+    FixedRateBond,
     IRS,
     IIRS,
     SBS,
@@ -2393,6 +2394,20 @@ class TestSpec:
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
+
+    def test_fixedratebond(self):
+        bond = FixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="ust",
+            calc_mode="ust_31bii",
+            fixed_rate=2.0
+        )
+        assert bond.calc_mode == "ust_31bii"
+        assert bond.kwargs["convention"] == "actacticma"
+        assert bond.kwargs["currency"] == "usd"
+        assert bond.kwargs["fixed_rate"] == 2.0
+        assert bond.kwargs["ex_div"] == 1
 
 
 @pytest.mark.parametrize("inst, expected", [
