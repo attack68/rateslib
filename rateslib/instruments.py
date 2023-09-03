@@ -2780,6 +2780,24 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
+        calc_mode : str in {"ukg", "ust", "sgb"}
+        A calculation mode for dealing with bonds that are in short stub or accrual
+        periods. All modes give the same value for YTM at issue date for regular
+        bonds but differ slightly for bonds with stubs or with accrued.
+    calc_mode : str in {"ukg", "ust", "sgb"}
+        A calculation mode for dealing with bonds that are in short stub or accrual
+        periods. All modes give the same value for YTM at issue date for regular
+        bonds but differ slightly for bonds with stubs or with accrued.
+    curves : CurveType, str or list of such, optional
+        A single *Curve* or string id or a list of such.
+
+        A list defines the following curves in the order:
+
+        - Forecasting *Curve* for ``leg1``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
 
     Examples
     --------
@@ -2895,6 +2913,7 @@ class Bill(FixedRateBond):
         settle: int = 1,
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
         super().__init__(
             effective=effective,
@@ -2915,8 +2934,19 @@ class Bill(FixedRateBond):
             fixed_rate=0,
             ex_div=0,
             settle=settle,
+            calc_mode=calc_mode,
             curves=curves,
+            spec=spec
         )
+
+    @property
+    def dcf(self):
+        # bills will typically have 1 period unless they are configured with
+        # a higher frequency for YTM representation, e.g. "S" for a one-year bill will have 2.
+        d = 0
+        for i in range(self.leg1.schedule.n_periods):
+            d += self.leg1.periods[i].dcf
+        return d
 
     def rate(
         self,
@@ -2996,7 +3026,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -3014,7 +3044,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
 
@@ -3039,7 +3069,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
         return 100 - discount_rate * dcf
 
 

@@ -64,4 +64,4 @@ index,leg2,index_base,float,,,,,,,,,,,,,,,,,,,,,,,,,
 index,leg2,index_lag,int,,,,,,,,,,,,,,,,3,2,3,,,,,,,
 bond,leg1,settle,int,,,,,,,,,,,,,,,,,,,,,,1,1,1,1
 bond,leg1,ex_div,int,,,,,,,,,,,,,,,,,,,,,,1,7,5,1
-bond,leg1,calc_mode,str,,,,,,,,,,,,,,,,,,,,,,ust,ukg,sgb,cad
+bond,leg1,calc_mode,str,,,,,,,,,,,,,,,,,,,,,,ust,ukg,sgb,cadgb

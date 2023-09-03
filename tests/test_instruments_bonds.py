@@ -47,6 +47,23 @@ def curve2():
 
 class TestFixedRateBond:
 
+    def test_accrued_in_text(self):
+        bond = FixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination=dt(2023, 1, 1),
+            fixed_rate=5.0,
+            spec="cadgb",
+        )
+        assert abs(bond.accrued(dt(2022, 4, 15)) - 1.42465753) < 1e-8
+
+        bond = FixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination=dt(2023, 1, 1),
+            fixed_rate=5.0,
+            spec="gilt",
+        )
+        assert abs(bond.accrued(dt(2022, 4, 15)) - 1.43646409) < 1e-8
+
     # UK Gilts Tests: Data from public DMO website.
 
     @pytest.mark.parametrize("settlement, exp", [
@@ -975,6 +992,24 @@ class TestBill:
 
         assert bill.discount_rate(99.93777, dt(2004, 1, 22)) == 0.8000999999999543
         assert bill.price(0.800, dt(2004, 1, 22)) == 99.93777777777778
+
+    def test_bill_discount_rate_frequency(self):
+        bill = Bill(
+            effective=dt(2023, 8, 10),
+            termination=dt(2024, 8, 8),
+            frequency="A",
+            convention="act360",
+        )
+        expected = bill.discount_rate(price=96.1030, settlement=dt(2023, 8, 25))
+
+        bill = Bill(
+            effective=dt(2023, 8, 10),
+            termination=dt(2024, 8, 8),
+            frequency="S",
+            convention="act360",
+        )
+        result = bill.discount_rate(price=96.1030, settlement=dt(2023, 8, 25))
+        assert result == expected
 
     def test_bill_ytm(self):
         bill = Bill(

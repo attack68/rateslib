@@ -115,7 +115,8 @@ INSTRUMENT_SPECS = {
     **INSTRUMENT_SPECS,
     "sofr": INSTRUMENT_SPECS["usd_irs"],
     "ust": INSTRUMENT_SPECS["usd_gb"],
-    "ukg": INSTRUMENT_SPECS["gbp_gb"],
+    "ukt": INSTRUMENT_SPECS["gbp_gb"],
+    "gilt": INSTRUMENT_SPECS["gbp_gb"],
     "cadgb": INSTRUMENT_SPECS["cad_gb"],
     "sgb": INSTRUMENT_SPECS["sek_gb"],
 }
