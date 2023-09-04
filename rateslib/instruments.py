@@ -1090,9 +1090,12 @@ class BondMixin:
         acc_frac_funcs = {
             NoInput(0): self._acc_lin_days,
             "ukg": self._acc_lin_days,
+            "uktb": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
             "ust_street": self._acc_lin_days_long_split,
+            "ustb": self._acc_lin_days,
             "sgb": self._acc_30e360,
+            "sgbb": self._acc_lin_days,
             "cadgb": self._acc_act365_1y_stub,
             "cadgb-ytm": self._acc_lin_days,
         }
@@ -2410,8 +2413,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         if self.kwargs["frequency"] is NoInput.blank:
             raise ValueError("`frequency` must be provided for Bond.")
-        elif self.kwargs["frequency"].lower() == "z":
-            raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
+        # elif self.kwargs["frequency"].lower() == "z":
+        #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
         self.calc_mode = self.kwargs["calc_mode"].lower()
         self.curves = curves
@@ -2780,6 +2783,24 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
+        calc_mode : str in {"ukg", "ust", "sgb"}
+        A calculation mode for dealing with bonds that are in short stub or accrual
+        periods. All modes give the same value for YTM at issue date for regular
+        bonds but differ slightly for bonds with stubs or with accrued.
+    calc_mode : str in {"ukg", "ust", "sgb"}
+        A calculation mode for dealing with bonds that are in short stub or accrual
+        periods. All modes give the same value for YTM at issue date for regular
+        bonds but differ slightly for bonds with stubs or with accrued.
+    curves : CurveType, str or list of such, optional
+        A single *Curve* or string id or a list of such.
+
+        A list defines the following curves in the order:
+
+        - Forecasting *Curve* for ``leg1``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
 
     Examples
     --------
@@ -2804,17 +2825,17 @@ class Bill(FixedRateBond):
        bill = Bill(
            effective=dt(2004, 1, 22),
            termination=dt(2004, 2, 19),
-           frequency="M",
            calendar="nyc",
-           modifier="MF",
+           modifier="NONE",
            currency="usd",
            convention="Act360",
            settle=1,
            notional=-1e6,  # negative notional receives fixed, i.e. buys a bill
            curves="bill_curve",
+           calc_mode="ustb",
        )
        bill.ex_div(dt(2004, 1, 22))
-       bill.price(discount_rate=0.80, settlement=dt(2004, 1, 22))
+       bill.price(rate=0.80, settlement=dt(2004, 1, 22))
        bill.simple_rate(price=99.937778, settlement=dt(2004, 1, 22))
        bill.discount_rate(price=99.937778, settlement=dt(2004, 1, 22))
        bill.ytm(price=99.937778, settlement=dt(2004, 1, 22))
@@ -2885,21 +2906,21 @@ class Bill(FixedRateBond):
         self,
         effective: Union[datetime, NoInput] = NoInput(0),
         termination: Union[datetime, str, NoInput] = NoInput(0),
-        frequency: Union[int, NoInput] = NoInput(0),
         modifier: Union[str, None, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         payment_lag: Union[int, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         currency: Union[str, NoInput] = NoInput(0),
         convention: Union[str, NoInput] = NoInput(0),
-        settle: int = 1,
+        settle: Union[str, NoInput] = NoInput(0),
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
         super().__init__(
             effective=effective,
             termination=termination,
-            frequency=frequency,
+            frequency="z",
             stub=NoInput(0),
             front_stub=NoInput(0),
             back_stub=NoInput(0),
@@ -2916,7 +2937,17 @@ class Bill(FixedRateBond):
             ex_div=0,
             settle=settle,
             curves=curves,
+            calc_mode=calc_mode,
+            spec=spec,
         )
+
+    @property
+    def dcf(self):
+        # bills will typically have 1 period since they are configured with frequency "z".
+        d = 0.0
+        for i in range(self.leg1.schedule.n_periods):
+            d += self.leg1.periods[i].dcf
+        return d
 
     def rate(
         self,
@@ -2996,7 +3027,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -3014,19 +3045,23 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
 
     def price(
-        self, discount_rate: DualTypes, settlement: datetime, dirty: bool = False
+        self,
+        rate: DualTypes,
+        settlement: datetime,
+        dirty: bool = False,
+        calc_mode: Union[str, NoInput] = NoInput(0),
     ) -> DualTypes:
         """
         Return the price of the bill given the ``discount_rate``.
 
         Parameters
         ----------
-        discount_rate : float
+        rate : float
             The rate used by the pricing formula.
         settlement : datetime
             The settlement date.
@@ -3034,14 +3069,85 @@ class Bill(FixedRateBond):
             Discount securities have no coupon, the concept of clean or dirty is not
             relevant. Argument is included for signature consistency with
             :meth:`FixedRateBond.price<rateslib.instruments.FixedRateBond.price>`.
+        calc_mode : str, optional
+            A calculation mode to force, which is used instead of that attributed the
+            *Bill* instance.
 
         Returns
         -------
         float, Dual, Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.leg1.periods[0].dcf
-        return 100 - discount_rate * dcf
+        price_funcs = {
+            NoInput(0): self._price_discount,
+            "sgbb": self._price_simple,
+            "uktb": self._price_simple,
+            "ustb": self._price_discount,
+        }
+        if not isinstance(calc_mode, str):
+            calc_mode = self.calc_mode
+        return price_funcs[calc_mode](rate, settlement)
 
+    def _price_discount(self, rate: DualTypes, settlement: datetime):
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        return 100 - rate * dcf
+
+    def _price_simple(self, rate: DualTypes, settlement: datetime):
+        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        return 100 / (1 + rate * dcf / 100)
+
+    def ytm(
+        self,
+        price: DualTypes,
+        settlement: datetime,
+        calc_mode: Union[str, NoInput] = NoInput(0)
+    ):
+        """
+        Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
+
+        Parameters
+        ----------
+        price: float, Dual, Dual2
+            The price of the *Bill*.
+        settlement: datetime
+            The settlement date of the *Bill*.
+        calc_mode : str, optional
+            A calculation mode to force, which is used instead of that attributed the
+            *Bill* instance.
+
+        Notes
+        -----
+        Maps the following *Bill* ``calc_mode`` to the following *Bond* specifications:
+
+        - *NoInput* -> "ust"
+        - *"ustb"* -> "ust"
+        - *"uktb"* -> "ukt"
+        - *"sgbb"* -> "sgb"
+
+        This method calculates by constructing a :class:`~rateslib.instruments.FixedRateBond`
+        with a regular 0% coupon measured from the termination date of the bill.
+        """
+        spec_map = {
+            NoInput(0): "usd_gb",
+            "ustb": "usd_gb",
+            "uktb": "gbp_gb",
+            "sgbb": "sek_gb",
+        }
+        if isinstance(calc_mode, str):
+            calc_mode = calc_mode.lower()
+        else:
+            calc_mode = self.calc_mode
+        spec_kwargs = defaults.spec[spec_map[calc_mode]]
+        frequency_months = defaults.frequency_months[spec_kwargs["frequency"].upper()]
+        quasi_start = self.leg1.schedule.termination
+        while quasi_start > settlement:
+            quasi_start = add_tenor(quasi_start, f"-{frequency_months}M", "NONE", NoInput(0), NoInput(0))
+        equiv_bond = FixedRateBond(
+            effective=quasi_start,
+            termination=self.leg1.schedule.termination,
+            fixed_rate=0.0,
+            spec=spec_map[calc_mode]
+        )
+        return equiv_bond.ytm(price, settlement)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

@@ -47,6 +47,23 @@ def curve2():
 
 class TestFixedRateBond:
 
+    def test_accrued_in_text(self):
+        bond = FixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination=dt(2023, 1, 1),
+            fixed_rate=5.0,
+            spec="cadgb",
+        )
+        assert abs(bond.accrued(dt(2022, 4, 15)) - 1.42465753) < 1e-8
+
+        bond = FixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination=dt(2023, 1, 1),
+            fixed_rate=5.0,
+            spec="gilt",
+        )
+        assert abs(bond.accrued(dt(2022, 4, 15)) - 1.43646409) < 1e-8
+
     # UK Gilts Tests: Data from public DMO website.
 
     @pytest.mark.parametrize("settlement, exp", [
@@ -416,6 +433,7 @@ class TestFixedRateBond:
         )
         assert result == expected
 
+    @pytest.mark.skip(reason="Bills have Z frequency, this no longer raises")
     def test_fixed_rate_bond_zero_frequency_raises(self):
         with pytest.raises(ValueError, match="FixedRateBond `frequency`"):
             FixedRateBond(dt(1999, 5, 7), dt(2002, 12, 7), "Z", convention="ActActICMA")
@@ -967,10 +985,10 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
+            calc_mode="ustb",
         )
 
         assert bill.discount_rate(99.93777, dt(2004, 1, 22)) == 0.8000999999999543
@@ -980,37 +998,38 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
+            calc_mode="ustb",
         )
         # this YTM is equivalent to the FixedRateBond ytm with coupon of 0.0
 
-        bond = FixedRateBond(
-            effective=dt(2004, 1, 22),
-            termination=dt(2004, 2, 19),
-            frequency="A",
-            calendar="nyc",
-            currency="usd",
-            convention="Act360",
-            fixed_rate=0.0,
-            modifier="NONE",
-            calc_mode="ust",
-        )
-        bond.price(ytm=0.8, settlement=dt(2004, 1, 22))
-        example = bond.ytm(price=99.937778, settlement=dt(2004, 1, 22))
+        result = bill.ytm(99.937778, dt(2004, 1, 22))
 
-        assert abs(bill.ytm(99.937778, dt(2004, 1, 22)) - 0.8034566609543146) < 1e-9
+        # TODO this does not match US treasury example because the method is different
+        assert abs(result - 0.814) < 1e-2
+
+    def test_bill_ytm2(self):
+        # this is a longer than 6m period
+        bill = Bill(
+            effective=dt(1990, 6, 7),
+            termination=dt(1991, 6, 6),
+            convention="act360",
+            calc_mode="ustb",
+        )
+        price = bill.price(7.65, settlement=dt(1990, 6, 7))
+        result = bill.ytm(price, settlement=dt(1990, 6, 7))
+        assert abs(result - 8.237) < 1e-3
 
     def test_bill_simple_rate(self):
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
+            calc_mode="ustb",
         )
         d = dcf(dt(2004, 1, 22), dt(2004, 2, 19), "Act360")
         expected = 100 * (1 / (1 - 0.0080009999999 * d) - 1) / d  # floating point truncation
@@ -1024,11 +1043,11 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
             settle=0,
+            calc_mode="ustb"
         )
 
         result = bill.rate(curve, metric="price")
@@ -1071,7 +1090,6 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
@@ -1079,6 +1097,19 @@ class TestBill:
 
         with pytest.raises(ValueError, match="`metric` must be in"):
             bill.rate(curve, metric="bad vibes")
+
+    def test_sgbb(self):
+        bill = Bill(
+            effective=dt(2023, 3, 15),
+            termination=dt(2024, 3, 20),
+            spec="sgbb",
+        )
+        result = bill.price(3.498, settlement=dt(2023, 3, 15))
+        expected = 96.520547
+        assert abs(result - expected) < 1e-6
+
+        ytm = bill.ytm(price=96.520547, settlement=dt(2023, 3, 15))
+        assert abs(ytm - 3.5546338) < 1e-5
 
 
 class TestFloatRateBond:

@@ -189,6 +189,12 @@ risk calculations.
    fxb.accrued(settlement=dt(2025, 2, 14))
    fxb.price(ytm=4.0, settlement=dt(2025, 2, 14))
    fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="duration")
+   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="modified")
+   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
+
+.. image:: _static/ust_10y.gif
+  :alt: US Treasury example using the FixedRateBond class
+  :width: 611
 
 .. toctree::
     :hidden:

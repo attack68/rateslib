@@ -103,9 +103,11 @@ INSTRUMENT_SPECS = {
     "gbp_zcs": _get_kwargs("gbp_zcs"),  # ZCS
     "sek_iirs": _get_kwargs("sek_iirs"),  # IIRS
     "usd_gb": _get_kwargs("usd_gb"),  # FRB
+    "usd_gbb": _get_kwargs("usd_gbb"),
     "gbp_gb": _get_kwargs("gbp_gb"),
     "cad_gb": _get_kwargs("cad_gb"),
     "sek_gb": _get_kwargs("sek_gb"),
+    "sek_gbb": _get_kwargs("sek_gbb"),
     "test": _get_kwargs("test"),  # TEST
 }
 
@@ -115,7 +117,10 @@ INSTRUMENT_SPECS = {
     **INSTRUMENT_SPECS,
     "sofr": INSTRUMENT_SPECS["usd_irs"],
     "ust": INSTRUMENT_SPECS["usd_gb"],
-    "ukg": INSTRUMENT_SPECS["gbp_gb"],
+    "ustb": INSTRUMENT_SPECS["usd_gbb"],
+    "ukt": INSTRUMENT_SPECS["gbp_gb"],
+    "gilt": INSTRUMENT_SPECS["gbp_gb"],
     "cadgb": INSTRUMENT_SPECS["cad_gb"],
     "sgb": INSTRUMENT_SPECS["sek_gb"],
+    "sgbb": INSTRUMENT_SPECS["sek_gbb"],
 }
