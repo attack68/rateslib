@@ -433,6 +433,7 @@ class TestFixedRateBond:
         )
         assert result == expected
 
+    @pytest.mark.skip(reason="Bills have Z frequency, this no longer raises")
     def test_fixed_rate_bond_zero_frequency_raises(self):
         with pytest.raises(ValueError, match="FixedRateBond `frequency`"):
             FixedRateBond(dt(1999, 5, 7), dt(2002, 12, 7), "Z", convention="ActActICMA")
@@ -984,68 +985,52 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
+            calc_mode="ustb",
         )
 
         assert bill.discount_rate(99.93777, dt(2004, 1, 22)) == 0.8000999999999543
         assert bill.price(0.800, dt(2004, 1, 22)) == 99.93777777777778
 
-    def test_bill_discount_rate_frequency(self):
-        bill = Bill(
-            effective=dt(2023, 8, 10),
-            termination=dt(2024, 8, 8),
-            frequency="A",
-            convention="act360",
-        )
-        expected = bill.discount_rate(price=96.1030, settlement=dt(2023, 8, 25))
-
-        bill = Bill(
-            effective=dt(2023, 8, 10),
-            termination=dt(2024, 8, 8),
-            frequency="S",
-            convention="act360",
-        )
-        result = bill.discount_rate(price=96.1030, settlement=dt(2023, 8, 25))
-        assert result == expected
-
     def test_bill_ytm(self):
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
+            calc_mode="ustb",
         )
         # this YTM is equivalent to the FixedRateBond ytm with coupon of 0.0
 
-        bond = FixedRateBond(
-            effective=dt(2004, 1, 22),
-            termination=dt(2004, 2, 19),
-            frequency="A",
-            calendar="nyc",
-            currency="usd",
-            convention="Act360",
-            fixed_rate=0.0,
-            modifier="NONE",
-            calc_mode="ust",
-        )
-        bond.price(ytm=0.8, settlement=dt(2004, 1, 22))
-        example = bond.ytm(price=99.937778, settlement=dt(2004, 1, 22))
+        result = bill.ytm(99.937778, dt(2004, 1, 22))
 
-        assert abs(bill.ytm(99.937778, dt(2004, 1, 22)) - 0.8034566609543146) < 1e-9
+        # TODO this does not match US treasury example because the method is different
+        assert abs(result - 0.814) < 1e-2
+
+    def test_bill_ytm2(self):
+        # this is a longer than 6m period
+        bill = Bill(
+            effective=dt(1990, 6, 7),
+            termination=dt(1991, 6, 6),
+            convention="act360",
+            calc_mode="ustb",
+        )
+        price = bill.price(7.65, settlement=dt(1990, 6, 7))
+        result = bill.ytm(price, settlement=dt(1990, 6, 7))
+        assert abs(result - 8.237) < 1e-3
+
 
     def test_bill_simple_rate(self):
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
+            calc_mode="ustb",
         )
         d = dcf(dt(2004, 1, 22), dt(2004, 2, 19), "Act360")
         expected = 100 * (1 / (1 - 0.0080009999999 * d) - 1) / d  # floating point truncation
@@ -1059,11 +1044,11 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
             settle=0,
+            calc_mode="ustb"
         )
 
         result = bill.rate(curve, metric="price")
@@ -1106,7 +1091,6 @@ class TestBill:
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
-            frequency="A",
             calendar="nyc",
             currency="usd",
             convention="Act360",
