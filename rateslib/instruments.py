@@ -2825,17 +2825,17 @@ class Bill(FixedRateBond):
        bill = Bill(
            effective=dt(2004, 1, 22),
            termination=dt(2004, 2, 19),
-           frequency="M",
            calendar="nyc",
-           modifier="MF",
+           modifier="NONE",
            currency="usd",
            convention="Act360",
            settle=1,
            notional=-1e6,  # negative notional receives fixed, i.e. buys a bill
            curves="bill_curve",
+           calc_mode="ustb",
        )
        bill.ex_div(dt(2004, 1, 22))
-       bill.price(discount_rate=0.80, settlement=dt(2004, 1, 22))
+       bill.price(rate=0.80, settlement=dt(2004, 1, 22))
        bill.simple_rate(price=99.937778, settlement=dt(2004, 1, 22))
        bill.discount_rate(price=99.937778, settlement=dt(2004, 1, 22))
        bill.ytm(price=99.937778, settlement=dt(2004, 1, 22))

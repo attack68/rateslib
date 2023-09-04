@@ -1022,7 +1022,6 @@ class TestBill:
         result = bill.ytm(price, settlement=dt(1990, 6, 7))
         assert abs(result - 8.237) < 1e-3
 
-
     def test_bill_simple_rate(self):
         bill = Bill(
             effective=dt(2004, 1, 22),
@@ -1098,6 +1097,19 @@ class TestBill:
 
         with pytest.raises(ValueError, match="`metric` must be in"):
             bill.rate(curve, metric="bad vibes")
+
+    def test_sgbb(self):
+        bill = Bill(
+            effective=dt(2023, 3, 15),
+            termination=dt(2024, 3, 20),
+            spec="sgbb",
+        )
+        result = bill.price(3.498, settlement=dt(2023, 3, 15))
+        expected = 96.520547
+        assert abs(result - expected) < 1e-6
+
+        ytm = bill.ytm(price=96.520547, settlement=dt(2023, 3, 15))
+        assert abs(ytm - 3.5546338) < 1e-5
 
 
 class TestFloatRateBond:
