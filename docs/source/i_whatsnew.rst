@@ -72,6 +72,9 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Instruments
+     - add ``calc_mode`` and ``spec`` to :class:`~rateslib.instruments.Bill` to allow different
+       geographic conventions.
+   * - Instruments
      - Add a ``spec`` keyword argument to allow instruments to be pre-defined and follow
        market conventions without the user needing to input these directly, but preserving an
        ability to overwrite specific values.
