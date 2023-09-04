@@ -9,6 +9,7 @@ from rateslib import defaults, default_context
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
+    Bill,
     IRS,
     IIRS,
     SBS,
@@ -2408,6 +2409,18 @@ class TestSpec:
         assert bond.kwargs["currency"] == "usd"
         assert bond.kwargs["fixed_rate"] == 2.0
         assert bond.kwargs["ex_div"] == 1
+
+    def test_bill(self):
+        bill = Bill(
+            effective=dt(2022, 1, 1),
+            termination="3m",
+            spec="ustb",
+            convention="act365f",
+        )
+        assert bill.calc_mode == "ustb"
+        assert bill.kwargs["convention"] == "act365f"
+        assert bill.kwargs["currency"] == "usd"
+        assert bill.kwargs["fixed_rate"] == 0.0
 
 
 @pytest.mark.parametrize("inst, expected", [
