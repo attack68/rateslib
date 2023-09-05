@@ -93,6 +93,9 @@ INSTRUMENT_SPECS = {
     "nok_irs3": _get_kwargs("nok_irs3"),
     "nok_irs6": _get_kwargs("nok_irs6"),
     "chf_irs": _get_kwargs("chf_irs"),
+    "eur_fra3": _get_kwargs("eur_fra3"),  # FRA
+    "eur_fra6": _get_kwargs("eur_fra6"),
+    "sek_fra3": _get_kwargs("sek_fra3"),
     "eur_sbs36": _get_kwargs("eur_sbs36"),  # SBS
     "eurusd_xcs": _get_kwargs("eurusd_xcs"),  # XCS
     "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),

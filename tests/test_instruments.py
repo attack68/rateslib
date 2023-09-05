@@ -2422,6 +2422,22 @@ class TestSpec:
         assert bill.kwargs["currency"] == "usd"
         assert bill.kwargs["fixed_rate"] == 0.0
 
+    def test_fra(self):
+        fra = FRA(
+            effective=dt(2022, 1, 1),
+            termination="3m",
+            spec="eur_fra3",
+            payment_lag=5,
+            modifier="F",
+            fixed_rate=2.0
+        )
+        assert fra.kwargs["leg2_fixing_method"] == "ibor"
+        assert fra.kwargs["convention"] == "act360"
+        assert fra.kwargs["currency"] == "eur"
+        assert fra.kwargs["fixed_rate"] == 2.0
+        assert fra.kwargs["leg2_payment_lag"] == 5
+        assert fra.kwargs["leg2_modifier"] == "F"
+
 
 @pytest.mark.parametrize("inst, expected", [
     (IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
