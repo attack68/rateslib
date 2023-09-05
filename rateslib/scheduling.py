@@ -11,6 +11,7 @@ from rateslib.default import NoInput
 from rateslib.calendars import (
     get_calendar,
     _is_holiday,
+    _is_eom_cal,
     add_tenor,
     _add_months,
     _adjust_date,
@@ -308,8 +309,12 @@ class Schedule:
 
         if isinstance(termination, str):
             # if termination is string the end date is calculated as unadjusted
+            if self.eom and roll is NoInput.blank and _is_eom_cal(self.effective, self.calendar):
+                roll_ = 31
+            else:
+                roll_ = roll
             termination_: datetime = add_tenor(
-                self.effective, termination, "NONE", NoInput(0), roll
+                self.effective, termination, "NONE", NoInput(0), roll_
             )
         else:
             termination_ = termination
