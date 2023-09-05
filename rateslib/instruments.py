@@ -578,6 +578,7 @@ class BaseMixin:
         self._leg2_index_base = value
         self.leg2.index_base = value
 
+    @abc.abstractmethod
     def analytic_delta(self, *args, leg=1, **kwargs):
         """
         Return the analytic delta of a leg of the derivative object.
@@ -620,7 +621,7 @@ class BaseMixin:
         """
         return getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
 
-    @abstractmethod
+    @abc.abstractmethod
     def cashflows(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -6142,7 +6143,6 @@ class FRA(Sensitivities, BaseMixin):
             currency=_lower(currency),
             convention=_upper(convention),
             fixed_rate=fixed_rate,
-            stub=False,
             leg2_effective=NoInput(1),
             leg2_termination=NoInput(1),
             leg2_convention=NoInput(1),
@@ -6157,7 +6157,6 @@ class FRA(Sensitivities, BaseMixin):
             leg2_method_param=method_param,
             leg2_spread_compound_method="none_simple",
             leg2_fixings=fixings,
-            leg2_stub=False
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -6175,43 +6174,13 @@ class FRA(Sensitivities, BaseMixin):
 
         # Build
         self.curves = curves
-        self.kwargs["payment"] = add_tenor(
-            self.kwargs["effective"],
-            f"{self.kwargs['payment_lag']}B",
-            NoInput(0),
-            self.kwargs["calendar"],
-        )
-        self.kwargs["leg2_payment"] = self.kwargs["payment"]
-
-        if self.kwargs["roll"] is NoInput.blank:
-            # attempt roll inferral
-            self.kwargs["roll"] = (
-                "eom" if (_is_eom_cal(self.kwargs["effective"], self.kwargs["calendar"])
-                          and self.kwargs["eom"])
-                else self.kwargs["effective"].day
-            )
-        else:
-            self.kwargs["roll"] = roll
-        self.kwargs["leg2_roll"] = self.kwargs["roll"]
-
-        if isinstance(termination, str):
-            # if termination is string the end date is calculated as unadjusted
-            self.kwargs["termination"] = add_tenor(
-                self.kwargs["effective"], self.kwargs["termination"],
-                self.kwargs["modifier"], self.kwargs["calendar"], self.kwargs["roll"])
-            self.kwargs["leg2_termination"] = self.kwargs["termination"]
-
-        self.kwargs["start"] = self.kwargs["effective"]
-        self.kwargs["end"] = self.kwargs["termination"]
-        self.kwargs["leg2_start"] = self.kwargs["leg2_effective"]
-        self.kwargs["leg2_end"] = self.kwargs["leg2_termination"]
 
         self._fixed_rate = self.kwargs["fixed_rate"]
-        self.leg1 = FixedPeriod(**_get(self.kwargs, leg=1,
-                                       filter=["effective", "payment_lag", "eom", "modifier"]))
-        self.leg2 = FloatPeriod(**_get(self.kwargs, leg=2,
-                                       filter=["leg2_effective", "leg2_payment_lag", "leg2_eom", "leg2_modifier"]))
-        # FloatPeriod is used only to access the rate method for calculations.
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
+
+        if self.leg1.schedule.n_periods != 1 or self.leg2.schedule.n_periods != 1:
+            raise ValueError("FRA scheduling inputs did not define a single period.")
 
     def _set_pricing_mid(
         self,
@@ -6237,8 +6206,8 @@ class FRA(Sensitivities, BaseMixin):
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
-        _ = self.leg1.notional * self.leg1.dcf * disc_curve_[self.leg1.payment] / 10000
-        return fx * _ / (1 + self.leg1.dcf * rate / 100)
+        _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self.leg1.schedule.pschedule[0]] / 10000
+        return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
 
     def npv(
         self,
@@ -6259,7 +6228,7 @@ class FRA(Sensitivities, BaseMixin):
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
         fx, base = _get_fx_and_base(self.leg1.currency, fx_, base_)
-        value = self.cashflow(curves[0]) * curves[1][self.leg1.payment]
+        value = self.cashflow(curves[0]) * curves[1][self.leg1.schedule.pschedule[0]]
         if local:
             return {self.leg1.currency: value}
         else:
@@ -6298,7 +6267,7 @@ class FRA(Sensitivities, BaseMixin):
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        return self.leg2.rate(curves[0])
+        return self.leg2.periods[0].rate(curves[0])
 
     def cashflow(self, curve: Union[Curve, LineCurve]):
         """
@@ -6314,14 +6283,14 @@ class FRA(Sensitivities, BaseMixin):
         -------
         float, Dual or Dual2
         """
-        cf1 = self.leg1.cashflow
-        cf2 = self.leg2.cashflow(curve)
+        cf1 = self.leg1.periods[0].cashflow
+        cf2 = self.leg2.periods[0].cashflow(curve)
         if cf1 is not NoInput.blank and cf2 is not NoInput.blank:
             cf = cf1 + cf2
         else:
             return None
-        rate = None if curve is NoInput.blank else 100 * cf2 / (-self.leg2.notional * self.leg2.dcf)
-        cf /= 1 + self.leg1.dcf * rate / 100
+        rate = None if curve is NoInput.blank else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
+        cf /= 1 + self.leg1.periods[0].dcf * rate / 100
 
         # if self.fixed_rate is NoInput.blank:
         #     return 0  # set the fixed rate = to floating rate netting to zero
@@ -6358,13 +6327,13 @@ class FRA(Sensitivities, BaseMixin):
         fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
         cf = float(self.cashflow(curves[0]))
-        npv_local = self.cashflow(curves[0]) * curves[1][self.leg1.payment]
+        npv_local = self.cashflow(curves[0]) * curves[1][self.leg1.schedule.pschedule[0]]
 
         _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
         _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
-        cfs = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
+        cfs = self.leg1.periods[0].cashflows(curves[0], curves[1], fx_, base_)
         cfs[defaults.headers["type"]] = "FRA"
-        cfs[defaults.headers["payment"]] = self.leg1.payment
+        cfs[defaults.headers["payment"]] = self.leg1.schedule.pschedule[0]
         cfs[defaults.headers["cashflow"]] = cf
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd

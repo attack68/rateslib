@@ -996,7 +996,7 @@ class TestFRA:
             payment_lag=2,
             notional=1e9,
             convention="Act360",
-            frequency="Q",
+            frequency="s",
             fixed_rate=4.035,
         )
         result = fra.cashflows(curve)
@@ -1030,7 +1030,7 @@ class TestFRA:
             eom=eom,
             calendar="bus",
         )
-        assert fra.leg1.end == exp
+        assert fra.leg1.schedule.termination == exp
 
 
 class TestZCS:
