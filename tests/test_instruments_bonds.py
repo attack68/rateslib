@@ -1111,6 +1111,19 @@ class TestBill:
         ytm = bill.ytm(price=96.520547, settlement=dt(2023, 3, 15))
         assert abs(ytm - 3.5546338) < 1e-5
 
+    def test_text_example(self):
+        bill = Bill(effective=dt(2023, 5, 17), termination=dt(2023, 9, 26), spec="ustb")
+        result = bill.ytm(99.75, settlement=dt(2023, 9, 7))
+        bond = FixedRateBond(
+            effective=dt(2023, 3, 26),
+            termination=dt(2023, 9, 26),
+            fixed_rate=0.0,
+            spec="ust"
+        )
+        expected = bond.ytm(99.75, settlement=dt(2023, 9, 7))
+        assert abs(result - expected) < 1e-14
+        assert abs(result - 4.90740754) < 1e-7
+
 
 class TestFloatRateBond:
     @pytest.mark.parametrize(
