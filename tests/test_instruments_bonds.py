@@ -749,6 +749,29 @@ class TestFixedRateBond:
         result = gilt.repo_from_fwd(100.0, dt(2001, 1, 1), f_s, f_p, "act365f", dirty=True)
         assert abs(result - 1.0) < 1e-8
 
+    def test_oas(self):
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            notional=-100,
+            settle=0,
+        )
+        curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
+        # result = gilt.npv(curve) = 113.22198344812742
+        result = gilt.oas(curve, price=91.0)
+        curve_z = curve.shift(result, composite=False)
+        result = gilt.rate(curve_z, metric="clean_price")
+        assert abs(result - 96.0) < 1e-3
+
+
+        pass
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self):
