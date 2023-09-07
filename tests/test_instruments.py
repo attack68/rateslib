@@ -9,6 +9,7 @@ from rateslib import defaults, default_context
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
+    FloatRateNote,
     Bill,
     IRS,
     IIRS,
@@ -2437,6 +2438,20 @@ class TestSpec:
         assert fra.kwargs["fixed_rate"] == 2.0
         assert fra.kwargs["leg2_payment_lag"] == 5
         assert fra.kwargs["leg2_modifier"] == "F"
+
+    def test_frn(self):
+        frn = FloatRateNote(
+            effective=dt(2022, 1, 1),
+            termination="3y",
+            spec="usd_frn5",
+            payment_lag=5,
+        )
+        assert frn.kwargs["fixing_method"] == "rfr_observation_shift"
+        assert frn.kwargs["method_param"] == 5
+        assert frn.kwargs["convention"] == "act360"
+        assert frn.kwargs["currency"] == "usd"
+        assert frn.kwargs["payment_lag"] == 5
+        assert frn.kwargs["modifier"] == "mf"
 
 
 @pytest.mark.parametrize("inst, expected", [

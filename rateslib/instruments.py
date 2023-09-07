@@ -2033,6 +2033,72 @@ class BondMixin:
             cashflows.loc[current_period, defaults.headers["npv_fx"]] = 0
         return cashflows
 
+    def oaspread(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        price: DualTypes = NoInput(0),
+        dirty: bool = False,
+    ):
+        """
+        The option adjusted spread added to the discounting *Curve* to value the security
+        at ``price``.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`Curve` or id or a list of such. A list defines the
+            following curves in the order:
+
+              - Forecasting :class:`Curve` for ``leg1``.
+              - Discounting :class:`Curve` for ``leg1``.
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        price : float, Dual, Dual2
+            The price of the bond to match.
+        dirty : bool
+            Whether the price is given clean or dirty.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
+        )
+        ad_ = curves[1].ad
+        curves[1]._set_ad_order(2)
+        disc_curve = curves[1].shift(Dual2(0, "z_spread"), composite=False)
+        curves[1]._set_ad_order(0)
+        metric = "dirty_price" if dirty else "clean_price"
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+
+        a, b = 0.5 * npv_price.gradient("z_spread", 2)[0][0], npv_price.gradient("z_spread", 1)[0]
+        z = _quadratic_equation(a, b, float(npv_price) - float(price))
+        # first z is solved by using 1st and 2nd derivatives to get close to target NPV
+
+        # TODO (low) add a tolerance here to continually converge to the solution, via GradDes?
+        disc_curve = curves[1].shift(z, composite=False)
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+        diff = npv_price - price
+        new_b = b + 2 * a * z
+        z = z - diff / new_b
+        # then a final linear adjustment is made which is usually very small
+
+        curves[1]._set_ad_order(ad_)
+        return z
+
 
 class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # TODO (mid) ensure calculations work for amortizing bonds.
@@ -3003,7 +3069,7 @@ class Bill(FixedRateBond):
             * 100
             / (-self.leg1.notional * curves[1][settlement])
         )
-        if metric in ["price", "clean_price"]:
+        if metric in ["price", "clean_price", "dirty_price"]:
             return price
         elif metric == "discount_rate":
             return self.discount_rate(price, settlement)
@@ -3155,9 +3221,9 @@ class Bill(FixedRateBond):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
+class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     """
-    Create a floating rate bond security.
+    Create a floating rate note (FRN) security.
 
     Parameters
     ----------
@@ -3268,13 +3334,8 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         settle: int = 1,
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
-        self.curves = curves
-        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
-        if frequency.lower() == "z":
-            raise ValueError("FloatRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is NoInput.blank:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self.kwargs = dict(
             effective=effective,
             termination=termination,
@@ -3296,17 +3357,37 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             fixing_method=fixing_method,
             method_param=method_param,
             spread_compound_method=spread_compound_method,
+            initial_exchange=NoInput(0),
+            final_exchange=NoInput(0),
+            ex_div=ex_div,
+            settle=settle,
+            calc_mode=calc_mode,
+        )
+        self.kwargs = _push(spec, self.kwargs)
+
+        # set defaults for missing values
+        default_kwargs = dict(
+            calc_mode=defaults.calc_mode,
             initial_exchange=False,
             final_exchange=True,
+            payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            ex_div=defaults.ex_div,
+            settle=defaults.settle,
         )
+        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
+
+        if self.kwargs["frequency"] is NoInput.blank:
+            raise ValueError("`frequency` must be provided for Bond.")
+        elif self.kwargs["frequency"].lower() == "z":
+            raise ValueError("FloatRateNote `frequency` must be in {M, B, Q, T, S, A}.")
+
+        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.curves = curves
+        self.spec = spec
+
         self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.kwargs.update(
-            dict(
-                ex_div=ex_div,
-                settle=settle,
-            )
-        )
+        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"]))
+
         if "rfr" in self.leg1.fixing_method:
             if self.kwargs["ex_div"] > (self.leg1.method_param + 1):
                 raise ValueError(
@@ -3314,6 +3395,12 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                     "otherwise negative accrued payments cannot be explicitly "
                     "determined due to unknown fixings."
                 )
+
+        if self.leg1.amortization != 0:
+            # Note if amortization is added to FloatRateNote must systematically
+            # go through and update all methods. Many rely on the quantity
+            # self.notional which is currently assumed to be a fixed quantity
+            raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
     def accrued(
         self,
@@ -3373,7 +3460,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         .. ipython:: python
 
            fixings = Series(2.0, index=date_range(dt(1999, 12, 1), dt(2000, 6, 2)))
-           frn = FloatRateBond(
+           frn = FloatRateNote(
                effective=dt(1998, 12, 7),
                termination=dt(2015, 12, 7),
                frequency="S",
@@ -3393,7 +3480,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         .. ipython:: python
 
            fixings = Series(2.0, index=[dt(1999, 12, 5)])
-           frn = FloatRateBond(
+           frn = FloatRateNote(
                effective=dt(1998, 12, 7),
                termination=dt(2015, 12, 7),
                frequency="S",
@@ -8248,6 +8335,28 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
 #     return x1, steps_taken
 
 
+def _quadratic_equation(a: float, b: float, c: float):
+    """
+    solver the equation ax^2 + bx + c = 0, via the quadratic formula.
+    """
+    # perform the quadratic solution
+    _1 = -c / b  # approximate linear solution: applicable for most situations.
+    discriminant = b**2 - 4 * a * c
+    if abs(a) > 1e-14:
+        _2a = (-b - discriminant ** 0.5) / (2 * a)
+        _2b = (-b + discriminant ** 0.5) / (2 * a)  # alt quadratic soln
+        if abs(_1 - _2a) < abs(_1 - _2b):
+            _ = _2a
+        else:
+            _ = _2b  # select quadratic soln
+    else:
+        # this is to avoid divide by zero errors and return an approximation
+        # also isda_flat_compounding has a=0
+        _ = _1
+
+    return _
+
+
 def _get(kwargs: dict, leg: int = 1, filter=[]):
     """
     A parser to return kwarg dicts for relevant legs.
@@ -8334,6 +8443,7 @@ def _lower(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.lower()
     return val
+
 
 def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):

@@ -99,7 +99,7 @@ from rateslib.instruments import (
     Bill,
     FixedRateBond,
     IndexFixedRateBond,
-    FloatRateBond,
+    FloatRateNote,
     BondFuture,
     IRS,
     IIRS,
@@ -190,7 +190,7 @@ __all__ = [
     # instruments.py
     "FixedRateBond",
     "IndexFixedRateBond",
-    "FloatRateBond",
+    "FloatRateNote",
     "BondFuture",
     "FRA",
     "Value",

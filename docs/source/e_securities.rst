@@ -17,7 +17,7 @@ for example.
 
 .. autosummary::
    rateslib.instruments.FixedRateBond
-   rateslib.instruments.FloatRateBond
+   rateslib.instruments.FloatRateNote
    rateslib.instruments.Bill
 
 
