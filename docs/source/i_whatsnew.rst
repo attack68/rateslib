@@ -72,6 +72,8 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Instruments
+     - Rename :class:`~rateslib.instruments.FloatRateBond` to :class:`~rateslib.instruments.FloatRateNote`.
+   * - Instruments
      - add ``calc_mode`` and ``spec`` to :class:`~rateslib.instruments.Bill` to allow different
        geographic conventions.
    * - Instruments

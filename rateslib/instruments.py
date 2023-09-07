@@ -3221,9 +3221,9 @@ class Bill(FixedRateBond):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
+class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     """
-    Create a floating rate bond security.
+    Create a floating rate note (FRN) security.
 
     Parameters
     ----------
@@ -3334,13 +3334,8 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         settle: int = 1,
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
-        self.curves = curves
-        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
-        if frequency.lower() == "z":
-            raise ValueError("FloatRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is NoInput.blank:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
         self.kwargs = dict(
             effective=effective,
             termination=termination,
@@ -3362,17 +3357,37 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
             fixing_method=fixing_method,
             method_param=method_param,
             spread_compound_method=spread_compound_method,
+            initial_exchange=NoInput(0),
+            final_exchange=NoInput(0),
+            ex_div=ex_div,
+            settle=settle,
+            calc_mode=calc_mode,
+        )
+        self.kwargs = _push(spec, self.kwargs)
+
+        # set defaults for missing values
+        default_kwargs = dict(
+            calc_mode=defaults.calc_mode,
             initial_exchange=False,
             final_exchange=True,
+            payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            ex_div=defaults.ex_div,
+            settle=defaults.settle,
         )
+        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
+
+        if self.kwargs["frequency"] is NoInput.blank:
+            raise ValueError("`frequency` must be provided for Bond.")
+        elif self.kwargs["frequency"].lower() == "z":
+            raise ValueError("FloatRateNote `frequency` must be in {M, B, Q, T, S, A}.")
+
+        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.curves = curves
+        self.spec = spec
+
         self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.kwargs.update(
-            dict(
-                ex_div=ex_div,
-                settle=settle,
-            )
-        )
+        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"]))
+
         if "rfr" in self.leg1.fixing_method:
             if self.kwargs["ex_div"] > (self.leg1.method_param + 1):
                 raise ValueError(
@@ -3380,6 +3395,12 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
                     "otherwise negative accrued payments cannot be explicitly "
                     "determined due to unknown fixings."
                 )
+
+        if self.leg1.amortization != 0:
+            # Note if amortization is added to FloatRateNote must systematically
+            # go through and update all methods. Many rely on the quantity
+            # self.notional which is currently assumed to be a fixed quantity
+            raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
     def accrued(
         self,
@@ -3439,7 +3460,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         .. ipython:: python
 
            fixings = Series(2.0, index=date_range(dt(1999, 12, 1), dt(2000, 6, 2)))
-           frn = FloatRateBond(
+           frn = FloatRateNote(
                effective=dt(1998, 12, 7),
                termination=dt(2015, 12, 7),
                frequency="S",
@@ -3459,7 +3480,7 @@ class FloatRateBond(Sensitivities, BondMixin, BaseMixin):
         .. ipython:: python
 
            fixings = Series(2.0, index=[dt(1999, 12, 5)])
-           frn = FloatRateBond(
+           frn = FloatRateNote(
                effective=dt(1998, 12, 7),
                termination=dt(2015, 12, 7),
                frequency="S",

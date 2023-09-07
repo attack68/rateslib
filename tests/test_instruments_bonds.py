@@ -11,7 +11,7 @@ from rateslib.instruments import (
     IRS,
     FixedRateBond,
     Bill,
-    FloatRateBond,
+    FloatRateNote,
     BondFuture,
     IndexFixedRateBond,
 )
@@ -755,7 +755,7 @@ class TestFixedRateBond:
         (96.0, 1e-3),
         (91.0, 1e-2)
     ])
-    def test_oas(self, price, tol):
+    def test_oaspread(self, price, tol):
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
             termination=dt(2015, 12, 7),
@@ -770,7 +770,7 @@ class TestFixedRateBond:
         )
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
         # result = gilt.npv(curve) = 113.22198344812742
-        result = gilt.oas(curve, price=price)
+        result = gilt.oaspread(curve, price=price)
         curve_z = curve.shift(result, composite=False)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
@@ -1156,7 +1156,7 @@ class TestBill:
         (93.0, 1e-5),
         (80.0, 1e-2)
     ])
-    def test_oas(self, price, tol):
+    def test_oaspread(self, price, tol):
         bill = Bill(
             effective=dt(1998, 12, 7),
             termination=dt(1999, 10, 7),
@@ -1164,13 +1164,13 @@ class TestBill:
         )
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bill.rate(curve, metric="price") # = 98.605
-        result = bill.oas(curve, price=price)
+        result = bill.oaspread(curve, price=price)
         curve_z = curve.shift(result, composite=False)
         result = bill.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
 
-class TestFloatRateBond:
+class TestFloatRateNote:
     @pytest.mark.parametrize(
         "curve_spd, method, float_spd, expected",
         [
@@ -1199,7 +1199,7 @@ class TestFloatRateBond:
         of the curve.
         """
 
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1225,7 +1225,7 @@ class TestFloatRateBond:
         ],
     )
     def test_float_rate_bond_rate_spread_fx(self, curve_spd, method, float_spd, expected):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1251,7 +1251,7 @@ class TestFloatRateBond:
 
     def test_float_rate_bond_accrued(self):
         fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1278,7 +1278,7 @@ class TestFloatRateBond:
     )
     def test_float_rate_bond_rate_metric(self, metric, spd, exp):
         fixings = Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1303,7 +1303,7 @@ class TestFloatRateBond:
     )
     def test_float_rate_bond_accrued_ibor(self, settlement, expected):
         fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1319,8 +1319,8 @@ class TestFloatRateBond:
         assert abs(result - expected) < 1e-8
 
     def test_float_rate_bond_raise_frequency(self):
-        with pytest.raises(ValueError, match="FloatRateBond `frequency`"):
-            FloatRateBond(
+        with pytest.raises(ValueError, match="FloatRateNote `frequency`"):
+            FloatRateNote(
                 effective=dt(2007, 1, 1),
                 termination=dt(2017, 1, 1),
                 frequency="Z",
@@ -1341,7 +1341,7 @@ class TestFloatRateBond:
         ],
     )
     def test_negative_accrued_needs_forecasting(self, fixings):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2009, 9, 16),
             termination=dt(2017, 3, 16),
             frequency="Q",
@@ -1367,7 +1367,7 @@ class TestFloatRateBond:
         ],
     )
     def test_negative_accrued_raises(self, fixings):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2009, 9, 16),
             termination=dt(2017, 3, 16),
             frequency="Q",
@@ -1384,7 +1384,7 @@ class TestFloatRateBond:
             bond.accrued(dt(2010, 3, 11))
 
         with pytest.raises(ValueError, match="For RFR FRNs `ex_div` must be less than"):
-            bond = FloatRateBond(
+            bond = FloatRateNote(
                 effective=dt(2009, 9, 16),
                 termination=dt(2017, 3, 16),
                 frequency="Q",
@@ -1394,7 +1394,7 @@ class TestFloatRateBond:
             )
 
     def test_accrued_no_fixings_in_period(self):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2010, 3, 16),
             termination=dt(2017, 3, 16),
             frequency="Q",
@@ -1411,7 +1411,7 @@ class TestFloatRateBond:
         assert result == 0.0
 
     def test_float_rate_bond_analytic_delta(self):
-        frn = FloatRateBond(
+        frn = FloatRateNote(
             effective=dt(2010, 6, 7),
             termination=dt(2015, 12, 7),
             frequency="S",
@@ -1445,7 +1445,7 @@ class TestFloatRateBond:
         ],
     )
     def test_float_rate_bond_forward_prices(self, metric, spd, exp):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1466,7 +1466,7 @@ class TestFloatRateBond:
         assert abs(result - exp) < 1e-8
 
     def test_float_rate_bond_forward_accrued(self):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1485,7 +1485,7 @@ class TestFloatRateBond:
         assert abs(result - expected) < 1e-8
 
     def test_rate_raises(self):
-        bond = FloatRateBond(
+        bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
             frequency="S",
@@ -1505,7 +1505,7 @@ class TestFloatRateBond:
 
     def test_forecast_ibor(self, curve):
         f_curve = LineCurve({dt(2022, 1, 1): 3.0, dt(2022, 2, 1): 4.0})
-        frn = FloatRateBond(
+        frn = FloatRateNote(
             effective=dt(2022, 2, 1),
             termination="3m",
             frequency="Q",
@@ -1522,8 +1522,8 @@ class TestFloatRateBond:
         (90.0, 1e-3),
         (80.0, 1e-2)
     ])
-    def test_oas(self, price, tol):
-        bond = FloatRateBond(
+    def test_oaspread(self, price, tol):
+        bond = FloatRateNote(
             effective=dt(1998, 12, 7),
             termination=dt(2008, 12, 7),
             frequency="q",
@@ -1532,7 +1532,7 @@ class TestFloatRateBond:
         )
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bond.rate(curve, metric="clean_price") = 99.999999999999953
-        result = bond.oas(curve, price=price)
+        result = bond.oaspread(curve, price=price)
         curve_z = curve.shift(result, composite=False)
         result = bond.rate([curve, curve_z], metric="clean_price")
         assert abs(result - price) < tol

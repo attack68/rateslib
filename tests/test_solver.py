@@ -12,7 +12,7 @@ from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
 from rateslib.solver import Solver, Gradients
 from rateslib.dual import Dual, Dual2
-from rateslib.instruments import IRS, Value, FloatRateBond, Portfolio, XCS
+from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS
 from rateslib.fx import FXRates, FXForwards
 
 
@@ -809,7 +809,7 @@ def test_bad_algo_raises():
 
 def test_solver_float_rate_bond():
     """
-    This test checks the rate method of FloatRateBond when using complex rate spread
+    This test checks the rate method of FloatRateNote when using complex rate spread
     calculations (which artificially introduces Dual2 and then removes it)
     """
     d_c = Curve(
@@ -825,21 +825,21 @@ def test_solver_float_rate_bond():
     f_c.id = "rfr"
     instruments = [
         (
-            FloatRateBond(
+            FloatRateNote(
                 dt(2022, 1, 1), "6M", "Q", spread_compound_method="isda_compounding", settle=2
             ),
             ([f_c, d_c],),
             {"metric": "spread"},
         ),
         (
-            FloatRateBond(
+            FloatRateNote(
                 dt(2022, 1, 1), "1y", "Q", spread_compound_method="isda_compounding", settle=2
             ),
             ([f_c, d_c],),
             {"metric": "spread"},
         ),
         (
-            FloatRateBond(
+            FloatRateNote(
                 dt(2022, 1, 1), "18m", "Q", spread_compound_method="isda_compounding", settle=2
             ),
             ([f_c, d_c],),
