@@ -82,7 +82,7 @@ def _get_kwargs(spec):
 
 
 INSTRUMENT_SPECS = {
-    "usd_irs": _get_kwargs("usd_irs"),   # IRS
+    "usd_irs": _get_kwargs("usd_irs"),  # IRS
     "gbp_irs": _get_kwargs("gbp_irs"),
     "eur_irs": _get_kwargs("eur_irs"),
     "eur_irs3": _get_kwargs("eur_irs3"),

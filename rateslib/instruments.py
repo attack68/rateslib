@@ -37,14 +37,12 @@ from pandas import DataFrame, concat, Series, MultiIndex
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf, _is_eom_cal
+from rateslib.calendars import add_tenor, get_calendar, dcf
 
-# from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
 from rateslib.periods import (
     Cashflow,
-    FixedPeriod,
     FloatPeriod,
     _get_fx_and_base,
     IndexMixin,
@@ -3163,10 +3161,7 @@ class Bill(FixedRateBond):
         return 100 / (1 + rate * dcf / 100)
 
     def ytm(
-        self,
-        price: DualTypes,
-        settlement: datetime,
-        calc_mode: Union[str, NoInput] = NoInput(0)
+        self, price: DualTypes, settlement: datetime, calc_mode: Union[str, NoInput] = NoInput(0)
     ):
         """
         Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
@@ -3207,14 +3202,17 @@ class Bill(FixedRateBond):
         frequency_months = defaults.frequency_months[spec_kwargs["frequency"].upper()]
         quasi_start = self.leg1.schedule.termination
         while quasi_start > settlement:
-            quasi_start = add_tenor(quasi_start, f"-{frequency_months}M", "NONE", NoInput(0), NoInput(0))
+            quasi_start = add_tenor(
+                quasi_start, f"-{frequency_months}M", "NONE", NoInput(0), NoInput(0)
+            )
         equiv_bond = FixedRateBond(
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=spec_map[calc_mode]
+            spec=spec_map[calc_mode],
         )
         return equiv_bond.ytm(price, settlement)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -6293,7 +6291,12 @@ class FRA(Sensitivities, BaseMixin):
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
-        _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self.leg1.schedule.pschedule[0]] / 10000
+        _ = (
+            self.leg1.notional
+            * self.leg1.periods[0].dcf
+            * disc_curve_[self.leg1.schedule.pschedule[0]]
+            / 10000
+        )
         return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
 
     def npv(
@@ -6376,7 +6379,11 @@ class FRA(Sensitivities, BaseMixin):
             cf = cf1 + cf2
         else:
             return None
-        rate = None if curve is NoInput.blank else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
+        rate = (
+            None
+            if curve is NoInput.blank
+            else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
+        )
         cf /= 1 + self.leg1.periods[0].dcf * rate / 100
 
         # if self.fixed_rate is NoInput.blank:
@@ -8343,8 +8350,8 @@ def _quadratic_equation(a: float, b: float, c: float):
     _1 = -c / b  # approximate linear solution: applicable for most situations.
     discriminant = b**2 - 4 * a * c
     if abs(a) > 1e-14:
-        _2a = (-b - discriminant ** 0.5) / (2 * a)
-        _2b = (-b + discriminant ** 0.5) / (2 * a)  # alt quadratic soln
+        _2a = (-b - discriminant**0.5) / (2 * a)
+        _2b = (-b + discriminant**0.5) / (2 * a)  # alt quadratic soln
         if abs(_1 - _2a) < abs(_1 - _2b):
             _ = _2a
         else:
@@ -8449,4 +8456,3 @@ def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.upper()
     return val
-
