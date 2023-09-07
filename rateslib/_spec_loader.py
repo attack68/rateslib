@@ -111,6 +111,7 @@ INSTRUMENT_SPECS = {
     "cad_gb": _get_kwargs("cad_gb"),
     "sek_gb": _get_kwargs("sek_gb"),
     "sek_gbb": _get_kwargs("sek_gbb"),
+    "usd_frn5": _get_kwargs("usd_frn5"),  # FRN
     "test": _get_kwargs("test"),  # TEST
 }
 
