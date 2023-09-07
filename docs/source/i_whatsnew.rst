@@ -72,10 +72,8 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Instruments
-     - Rename :class:`~rateslib.instruments.FloatRateBond` to :class:`~rateslib.instruments.FloatRateNote`.
-   * - Instruments
-     - add ``calc_mode`` and ``spec`` to :class:`~rateslib.instruments.Bill` to allow different
-       geographic conventions.
+     - Rename :class:`~rateslib.instruments.FloatRateBond`
+       to :class:`~rateslib.instruments.FloatRateNote`.
    * - Instruments
      - Add a ``spec`` keyword argument to allow instruments to be pre-defined and follow
        market conventions without the user needing to input these directly, but preserving an
