@@ -2033,6 +2033,71 @@ class BondMixin:
             cashflows.loc[current_period, defaults.headers["npv_fx"]] = 0
         return cashflows
 
+    def oas(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        price: DualTypes = NoInput(0),
+        dirty: bool = False,
+    ):
+        """
+        The option adjusted spread added to the *Curve* to value the security at ``price``.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`Curve` or id or a list of such. A list defines the
+            following curves in the order:
+
+              - Forecasting :class:`Curve` for ``leg1``.
+              - Discounting :class:`Curve` for ``leg1``.
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        price : float, Dual, Dual2
+            The price of the bond to match.
+        dirty : bool
+            Whether the price is given clean or dirty.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
+        )
+        ad_ = curves[1].ad
+        curves[1]._set_ad_order(2)
+        disc_curve = curves[1].shift(Dual2(0, "z_spread"), composite=False)
+        curves[1]._set_ad_order(0)
+        metric = "dirty_price" if dirty else "clean_price"
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+
+        a, b = 0.5 * npv_price.gradient("z_spread", 2)[0][0], npv_price.gradient("z_spread", 1)[0]
+        z = _quadratic_equation(a, b, float(npv_price) - float(price))
+        # first z is solved by using 1st and 2nd derivatives to get close to target NPV
+
+        # TODO (low) add a tolerance here to continually converge to the solution, via GD.
+        disc_curve = curves[1].shift(z, composite=False)
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+        diff = npv_price - price
+        new_b = b + 2 * a * z
+        z = z - diff / new_b
+        # then a final linear adjustment is made which is usually very small
+
+        curves[1]._set_ad_order(ad_)
+        return z
+
 
 class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # TODO (mid) ensure calculations work for amortizing bonds.
@@ -2519,70 +2584,6 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             "'fwd_clean_price', 'fwd_dirty_price'}."
         )
 
-    def oas(
-        self,
-        curves: Union[Curve, str, list, NoInput] = NoInput(0),
-        solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        price: DualTypes = NoInput(0),
-        dirty: bool = False,
-    ):
-        """
-        The option adjusted spread added to the *Curve* to value the security at ``price``.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`Curve` or id or a list of such. A list defines the
-            following curves in the order:
-
-              - Forecasting :class:`Curve` for ``leg1``.
-              - Discounting :class:`Curve` for ``leg1``.
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        price : float, Dual, Dual2
-            The price of the bond to match.
-        dirty : bool
-            Whether the price is given clean or dirty.
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.leg1.currency
-        )
-        ad_ = curves[1].ad
-        curves[1]._set_ad_order(2)
-        disc_curve = curves[1].shift(Dual2(0, "z_spread"), composite=False)
-        curves[1]._set_ad_order(0)
-        metric = "dirty_price" if dirty else "clean_price"
-        npv_price = self.rate(curves=disc_curve, metric=metric)
-
-        a, b = 0.5 * npv_price.gradient("z_spread", 2)[0][0], npv_price.gradient("z_spread", 1)[0]
-        z = _quadratic_equation(a, b, float(npv_price) - float(price))
-        # first z is solved by using 1st and 2nd derivatives to target the NPV
-
-        disc_curve = curves[1].shift(z, composite=False)
-        npv_price = self.rate(curves=disc_curve, metric=metric)
-        diff = npv_price - price
-        new_b = b + 2 * a * z
-        z = z - diff / new_b
-        # then a final linear adjustment is made which is usually very small
-
-        curves[1]._set_ad_order(ad_)
-        return z
-
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
     #     """
     #     The spread to the fixed rate added to value the security at par valued from
@@ -3067,7 +3068,7 @@ class Bill(FixedRateBond):
             * 100
             / (-self.leg1.notional * curves[1][settlement])
         )
-        if metric in ["price", "clean_price"]:
+        if metric in ["price", "clean_price", "dirty_price"]:
             return price
         elif metric == "discount_rate":
             return self.discount_rate(price, settlement)

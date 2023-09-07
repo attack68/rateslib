@@ -749,7 +749,13 @@ class TestFixedRateBond:
         result = gilt.repo_from_fwd(100.0, dt(2001, 1, 1), f_s, f_p, "act365f", dirty=True)
         assert abs(result - 1.0) < 1e-8
 
-    def test_oas(self):
+    @pytest.mark.parametrize("price, tol", [
+        (112.0, 1e-6),
+        (104.0, 1e-5),
+        (96.0, 1e-3),
+        (91.0, 1e-2)
+    ])
+    def test_oas(self, price, tol):
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
             termination=dt(2015, 12, 7),
@@ -764,13 +770,10 @@ class TestFixedRateBond:
         )
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
         # result = gilt.npv(curve) = 113.22198344812742
-        result = gilt.oas(curve, price=91.0)
+        result = gilt.oas(curve, price=price)
         curve_z = curve.shift(result, composite=False)
         result = gilt.rate(curve_z, metric="clean_price")
-        assert abs(result - 96.0) < 1e-3
-
-
-        pass
+        assert abs(result - price) < tol
 
 
 class TestIndexFixedRateBond:
@@ -1147,6 +1150,25 @@ class TestBill:
         assert abs(result - expected) < 1e-14
         assert abs(result - 4.90740754) < 1e-7
 
+    @pytest.mark.parametrize("price, tol", [
+        (96.0, 1e-6),
+        (95.0, 1e-6),
+        (93.0, 1e-5),
+        (80.0, 1e-2)
+    ])
+    def test_oas(self, price, tol):
+        bill = Bill(
+            effective=dt(1998, 12, 7),
+            termination=dt(1999, 10, 7),
+            spec="ustb",
+        )
+        curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
+        # result = bill.rate(curve, metric="price") # = 98.605
+        result = bill.oas(curve, price=price)
+        curve_z = curve.shift(result, composite=False)
+        result = bill.rate(curve_z, metric="clean_price")
+        assert abs(result - price) < tol
+
 
 class TestFloatRateBond:
     @pytest.mark.parametrize(
@@ -1493,6 +1515,27 @@ class TestFloatRateBond:
         result = frn.accrued(dt(2022, 2, 5), forecast=True, curve=f_curve)
         expected = 0.044444444
         assert abs(result - expected) < 1e-4
+
+    @pytest.mark.parametrize("price, tol", [
+        (98.0, 1e-7),
+        (95.0, 1e-5),
+        (90.0, 1e-3),
+        (80.0, 1e-2)
+    ])
+    def test_oas(self, price, tol):
+        bond = FloatRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2008, 12, 7),
+            frequency="q",
+            fixing_method="rfr_payment_delay",
+            fixings=[[4.0]],
+        )
+        curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
+        # result = bond.rate(curve, metric="clean_price") = 99.999999999999953
+        result = bond.oas(curve, price=price)
+        curve_z = curve.shift(result, composite=False)
+        result = bond.rate([curve, curve_z], metric="clean_price")
+        assert abs(result - price) < tol
 
 
 class TestBondFuture:
