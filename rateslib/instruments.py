@@ -2033,7 +2033,7 @@ class BondMixin:
             cashflows.loc[current_period, defaults.headers["npv_fx"]] = 0
         return cashflows
 
-    def oas(
+    def oaspread(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
         solver: Union[Solver, NoInput] = NoInput(0),
@@ -2043,7 +2043,8 @@ class BondMixin:
         dirty: bool = False,
     ):
         """
-        The option adjusted spread added to the *Curve* to value the security at ``price``.
+        The option adjusted spread added to the discounting *Curve* to value the security
+        at ``price``.
 
         Parameters
         ----------
@@ -2087,7 +2088,7 @@ class BondMixin:
         z = _quadratic_equation(a, b, float(npv_price) - float(price))
         # first z is solved by using 1st and 2nd derivatives to get close to target NPV
 
-        # TODO (low) add a tolerance here to continually converge to the solution, via GD.
+        # TODO (low) add a tolerance here to continually converge to the solution, via GradDes?
         disc_curve = curves[1].shift(z, composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         diff = npv_price - price
