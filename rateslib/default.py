@@ -40,6 +40,7 @@ class Fixings:
         self._sofr = None
         self._swestr = None
         self._nowa = None
+        self._corra = None
 
     @property
     def sonia(self):
@@ -72,13 +73,25 @@ class Fixings:
         return self._nowa
 
     @property
+    def corra(self):
+        if self._corra is None:
+            self._corra = self._load_csv("data/corra.csv")
+        return self._corra
+
+    @property
     def saron(self):
         raise NotImplementedError("Swiss SIX exchange licence not available.")
 
 
 class Defaults:
     """
-    Test docs
+    The *defaults* object used by initialising objects. Values are printed below:
+
+    .. ipython:: python
+
+       from rateslib import defaults
+       print(defaults.print())
+
     """
 
     # Scheduling

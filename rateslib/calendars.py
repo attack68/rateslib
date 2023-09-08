@@ -68,7 +68,12 @@ USLabourDay = Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday
 USColumbusDay = Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
 USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
 USThanksgivingDay = Holiday("US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4)))  # type: ignore[arg-type]
-
+VictoriaDay = Holiday("Victoria Day", month=5, day=24, offset=DateOffset(weekday=MO(-1)))  # type: ignore[arg-type]
+CivicHoliday = Holiday("Civic Holiday", month=8, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
+CADLabourDay = Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
+CADThanksgiving = Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
+Rememberance = Holiday("Rememberance", month=11, day=11, observance=next_monday)
+NationalTruth = Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1))
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -102,6 +107,7 @@ UKSummerBankHoliday = Holiday(
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
 SENational = Holiday("Sweden National Day", month=6, day=6)
 CHNational = Holiday("Swiss National Day", month=8, day=1)
+CADNational = Holiday("Canada Day", month=7, day=1, observance=next_monday)
 MidsummerFriday = Holiday("Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1)))  # type: ignore[arg-type]
 NOConstitutionDay = Holiday("NO Constitution Day", month=5, day=17)
 
@@ -186,6 +192,20 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         BoxingDay,
         # NewYearsEve,
     ],
+    "tro": [
+        NewYearsDayHoliday,
+        USPresidentsDay,
+        GoodFriday,
+        VictoriaDay,
+        CADNational,
+        CivicHoliday,
+        CADLabourDay,
+        NationalTruth,
+        CADThanksgiving,
+        Rememberance,
+        ChristmasDayHoliday,
+        BoxingDayHoliday,
+    ],
 }
 
 
@@ -237,6 +257,7 @@ CALENDARS: Dict[str, CustomBusinessDay] = {
     "stk": create_calendar(rules=CALENDAR_RULES["stk"], weekmask="Mon Tue Wed Thu Fri"),
     "osl": create_calendar(rules=CALENDAR_RULES["osl"], weekmask="Mon Tue Wed Thu Fri"),
     "zur": create_calendar(rules=CALENDAR_RULES["zur"], weekmask="Mon Tue Wed Thu Fri"),
+    "tro": create_calendar(rules=CALENDAR_RULES["tro"], weekmask="Mon Tue Wed Thu Fri"),
 }
 
 
@@ -273,6 +294,7 @@ def get_calendar(
     - *"nyc"* (SOFR)
     - *"ldn"* (SONIA)
     - *"stk"* (SWESTR)
+    - *"tro"* (CORRA)
 
     The list of generic holidays applied to these calendars is as follows;
 
@@ -287,6 +309,7 @@ def get_calendar(
          - *"nyc"*
          - *"ldn"*
          - *"stk"*
+         - *"tro"*
        * - New Years Day
          - X
          - X
@@ -294,11 +317,13 @@ def get_calendar(
          -
          -
          - X
+         -
        * - New Years Day (sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - New Years Day (w/e->mon)
@@ -308,6 +333,7 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - Berchtoldstag
          -
          -

@@ -1537,6 +1537,17 @@ class TestFloatRateNote:
         result = bond.rate([curve, curve_z], metric="clean_price")
         assert abs(result - price) < tol
 
+    def test_curve_is_used_for_future_accrued_forecasting_when_needed(self):
+        frn = FloatRateNote(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            frequency="Q",
+            settle=3,
+        )
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
+        # frn settles in 3 days, has three days of accrued. Fixings required are forecast
+
+
 
 class TestBondFuture:
     @pytest.mark.parametrize(
