@@ -37,14 +37,12 @@ from pandas import DataFrame, concat, Series, MultiIndex
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf, _is_eom_cal
+from rateslib.calendars import add_tenor, get_calendar, dcf
 
-# from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
 from rateslib.periods import (
     Cashflow,
-    FixedPeriod,
     FloatPeriod,
     _get_fx_and_base,
     IndexMixin,
@@ -1359,76 +1357,6 @@ class BondMixin:
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
-    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
-        """
-        Calculate the price of the security per nominal value of 100, given
-        yield-to-maturity.
-
-        Parameters
-        ----------
-        ytm : float
-            The yield-to-maturity against which to determine the price.
-        settlement : datetime
-            The settlement date on which to determine the price.
-        dirty : bool, optional
-            If `True` will include the
-            :meth:`rateslib.instruments.FixedRateBond.accrued` in the price.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Examples
-        --------
-        This example is taken from the UK debt management office website.
-        The result should be `141.070132` and the bond is ex-div.
-
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.ex_div(dt(1999, 5, 27))
-           gilt.price(
-               ytm=4.445,
-               settlement=dt(1999, 5, 27),
-               dirty=True
-           )
-
-        This example is taken from the Swedish national debt office website.
-        The result of accrued should, apparently, be `0.210417` and the clean
-        price should be `99.334778`.
-
-        .. ipython:: python
-
-           bond = FixedRateBond(
-               effective=dt(2017, 5, 12),
-               termination=dt(2028, 5, 12),
-               frequency="A",
-               calendar="stk",
-               currency="sek",
-               convention="ActActICMA",
-               ex_div=5,
-               fixed_rate=0.75
-           )
-           bond.ex_div(dt(2017, 8, 23))
-           bond.accrued(dt(2017, 8, 23))
-           bond.price(
-               ytm=0.815,
-               settlement=dt(2017, 8, 23),
-               dirty=False
-           )
-
-        """
-        return self._price_from_ytm(ytm, settlement, self.calc_mode, dirty)
-
     def accrued(self, settlement: datetime):
         """
         Calculate the accrued amount per nominal par value of 100.
@@ -1448,203 +1376,6 @@ class BondMixin:
 
         """
         return self._accrued(settlement, self.calc_mode)
-
-    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
-        """
-        Calculate the yield-to-maturity of the security given its price.
-
-        Parameters
-        ----------
-        price : float
-            The price, per 100 nominal, against which to determine the yield.
-        settlement : datetime
-            The settlement date on which to determine the price.
-        dirty : bool, optional
-            If `True` will assume the
-            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        If ``price`` is given as :class:`~rateslib.dual.Dual` or
-        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
-        as the same type with the variables passed through accordingly.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.ytm(
-               price=141.0701315,
-               settlement=dt(1999,5,27),
-               dirty=True
-           )
-           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-
-        """
-
-        def root(y):
-            # we set this to work in float arithmetic for efficiency. Dual is added
-            # back below, see PR GH3
-            return self._price_from_ytm(y, settlement, self.calc_mode, dirty) - float(price)
-
-        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
-        # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
-
-        if isinstance(price, Dual):
-            # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(Dual(x, "y"), settlement, self.calc_mode, dirty)
-            return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
-        elif isinstance(price, Dual2):
-            # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(Dual2(x, "y"), settlement, self.calc_mode, dirty)
-            dydP = 1 / p.gradient("y")[0]
-            d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
-            return Dual2(
-                x,
-                price.vars,
-                dydP * price.dual,
-                0.5
-                * (
-                    dydP * price.gradient(price.vars, order=2)
-                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
-                ),
-            )
-        else:
-            return x
-
-    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
-        """
-        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
-
-        Parameters
-        ----------
-        ytm : float
-            The yield-to-maturity for the bond.
-        settlement : datetime
-            The settlement date of the bond.
-        metric : str
-            The specific duration calculation to return. See notes.
-
-        Returns
-        -------
-        float
-
-        Notes
-        -----
-        The available metrics are:
-
-        - *"risk"*: the derivative of price w.r.t. ytm, scaled to -1bp.
-
-          .. math::
-
-             risk = - \\frac{\\partial P }{\\partial y}
-
-        - *"modified"*: the modified duration which is *risk* divided by price.
-
-          .. math::
-
-             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
-
-        - *"duration"*: the duration which is modified duration reverse modified.
-
-          .. math::
-
-             duration = mduration \\times (1 + y / f)
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.duration(4.445, dt(1999, 5, 27), "risk")
-           gilt.duration(4.445, dt(1999, 5, 27), "modified")
-           gilt.duration(4.445, dt(1999, 5, 27), "duration")
-
-        This result is interpreted as cents. If the yield is increased by 1bp the price
-        will fall by 14.65 cents.
-
-        .. ipython:: python
-
-           gilt.price(4.445, dt(1999, 5, 27))
-           gilt.price(4.455, dt(1999, 5, 27))
-        """
-        if metric == "risk":
-            _ = -self.price(Dual(float(ytm), "y"), settlement).gradient("y")[0]
-        elif metric == "modified":
-            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
-            _ = -price.gradient("y")[0] / float(price) * 100
-        elif metric == "duration":
-            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
-            f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-            v = 1 + float(ytm) / (100 * f)
-            _ = -price.gradient("y")[0] / float(price) * v * 100
-        return _
-
-    def convexity(self, ytm: float, settlement: datetime):
-        """
-        Return the second derivative of ``price`` w.r.t. ``ytm``.
-
-        Parameters
-        ----------
-        ytm : float
-            The yield-to-maturity for the bond.
-        settlement : datetime
-            The settlement date of the bond.
-
-        Returns
-        -------
-        float
-
-        Examples
-        --------
-        .. ipython:: python
-
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.convexity(4.445, dt(1999, 5, 27))
-
-        This number is interpreted as hundredths of a cent. For a 1bp increase in
-        yield the duration will decrease by 2 hundredths of a cent.
-
-        .. ipython:: python
-
-           gilt.duration(4.445, dt(1999, 5, 27))
-           gilt.duration(4.455, dt(1999, 5, 27))
-        """
-        return self.price(Dual2(float(ytm), "y"), settlement).gradient("y", 2)[0][0]
 
     def fwd_from_repo(
         self,
@@ -2610,8 +2341,275 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
+    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
+        """
+        Calculate the yield-to-maturity of the security given its price.
 
-class IndexFixedRateBond(Sensitivities, BondMixin, BaseMixin):
+        Parameters
+        ----------
+        price : float
+            The price, per 100 nominal, against which to determine the yield.
+        settlement : datetime
+            The settlement date on which to determine the price.
+        dirty : bool, optional
+            If `True` will assume the
+            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        If ``price`` is given as :class:`~rateslib.dual.Dual` or
+        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
+        as the same type with the variables passed through accordingly.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.ytm(
+               price=141.0701315,
+               settlement=dt(1999,5,27),
+               dirty=True
+           )
+           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+
+        """
+
+        def root(y):
+            # we set this to work in float arithmetic for efficiency. Dual is added
+            # back below, see PR GH3
+            return self._price_from_ytm(y, settlement, self.calc_mode, dirty) - float(price)
+
+        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
+        # x, iters = _brents(root, -99, 10000)  # use own local brents code
+        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
+
+        if isinstance(price, Dual):
+            # use the inverse function theorem to express x as a Dual
+            p = self._price_from_ytm(Dual(x, "y"), settlement, self.calc_mode, dirty)
+            return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
+        elif isinstance(price, Dual2):
+            # use the IFT in 2nd order to express x as a Dual2
+            p = self._price_from_ytm(Dual2(x, "y"), settlement, self.calc_mode, dirty)
+            dydP = 1 / p.gradient("y")[0]
+            d2ydP2 = -p.gradient("y", order=2)[0][0] * p.gradient("y")[0] ** -3
+            return Dual2(
+                x,
+                price.vars,
+                dydP * price.dual,
+                0.5
+                * (
+                    dydP * price.gradient(price.vars, order=2)
+                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
+                ),
+            )
+        else:
+            return x
+
+    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
+        """
+        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity for the bond.
+        settlement : datetime
+            The settlement date of the bond.
+        metric : str
+            The specific duration calculation to return. See notes.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        The available metrics are:
+
+        - *"risk"*: the derivative of price w.r.t. ytm, scaled to -1bp.
+
+          .. math::
+
+             risk = - \\frac{\\partial P }{\\partial y}
+
+        - *"modified"*: the modified duration which is *risk* divided by price.
+
+          .. math::
+
+             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
+
+        - *"duration"*: the duration which is modified duration reverse modified.
+
+          .. math::
+
+             duration = mduration \\times (1 + y / f)
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.duration(4.445, dt(1999, 5, 27), "risk")
+           gilt.duration(4.445, dt(1999, 5, 27), "modified")
+           gilt.duration(4.445, dt(1999, 5, 27), "duration")
+
+        This result is interpreted as cents. If the yield is increased by 1bp the price
+        will fall by 14.65 cents.
+
+        .. ipython:: python
+
+           gilt.price(4.445, dt(1999, 5, 27))
+           gilt.price(4.455, dt(1999, 5, 27))
+        """
+        if metric == "risk":
+            _ = -self.price(Dual(float(ytm), "y"), settlement).gradient("y")[0]
+        elif metric == "modified":
+            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
+            _ = -price.gradient("y")[0] / float(price) * 100
+        elif metric == "duration":
+            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
+            f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+            v = 1 + float(ytm) / (100 * f)
+            _ = -price.gradient("y")[0] / float(price) * v * 100
+        return _
+
+    def convexity(self, ytm: float, settlement: datetime):
+        """
+        Return the second derivative of ``price`` w.r.t. ``ytm``.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity for the bond.
+        settlement : datetime
+            The settlement date of the bond.
+
+        Returns
+        -------
+        float
+
+        Examples
+        --------
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.convexity(4.445, dt(1999, 5, 27))
+
+        This number is interpreted as hundredths of a cent. For a 1bp increase in
+        yield the duration will decrease by 2 hundredths of a cent.
+
+        .. ipython:: python
+
+           gilt.duration(4.445, dt(1999, 5, 27))
+           gilt.duration(4.455, dt(1999, 5, 27))
+        """
+        return self.price(Dual2(float(ytm), "y"), settlement).gradient("y", 2)[0][0]
+
+    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
+        """
+        Calculate the price of the security per nominal value of 100, given
+        yield-to-maturity.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity against which to determine the price.
+        settlement : datetime
+            The settlement date on which to determine the price.
+        dirty : bool, optional
+            If `True` will include the
+            :meth:`rateslib.instruments.FixedRateBond.accrued` in the price.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Examples
+        --------
+        This example is taken from the UK debt management office website.
+        The result should be `141.070132` and the bond is ex-div.
+
+        .. ipython:: python
+
+           gilt = FixedRateBond(
+               effective=dt(1998, 12, 7),
+               termination=dt(2015, 12, 7),
+               frequency="S",
+               calendar="ldn",
+               currency="gbp",
+               convention="ActActICMA",
+               ex_div=7,
+               fixed_rate=8.0
+           )
+           gilt.ex_div(dt(1999, 5, 27))
+           gilt.price(
+               ytm=4.445,
+               settlement=dt(1999, 5, 27),
+               dirty=True
+           )
+
+        This example is taken from the Swedish national debt office website.
+        The result of accrued should, apparently, be `0.210417` and the clean
+        price should be `99.334778`.
+
+        .. ipython:: python
+
+           bond = FixedRateBond(
+               effective=dt(2017, 5, 12),
+               termination=dt(2028, 5, 12),
+               frequency="A",
+               calendar="stk",
+               currency="sek",
+               convention="ActActICMA",
+               ex_div=5,
+               fixed_rate=0.75
+           )
+           bond.ex_div(dt(2017, 8, 23))
+           bond.accrued(dt(2017, 8, 23))
+           bond.price(
+               ytm=0.815,
+               settlement=dt(2017, 8, 23),
+               dirty=False
+           )
+
+        """
+        return self._price_from_ytm(ytm, settlement, self.calc_mode, dirty)
+
+
+class IndexFixedRateBond(FixedRateBond):
     _fixed_rate_mixin = True
     _ytm_attribute = "real_cashflow"  # index linked bonds use real cashflows
     _index_base_mixin = True
@@ -3163,10 +3161,7 @@ class Bill(FixedRateBond):
         return 100 / (1 + rate * dcf / 100)
 
     def ytm(
-        self,
-        price: DualTypes,
-        settlement: datetime,
-        calc_mode: Union[str, NoInput] = NoInput(0)
+        self, price: DualTypes, settlement: datetime, calc_mode: Union[str, NoInput] = NoInput(0)
     ):
         """
         Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
@@ -3207,14 +3202,17 @@ class Bill(FixedRateBond):
         frequency_months = defaults.frequency_months[spec_kwargs["frequency"].upper()]
         quasi_start = self.leg1.schedule.termination
         while quasi_start > settlement:
-            quasi_start = add_tenor(quasi_start, f"-{frequency_months}M", "NONE", NoInput(0), NoInput(0))
+            quasi_start = add_tenor(
+                quasi_start, f"-{frequency_months}M", "NONE", NoInput(0), NoInput(0)
+            )
         equiv_bond = FixedRateBond(
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=spec_map[calc_mode]
+            spec=spec_map[calc_mode],
         )
         return equiv_bond.ytm(price, settlement)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -3330,8 +3328,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         fixing_method: Union[str, NoInput] = NoInput(0),
         method_param: Union[int, NoInput] = NoInput(0),
         spread_compound_method: Union[str, NoInput] = NoInput(0),
-        ex_div: int = 0,
-        settle: int = 1,
+        ex_div: Union[int, NoInput] = NoInput(0),
+        settle: Union[int, NoInput] = NoInput(0),
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
@@ -3540,7 +3538,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 calendar=self.leg1.schedule.calendar,
             )
 
-            if forecast:
+            if curve is not NoInput.blank and (forecast or p.start >= curve.node_dates[0]):
+                # then curve can be used to forecast all relevant rfr rates.
                 curve = curve
             else:
                 try:
@@ -3647,7 +3646,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             if metric == "dirty_price":
                 return dirty_price
             elif metric == "clean_price":
-                return dirty_price - self.accrued(settlement)
+                return dirty_price - self.accrued(settlement, curve=curves[0])
             elif metric == "spread":
                 _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
                 z = 0.0 if self.float_spread is NoInput.blank else self.float_spread
@@ -4959,10 +4958,10 @@ class IRS(BaseDerivative):
         # return irs_npv / leg2_analytic_delta + specified_spd
 
 
-class Swap(IRS):
-    """
-    Alias for :class:`~rateslib.instruments.IRS`.
-    """
+# class Swap(IRS):
+#     """
+#     Alias for :class:`~rateslib.instruments.IRS`.
+#     """
 
 
 class IIRS(BaseDerivative):
@@ -6293,7 +6292,12 @@ class FRA(Sensitivities, BaseMixin):
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
-        _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self.leg1.schedule.pschedule[0]] / 10000
+        _ = (
+            self.leg1.notional
+            * self.leg1.periods[0].dcf
+            * disc_curve_[self.leg1.schedule.pschedule[0]]
+            / 10000
+        )
         return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
 
     def npv(
@@ -6376,7 +6380,11 @@ class FRA(Sensitivities, BaseMixin):
             cf = cf1 + cf2
         else:
             return None
-        rate = None if curve is NoInput.blank else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
+        rate = (
+            None
+            if curve is NoInput.blank
+            else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
+        )
         cf /= 1 + self.leg1.periods[0].dcf * rate / 100
 
         # if self.fixed_rate is NoInput.blank:
@@ -8343,8 +8351,8 @@ def _quadratic_equation(a: float, b: float, c: float):
     _1 = -c / b  # approximate linear solution: applicable for most situations.
     discriminant = b**2 - 4 * a * c
     if abs(a) > 1e-14:
-        _2a = (-b - discriminant ** 0.5) / (2 * a)
-        _2b = (-b + discriminant ** 0.5) / (2 * a)  # alt quadratic soln
+        _2a = (-b - discriminant**0.5) / (2 * a)
+        _2b = (-b + discriminant**0.5) / (2 * a)  # alt quadratic soln
         if abs(_1 - _2a) < abs(_1 - _2b):
             _ = _2a
         else:
@@ -8449,4 +8457,3 @@ def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.upper()
     return val
-

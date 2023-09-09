@@ -13,7 +13,7 @@ base_derivative,leg1,back_stub,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg1,roll,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg1,eom,bool,FALSE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,,,FALSE,FALSE,FALSE,FALSE
 base_derivative,leg1,modifier,str,p,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,mf,none,mf,none,none,none,none,none,none,mf,mf,mf,mf
-base_derivative,leg1,calendar,str,"nyc,tgt,ldn",nyc,ldn,tgt,stk,osl,zur,tgt,tgt,stk,stk,osl,"tgt,nyc","ldn,nyc","tgt,ldn",tgt,ldn,nyc,ldn,stk,tgt,nyc,ldn,stk,stk,nyc,stk,stk,tgt,tgt,nyc
+base_derivative,leg1,calendar,str,"nyc,tgt,ldn",nyc,ldn,tgt,stk,osl,zur,tgt,tgt,stk,stk,osl,"tgt,nyc","ldn,nyc","tgt,ldn",tgt,ldn,nyc,ldn,stk,tgt,nyc,ldn,stk,tro,nyc,stk,stk,tgt,tgt,nyc
 base_derivative,leg1,payment_lag,int,4,2,0,1,1,2,2,0,0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 base_derivative,leg1,notional,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg1,currency,str,tes,usd,gbp,eur,sek,nok,chf,eur,eur,sek,sek,nok,eur,gbp,eur,eur,gbp,usd,gbp,sek,eur,usd,gbp,sek,cad,usd,sek,sek,eur,eur,usd

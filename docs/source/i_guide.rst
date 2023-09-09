@@ -38,7 +38,7 @@ here we create one by directly specifying discount factors (DFs) on certain node
 
 We can then construct an :ref:`Instrument<instruments-toc-doc>`. Here we create a short dated
 RFR interest rate swap (:class:`~rateslib.instruments.IRS`) using market specification pre-defined
-by *rateslib*. You can read more about arguments for instruments :ref:`here<defaults-doc>`.
+by *rateslib*.
 
 .. ipython:: python
 
@@ -50,6 +50,15 @@ by *rateslib*. You can read more about arguments for instruments :ref:`here<defa
        fixed_rate=2.0,
        spec="usd_irs"
    )
+
+You can read more about arguments for instruments :ref:`here<defaults-doc>`. To double check
+some of the arguments for a *"usd_irs"* one can run:
+
+.. ipython:: python
+
+   from rateslib import defaults
+   defaults.spec["usd_irs"]
+
 
 We can value the IRS in its local currency (USD) by default, and see the generated
 cashflows.
@@ -165,9 +174,8 @@ target for the *Solver*.
        notional=20e6,
        currency="eur",
        leg2_currency="usd",
-       curves=[None, eurusd_curve, None, usd_curve]
    )
-   fxs.rate(fx=fxf)
+   fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
 
 Securities and bonds
 --------------------

@@ -69,6 +69,14 @@ USColumbusDay = Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(we
 USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
 USThanksgivingDay = Holiday("US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4)))  # type: ignore[arg-type]
 
+# Canada based
+FamilyDay = USPresidentsDay
+VictoriaDay = Holiday("Victoria Day", month=5, day=24, offset=DateOffset(weekday=MO(-1)))  # type: ignore[arg-type]
+CivicHoliday = Holiday("Civic Holiday", month=8, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
+CADLabourDay = Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
+CADThanksgiving = Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
+Rememberance = Holiday("Rememberance", month=11, day=11, observance=next_monday)
+NationalTruth = Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1))
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -102,6 +110,7 @@ UKSummerBankHoliday = Holiday(
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
 SENational = Holiday("Sweden National Day", month=6, day=6)
 CHNational = Holiday("Swiss National Day", month=8, day=1)
+CADNational = Holiday("Canada Day", month=7, day=1, observance=next_monday)
 MidsummerFriday = Holiday("Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1)))  # type: ignore[arg-type]
 NOConstitutionDay = Holiday("NO Constitution Day", month=5, day=17)
 
@@ -186,6 +195,20 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         BoxingDay,
         # NewYearsEve,
     ],
+    "tro": [
+        NewYearsDayHoliday,
+        FamilyDay,
+        GoodFriday,
+        VictoriaDay,
+        CADNational,
+        CivicHoliday,
+        CADLabourDay,
+        NationalTruth,
+        CADThanksgiving,
+        Rememberance,
+        ChristmasDayHoliday,
+        BoxingDayHoliday,
+    ],
 }
 
 
@@ -237,6 +260,7 @@ CALENDARS: Dict[str, CustomBusinessDay] = {
     "stk": create_calendar(rules=CALENDAR_RULES["stk"], weekmask="Mon Tue Wed Thu Fri"),
     "osl": create_calendar(rules=CALENDAR_RULES["osl"], weekmask="Mon Tue Wed Thu Fri"),
     "zur": create_calendar(rules=CALENDAR_RULES["zur"], weekmask="Mon Tue Wed Thu Fri"),
+    "tro": create_calendar(rules=CALENDAR_RULES["tro"], weekmask="Mon Tue Wed Thu Fri"),
 }
 
 
@@ -266,18 +290,19 @@ def get_calendar(
     The following named calendars are available and have been back tested against the
     publication of RFR indexes in the relevant geography.
 
-    - *"bus"* (only weekends excluded)
-    - *"tgt"* (ESTR)
-    - *"osl"* (NOWA)
-    - *"zur"* (SARON)
-    - *"nyc"* (SOFR)
-    - *"ldn"* (SONIA)
-    - *"stk"* (SWESTR)
+    - *"bus"*: business days, excluding only weekends.
+    - *"tgt"*: Target for Europe's ESTR.
+    - *"osl"*: Oslo for Norway's NOWA.
+    - *"zur"*: Zurich for Switzerland's SARON.
+    - *"nyc"*: New York City for US's SOFR.
+    - *"ldn"*: London for UK's SONIA.
+    - *"stk"*: Stockholm for Sweden's SWESTR.
+    - *"tro"*: Toronto for Canada's CORRA.
 
     The list of generic holidays applied to these calendars is as follows;
 
     .. list-table:: Calendar generic holidays
-       :widths: 52 8 8 8 8 8 8
+       :widths: 51 7 7 7 7 7 7 7
        :header-rows: 1
 
        * - Holiday
@@ -287,6 +312,7 @@ def get_calendar(
          - *"nyc"*
          - *"ldn"*
          - *"stk"*
+         - *"tro"*
        * - New Years Day
          - X
          - X
@@ -294,11 +320,13 @@ def get_calendar(
          -
          -
          - X
+         -
        * - New Years Day (sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - New Years Day (w/e->mon)
@@ -308,10 +336,12 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - Berchtoldstag
          -
          -
          - X
+         -
          -
          -
          -
@@ -322,6 +352,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Martin Luther King Day
          -
          -
@@ -329,13 +360,23 @@ def get_calendar(
          - X
          -
          -
-       * - President's Day
+         -
+       * - President's / Family Day
          -
          -
          -
          - X
          -
          -
+         - X
+       * - Victoria Day
+         -
+         -
+         -
+         -
+         -
+         -
+         - X
        * - Maundy Thursday
          -
          - X
@@ -343,7 +384,9 @@ def get_calendar(
          -
          -
          -
+         -
        * - Good Friday
+         - X
          - X
          - X
          - X
@@ -357,12 +400,14 @@ def get_calendar(
          -
          - X
          - X
+         -
        * - UK Early May Bank Holiday
          -
          -
          -
          -
          - X
+         -
          -
        * - UK Late May Bank Holiday
          -
@@ -371,18 +416,21 @@ def get_calendar(
          -
          - X
          -
-       * - EU Labour Day
+         -
+       * - EU / US / CA Labour Day (diff)
+         - X
          - X
          - X
          - X
          -
-         -
+         - X
          - X
        * - US Memorial Day
          -
          -
          -
          - X
+         -
          -
          -
        * - Ascention Day
@@ -392,9 +440,11 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Whit Monday
          -
          - X
+         -
          -
          -
          -
@@ -406,32 +456,21 @@ def get_calendar(
          -
          -
          - X
-       * - Sweden National Day
          -
-         -
-         -
-         -
+       * - National / Constitution Day (diff)
          -
          - X
-       * - Norwegian Constitution Day
-         -
          - X
          -
          -
-         -
-         -
-       * - Swiss National Day
-         -
-         -
          - X
-         -
-         -
-         -
+         - X
        * - Juneteenth National Day (sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - US Independence Day (sat->fri,sun->mon)
@@ -441,13 +480,15 @@ def get_calendar(
          - X
          -
          -
-       * - US Labour Day
+         -
+       * - Civic Holiday
+         -
+         -
+         -
          -
          -
          -
          - X
-         -
-         -
        * - UK Summer Bank Holiday
          -
          -
@@ -455,11 +496,13 @@ def get_calendar(
          -
          - X
          -
+         -
        * - Columbus Day
          -
          -
          -
          - X
+         -
          -
          -
        * - US Veteran's Day (sun->mon)
@@ -469,13 +512,31 @@ def get_calendar(
          - X
          -
          -
-       * - US Thanksgiving
+         -
+       * - National Truth
+         -
+         -
+         -
+         -
+         -
+         -
+         - X
+       * - US / CA Thanksgiving (diff)
          -
          -
          -
          - X
          -
          -
+         - X
+       * - Remembrance Day
+         -
+         -
+         -
+         -
+         -
+         -
+         - X
        * - Christmas Eve
          -
          - X
@@ -483,6 +544,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Christmas Day
          - X
          - X
@@ -490,6 +552,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Christmas Day (sat,sun->mon)
          -
          -
@@ -497,11 +560,13 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - Christmas Day (sat->fri,sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - Boxing Day
@@ -511,6 +576,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Boxing Day (sun,mon->tue)
          -
          -
@@ -518,6 +584,7 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - New Year's Eve
          -
          -
@@ -525,6 +592,7 @@ def get_calendar(
          -
          -
          - X
+         -
 
     Examples
     --------
@@ -898,6 +966,11 @@ def dcf(
         Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`.
         Non-stub periods will
         return a fraction equal to the frequency, e.g. 0.25 for quarterly.
+    roll : str, int, optional
+        Used by `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"` to project
+        regular periods when calculating stubs.
+    calendar: str, Calendar, optional
+        Currently unused.
 
     Returns
     --------
@@ -911,7 +984,7 @@ def dcf(
     - `"1+"`: Returns the number of months between dates divided by 12.
     - `"Act365F"`: Returns actual number of days divided by a fixed 365 denominator.
     - `"Act365F+"`: Returns the number of years and the actual number of days in the fractional year
-       divided by a fixed 365 denominator.
+      divided by a fixed 365 denominator.
     - `"Act360"`: Returns actual number of days divided by a fixed 360 denominator.
     - `"30E360"`, `"EuroBondBasis"`: Months are treated as having 30 days and start
       and end dates are converted under the rule:
@@ -935,7 +1008,9 @@ def dcf(
 
     - `"ActAct"`, `"ActActISDA"`: Calendar days between start and end are divided
       by 365 or 366 dependent upon whether they fall within a leap year or not.
-    - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`, `"ActActICMA_stub365f"`:
+    - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`, `"ActActICMA_stub365f"`: Returns a fraction
+      relevant to the frequency of the schedule if a regular period. If a stub then projects
+      a regular period and returns a fraction of that period.
 
     Further information can be found in the
     :download:`2006 ISDA definitions <_static/2006_isda_definitions.pdf>` and
@@ -1046,7 +1121,7 @@ def _dcf_actacticma(
     if not stub:
         return frequency_months / 12
     else:
-        # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
             fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
             fraction = 0.0

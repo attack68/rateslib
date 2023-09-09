@@ -37,7 +37,6 @@ Defaults
    :no-heading:
    :no-inheritance-diagram:
    :skip: plot
-   :skip: BusinessDay
    :skip: datetime
    :skip: Enum
 
@@ -222,7 +221,6 @@ Instruments
    :skip: Series
    :skip: datetime
    :skip: Cashflow
-   :skip: FixedPeriod
    :skip: FloatPeriod
    :skip: FixedLeg
    :skip: FixedLegMtm
