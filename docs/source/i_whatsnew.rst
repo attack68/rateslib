@@ -73,7 +73,8 @@ email contact through **rateslib@gmail.com**.
      - Description
    * - Instruments
      - Rename :class:`~rateslib.instruments.FloatRateBond`
-       to :class:`~rateslib.instruments.FloatRateNote`.
+       to :class:`~rateslib.instruments.FloatRateNote` and removed the
+       alias :class:`~rateslib.instruments.Swap`.
    * - Instruments
      - Add a ``spec`` keyword argument to allow instruments to be pre-defined and follow
        market conventions without the user needing to input these directly, but preserving an

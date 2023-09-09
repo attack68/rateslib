@@ -3,6 +3,9 @@ from pandas import Series
 
 import context
 from rateslib import defaults, default_context
+from rateslib.instruments import IRS
+from rateslib.curves import Curve
+from rateslib import dt
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])
@@ -27,3 +30,17 @@ def test_reset_defaults():
 
     defaults.reset_defaults()
     assert defaults.modifier == "MF"
+
+
+def test_calendar_matches_fixings_corra():
+    # this should run without warnings or errors if the "tro" calendar matches the fixings.
+    swap = IRS(
+        effective=dt(2017, 1, 1),
+        termination=dt(2023, 7, 1),
+        frequency="A",
+        leg2_fixings=defaults.fixings.corra,
+        calendar="tro",
+        fixed_rate=1.0
+    )
+    curve = Curve({dt(2017, 1, 1): 1.0, dt(2027, 1, 1): 1.0}, calendar="tro")
+    swap.npv(curves=curve)

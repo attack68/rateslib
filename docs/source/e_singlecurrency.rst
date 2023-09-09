@@ -16,6 +16,5 @@ structures.
 .. autosummary::
    rateslib.instruments.BaseDerivative
    rateslib.instruments.IRS
-   rateslib.instruments.Swap
    rateslib.instruments.SBS
    rateslib.instruments.FRA
