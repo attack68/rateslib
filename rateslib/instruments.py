@@ -1357,26 +1357,6 @@ class BondMixin:
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
-    def accrued(self, settlement: datetime):
-        """
-        Calculate the accrued amount per nominal par value of 100.
-
-        Parameters
-        ----------
-        settlement : datetime
-            The settlement date which to measure accrued interest against.
-
-        Notes
-        -----
-        Fractionally apportions the coupon payment based on calendar days.
-
-        .. math::
-
-           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
-
-        """
-        return self._accrued(settlement, self.calc_mode)
-
     def fwd_from_repo(
         self,
         price: Union[float, Dual, Dual2],
@@ -2231,7 +2211,25 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    # Digital Methods
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the accrued amount per nominal par value of 100.
+
+        Parameters
+        ----------
+        settlement : datetime
+            The settlement date which to measure accrued interest against.
+
+        Notes
+        -----
+        Fractionally apportions the coupon payment based on calendar days.
+
+        .. math::
+
+           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
+
+        """
+        return self._accrued(settlement, self.calc_mode)
 
     def rate(
         self,
