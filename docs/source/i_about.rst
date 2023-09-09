@@ -97,7 +97,7 @@ A wider article about
 `performance in rateslib <https://www.linkedin.com/pulse/rateslib-performance-1000-irs-rateslib>`_
 is available following the link.
 
-5) Be transparency and validate as default
+5) Be transparent and validate as default
 --------------------------------------------
 
 This is a community objective.
