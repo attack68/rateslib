@@ -1547,6 +1547,33 @@ class TestFloatRateNote:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
         # frn settles in 3 days, has three days of accrued. Fixings required are forecast
 
+    def test_settle_method_param_combinations(self):
+        # for RFR when method_param is less than settle curve based pricing methods will
+        # require forecasting from RFR curve to correctly calculate the accrued.
+        fixings = Series(
+            [2.0, 3.0, 4.0, 5.0, 6.0],
+            index=[dt(2022, 1, 2), dt(2022, 1, 3), dt(2022, 1, 4), dt(2022, 1, 5), dt(2022, 1, 6)]
+        )
+        frn = FloatRateNote(
+            effective=dt(2022, 1, 5),
+            termination="1Y",
+            frequency="Q",
+            settle=3,
+            method_param=2,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+        )
+        curve = Curve({dt(2022, 1, 7): 1.0, dt(2023, 1, 7): 0.95}),
+
+        # Case1: All fixings are known and are published
+        result = frn.accrued(settlement=dt(2022, 1, 7))
+
+
+        with pytest.warns(UserWarning):
+            # raises a warning about not having a curve to forecast from.
+            result = frn.accrued(settlement=dt(2022, 1, 10))
+
+        result2 = frn.accrued(settlement=dt(2022, 1, 10), curve=curve)
 
 
 class TestBondFuture:

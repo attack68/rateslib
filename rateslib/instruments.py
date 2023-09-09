@@ -3542,6 +3542,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             else:
                 try:
                     last_fixing = p.fixings[-1]
+                    warnings.warn(
+                        "A `Curve` was not supplied any residual required fixings not yet "
+                        "published are forecast from the last known fixing.", UserWarning
+                    )
                     # For negative accr in ex-div we need to forecast unpublished rates.
                     # Build a curve which replicates the last fixing value from fixings.
                 except TypeError:
