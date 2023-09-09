@@ -20,6 +20,10 @@ generated under various calculation methodologies. It is probably quite rare tha
 The following *Periods* are provided, click on the links for a full description
 of each *Period* type:
 
+.. automod-diagram:: rateslib.periods
+   :private-bases:
+   :parts: 1
+
 .. autosummary::
    rateslib.periods.BasePeriod
    rateslib.periods.FixedPeriod
@@ -28,12 +32,16 @@ of each *Period* type:
    rateslib.periods.IndexFixedPeriod
    rateslib.periods.IndexCashflow
 
+**Common methods**
+
 Every *Period* type is endowed with the following the methods:
 
 .. autosummary::
    rateslib.periods.BasePeriod.npv
    rateslib.periods.BasePeriod.analytic_delta
    rateslib.periods.BasePeriod.cashflows
+
+**Special methods**
 
 :class:`~rateslib.periods.FloatPeriod` types have specific methods to support
 their specific functionality, such as:

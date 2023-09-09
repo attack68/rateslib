@@ -13,6 +13,7 @@ from rateslib.curves import (
     IndexCurve,
     CompositeCurve,
 )
+from rateslib.default import NoInput
 from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
 from rateslib.dual import Dual, Dual2
@@ -335,6 +336,53 @@ def test_curve_equality_spline_coeffs():
     )
     curve2.nodes[dt(2022, 7, 4)] = 0.96  # set a specific node without recalc spline
     assert curve2 != curve  # should detect on curve2.spline.c
+
+
+def test_curve_interp_raises():
+    interp = 'BAD'
+    curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2022, 2, 1): 0.9,
+        },
+        id='curve',
+        interpolation=interp
+    )
+
+    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
+    with pytest.raises(ValueError, match=err):
+        curve[dt(2022, 1, 15)]
+
+
+def test_interp_raises():
+    interp = 'linea'  # Wrongly spelled interpolation method
+    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
+    with pytest.raises(ValueError, match=err):
+        interpolate(1.5, 1, 5, 2, 10, interp)
+
+
+def test_curve_interp_case():
+    curve_lower = Curve(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolation="log_linear",
+        id="id",
+        convention="Act360",
+        ad=1,
+    )
+    curve_upper = Curve(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolation="LOG_LINEAR",
+        id="id",
+        convention="Act360",
+        ad=1,
+    )
+    assert curve_lower[dt(2022, 3, 16)] == curve_upper[dt(2022, 3, 16)]
 
 
 def test_custom_interpolator():
@@ -1513,8 +1561,8 @@ class TestPlotCurve:
         assert result[1][0] == 0
         plt.close("all")
 
-    @pytest.mark.parametrize("left", [None, dt(2022, 1, 1), "0d"])
-    @pytest.mark.parametrize("right", [None, dt(2022, 2, 1), "0d"])
+    @pytest.mark.parametrize("left", [NoInput(0), dt(2022, 1, 1), "0d"])
+    @pytest.mark.parametrize("right", [NoInput(0), dt(2022, 2, 1), "0d"])
     def test_plot_index(self, left, right):
         i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
         fig, ax, lines = i_curve.plot_index(left=left, right=right)

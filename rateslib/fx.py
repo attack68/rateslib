@@ -8,6 +8,7 @@ from datetime import timedelta, datetime
 import json
 
 from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.dual import Dual, dual_solve, set_order, DualTypes
 from rateslib.default import plot
 from rateslib.calendars import add_tenor
@@ -1516,8 +1517,8 @@ class FXForwards:
     def plot(
         self,
         pair: str,
-        right: Optional[Union[datetime, str]] = None,
-        left: Optional[Union[datetime, str]] = None,
+        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: Union[datetime, str, NoInput] = NoInput(0),
         fx_swap: bool = False,
     ):
         """
@@ -1544,19 +1545,19 @@ class FXForwards:
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
-        if left is None:
+        if left is NoInput.blank:
             left_: datetime = self.immediate
         elif isinstance(left, str):
-            left_ = add_tenor(self.immediate, left, None, None)
+            left_ = add_tenor(self.immediate, left, "NONE", NoInput(0))
         elif isinstance(left, datetime):
             left_ = left
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
-        if right is None:
+        if right is NoInput.blank:
             right_: datetime = self.terminal
         elif isinstance(right, str):
-            right_ = add_tenor(self.immediate, right, None, None)
+            right_ = add_tenor(self.immediate, right, "NONE", NoInput(0))
         elif isinstance(right, datetime):
             right_ = right
         else:

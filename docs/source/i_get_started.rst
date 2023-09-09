@@ -93,7 +93,7 @@ Introduction to Rateslib
 - Regular nominal bonds - :class:`~rateslib.instruments.FixedRateBond`,
 - Bond futures - :class:`~rateslib.instruments.BondFuture`,
 - Index linked bonds - :class:`~rateslib.instruments.IndexFixedRateBond`,
-- Also FRNs - :class:`~rateslib.instruments.FloatRateBond`.
+- Also FRNs - :class:`~rateslib.instruments.FloatRateNote`.
 
 **Single Currency Derivatives**
 

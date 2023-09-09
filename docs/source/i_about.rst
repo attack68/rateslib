@@ -29,7 +29,7 @@ time trading IRSs as a market-maker between 2006 and 2017.
 The algorithms and mathematical work of *rateslib* is expected to be released in
 early 2024 under the working title of *Coding Interest Rates: FX, Swaps and Bonds*
 
-.. image:: _static/thumb_coding1.png
+.. image:: _static/thumb_coding_2.png
   :alt: Coding Interest Rates: FX, Swaps and Bonds
   :target: https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538
   :width: 92
@@ -60,7 +60,7 @@ philosophy.
 2) Prioritise sensitivities above valuation
 -----------------------------------------------------
 
-This is functionality objective. Risk sensitivities are harder to calculate than
+This is a functionality objective. Risk sensitivities are harder to calculate than
 valuation. To calculate risk it is
 necessary to be able to calculate value. To calculate value it is not necessary
 to calculate risk. Therefore making design choices around calculating risk avoids
@@ -97,7 +97,7 @@ A wider article about
 `performance in rateslib <https://www.linkedin.com/pulse/rateslib-performance-1000-irs-rateslib>`_
 is available following the link.
 
-5) Transparency and validation is necessary
+5) Be transparent and validate as default
 --------------------------------------------
 
 This is a community objective.

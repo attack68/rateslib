@@ -39,8 +39,10 @@ Example
 First Derivatives
 -----------------
 
-For extracting only first derivatives it is more efficient
-to use :class:`~rateslib.dual.Dual`:
+.. math::
+
+   f(x, y, z) = x^6 + e^{\frac{x}{y}} + \ln {z} \\
+   f(2, 1, 2) = 72.0822...
 
 .. ipython:: python
 
@@ -49,6 +51,15 @@ to use :class:`~rateslib.dual.Dual`:
        return x**6 + dual_exp(x/y) + dual_log(z)
 
    func(2, 1, 2)
+
+For extracting only first derivatives it is more efficient
+to use :class:`~rateslib.dual.Dual`:
+
+.. math::
+
+   \frac{\partial f}{\partial x} &= \left . 6 x^5 + \frac{1}{y} e^{\frac{x}{y}} \right |_{(2,1,2)} = 199.3890... \\
+   \frac{\partial f}{\partial y} &= \left . -\frac{x}{y^2} e^{\frac{x}{y}} \right |_{(2,1,2)} = -14.7781... \\
+   \frac{\partial f}{\partial z} &= \left . \frac{1}{z} \right |_{(2,1,2)} = 0.50 \\
 
 .. ipython:: python
 

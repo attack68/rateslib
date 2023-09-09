@@ -38,6 +38,9 @@ The EUR Curve
 The EUR curve is configured and constructed by the EUR IRS team. That team can
 determine that model in any way they choose.
 
+In the below configuration they have a **log linear** curve with nodes on 1st May and 1st Jan
+next year, and these are calibrated exactly with 4M and 1Y swaps whose values are 2% and 2.5%.
+
 .. ipython:: python
 
    eureur = Curve(
@@ -53,10 +56,8 @@ determine that model in any way they choose.
    )
    eur_kws = dict(
        effective=dt(2022, 1, 3),
-       frequency="A",
-       calendar="tgt",
+       spec="eur_irs",
        curves="eureur",
-       currency="eur"
    )
    eur_solver = Solver(
        curves=[eureur],
@@ -72,7 +73,7 @@ The USD Curve
 =============
 
 The same for the USD IRS team. Notice that this model is slightly different for
-purposes of example.
+purposes of example. They have a node at the 7M point and also a 7M swap.
 
 .. ipython:: python
 
@@ -89,10 +90,8 @@ purposes of example.
    )
    usd_kws = dict(
        effective=dt(2022, 1, 3),
-       frequency="A",
-       calendar="nyc",
+       spec="usd_irs",
        curves="usdusd",
-       currency="usd"
    )
    usd_solver = Solver(
        curves=[usdusd],
@@ -139,10 +138,7 @@ the constructed curves to price forward FX rates for the instruments.
    )
    xcs_kws = dict(
        effective=dt(2022, 1, 3),
-       frequency="Q",
-       currency="eur",
-       leg2_currency="usd",
-       calendar="tgt,nyc",
+       spec="eurusd_xcs",
        curves=["eureur", "eurusd", "usdusd", "usdusd"]
    )
    xcs_solver = Solver(

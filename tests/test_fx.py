@@ -13,6 +13,7 @@ from rateslib.fx import (
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.curves import Curve, LineCurve, CompositeCurve
+from rateslib.default import NoInput
 
 
 @pytest.mark.parametrize(
@@ -655,7 +656,7 @@ def test_rate_path_immediate(settlement):
 @pytest.mark.parametrize(
     "left",
     [
-        None,
+        NoInput(0),
         dt(2022, 1, 1),
         "0d",
     ],
@@ -663,7 +664,7 @@ def test_rate_path_immediate(settlement):
 @pytest.mark.parametrize(
     "right",
     [
-        None,
+        NoInput(0),
         dt(2022, 1, 10),
         "9d",
     ],

@@ -14,7 +14,6 @@ from pandas.tseries.holiday import (
     nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
-from rateslib import defaults
 from rateslib.default import NoInput
 
 CalInput = Union[CustomBusinessDay, str, NoInput]
@@ -70,6 +69,14 @@ USColumbusDay = Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(we
 USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
 USThanksgivingDay = Holiday("US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4)))  # type: ignore[arg-type]
 
+# Canada based
+FamilyDay = USPresidentsDay
+VictoriaDay = Holiday("Victoria Day", month=5, day=24, offset=DateOffset(weekday=MO(-1)))  # type: ignore[arg-type]
+CivicHoliday = Holiday("Civic Holiday", month=8, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
+CADLabourDay = Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
+CADThanksgiving = Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
+Rememberance = Holiday("Rememberance", month=11, day=11, observance=next_monday)
+NationalTruth = Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1))
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -103,6 +110,7 @@ UKSummerBankHoliday = Holiday(
 EULabourDay = Holiday("EU Labour Day", month=5, day=1)
 SENational = Holiday("Sweden National Day", month=6, day=6)
 CHNational = Holiday("Swiss National Day", month=8, day=1)
+CADNational = Holiday("Canada Day", month=7, day=1, observance=next_monday)
 MidsummerFriday = Holiday("Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1)))  # type: ignore[arg-type]
 NOConstitutionDay = Holiday("NO Constitution Day", month=5, day=17)
 
@@ -187,6 +195,20 @@ CALENDAR_RULES: Dict[str, list[Any]] = {
         BoxingDay,
         # NewYearsEve,
     ],
+    "tro": [
+        NewYearsDayHoliday,
+        FamilyDay,
+        GoodFriday,
+        VictoriaDay,
+        CADNational,
+        CivicHoliday,
+        CADLabourDay,
+        NationalTruth,
+        CADThanksgiving,
+        Rememberance,
+        ChristmasDayHoliday,
+        BoxingDayHoliday,
+    ],
 }
 
 
@@ -238,6 +260,7 @@ CALENDARS: Dict[str, CustomBusinessDay] = {
     "stk": create_calendar(rules=CALENDAR_RULES["stk"], weekmask="Mon Tue Wed Thu Fri"),
     "osl": create_calendar(rules=CALENDAR_RULES["osl"], weekmask="Mon Tue Wed Thu Fri"),
     "zur": create_calendar(rules=CALENDAR_RULES["zur"], weekmask="Mon Tue Wed Thu Fri"),
+    "tro": create_calendar(rules=CALENDAR_RULES["tro"], weekmask="Mon Tue Wed Thu Fri"),
 }
 
 
@@ -267,18 +290,19 @@ def get_calendar(
     The following named calendars are available and have been back tested against the
     publication of RFR indexes in the relevant geography.
 
-    - *"bus"* (only weekends excluded)
-    - *"tgt"* (ESTR)
-    - *"osl"* (NOWA)
-    - *"zur"* (SARON)
-    - *"nyc"* (SOFR)
-    - *"ldn"* (SONIA)
-    - *"stk"* (SWESTR)
+    - *"bus"*: business days, excluding only weekends.
+    - *"tgt"*: Target for Europe's ESTR.
+    - *"osl"*: Oslo for Norway's NOWA.
+    - *"zur"*: Zurich for Switzerland's SARON.
+    - *"nyc"*: New York City for US's SOFR.
+    - *"ldn"*: London for UK's SONIA.
+    - *"stk"*: Stockholm for Sweden's SWESTR.
+    - *"tro"*: Toronto for Canada's CORRA.
 
     The list of generic holidays applied to these calendars is as follows;
 
     .. list-table:: Calendar generic holidays
-       :widths: 52 8 8 8 8 8 8
+       :widths: 51 7 7 7 7 7 7 7
        :header-rows: 1
 
        * - Holiday
@@ -288,6 +312,7 @@ def get_calendar(
          - *"nyc"*
          - *"ldn"*
          - *"stk"*
+         - *"tro"*
        * - New Years Day
          - X
          - X
@@ -295,11 +320,13 @@ def get_calendar(
          -
          -
          - X
+         -
        * - New Years Day (sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - New Years Day (w/e->mon)
@@ -309,10 +336,12 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - Berchtoldstag
          -
          -
          - X
+         -
          -
          -
          -
@@ -323,6 +352,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Martin Luther King Day
          -
          -
@@ -330,13 +360,23 @@ def get_calendar(
          - X
          -
          -
-       * - President's Day
+         -
+       * - President's / Family Day
          -
          -
          -
          - X
          -
          -
+         - X
+       * - Victoria Day
+         -
+         -
+         -
+         -
+         -
+         -
+         - X
        * - Maundy Thursday
          -
          - X
@@ -344,7 +384,9 @@ def get_calendar(
          -
          -
          -
+         -
        * - Good Friday
+         - X
          - X
          - X
          - X
@@ -358,12 +400,14 @@ def get_calendar(
          -
          - X
          - X
+         -
        * - UK Early May Bank Holiday
          -
          -
          -
          -
          - X
+         -
          -
        * - UK Late May Bank Holiday
          -
@@ -372,18 +416,21 @@ def get_calendar(
          -
          - X
          -
-       * - EU Labour Day
+         -
+       * - EU / US / CA Labour Day (diff)
+         - X
          - X
          - X
          - X
          -
-         -
+         - X
          - X
        * - US Memorial Day
          -
          -
          -
          - X
+         -
          -
          -
        * - Ascention Day
@@ -393,9 +440,11 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Whit Monday
          -
          - X
+         -
          -
          -
          -
@@ -407,32 +456,21 @@ def get_calendar(
          -
          -
          - X
-       * - Sweden National Day
          -
-         -
-         -
-         -
+       * - National / Constitution Day (diff)
          -
          - X
-       * - Norwegian Constitution Day
-         -
          - X
          -
          -
-         -
-         -
-       * - Swiss National Day
-         -
-         -
          - X
-         -
-         -
-         -
+         - X
        * - Juneteenth National Day (sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - US Independence Day (sat->fri,sun->mon)
@@ -442,13 +480,15 @@ def get_calendar(
          - X
          -
          -
-       * - US Labour Day
+         -
+       * - Civic Holiday
+         -
+         -
+         -
          -
          -
          -
          - X
-         -
-         -
        * - UK Summer Bank Holiday
          -
          -
@@ -456,11 +496,13 @@ def get_calendar(
          -
          - X
          -
+         -
        * - Columbus Day
          -
          -
          -
          - X
+         -
          -
          -
        * - US Veteran's Day (sun->mon)
@@ -470,13 +512,31 @@ def get_calendar(
          - X
          -
          -
-       * - US Thanksgiving
+         -
+       * - National Truth
+         -
+         -
+         -
+         -
+         -
+         -
+         - X
+       * - US / CA Thanksgiving (diff)
          -
          -
          -
          - X
          -
          -
+         - X
+       * - Remembrance Day
+         -
+         -
+         -
+         -
+         -
+         -
+         - X
        * - Christmas Eve
          -
          - X
@@ -484,6 +544,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Christmas Day
          - X
          - X
@@ -491,6 +552,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Christmas Day (sat,sun->mon)
          -
          -
@@ -498,11 +560,13 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - Christmas Day (sat->fri,sun->mon)
          -
          -
          -
          - X
+         -
          -
          -
        * - Boxing Day
@@ -512,6 +576,7 @@ def get_calendar(
          -
          -
          - X
+         -
        * - Boxing Day (sun,mon->tue)
          -
          -
@@ -519,6 +584,7 @@ def get_calendar(
          -
          - X
          -
+         - X
        * - New Year's Eve
          -
          -
@@ -526,6 +592,7 @@ def get_calendar(
          -
          -
          - X
+         -
 
     Examples
     --------
@@ -585,7 +652,7 @@ def _is_holiday(date: datetime, calendar: CustomBusinessDay):
 
 def _adjust_date(
     date: datetime,
-    modifier: Optional[str],
+    modifier: str,
     calendar: CalInput,
 ) -> datetime:
     """
@@ -595,21 +662,22 @@ def _adjust_date(
     ----------
     date : datetime
         The date to be adjusted.
-    modifier : str or None
-        The modification rule, in {"F", "MF", "P", "MP"}. If *None* returns date.
+    modifier : str
+        The modification rule, in {"NONE", "F", "MF", "P", "MP"}. If *'NONE'* returns date.
     calendar : calendar, optional
-        The holiday calendar object to use. Required only if `modifier` is not *None*.
-        If *None* a calendar is created where every day including weekends is valid.
+        The holiday calendar object to use. Required only if `modifier` is not *'NONE'*.
+        If not given a calendar is created where every day including weekends is valid.
 
     Returns
     -------
     datetime
     """
-    if modifier is None:
-        return date
     modifier = modifier.upper()
+    if modifier == "NONE":
+        return date
+
     if modifier not in ["F", "MF", "P", "MP"]:
-        raise ValueError("`modifier` must be in {None, 'F', 'MF', 'P', 'MP'}")
+        raise ValueError("`modifier` must be in {'NONE', 'F', 'MF', 'P', 'MP'}")
 
     (adj_op, mod_op) = (
         ("rollforward", "rollback") if "F" in modifier else ("rollback", "rollforward")
@@ -629,8 +697,8 @@ def _adjust_date(
 def add_tenor(
     start: datetime,
     tenor: str,
-    modifier: Optional[str],
-    calendar: CalInput,
+    modifier: str,
+    calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
 ) -> datetime:
     """
@@ -671,7 +739,7 @@ def add_tenor(
        from rateslib.dual import Dual, Dual2
        from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, IndexFixedPeriod, IndexCashflow
        from rateslib.legs import FixedLeg, FloatLeg, CustomLeg, FloatLegMtm, FixedLegMtm, IndexFixedLeg, ZeroFixedLeg, ZeroFloatLeg, ZeroIndexLeg
-       from rateslib.instruments import FixedRateBond, FloatRateBond, Value, IRS, SBS, FRA, forward_fx, Spread, Fly, BondFuture, Bill, ZCS, FXSwap, ZCIS, IIRS
+       from rateslib.instruments import FixedRateBond, FloatRateNote, Value, IRS, SBS, FRA, forward_fx, Spread, Fly, BondFuture, Bill, ZCS, FXSwap, ZCIS, IIRS
        from rateslib.solver import Solver
        from rateslib.splines import bspldnev_single, PPSpline
        from datetime import datetime as dt
@@ -681,7 +749,7 @@ def add_tenor(
 
     .. ipython:: python
 
-       add_tenor(dt(2022, 2, 28), "3M", None, None)
+       add_tenor(dt(2022, 2, 28), "3M", "NONE")
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
     """
@@ -703,7 +771,7 @@ def add_tenor(
 def _add_business_days(
     start: datetime,
     business_days: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
 ) -> datetime:
     """add a given number of business days to an input date"""
@@ -714,7 +782,7 @@ def _add_business_days(
 def _add_months(
     start: datetime,
     months: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
     roll: Union[str, int, NoInput],
 ) -> datetime:
@@ -746,7 +814,7 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
 def _add_days(
     start: datetime,
     days: int,
-    modifier: Optional[str],
+    modifier: str,
     cal: CalInput,
 ) -> datetime:
     end = start + timedelta(days=days)
@@ -867,7 +935,7 @@ def dcf(
     termination: Union[datetime, NoInput] = NoInput(0),  # required for 30E360ISDA and ActActICMA
     frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
     stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: Union[str, int, NoInput] = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    roll: Union[str, int, NoInput] = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -887,16 +955,22 @@ def dcf(
 
         - `"30E360ISDA"` (since end Feb is adjusted to 30 unless it aligns with
           ``termination`` of a leg)
-        - `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND"` (if the period is a stub
-          the ``termination`` of the leg is used to assess front or back stubs and
+        - `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`, (if the period is
+          a stub the ``termination`` of the leg is used to assess front or back stubs and
           adjust the calculation accordingly)
 
     frequency_months : int, optional
         The number of months according to the frequency of the period. Required only
         with specific values for ``convention``.
     stub : bool, optional
-        Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND"`. Non-stub periods will
+        Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`.
+        Non-stub periods will
         return a fraction equal to the frequency, e.g. 0.25 for quarterly.
+    roll : str, int, optional
+        Used by `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"` to project
+        regular periods when calculating stubs.
+    calendar: str, Calendar, optional
+        Currently unused.
 
     Returns
     --------
@@ -909,6 +983,8 @@ def dcf(
     - `"1"`: Returns 1 for any period.
     - `"1+"`: Returns the number of months between dates divided by 12.
     - `"Act365F"`: Returns actual number of days divided by a fixed 365 denominator.
+    - `"Act365F+"`: Returns the number of years and the actual number of days in the fractional year
+      divided by a fixed 365 denominator.
     - `"Act360"`: Returns actual number of days divided by a fixed 360 denominator.
     - `"30E360"`, `"EuroBondBasis"`: Months are treated as having 30 days and start
       and end dates are converted under the rule:
@@ -932,7 +1008,9 @@ def dcf(
 
     - `"ActAct"`, `"ActActISDA"`: Calendar days between start and end are divided
       by 365 or 366 dependent upon whether they fall within a leap year or not.
-    - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`:
+    - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`, `"ActActICMA_stub365f"`: Returns a fraction
+      relevant to the frequency of the schedule if a regular period. If a stub then projects
+      a regular period and returns a fraction of that period.
 
     Further information can be found in the
     :download:`2006 ISDA definitions <_static/2006_isda_definitions.pdf>` and
@@ -965,6 +1043,17 @@ def _dcf_act365f(start: datetime, end: datetime, *args):
     return (end - start) / timedelta(days=365)
 
 
+def _dcf_act365fplus(start: datetime, end: datetime, *args):
+    """count the number of the years and then add a fractional ACT365F peruiod."""
+    if end <= datetime(start.year + 1, start.month, start.day):
+        return _dcf_act365f(start, end)
+    elif end <= datetime(end.year, start.month, start.day):
+        return end.year - start.year + _dcf_act365f(datetime(end.year, start.month, start.day), end)
+    else:
+        years = end.year - start.year - 1
+        return years + _dcf_act365f(datetime(end.year - 1, start.month, start.day), end)
+
+
 def _dcf_act360(start: datetime, end: datetime, *args):
     return (end - start) / timedelta(days=360)
 
@@ -982,8 +1071,8 @@ def _dcf_30e360(start: datetime, end: datetime, *args):
     return y + m + (de - ds) / 360
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: Optional[datetime], *args):
-    if termination is None:
+def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
+    if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
     def _is_end_feb(date):
@@ -1017,46 +1106,98 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
 def _dcf_actacticma(
     start: datetime,
     end: datetime,
-    termination: Optional[datetime],
-    frequency_months: Optional[int],
-    stub: Optional[bool],
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
     roll: Union[str, int, NoInput],
-    calendar: CalInput
+    calendar: CalInput,
 ):
-    if frequency_months is None:
+    if frequency_months is NoInput.blank:
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
-    if termination is None:
+    if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
-    if stub is None:
+    if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if not stub:
         return frequency_months / 12
     else:
-        # eom is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, None, calendar, roll)
+            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
                 fraction += 1
                 fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, None, calendar, roll) - fwd_end
+                    _add_months(start, 2 * frequency_months, "NONE", calendar, roll) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
             return fraction * frequency_months / 12
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, None, calendar, roll)
+            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
             fraction = 0
             if start < prev_start:  # stub is LONG
                 fraction += 1
                 r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, None, calendar, roll)
+                s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
                 fraction += r / s
             else:
                 r = end - start
                 s = end - prev_start
                 fraction += r / s
             return fraction * frequency_months / 12
+
+
+def _dcf_actacticma_stub365f(
+    start: datetime,
+    end: datetime,
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
+    roll: Union[str, int, NoInput],
+    calendar: CalInput,
+):
+    """
+    Applies regular actacticma unless a stub period where Act365F is used.
+    [designed for Canadian Government Bonds with stubs]
+    """
+    if frequency_months is NoInput.blank:
+        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
+    if termination is NoInput.blank:
+        raise ValueError("`termination` must be supplied with specified `convention`.")
+    if stub is NoInput.blank:
+        raise ValueError("`stub` must be supplied with specified `convention`.")
+    if not stub:
+        return frequency_months / 12
+    else:
+        # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        if end == termination:  # stub is a BACK stub:
+            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
+            r = (end - start).days
+            s = (fwd_end - start).days
+            if end > fwd_end:  # stub is LONG
+                d_ = frequency_months / 12.0
+                d_ += (r - s) / 365.0
+            else:  # stub is SHORT
+                if r < (365.0 / (12 / frequency_months)):
+                    d_ = r / 365.0
+                else:
+                    d_ = frequency_months / 12 - (s - r) / 365.0
+
+        else:  # stub is a FRONT stub
+            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
+            r = (end - start).days
+            s = (end - prev_start).days
+            if start < prev_start:  # stub is LONG
+                d_ = frequency_months / 12.0
+                d_ += (r - s) / 365.0
+            else:
+                if r < 365.0 / (12 / frequency_months):
+                    d_ = r / 365.0
+                else:
+                    d_ = frequency_months / 12 - (s - r) / 365.0
+
+        return d_
 
 
 def _dcf_1(*args):
@@ -1069,6 +1210,7 @@ def _dcf_1plus(start: datetime, end: datetime, *args):
 
 _DCF = {
     "ACT365F": _dcf_act365f,
+    "ACT365F+": _dcf_act365fplus,
     "ACT360": _dcf_act360,
     "30360": _dcf_30360,
     "360360": _dcf_30360,
@@ -1079,6 +1221,7 @@ _DCF = {
     "ACTACT": _dcf_actactisda,
     "ACTACTISDA": _dcf_30e360isda,
     "ACTACTICMA": _dcf_actacticma,
+    "ACTACTICMA_STUB365F": _dcf_actacticma_stub365f,
     "ACTACTISMA": _dcf_actacticma,
     "ACTACTBOND": _dcf_actacticma,
     "1": _dcf_1,
@@ -1087,6 +1230,7 @@ _DCF = {
 
 _DCF1d = {
     "ACT365F": 1.0 / 365,
+    "ACT365F+": 1.0 / 365,
     "ACT360": 1.0 / 360,
     "30360": 1.0 / 365.25,
     "360360": 1.0 / 365.25,
@@ -1097,6 +1241,7 @@ _DCF1d = {
     "ACTACT": 1.0 / 365.25,
     "ACTACTISDA": 1.0 / 365.25,
     "ACTACTICMA": 1.0 / 365.25,
+    "ACTACTICMA_STUB365F": 1 / 365.25,
     "ACTACTISMA": 1.0 / 365.25,
     "ACTACTBOND": 1.0 / 365.25,
     "1": None,

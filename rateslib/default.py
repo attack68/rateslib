@@ -1,41 +1,14 @@
-from pandas.tseries.offsets import BusinessDay
 from pandas import read_csv
 import pandas
 import os
 from enum import Enum
 from packaging import version
 from datetime import datetime
+from rateslib._spec_loader import INSTRUMENT_SPECS
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-INSTRUMENT_SPECS = {
-    "usd_sofr_irs": dict(
-        currency="usd",
-        frequency="A",
-        leg2_frequency="A",
-        convention="Act360",
-        leg2_convention="Act360",
-        calendar="nyc",
-        leg2_calendar="nyc",
-        modifier="MF",
-        leg2_modifier="MF",
-        stub="SHORTFRONT",
-        leg2_stub="SHORTFRONT",
-        front_stub=None,
-        leg2_front_stub=None,
-        back_stub=None,
-        leg_back_stub=None,
-        eom=False,
-        leg2_eom=False,
-        roll=None,
-        leg2_roll=None,
-        payment_lag=2,
-        leg2_payment_lag=2,
-    )
-}
 
 
 class NoInput(Enum):
@@ -67,6 +40,7 @@ class Fixings:
         self._sofr = None
         self._swestr = None
         self._nowa = None
+        self._corra = None
 
     @property
     def sonia(self):
@@ -99,21 +73,48 @@ class Fixings:
         return self._nowa
 
     @property
+    def corra(self):
+        if self._corra is None:
+            self._corra = self._load_csv("data/corra.csv")
+        return self._corra
+
+    @property
     def saron(self):
         raise NotImplementedError("Swiss SIX exchange licence not available.")
 
 
 class Defaults:
     """
-    Test docs
+    The *defaults* object used by initialising objects. Values are printed below:
+
+    .. ipython:: python
+
+       from rateslib import defaults
+       print(defaults.print())
+
     """
 
-    convention = "ACT360"
-    notional = 1.0e6
+    # Scheduling
     stub = "SHORTFRONT"
     stub_length = "SHORT"
     eval_mode = "swaps_align"
     modifier = "MF"
+    # calendar = BusinessDay()
+    frequency_months = {
+        "M": 1,
+        "B": 2,
+        "Q": 3,
+        "T": 4,
+        "S": 6,
+        "A": 12,
+        "Z": 1e8,
+    }
+    eom = False
+
+    # Instrument parameterisation
+
+    convention = "ACT360"
+    notional = 1.0e6
     index_lag = 3
     index_method = "daily"
     payment_lag = 2
@@ -135,27 +136,10 @@ class Defaults:
         "FloatFixedXCS": 2,
         "FixedRateBond": 0,
         "IndexFixedRateBond": 0,
-        "FloatRateBond": 0,
+        "FloatRateNote": 0,
         "Bill": 0,
         "FRA": 0,
     }
-    calendar = BusinessDay()
-    interpolation = {
-        "Curve": "log_linear",
-        "LineCurve": "linear",
-        "IndexCurve": "linear_index",
-    }
-    endpoints = "natural"
-    frequency_months = {
-        "M": 1,
-        "B": 2,
-        "Q": 3,
-        "T": 4,
-        "S": 6,
-        "A": 12,
-        "Z": 1e8,
-    }
-    eom = False
     fixing_method = "rfr_payment_delay"
     fixing_method_param = {
         "rfr_payment_delay": 0,  # no observation shift - use payment_delay param
@@ -170,8 +154,38 @@ class Defaults:
     }
     spread_compound_method = "none_simple"
     base_currency = "usd"
-    fx_swap_base = "foreign"
+
+    # Curves
+
+    interpolation = {
+        "Curve": "log_linear",
+        "LineCurve": "linear",
+        "IndexCurve": "linear_index",
+    }
+    endpoints = "natural"
+    # fmt: off
+    multi_csa_steps = [
+       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
+       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
+       1808, 1821, 1824, 1825,
+    ]
+    # fmt: on
+
+    # Solver
+
     tag = "v"
+    algorithm = "levenberg_marquardt"
+    curve_not_in_solver = "ignore"
+
+    # bonds
+    calc_mode = "ukg"
+    settle = 1
+    ex_div = 1
+
+    # misc
+
+    pool = 1
+    no_fx_fixings_for_xcs = "warn"
     headers = {
         "type": "Type",
         "stub_type": "Period",
@@ -197,18 +211,6 @@ class Defaults:
         "index_base": "Index Base",
         "collateral": "Collateral",
     }
-    algorithm = "levenberg_marquardt"
-    curve_not_in_solver = "ignore"
-    no_fx_fixings_for_xcs = "warn"
-    pool = 1
-
-    # fmt: off
-    multi_csa_steps = [
-       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
-       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
-       1808, 1821, 1824, 1825,
-    ]
-    # fmt: on
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -218,14 +220,72 @@ class Defaults:
     fixings = Fixings()
 
     def reset_defaults(self):
+        """
+        Revert defaults back to their initialisation status.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           from rateslib import defaults
+           defaults.reset_defaults()
+        """
         base = Defaults()
         for attr in [_ for _ in dir(self) if "__" != _[:2]]:
             setattr(self, attr, getattr(base, attr))
 
-    spec = {
-        "usd_irs": INSTRUMENT_SPECS["usd_sofr_irs"],
-        "sofr": INSTRUMENT_SPECS["usd_sofr_irs"],
-    }
+    spec = INSTRUMENT_SPECS
+
+    def print(self):
+        """
+        Return a string representation of the current values in the defaults object.
+        """
+
+        def _t_n(v):
+            return f"\t{v}\n"
+
+        _ = f"""\
+Scheduling:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'stub', 
+    'stub_length', 
+    'modifier', 
+    'eom', 
+    'eval_mode', 
+    'frequency_months'
+]])}
+Instruments:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'convention', 
+    'payment_lag', 
+    'payment_lag_exchange', 
+    'payment_lag_specific', 
+    'notional', 
+    'fixing_method',
+    'fixing_method_param',
+    'spread_compound_method',
+    'base_currency',
+]])}
+Curves:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'interpolation',
+    'endpoints',
+    'multi_csa_steps',        
+]])}
+Solver:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'algorithm',
+    'tag',
+    'curve_not_in_solver',         
+]])}
+Miscellaneous:\n
+{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
+    'headers',
+    'no_fx_fixings_for_xcs',
+    'pool',         
+]])}
+"""
+        return _
 
 
 def plot(x, y: list, labels=[]):
