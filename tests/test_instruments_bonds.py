@@ -1264,7 +1264,7 @@ class TestFloatRateNote:
             spread_compound_method="none_simple",
         )
         result = bond.accrued(dt(2010, 3, 3))
-        expected = 0.5019275497883  # approx 2 / 12 * 3%
+        expected = 0.5019199020076  # 3% * 2 / 12
         assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
@@ -1354,7 +1354,8 @@ class TestFloatRateNote:
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
-        result = bond.accrued(dt(2010, 3, 11))
+        with pytest.warns(UserWarning):
+            result = bond.accrued(dt(2010, 3, 11))
 
         # approximate calculation 5 days of negative accrued at 2% = -0.027397
         assert abs(result + 2 * 5 / 365) < 1e-3
@@ -1363,7 +1364,6 @@ class TestFloatRateNote:
         "fixings",
         [
             NoInput(0),
-            [2.0, 2.0],
         ],
     )
     def test_negative_accrued_raises(self, fixings):
@@ -1380,7 +1380,7 @@ class TestFloatRateNote:
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
-        with pytest.raises(TypeError, match="`fixings` are not available for RFR"):
+        with pytest.raises(TypeError, match="`fixings` or `curve` are not available for RFR"):
             bond.accrued(dt(2010, 3, 11))
 
         with pytest.raises(ValueError, match="For RFR FRNs `ex_div` must be less than"):
@@ -1480,7 +1480,7 @@ class TestFloatRateNote:
         )
         curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 0.9}, convention="act365f")
         # disc_curve = curve.shift(0)
-        result = bond.accrued(dt(2010, 8, 1), forecast=True, curve=curve)
+        result = bond.accrued(dt(2010, 8, 1), curve=curve)
         expected = 0.13083715795372267
         assert abs(result - expected) < 1e-8
 
@@ -1512,7 +1512,7 @@ class TestFloatRateNote:
             fixing_method="ibor",
             method_param=0,
         )
-        result = frn.accrued(dt(2022, 2, 5), forecast=True, curve=f_curve)
+        result = frn.accrued(dt(2022, 2, 5), curve=f_curve)
         expected = 0.044444444
         assert abs(result - expected) < 1e-4
 
@@ -1547,6 +1547,85 @@ class TestFloatRateNote:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
         # frn settles in 3 days, has three days of accrued. Fixings required are forecast
 
+    def test_settle_method_param_combinations(self):
+        # for RFR when method_param is less than settle curve based pricing methods will
+        # require forecasting from RFR curve to correctly calculate the accrued.
+        fixings = Series(
+            [2.0, 3.0, 4.0, 5.0, 6.0],
+            index=[dt(2022, 1, 2), dt(2022, 1, 3), dt(2022, 1, 4), dt(2022, 1, 5), dt(2022, 1, 6)]
+        )
+        frn = FloatRateNote(
+            effective=dt(2022, 1, 5),
+            termination="1Y",
+            frequency="Q",
+            settle=3,
+            method_param=2,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+            convention="Act365F",
+            ex_div=1,
+        )
+        curve = Curve({dt(2022, 1, 7): 1.0, dt(2023, 1, 7): 0.95})
+
+        # Case1: All fixings are known and are published
+        # in this case a Curve is not required and is not given
+        result = frn.accrued(settlement=dt(2022, 1, 9))
+        assert abs(result - 0.04932400) < 1e-6
+
+        # Case2: Some fixings are unknown and must be forecast by a curve.
+        # None are supplied so a UserWarning is generated and they are forward filled.
+        with pytest.warns(UserWarning):
+            result = frn.accrued(settlement=dt(2022, 1, 10))
+            assert abs(result - 0.065770465) < 1e-6
+
+        # Case3: Some fixings are unknown and must be forecast by a curve.
+        # A curve is given so this is used to forecast the values.
+        result = frn.accrued(settlement=dt(2022, 1, 10), curve=curve)
+        assert abs(result - 0.06319248) < 1e-6
+
+        # Case4: The bond settles on Issue date and there is no accrued if curve supplied or not
+        result1 = frn.accrued(settlement=dt(2022, 1, 5))
+        result2 = frn.accrued(settlement=dt(2022, 1, 5), curve=curve)
+        assert abs(result1) < 1e-6 and abs(result2) < 1e-6
+
+        # Case5: The bond settles on a coupon date and there is no accrued if curve supplied or not
+        result1 = frn.accrued(settlement=dt(2022, 4, 5))
+        result2 = frn.accrued(settlement=dt(2022, 4, 5), curve=curve)
+        assert abs(result1) < 1e-6 and abs(result2) < 1e-6
+
+        # Case6: Bond settles on issue date and there is no accrued. No fixings are input
+        frn_no_fixings = FloatRateNote(
+            effective=dt(2022, 1, 5),
+            termination="1Y",
+            frequency="Q",
+            settle=3,
+            method_param=2,
+            fixing_method="rfr_observation_shift",
+            convention="Act365F",
+            ex_div=1,
+        )
+        result1 = frn_no_fixings.accrued(settlement=dt(2022, 1, 5))
+        result2 = frn_no_fixings.accrued(settlement=dt(2022, 1, 5), curve=curve)
+        assert abs(result1) < 1e-6 and abs(result2) < 1e-6
+
+        # Case7: Bond settles a few days forward(settle) no previous fixings are given, all
+        # can be forecast from curve
+        frn_no_fixings = FloatRateNote(
+            effective=dt(2022, 1, 7),
+            termination="1Y",
+            frequency="Q",
+            settle=3,
+            method_param=0,
+            fixing_method="rfr_observation_shift",
+            convention="Act365F",
+            ex_div=1,
+        )
+        result = frn_no_fixings.accrued(settlement=dt(2022, 1, 10), curve=curve)
+        assert abs(result - 0.04159011) < 1e-6
+
+        # Case8: bond settles a few days forward, no fixings are given and no curve. Must error.
+        with pytest.raises(TypeError, match="`fixings` or `curve` are not available for"):
+            frn_no_fixings.accrued(settlement=dt(2022, 1, 10))
 
 
 class TestBondFuture:

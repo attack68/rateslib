@@ -21,7 +21,7 @@
 """
 
 from abc import abstractmethod, ABCMeta
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Union
 import abc
 import warnings
@@ -1357,26 +1357,6 @@ class BondMixin:
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
-    def accrued(self, settlement: datetime):
-        """
-        Calculate the accrued amount per nominal par value of 100.
-
-        Parameters
-        ----------
-        settlement : datetime
-            The settlement date which to measure accrued interest against.
-
-        Notes
-        -----
-        Fractionally apportions the coupon payment based on calendar days.
-
-        .. math::
-
-           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
-
-        """
-        return self._accrued(settlement, self.calc_mode)
-
     def fwd_from_repo(
         self,
         price: Union[float, Dual, Dual2],
@@ -2231,7 +2211,25 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    # Digital Methods
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the accrued amount per nominal par value of 100.
+
+        Parameters
+        ----------
+        settlement : datetime
+            The settlement date which to measure accrued interest against.
+
+        Notes
+        -----
+        Fractionally apportions the coupon payment based on calendar days.
+
+        .. math::
+
+           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
+
+        """
+        return self._accrued(settlement, self.calc_mode)
 
     def rate(
         self,
@@ -3400,10 +3398,73 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
+    def _accrual_rate(self, pseudo_period, curve, method_param):
+        """
+        Take a period and try to forecast the rate which determines the accrual,
+        either from known fixings, a curve or forward filling historical fixings.
+
+        This method is required to handle the case where a curve is not provided and
+        fixings are enough.
+        """
+        if pseudo_period.dcf < 1e-10:
+            return 0.0  # there are no fixings in the period.
+
+        if curve is not NoInput.blank:
+            curve_ = curve
+        else:
+            # Test to see if any missing fixings are required:
+            # The fixings calendar and convention are taken from Curve so the pseudo curve
+            # can only get them from the instrument and assume that they align. Otherwise
+            # it is best practice to supply a forecast curve when calculating accrued interest.
+            pseudo_curve = Curve(
+                {},
+                calendar=pseudo_period.calendar,
+                convention=pseudo_period.convention,
+                modifier="F"
+            )
+            try:
+                _ = pseudo_period.rate(pseudo_curve)
+                return _
+            except IndexError:
+                # the pseudo_curve has no nodes so when it needs to calculate a rate it cannot
+                # be indexed.
+                # Try to revert back to using the last fixing as forward projection.
+                try:
+                    last_fixing = pseudo_period.fixings[-1]
+                    warnings.warn(
+                        "A `Curve` was not supplied. Residual required fixings not yet "
+                        "published are forecast from the last known fixing.", UserWarning
+                    )
+                    # For negative accr in ex-div we need to forecast unpublished rates.
+                    # Build a curve which replicates the last fixing value from fixings.
+                except TypeError:
+                    # then rfr fixing cannot be fetched from attribute
+                    if pseudo_period.dcf < 1e-10:
+                        # then settlement is same as period.start so no rate necessary
+                        # create a dummy curve
+                        last_fixing = 0.0
+                    else:
+                        raise TypeError(
+                            "`fixings` or `curve` are not available for RFR float period. If"
+                            "supplying `fixings` must be a Series or list, "
+                            f"got: {pseudo_period.fixings}"
+                        )
+                curve_ = LineCurve(
+                    {
+                        pseudo_period.start - timedelta(days=0 if isinstance(method_param, NoInput) else method_param): last_fixing,
+                        pseudo_period.end: last_fixing,
+                    },
+                    convention=pseudo_period.convention,
+                    calendar=pseudo_period.calendar,
+                )
+
+        # Otherwise rate to settle is determined fully by known fixings.
+        _ = float(pseudo_period.rate(curve_))
+        return _
+
     def accrued(
         self,
         settlement: datetime,
-        forecast: bool = False,
         curve: Union[Curve, NoInput] = NoInput(0),
     ):
         """
@@ -3413,8 +3474,6 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         ----------
         settlement : datetime
             The settlement date which to measure accrued interest against.
-        forecast : bool, optional
-            Whether to use a curve to forecast future fixings.
         curve : Curve, optional
             If ``forecast`` is *True* and fixings are future based then must provide
             a forecast curve.
@@ -3448,7 +3507,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         - In the analogue mode where very few fixings might be missing, and we require
           these values to calculate negative accrued in an ex-div period we do not
           require a ``curve`` but repeat the last historic fixing.
-        - In the digital mode where the ``settlement`` may be well in the future we
+        - In the digital mode where the ``settlement`` is likely in the future we
           use a ``curve`` to forecast rates,
 
         Examples
@@ -3498,16 +3557,16 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
-            if forecast:
-                curve = curve
+            if curve is not NoInput.blank:
+                curve_ = curve
             else:
-                curve = Curve(
+                curve_ = Curve(
                     {  # create a dummy curve. rate() will return the fixing
                         self.leg1.periods[acc_idx].start: 1.0,
                         self.leg1.periods[acc_idx].end: 1.0,
                     }
                 )
-            rate = self.leg1.periods[acc_idx].rate(curve)
+            rate = self.leg1.periods[acc_idx].rate(curve_)
 
             cashflow = (
                 -self.leg1.periods[acc_idx].notional * self.leg1.periods[acc_idx].dcf * rate / 100
@@ -3537,47 +3596,11 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 roll=self.leg1.schedule.roll,
                 calendar=self.leg1.schedule.calendar,
             )
-
-            if curve is not NoInput.blank and (forecast or p.start >= curve.node_dates[0]):
-                # then curve can be used to forecast all relevant rfr rates.
-                curve = curve
-            else:
-                try:
-                    last_fixing = p.fixings[-1]
-                    # For negative accr in ex-div we need to forecast unpublished rates.
-                    # Build a curve which replicates the last fixing value from fixings.
-                except TypeError:
-                    # then rfr fixing cannot be fetched from attribute
-
-                    # if acc_idx == 0 and p.start == self.leg1.schedule.aschedule[0]:
-                    #     # bond settles on issue date of bond, fixing may not be available.
-                    #     accrued_to_settle = 0.
-
-                    if p.dcf < 1e-10:
-                        # then settlement is same as period.start so no rate necessary
-                        # create a dummy curve
-                        last_fixing = 0.0
-                    else:
-                        raise TypeError(
-                            "`fixings` are not available for RFR float period. Must be a "
-                            f"Series or list, {p.fixings} was given."
-                        )
-                curve = LineCurve(
-                    {
-                        self.leg1.periods[acc_idx].start: last_fixing,
-                        self.leg1.periods[acc_idx].end: last_fixing,
-                    }
-                )
-
-            # Otherwise rate to settle is determined fully by known fixings.
-            if p.dcf < 1e-10:
-                rate_to_settle = 0.0  # there are no fixings in the period.
-            else:
-                rate_to_settle = float(p.rate(curve))
+            rate_to_settle = self._accrual_rate(p, curve, self.leg1.method_param)
             accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
 
             if self.ex_div(settlement):
-                rate_to_end = self.leg1.periods[acc_idx].rate(curve)
+                rate_to_end = self._accrual_rate(self.leg1.periods[acc_idx], curve, self.leg1.method_param)
                 accrued_to_end = 100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
                 return accrued_to_settle - accrued_to_end
             else:
@@ -3662,7 +3685,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             if metric == "fwd_dirty_price":
                 return dirty_price
             elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement, True, curves[0])
+                return dirty_price - self.accrued(forward_settlement, curves[0])
 
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread'}.")
 

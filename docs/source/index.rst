@@ -15,7 +15,11 @@
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.style&label=Code%20Style&color=black" alt="Code Style">
    </div>
 
-**This version is pre-release in Beta. It may change at any point without notice.**
+   <script async defer src="https://buttons.github.io/buttons.js"></script>
+   <div style="text-align: center; padding-top: 5px;">
+   <a class="github-button" href="https://github.com/attack68/rateslib" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star attack68/rateslib on GitHub">Star</a>
+   <a class="github-button" href="https://github.com/attack68/rateslib/issues" data-icon="octicon-issue-opened" data-size="large" data-show-count="true" aria-label="Issue attack68/rateslib on GitHub">Issue</a>
+   </div>
 
 ``Rateslib`` is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis

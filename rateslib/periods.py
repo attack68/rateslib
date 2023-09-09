@@ -27,7 +27,7 @@ from math import comb, log
 import numpy as np
 
 # from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, date_range, Series, NA, isna
+from pandas import DataFrame, date_range, Series, NA, isna, notna
 
 from rateslib import defaults
 from rateslib.default import NoInput
@@ -1357,7 +1357,7 @@ class FloatPeriod(BasePeriod):
         # reindex the rates series getting missing values from the curves
         # TODO (low) the next two lines could probably be vectorised and made more efficient.
         fixed = ~isna(rates)
-        rates = Series({k: curve.rate(k, "1b", "F") if isna(v) else v for k, v in rates.items()})
+        rates = Series({k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()})
 
         if fixing_exposure:
             # need to calculate the dcfs associated with the rates (unshifted)
