@@ -3446,7 +3446,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         - In the analogue mode where very few fixings might be missing, and we require
           these values to calculate negative accrued in an ex-div period we do not
           require a ``curve`` but repeat the last historic fixing.
-        - In the digital mode where the ``settlement`` may be well in the future we
+        - In the digital mode where the ``settlement`` is likely in the future we
           use a ``curve`` to forecast rates,
 
         Examples
