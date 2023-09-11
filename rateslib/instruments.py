@@ -33,7 +33,7 @@ import numpy as np
 
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, concat, Series, MultiIndex
+from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
@@ -681,11 +681,13 @@ class BaseMixin:
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
+
+        dfs = [
+            self.leg1.cashflows(curves[0], curves[1], fx_, base_),
+            self.leg2.cashflows(curves[2], curves[3], fx_, base_),
+        ]
         _ = concat(
-            [
-                self.leg1.cashflows(curves[0], curves[1], fx_, base_),
-                self.leg2.cashflows(curves[2], curves[3], fx_, base_),
-            ],
+            [_ for _ in dfs if not (_.empty or isna(_).all(axis=None))],  # filter empty or na
             keys=["leg1", "leg2"],
         )
         return _
@@ -3430,7 +3432,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 # be indexed.
                 # Try to revert back to using the last fixing as forward projection.
                 try:
-                    last_fixing = pseudo_period.fixings[-1]
+                    if isinstance(pseudo_period.fixings, Series):
+                        last_fixing = pseudo_period.fixings.iloc[-1]
+                    else:
+                        last_fixing = pseudo_period.fixings[-1]
                     warnings.warn(
                         "A `Curve` was not supplied. Residual required fixings not yet "
                         "published are forecast from the last known fixing.", UserWarning

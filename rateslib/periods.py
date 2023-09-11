@@ -1406,7 +1406,7 @@ class FloatPeriod(BasePeriod):
             notional_exposure[fixed.to_numpy()] = 0.0
             extra_cols = {
                 "obs_dcf": dcf_of_r,
-                "notional": notional_exposure.apply(float, convert_dtype=float),
+                "notional": notional_exposure.astype(float),  # apply(float, convert_dtype=float),
             }
         else:
             if "avg" in self.fixing_method:
@@ -1427,7 +1427,7 @@ class FloatPeriod(BasePeriod):
                 "obs_dates": obs_dates,
                 "dcf_dates": dcf_dates,
                 "dcf": dcf_vals,
-                "rates": rates.apply(float, convert_dtype=float).reset_index(drop=True),
+                "rates": rates.astype(float).reset_index(drop=True),
                 **extra_cols,
             }
         )
@@ -1507,7 +1507,7 @@ class FloatPeriod(BasePeriod):
                     "dcf_dates": dcf_dates,
                     "dcf": dcf_vals,
                     "notional": notional_exposure,
-                    "rates": Series(rate, index=obs_dates.index).apply(float, convert_dtype=float),
+                    "rates": Series(rate, index=obs_dates.index).astype(float), #.apply(float, convert_dtype=float),
                 }
             )
 
