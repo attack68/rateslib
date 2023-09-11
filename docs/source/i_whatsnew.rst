@@ -22,10 +22,6 @@ email contact through **rateslib@gmail.com**.
      - Description
      - Consideration
      - Timeframe
-   * - FX Spot and Repos
-     - Adding basic funding instruments.
-     - Likely (v1.0)
-     - End 2023
    * - Coding Interest Rates
      - Officially document this library's algorithms and release the book.
      - Planned
@@ -34,11 +30,6 @@ email contact through **rateslib@gmail.com**.
      - Release the official first non-beta version of this library.
      - Planned
      - End 2023
-   * - Defaults
-     - Adding the ability to define parameters by specification, e.g. "sofr irs" or
-       "uk gilt", which set multiple default parameters.
-     - Likely, to improve UI. (v1.0?)
-     - By end 2023
    * - Vanilla FX options and volatility products
      - Adding option instruments and benchmark trades such as risk-reversals.
      - Highly likely (v2.0?)
@@ -62,7 +53,7 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-0.5.0 (not released)
+0.5.0 (11 Sep 2023)
 **********************
 
 .. list-table::
