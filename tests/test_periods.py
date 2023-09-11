@@ -677,7 +677,7 @@ class TestFloatPeriod:
             convention="act365f",
         )
         result = period.fixings_table(rfr_curve)
-        assert abs(result["notional"][0] - expected) < 1
+        assert abs(result["notional"].iloc[0] - expected) < 1
 
     @pytest.mark.parametrize(
         "method, expected",
@@ -1142,7 +1142,7 @@ class TestFloatPeriod:
         table = period.fixings_table(curve)
         period.float_spread = 200
         table2 = period.fixings_table(curve)
-        assert (table["notional"][0] == table2["notional"][0]) == exp
+        assert (table["notional"].iloc[0] == table2["notional"].iloc[0]) == exp
 
     def test_custom_interp_rate_nan(self):
         float_period = FloatPeriod(

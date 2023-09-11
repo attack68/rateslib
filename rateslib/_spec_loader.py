@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from packaging import version
 
 
 def _append_kwargs_name(df):
@@ -25,7 +26,12 @@ def _parse_bool(df):
         else:
             return None
 
-    df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)
+    if version.parse(pd.__version__) >= version.parse("2.1.0"):
+        # applymap issues a deprecation warning with version <2.1.0
+        # TODO (low): clean this up when setting a minimum pandas version at 2.1.0
+        df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].map(_map_true_false)
+    else:
+        df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)
     return df
 
 
