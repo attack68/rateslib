@@ -1,5 +1,5 @@
-<div style="text-align: center">
-    <img src="docs/source/_static/rateslib_logo_big.gif" alt="Rateslib">
+<div style="text-align: center; padding: 2em 0 2em">
+    <img src="https://rateslib.readthedocs.io/en/latest/_static/rateslib_logo_big2.png" alt="rateslib">
 </div>
 
 <div style="text-align: center">
