@@ -1,9 +1,10 @@
 .. RatesLib documentation master file.
 
-.. image:: _static/rateslib_logo_big.gif
-  :alt: Rateslib
-
 .. raw:: html
+
+   <div style="text-align: center; padding: 1em 0em 2em;">
+       <img alt="rateslib" src="_static/rateslib_logo_big2.png">
+   </div>
 
    <div style="text-align: center">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.python&label=Python&color=blue" alt="Python">

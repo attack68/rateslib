@@ -53,7 +53,7 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-0.5.0 (11 Sep 2023)
+0.5.1 (11 Sep 2023)
 **********************
 
 .. list-table::

@@ -56,7 +56,7 @@ html_theme_options = {
   "navbar_center": ["navbar-nav"],
   "navbar_end": ["navbar-icon-links", "version-switcher"],
 }
-html_logo = "_static/rateslib_logo4.gif"
+html_logo = "_static/rateslib_logo2a.png"
 html_css_files = [
     'css/getting_started.css',
     'css/overwrites.css',
