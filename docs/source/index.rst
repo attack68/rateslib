@@ -2,7 +2,7 @@
 
 .. raw:: html
 
-   <div style="text-align: center; padding: 1em 0em 2em;">
+   <div style="text-align: center; padding: 2em 0em 3em;">
        <img alt="rateslib" src="_static/rateslib_logo_big2.png">
    </div>
 
@@ -17,7 +17,7 @@
    </div>
 
    <script async defer src="https://buttons.github.io/buttons.js"></script>
-   <div style="text-align: center; padding-top: 5px;">
+   <div style="text-align: center; padding: 5px 0em 2.5em 0em;">
    <a class="github-button" href="https://github.com/attack68/rateslib" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star attack68/rateslib on GitHub">Star</a>
    <a class="github-button" href="https://github.com/attack68/rateslib/issues" data-icon="octicon-issue-opened" data-size="large" data-show-count="true" aria-label="Issue attack68/rateslib on GitHub">Issue</a>
    </div>
