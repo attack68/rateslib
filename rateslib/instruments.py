@@ -6949,6 +6949,8 @@ class XCS2(BaseDerivative):
                 self.fx_fixings = float(fx_fixings)
             else:
                 self._fx_fixings = NoInput(0)
+        else:
+            self._fx_fixings = fx_fixings
 
     def _set_fx_fixings(self, fx):
         """
