@@ -12,7 +12,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, dual_solve, set_order, DualTypes
 from rateslib.default import plot
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, LineCurve, ProxyCurve, CompositeCurve
+from rateslib.curves import Curve, LineCurve, ProxyCurve, MultiCsaCurve
 
 """
 .. ipython:: python
@@ -1491,11 +1491,7 @@ class FXForwards:
             curves = []
             for coll in collateral:
                 curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
-            _ = CompositeCurve(
-                curves=curves,
-                id=id,
-                multi_csa=True,
-            )
+            _ = MultiCsaCurve(curves=curves, id=id)
             _.collateral = ",".join([__.lower() for __ in collateral])
             return _
 
