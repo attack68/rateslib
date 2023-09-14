@@ -101,6 +101,7 @@ Curves
 .. automodapi:: rateslib.curves
    :no-heading:
    :inherited-members:
+   :no-inheritance-diagram:
    :skip: NoInput
    :skip: set_order_convert
    :skip: add_tenor
@@ -121,12 +122,18 @@ Curves
    :skip: Holiday
    :skip: comb
 
+Class Inheritance Diagram
+**************************
+
+.. automod-diagram:: rateslib.curves
+   :parts: 1
 
 FX
 ---
 
 .. automodapi:: rateslib.fx
    :no-heading:
+   :no-inheritance-diagram:
    :skip: NoInput
    :skip: Curve
    :skip: LineCurve
@@ -197,7 +204,6 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
-   :skip: MultiCsaCurve
    :skip: NoInput
    :skip: IndexCurve
    :skip: IndexFixedLeg

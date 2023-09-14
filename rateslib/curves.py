@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Serialize:
+class _Serialize:
     """
     Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
     """
@@ -170,109 +170,7 @@ class Serialize:
         return None
 
 
-class PlotCurve:
-    """
-    Methods mixin for plotting :class:`Curve` or :class:`LineCurve` s.
-    """
-
-    def plot(
-        self,
-        tenor: str,
-        right: Union[datetime, str, NoInput] = NoInput(0),
-        left: Union[datetime, str, NoInput] = NoInput(0),
-        comparators: list[Curve] = [],
-        difference: bool = False,
-        labels: list[str] = [],
-    ):
-        """
-        Plot given forward tenor rates from the curve.
-
-        Parameters
-        ----------
-        tenor : str
-            The tenor of the forward rates to plot, e.g. "1D", "3M".
-        right : datetime or str, optional
-            The right bound of the graph. If given as str should be a tenor format
-            defining a point measured from the initial node date of the curve.
-            Defaults to the final node of the curve minus the ``tenor``.
-        left : datetime or str, optional
-            The left bound of the graph. If given as str should be a tenor format
-            defining a point measured from the initial node date of the curve.
-            Defaults to the initial node of the curve.
-        comparators: list[Curve]
-            A list of curves which to include on the same plot as comparators.
-        difference : bool
-            Whether to plot as comparator minus base curve or outright curve levels in
-            plot. Default is `False`.
-        labels : list[str]
-            A list of strings associated with the plot and comparators. Must be same
-            length as number of plots.
-
-        Returns
-        -------
-        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
-        """
-        if left is NoInput.blank:
-            left_: datetime = self.node_dates[0]
-        elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
-        elif isinstance(left, datetime):
-            left_ = left
-        else:
-            raise ValueError("`left` must be supplied as datetime or tenor string.")
-
-        if right is NoInput.blank:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, "NONE", NoInput(0))
-        elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
-        elif isinstance(right, datetime):
-            right_ = right
-        else:
-            raise ValueError("`right` must be supplied as datetime or tenor string.")
-
-        points: int = (right_ - left_).days
-        x = [left_ + timedelta(days=i) for i in range(points)]
-        rates = [self.rate(_, tenor) for _ in x]
-        if not difference:
-            y = [rates]
-            if comparators is not None:
-                for comparator in comparators:
-                    y.append([comparator.rate(_, tenor) for _ in x])
-        elif difference and len(comparators) > 0:
-            y = []
-            for comparator in comparators:
-                diff = [comparator.rate(_, tenor) - rates[i] for i, _ in enumerate(x)]
-                y.append(diff)
-        return plot(x, y, labels)
-
-    def _plot_fx(
-        self,
-        curve_foreign: Curve,
-        fx_rate: Union[float, Dual],
-        fx_settlement: Union[datetime, NoInput] = NoInput(0),
-        left: datetime = None,
-        right: datetime = None,
-        points: int = None,
-    ):  # pragma: no cover
-        """
-        Debugging method?
-        """
-
-        def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
-            _ = self[date] / curve_foreign[date]
-            if fx_settlement is not NoInput.blank:
-                _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
-            _ *= fx_rate
-            return _
-
-        left, right = self.node_dates[0], self.node_dates[-1]
-        points = (right - left).days
-        x = [left + timedelta(days=i) for i in range(points)]
-        rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
-        return plot(x, [rates])
-
-
-class Curve(Serialize, PlotCurve):
+class Curve(_Serialize):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -1128,6 +1026,104 @@ class Curve(Serialize, PlotCurve):
             return new_curve
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
+
+    # PLOTTING METHODS
+
+    def plot(
+        self,
+        tenor: str,
+        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: Union[datetime, str, NoInput] = NoInput(0),
+        comparators: list[Curve] = [],
+        difference: bool = False,
+        labels: list[str] = [],
+    ):
+        """
+        Plot given forward tenor rates from the curve.
+
+        Parameters
+        ----------
+        tenor : str
+            The tenor of the forward rates to plot, e.g. "1D", "3M".
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the final node of the curve minus the ``tenor``.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the initial node of the curve.
+        comparators: list[Curve]
+            A list of curves which to include on the same plot as comparators.
+        difference : bool
+            Whether to plot as comparator minus base curve or outright curve levels in
+            plot. Default is `False`.
+        labels : list[str]
+            A list of strings associated with the plot and comparators. Must be same
+            length as number of plots.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+        """
+        if left is NoInput.blank:
+            left_: datetime = self.node_dates[0]
+        elif isinstance(left, str):
+            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
+        elif isinstance(left, datetime):
+            left_ = left
+        else:
+            raise ValueError("`left` must be supplied as datetime or tenor string.")
+
+        if right is NoInput.blank:
+            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, "NONE", NoInput(0))
+        elif isinstance(right, str):
+            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
+        elif isinstance(right, datetime):
+            right_ = right
+        else:
+            raise ValueError("`right` must be supplied as datetime or tenor string.")
+
+        points: int = (right_ - left_).days
+        x = [left_ + timedelta(days=i) for i in range(points)]
+        rates = [self.rate(_, tenor) for _ in x]
+        if not difference:
+            y = [rates]
+            if comparators is not None:
+                for comparator in comparators:
+                    y.append([comparator.rate(_, tenor) for _ in x])
+        elif difference and len(comparators) > 0:
+            y = []
+            for comparator in comparators:
+                diff = [comparator.rate(_, tenor) - rates[i] for i, _ in enumerate(x)]
+                y.append(diff)
+        return plot(x, y, labels)
+
+    def _plot_fx(
+        self,
+        curve_foreign: Curve,
+        fx_rate: Union[float, Dual],
+        fx_settlement: Union[datetime, NoInput] = NoInput(0),
+        left: datetime = None,
+        right: datetime = None,
+        points: int = None,
+    ):  # pragma: no cover
+        """
+        Debugging method?
+        """
+
+        def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
+            _ = self[date] / curve_foreign[date]
+            if fx_settlement is not NoInput.blank:
+                _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
+            _ *= fx_rate
+            return _
+
+        left, right = self.node_dates[0], self.node_dates[-1]
+        points = (right - left).days
+        x = [left + timedelta(days=i) for i in range(points)]
+        rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
+        return plot(x, [rates])
 
 
 class LineCurve(Curve):

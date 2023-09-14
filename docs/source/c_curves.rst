@@ -175,9 +175,8 @@ under the curve's specified interpolation scheme.
 Visualization
 **************
 
-Visualization methods are inherited by subclassing
-:class:`~rateslib.curves.PlotCurve` which provides
-the methods :meth:`Curve.plot()<rateslib.curves.Curve.plot>` and
+Visualization methods are also available via
+:meth:`Curve.plot()<rateslib.curves.Curve.plot>` and
 :meth:`LineCurve.plot()<rateslib.curves.LineCurve.plot>`. This allows the easy
 inspection of curves directly. Below we demonstrate a plot highlighting the
 differences between our parametrised :class:`~rateslib.curves.Curve`
