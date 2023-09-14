@@ -131,7 +131,7 @@ FX
    :skip: Curve
    :skip: LineCurve
    :skip: ProxyCurve
-   :skip: CompositeCurve
+   :skip: MultiCsaCurve
    :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
@@ -197,6 +197,7 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :skip: MultiCsaCurve
    :skip: NoInput
    :skip: IndexCurve
    :skip: IndexFixedLeg
@@ -239,6 +240,7 @@ Solver
 
 .. automodapi:: rateslib.solver
    :no-heading:
+   :skip: MultiCsaCurve
    :skip: NoInput
    :skip: FXRates
    :skip: DataFrame
