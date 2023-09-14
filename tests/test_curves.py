@@ -12,6 +12,7 @@ from rateslib.curves import (
     interpolate,
     IndexCurve,
     CompositeCurve,
+    MultiCsaCurve,
 )
 from rateslib.default import NoInput
 from rateslib.fx import FXRates, FXForwards
@@ -1394,7 +1395,7 @@ class TestCompositeCurve:
             },
             convention="Act365F",
         )
-        cc = CompositeCurve([c1, c2, c3], multi_csa=True)
+        cc = MultiCsaCurve([c1, c2, c3])
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc.rate(dt(2022, 1, 1), "1d")
             r2 = cc.rate(dt(2022, 1, 2), "1d")
@@ -1409,8 +1410,8 @@ class TestCompositeCurve:
     def test_multi_csa_granularity(self):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.9, dt(2072, 1, 1): 0.5})
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.8, dt(2072, 1, 1): 0.7})
-        cc = CompositeCurve(
-            [c1, c2], multi_csa=True, multi_csa_max_step=182, multi_csa_min_step=182
+        cc = MultiCsaCurve(
+            [c1, c2], multi_csa_max_step=182, multi_csa_min_step=182
         )
 
         r1 = cc.rate(dt(2052, 5, 24), "1d")
@@ -1431,27 +1432,26 @@ class TestCompositeCurve:
                 "eurusd": eu,
             },
         )
-        pc = CompositeCurve([uu, fxf.curve("usd", "eur")], multi_csa=True)
+        pc = MultiCsaCurve([uu, fxf.curve("usd", "eur")])
         result = pc[dt(2023, 1, 1)]
         expected = 0.98900
         assert abs(result - expected) < 1e-4
 
-        pc = CompositeCurve(
+        pc = MultiCsaCurve(
             [
                 fxf.curve("usd", "eur"),
                 uu,
             ],
-            multi_csa=True,
         )
         result = pc[dt(2023, 1, 1)]
         assert abs(result - expected) < 1e-4
 
     def test_multi_raises(self, line_curve, curve):
         with pytest.raises(TypeError, match="Multi-CSA curves must"):
-            CompositeCurve([line_curve], multi_csa=True)
+            MultiCsaCurve([line_curve])
 
         with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
-            CompositeCurve([curve], multi_csa=True, multi_csa_max_step=3, multi_csa_min_step=4)
+            MultiCsaCurve([curve], multi_csa_max_step=3, multi_csa_min_step=4)
 
     def test_multi_csa_shift(self):
         c1 = Curve(
@@ -1484,7 +1484,7 @@ class TestCompositeCurve:
             },
             convention="Act365F",
         )
-        cc = CompositeCurve([c1, c2, c3], multi_csa=True)
+        cc = MultiCsaCurve([c1, c2, c3])
         cc_shift = cc.shift(100, composite=False)
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
