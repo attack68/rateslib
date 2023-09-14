@@ -16,13 +16,11 @@ from rateslib.instruments import (
     SBS,
     FXSwap,
     FXExchange,
-    NonMtmXCS,
     Value,
     ZCS,
     ZCIS,
     _get_curve_from_solver,
     FRA,
-    NonMtmFixedFloatXCS,
     XCS,
     XCS2,
     FixedFloatXCS,
@@ -227,10 +225,13 @@ class TestSolverFXandBase:
             s=[4.109589041095898],
             id="Solver",
         )
-        cls.nxcs = NonMtmXCS(
+        cls.nxcs = XCS2(
             dt(2022, 2, 1),
             "6M",
             "A",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             curves=[cls.curve] * 4,
             currency="eur",
             leg2_currency="usd",
@@ -390,19 +391,25 @@ class TestNullPricing:
                 curves=["usdusd", "usdusd", "eureur", "eurusd"],
                 notional=1e6,
             ),
-            NonMtmXCS(
+            XCS2(  # XCS-FloatFloatNonMtm
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=False,
+                leg2_fixed=False,
+                leg2_mtm=False,
                 currency="usd",
                 leg2_currency="eur",
                 curves=["usdusd", "usdusd", "eureur", "eurusd"],
                 notional=1e6,
             ),
-            NonMtmFixedFloatXCS(
+            XCS2( # XCS-FixedFloatNonMtm
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=True,
+                leg2_fixed=False,
+                leg2_mtm=False,
                 currency="eur",
                 leg2_currency="usd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
@@ -1235,10 +1242,13 @@ class TestNonMtmXCS:
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
         )
 
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="eur",
             leg2_currency="usd",
@@ -1248,10 +1258,13 @@ class TestNonMtmXCS:
         npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             amortization=100e3,
             currency="eur",
@@ -1263,15 +1276,18 @@ class TestNonMtmXCS:
         assert abs(npv) < 1e-9
 
     def test_nonmtmxcs_fx_notional(self):
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
-            fx_fixing=2.0,
+            fx_fixings=2.0,
             notional=1e6,
         )
         assert xcs.leg2_notional == -2e6
@@ -1291,10 +1307,13 @@ class TestNonMtmXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1316,10 +1335,13 @@ class TestNonMtmXCS:
         assert abs(result - result2) < 1e-3
 
         # reverse legs
-        xcs_reverse = NonMtmXCS(
+        xcs_reverse = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="usd",
             leg2_currency="nok",
@@ -1332,10 +1354,13 @@ class TestNonMtmXCS:
         assert abs(result - expected) < 1e-4
 
     def test_no_fx_raises(self, curve, curve2):
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1362,10 +1387,13 @@ class TestNonMtmXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1403,16 +1431,19 @@ class TestNonMtmXCS:
             "dual": Dual(10.0, "x"),
             "dual2": Dual2(10.0, "x"),
         }
-        xcs = NonMtmXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixing=mapping[fix],
+            fx_fixings=mapping[fix],
         )
         assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
 
@@ -1466,24 +1497,30 @@ class TestNonMtmFixedFloatXCS:
         assert abs(result - validate) < 1e-2
 
     def test_nonmtmfixxcs_fx_notional(self):
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
-            fx_fixing=2.0,
+            fx_fixings=2.0,
             notional=1e6,
         )
         assert xcs.leg2_notional == -2e6
 
     def test_nonmtmfixxcs_no_fx_raises(self, curve, curve2):
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1505,10 +1542,13 @@ class TestNonMtmFixedFloatXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1546,16 +1586,19 @@ class TestNonMtmFixedFloatXCS:
             "dual": Dual(10.0, "x"),
             "dual2": Dual2(10.0, "x"),
         }
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixing=mapping[fix],
+            fx_fixings=mapping[fix],
             leg2_float_spread=10.0,
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxf)) < 1e-7
@@ -1566,10 +1609,13 @@ class TestNonMtmFixedFloatXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -2119,8 +2165,8 @@ class TestPricingMechanism:
     @pytest.mark.parametrize(
         "klass, kwargs",
         [
-            (NonMtmXCS, {}),
-            (NonMtmFixedFloatXCS, {"fixed_rate": 2.0}),
+            (XCS2, {"fixed": False, "leg2_fixed": False, "leg2_mtm": False}),
+            (XCS2, {"fixed_rate": 2.0, "fixed": True, "leg2_fixed": False, "leg2_mtm": False}),
             (XCS2, {"fixed_rate": 2.0, "fixed": True, "leg2_fixed": True, "leg2_mtm": False}),
             (XCS, {}),
             (FixedFloatXCS, {"fixed_rate": 2.0}),
