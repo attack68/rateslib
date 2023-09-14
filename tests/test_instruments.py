@@ -21,7 +21,6 @@ from rateslib.instruments import (
     ZCIS,
     _get_curve_from_solver,
     FRA,
-    XCS,
     XCS2,
     Portfolio,
     Spread,
@@ -379,7 +378,7 @@ class TestNullPricing:
                 notional_exchange=True,
             ),
             # TODO add a null price test for ZCIS
-            XCS(
+            XCS2(  # XCS - FloatFloat
                 dt(2022, 7, 1),
                 "3M",
                 "A",
@@ -1764,7 +1763,7 @@ class TestXCS:
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
         )
 
-        xcs = XCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
@@ -1783,7 +1782,7 @@ class TestXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = XCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
@@ -1816,7 +1815,7 @@ class TestXCS:
 
     def test_mtmxcs_fx_fixings_raises(self):
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
+            _ = XCS2(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), currency="usd", leg2_currency="eur")
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
             _ = XCS2(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), fixed=True, leg2_fixed=False, leg2_mtm=True, currency="usd", leg2_currency="eur")
@@ -1842,7 +1841,7 @@ class TestXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = XCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
@@ -2183,7 +2182,7 @@ class TestPricingMechanism:
             (XCS2, {"fixed": False, "leg2_fixed": False, "leg2_mtm": False}),
             (XCS2, {"fixed": True, "leg2_fixed": False, "leg2_mtm": False, "fixed_rate": 2.0}),
             (XCS2, {"fixed": True, "leg2_fixed": True, "leg2_mtm": False, "fixed_rate": 2.0}),
-            (XCS, {}),
+            (XCS2, {}),  # defaults to fixed:False, leg2_fixed: False, leg2_mtm: True
             (XCS2, {"fixed": True, "leg2_fixed": False, "leg2_mtm": True, "fixed_rate": 2.0}),
             (XCS2, {"fixed": False, "leg2_fixed": True, "leg2_mtm": True}),
             (XCS2, {"fixed": True, "leg2_fixed": True, "leg2_mtm": True, "fixed_rate": 2.0}),
@@ -2557,7 +2556,7 @@ class TestSpec:
               )
     ),
     (
-    XCS(dt(2022, 1, 5), "3M", "M", currency="eur", leg2_currency="usd", curves=["eureur", "eurusd", "usdusd", "usdusd"]),
+    XCS2(dt(2022, 1, 5), "3M", "M", currency="eur", leg2_currency="usd", curves=["eureur", "eurusd", "usdusd", "usdusd"]),
     DataFrame([[1000000.0, -1100306.44592],
                [0.0, -2377.85237],
                [-2042.44624, 4630.97800],
@@ -2603,7 +2602,7 @@ def test_fx_settlements_table(inst, expected):
         instruments=[
             IRS(dt(2022, 1, 1), "1y", "A", curves=usdusd),
             IRS(dt(2022, 1, 1), "1y", "A", curves=eureur),
-            XCS(dt(2022, 1, 1), "1y", "Q", currency="eur", leg2_currency="usd", curves=[eureur, eurusd, usdusd, usdusd]),
+            XCS2(dt(2022, 1, 1), "1y", "Q", currency="eur", leg2_currency="usd", curves=[eureur, eurusd, usdusd, usdusd]),
         ],
         s=[5.0, 2.5, -10],
         fx=fxf,
