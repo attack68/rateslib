@@ -23,8 +23,8 @@ from rateslib.instruments import (
     _get_curve_from_solver,
     FRA,
     NonMtmFixedFloatXCS,
-    NonMtmFixedFixedXCS,
     XCS,
+    XCS2,
     FixedFloatXCS,
     FixedFixedXCS,
     FloatFixedXCS,
@@ -408,10 +408,13 @@ class TestNullPricing:
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
-            NonMtmFixedFixedXCS(
+            XCS2(  # XCS-FixedFixedNonMtm
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=True,
+                leg2_fixed=True,
+                leg2_mtm=False,
                 currency="eur",
                 leg2_currency="usd",
                 fixed_rate=1.2,
@@ -1427,11 +1430,14 @@ class TestNonMtmFixedFloatXCS:
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
             payment_lag=0,
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
@@ -1655,16 +1661,19 @@ class TestNonMtmFixedFixedXCS:
             "dual": Dual(10.0, "x"),
             "dual2": Dual2(10.0, "x"),
         }
-        xcs = NonMtmFixedFixedXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm = False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixing=mapping[fix],
+            fx_fixings=mapping[fix],
             leg2_fixed_rate=2.0,
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxr)) < 1e-7
@@ -1675,11 +1684,14 @@ class TestNonMtmFixedFixedXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmFixedFixedXCS(
+        xcs = XCS2(
             dt(2022, 2, 1),
             "8M",
             "M",
             payment_lag=0,
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm=False,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
@@ -2109,7 +2121,7 @@ class TestPricingMechanism:
         [
             (NonMtmXCS, {}),
             (NonMtmFixedFloatXCS, {"fixed_rate": 2.0}),
-            (NonMtmFixedFixedXCS, {"fixed_rate": 2.0}),
+            (XCS2, {"fixed_rate": 2.0, "fixed": True, "leg2_fixed": True, "leg2_mtm": False}),
             (XCS, {}),
             (FixedFloatXCS, {"fixed_rate": 2.0}),
             (FloatFixedXCS, {}),

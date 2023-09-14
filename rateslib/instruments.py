@@ -6857,8 +6857,6 @@ class XCS2(BaseDerivative):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        if leg2_mtm:
-            self._is_mtm = True
 
         if fixed:
             self._fixed_rate_mixin = True
@@ -6893,13 +6891,13 @@ class XCS2(BaseDerivative):
             Leg2 = FixedLeg if not leg2_mtm else FixedLegMtm
         else:
             self._leg2_float_spread_mixin = True
-            self.leg2_float_spread = leg2_float_spread
+            self._leg2_float_spread = leg2_float_spread
             leg2_user_kwargs = dict(
                 leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=spread_compound_method,
-                leg2_fixings=fixings,
-                leg2_fixing_method=fixing_method,
-                leg2_method_param=method_param,
+                leg2_spread_compound_method=leg2_spread_compound_method,
+                leg2_fixings=leg2_fixings,
+                leg2_fixing_method=leg2_fixing_method,
+                leg2_method_param=leg2_method_param,
             )
             Leg2 = FloatLeg if not leg2_mtm else FloatLegMtm
         leg2_user_kwargs.update(dict(
@@ -6915,11 +6913,14 @@ class XCS2(BaseDerivative):
                 leg2_alt_notional=-self.kwargs["notional"],
                 leg2_fx_fixings=fx_fixings,
             ))
+        else:
+            self._is_mtm = False
 
         self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
 
         self.leg1 = Leg1(**_get(self.kwargs, leg=1))
         self.leg2 = Leg2(**_get(self.kwargs, leg=2))
+        self._initialise_fx_fixings(fx_fixings)
 
     @property
     def fx_fixings(self):
