@@ -152,14 +152,19 @@ def _get_curves_fx_and_base_maybe_from_solver(
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
     """
+
+    # First process `base`.
     if fx is NoInput.blank and base is NoInput.blank:
         # base will not be inherited from a 2nd level inherited object, i.e.
         # from solver.fx, to preserve single currency instruments being defaulted
         # to their local currency.
         base_ = local_ccy
+    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
+        base_ = fx.base
     else:
         base_ = base
 
+    # Second process `fx`
     if fx is NoInput.blank:
         if solver is NoInput.blank:
             fx_ = NoInput(0)
