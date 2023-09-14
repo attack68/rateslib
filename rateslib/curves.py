@@ -1792,17 +1792,6 @@ class CompositeCurve(IndexCurve):
         The curves to be composited.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
-    multi_csa: bool, optional
-        If *True* defines a multi-CSA discount curve which has a different calculation
-        methodology by selecting the curve within the collection with the highest rate.
-    multi_csa_min_step: int, optional
-        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
-        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
-        in [1, max_step].
-    multi_csa_max_step: int, optional
-        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
-        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
-        in [min_step, 1825].
 
     Examples
     --------
@@ -2008,7 +1997,8 @@ class CompositeCurve(IndexCurve):
         types = [type(_) for _ in self.curves]
         if any([_ is CompositeCurve for _ in types]):
             raise TypeError(
-                "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented."
+                "Creating a CompositeCurve type containing sub CompositeCurve types is not "
+                "yet implemented."
             )
 
         if not (
@@ -2245,6 +2235,33 @@ class CompositeCurve(IndexCurve):
 
 
 class MultiCsaCurve(CompositeCurve):
+    """
+    A dynamic composition of a sequence of other curves.
+
+    .. note::
+       Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
+       ``modifier``, and ``convention`` must also match.
+
+    Parameters
+    ----------
+    curves : sequence of :class:`Curve`, :class:`LineCurve` or :class:`IndexCurve`
+        The curves to be composited.
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multi-curve framework.
+    multi_csa_min_step: int, optional
+        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
+        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
+        in [1, max_step].
+    multi_csa_max_step: int, optional
+        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
+        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
+        in [min_step, 1825].
+
+    Notes
+    -----
+    A *MultiCsaCurve* uses a different calculation methodology than a *CompositeCurve* for
+    determining the *rate* by selecting the curve within the collection with the highest rate.
+    """
 
     def __init__(
         self,
