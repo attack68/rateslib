@@ -1451,6 +1451,28 @@ class TestNonMtmXCS:
         )
         assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
 
+    def test_is_priced(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            leg2_float_spread=1.0,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+        )
+        result = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
+        assert abs(result - 65.766356) < 1e-5
+
 
 class TestNonMtmFixedFloatXCS:
     @pytest.mark.parametrize(
