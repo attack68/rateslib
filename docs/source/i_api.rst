@@ -240,6 +240,7 @@ Instruments
    :skip: ZeroFixedLeg
    :skip: forward_fx
    :skip: partial
+   :skip: timedelta
 
 Solver
 ------

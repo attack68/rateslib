@@ -6815,7 +6815,7 @@ class FRA(Sensitivities, BaseMixin):
 #         return ret
 
 
-class XCS2(BaseDerivative):
+class XCS(BaseDerivative):
     """
     Base class with common methods for multi-currency ``Derivatives``.
 
@@ -7920,9 +7920,9 @@ class XCS2(BaseDerivative):
 #         return (cf / -self.leg1.notional) * 10000
 
 
-class FXSwap(XCS2):
+class FXSwap(XCS):
     """
-    Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS2`.
+    Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS`.
 
     Parameters
     ----------
