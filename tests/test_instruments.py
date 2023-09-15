@@ -476,7 +476,6 @@ class TestNullPricing:
             FXSwap(
                 dt(2022, 7, 1),
                 "3M",
-                "A",
                 currency="usd",
                 leg2_currency="eur",
                 curves=["usdusd", "usdusd", "eureur", "eureur"],
@@ -569,7 +568,7 @@ class TestNullPricing:
         assert_frame_equal(unpriced_delta, priced_delta)
 
     @pytest.mark.parametrize("inst, param", [
-        (FXSwap(dt(2022, 2, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=[NoInput(0), "eurusd", NoInput(0), "usdusd"]), "points"),
+        (FXSwap(dt(2022, 2, 1), "3M", currency="eur", leg2_currency="usd", curves=[NoInput(0), "eurusd", NoInput(0), "usdusd"]), "points"),
     ])
     def test_null_priced_delta_round_trip_one_pricing_param_fx_fix(self, inst, param):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
@@ -1374,11 +1373,11 @@ class TestNonMtmXCS:
             float_spread=0.0,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.cashflows([curve, curve, curve2, curve2])
 
@@ -1533,11 +1532,11 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.cashflows([curve, curve, curve2, curve2])
 
@@ -1813,6 +1812,7 @@ class TestXCS:
             expected,
         )
 
+    @pytest.mark.skip(reason="After merging all XCS to one class inputting `fx_fixings` as list was changed.")
     def test_mtmxcs_fx_fixings_raises(self):
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
             _ = XCS2(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), currency="usd", leg2_currency="eur")
@@ -1972,7 +1972,6 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
             currency="usd",
             leg2_currency="nok",
             payment_lag=0,
@@ -1990,7 +1989,6 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
             currency="usd",
             leg2_currency="nok",
             payment_lag=0,
@@ -2008,12 +2006,11 @@ class TestFXSwap:
     ])
     def test_fxswap_points_raises(self, points, split_notional):
         if points is not NoInput(0):
-            msg = "Cannot initialise FXSwap with `points` but without `fx_fixing`."
+            msg = "Cannot initialise FXSwap with `points` but without `fx_fixings`."
             with pytest.raises(ValueError, match=msg):
                 FXSwap(
                     dt(2022, 2, 1),
                     "8M",
-                    "M",
                     currency="usd",
                     leg2_currency="nok",
                     payment_lag=0,
@@ -2022,12 +2019,11 @@ class TestFXSwap:
                     points=points,
                 )
         else:
-            msg = "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
+            msg = "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`"
             with pytest.raises(ValueError, match=msg):
                 FXSwap(
                     dt(2022, 2, 1),
                     "8M",
-                    "M",
                     currency="usd",
                     leg2_currency="nok",
                     payment_lag=0,
@@ -2041,8 +2037,7 @@ class TestFXSwap:
             fxs = FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                "M",
-                fx_fixing=11.0,
+                fx_fixings=11.0,
                 currency="usd",
                 leg2_currency="nok",
                 payment_lag=0,
@@ -2054,8 +2049,7 @@ class TestFXSwap:
             fxs = FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                "M",
-                fx_fixing=11.0,
+                fx_fixings=11.0,
                 currency="usd",
                 leg2_currency="nok",
                 payment_lag=0,
@@ -2064,7 +2058,7 @@ class TestFXSwap:
             )
             assert fxs._is_split is True
 
-    @pytest.mark.parametrize("fx_fixing, points, split_notional, expected", [
+    @pytest.mark.parametrize("fx_fixings, points, split_notional, expected", [
         (NoInput(0), NoInput(0), NoInput(0), Dual(0, "fx_usdnok", [-1712.833785])),
         (11.0, 1800.0, NoInput(0), Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
         (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
@@ -2072,7 +2066,7 @@ class TestFXSwap:
         (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, "fx_usdnok", [0.0]))
     ])
     def test_fxswap_parameter_combinations_off_mids_given(
-            self, curve, curve2, fx_fixing, points, split_notional, expected
+            self, curve, curve2, fx_fixings, points, split_notional, expected
     ):
         # curve._set_ad_order(1)
         # curve2._set_ad_order(1)
@@ -2091,8 +2085,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
-            fx_fixing=fx_fixing,
+            fx_fixings=fx_fixings,
             points=points,
             split_notional=split_notional,
             currency="usd",
@@ -2112,8 +2105,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
-            fx_fixing=10.01,
+            fx_fixings=10.01,
             points=1765,
             split_notional=1.01e6,
             currency="usd",

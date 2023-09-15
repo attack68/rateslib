@@ -12,7 +12,7 @@ from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
 from rateslib.solver import Solver, Gradients
 from rateslib.dual import Dual, Dual2
-from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS
+from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS2
 from rateslib.fx import FXRates, FXForwards
 
 
@@ -1161,7 +1161,7 @@ def test_solver_gamma_pnl_explain():
         IRS(dt(2032, 1, 1), "10y", "A", currency="usd", curves="sofr"),
         IRS(dt(2022, 1, 1), "10y", "A", currency="eur", curves="estr"),
         IRS(dt(2032, 1, 1), "10y", "A", currency="eur", curves="estr"),
-        XCS(
+        XCS2(
             dt(2022, 1, 1),
             "10y",
             "A",
@@ -1169,7 +1169,7 @@ def test_solver_gamma_pnl_explain():
             leg2_currency="usd",
             curves=["estr", "eurusd", "sofr", "sofr"],
         ),
-        XCS(
+        XCS2(
             dt(2032, 1, 1),
             "10y",
             "A",
@@ -1365,7 +1365,7 @@ def test_solving_indirect_parameters_from_proxy_composite():
     instruments = [
         IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
         IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
-        XCS(
+        XCS2(
             dt(2022, 1, 1),
             "1Y",
             "A",
@@ -1466,7 +1466,7 @@ def test_pre_solver_single_fx_object():
     s2 = Solver(
         curves=[eu],
         instruments=[
-            XCS(
+            XCS2(
                 dt(2022, 1, 1),
                 "1Y",
                 "Q",
@@ -1483,7 +1483,7 @@ def test_pre_solver_single_fx_object():
     Solver(
         curves=[gu],
         instruments=[
-            XCS(
+            XCS2(
                 dt(2022, 1, 1),
                 "1Y",
                 "Q",
