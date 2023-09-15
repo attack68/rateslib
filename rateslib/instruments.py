@@ -6864,6 +6864,7 @@ class XCS2(BaseDerivative):
             leg1_user_kwargs = dict(fixed_rate=fixed_rate)
             Leg1 = FixedLeg
         else:
+            self._rate_scalar = 100.0
             self._float_spread_mixin = True
             self._float_spread = float_spread
             leg1_user_kwargs = dict(
@@ -7921,13 +7922,13 @@ class XCS2(BaseDerivative):
 
 class FXSwap(XCS2):
     """
-    Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
+    Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS2`.
 
     Parameters
     ----------
     args : dict
         Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
+    fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
         implies the notional on leg 2 is 110m USD. If `None` determines this
@@ -7945,16 +7946,16 @@ class FXSwap(XCS2):
     -----
     .. warning::
 
-       ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+       ``leg2_notional`` is determined by the ``fx_fixings`` either initialised or at price
        time and the value of ``notional``. The argument value of ``leg2_notional`` does
        not impact calculations.
 
     *FXSwaps* are technically complicated instruments. To define a fully **priced** *Instrument*
-    they require at least two pricing parameters; ``fx_fixing`` and ``points``. If a
+    they require at least two pricing parameters; ``fx_fixings`` and ``points``. If a
     ``split_notional`` is also given at initialisation it will be assumed to be a split notional
     *FXSwap*. If not, then it will not be assumed to be.
 
-    If ``fx_fixing`` is given then the market pricing parameter ``points`` can be calculated.
+    If ``fx_fixings`` is given then the market pricing parameter ``points`` can be calculated.
     This is an unusual partially *priced* parametrisation, however, and a warning will be emitted.
     As before, if ``split_notional`` is given, or not, at initialisation the *FXSwap* will be
     assumed to be split notional or not.
@@ -7973,7 +7974,7 @@ class FXSwap(XCS2):
        :widths: 10 10 10 70
        :header-rows: 1
 
-       * - fx_fixing
+       * - fx_fixings
          - points
          - split_notional
          - Result
@@ -8068,7 +8069,7 @@ class FXSwap(XCS2):
            notional=1000000,
            leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
-           fx_fixing=0.90,
+           fx_fixings=0.90,
            split_notional=1001500,
            points=-49.0
        )
