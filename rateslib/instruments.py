@@ -6483,7 +6483,7 @@ class XCS(BaseDerivative):
     args : tuple
         Required positional arguments for :class:`~rateslib.instruments.BaseDerivative`.
     fixed : bool, optional
-        Whether *leg1* is fixed or floating rate.
+        Whether *leg1* is fixed or floating rate. Defaults to *False*.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
@@ -6508,12 +6508,41 @@ class XCS(BaseDerivative):
         See notes.
     method_param : int, optional
         If not ``fixed`` A parameter that is used for the various ``fixing_method`` s. See notes.
-
-
-
+    leg2_fixed : bool, optional
+        Whether *leg2* is fixed or floating rate. Defaults to *False*
+    leg2_mtm : bool optional
+        Whether *leg2* is a mark-to-market leg. Defaults to *True*
     leg2_payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
+    leg2_fixed_rate : float, optional
+        If ``leg2_fixed``, the fixed rate of *leg2*.
+    leg2_float_spread : float, optional
+        If not ``leg2_fixed``, the spread applied to the :class:`~rateslib.legs.FloatLeg`.
+        Can be set to `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        If not ``leg2_fixed``, the method to use for adding a floating spread to compounded rates.
+        Available options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If not ``leg2_fixed``, then if a float scalar, will be applied as the determined fixing for
+        the first period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        If not ``leg2_fixed``, the method by which floating rates are determined, set by default.
+        See notes.
+    leg2_method_param : int, optional
+        If not ``leg2_fixed`` A parameter that is used for the various ``fixing_method`` s.
+        See notes.
+    fx_fixings : float, Dual, Dual2, list of such, optional
+        Specify a known initial FX fixing or a list of such for ``mtm`` legs, where leg 1 is
+        considered the domestic currency. For example for an ESTR/SOFR XCS in 100mm EUR notional
+        a value of 1.10 for fx_fixings implies the notional on leg 2 is 110m USD. Fixings that
+        are not specified will be forecast at pricing time with an
+        :class:`~rateslib.fx.FXForwards` object.
     kwargs : dict
         Required keyword arguments for :class:`~rateslib.instruments.BaseDerivative`.
     """
@@ -6531,13 +6560,13 @@ class XCS(BaseDerivative):
         method_param: Union[int, NoInput] = NoInput(0),
         leg2_fixed: Union[bool, NoInput] = NoInput(0),
         leg2_mtm: Union[bool, NoInput] = NoInput(0),
+        leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
         leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
         leg2_float_spread: Union[float, NoInput] = NoInput(0),
         leg2_fixings: Union[float, list, NoInput] = NoInput(0),
         leg2_fixing_method: Union[str, NoInput] = NoInput(0),
         leg2_method_param: Union[int, NoInput] = NoInput(0),
         leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
         fx_fixings: Union[list, DualTypes, FXRates, FXForwards, NoInput] = NoInput(0),
         **kwargs,
     ):
