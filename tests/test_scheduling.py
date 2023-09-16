@@ -236,6 +236,22 @@ def test_infer_stub_date_dual_sided_invalid(cal_):
     assert not result[0]
 
 
+def test_infer_stub_date_eom(cal_):
+    result = _infer_stub_date(
+        dt(2022, 1, 1),
+        dt(2023, 2, 28),
+        "Q",
+        "LONGFRONT",
+        NoInput(0),
+        NoInput(0),
+        "MF",
+        True,
+        NoInput(0),
+        cal_,
+    )
+    assert result == dt(2022, 5, 31)
+
+
 def test_schedule_repr(cal_):
     schedule = Schedule(dt(2022, 1, 1), "2M", "M", NoInput(0), NoInput(0), NoInput(0), NoInput(0), False, "MF", cal_, 1)
     expected = "freq: M,  stub: SHORTFRONT,  roll: 1,  pay lag: 1,  modifier: MF\n"
