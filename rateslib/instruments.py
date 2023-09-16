@@ -7734,7 +7734,7 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         else:
             return _ytm_quadratic_converger2(f, 2 * y - y2 - pad, y, y2 + pad, None, f_, None, tol)
     else:  # y2 < y:
-        # line not hit due to reassessmemt of initial vars?
+        # line not hit due to reassessment of initial vars?
         return _ytm_quadratic_converger2(
             f, y2 - pad, y, 2 * y - y2 + pad, None, f_, None, tol
         )  # pragma: no cover

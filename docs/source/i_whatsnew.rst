@@ -52,6 +52,22 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
+0.6.0 (not released)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Instruments
+     - Merge all :class:`~rateslib.instruments.XCS` classes into one, adding new arguments,
+       ``fixed``, ``leg2_fixed`` and ``leg2_mtm`` to differentiate between types.
+   * - Curves
+     - Separate :class:`~rateslib.curves.MultiCsaCurve`
+       from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
+
 
 0.5.1 (11 Sep 2023)
 **********************
