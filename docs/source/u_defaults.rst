@@ -104,14 +104,6 @@ These values can also be set:
    irs.leg1.convention  # <- uses new default value
    irs.leg1.currency  # <- uses new default value
 
-.. ipython:: python
-
-   defaults.convention = "ACT365F"
-   defaults.base_currency = "gbp"
-   irs = IRS(effective=dt(2022, 1, 1), termination="1Y", frequency="A")
-   irs.leg1.convention  # <- uses new default value
-   irs.leg1.currency  # <- uses new default value
-
    defaults.reset_defaults()  # <- reverse the changes.
 
 Market conventions and the ``spec`` argument

@@ -54,15 +54,7 @@ Now we will calibrate the curve to the given swap market prices, using a global
 
 .. ipython:: python
 
-   sofr_args = dict(
-       effective=dt(2023, 8, 21),
-       frequency="A",
-       calendar="nyc",
-       convention="act360",
-       currency="usd",
-       curves="sofr",
-       payment_lag=2,
-   )
+   sofr_args = dict(effective=dt(2023, 8, 21), spec="usd_irs", curves="sofr")
    solver = Solver(
        curves=[sofr],
        instruments=[IRS(termination=_, **sofr_args) for _ in data["Termination"]],
@@ -88,13 +80,10 @@ The metrics that SWPM and *rateslib* generate for *npv*, *delta* (DV01), *gamma*
    irs = IRS(
        effective=dt(2023, 11, 21),
        termination=dt(2025, 2, 21),
-       frequency="A",
-       calendar="nyc",
-       convention="act360",
        notional=-100e6,
-       payment_lag=2,
        fixed_rate=5.40,
-       curves="sofr"
+       curves="sofr",
+       spec="usd_irs",
    )
    irs.npv(solver=solver)
    irs.delta(solver=solver).sum()

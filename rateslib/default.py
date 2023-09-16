@@ -129,8 +129,9 @@ class Defaults:
         "Swap": 2,
         "NonMtmXCS": 2,
         "NonMtmFixedFloatXCS": 2,
-        "NonMtmFixedFixedXCS": 2,
+        "NonMtmFixedFixedXCS": 2,  # TODO remove this
         "XCS": 2,
+        "XCS2": 2,
         "FixedFloatXCS": 2,
         "FixedFixedXCS": 2,
         "FloatFixedXCS": 2,

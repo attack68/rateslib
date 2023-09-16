@@ -6474,7 +6474,7 @@ class FRA(Sensitivities, BaseMixin):
 # Multi-currency derivatives
 
 
-class BaseXCS(BaseDerivative):
+class XCS(BaseDerivative):
     """
     Base class with common methods for multi-currency ``Derivatives``.
 
@@ -6482,38 +6482,167 @@ class BaseXCS(BaseDerivative):
     ----------
     args : tuple
         Required positional arguments for :class:`~rateslib.instruments.BaseDerivative`.
+    fixed : bool, optional
+        Whether *leg1* is fixed or floating rate. Defaults to *False*.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
+    fixed_rate : float, optional
+        If ``fixed``, the fixed rate of *leg1*.
+    float_spread : float, optional
+        If not ``fixed``, the spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    spread_compound_method : str, optional
+        If not ``fixed``, the method to use for adding a floating spread to compounded rates.
+        Available options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    fixings : float, list, or Series optional
+        If not ``fixed``, then if a float scalar, will be applied as the determined fixing for
+        the first period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    fixing_method : str, optional
+        If not ``fixed``, the method by which floating rates are determined, set by default.
+        See notes.
+    method_param : int, optional
+        If not ``fixed`` A parameter that is used for the various ``fixing_method`` s. See notes.
+    leg2_fixed : bool, optional
+        Whether *leg2* is fixed or floating rate. Defaults to *False*
+    leg2_mtm : bool optional
+        Whether *leg2* is a mark-to-market leg. Defaults to *True*
     leg2_payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
+    leg2_fixed_rate : float, optional
+        If ``leg2_fixed``, the fixed rate of *leg2*.
+    leg2_float_spread : float, optional
+        If not ``leg2_fixed``, the spread applied to the :class:`~rateslib.legs.FloatLeg`.
+        Can be set to `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        If not ``leg2_fixed``, the method to use for adding a floating spread to compounded rates.
+        Available options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If not ``leg2_fixed``, then if a float scalar, will be applied as the determined fixing for
+        the first period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        If not ``leg2_fixed``, the method by which floating rates are determined, set by default.
+        See notes.
+    leg2_method_param : int, optional
+        If not ``leg2_fixed`` A parameter that is used for the various ``fixing_method`` s.
+        See notes.
+    fx_fixings : float, Dual, Dual2, list of such, optional
+        Specify a known initial FX fixing or a list of such for ``mtm`` legs, where leg 1 is
+        considered the domestic currency. For example for an ESTR/SOFR XCS in 100mm EUR notional
+        a value of 1.10 for fx_fixings implies the notional on leg 2 is 110m USD. Fixings that
+        are not specified will be forecast at pricing time with an
+        :class:`~rateslib.fx.FXForwards` object.
     kwargs : dict
         Required keyword arguments for :class:`~rateslib.instruments.BaseDerivative`.
     """
 
-    _is_mtm = False
-
     def __init__(
         self,
         *args,
+        fixed: Union[bool, NoInput] = NoInput(0),
         payment_lag_exchange: Union[int, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        float_spread: Union[float, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        leg2_fixed: Union[bool, NoInput] = NoInput(0),
+        leg2_mtm: Union[bool, NoInput] = NoInput(0),
         leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
+        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fx_fixings: Union[list, DualTypes, FXRates, FXForwards, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        # set defaults for missing values
+        default_kwargs = dict(
+            fixed=False if fixed is NoInput.blank else fixed,
+            leg2_fixed=False if leg2_fixed is NoInput.blank else leg2_fixed,
+            leg2_mtm=True if leg2_mtm is NoInput.blank else leg2_mtm
+        )
+        self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
+
+        if self.kwargs["fixed"]:
+            self._fixed_rate_mixin = True
+            self._fixed_rate = fixed_rate
+            leg1_user_kwargs = dict(fixed_rate=fixed_rate)
+            Leg1 = FixedLeg
+        else:
+            self._rate_scalar = 100.0
+            self._float_spread_mixin = True
+            self._float_spread = float_spread
+            leg1_user_kwargs = dict(
+                float_spread=float_spread,
+                spread_compound_method=spread_compound_method,
+                fixings=fixings,
+                fixing_method=fixing_method,
+                method_param=method_param,
+            )
+            Leg1 = FloatLeg
+        leg1_user_kwargs.update(dict(
+            payment_lag_exchange=payment_lag_exchange,
+            initial_exchange=True,
+            final_exchange=True,
+        ))
+
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
-        self.kwargs.update(
-            dict(
-                payment_lag_exchange=payment_lag_exchange,
-                leg2_payment_lag_exchange=leg2_payment_lag_exchange,
-                initial_exchange=True,
-                final_exchange=True,
-                leg2_initial_exchange=True,
-                leg2_final_exchange=True,
+        if self.kwargs["leg2_fixed"]:
+            self._leg2_fixed_rate_mixin = True
+            self._leg2_fixed_rate = leg2_fixed_rate
+            leg2_user_kwargs = dict(
+                leg2_fixed_rate=leg2_fixed_rate
             )
-        )
+            Leg2 = FixedLeg if not leg2_mtm else FixedLegMtm
+        else:
+            self._leg2_float_spread_mixin = True
+            self._leg2_float_spread = leg2_float_spread
+            leg2_user_kwargs = dict(
+                leg2_float_spread=leg2_float_spread,
+                leg2_spread_compound_method=leg2_spread_compound_method,
+                leg2_fixings=leg2_fixings,
+                leg2_fixing_method=leg2_fixing_method,
+                leg2_method_param=leg2_method_param,
+            )
+            Leg2 = FloatLeg if not leg2_mtm else FloatLegMtm
+        leg2_user_kwargs.update(dict(
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
+            leg2_initial_exchange=True,
+            leg2_final_exchange=True,
+        ))
+
+        if self.kwargs["leg2_mtm"]:
+            self._is_mtm = True
+            leg2_user_kwargs.update(dict(
+                leg2_alt_currency=self.kwargs["currency"],
+                leg2_alt_notional=-self.kwargs["notional"],
+                leg2_fx_fixings=fx_fixings,
+            ))
+        else:
+            self._is_mtm = False
+
+        self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
+
+        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=["fixed"]))
+        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
+        self._initialise_fx_fixings(fx_fixings)
 
     @property
     def fx_fixings(self):
@@ -6542,6 +6671,8 @@ class BaseXCS(BaseDerivative):
                 self.fx_fixings = float(fx_fixings)
             else:
                 self._fx_fixings = NoInput(0)
+        else:
+            self._fx_fixings = fx_fixings
 
     def _set_fx_fixings(self, fx):
         """
@@ -6555,7 +6686,7 @@ class BaseXCS(BaseDerivative):
                 if fx is NoInput.blank:
                     if defaults.no_fx_fixings_for_xcs.lower() == "raise":
                         raise ValueError(
-                            "`fx` is required when `fx_fixing` is not pre-set and "
+                            "`fx` is required when `fx_fixings` is not pre-set and "
                             "if rateslib option `no_fx_fixings_for_xcs` is set to "
                             "'raise'."
                         )
@@ -6563,7 +6694,7 @@ class BaseXCS(BaseDerivative):
                         fx_fixing = 1.0
                         if defaults.no_fx_fixings_for_xcs.lower() == "warn":
                             warnings.warn(
-                                "Using 1.0 for FX, no `fx` or `fx_fixing` given and "
+                                "Using 1.0 for FX, no `fx` or `fx_fixings` given and "
                                 "rateslib option `no_fx_fixings_for_xcs` is set to "
                                 "'warn'.",
                                 UserWarning,
@@ -6815,710 +6946,15 @@ class BaseXCS(BaseDerivative):
         return ret
 
 
-class NonMtmXCS(BaseXCS):
+class FXSwap(XCS):
     """
-    Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FloatLeg` s.
+    Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS`.
 
     Parameters
     ----------
     args : dict
         Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for
-        `fx_fixing` implies the notional on leg 2 is 110m USD. If `None` determines
-        this dynamically later.
-    float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    leg2_float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
-
-    Notes
-    -----
-    Non-mtm cross currency swaps create identical yet opposite currency exchanges at
-    the effective date and the payment termination date of the swap. There are no
-    intermediate currency exchanges.
-
-    .. note::
-
-       Although non-MTM XCSs have an ``fx_fixing`` argument, which consists of a single,
-       initial FX fixing, this is internally mapped to the ``fx_fixings`` attribute,
-       which, for MTM XCSs, provides all the FX fixings throughout the swap.
-
-    """
-
-    _float_spread_mixin = True
-    _leg2_float_spread_mixin = True
-    _rate_scalar = 100.0
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        float_spread: Union[float, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
-        )
-
-        self._leg2_float_spread = leg2_float_spread
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
-
-
-class NonMtmFixedFloatXCS(BaseXCS):
-    """
-    Create a non-mark-to-market cross currency swap (XCS) derivative composing a
-    :class:`~rateslib.legs.FixedLeg` and a
-    :class:`~rateslib.legs.FloatLeg`.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-        implies the notional on leg 2 is 110m USD. If `None` determines this
-        dynamically.
-    fixed_rate : float or None
-        The fixed rate applied to leg 1.
-        If `None` will be set to mid-market when curves are provided.
-    leg2_float_spread2 : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
-
-    Notes
-    -----
-    Non-mtm cross currency swaps create identical yet opposite currency exchanges at
-    the effective date and the payment termination date of the swap. There are no
-    intermediate currency exchanges.
-    """
-
-    _fixed_rate_mixin = True
-    _leg2_float_spread_mixin = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
-        )
-        self._leg2_float_spread = leg2_float_spread
-        self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
-
-
-class NonMtmFixedFixedXCS(BaseXCS):
-    """
-    Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FixedLeg` s.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseDerivative`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-        implies the notional on leg 2 is 110m USD. If `None` determines this
-        dynamically.
-    fixed_rate : float or None
-        The fixed rate applied to leg 1.
-        If `None` will be set to mid-market when curves are provided.
-    leg2_fixed_rate : float or None
-        The fixed rate applied to leg 2.
-        If `None` will be set to mid-market when curves are provided.
-        Must set the ``fixed_rate`` on at least one leg.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
-
-    Notes
-    -----
-    Non-mtm cross currency swaps create identical yet opposite currency exchanges at
-    the effective date and the payment termination date of the swap. There are no
-    intermediate currency exchanges.
-    """
-
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_fixed_rate=leg2_fixed_rate,
-            )
-        )
-
-        self._leg2_fixed_rate = self.kwargs["leg2_fixed_rate"]
-        self._fixed_rate = self.kwargs["fixed_rate"]
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FixedLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-class XCS(BaseXCS):
-    """
-    Create a mark-to-market cross currency swap (XCS) derivative instrument.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseDerivative`.
-    fx_fixings : float, Dual, Dual2, list of such
-        Specify a known initial FX fixing or a list of such for historical legs,
-        where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for
-        `fx_fixings` implies the notional on leg 2 is 110m USD.
-        Fixings that are not specified will be calculated at pricing time with an
-        :class:`~rateslib.fx.FXForwards` object.
-    float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    leg2_float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
-
-    Notes
-    -----
-    Mtm cross currency swaps create notional exchanges on the foreign leg throughout
-    the life of the derivative and adjust the notional on which interest is accrued.
-
-    .. warning::
-
-       ``Amortization`` is not used as an argument by ``XCS``.
-    """
-
-    _float_spread_mixin = True
-    _leg2_float_spread_mixin = True
-    _is_mtm = True
-    _rate_scalar = 100.0
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        float_spread: Union[float, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_float_spread = leg2_float_spread
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLegMtm(**_get(self.kwargs, leg=2))
-
-
-class FixedFloatXCS(BaseXCS):
-    _fixed_rate_mixin = True
-    _leg2_float_spread_mixin = True
-    _is_mtm = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_float_spread = leg2_float_spread
-        self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLegMtm(**_get(self.kwargs, leg=2))
-
-
-class FixedFixedXCS(BaseXCS):
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
-    _is_mtm = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_fixed_rate=leg2_fixed_rate,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_fixed_rate = leg2_fixed_rate
-        self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FixedLegMtm(**_get(self.kwargs, leg=2))
-
-
-class FloatFixedXCS(BaseXCS):
-    _float_spread_mixin = True
-    _leg2_fixed_rate_mixin = True
-    _is_mtm = True
-    _rate_scalar = 100.0
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        float_spread: Union[float, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_fixed_rate=leg2_fixed_rate,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_fixed_rate = leg2_fixed_rate
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FixedLegMtm(**_get(self.kwargs, leg=2))
-
-
-# class FXSwap(BaseXCS):
-#     """
-#     Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
-#
-#     Parameters
-#     ----------
-#     args : dict
-#         Required positional args to :class:`BaseDerivative`.
-#     fx_fixing : float, FXForwards or None
-#         The initial FX fixing where leg 1 is considered the domestic currency. For
-#         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-#         implies the notional on leg 2 is 110m USD. If `None` determines this
-#         dynamically.
-#     points : float, optional
-#         The pricing parameter for the FX Swap, which will determine the implicit
-#         fixed rate on leg2.
-#     kwargs : dict
-#         Required keyword arguments to :class:`BaseDerivative`.
-#
-#     Notes
-#     -----
-#     ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
-#     time and the value of ``notional``. The argument value of ``leg2_notional`` does
-#     not impact calculations.
-#
-#     .. note::
-#
-#        *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
-#        represent traded contracts with defined ``fx_fixing`` and ``points`` values.
-#        This is usual for valuing *npv* against current market conditions. Unpriced
-#        derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
-#        calculation should return the mid-market rate and an *npv* of zero.
-#
-#     Examples
-#     --------
-#     To value the *FXSwap* we create *Curves* and :class:`~rateslib.fx.FXForwards`
-#     objects.
-#
-#     .. ipython:: python
-#
-#        usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
-#        eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
-#        eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.971}, id="eurusd")
-#        fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
-#        fxf = FXForwards(
-#            fx_rates=fxr,
-#            fx_curves={"usdusd": usd, "eureur": eur, "eurusd": eurusd},
-#        )
-#
-#     Then we define the *FXSwap*. This in an unpriced instrument.
-#
-#     .. ipython:: python
-#
-#        fxs = FXSwap(
-#            effective=dt(2022, 1, 17),
-#            termination=dt(2022, 4, 19),
-#            calendar="nyc",
-#            currency="usd",
-#            notional=1000000,
-#            leg2_currency="eur",
-#            curves=["usd", "usd", "eur", "eurusd"],
-#        )
-#
-#     Now demonstrate the :meth:`~rateslib.instruments.FXSwap.npv` and
-#     :meth:`~rateslib.instruments.FXSwap.rate` methods:
-#
-#     .. ipython:: python
-#
-#        fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
-#        fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
-#
-#     In the case of *FXSwaps*, whose mid-market price is the difference between two
-#     forward FX rates we can also derive this quantity using the independent
-#     :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
-#     the numerical differences are caused by different calculation methods. The
-#     difference here equates to a tolerance of 1e-8, or $1 per $100mm.
-#
-#     .. ipython:: python
-#
-#        fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
-#
-#     """
-#
-#     _fixed_rate_mixin = True
-#     _leg2_fixed_rate_mixin = True
-#     _unpriced = True
-#
-#     def __init__(
-#         self,
-#         *args,
-#         fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-#         points: Optional[float] = None,
-#         # payment_lag_exchange: Optional[int] = None,
-#         # leg2_payment_lag_exchange: Optional[int] = "inherit",
-#         **kwargs,
-#     ):
-#         if fx_fixing is NoInput.blank and points is not NoInput.blank:
-#             raise ValueError(
-#                 "Cannot set `points` on FXSwap initialisation without giving an `fx_fixing`."
-#             )
-#         elif fx_fixing is not NoInput.blank and points is NoInput.blank:
-#             warnings.warn(
-#                 "`fx_fixing` has been provided to FXSwap initialisation but `points` has not.\n"
-#                 "Although this will still work this is not a recommended way to initialise this "
-#                 "instrument. Either create a 'priced' FXSwap which initialises both the `points` "
-#                 "and `fx_fixing` arguments simulatenously, or create an 'unpriced' FXSwap which "
-#                 "leaves both of these arguments to forecasting."
-#             )
-#         super().__init__(*args, **kwargs)
-#         # if leg2_payment_lag_exchange == "inherit":
-#         #     leg2_payment_lag_exchange = payment_lag_exchange
-#         self._fixed_rate = 0.0
-#         self.leg1 = FixedLeg(
-#             fixed_rate=0.0,
-#             effective=self.effective,
-#             termination=self.termination,
-#             frequency="Z",
-#             modifier=self.modifier,
-#             calendar=self.calendar,
-#             payment_lag=self.payment_lag,
-#             payment_lag_exchange=self.payment_lag,
-#             notional=self.notional,
-#             currency=self.currency,
-#             convention=self.convention,
-#             initial_exchange=True,
-#             final_exchange=True,
-#         )
-#         self.leg2 = FixedLeg(
-#             fixed_rate=None,
-#             effective=self.leg2_effective,
-#             termination=self.leg2_termination,
-#             frequency="Z",
-#             modifier=self.leg2_modifier,
-#             calendar=self.leg2_calendar,
-#             payment_lag=self.leg2_payment_lag,
-#             payment_lag_exchange=self.leg2_payment_lag,
-#             notional=self.leg2_notional,
-#             currency=self.leg2_currency,
-#             convention=self.leg2_convention,
-#             initial_exchange=True,
-#             final_exchange=True,
-#         )
-#         self._initialise_fx_fixings(fx_fixing)
-#         self.points = points
-#
-#     @property
-#     def points(self):
-#         return self._points
-#
-#     @points.setter
-#     def points(self, value):
-#         self._unpriced = False
-#         self._points = value
-#         self._leg2_fixed_rate = None
-#         if value is not NoInput.blank:
-#             fixed_rate = (
-#                 value
-#                 * -self.notional
-#                 / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
-#             )
-#             self.leg2_fixed_rate = fixed_rate
-#
-#         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-#
-#     # Commercial use of this code, and/or copying and redistribution is prohibited.
-#     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-#
-#     def _set_pricing_mid(
-#         self,
-#         curves: Optional[Union[Curve, str, list]] = None,
-#         solver: Optional[Solver] = None,
-#         fx: Optional[FXForwards] = None,
-#     ):
-#         points = self.rate(curves, solver, fx)
-#         self.points = float(points)
-#         self._unpriced = True  # setting temporary pricing mid does not define a priced instrument
-#
-#     def rate(
-#         self,
-#         curves: Optional[Union[Curve, str, list]] = None,
-#         solver: Optional[Solver] = None,
-#         fx: Optional[FXForwards] = None,
-#         fixed_rate: bool = False,
-#     ):
-#         """
-#         Return the mid-market pricing parameter of the FXSwap.
-#
-#         Parameters
-#         ----------
-#         curves : list of Curves
-#             A list defines the following curves in the order:
-#
-#             - Forecasting :class:`~rateslib.curves.Curve` for leg1 (if floating).
-#             - Discounting :class:`~rateslib.curves.Curve` for leg1.
-#             - Forecasting :class:`~rateslib.curves.Curve` for leg2 (if floating).
-#             - Discounting :class:`~rateslib.curves.Curve` for leg2.
-#         solver : Solver, optional
-#             The numerical :class:`~rateslib.solver.Solver` that
-#             constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
-#         fx : FXForwards, optional
-#             The FX forwards object that is used to determine the initial FX fixing for
-#             determining ``leg2_notional``, if not specified at initialisation, and for
-#             determining mark-to-market exchanges on mtm XCSs.
-#         fixed_rate : bool
-#             Whether to return the fixed rate for the leg or the FX swap points price.
-#
-#         Returns
-#         -------
-#         float, Dual or Dual2
-#         """
-#         leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
-#         if fixed_rate:
-#             return leg2_fixed_rate
-#         cf = self.leg2.notional * leg2_fixed_rate * 0.01 * self.leg2.periods[1].dcf
-#         # fwd_fx = (cf + self.leg2.notional) / -self.leg1.notional
-#         # ini_fx = self.leg2.notional / -self.leg1.notional
-#         # TODO decide how to price mid-market rates when ini fx is struck but
-#         # there is no fixed points, i,e the FXswap is semi-determined, which is
-#         # not a real instrument.
-#         return (cf / -self.leg1.notional) * 10000
-
-
-class FXSwap(BaseXCS):
-    """
-    Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
+    fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
         implies the notional on leg 2 is 110m USD. If `None` determines this
@@ -7536,16 +6972,16 @@ class FXSwap(BaseXCS):
     -----
     .. warning::
 
-       ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+       ``leg2_notional`` is determined by the ``fx_fixings`` either initialised or at price
        time and the value of ``notional``. The argument value of ``leg2_notional`` does
        not impact calculations.
 
     *FXSwaps* are technically complicated instruments. To define a fully **priced** *Instrument*
-    they require at least two pricing parameters; ``fx_fixing`` and ``points``. If a
+    they require at least two pricing parameters; ``fx_fixings`` and ``points``. If a
     ``split_notional`` is also given at initialisation it will be assumed to be a split notional
     *FXSwap*. If not, then it will not be assumed to be.
 
-    If ``fx_fixing`` is given then the market pricing parameter ``points`` can be calculated.
+    If ``fx_fixings`` is given then the market pricing parameter ``points`` can be calculated.
     This is an unusual partially *priced* parametrisation, however, and a warning will be emitted.
     As before, if ``split_notional`` is given, or not, at initialisation the *FXSwap* will be
     assumed to be split notional or not.
@@ -7564,7 +7000,7 @@ class FXSwap(BaseXCS):
        :widths: 10 10 10 70
        :header-rows: 1
 
-       * - fx_fixing
+       * - fx_fixings
          - points
          - split_notional
          - Result
@@ -7659,7 +7095,7 @@ class FXSwap(BaseXCS):
            notional=1000000,
            leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
-           fx_fixing=0.90,
+           fx_fixings=0.90,
            split_notional=1001500,
            points=-49.0
        )
@@ -7669,25 +7105,23 @@ class FXSwap(BaseXCS):
 
     """
 
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
     _unpriced = True
 
-    def _parse_split_flag(self, fx_fixing, points, split_notional):
+    def _parse_split_flag(self, fx_fixings, points, split_notional):
         """
         Determine the rules for a priced, unpriced or partially priced derivative and whether
         it is inferred as split notional or not.
         """
-        is_none = [_ is NoInput.blank for _ in [fx_fixing, points, split_notional]]
+        is_none = [_ is NoInput.blank for _ in [fx_fixings, points, split_notional]]
         if all(is_none) or not any(is_none):
             self._is_split = True
         elif split_notional is NoInput.blank and not any(
-            [_ is NoInput.blank for _ in [fx_fixing, points]]
+            [_ is NoInput.blank for _ in [fx_fixings, points]]
         ):
             self._is_split = False
-        elif fx_fixing is not NoInput.blank:
+        elif fx_fixings is not NoInput.blank:
             warnings.warn(
-                "Initialising FXSwap with `fx_fixing` but without `points` is unconventional.\n"
+                "Initialising FXSwap with `fx_fixings` but without `points` is unconventional.\n"
                 "Pricing can still be performed to determine `points`.",
                 UserWarning,
             )
@@ -7697,10 +7131,10 @@ class FXSwap(BaseXCS):
                 self._is_split = False
         else:
             if points is not NoInput.blank:
-                raise ValueError("Cannot initialise FXSwap with `points` but without `fx_fixing`.")
+                raise ValueError("Cannot initialise FXSwap with `points` but without `fx_fixings`.")
             else:
                 raise ValueError(
-                    "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
+                    "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`"
                 )
 
     def _set_split_notional(self, curve: Union[Curve, NoInput] = NoInput(0), at_init: bool = False):
@@ -7735,32 +7169,28 @@ class FXSwap(BaseXCS):
     def __init__(
         self,
         *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fx_fixings: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         points: Union[float, NoInput] = NoInput(0),
         split_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self._parse_split_flag(fx_fixing, points, split_notional)
+        self._parse_split_flag(fx_fixings, points, split_notional)
 
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                frequency="Z",
-                fixed_rate=0.0,
-                payment_lag_exchange=self.kwargs["payment_lag"],
-                leg2_payment_lag_exchange=self.kwargs["leg2_payment_lag_exchange"],
-                leg2_fixed_rate=NoInput(0),
-                leg2_frequency="Z",
-            )
+        kwargs_overrides = dict(  # specific args for FXSwap passed to the Base XCS
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm=False,
+            fixed_rate=0.0,
+            frequency="Z",
+            leg2_frequency="Z",
+            leg2_fixed_rate=NoInput(0),
+            fx_fixings=fx_fixings,
         )
+        super().__init__(*args, **{**kwargs, **kwargs_overrides})
 
-        self._fixed_rate = 0.0
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.kwargs["split_notional"] = split_notional
         self._set_split_notional(curve=None, at_init=True)
-
-        self.leg2 = FixedLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
+        # self._initialise_fx_fixings(fx_fixings)
         self.points = points
 
     @property

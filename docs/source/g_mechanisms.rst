@@ -72,7 +72,7 @@ risk sensitivities and is used internally, especially for multi-currency instrum
 
 .. ipython:: python
 
-   nxcs = NonMtmXCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd")
+   nxcs = XCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd", leg2_mtm=False)
    nxcs.npv(curves=[curve]*4, fx=fxf, local=True)
    nxcs.npv(curves=[curve]*4, fx=fxf, base="usd")
 
