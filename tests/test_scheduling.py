@@ -245,11 +245,11 @@ def test_infer_stub_date_eom(cal_):
         NoInput(0),
         NoInput(0),
         "MF",
-        True,
+        True,  # <- the EOM parameter forces the stub to be 31 May and not 28 May
         NoInput(0),
         cal_,
     )
-    assert result == dt(2022, 5, 31)
+    assert result[1]["front_stub"] == dt(2022, 5, 31)
 
 
 def test_schedule_repr(cal_):
