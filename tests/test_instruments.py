@@ -2562,6 +2562,22 @@ class TestSpec:
         assert frn.kwargs["payment_lag"] == 5
         assert frn.kwargs["modifier"] == "mf"
 
+    def test_xcs(self):
+        xcs = XCS(
+            effective=dt(2022, 1, 1),
+            termination="3y",
+            spec="eurusd_xcs",
+            payment_lag=5,
+            calendar="ldn,tgt,nyc",
+        )
+        assert xcs.kwargs["fixing_method"] == "rfr_payment_delay"
+        assert xcs.kwargs["convention"] == "act360"
+        assert xcs.kwargs["currency"] == "eur"
+        assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
+        assert xcs.kwargs["payment_lag"] == 5
+        assert xcs.kwargs["leg2_payment_lag"] == 2
+        assert xcs.kwargs["leg2_calendar"] == "tgt,nyc"
+
 
 @pytest.mark.parametrize("inst, expected", [
     (IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
