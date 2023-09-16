@@ -6482,9 +6482,35 @@ class XCS(BaseDerivative):
     ----------
     args : tuple
         Required positional arguments for :class:`~rateslib.instruments.BaseDerivative`.
+    fixed : bool, optional
+        Whether *leg1* is fixed or floating rate.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
+    fixed_rate : float, optional
+        If ``fixed``, the fixed rate of *leg1*.
+    float_spread : float, optional
+        If not ``fixed``, the spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    spread_compound_method : str, optional
+        If not ``fixed``, the method to use for adding a floating spread to compounded rates.
+        Available options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    fixings : float, list, or Series optional
+        If not ``fixed``, then if a float scalar, will be applied as the determined fixing for
+        the first period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    fixing_method : str, optional
+        If not ``fixed``, the method by which floating rates are determined, set by default.
+        See notes.
+    method_param : int, optional
+        If not ``fixed`` A parameter that is used for the various ``fixing_method`` s. See notes.
+
+
+
     leg2_payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
@@ -6495,17 +6521,16 @@ class XCS(BaseDerivative):
     def __init__(
         self,
         *args,
-        fixed: bool = False,
+        fixed: Union[bool, NoInput] = NoInput(0),
+        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
         fixed_rate: Union[float, NoInput] = NoInput(0),
-        fx_fixings: Union[list, DualTypes, FXRates, FXForwards, NoInput] = NoInput(0),
         float_spread: Union[float, NoInput] = NoInput(0),
         spread_compound_method: Union[str, NoInput] = NoInput(0),
         fixings: Union[float, list, Series, NoInput] = NoInput(0),
         fixing_method: Union[str, NoInput] = NoInput(0),
         method_param: Union[int, NoInput] = NoInput(0),
-        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
-        leg2_fixed: bool = False,
-        leg2_mtm: bool = True,
+        leg2_fixed: Union[bool, NoInput] = NoInput(0),
+        leg2_mtm: Union[bool, NoInput] = NoInput(0),
         leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
         leg2_float_spread: Union[float, NoInput] = NoInput(0),
         leg2_fixings: Union[float, list, NoInput] = NoInput(0),
@@ -6513,11 +6538,19 @@ class XCS(BaseDerivative):
         leg2_method_param: Union[int, NoInput] = NoInput(0),
         leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
         leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
+        fx_fixings: Union[list, DualTypes, FXRates, FXForwards, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        # set defaults for missing values
+        default_kwargs = dict(
+            fixed=False if fixed is NoInput.blank else fixed,
+            leg2_fixed=False if leg2_fixed is NoInput.blank else leg2_fixed,
+            leg2_mtm=True if leg2_mtm is NoInput.blank else leg2_mtm
+        )
+        self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
 
-        if fixed:
+        if self.kwargs["fixed"]:
             self._fixed_rate_mixin = True
             self._fixed_rate = fixed_rate
             leg1_user_kwargs = dict(fixed_rate=fixed_rate)
@@ -6542,7 +6575,7 @@ class XCS(BaseDerivative):
 
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
-        if leg2_fixed:
+        if self.kwargs["leg2_fixed"]:
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
             leg2_user_kwargs = dict(
@@ -6566,7 +6599,7 @@ class XCS(BaseDerivative):
             leg2_final_exchange=True,
         ))
 
-        if leg2_mtm:
+        if self.kwargs["leg2_mtm"]:
             self._is_mtm = True
             leg2_user_kwargs.update(dict(
                 leg2_alt_currency=self.kwargs["currency"],
@@ -6578,8 +6611,8 @@ class XCS(BaseDerivative):
 
         self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
 
-        self.leg1 = Leg1(**_get(self.kwargs, leg=1))
-        self.leg2 = Leg2(**_get(self.kwargs, leg=2))
+        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=["fixed"]))
+        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
         self._initialise_fx_fixings(fx_fixings)
 
     @property
