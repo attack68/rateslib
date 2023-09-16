@@ -21,6 +21,9 @@ On "release branch":
 
 1) Update the "release" field in docs/source/conf.py, e.g. to '0.3.x'
 2) Delete the switcher in the releases branch since this is taken from main branch
+3) Build the INSTRUMENT_SPEC from the loader file and print the dict. Paste to file and set
+   DEVELOPMENT to False.
+4) Commit and Push the branch.
 
 Build:
 $ pip install build twine
