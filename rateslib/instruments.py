@@ -6125,8 +6125,8 @@ class SBS(BaseDerivative):
 
 class FRA(Sensitivities, BaseMixin):
     """
-    Create a forward rate agreement composing a :class:`~rateslib.periods.FixedPeriod`
-    and :class:`~rateslib.periods.FloatPeriod` valued in a customised manner.
+    Create a forward rate agreement composing single period :class:`~rateslib.periods.FixedLeg`
+    and :class:`~rateslib.periods.FloatLeg` valued in a customised manner.
 
     Parameters
     ----------
@@ -6147,10 +6147,7 @@ class FRA(Sensitivities, BaseMixin):
 
     Notes
     -----
-    FRAs are a legacy derivative whose ``fixing_method`` is set to *"ibor"*.
-
-    ``effective`` and ``termination`` are not adjusted prior to initialising
-    ``Periods``. Care should be taken to enter these exactly.
+    FRAs are a legacy derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
 
     Examples
     --------
