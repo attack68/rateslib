@@ -109,6 +109,8 @@ class BasePeriod(metaclass=ABCMeta):
     """
     Abstract base class with common parameters for all ``Period`` subclasses.
 
+    See also: :ref:`User guide for Periods <periods-doc>`.
+
     Parameters
     ----------
     start : Datetime
@@ -138,13 +140,6 @@ class BasePeriod(metaclass=ABCMeta):
     calendar : CustomBusinessDay, str, optional
         Used only by ``stub`` periods and for specific values of ``convention``.
 
-    See Also
-    --------
-    FixedPeriod : Create a period defined with a fixed rate.
-    FloatPeriod : Create a period defined with a floating rate index.
-    Cashflow : Create a period defined by a single cashflow.
-    IndexFixedPeriod : Create a period defined with a fixed rate and an index.
-    IndexCashflow : Create a period defined by a single cashflow and an index.
     """
 
     @abstractmethod

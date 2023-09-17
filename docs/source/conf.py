@@ -67,3 +67,9 @@ html_favicon = '_static/favicon.ico'
 pygments_style = "sphinx"
 
 ## the following used only to open external links in new tab
+
+# inhertiance diagrams
+
+inheritance_graph_attrs = dict(rankdir="LR", size='"6.0, 8.0"', fontsize=10, ratio='compress')
+inheritance_node_attrs = dict(shape='box', fontsize=10, height=0.25, color='gray60', style='filled', fontcolor="white", fillcolor="darkorange2")
+inheritance_edge_attrs = dict(color='gray60')
