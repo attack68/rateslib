@@ -443,6 +443,19 @@ class Curve(_Serialize):
           assumed to be comprised of RFR
           rates and an approximation is used to derive to total rate.
 
+        Examples
+        --------
+
+        .. ipython:: python
+
+            curve = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 2, 1): 0.98,
+                    dt(2022, 3, 1): 0.978,
+                },
+            )
+            curve.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
         modifier = self.modifier if modifier is NoInput.blank else modifier
         # calendar = self.calendar if calendar is False else calendar
