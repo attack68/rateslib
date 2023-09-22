@@ -32,6 +32,10 @@ describes their construction.
 The following *Legs* are provided, click on the links for a full description of each
 *Leg* type:
 
+.. inheritance-diagram:: rateslib.legs
+   :private-bases:
+   :parts: 1
+
 .. autosummary::
    rateslib.legs.BaseLeg
    rateslib.legs.BaseLegMtm

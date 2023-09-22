@@ -67,6 +67,8 @@ email contact through **rateslib@gmail.com**.
    * - Curves
      - Separate :class:`~rateslib.curves.MultiCsaCurve`
        from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
+   * - Bug
+     - Instrument ``spec`` with ``method_param`` set to 2 day lag for certain IBOR instruments.
 
 
 0.5.1 (11 Sep 2023)
