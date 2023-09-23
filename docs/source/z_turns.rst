@@ -18,6 +18,20 @@ economic effect. To an outsider these often look like discontinuities,
 outliers, or erroneous data. But, they are an accurate reflection of reality, and should always
 be included.
 
+The following image is an example of an index, the Riksbank's SWESTR, which is
+impacted to an excessive degree by the government's fiscal policy of applying taxes and fees
+based on the size of a
+Swedish bank's liabilities at year end. In order to either shrink its liabilities or accrue an
+amount from a depositor that covers the fee, a Swedish bank adjusts its overnight deposit rate
+for this one day of the year. Because of the scale, any daily variation of regular amplitude
+at around 2.30%-2.31% is not visible and the curve appears completely flat, but it is not. Data
+is available on the
+`Riksbank's website <https://www.riksbank.se/en-gb/statistics/swestr/search-swestr/>`_.
+
+.. image:: _static/swestr_turn.png
+  :alt: SWESTR data showing an egregious end of year turn.
+  :width: 764
+
 These present challenges when constructing curves, however. Consider the following
 :class:`~rateslib.curves.Curve`, which from 1st Dec '22 to 31st Jan '23 is a flat curve
 with overnight rates at 1%.
@@ -96,7 +110,9 @@ operations of a combination of other curves. This operation can be quite general
 interest of turns by providing a multiplicative DF constant at appropriate points.
 
 First we can create a *Curve* with just the turn effect embedded. In this case a bump of -3% to
-the end of year date:
+the end of year date. The below curve has rates at 0% everywhere except for the year end date.
+When composited with another *Curve* under vector addition all of the rates at 0% will have no
+effect, whilst the the single -3% value will:
 
 .. ipython:: python
 
@@ -139,6 +155,7 @@ a flat curve, a few more rates have been added to create some semblance of shape
        ],
        s=[1.0, 1.2, 1.0],
    )
+   composite_curve.plot("1b", labels=["CompositeCurve"])
 
 .. plot::
 
@@ -180,4 +197,4 @@ a flat curve, a few more rates have been added to create some semblance of shape
    plt.show()
    plt.close()
 
-Reminds me of the Tesla logo!
+The Tesla logo is obviously inspired by Swedish design!

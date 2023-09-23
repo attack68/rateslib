@@ -360,6 +360,18 @@ Specifically those utilities are:
 
     g_utilities.rst
 
+Cookbook
+=========
+
+This is a collection of more detailed examples and explanations that don't necessarily fall
+into any one category. Go to the :ref:`Cookbook index <cookbook-doc>`.
+
+.. toctree::
+    :hidden:
+    :maxdepth: 0
+    :titlesonly:
+
+    g_cookbook.rst
 
 
 .. toctree::
