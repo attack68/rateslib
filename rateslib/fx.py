@@ -198,11 +198,11 @@ class FXRates:
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
         """
-        Recreate an :class:`FXRates` class using other, derived currency pairs.
+        Create an :class:`FXRates` class using other currency pairs as majors.
 
         This will redefine the pairs to which delta risks are expressed in ``Dual``
         outputs. If ``pairs`` match the existing object and ``keep_ad`` is
-        requested then the existing object is returned unchanged.
+        requested then the existing object is returned unchanged as new copy.
 
         Parameters
         ----------
@@ -239,7 +239,7 @@ class FXRates:
         self,
         value: Union[Dual, float],
         domestic: str,
-        foreign: Optional[str] = None,
+        foreign: Union[str, NoInput] = NoInput(0),
         on_error: str = "ignore",
     ):
         """
@@ -272,7 +272,7 @@ class FXRates:
            fxr.convert(1000000, "nok", "inr")  # <- returns None, "inr" not in fxr.
 
         """
-        foreign = self.base if foreign is None else foreign.lower()
+        foreign = self.base if foreign is NoInput.blank else foreign.lower()
         domestic = domestic.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
@@ -293,7 +293,7 @@ class FXRates:
     def convert_positions(
         self,
         array: Union[np.ndarray, list],
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Convert an array of currency cash positions into a single base currency.
@@ -320,7 +320,7 @@ class FXRates:
            fxr.currencies
            fxr.convert_positions([0, 1000000], "usd")
         """
-        base = self.base if base is None else base.lower()
+        base = self.base if base is NoInput.blank else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
         return np.sum(array_ * self.fx_array[:, j])
@@ -328,7 +328,7 @@ class FXRates:
     def positions(
         self,
         value,
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Convert a base value with FX rate sensitivities into an array of cash positions.
@@ -338,7 +338,7 @@ class FXRates:
         value : float or Dual
             The amount expressed in base currency to convert to cash positions.
         base : str, optional
-            The base currency in which ``value`` is given (3-digit code). If *None*
+            The base currency in which ``value`` is given (3-digit code). If not given
             assumes the ``base`` of the object.
 
         Returns
@@ -356,7 +356,7 @@ class FXRates:
         """
         if isinstance(value, (float, int)):
             value = Dual(value)
-        base = self.base if base is None else base.lower()
+        base = self.base if base is NoInput.blank else base.lower()
         _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
@@ -536,6 +536,7 @@ class FXRates:
 
            fxr = FXRates({"eurusd": 1.05}, base="EUR")
            fxr.to_json()
+
         """
         if self.settlement is None:
             settlement = None
