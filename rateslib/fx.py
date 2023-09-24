@@ -1687,14 +1687,14 @@ def forward_fx(
     date : datetime
         The target date to determine the adjusted FX rate for.
     curve_domestic : Curve
-        The discount curve for the domestic currency. Should be FX swap / XCS adjusted.
+        The discount curve for the domestic currency. Should be collateral adjusted.
     curve_foreign : Curve
-        The discount curve for the foreign currency. Should be FX swap / XCS consistent
+        The discount curve for the foreign currency. Should be collateral consistent
         with ``domestic curve``.
     fx_rate : float or Dual
         The known FX rate, typically spot FX given with a spot settlement date.
     fx_settlement : datetime, optional
-        The date the given ``fx_rate`` will settle, i.e spot T+2. If `None` is assumed
+        The date the given ``fx_rate`` will settle, i.e. spot T+2. If `None` is assumed
         to be immediate settlement, i.e. date upon which both ``curves`` have a DF
         of precisely 1.0. Method is more efficient if ``fx_rate`` is given for
         immediate settlement.
@@ -1711,7 +1711,7 @@ def forward_fx(
 
        (EURUSD) f_i = \\frac{(EUR:USD-CSA) w^*_i}{(USD:USD-CSA) v_i} F_0 = \\frac{(EUR:EUR-CSA) v^*_i}{(USD:EUR-CSA) w_i} F_0
 
-    where :math:`w` is a cross currency adjusted discount curve and :math:`v` is the
+    where :math:`w` is a collateral adjusted discount curve and :math:`v` is the
     locally derived discount curve in a given currency, and `*` denotes the domestic
     currency. :math:`F_0` is the immediate FX rate, i.e. aligning with the initial date
     on curves such that discounts factors are precisely 1.0.
