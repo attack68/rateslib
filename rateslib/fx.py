@@ -42,8 +42,8 @@ class FXRates:
     base : str, optional
         The base currency (3-digit code). If not given defaults to either:
 
-          - the default base currency, if it is present in the list of currencies,
-          - the first currency detected.
+        - the base currency defined in `defaults`, if it is present in the list of currencies,
+        - the first currency detected.
 
     Notes
     -----
@@ -109,8 +109,8 @@ class FXRates:
     def __init__(
         self,
         fx_rates: dict,
-        settlement: Optional[datetime] = None,
-        base: Optional[str] = None,
+        settlement: Union[datetime, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         self._ad = 1
         self.settlement = settlement
@@ -133,7 +133,7 @@ class FXRates:
             )
         }
         self.currencies_list = list(self.currencies.keys())
-        if base is None:
+        if base is NoInput.blank:
             if defaults.base_currency in self.currencies_list:
                 self.base = defaults.base_currency
             else:
@@ -198,11 +198,7 @@ class FXRates:
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
         """
-        Create an :class:`FXRates` class using other currency pairs as majors.
-
-        This will redefine the pairs to which delta risks are expressed in ``Dual``
-        outputs. If ``pairs`` match the existing object and ``keep_ad`` is
-        requested then the existing object is returned unchanged as new copy.
+        Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
 
         Parameters
         ----------
@@ -217,8 +213,18 @@ class FXRates:
         --------
         FXRates
 
+        Notes
+        -----
+        This will redefine the pairs to which delta risks are expressed in ``Dual``
+        outputs.
+
+        If ``pairs`` match the existing object and ``keep_ad`` is
+        requested then the existing object is returned unchanged as new copy.
+
         Examples
         --------
+        Re-expressing an *FXRates* class with new majors, to which *Dual* sensitivities are
+        measured.
 
         .. ipython:: python
 
@@ -226,6 +232,14 @@ class FXRates:
            fxr.convert(100, "gbp", "usd")
            fxr2 = fxr.restate(["eurusd", "gbpusd", "usdjpy"])
            fxr2.convert(100, "gbp", "usd")
+
+        Extracting an *FXRates* subset from a larger object.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurgbp": 0.9, "gbpjpy": 125, "usdjpy": 100, "audusd": 0.85})
+           fxr2 = fxr.restate({"eurusd", "gbpusd"})
+           fxr2.rates_table()
         """
         if set(pairs) == set(self.pairs) and keep_ad:
             return self.copy()  # no restate needed but return new instance
@@ -539,7 +553,7 @@ class FXRates:
            fxr.to_json()
 
         """
-        if self.settlement is None:
+        if self.settlement is NoInput.blank:
             settlement = None
         else:
             settlement = self.settlement.strftime("%Y-%m-%d")
@@ -582,6 +596,8 @@ class FXRates:
         serial = json.loads(fx_rates)
         if isinstance(serial["settlement"], str):
             serial["settlement"] = datetime.strptime(serial["settlement"], "%Y-%m-%d")
+        else:
+            serial["settlement"] = NoInput(0)
         return FXRates(**{**serial, **kwargs})
 
     def __eq__(self, other):
@@ -1010,7 +1026,7 @@ class FXForwards:
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
                 settlement = self.fx_rates.settlement
-                if settlement is None:
+                if settlement is NoInput.blank:
                     raise ValueError(
                         "`fx_rates` as FXRates supplied to FXForwards must contain a "
                         "`settlement` argument."
@@ -1026,8 +1042,8 @@ class FXForwards:
     def rate(
         self,
         pair: str,
-        settlement: Optional[datetime] = None,
-        path: Optional[list[dict]] = None,
+        settlement: Union[datetime, NoInput] = NoInput(0),
+        path: Union[list[dict], NoInput] = NoInput(0),
         return_path: bool = False,
     ) -> Union[DualTypes, tuple[DualTypes, list[dict]]]:
         """
@@ -1038,7 +1054,7 @@ class FXForwards:
         pair : str
             The FX pair in usual domestic:foreign convention (6 digit code).
         settlement : datetime, optional
-            The settlement date of currency exchange. If `None` defaults to
+            The settlement date of currency exchange. If not given defaults to
             immediate settlement.
         path : list of dict, optional
             The chain of currency collateral curves to traverse to calculate the rate.
@@ -1077,12 +1093,12 @@ class FXForwards:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
-            if path is None:
+            if path is NoInput.blank:
                 path = self._get_recursive_chain(self.transform, f_idx, d_idx)[1]
             return d_idx, f_idx, path
 
         # perform a fast conversion if settlement aligns with known dates,
-        if settlement is None:
+        if settlement is NoInput.blank:
             settlement = self.immediate
         elif settlement < self.immediate:  # type: ignore[operator]
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
@@ -1125,7 +1141,7 @@ class FXForwards:
             return rate_, path
         return rate_
 
-    def positions(self, value, base: Optional[str] = None, aggregate: bool = False):
+    def positions(self, value, base: Union[str, NoInput] = NoInput(0), aggregate: bool = False):
         """
         Convert a base value with FX rate sensitivities into an array of cash positions
         by settlement date.
@@ -1135,7 +1151,7 @@ class FXForwards:
         value : float or Dual
             The amount expressed in base currency to convert to cash positions.
         base : str, optional
-            The base currency in which ``value`` is given (3-digit code). If *None*
+            The base currency in which ``value`` is given (3-digit code). If not given
             assumes the ``base`` of the object.
         aggregate : bool, optional
             Whether to aggregate positions across all settlement dates and yield
@@ -1169,7 +1185,7 @@ class FXForwards:
         """
         if isinstance(value, (float, int)):
             value = Dual(value)
-        base = self.base if base is None else base.lower()
+        base = self.base if base is NoInput.blank else base.lower()
         _ = np.array(
             [0 if ccy != base else float(value) for ccy in self.currencies_list]
         )  # this is an NPV so is assumed to be immediate settlement
@@ -1204,10 +1220,10 @@ class FXForwards:
         self,
         value: DualTypes,
         domestic: str,
-        foreign: Optional[str] = None,
-        settlement: Optional[datetime] = None,
-        value_date: Optional[datetime] = None,
-        collateral: Optional[str] = None,
+        foreign: Union[str, NoInput] = NoInput(0),
+        settlement: Union[datetime, NoInput] = NoInput(0),
+        value_date: Union[datetime, NoInput] = NoInput(0),
+        collateral: Union[str, NoInput] = NoInput(0),
         on_error: str = "ignore",
     ):
         """
@@ -1261,9 +1277,9 @@ class FXForwards:
            fxf.convert(1000, "usd", "cad")
 
         """
-        foreign = self.base if foreign is None else foreign.lower()
+        foreign = self.base if foreign is NoInput.blank else foreign.lower()
         domestic = domestic.lower()
-        collateral = domestic if collateral is None else collateral.lower()
+        collateral = domestic if collateral is NoInput.blank else collateral.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
                 if on_error == "ignore":
@@ -1277,9 +1293,9 @@ class FXForwards:
                 else:
                     raise ValueError(f"'{ccy}' not in FXForwards.currencies.")
 
-        if settlement is None:
+        if settlement is NoInput.blank:
             settlement = self.immediate
-        if value_date is None:
+        if value_date is NoInput.blank:
             value_date = settlement
 
         fx_rate: DualTypes = self.rate(domestic + foreign, settlement)
@@ -1292,7 +1308,7 @@ class FXForwards:
     def convert_positions(
         self,
         array: Union[np.ndarray, list, DataFrame, Series],
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Convert an input of currency cash positions into a single base currency value.
@@ -1338,7 +1354,7 @@ class FXForwards:
            })
            fxf.convert_positions(positions, "usd")
         """
-        base = self.base if base is None else base.lower()
+        base = self.base if base is NoInput.blank else base.lower()
 
         if isinstance(array, Series):
             array_ = array.to_frame(name=self.immediate)
@@ -1364,7 +1380,7 @@ class FXForwards:
         self,
         pair: str,
         settlements: list[datetime],
-        path: Optional[list[dict]] = None,
+        path: Union[list[dict], NoInput] = NoInput(0),
     ) -> DualTypes:
         """
         Return the FXSwap mid-market rate for the given currency pair.

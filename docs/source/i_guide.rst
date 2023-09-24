@@ -20,7 +20,8 @@ A trivial example
 ----------------------------
 
 For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
-here we create one by directly specifying discount factors (DFs) on certain node dates.
+here we create one by directly specifying discount factors (DFs) on certain node dates (sometimes
+called pillar dates in other publications).
 
 .. ipython:: python
 
@@ -60,8 +61,8 @@ some of the arguments for a *"usd_irs"* one can run:
    defaults.spec["usd_irs"]
 
 
-We can value the IRS in its local currency (USD) by default, and see the generated
-cashflows.
+We can value the *IRS* with the *Curve* in its local currency (USD) by default, and see
+the generated cashflows.
 
 .. ipython:: python
 
