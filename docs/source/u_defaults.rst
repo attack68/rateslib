@@ -131,7 +131,7 @@ with:
 
    When using the ``spec`` argument, arguments which might normally inherit might be defined
    specifically, and will no longer inherit. If overwriting an instrument that has been directly
-   specified ensure to change both legs.
+   specified, ensure to overwrite both legs.
 
 We can change the frequency on the XCS defined in the initial example. Since ``leg2_frequency``
 was explicitly defined by the ``spec`` then it will no longer inherit.
@@ -143,7 +143,7 @@ was explicitly defined by the ``spec`` then it will no longer inherit.
        termination="10Y",
        frequency="S",
        spec="gbpusd_xcs",
-   )
+   )  # `leg2_frequency` will NOT be inherited as "S", it will be "Q" as defined by the `spec`
    xcs.kwargs
 
 Values that are shown here as *NoInput* are populated when the individual legs are
@@ -152,6 +152,3 @@ instantiated and the values will then be set by default. For example we have tha
 .. ipython:: python
 
    xcs.leg1.schedule.roll
-   xcs.leg1.fixing_method
-   xcs.leg2.schedule.roll
-   xcs.leg2.fixing_method
