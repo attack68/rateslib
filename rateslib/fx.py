@@ -198,11 +198,11 @@ class FXRates:
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
         """
-        Recreate an :class:`FXRates` class using other, derived currency pairs.
+        Create an :class:`FXRates` class using other currency pairs as majors.
 
         This will redefine the pairs to which delta risks are expressed in ``Dual``
         outputs. If ``pairs`` match the existing object and ``keep_ad`` is
-        requested then the existing object is returned unchanged.
+        requested then the existing object is returned unchanged as new copy.
 
         Parameters
         ----------
@@ -210,7 +210,8 @@ class FXRates:
             The new currency pairs with which to define the ``FXRates`` class.
         keep_ad : bool, optional
             Keep the original derivative exposures defined by ``Dual``, instead
-            of redefinition.
+            of redefinition. It is advised against setting this to *True*, it is mainly used
+            internally.
 
         Returns
         --------
@@ -239,7 +240,7 @@ class FXRates:
         self,
         value: Union[Dual, float],
         domestic: str,
-        foreign: Optional[str] = None,
+        foreign: Union[str, NoInput] = NoInput(0),
         on_error: str = "ignore",
     ):
         """
@@ -272,7 +273,7 @@ class FXRates:
            fxr.convert(1000000, "nok", "inr")  # <- returns None, "inr" not in fxr.
 
         """
-        foreign = self.base if foreign is None else foreign.lower()
+        foreign = self.base if foreign is NoInput.blank else foreign.lower()
         domestic = domestic.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
@@ -293,7 +294,7 @@ class FXRates:
     def convert_positions(
         self,
         array: Union[np.ndarray, list],
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Convert an array of currency cash positions into a single base currency.
@@ -320,7 +321,7 @@ class FXRates:
            fxr.currencies
            fxr.convert_positions([0, 1000000], "usd")
         """
-        base = self.base if base is None else base.lower()
+        base = self.base if base is NoInput.blank else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
         return np.sum(array_ * self.fx_array[:, j])
@@ -328,7 +329,7 @@ class FXRates:
     def positions(
         self,
         value,
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Convert a base value with FX rate sensitivities into an array of cash positions.
@@ -338,7 +339,7 @@ class FXRates:
         value : float or Dual
             The amount expressed in base currency to convert to cash positions.
         base : str, optional
-            The base currency in which ``value`` is given (3-digit code). If *None*
+            The base currency in which ``value`` is given (3-digit code). If not given
             assumes the ``base`` of the object.
 
         Returns
@@ -356,7 +357,7 @@ class FXRates:
         """
         if isinstance(value, (float, int)):
             value = Dual(value)
-        base = self.base if base is None else base.lower()
+        base = self.base if base is NoInput.blank else base.lower()
         _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
@@ -536,6 +537,7 @@ class FXRates:
 
            fxr = FXRates({"eurusd": 1.05}, base="EUR")
            fxr.to_json()
+
         """
         if self.settlement is None:
             settlement = None
@@ -673,9 +675,9 @@ class FXForwards:
 
     def update(
         self,
-        fx_rates: Optional[Union[FXRates, list[FXRates]]] = None,
-        fx_curves: Optional[dict] = None,
-        base: Optional[str] = None,
+        fx_rates: Union[FXRates, list[FXRates], NoInput] = NoInput(0),
+        fx_curves: Union[dict, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Update the FXForward object with the latest FX rates and FX curves values.
@@ -804,7 +806,7 @@ class FXForwards:
                 if curve.node_dates[-1] < self.terminal:
                     self.terminal = curve.node_dates[-1]
 
-        if fx_rates is not None:
+        if fx_rates is not NoInput.blank:
             self.fx_rates = fx_rates
 
         if isinstance(self.fx_rates, list):
@@ -843,7 +845,7 @@ class FXForwards:
                     )
                     acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
 
-            if base is not None:
+            if base is not NoInput.blank:
                 acyclic_fxf.base = base.lower()
 
             for attr in [
@@ -863,7 +865,7 @@ class FXForwards:
             self.transform = self._get_forwards_transformation_matrix(
                 self.q, self.currencies, self.fx_curves
             )
-            self.base: str = self.fx_rates.base if base is None else base
+            self.base: str = self.fx_rates.base if base is NoInput.blank else base
             self.pairs = self.fx_rates.pairs
             self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
             self.fx_rates_immediate = self._update_fx_rates_immediate()
@@ -872,7 +874,7 @@ class FXForwards:
         self,
         fx_rates: Union[FXRates, list[FXRates]],
         fx_curves: dict,
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         self._ad = 1
         self.update(fx_rates, fx_curves, base)
@@ -1685,14 +1687,14 @@ def forward_fx(
     date : datetime
         The target date to determine the adjusted FX rate for.
     curve_domestic : Curve
-        The discount curve for the domestic currency. Should be FX swap / XCS adjusted.
+        The discount curve for the domestic currency. Should be collateral adjusted.
     curve_foreign : Curve
-        The discount curve for the foreign currency. Should be FX swap / XCS consistent
+        The discount curve for the foreign currency. Should be collateral consistent
         with ``domestic curve``.
     fx_rate : float or Dual
         The known FX rate, typically spot FX given with a spot settlement date.
     fx_settlement : datetime, optional
-        The date the given ``fx_rate`` will settle, i.e spot T+2. If `None` is assumed
+        The date the given ``fx_rate`` will settle, i.e. spot T+2. If `None` is assumed
         to be immediate settlement, i.e. date upon which both ``curves`` have a DF
         of precisely 1.0. Method is more efficient if ``fx_rate`` is given for
         immediate settlement.
@@ -1709,7 +1711,7 @@ def forward_fx(
 
        (EURUSD) f_i = \\frac{(EUR:USD-CSA) w^*_i}{(USD:USD-CSA) v_i} F_0 = \\frac{(EUR:EUR-CSA) v^*_i}{(USD:EUR-CSA) w_i} F_0
 
-    where :math:`w` is a cross currency adjusted discount curve and :math:`v` is the
+    where :math:`w` is a collateral adjusted discount curve and :math:`v` is the
     locally derived discount curve in a given currency, and `*` denotes the domestic
     currency. :math:`F_0` is the immediate FX rate, i.e. aligning with the initial date
     on curves such that discounts factors are precisely 1.0.
