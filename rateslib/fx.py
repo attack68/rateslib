@@ -418,9 +418,9 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def update(self, fx_rates: Optional[dict] = None):
+    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
         """
-        Update all or some of the FX rates of the instance.
+        Update all or some of the FX rates of the instance with new market data.
 
         Parameters
         ----------
@@ -438,43 +438,40 @@ class FXRates:
 
         .. warning::
 
-           **Rateslib** is an object-oriented library that uses complex associations. It
-           is best practice to create objects and any associations and then use the
+           *Rateslib* is an object-oriented library that uses complex associations. It
+           is **best practice** to create objects and any associations and then use the
            ``update`` methods to push new market data to them. Recreating objects with
            new data will break object-oriented associations and possibly lead to
            undetected market data based pricing errors.
 
-        Do **not** do this..
+        Suppose an *FXRates* class has been instantiated and resides in memory.
 
         .. ipython:: python
 
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           fx_curves = {
-               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-           }
-           fxf = FXForwards(fxr, fx_curves)
-           id(fxr) == id(fxf.fx_rates)  #  <- these objects are associated
-           fxr = FXRates({"eurusd": 1.06}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr) == id(fxf.fx_rates)  #  <- this association is broken by new instance
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <- wrong price because it is broken
+           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)
 
-        Instead **do this**..
+        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
+        It can be updated with some new market data. This will preserve its memory id and
+        association with other objects (however, any linked objects should also be updated to
+        cascade new calculations).
 
         .. ipython:: python
 
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           fx_curves = {
-               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-           }
-           fxf = FXForwards(fxr, fx_curves)
+           linked_obj = fxr
            fxr.update({"eurusd": 1.06})
-           fxf.update()
-           id(fxr) == id(fxf.fx_rates)  #  <- this association is maintained
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <- correct new price
+           id(fxr)  # <- SAME as above
+           linked_obj.rate("eurusd")
+
+        Do **not** do the following because overwriting a variable name will not eliminate the
+        previous object from memory. Linked objects will still refer to the previous *FXRates*
+        class still in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
+           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
 
         Examples
         --------
@@ -486,12 +483,12 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
-        if fx_rates is None:
+        if fx_rates is NoInput.blank:
             return None
         fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
         pairs = list(fx_rates_.keys())
         if len(set(pairs).difference(set(self.pairs))) != 0:
-            raise ValueError("`fx_rates` must contain the same pairs as the instance.")
+            raise ValueError("`fx_rates` must contain the same pairs as the instance on `update`.")
         fx_rates_ = {
             pair: float(self.fx_rates[pair]) if pair not in pairs else fx_rates_[pair]
             for pair in self.pairs

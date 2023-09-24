@@ -10,7 +10,7 @@
    import numpy as np
    from pandas import DataFrame, option_context
 
-How to handle turns in rateslib
+How to Handle Turns in Rateslib
 ******************************************************
 
 Turns are an artifact present on interest rate curves that reflect a genuine
