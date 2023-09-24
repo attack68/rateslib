@@ -61,8 +61,8 @@ some of the arguments for a *"usd_irs"* one can run:
    defaults.spec["usd_irs"]
 
 
-We can value the IRS in its local currency (USD) by default, and see the generated
-cashflows.
+We can value the *IRS* with the *Curve* in its local currency (USD) by default, and see
+the generated cashflows.
 
 .. ipython:: python
 

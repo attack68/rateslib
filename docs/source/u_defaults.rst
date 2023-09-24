@@ -110,8 +110,9 @@ Market conventions and the ``spec`` argument
 --------------------------------------------
 
 To provide maximal flexibility a number of market conventions have already been pre-added to
-*rateslib*. For an instrument that allows the ``spec`` (specification) argument a host of
-arguments will be pre-populated. The list of instruments defined can be seen by printing as below.
+*rateslib*. For an *Instrument* that allows the ``spec`` (specification) argument a host of
+arguments will be pre-populated. The list of instrument specifications defined can
+be seen by printing as below.
 Note that some of these are aliases, for example *"sofr"* and *"usd_irs"* are the same, as are
 *"usd_gb"* and *"ust"*.
 
