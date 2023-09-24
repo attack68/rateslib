@@ -379,8 +379,8 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         100,
         domestic="usd",
         foreign="eur",
-        settlement=None,  # should imply immediate settlement
-        value_date=None,  # should imply same as settlement
+        settlement=NoInput(0),  # should imply immediate settlement
+        value_date=NoInput(0),  # should imply same as settlement
     )
     expected = Dual(90.00200704713323, "fx_usdeur", [100.00223005237025])
     assert result == expected

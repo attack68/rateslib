@@ -20,7 +20,8 @@ A trivial example
 ----------------------------
 
 For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
-here we create one by directly specifying discount factors (DFs) on certain node dates.
+here we create one by directly specifying discount factors (DFs) on certain node dates (sometimes
+called pillar dates in other publications).
 
 .. ipython:: python
 
