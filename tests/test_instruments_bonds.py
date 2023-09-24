@@ -775,6 +775,16 @@ class TestFixedRateBond:
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
+    def test_cashflows_no_curve(self):
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination="1Y",
+            spec="ukt",
+            fixed_rate=5.0
+        )
+        result = gilt.cashflows()  # no curve argument is passed to cashflows
+        assert isinstance(result, DataFrame)
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self):

@@ -1732,7 +1732,9 @@ class BondMixin:
         )
         self._set_base_index_if_none(curves[0])
 
-        if settlement is NoInput.blank:
+        if settlement is NoInput.blank and curves[1] is NoInput.blank:
+            settlement = self.leg1.schedule.effective
+        elif settlement is NoInput.blank:
             settlement = add_tenor(
                 curves[1].node_dates[0],
                 f"{self.kwargs['settle']}B",
