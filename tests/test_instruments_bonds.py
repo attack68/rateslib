@@ -782,7 +782,7 @@ class TestFixedRateBond:
             spec="ukt",
             fixed_rate=5.0
         )
-        result = gilt.cashflows()
+        result = gilt.cashflows()  # no curve argument is passed to cashflows
         assert isinstance(result, DataFrame)
 
 
