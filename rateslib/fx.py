@@ -210,7 +210,8 @@ class FXRates:
             The new currency pairs with which to define the ``FXRates`` class.
         keep_ad : bool, optional
             Keep the original derivative exposures defined by ``Dual``, instead
-            of redefinition.
+            of redefinition. It is advised against setting this to *True*, it is mainly used
+            internally.
 
         Returns
         --------
@@ -674,9 +675,9 @@ class FXForwards:
 
     def update(
         self,
-        fx_rates: Optional[Union[FXRates, list[FXRates]]] = None,
-        fx_curves: Optional[dict] = None,
-        base: Optional[str] = None,
+        fx_rates: Union[FXRates, list[FXRates], NoInput] = NoInput(0),
+        fx_curves: Union[dict, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
     ):
         """
         Update the FXForward object with the latest FX rates and FX curves values.
@@ -805,7 +806,7 @@ class FXForwards:
                 if curve.node_dates[-1] < self.terminal:
                     self.terminal = curve.node_dates[-1]
 
-        if fx_rates is not None:
+        if fx_rates is not NoInput.blank:
             self.fx_rates = fx_rates
 
         if isinstance(self.fx_rates, list):
@@ -844,7 +845,7 @@ class FXForwards:
                     )
                     acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
 
-            if base is not None:
+            if base is not NoInput.blank:
                 acyclic_fxf.base = base.lower()
 
             for attr in [
@@ -864,7 +865,7 @@ class FXForwards:
             self.transform = self._get_forwards_transformation_matrix(
                 self.q, self.currencies, self.fx_curves
             )
-            self.base: str = self.fx_rates.base if base is None else base
+            self.base: str = self.fx_rates.base if base is NoInput.blank else base
             self.pairs = self.fx_rates.pairs
             self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
             self.fx_rates_immediate = self._update_fx_rates_immediate()
@@ -873,7 +874,7 @@ class FXForwards:
         self,
         fx_rates: Union[FXRates, list[FXRates]],
         fx_curves: dict,
-        base: Optional[str] = None,
+        base: Union[str, NoInput] = NoInput(0),
     ):
         self._ad = 1
         self.update(fx_rates, fx_curves, base)
