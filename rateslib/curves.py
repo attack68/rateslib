@@ -451,7 +451,6 @@ class Curve(_Serialize):
                 },
                 convention = 'Act365F'
             )
-
             curve_act365f.rate(dt(2022, 2, 1), dt(2022, 3, 1))
 
         Using a different convention will result in a different rate:
