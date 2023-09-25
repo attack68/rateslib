@@ -463,7 +463,7 @@ class Curve(_Serialize):
                     dt(2022, 2, 1): 0.98,
                     dt(2022, 3, 1): 0.978,
                 },
-                convention = 'Act360'
+                convention='Act360'
             )
             curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
