@@ -465,7 +465,6 @@ class Curve(_Serialize):
                 },
                 convention = 'Act360'
             )
-
             curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
         modifier = self.modifier if modifier is NoInput.blank else modifier
