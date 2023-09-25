@@ -118,6 +118,7 @@ if DEVELOPMENT:
         "sek_gb": _get_kwargs("sek_gb"),
         "sek_gbb": _get_kwargs("sek_gbb"),
         "usd_frn5": _get_kwargs("usd_frn5"),  # FRN
+        "usd_stir": _get_kwargs("usd_stir"),  # STIR Futures
         "test": _get_kwargs("test"),  # TEST
     }
 

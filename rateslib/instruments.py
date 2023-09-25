@@ -4993,6 +4993,149 @@ class IRS(BaseDerivative):
         # return irs_npv / leg2_analytic_delta + specified_spd
 
 
+class STIRFuture(IRS):
+
+    _fixed_rate_mixin = True
+    _leg2_float_spread_mixin = True
+
+    def __init__(
+            self,
+            *args,
+            nominal: Union[float, NoInput] = NoInput(0),
+            bp_value: Union[float, NoInput] = NoInput(0),
+            price: Union[float, NoInput] = NoInput(0),
+            leg2_float_spread: Union[float, NoInput] = NoInput(0),
+            leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+            leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+            leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+            leg2_method_param: Union[int, NoInput] = NoInput(0),
+            **kwargs,
+    ):
+        super(IRS, self).__init__(*args, **kwargs)  # call BaseDerivative.__init__()
+        user_kwargs = dict(
+            price=price,
+            fixed_rate=NoInput(0) if price is NoInput.blank else (100 - price),
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+            nominal=nominal,
+            bp_value=bp_value,
+        )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+
+        self._fixed_rate = self.kwargs["fixed_rate"]
+        self._leg2_float_spread = leg2_float_spread
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value"]))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
+
+    @property
+    def contracts(self):
+        return self.leg1.notional / self.kwargs["nominal"]
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+    ):
+        """
+        Return the NPV of the derivative by summing legs.
+
+        See :meth:`BaseDerivative.npv`.
+        """
+        # the test for an unpriced IRS is that its fixed rate is not set.
+        mid_price = self.rate(curves, solver, fx, base, metric="price")
+        if self.fixed_rate is NoInput.blank:
+            # set a fixed rate for the purpose of generic methods NPV will be zero.
+            self.leg1.fixed_rate = float(100 - mid_price)
+
+        traded_price = 100 - self.leg1.fixed_rate
+        _ = (traded_price - mid_price) * 100 * self.contracts * self.kwargs["bp_value"]
+        if local:
+            return {self.leg1.currency: _}
+        else:
+            return _
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        metric: str = "rate",
+    ):
+        """
+        Return the mid-market rate of the IRS.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that
+            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+        metric : str in {"rate", "price"}
+            The calculation metric that will be returned.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        The arguments ``fx`` and ``base`` are unused by single currency derivatives
+        rates calculations.
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
+        )
+        leg2_npv = self.leg2.npv(curves[2], curves[3])
+
+        _ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        if metric.lower() == "rate":
+            return _
+        elif metric.lower() == "price":
+            return 100 - _
+        else:
+            raise ValueError("`metric` must be in {'price', 'rate'}.")
+
+    def cashflows(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+    ):
+        return DataFrame.from_records(
+            [{
+                defaults.headers["type"]: type(self).__name__,
+                defaults.headers["stub_type"]: "Regular",
+                defaults.headers["currency"]: self.leg1.currency.upper(),
+                defaults.headers["a_acc_start"]: self.leg1.schedule.effective,
+                defaults.headers["a_acc_end"]: self.leg1.schedule.termination,
+                defaults.headers["payment"]: None,
+                defaults.headers["convention"]: "Exchange",
+                defaults.headers["dcf"]: float(self.leg1.notional) / self.kwargs["nominal"] * self.kwargs["bp_value"] / 100.0,
+                defaults.headers["notional"]: float(self.leg1.notional),
+                defaults.headers["df"]: 1.0,
+                defaults.headers["collateral"]: self.leg1.currency.lower(),
+            }]
+        )
+
+
 # class Swap(IRS):
 #     """
 #     Alias for :class:`~rateslib.instruments.IRS`.
