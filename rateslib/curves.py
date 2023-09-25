@@ -201,7 +201,7 @@ class Curve(_Serialize):
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional, set by Default
-        The convention of the curve for determining rates.
+        The convention of the curve for determining rates. Please see :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
     calendar : calendar or str, optional
@@ -212,7 +212,6 @@ class Curve(_Serialize):
         values to float, :class:`~rateslib.dual.Dual` or
         :class:`~rateslib.dual.Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
-
     Notes
     -----
 
@@ -400,12 +399,6 @@ class Curve(_Serialize):
         modifier : str, optional
             The day rule if determining the termination from tenor. If `False` is
             determined from the `Curve` modifier.
-        # calendar : CustomBusinessDay, str, None, optional
-        #     The business day calendar to determine valid business days from which to
-        #     determine rates. If `False` is determined from the `Curve` calendar.
-        # convention : str, optional
-        #     The day count convention used for calculating rates. If `None` is
-        #     determined from the `Curve` convention.
         float_spread : float, optional
             A float spread can be added to the rate in certain cases.
         spread_compound_method : str in {"none_simple", "isda_compounding"}
@@ -422,7 +415,9 @@ class Curve(_Serialize):
         -----
         Calculating rates from a curve implies that the conventions attached to the
         specific index, e.g. USD SOFR, or GBP SONIA, are applicable and these should
-        be set at initialisation of the ``Curve``.
+        be set at initialisation of the ``Curve``. Thus, the convention used to
+        calculate the ``rate`` is taken from the ``Curve`` from which ``rate``
+        is called.
 
         ``modifier`` is only used if a tenor is given as the termination.
 
@@ -443,6 +438,34 @@ class Curve(_Serialize):
           assumed to be comprised of RFR
           rates and an approximation is used to derive to total rate.
 
+        Examples
+        --------
+
+        .. ipython:: python
+
+            curve_act365f = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 2, 1): 0.98,
+                    dt(2022, 3, 1): 0.978,
+                },
+                convention='Act365F'
+            )
+            curve_act365f.rate(dt(2022, 2, 1), dt(2022, 3, 1))
+
+        Using a different convention will result in a different rate:
+
+        .. ipython:: python
+
+            curve_act360 = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 2, 1): 0.98,
+                    dt(2022, 3, 1): 0.978,
+                },
+                convention='Act360'
+            )
+            curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
         modifier = self.modifier if modifier is NoInput.blank else modifier
         # calendar = self.calendar if calendar is False else calendar
