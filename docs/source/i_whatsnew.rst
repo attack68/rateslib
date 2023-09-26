@@ -62,6 +62,8 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Instruments
+     - Add a :class:`~rateslib.instruments.STIRFuture` class
+   * - Instruments
      - Merge all :class:`~rateslib.instruments.XCS` classes into one, adding new arguments,
        ``fixed``, ``leg2_fixed`` and ``leg2_mtm`` to differentiate between types.
    * - Curves
