@@ -4994,6 +4994,80 @@ class IRS(BaseDerivative):
 
 
 class STIRFuture(IRS):
+    """
+    Create a short term interest rate (STIR) future.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseDerivative`.
+    price : float
+        The traded price of the future. Defined as 100 minus the fixed rate.
+    contracts : int
+        The number of traded contracts.
+    bp_value : float.
+        The value of 1bp on the contract as specified by the exchange, e.g. SOFR 3M futures are
+        $25 per bp. This is not the same as tick value where the tick size can be different across
+        different futures.
+    nominal : float
+        The nominal value of the contract. E.g. SOFR 3M futures are $1mm. If not given will use the
+        default notional.
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_float_spread : float, optional
+        The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        The method to use for adding a floating spread to compounded rates. Available
+        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If a float scalar, will be applied as the determined fixing for the first
+        period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        The method by which floating rates are determined, set by default. See notes.
+    leg2_method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    .. ipython:: python
+
+       usd = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.965,
+               dt(2024, 1, 1): 0.94
+           },
+           id="usd_stir"
+       )
+
+    Create the *STIRFuture*, and demonstrate the :meth:`~rateslib.instruments.STIRFuture.rate`,
+    :meth:`~rateslib.instruments.STIRFuture.npv`,
+
+    .. ipython:: python
+
+       stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves=usd,
+            price=99.50,
+            contracts=10,
+        )
+       stir.rate(metric="price")
+       stir.npv()
+
+    """
 
     _fixed_rate_mixin = True
     _leg2_float_spread_mixin = True
@@ -5001,9 +5075,10 @@ class STIRFuture(IRS):
     def __init__(
             self,
             *args,
-            nominal: Union[float, NoInput] = NoInput(0),
-            bp_value: Union[float, NoInput] = NoInput(0),
             price: Union[float, NoInput] = NoInput(0),
+            contracts: int = 1,
+            bp_value: Union[float, NoInput] = NoInput(0),
+            nominal: Union[float, NoInput] = NoInput(0),
             leg2_float_spread: Union[float, NoInput] = NoInput(0),
             leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
             leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
@@ -5011,6 +5086,9 @@ class STIRFuture(IRS):
             leg2_method_param: Union[int, NoInput] = NoInput(0),
             **kwargs,
     ):
+        nominal = defaults.notional if nominal is NoInput.blank else nominal
+        # TODO this overwrite breaks positional arguments
+        kwargs["notional"] = nominal * contracts * -1.0
         super(IRS, self).__init__(*args, **kwargs)  # call BaseDerivative.__init__()
         user_kwargs = dict(
             price=price,
@@ -5022,17 +5100,14 @@ class STIRFuture(IRS):
             leg2_method_param=leg2_method_param,
             nominal=nominal,
             bp_value=bp_value,
+            contracts=contracts,
         )
         self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
 
         self._fixed_rate = self.kwargs["fixed_rate"]
         self._leg2_float_spread = leg2_float_spread
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value"]))
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value", "contracts"]))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
-
-    @property
-    def contracts(self):
-        return self.leg1.notional / self.kwargs["nominal"]
 
     def npv(
         self,
@@ -5054,7 +5129,7 @@ class STIRFuture(IRS):
             self.leg1.fixed_rate = float(100 - mid_price)
 
         traded_price = 100 - self.leg1.fixed_rate
-        _ = (traded_price - mid_price) * 100 * self.contracts * self.kwargs["bp_value"]
+        _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
         if local:
             return {self.leg1.currency: _}
         else:

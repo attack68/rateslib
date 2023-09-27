@@ -354,7 +354,7 @@ class TestNullPricing:
         "inst",
         [
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
-            STIRFuture(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="eureur", bp_value=25.0, nominal=1e6),
+            STIRFuture(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="eureur", bp_value=25.0, contracts=-1),
             FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             SBS(
                 dt(2022, 7, 1),
@@ -2210,7 +2210,7 @@ class TestSTIRFuture:
             curves="usdusd",
         )
         result = stir.delta(solver=solver).sum().sum()
-        assert abs(result - 25.0) < 1e-7
+        assert abs(result + 25.0) < 1e-7
 
         result = stir.gamma(solver=solver).sum().sum()
         assert abs(result) < 1e-7
@@ -2226,7 +2226,7 @@ class TestSTIRFuture:
             price=99.50,
         )
         result = stir.npv(curves=c1)
-        expected = (99.5 - (100 - 0.99250894761)) * 2500
+        expected = (99.5 - (100 - 0.99250894761)) * 2500 * -1.0
         assert abs(result - expected) < 1e-7
 
     def test_stir_raises(self):
