@@ -5210,6 +5210,12 @@ class STIRFuture(IRS):
             }]
         )
 
+    def spread(self):
+        """
+        Not implemented for *STIRFuture*.
+        """
+        return NotImplementedError()
+
 
 # class Swap(IRS):
 #     """
