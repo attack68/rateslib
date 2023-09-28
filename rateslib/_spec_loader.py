@@ -119,7 +119,11 @@ if DEVELOPMENT:
         "sek_gbb": _get_kwargs("sek_gbb"),
         "usd_frn5": _get_kwargs("usd_frn5"),  # FRN
         "usd_stir": _get_kwargs("usd_stir"),  # STIR Futures
-        "usd_stir1": _get_kwargs("usd_stir1"),  # STIR Futures
+        "usd_stir1": _get_kwargs("usd_stir1"),
+        "eur_stir": _get_kwargs("eur_stir"),
+        "eur_stir1": _get_kwargs("eur_stir1"),
+        "eur_stir3": _get_kwargs("eur_stir3"),
+        "gbp_stir": _get_kwargs("gbp_stir"),
         "test": _get_kwargs("test"),  # TEST
     }
 
@@ -137,6 +141,10 @@ if DEVELOPMENT:
         "sgbb": INSTRUMENT_SPECS["sek_gbb"],
         "sofr3mf": INSTRUMENT_SPECS["usd_stir"],
         "sofr1mf": INSTRUMENT_SPECS["usd_stir1"],
+        "sonia3mf": INSTRUMENT_SPECS["gbp_stir"],
+        "estr1mf": INSTRUMENT_SPECS["eur_stir1"],
+        "estr3mf": INSTRUMENT_SPECS["eur_stir"],
+        "euribor3mf": INSTRUMENT_SPECS["eur_stir3"],
     }
 
 else:
