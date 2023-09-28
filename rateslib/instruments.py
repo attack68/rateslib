@@ -4993,6 +4993,230 @@ class IRS(BaseDerivative):
         # return irs_npv / leg2_analytic_delta + specified_spd
 
 
+class STIRFuture(IRS):
+    """
+    Create a short term interest rate (STIR) future.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseDerivative`.
+    price : float
+        The traded price of the future. Defined as 100 minus the fixed rate.
+    contracts : int
+        The number of traded contracts.
+    bp_value : float.
+        The value of 1bp on the contract as specified by the exchange, e.g. SOFR 3M futures are
+        $25 per bp. This is not the same as tick value where the tick size can be different across
+        different futures.
+    nominal : float
+        The nominal value of the contract. E.g. SOFR 3M futures are $1mm. If not given will use the
+        default notional.
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_float_spread : float, optional
+        The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        The method to use for adding a floating spread to compounded rates. Available
+        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If a float scalar, will be applied as the determined fixing for the first
+        period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        The method by which floating rates are determined, set by default. See notes.
+    leg2_method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    .. ipython:: python
+
+       usd = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.965,
+               dt(2024, 1, 1): 0.94
+           },
+           id="usd_stir"
+       )
+
+    Create the *STIRFuture*, and demonstrate the :meth:`~rateslib.instruments.STIRFuture.rate`,
+    :meth:`~rateslib.instruments.STIRFuture.npv`,
+
+    .. ipython:: python
+
+       stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves=usd,
+            price=99.50,
+            contracts=10,
+        )
+       stir.rate(metric="price")
+       stir.npv()
+
+    """
+
+    _fixed_rate_mixin = True
+    _leg2_float_spread_mixin = True
+
+    def __init__(
+            self,
+            *args,
+            price: Union[float, NoInput] = NoInput(0),
+            contracts: int = 1,
+            bp_value: Union[float, NoInput] = NoInput(0),
+            nominal: Union[float, NoInput] = NoInput(0),
+            leg2_float_spread: Union[float, NoInput] = NoInput(0),
+            leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+            leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+            leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+            leg2_method_param: Union[int, NoInput] = NoInput(0),
+            **kwargs,
+    ):
+        nominal = defaults.notional if nominal is NoInput.blank else nominal
+        # TODO this overwrite breaks positional arguments
+        kwargs["notional"] = nominal * contracts * -1.0
+        super(IRS, self).__init__(*args, **kwargs)  # call BaseDerivative.__init__()
+        user_kwargs = dict(
+            price=price,
+            fixed_rate=NoInput(0) if price is NoInput.blank else (100 - price),
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+            nominal=nominal,
+            bp_value=bp_value,
+            contracts=contracts,
+        )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+
+        self._fixed_rate = self.kwargs["fixed_rate"]
+        self._leg2_float_spread = leg2_float_spread
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value", "contracts"]))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+    ):
+        """
+        Return the NPV of the derivative by summing legs.
+
+        See :meth:`BaseDerivative.npv`.
+        """
+        # the test for an unpriced IRS is that its fixed rate is not set.
+        mid_price = self.rate(curves, solver, fx, base, metric="price")
+        if self.fixed_rate is NoInput.blank:
+            # set a fixed rate for the purpose of generic methods NPV will be zero.
+            self.leg1.fixed_rate = float(100 - mid_price)
+
+        traded_price = 100 - self.leg1.fixed_rate
+        _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+        if local:
+            return {self.leg1.currency: _}
+        else:
+            return _
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        metric: str = "rate",
+    ):
+        """
+        Return the mid-market rate of the IRS.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that
+            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+        metric : str in {"rate", "price"}
+            The calculation metric that will be returned.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        The arguments ``fx`` and ``base`` are unused by single currency derivatives
+        rates calculations.
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
+        )
+        leg2_npv = self.leg2.npv(curves[2], curves[3])
+
+        _ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        if metric.lower() == "rate":
+            return _
+        elif metric.lower() == "price":
+            return 100 - _
+        else:
+            raise ValueError("`metric` must be in {'price', 'rate'}.")
+
+    def cashflows(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+    ):
+        return DataFrame.from_records(
+            [{
+                defaults.headers["type"]: type(self).__name__,
+                defaults.headers["stub_type"]: "Regular",
+                defaults.headers["currency"]: self.leg1.currency.upper(),
+                defaults.headers["a_acc_start"]: self.leg1.schedule.effective,
+                defaults.headers["a_acc_end"]: self.leg1.schedule.termination,
+                defaults.headers["payment"]: None,
+                defaults.headers["convention"]: "Exchange",
+                defaults.headers["dcf"]: float(self.leg1.notional) / self.kwargs["nominal"] * self.kwargs["bp_value"] / 100.0,
+                defaults.headers["notional"]: float(self.leg1.notional),
+                defaults.headers["df"]: 1.0,
+                defaults.headers["collateral"]: self.leg1.currency.lower(),
+            }]
+        )
+
+    def spread(self):
+        """
+        Not implemented for *STIRFuture*.
+        """
+        return NotImplementedError()
+
+
 # class Swap(IRS):
 #     """
 #     Alias for :class:`~rateslib.instruments.IRS`.
