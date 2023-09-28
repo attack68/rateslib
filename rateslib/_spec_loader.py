@@ -119,6 +119,7 @@ if DEVELOPMENT:
         "sek_gbb": _get_kwargs("sek_gbb"),
         "usd_frn5": _get_kwargs("usd_frn5"),  # FRN
         "usd_stir": _get_kwargs("usd_stir"),  # STIR Futures
+        "usd_stir1": _get_kwargs("usd_stir1"),  # STIR Futures
         "test": _get_kwargs("test"),  # TEST
     }
 
@@ -134,6 +135,8 @@ if DEVELOPMENT:
         "cadgb": INSTRUMENT_SPECS["cad_gb"],
         "sgb": INSTRUMENT_SPECS["sek_gb"],
         "sgbb": INSTRUMENT_SPECS["sek_gbb"],
+        "sofr3mf": INSTRUMENT_SPECS["usd_stir"],
+        "sofr1mf": INSTRUMENT_SPECS["usd_stir1"],
     }
 
 else:
