@@ -1913,7 +1913,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
       using 30e360, also for back stubs.
     - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
-      convention. Yield calculations are still derived with linearly proportions compounded
+      convention. Yield calculations are still derived with linearly proportioned compounded
       coupons.
 
     More details available in supplementary materials. The table below
