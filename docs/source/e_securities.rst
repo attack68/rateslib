@@ -15,10 +15,16 @@ been packaged to provide specific methods relevant to their
 nature. For example bonds have yield-to-maturity and accrued interest
 for example.
 
+.. inheritance-diagram:: rateslib.instruments.FixedRateBond rateslib.instruments.FloatRateNote rateslib.instruments.Bill rateslib.instruments.IndexFixedRateBond rateslib.instruments.BondFuture
+   :private-bases:
+   :parts: 1
+
 .. autosummary::
    rateslib.instruments.FixedRateBond
    rateslib.instruments.FloatRateNote
    rateslib.instruments.Bill
+   rateslib.instruments.IndexFixedRateBond
+   rateslib.instruments.BondFuture
 
 
 Fixed Rate Bond

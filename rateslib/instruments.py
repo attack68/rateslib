@@ -1098,7 +1098,6 @@ class BondMixin:
             "ukg": self._acc_lin_days,
             "uktb": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
-            "ust_street": self._acc_lin_days_long_split,
             "ustb": self._acc_lin_days,
             "sgb": self._acc_30e360,
             "sgbb": self._acc_lin_days,
@@ -1874,10 +1873,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str in {"ukg", "ust", "sgb"}
-        A calculation mode for dealing with bonds that are in short stub or accrual
-        periods. All modes give the same value for YTM at issue date for regular
-        bonds but differ slightly for bonds with stubs or with accrued.
+    calc_mode : str
+        A calculation mode for dealing with bonds under different conventions. See notes.
     curves : CurveType, str or list of such, optional
         A single *Curve* or string id or a list of such.
 
@@ -1898,9 +1895,27 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     Notes
     -----
-    Bond YTM formulae have different treatments for different conventions.
-    *Rateslib* currently identifies three different ``calc_mode`` options;
-    *'ukg', 'ust', 'sgb'* for UK gilt, US treasury and Swedish government bond.
+
+    **Calculation Modes**
+
+    The ``calc_mode`` parameter allows the calculation for yield-to-maturity and accrued interest
+    to branch depending upon the particular convention of different bonds.
+
+    The following modes are currently available with a brief description of its particular
+    action:
+
+    - "ukg": UK Gilt convention. Accrued is linearly proportioned, as are stub periods. Stub yields
+      are compounded.
+    - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
+      proportioning only in the segregated short stub part.
+    - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
+      31-B-ii).
+    - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
+      using 30e360, also for back stubs.
+    - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
+      convention. Yield calculations are still derived with linearly proportions compounded
+      coupons.
+
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided
     from official sources.
@@ -1946,8 +1961,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usA = FixedRateBond(
            effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=8.75, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=8.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usAc = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=False)
@@ -1955,8 +1970,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usB = FixedRateBond(
            effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=8.5, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usBc = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=False)
@@ -1965,8 +1980,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usC = FixedRateBond(
            effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
            front_stub=dt(1990, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=8.5, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usCc = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=False)
@@ -1974,8 +1989,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usD = FixedRateBond(
            effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=9.5, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=9.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usDc = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=False)
@@ -1984,8 +1999,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usE = FixedRateBond(
            effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
            front_stub=dt(1986, 2, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=10.75, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=10.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usEc = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=False)
@@ -1993,8 +2008,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usF = FixedRateBond(
            effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=10.50, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=10.50, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usFc = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=False)
@@ -2003,8 +2018,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usG = FixedRateBond(
            effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
            front_stub=dt(1989, 6, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=9.75, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=9.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usGc = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=False)
@@ -2020,13 +2035,13 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "ukg", uk22c, uk22d],
                ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "ukg", uk23c, uk23d],
                ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "ukg", uk24c, uk24d],
-               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust", usAc, usAd],
-               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust", usBc, usBd],
-               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust", usCc, usCd],
-               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust", usDc, usDd],
-               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust", usEc, usEd],
-               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust", usFc, usFd],
-               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust", usGc, usGd],
+               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust_31bii", usAc, usAd],
+               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust_31bii", usBc, usBd],
+               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust_31bii", usCc, usCd],
+               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust_31bii", usDc, usDd],
+               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust_31bii", usEc, usEd],
+               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust_31bii", usFc, usFd],
+               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust_31bii", usGc, usGd],
            ],
            columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
        )

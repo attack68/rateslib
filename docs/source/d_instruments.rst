@@ -11,19 +11,38 @@ Instruments
 **********************
 
 The following groups outline the different *Instrument* types
-offered by *rateslib*.
+offered by *rateslib*. The common methods which all *Instruments* strive to possess are
+``rate()``, ``npv()``, ``analytic_delta()``, ``delta()``, ``gamma()``,
+``cashflows()`` and ``cashflows_table()``.
 
-Common methods which all *Instruments* strive to possess are
-``rate()``, ``npv()``, ``analytic_delta``, ``delta()``, ``gamma()``,
-``cashflows()`` and ``cashflows_table``.
+Securities
+----------
 
-:ref:`Securities<securities-doc>`
+Link to the section on :ref:`securities<securities-doc>`, which comprise *Bonds, Bills* and
+*Bond Futures*.
 
-.. inheritance-diagram:: rateslib.instruments.FixedRateBond rateslib.instruments.FloatRateNote rateslib.instruments.Bill rateslib.instruments.IndexFixedRateBond rateslib.instruments.BondFuture
-   :private-bases:
-   :parts: 1
+Single Currency Derivatives
+---------------------------
+
+Link to the section on :ref:`single currency derivatives<singlecurrency-doc>`.
+
+
+
+Multi-Currency Derivatives
+--------------------------
+
+Link to the section on :ref:`Multi-Currency Derivatives<multicurrency-doc>`. This allows
+*FXSwaps*, *Cross-Currency Swaps* and *FX Exchanges*.
+
+Utilities and Instrument Combinations
+-------------------------------------
+
+Link to the section on :ref:`utilities and instrument combinations<combinations-doc>`. This
+allows things like *Spread trades*, *Butterflies*, *Portfolios* and a *Value* for a *Curve*.
+
 
 .. toctree::
+    :hidden:
     :maxdepth: 0
     :titlesonly:
 
