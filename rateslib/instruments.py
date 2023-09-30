@@ -313,8 +313,8 @@ class Sensitivities:
         local: bool = False,
     ):
         """
-        Calculate delta risk against the calibrating instruments of the
-        :class:`~rateslib.curves.Curve`.
+        Calculate delta risk of an *Instrument* against the calibrating instruments in a
+        :class:`~rateslib.curves.Solver`.
 
         Parameters
         ----------
@@ -327,9 +327,8 @@ class Sensitivities:
             - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
             - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
         solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that constructs
-            :class:`~rateslib.curves.Curve` from calibrating
-            instruments.
+            The :class:`~rateslib.solver.Solver` that calibrates
+            *Curves* from given *Instruments*.
         fx : float, FXRates, FXForwards, optional
             The immediate settlement FX rate that will be used to convert values
             into another currency. A given `float` is used directly. If giving a
@@ -366,8 +365,8 @@ class Sensitivities:
         local: bool = False,
     ):
         """
-        Calculate cross-gamma risk against the calibrating instruments of the
-        :class:`~rateslib.curves.Curve`.
+        Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
+        :class:`~rateslib.curves.Solver`.
 
         Parameters
         ----------
@@ -380,9 +379,8 @@ class Sensitivities:
             - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
             - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
         solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that constructs
-            :class:`~rateslib.curves.Curve` from calibrating
-            instruments.
+            The :class:`~rateslib.solver.Solver` that calibrates
+            *Curves* from given *Instruments*.
         fx : float, FXRates, FXForwards, optional
             The immediate settlement FX rate that will be used to convert values
             into another currency. A given `float` is used directly. If giving a
@@ -1008,6 +1006,22 @@ class FXExchange(Sensitivities, BaseMixin):
 
         _ = forward_fx(self.settlement, curves[1], curves[3], imm_fx)
         return _
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 # Securities
@@ -2630,6 +2644,22 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         """
         return self._price_from_ytm(ytm, settlement, self.calc_mode, dirty)
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 class IndexFixedRateBond(FixedRateBond):
     _fixed_rate_mixin = True
@@ -3716,6 +3746,22 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread'}.")
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 # Single currency derivatives
 
@@ -4662,29 +4708,21 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
         pass
 
-    # def delta(
-    #     self,
-    #     curves: Union[Curve, str, list],
-    #     solver: Solver,
-    #     fx: Optional[Union[float, FXRates, FXForwards]] = None,
-    #     base: Optional[str] = None,
-    # ):
-    #     npv = self.npv(curves, solver, fx, base)
-    #     return solver.delta(npv)
-    #
-    # def gamma(
-    #     self,
-    #     curves: Union[Curve, str, list],
-    #     solver: Solver,
-    #     fx: Optional[Union[float, FXRates, FXForwards]] = None,
-    #     base: Optional[str] = None,
-    # ):
-    #     _ = solver._ad  # store original order
-    #     solver._set_ad_order(2)
-    #     npv = self.npv(curves, solver, fx, base)
-    #     grad_s_sT_P = solver.gamma(npv)
-    #     solver._set_ad_order(_)  # reset original order
-    #     return grad_s_sT_P
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 class IRS(BaseDerivative):
@@ -7676,6 +7714,22 @@ class Spread(Sensitivities):
             keys=["instrument1", "instrument2"],
         )
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 # class SpreadX:
 #     pass
@@ -7775,6 +7829,22 @@ class Fly(Sensitivities):
             ],
             keys=["instrument1", "instrument2", "instrument3"],
         )
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 # class FlyX:
@@ -7882,6 +7952,22 @@ class Portfolio(Sensitivities):
             [_.cashflows(*args, **kwargs) for _ in self.instruments],
             keys=[f"inst{i}" for i in range(len(self.instruments))],
         )
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

@@ -24,14 +24,14 @@ Link to the section on :ref:`securities<securities-doc>`, which comprise *Bonds,
 Single Currency Derivatives
 ---------------------------
 
-Link to the section on :ref:`single currency derivatives<singlecurrency-doc>`.
-
+Link to the section on :ref:`single currency derivatives<singlecurrency-doc>`, giving objects
+like *IRSs*, *SBSs*, *ZCISs* and *ZCSs* etc.
 
 
 Multi-Currency Derivatives
 --------------------------
 
-Link to the section on :ref:`Multi-Currency Derivatives<multicurrency-doc>`. This allows
+Link to the section on :ref:`multi-currency derivatives<multicurrency-doc>`. This allows
 *FXSwaps*, *Cross-Currency Swaps* and *FX Exchanges*.
 
 Utilities and Instrument Combinations
