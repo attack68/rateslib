@@ -131,8 +131,8 @@ Legs with Exchanged Notionals
 ``Bonds``, ``CrossCurrencySwaps`` and ``IndexSwaps`` involve *Legs* with exchanged
 notionals, which are represented as :class:`~rateslib.periods.Cashflow` s.
 These *Legs* have the option of an initial exchange and also of a
-final exchange. Interim exchanges (amortization) will be applied if
-there is a final exchange.
+final exchange. Interim exchanges (amortization) will only be applied if
+there is also a final exchange.
 
 The arguments are the same as the previous :class:`~rateslib.legs.FixedLeg`
 and :class:`~rateslib.legs.FloatLeg` classes, except attention is drawn to the
