@@ -4497,6 +4497,22 @@ class BondFuture(Sensitivities):
         else:
             return npv_ * fx
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     """
@@ -6745,6 +6761,22 @@ class FRA(Sensitivities, BaseMixin):
         cfs[defaults.headers["fx"]] = float(fx_)
         cfs[defaults.headers["npv_fx"]] = npv_local * float(fx_)
         return DataFrame.from_records([cfs])
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 # Multi-currency derivatives
