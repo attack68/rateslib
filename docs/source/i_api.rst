@@ -176,6 +176,8 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 Legs
 ----
 
+Link to the :ref:`Legs<legs-doc>` section in the user guide.
+
 .. automodapi:: rateslib.legs
    :no-heading:
    :skip: NoInput

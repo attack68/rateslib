@@ -12,6 +12,7 @@ from rateslib.instruments import (
     FloatRateNote,
     Bill,
     IRS,
+    STIRFuture,
     IIRS,
     SBS,
     FXSwap,
@@ -353,6 +354,7 @@ class TestNullPricing:
         "inst",
         [
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+            STIRFuture(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="eureur", bp_value=25.0, contracts=-1),
             FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             SBS(
                 dt(2022, 7, 1),
@@ -2177,6 +2179,70 @@ class TestFXSwap:
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
 
 
+class TestSTIRFuture:
+    def test_stir_rate(self, curve, curve2):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+        )
+        expected = 95.96254344884888
+        result = stir.rate(curve, metric="price")
+        assert abs(100 - result -stir.rate(curve)) < 1e-8
+        assert abs(result-expected) < 1e-8
+
+    def test_stir_no_gamma(self, curve):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        ins = [
+            IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd"),
+        ]
+        solver = Solver(
+            curves=[c1],
+            instruments=ins,
+            s=[1.2],
+            id="solver",
+            instrument_labels=["usd fut"],
+        )
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+        )
+        result = stir.delta(solver=solver).sum().sum()
+        assert abs(result + 25.0) < 1e-7
+
+        result = stir.gamma(solver=solver).sum().sum()
+        assert abs(result) < 1e-7
+
+    def test_stir_npv(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+        )
+        result = stir.npv(curves=c1)
+        expected = (99.5 - (100 - 0.99250894761)) * 2500 * -1.0
+        assert abs(result - expected) < 1e-7
+
+    def test_stir_raises(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+        )
+        with pytest.raises(ValueError, match="`metric` must be in"):
+            stir.rate(curves=c1, metric="bad")
+
+
 class TestPricingMechanism:
     def test_value(self, curve):
         ob = Value(dt(2022, 1, 28), curves=curve)
@@ -2447,6 +2513,18 @@ class TestSpec:
         assert irs.kwargs["leg2_convention"] == "act360"
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
+
+    def test_stir(self):
+        irs = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            convention="30e360",
+        )
+        assert irs.kwargs["convention"] == "30e360"
+        assert irs.kwargs["leg2_convention"] == "act360"
+        assert irs.kwargs["currency"] == "usd"
+        assert irs.kwargs["roll"] == "imm"
 
     def test_sbs(self):
         inst = SBS(
