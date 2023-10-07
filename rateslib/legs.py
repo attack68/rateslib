@@ -1650,7 +1650,8 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         ]
 
     def cashflow(self, curve: Optional[IndexCurve] = None):
-        """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period."""
+        """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using an
+        *IndexCurve*."""
         _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
         return _
 
