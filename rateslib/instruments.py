@@ -1112,6 +1112,7 @@ class BondMixin:
             "ukg": self._acc_lin_days,
             "uktb": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
+            "ust_31bii": self._acc_lin_days_long_split,
             "ustb": self._acc_lin_days,
             "sgb": self._acc_30e360,
             "sgbb": self._acc_lin_days,
