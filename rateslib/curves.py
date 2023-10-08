@@ -14,6 +14,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import Holiday
 from uuid import uuid4
 import numpy as np
+import warnings
 import json
 from math import floor, comb
 from rateslib import defaults
@@ -350,6 +351,13 @@ class Curve(_Serialize):
                 return self.interpolation(date, self.nodes.copy())
             return self._local_interp_(date)
         else:
+            if date > self.t[-1]:
+                warnings.warn(
+                    "Evaluating points on a curve beyond the endpoint of the basic "
+                    "spline interval is undefined.\n"
+                    f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
+                    UserWarning
+                )
             return self._op_exp(self.spline.ppev_single(date))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

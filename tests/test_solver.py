@@ -1500,3 +1500,56 @@ def test_pre_solver_single_fx_object():
     result = gu[dt(2023, 1, 1)]
     expected = 0.988
     assert (result - expected) < 1e-4
+
+
+def test_solver_jacobians_in_text():
+    par_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2027, 1, 1): 1.0,
+            dt(2032, 1, 1): 1.0
+        },
+        id="curve",
+    )
+    par_instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "5Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "10Y", "A", curves="curve"),
+    ]
+    par_solver = Solver(
+        curves=[par_curve],
+        instruments=par_instruments,
+        s=[1.21, 1.635, 1.885, 1.93],
+        id="par_solver",
+        instrument_labels=["1Y", "2Y", "5Y", "10Y"],
+    )
+    fwd_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2027, 1, 1): 1.0,
+            dt(2032, 1, 1): 1.0
+        },
+        id="curve"
+    )
+    fwd_instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2023, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2024, 1, 1), "3Y", "A", curves="curve"),
+        IRS(dt(2027, 1, 1), "5Y", "A", curves="curve"),
+    ]
+    s_fwd = [float(_.rate(solver=par_solver)) for _ in fwd_instruments]
+    fwd_solver = Solver(
+        curves=[fwd_curve],
+        instruments=fwd_instruments,
+        s=s_fwd,
+        id="fwd_solver",
+        instrument_labels=["1Y", "1Y1Y", "2Y3Y", "5Y5Y"],
+    )
+    S_BA = par_solver.jacobian(fwd_solver).to_numpy()
+    S_AB = fwd_solver.jacobian(par_solver).to_numpy()
+    assert np.all(np.isclose(np.eye(4), np.matmul(S_AB, S_BA)))

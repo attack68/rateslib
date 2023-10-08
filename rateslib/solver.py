@@ -1225,10 +1225,10 @@ class Solver(Gradients):
 
     def _update_step_(self, algorithm):
         if algorithm == "gradient_descent":
-            grad_v_f = self.g.gradient(self.variables)
-            y = np.matmul(self.J.transpose(), grad_v_f[:, np.newaxis])[:, 0]
+            grad_v_g = self.g.gradient(self.variables)
+            y = np.matmul(self.J.transpose(), grad_v_g[:, np.newaxis])[:, 0]
             alpha = np.dot(y, self.weights * self.x) / np.dot(y, self.weights * y)
-            v_1 = self.v - grad_v_f * alpha.real
+            v_1 = self.v - grad_v_g * alpha.real
         elif algorithm == "gauss_newton":
             if self.J.shape[0] == self.J.shape[1]:  # square system
                 A = self.J.transpose()
@@ -1754,9 +1754,9 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
-    def _jacobian(self, solver: Solver):
+    def jacobian(self, solver: Solver):
         """
-        Calculate the Jacobian with respect to another ``Solver`` instruments.
+        Calculate the Jacobian with respect to another *Solver's* instruments.
 
         Parameters
         ----------
@@ -1766,21 +1766,32 @@ class Solver(Gradients):
         Returns
         -------
         DataFrame
-        """
-        raise NotImplementedError()
-        self.s = np.array(
-            [_[0].rate(*_[1], **{**_[2], "solver": solver}) for _ in self.instruments]
-        )
-        self._reset_properties_()
-        self.iterate()
-        rates = np.array([_[0].rate(*_[1], **{"solver": self, **_[2]}) for _ in solver.instruments])
-        grad_v_rT = np.array([_.gradient(self.variables) for _ in rates]).T
-        return DataFrame(
-            np.matmul(self.grad_s_vT, grad_v_rT),
-            index=self.instrument_labels,
-            columns=solver.instrument_labels,
-        )
 
+        Notes
+        -----
+        This Jacobian converts risk sensitivities expressed in the underlying *Solver's*
+        instruments to the instruments in the other ``solver``.
+
+        .. warning::
+           A Jacobian transformation is only possible between *Solvers* whose ``instruments``
+           are associated with *Curves* with string ID mappings (which is best practice and
+           demonstrated HERE XXX). This allows two different
+           *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
+           and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
+           in another *Solver*
+
+        """
+        # Get the instrument rates for self solver evaluated using the curves and links of other
+        r = np.array(
+            [_[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}}) for _ in self.instruments]
+        )
+        # Get the gradient of these rates with respect to the variable in other
+        grad_v_rT = np.array([_.gradient(solver.variables) for _ in r]).T
+        return DataFrame(
+            np.matmul(solver.grad_s_vT, grad_v_rT),
+            columns=self.instrument_labels,
+            index=solver.instrument_labels,
+        )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
