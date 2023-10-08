@@ -860,6 +860,10 @@ class Solver(Gradients):
     conv_tol : float
         The tolerance to determine convergence if successive objective function
         values are similar. Defaults to 1e-17.
+    ini_lambda : 3-tuple of float, optional
+        Parameters to control the Levenberg-Marquardt algorithm, defined as the
+        initial lambda value, the scaling factor for a successful iteration and the
+        scaling factor for an unsuccessful iteration. Defaults to (1000, 0.25, 2).
 
     Notes
     -----
@@ -927,8 +931,13 @@ class Solver(Gradients):
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
+        ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0)
     ) -> None:
         self.algorithm = algorithm if algorithm is not None else defaults.algorithm
+        if ini_lambda is NoInput.blank:
+            self.ini_lambda = defaults.ini_lambda
+        else:
+            self.ini_lambda = ini_lambda
         self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
@@ -1239,7 +1248,7 @@ class Solver(Gradients):
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            self.lambd *= 2 if self.g_prev < self.g.real else 0.25
+            self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * self.g.gradient(self.variables)[:, np.newaxis]
@@ -1288,7 +1297,7 @@ class Solver(Gradients):
         None
         """
         DualType = Dual if self._ad == 1 else Dual2
-        self.g_prev, self.g_list, self.lambd = 1e10, [], 1000
+        self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
         t0 = time()
