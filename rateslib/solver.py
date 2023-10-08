@@ -109,6 +109,7 @@ class Gradients:
         return grad_s_vT
 
     def _grad_s_vT_final_iteration_analytical(self):
+        """Uses a pseudoinverse algorithm on floats"""
         grad_s_vT = np.linalg.pinv(self.J)
         return grad_s_vT
 
@@ -989,12 +990,14 @@ class Solver(Gradients):
         self.pre_curves = {}
         self.pre_variables = ()
         self.pre_instrument_labels = ()
+        self.pre_instruments = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
         curve_collection = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
+            self.pre_instruments += pre_solver.pre_instruments
             self.pre_rate_scalars.extend(pre_solver.pre_rate_scalars)
             self.pre_m += pre_solver.pre_m
             self.pre_n += pre_solver.pre_n
@@ -1024,6 +1027,7 @@ class Solver(Gradients):
         self._ad = 1
         self.fx = fx
         self.instruments = tuple((self._parse_instrument(inst) for inst in instruments))
+        self.pre_instruments += self.instruments
         self.rate_scalars = tuple((inst[0]._rate_scalar for inst in self.instruments))
         self.pre_rate_scalars += self.rate_scalars
 
@@ -1742,26 +1746,40 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
-    def _market_movements(self, s_0, s_1, fx_0, fx_1):
+    def market_movements(self, solver: Solver):
         """
-        Determine market movement between instrument price arrays properly scaled.
+        Determine market movements between the *Solver's* instrument rates and those rates priced
+        from a second *Solver*.
 
         Parameters
         ----------
-        s_0 : sequence or ndarray
-            The initial instrument prices from which market movements are measured.
-        s_1 : sequence or ndarray
-            The subsequent instrument prices to which market movements are measured.
-        fx_0 : sequence or ndarray
-            The initial prices from which to measure market movements from.
-        fx_1 : sequence or ndarray
-            The initial prices from which to measure market movements from.
+        solver: Solver
+            The other *Solver* whose *Curves* are to be used for measuring the final instrument
+            rates of the existing *Solver's* instruments.
 
         Returns
         -------
-        tuple of arrays
+        DataFrame
+
+        Notes
+        -----
+        .. warning::
+           Market movement calculations are only possible between *Solvers* whose ``instruments``
+           are associated with *Curves* with string ID mappings (which is best practice and
+           demonstrated HERE XXX). This allows two different
+           *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
+           and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
+           in another *Solver*.
         """
-        raise NotImplementedError()
+        r_0 = self.r_pre
+        r_1 = np.array(
+            [_[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}}) for _ in
+             self.pre_instruments]
+        )
+        return DataFrame(
+            (r_1 - r_0) * 100 / np.array(self.pre_rate_scalars),
+            index=self.pre_instrument_labels
+        )
 
     def jacobian(self, solver: Solver):
         """
@@ -1792,14 +1810,17 @@ class Solver(Gradients):
         """
         # Get the instrument rates for self solver evaluated using the curves and links of other
         r = np.array(
-            [_[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}}) for _ in self.instruments]
+            [
+                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                for _ in self.pre_instruments
+            ]
         )
         # Get the gradient of these rates with respect to the variable in other
-        grad_v_rT = np.array([_.gradient(solver.variables) for _ in r]).T
+        grad_v_rT = np.array([_.gradient(solver.pre_variables) for _ in r]).T
         return DataFrame(
-            np.matmul(solver.grad_s_vT, grad_v_rT),
-            columns=self.instrument_labels,
-            index=solver.instrument_labels,
+            np.matmul(solver.grad_s_vT_pre, grad_v_rT),
+            columns=self.pre_instrument_labels,
+            index=solver.pre_instrument_labels,
         )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
