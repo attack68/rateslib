@@ -922,25 +922,25 @@ class Solver(Gradients):
         curves: Union[list, tuple] = (),
         instruments: Union[tuple[tuple], list[tuple]] = (),
         s: list[float] = [],
-        weights: Optional[list] = None,
-        algorithm: Optional[str] = None,
+        weights: Optional[list] = NoInput(0),
+        algorithm: Optional[str] = NoInput(0),
         fx: Union[FXForwards, FXRates, NoInput] = NoInput(0),
-        instrument_labels: Optional[tuple[str], list[str]] = None,
-        id: Optional[str] = None,
+        instrument_labels: Optional[tuple[str], list[str]] = NoInput(0),
+        id: Optional[str] = NoInput(0),
         pre_solvers: Union[tuple[Solver], list[Solver]] = (),
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
         ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0)
     ) -> None:
-        self.algorithm = algorithm if algorithm is not None else defaults.algorithm
+        self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
         if ini_lambda is NoInput.blank:
             self.ini_lambda = defaults.ini_lambda
         else:
             self.ini_lambda = ini_lambda
         self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id # 1 in a million clash
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
@@ -956,7 +956,7 @@ class Solver(Gradients):
         self.s = np.asarray(s)
 
         # validate `instrument_labels` if given is same length as `m`
-        if instrument_labels is not None:
+        if instrument_labels is not NoInput.blank:
             if self.m != len(instrument_labels):
                 raise ValueError("`instrument_labels` must have length `instruments`.")
             else:
@@ -964,7 +964,7 @@ class Solver(Gradients):
         else:
             self.instrument_labels = tuple(f"{self.id}{i}" for i in range(self.m))
 
-        if weights is None:
+        if weights is NoInput.blank:
             self.weights = np.ones(len(instruments))
         else:
             if len(weights) != self.m:
