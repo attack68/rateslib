@@ -77,6 +77,9 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - The :meth:`~rateslib.instruments.Portfolio.npv` method on a *Portfolio* no longer allows
        mixed currency outputs to be aggregated into a single float value.
+   * - Bug
+     - Now emit a warning if a discount factor or rate is requested on a curve with a spline
+       outside of the rightmost boundary of the spline interval.
 
 
 0.5.1 (11 Sep 2023)
