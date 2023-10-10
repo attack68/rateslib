@@ -491,13 +491,13 @@ class TestFixedRateBond:
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
         clean_price = gilt.rate(curve, metric="clean_price")
-        result = gilt.rate(curve, metric="fwd_clean_price", forward_settlement=dt(1998, 12, 9))
+        result = gilt.rate(curve, metric="clean_price", forward_settlement=dt(1998, 12, 9))
         assert abs(result - clean_price) < 1e-8
 
         result = gilt.rate(curve, metric="dirty_price")
         expected = clean_price + gilt.accrued(dt(1998, 12, 9))
         assert result == expected
-        result = gilt.rate(curve, metric="fwd_dirty_price", forward_settlement=dt(1998, 12, 9))
+        result = gilt.rate(curve, metric="dirty_price", forward_settlement=dt(1998, 12, 9))
         assert abs(result - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
 
         result = gilt.rate(curve, metric="ytm")
@@ -613,9 +613,6 @@ class TestFixedRateBond:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.50})
         with pytest.raises(ValueError, match="`metric` must be in"):
             gilt.rate(curve, metric="bad_metric")
-
-        with pytest.raises(ValueError, match="`forward_settlement` needed to"):
-            gilt.rate(curve, metric="fwd_clean_price")
 
     def test_fixed_rate_bond_no_amortization(self):
         with pytest.raises(NotImplementedError, match="`amortization` for"):
@@ -857,9 +854,6 @@ class TestIndexFixedRateBond:
         with pytest.raises(ValueError, match="`metric` must be in"):
             gilt.rate(curve, metric="bad_metric")
 
-        with pytest.raises(ValueError, match="`forward_settlement` needed to"):
-            gilt.rate(curve, metric="fwd_clean_price")
-
     @pytest.mark.parametrize(
         "i_fixings, expected",
         [(NoInput(0), 1.161227269), (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00)],
@@ -977,11 +971,11 @@ class TestIndexFixedRateBond:
         assert abs(index_clean_price * 0.5 - clean_price) < 1e-3
 
         result = gilt.rate(
-            [i_curve, curve], metric="fwd_clean_price", forward_settlement=dt(1998, 12, 9)
+            [i_curve, curve], metric="clean_price", forward_settlement=dt(1998, 12, 9)
         )
         assert abs(result - clean_price) < 1e-8
         result = gilt.rate(
-            [i_curve, curve], metric="fwd_index_clean_price", forward_settlement=dt(1998, 12, 9)
+            [i_curve, curve], metric="index_clean_price", forward_settlement=dt(1998, 12, 9)
         )
         assert abs(result * 0.5 - clean_price) < 1e-8
 
@@ -989,11 +983,11 @@ class TestIndexFixedRateBond:
         expected = clean_price + gilt.accrued(dt(1998, 12, 9))
         assert result == expected
         result = gilt.rate(
-            [i_curve, curve], metric="fwd_dirty_price", forward_settlement=dt(1998, 12, 9)
+            [i_curve, curve], metric="dirty_price", forward_settlement=dt(1998, 12, 9)
         )
         assert abs(result - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
         result = gilt.rate(
-            [i_curve, curve], metric="fwd_index_dirty_price", forward_settlement=dt(1998, 12, 9)
+            [i_curve, curve], metric="index_dirty_price", forward_settlement=dt(1998, 12, 9)
         )
         assert abs(result * 0.5 - clean_price - gilt.accrued(dt(1998, 12, 9))) < 1e-8
 
@@ -1448,10 +1442,10 @@ class TestFloatRateNote:
     @pytest.mark.parametrize(
         "metric, spd, exp",
         [
-            ("fwd_clean_price", 0.0, 100),
-            ("fwd_dirty_price", 0.0, 100),
-            ("fwd_clean_price", 50.0, 99.99602155150806),
-            ("fwd_dirty_price", 50.0, 100.03848730493272),
+            ("clean_price", 0.0, 100),
+            ("dirty_price", 0.0, 100),
+            ("clean_price", 50.0, 99.99602155150806),
+            ("dirty_price", 50.0, 100.03848730493272),
         ],
     )
     def test_float_rate_bond_forward_prices(self, metric, spd, exp):
@@ -1507,8 +1501,6 @@ class TestFloatRateNote:
             spread_compound_method="none_simple",
             settle=2,
         )
-        with pytest.raises(ValueError, match="`forward_settlement` needed to "):
-            bond.rate(NoInput(0), metric="fwd_clean_price", forward_settlement=NoInput(0))
 
         with pytest.raises(ValueError, match="`metric` must be in"):
             bond.rate(NoInput(0), metric="BAD")

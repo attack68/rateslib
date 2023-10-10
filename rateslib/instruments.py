@@ -1112,6 +1112,7 @@ class BondMixin:
             "ukg": self._acc_lin_days,
             "uktb": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
+            "ust_31bii": self._acc_lin_days_long_split,
             "ustb": self._acc_lin_days,
             "sgb": self._acc_30e360,
             "sgbb": self._acc_lin_days,
@@ -2303,10 +2304,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm", "fwd_clean_price", "fwd_dirty_price"}
-        forward_settlement : datetime
-            The forward settlement date, required if the metric is in
-            {"fwd_clean_price", "fwd_dirty_price"}.
+            "dirty_price", "ytm"}
+        forward_settlement : datetime, optional
+            The forward settlement date. If not given the settlement date is inferred from the
+            discount *Curve* and the ``settle`` attribute.
 
         Returns
         -------
@@ -2318,12 +2319,15 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
-            settlement = add_tenor(
-                curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
-            )
+            if forward_settlement is NoInput.blank:
+                settlement = add_tenor(
+                    curves[1].node_dates[0],
+                    f"{self.kwargs['settle']}B",
+                    "none",
+                    self.leg1.schedule.calendar,
+                )
+            else:
+                settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
@@ -2335,21 +2339,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "ytm":
                 return self.ytm(dirty_price, settlement, True)
 
-        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
-            if forward_settlement is NoInput.blank:
-                raise ValueError("`forward_settlement` needed to determine forward price.")
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
-            )
-            dirty_price = npv / -self.leg1.notional * 100
-            if metric == "fwd_dirty_price":
-                return dirty_price
-            elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement)
-
         raise ValueError(
-            "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
-            "'fwd_clean_price', 'fwd_dirty_price'}."
+            "`metric` must be in {'dirty_price', 'clean_price', 'ytm'}."
         )
 
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
@@ -2796,10 +2787,10 @@ class IndexFixedRateBond(FixedRateBond):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm", "fwd_clean_price", "fwd_dirty_price"}
-        forward_settlement : datetime
-            The forward settlement date, required if the metric is in
-            {"fwd_clean_price", "fwd_dirty_price"}.
+            "dirty_price", "ytm"}
+        forward_settlement : datetime, optional
+            The forward settlement date. If not given uses the discount *Curve* and the ``settle``
+            attribute of the bond.
 
         Returns
         -------
@@ -2818,12 +2809,15 @@ class IndexFixedRateBond(FixedRateBond):
             "ytm",
             "index_dirty_price",
         ]:
-            settlement = add_tenor(
-                curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
-            )
+            if forward_settlement is NoInput.blank:
+                settlement = add_tenor(
+                    curves[1].node_dates[0],
+                    f"{self.kwargs['settle']}B",
+                    None,
+                    self.leg1.schedule.calendar,
+                )
+            else:
+                settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             index_dirty_price = npv * 100 / -self.leg1.notional
@@ -2841,33 +2835,9 @@ class IndexFixedRateBond(FixedRateBond):
             elif metric == "index_clean_price":
                 return index_dirty_price - self.accrued(settlement) * index_ratio
 
-        elif metric in [
-            "fwd_clean_price",
-            "fwd_dirty_price",
-            "fwd_index_clean_price",
-            "fwd_index_dirty_price",
-        ]:
-            if forward_settlement is NoInput.blank:
-                raise ValueError("`forward_settlement` needed to determine forward price.")
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
-            )
-            index_dirty_price = npv / -self.leg1.notional * 100
-            index_ratio = self.index_ratio(forward_settlement, curves[0])
-            dirty_price = index_dirty_price / index_ratio
-            if metric == "fwd_dirty_price":
-                return dirty_price
-            elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement)
-            elif metric == "fwd_index_dirty_price":
-                return index_dirty_price
-            elif metric == "fwd_index_clean_price":
-                return index_dirty_price - self.accrued(forward_settlement) * index_ratio
-
         raise ValueError(
             "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
-            "'fwd_clean_price', 'fwd_dirty_price', 'index_dirty_price', "
-            "'index_clean_price', 'fwd_index_dirty_price', 'fwd_index_clean_price'}."
+            "'index_dirty_price', 'index_clean_price'}."
         )
 
 
@@ -3697,10 +3667,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "spread", "fwd_clean_price", "fwd_dirty_price"}
-        forward_settlement : datetime
-            The forward settlement date, required if the metric is in
-            {"fwd_clean_price", "fwd_dirty_price"}.
+            "dirty_price", "spread"}
+        forward_settlement : datetime, optional
+            The forward settlement date. If not give uses the discount *Curve* and the bond's
+            ``settle`` attribute.}.
 
         Returns
         -------
@@ -3713,12 +3683,15 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "spread"]:
-            settlement = add_tenor(
-                curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
-            )
+            if forward_settlement is NoInput.blank:
+                settlement = add_tenor(
+                    curves[1].node_dates[0],
+                    f"{self.kwargs['settle']}B",
+                    None,
+                    self.leg1.schedule.calendar,
+                )
+            else:
+                settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
@@ -3731,18 +3704,6 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
                 z = 0.0 if self.float_spread is NoInput.blank else self.float_spread
                 return _ + z
-
-        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
-            if forward_settlement is NoInput.blank:
-                raise ValueError("`forward_settlement` needed to determine forward price.")
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
-            )
-            dirty_price = npv / -self.leg1.notional * 100
-            if metric == "fwd_dirty_price":
-                return dirty_price
-            elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement, curves[0])
 
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread'}.")
 
@@ -4459,7 +4420,7 @@ class BondFuture(Sensitivities):
         else:
             f_settlement = delivery
         prices_ = [
-            bond.rate(curves, solver, fx, base, "fwd_clean_price", f_settlement)
+            bond.rate(curves, solver, fx, base, "clean_price", f_settlement)
             for bond in self.basket
         ]
         future_prices_ = [price / self.cfs[i] for i, price in enumerate(prices_)]
