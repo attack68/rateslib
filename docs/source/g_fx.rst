@@ -27,10 +27,11 @@ The two main classes provided are distinct.
 - :class:`~rateslib.fx.FXForwards` is a more **complicated** class that requires a
   mapping of interest rate curves to derive forward FX rates for any settlement date.
 
-Please review the documentation for :ref:`FXRates<fxr-doc>` first, before
-proceeding to review the documentation for  :ref:`FXForwards<fxr-doc>`.
+It is suggested to proceed by reading the documentation for :ref:`FXRates<fxr-doc>` first, before
+then reviewing the documentation for  :ref:`FXForwards<fxr-doc>`.
 
 .. toctree::
+   :hidden:
    :maxdepth: 0
    :titlesonly:
 
