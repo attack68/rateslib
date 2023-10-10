@@ -69,6 +69,9 @@ email contact through **rateslib@gmail.com**.
    * - Curves
      - Separate :class:`~rateslib.curves.MultiCsaCurve`
        from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
+   * - Solver
+     - Added the methods :meth:`~rateslib.solver.Solver.jacobian` and
+       :meth:`~rateslib.solver.Solver.market_movements` for coordinating multiple *Solvers*.
    * - Bug
      - Instrument ``spec`` with ``method_param`` set to 2 day lag for certain IBOR instruments.
    * - Bug
