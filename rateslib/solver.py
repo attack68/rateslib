@@ -1807,6 +1807,60 @@ class Solver(Gradients):
            and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
            in another *Solver*
 
+        Examples
+        --------
+        This example creates a Jacobian transformation between par tenor IRS and forward tenor
+        IRS. These models are completely consistent and lossless.
+
+        .. ipython:: python
+
+           par_curve = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 1.0,
+                    dt(2024, 1, 1): 1.0,
+                    dt(2025, 1, 1): 1.0,
+                },
+                id="curve",
+            )
+            par_instruments = [
+                IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+                IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+                IRS(dt(2022, 1, 1), "3Y", "A", curves="curve"),
+            ]
+            par_solver = Solver(
+                curves=[par_curve],
+                instruments=par_instruments,
+                s=[1.21, 1.635, 1.99],
+                id="par_solver",
+                instrument_labels=["1Y", "2Y", "3Y"],
+            )
+
+            fwd_curve = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 1.0,
+                    dt(2024, 1, 1): 1.0,
+                    dt(2025, 1, 1): 1.0,
+                },
+                id="curve"
+            )
+            fwd_instruments = [
+                IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+                IRS(dt(2023, 1, 1), "1Y", "A", curves="curve"),
+                IRS(dt(2024, 1, 1), "1Y", "A", curves="curve"),
+            ]
+            s_fwd = [float(_.rate(solver=par_solver)) for _ in fwd_instruments]
+            fwd_solver = Solver(
+                curves=[fwd_curve],
+                instruments=fwd_instruments,
+                s=s_fwd,
+                id="fwd_solver",
+                instrument_labels=["1Y", "1Y1Y", "2Y1Y"],
+            )
+
+            par_solver.jacobian(fwd_solver)
+
         """
         # Get the instrument rates for self solver evaluated using the curves and links of other
         r = np.array(
