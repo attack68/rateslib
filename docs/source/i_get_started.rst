@@ -283,16 +283,6 @@ It is also possible to import the library as object and call objects from that,
    import rateslib as rl
    curve = rl.Curve(...)
 
-The documentation often imports directly from the underlying code modules for greater
-clarity. There is no operational difference
-in any of theses importing methods, and all are valid.
-
-.. code-block::
-
-   from rateslib.curves import Curve
-   from rateslib.fx import FXRates
-   from rateslib.instruments import IRS
-
 The ``defaults`` object from *rateslib* sets
 parameters and settings that are used when otherwise not set by the user.
 This object can only be imported, and changed, from the top level.
