@@ -30,11 +30,11 @@ required. However, when calculating value, it is sufficient to just provide ``cu
 case, and if the *curves* do not contain AD then the calculation might be upto 300% faster.
 
 Since these arguments are optional and can be inferred from each other it is important to
-understand the combination that can produce results. There are two section which discuss these
-combiantions.
+understand the combination that can produce results. There are two sections on this page which
+discuss these combinations.
 
-1) How ``solver``, ``fx``, ``base`` and ``local`` interact?
-2) How ``curves``, ``solver`` and *Instruments* interact?
+1) How ``solver``, ``fx``, ``base`` and ``local`` interact? I.e. what currency will results be displayed in?
+2) How ``curves``, ``solver`` and *Instruments* interact? I.e. which *Curves* will be used to price which *Instruments*?
 
 .. _base-fx-doc:
 
@@ -70,15 +70,17 @@ risk sensitivities and is used internally, especially for multi-currency instrum
        fx=fxf,
    )
 
+The below shows the use of the ``local`` argument to get the PV of both *Legs* on this *XCS*
+separately in each currency.
+When specifying a ``base`` and setting ``local`` to *False* the PV of the *Legs* are aggregated
+and converted to the given currency.
+
 .. ipython:: python
 
    nxcs = XCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd", leg2_mtm=False)
    nxcs.npv(curves=[curve]*4, fx=fxf, local=True)
    nxcs.npv(curves=[curve]*4, fx=fxf, base="usd")
 
-If the ``local`` argument is *False* then *npv* will be returned in only one single currency.
-For multi-currency instruments this means at least one leg will be converted into the *base*
-currency.
 
 What is best practice?
 ------------------------
@@ -218,7 +220,7 @@ We continue the examples above using the USD IRS created and consider possible *
 
 .. ipython:: python
 
-   def npv(irs, curves=None, solver=None, fx=None, base=None):
+   def npv(irs, curves=NoInput(0), solver=NoInput(0), fx=NoInput(0), base=NoInput(0)):
       try:
          _ = irs.npv(curves, solver, fx, base)
       except Exception as e:
