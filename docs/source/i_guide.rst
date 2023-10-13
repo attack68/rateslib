@@ -370,13 +370,6 @@ below.
     g_cookbook.rst
 
 .. toctree::
-    :titlesonly:
-
-    z_swpm.rst
-    z_dependencychain.rst
-    z_turns.rst
-
-.. toctree::
     :hidden:
 
     g_coverage.rst
