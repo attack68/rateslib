@@ -7572,9 +7572,7 @@ class FXSwap(XCS):
 
 class Spread(Sensitivities):
     """
-    A spread instrument defined as the difference in rate between two ``Instruments``.
-
-    The ``Instruments`` used must share common pricing arguments. See notes.
+    A spread instrument defined as the difference in rate between two *Instruments*.
 
     Parameters
     ----------
@@ -7585,13 +7583,13 @@ class Spread(Sensitivities):
 
     Notes
     -----
-    When using :class:`Spread` both ``Instruments`` must be of the same type
-    with shared pricing arguments for their methods. If this is not true
-    consider using the :class:`SpreadX`, cross spread ``Instrument``.
+    When using a :class:`Spread` each *Instrument* must either have pricing parameters
+    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
+    common pricing parameters defined at price time.
 
     Examples
     --------
-    Creating a dynamic :class:`Spread` where the instruments are dynamically priced,
+    Creating a dynamic :class:`Spread` where the *Instruments* are dynamically priced,
     and each share the pricing arguments.
 
     .. ipython:: python
@@ -7604,7 +7602,7 @@ class Spread(Sensitivities):
        spread.rate(curve1)
        spread.cashflows(curve1)
 
-    Creating an assigned :class:`Spread`, where each ``Instrument`` has its own
+    Creating an assigned :class:`Spread`, where each *Instrument* has its own
     assigned pricing arguments.
 
     .. ipython:: python
@@ -7732,9 +7730,6 @@ class Fly(Sensitivities):
     """
     A butterfly instrument which is, mechanically, the spread of two spread instruments.
 
-    The ``Instruments`` used must share common dynamic pricing arguments
-    or be statically created. See notes XXXX link o pricingmechanisms.
-
     Parameters
     ----------
     instrument1 : Instrument
@@ -7746,9 +7741,9 @@ class Fly(Sensitivities):
 
     Notes
     -----
-    When using :class:`Spread` both ``Instruments`` must be of the same type
-    with shared pricing arguments for their methods. If this is not true
-    consider using the :class:`FlyX`, cross ``Instrument``.
+    When using a :class:`Fly` each *Instrument* must either have pricing parameters
+    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
+    common pricing parameters defined at price time.
 
     Examples
     --------
@@ -7886,6 +7881,16 @@ class Portfolio(Sensitivities):
     ----------
     instruments : list
         This should be a list of *Instruments*.
+
+    Notes
+    -----
+    When using a :class:`Portfolio` each *Instrument* must either have pricing parameters
+    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
+    common pricing parameters defined at price time.
+
+    Examples
+    --------
+    See examples for :class:`Spread` for similar functionality.
     """
 
     def __init__(self, instruments):
