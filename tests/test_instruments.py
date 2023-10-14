@@ -76,6 +76,22 @@ def usdeur():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
+@pytest.fixture()
+def simple_solver():
+    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0, dt(2024, 1, 1): 1.0}, id="curve")
+    solver = Solver(
+        curves=[curve],
+        instruments=[
+            IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+            IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+        ],
+        s=[2.5, 3.0],
+        id="solver",
+        instrument_labels=["1Y", "2Y"],
+    )
+    return solver
+
+
 class TestCurvesandSolver:
 
     def test_get_curve_from_solver(self):
@@ -2333,13 +2349,13 @@ class TestPortfolio:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
         pf = Portfolio([irs1, irs2])
-        assert pf.npv() == irs1.npv() + irs2.npv()
+        assert pf.npv(base="usd") == irs1.npv() + irs2.npv()
 
         pf = Portfolio([irs1] * 5)
-        assert pf.npv() == irs1.npv() * 5
+        assert pf.npv(base="usd") == irs1.npv() * 5
 
         with default_context("pool", 2):  # also test parallel processing
-            result = pf.npv()
+            result = pf.npv(base="usd")
             assert result == irs1.npv() * 5
 
     def test_portfolio_npv_local(self, curve):
@@ -2355,6 +2371,16 @@ class TestPortfolio:
         }
         assert result == expected
 
+    def test_portfolio_local_parallel(self, curve):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve, currency="usd")
+        irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="eur")
+        irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
+        pf = Portfolio([irs1, irs2, irs3])
+
+        expected = {
+            "usd": 20093.295095887483,
+            "eur": 5048.87332403382,
+        }
         with default_context("pool", 2):  # also test parallel processing
             result = pf.npv(local=True)
             assert result == expected
@@ -2400,6 +2426,24 @@ class TestFly:
             "gbp": 7523.321141258284,
         }
         assert result == expected
+
+    def test_delta(self, simple_solver):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "A", fixed_rate=1.0, notional=-3e6, curves="curve")
+        irs2 = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.0, notional=3e6, curves="curve")
+        irs3 = IRS(dt(2022, 1, 1), "18m", "A", fixed_rate=1.0, notional=-1e6, curves="curve")
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.delta(solver=simple_solver).to_numpy()
+        expected = np.array([[102.08919479], [-96.14488074]])
+        assert np.all(np.isclose(result, expected))
+
+    def test_gamma(self, simple_solver):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "A", fixed_rate=1.0, notional=-3e6, curves="curve")
+        irs2 = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.0, notional=3e6, curves="curve")
+        irs3 = IRS(dt(2022, 1, 1), "18m", "A", fixed_rate=1.0, notional=-1e6, curves="curve")
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.gamma(solver=simple_solver).to_numpy()
+        expected = np.array([[-0.02944899, 0.009254014565], [0.009254014565, 0.0094239781314]])
+        assert np.all(np.isclose(result, expected))
 
 
 class TestSpread:

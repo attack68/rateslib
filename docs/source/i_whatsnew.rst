@@ -71,6 +71,9 @@ email contact through **rateslib@gmail.com**.
        from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
    * - Bug
      - Instrument ``spec`` with ``method_param`` set to 2 day lag for certain IBOR instruments.
+   * - Bug
+     - The :meth:`~rateslib.instruments.Portfolio.npv` method on a *Portfolio* no longer allows
+       mixed currency outputs to be aggregated into a single float value.
 
 
 0.5.1 (11 Sep 2023)

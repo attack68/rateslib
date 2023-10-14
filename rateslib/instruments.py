@@ -7896,22 +7896,46 @@ class Portfolio(Sensitivities):
     def __init__(self, instruments):
         self.instruments = instruments
 
-    def npv(self, *args, **kwargs):
-        # TODO do not permit a mixing of currencies.
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        **kwargs
+    ):
+        """
+        Return the NPV of the *Portfolio* by summing instrument NPVs.
+
+        For arguments see :meth:`BaseDerivative.npv()<rateslib.instruments.BaseDerivative.npv>`.
+        """
         # TODO look at legs.npv where args len is used.
+        if base is NoInput.blank and fx is NoInput.blank:
+            warnings.warn(
+                "No ``base`` currency is inferred, using ``local`` output. To return a single "
+                "PV specify a ``base`` currency and ensure an ``fx`` or ``solver.fx`` object "
+                "is available to perform the conversion if the currency differs from the local.",
+                UserWarning
+            )
+            local = True
 
         if defaults.pool == 1:
-            return self._npv_single_core(*args, **kwargs)
+            return self._npv_single_core(
+                curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
+            )
 
         from multiprocessing import Pool
         from functools import partial
 
-        func = partial(_instrument_npv, *args, **kwargs)
+        func = partial(
+            _instrument_npv, curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
+        )
         p = Pool(defaults.pool)
         results = p.map(func, self.instruments)
         p.close()
 
-        if kwargs.get("local", False):
+        if local:
             _ = DataFrame(results).fillna(0.0)
             _ = _.sum()
             ret = _.to_dict()
