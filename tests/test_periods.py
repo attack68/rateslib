@@ -1535,7 +1535,7 @@ class TestIndexFixedPeriod:
         [
             (300.0, "daily"),
             (
-                Series([1, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
+                Series([1.0, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
                 "daily",
             ),
             (Series([100.0, 500], index=[dt(2022, 4, 2), dt(2022, 4, 4)]), "daily"),

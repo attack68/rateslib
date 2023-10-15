@@ -1224,6 +1224,9 @@ class TestFloatLegExchangeMtm:
             (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
             ([1.5], [1.5, NoInput(0), NoInput(0)]),
             (1.25, [1.25, NoInput(0), NoInput(0)]),
+            ([1.25, 1.35], [1.25, 1.35, NoInput(0)]),
+            (Series([1.25, 1.3], index=[dt(2022, 1, 6), dt(2022, 4, 6)]), [1.25, 1.3, NoInput(0)]),
+            (Series([1.25], index=[dt(2022, 1, 6)]), [1.25, NoInput(0), NoInput(0)])
         ],
     )
     def test_float_leg_exchange_mtm(self, fx_fixings, exp):
@@ -1330,6 +1333,35 @@ class TestFloatLegExchangeMtm:
         with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` are"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 float_leg_exch.npv(curve)
+
+    def test_mtm_leg_fx_fixings_series_raises(self):
+        with pytest.raises(ValueError, match="A Series is provided for FX fixings but"):
+            FloatLegMtm(
+                effective=dt(2022, 1, 3),
+                termination=dt(2022, 7, 3),
+                frequency="Q",
+                notional=265,
+                float_spread=5.0,
+                currency="usd",
+                alt_currency="eur",
+                alt_notional=10e6,
+                payment_lag_exchange=3,
+                fx_fixings=Series([1.25], index=[dt(2022, 2, 6)]),
+            )
+
+    def test_mtm_raises_alt(self):
+        with pytest.raises(ValueError, match="`alt_currency` and `currency` must be supplied"):
+            FloatLegMtm(
+                effective=dt(2022, 1, 3),
+                termination=dt(2022, 7, 3),
+                frequency="Q",
+                notional=265,
+                float_spread=5.0,
+                currency="usd",
+                # alt_currency="eur",
+                alt_notional=10e6,
+                payment_lag_exchange=3,
+            )
 
 
 def test_leg_amortization():

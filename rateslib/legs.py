@@ -1033,7 +1033,6 @@ class IndexLegMixin:
     @index_fixings.setter
     def index_fixings(self, value):
         self._index_fixings = value
-        # if value is not None:
         for i, period in enumerate(self.periods):
             if isinstance(period, (IndexFixedPeriod, IndexCashflow)):
                 if isinstance(value, Series):
@@ -1042,7 +1041,7 @@ class IndexLegMixin:
                         i_method=self.index_method,
                         i_lag=self.index_lag,
                         i_date=period.end,
-                        i_curve=NoInput(0),  # not required because i_fixings is Series
+                        i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
                     )
                 elif isinstance(value, list):
                     if i >= len(value):
@@ -1050,7 +1049,7 @@ class IndexLegMixin:
                     else:
                         _ = value[i]
                 else:
-                    # value is float or None
+                    # value is float or NoInput
                     _ = value if i == 0 else NoInput(0)
                 period.index_fixings = _
 
@@ -1969,8 +1968,30 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             self._fx_fixings = value
         elif isinstance(value, (float, Dual, Dual2)):
             self._fx_fixings = [value]
+        elif isinstance(value, Series):
+            unavailable_date = value.index[-1]
+            fixings_list = []
+            for i in range(self.schedule.n_periods):
+                required_date = add_tenor(
+                    self.schedule.aschedule[i],
+                    f"{self.payment_lag_exchange}B",
+                    NoInput(0),
+                    self.schedule.calendar,
+                )
+                if required_date > unavailable_date:
+                    break
+                else:
+                    try:
+                        fixings_list.append(value[required_date])
+                    except KeyError:
+                        raise ValueError(
+                            "A Series is provided for FX fixings but the required exchange "
+                            f"settlement date, {required_date.strftime('%Y-%d-%m')}, is not "
+                            f"available within the Series."
+                        )
+            self._fx_fixings = fixings_list
         else:
-            raise TypeError("`fx_fixings` should be scalar value or list of such")
+            raise TypeError("`fx_fixings` should be scalar value, list or Series of such.")
 
         # if self._initialised:
         #     self._set_periods(None)
@@ -2005,7 +2026,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                         add_tenor(
                             self.schedule.aschedule[i],
                             f"{self.payment_lag_exchange}B",
-                            None,
+                            NoInput(0),
                             self.schedule.calendar,
                         ),
                     )
