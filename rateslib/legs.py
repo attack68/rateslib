@@ -1901,11 +1901,12 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     ----------
     args : dict
         Required positional args to :class:`BaseLeg`.
-    fx_fixings : float, Dual, Dual2 or list of such
+    fx_fixings : float, Dual, Dual2 or list or Series of such
         Define the known FX fixings for each period which affects the mark-the-market
         (MTM) notional exchanges after each period. If not given, or only some
         FX fixings are given, the remaining unknown fixings will be forecast
-        by a provided :class:`~rateslib.fx.FXForwards` object later.
+        by a provided :class:`~rateslib.fx.FXForwards` object later. If a Series must be indexed
+        by the date of the notional exchange considering ``payment_lag_exchange``.
     alt_currency : str
         The alternative reference currency against which FX fixings are measured
         for MTM notional exchanges (3-digit code).
