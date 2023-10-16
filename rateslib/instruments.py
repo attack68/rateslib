@@ -69,7 +69,10 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 
 
 def _get_curve_from_solver(curve, solver):
-    if getattr(curve, "_is_proxy", False):
+    if isinstance(curve, dict):
+        # When supplying a curve as a dictionary of curves (for IBOR stubs) use recursion
+        return {k: _get_curve_from_solver(v, solver) for k, v in curve.items()}
+    elif getattr(curve, "_is_proxy", False):
         # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
         # proxy curves exist outside of solvers but still have Dual variables associated
         # with curves inside the solver, so can still generate risks to calibrating
@@ -194,7 +197,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     elif curves is NoInput.blank:
         curves = curves_attr
 
-    if isinstance(curves, (Curve, str, CompositeCurve)):
+    if isinstance(curves, (Curve, str, CompositeCurve, dict)):
         curves = [curves]
     if solver is NoInput.blank:
 
@@ -203,6 +206,8 @@ def _get_curves_fx_and_base_maybe_from_solver(
                 raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
             elif curve is None or curve is NoInput(0):
                 return NoInput(0)
+            elif isinstance(curve, dict):
+                return {k: check_curve(v) for k, v in curve.items()}
             return curve
 
         curves_ = tuple(check_curve(curve) for curve in curves)
