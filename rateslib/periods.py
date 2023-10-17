@@ -1150,9 +1150,9 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: Union[Curve, LineCurve],
+        curve: Union[Curve, LineCurve, dict],
         approximate: bool = False,
-        disc_curve: Curve = None,
+        disc_curve: Curve = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures.
@@ -1270,7 +1270,9 @@ class FloatPeriod(BasePeriod):
             })
            period.fixings_table(ibor_curve)
         """
-        if disc_curve is None and curve._base_type == "dfs":
+        if disc_curve is NoInput.blank and isinstance(curve, dict):
+            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+        elif disc_curve is NoInput.blank and curve._base_type == "dfs":
             disc_curve = curve
 
         if approximate:
@@ -1294,7 +1296,11 @@ class FloatPeriod(BasePeriod):
             table = table.iloc[:-1]
             return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
         elif "ibor" in self.fixing_method:
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
+            if isinstance(curve, dict):
+                calendar = next(iter(curve.values())).calendar
+            else:
+                calendar = curve.calendar
+            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
             return DataFrame(
                 {
                     "obs_dates": [fixing_date],

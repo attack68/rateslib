@@ -69,6 +69,9 @@ email contact through **rateslib@gmail.com**.
    * - Curves
      - Separate :class:`~rateslib.curves.MultiCsaCurve`
        from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
+   * - Curves
+     - Add the ability to supply curves in a dict for forecasting *FloatPeriods* to be
+       able handle interpolated stub periods under an *"ibor"* ``fixing_method``.
    * - Solver
      - Added the methods :meth:`~rateslib.solver.Solver.jacobian` and
        :meth:`~rateslib.solver.Solver.market_movements` for coordinating multiple *Solvers*.
