@@ -1009,6 +1009,23 @@ def test_curve_roll_copy(curve):
     assert result == curve
 
 
+def test_curve_spline_warning():
+    curve = Curve(
+        nodes={
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 0.99,
+            dt(2025, 1, 1): 0.97,
+            dt(2026, 1, 1): 0.94,
+            dt(2027, 1, 1): 0.91,
+        },
+        t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+           dt(2024, 1, 1), dt(2025, 1, 1), dt(2026, 1, 1),
+           dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1)]
+    )
+    with pytest.warns(UserWarning):
+        curve[dt(2028, 1, 1)]
+
+
 def test_index_curve_roll():
     crv = IndexCurve(
         nodes={

@@ -69,11 +69,17 @@ email contact through **rateslib@gmail.com**.
    * - Curves
      - Separate :class:`~rateslib.curves.MultiCsaCurve`
        from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
+   * - Solver
+     - Added the methods :meth:`~rateslib.solver.Solver.jacobian` and
+       :meth:`~rateslib.solver.Solver.market_movements` for coordinating multiple *Solvers*.
    * - Bug
      - Instrument ``spec`` with ``method_param`` set to 2 day lag for certain IBOR instruments.
    * - Bug
      - The :meth:`~rateslib.instruments.Portfolio.npv` method on a *Portfolio* no longer allows
        mixed currency outputs to be aggregated into a single float value.
+   * - Bug
+     - Now emit a warning if a discount factor or rate is requested on a curve with a spline
+       outside of the rightmost boundary of the spline interval.
 
 
 0.5.1 (11 Sep 2023)

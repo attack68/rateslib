@@ -109,6 +109,7 @@ class Gradients:
         return grad_s_vT
 
     def _grad_s_vT_final_iteration_analytical(self):
+        """Uses a pseudoinverse algorithm on floats"""
         grad_s_vT = np.linalg.pinv(self.J)
         return grad_s_vT
 
@@ -860,6 +861,10 @@ class Solver(Gradients):
     conv_tol : float
         The tolerance to determine convergence if successive objective function
         values are similar. Defaults to 1e-17.
+    ini_lambda : 3-tuple of float, optional
+        Parameters to control the Levenberg-Marquardt algorithm, defined as the
+        initial lambda value, the scaling factor for a successful iteration and the
+        scaling factor for an unsuccessful iteration. Defaults to (1000, 0.25, 2).
 
     Notes
     -----
@@ -918,20 +923,25 @@ class Solver(Gradients):
         curves: Union[list, tuple] = (),
         instruments: Union[tuple[tuple], list[tuple]] = (),
         s: list[float] = [],
-        weights: Optional[list] = None,
-        algorithm: Optional[str] = None,
+        weights: Optional[list] = NoInput(0),
+        algorithm: Optional[str] = NoInput(0),
         fx: Union[FXForwards, FXRates, NoInput] = NoInput(0),
-        instrument_labels: Optional[tuple[str], list[str]] = None,
-        id: Optional[str] = None,
+        instrument_labels: Optional[tuple[str], list[str]] = NoInput(0),
+        id: Optional[str] = NoInput(0),
         pre_solvers: Union[tuple[Solver], list[Solver]] = (),
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
+        ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0)
     ) -> None:
-        self.algorithm = algorithm if algorithm is not None else defaults.algorithm
+        self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
+        if ini_lambda is NoInput.blank:
+            self.ini_lambda = defaults.ini_lambda
+        else:
+            self.ini_lambda = ini_lambda
         self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id # 1 in a million clash
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
@@ -947,7 +957,7 @@ class Solver(Gradients):
         self.s = np.asarray(s)
 
         # validate `instrument_labels` if given is same length as `m`
-        if instrument_labels is not None:
+        if instrument_labels is not NoInput.blank:
             if self.m != len(instrument_labels):
                 raise ValueError("`instrument_labels` must have length `instruments`.")
             else:
@@ -955,7 +965,7 @@ class Solver(Gradients):
         else:
             self.instrument_labels = tuple(f"{self.id}{i}" for i in range(self.m))
 
-        if weights is None:
+        if weights is NoInput.blank:
             self.weights = np.ones(len(instruments))
         else:
             if len(weights) != self.m:
@@ -980,12 +990,14 @@ class Solver(Gradients):
         self.pre_curves = {}
         self.pre_variables = ()
         self.pre_instrument_labels = ()
+        self.pre_instruments = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
         curve_collection = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
+            self.pre_instruments += pre_solver.pre_instruments
             self.pre_rate_scalars.extend(pre_solver.pre_rate_scalars)
             self.pre_m += pre_solver.pre_m
             self.pre_n += pre_solver.pre_n
@@ -1015,6 +1027,7 @@ class Solver(Gradients):
         self._ad = 1
         self.fx = fx
         self.instruments = tuple((self._parse_instrument(inst) for inst in instruments))
+        self.pre_instruments += self.instruments
         self.rate_scalars = tuple((inst[0]._rate_scalar for inst in self.instruments))
         self.pre_rate_scalars += self.rate_scalars
 
@@ -1225,10 +1238,10 @@ class Solver(Gradients):
 
     def _update_step_(self, algorithm):
         if algorithm == "gradient_descent":
-            grad_v_f = self.g.gradient(self.variables)
-            y = np.matmul(self.J.transpose(), grad_v_f[:, np.newaxis])[:, 0]
+            grad_v_g = self.g.gradient(self.variables)
+            y = np.matmul(self.J.transpose(), grad_v_g[:, np.newaxis])[:, 0]
             alpha = np.dot(y, self.weights * self.x) / np.dot(y, self.weights * y)
-            v_1 = self.v - grad_v_f * alpha.real
+            v_1 = self.v - grad_v_g * alpha.real
         elif algorithm == "gauss_newton":
             if self.J.shape[0] == self.J.shape[1]:  # square system
                 A = self.J.transpose()
@@ -1239,7 +1252,7 @@ class Solver(Gradients):
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            self.lambd *= 2 if self.g_prev < self.g.real else 0.25
+            self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * self.g.gradient(self.variables)[:, np.newaxis]
@@ -1288,7 +1301,7 @@ class Solver(Gradients):
         None
         """
         DualType = Dual if self._ad == 1 else Dual2
-        self.g_prev, self.g_list, self.lambd = 1e10, [], 1000
+        self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
         t0 = time()
@@ -1733,30 +1746,44 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
-    def _market_movements(self, s_0, s_1, fx_0, fx_1):
+    def market_movements(self, solver: Solver):
         """
-        Determine market movement between instrument price arrays properly scaled.
+        Determine market movements between the *Solver's* instrument rates and those rates priced
+        from a second *Solver*.
 
         Parameters
         ----------
-        s_0 : sequence or ndarray
-            The initial instrument prices from which market movements are measured.
-        s_1 : sequence or ndarray
-            The subsequent instrument prices to which market movements are measured.
-        fx_0 : sequence or ndarray
-            The initial prices from which to measure market movements from.
-        fx_1 : sequence or ndarray
-            The initial prices from which to measure market movements from.
+        solver: Solver
+            The other *Solver* whose *Curves* are to be used for measuring the final instrument
+            rates of the existing *Solver's* instruments.
 
         Returns
         -------
-        tuple of arrays
-        """
-        raise NotImplementedError()
+        DataFrame
 
-    def _jacobian(self, solver: Solver):
+        Notes
+        -----
+        .. warning::
+           Market movement calculations are only possible between *Solvers* whose ``instruments``
+           are associated with *Curves* with string ID mappings (which is best practice and
+           demonstrated HERE XXX). This allows two different
+           *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
+           and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
+           in another *Solver*.
         """
-        Calculate the Jacobian with respect to another ``Solver`` instruments.
+        r_0 = self.r_pre
+        r_1 = np.array(
+            [_[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}}) for _ in
+             self.pre_instruments]
+        )
+        return DataFrame(
+            (r_1 - r_0) * 100 / np.array(self.pre_rate_scalars),
+            index=self.pre_instrument_labels
+        )
+
+    def jacobian(self, solver: Solver):
+        """
+        Calculate the Jacobian with respect to another *Solver's* instruments.
 
         Parameters
         ----------
@@ -1766,21 +1793,89 @@ class Solver(Gradients):
         Returns
         -------
         DataFrame
-        """
-        raise NotImplementedError()
-        self.s = np.array(
-            [_[0].rate(*_[1], **{**_[2], "solver": solver}) for _ in self.instruments]
-        )
-        self._reset_properties_()
-        self.iterate()
-        rates = np.array([_[0].rate(*_[1], **{"solver": self, **_[2]}) for _ in solver.instruments])
-        grad_v_rT = np.array([_.gradient(self.variables) for _ in rates]).T
-        return DataFrame(
-            np.matmul(self.grad_s_vT, grad_v_rT),
-            index=self.instrument_labels,
-            columns=solver.instrument_labels,
-        )
 
+        Notes
+        -----
+        This Jacobian converts risk sensitivities expressed in the underlying *Solver's*
+        instruments to the instruments in the other ``solver``.
+
+        .. warning::
+           A Jacobian transformation is only possible between *Solvers* whose ``instruments``
+           are associated with *Curves* with string ID mappings (which is best practice and
+           demonstrated HERE XXX). This allows two different
+           *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
+           and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
+           in another *Solver*
+
+        Examples
+        --------
+        This example creates a Jacobian transformation between par tenor IRS and forward tenor
+        IRS. These models are completely consistent and lossless.
+
+        .. ipython:: python
+
+           par_curve = Curve(
+               nodes={
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 1.0,
+                   dt(2024, 1, 1): 1.0,
+                   dt(2025, 1, 1): 1.0,
+               },
+               id="curve",
+           )
+           par_instruments = [
+               IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+               IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+               IRS(dt(2022, 1, 1), "3Y", "A", curves="curve"),
+           ]
+           par_solver = Solver(
+               curves=[par_curve],
+               instruments=par_instruments,
+               s=[1.21, 1.635, 1.99],
+               id="par_solver",
+               instrument_labels=["1Y", "2Y", "3Y"],
+           )
+
+           fwd_curve = Curve(
+               nodes={
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 1.0,
+                   dt(2024, 1, 1): 1.0,
+                   dt(2025, 1, 1): 1.0,
+               },
+               id="curve"
+           )
+           fwd_instruments = [
+               IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+               IRS(dt(2023, 1, 1), "1Y", "A", curves="curve"),
+               IRS(dt(2024, 1, 1), "1Y", "A", curves="curve"),
+           ]
+           s_fwd = [float(_.rate(solver=par_solver)) for _ in fwd_instruments]
+           fwd_solver = Solver(
+               curves=[fwd_curve],
+               instruments=fwd_instruments,
+               s=s_fwd,
+               id="fwd_solver",
+               instrument_labels=["1Y", "1Y1Y", "2Y1Y"],
+           )
+
+           par_solver.jacobian(fwd_solver)
+
+        """
+        # Get the instrument rates for self solver evaluated using the curves and links of other
+        r = np.array(
+            [
+                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                for _ in self.pre_instruments
+            ]
+        )
+        # Get the gradient of these rates with respect to the variable in other
+        grad_v_rT = np.array([_.gradient(solver.pre_variables) for _ in r]).T
+        return DataFrame(
+            np.matmul(solver.grad_s_vT_pre, grad_v_rT),
+            columns=self.pre_instrument_labels,
+            index=solver.pre_instrument_labels,
+        )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
