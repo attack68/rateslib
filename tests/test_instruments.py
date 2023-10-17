@@ -822,6 +822,48 @@ class TestIRS:
         with pytest.raises(AttributeError, match="Cannot set `leg2_index_base`"):
             irs.leg2_index_base = 1.0
 
+    def test_irs_interpolated_stubs(self, curve):
+        curve6 = LineCurve({dt(2022, 1, 1): 4.0, dt(2023, 2, 1): 4.0})
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        irs = IRS(
+            effective=dt(2022, 1, 3),
+            termination=dt(2023, 1, 3),
+            front_stub=dt(2022, 2, 10),
+            back_stub=dt(2022, 8, 10),
+            frequency="Q",
+            convention="act360",
+            curves=[{"3m": curve3, "1m": curve1, "6M": curve6}, curve],
+            leg2_fixing_method="ibor",
+        )
+        cashflows = irs.cashflows()
+        assert (cashflows.loc[("leg2", 0), "Rate"] - 1.23729) < 1e-4
+        assert (cashflows.loc[("leg2", 3), "Rate"] - 3.58696) < 1e-4
+
+    def test_irs_interpolated_stubs_solver(self):
+        curve6 = Curve({dt(2022, 1, 1): 4.0, dt(2023, 2, 1): 4.0}, id="6m")
+        curve3 = Curve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0}, id="3m")
+        solver = Solver(
+            curves=[curve6, curve3],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1Y", "A", curves=curve6),
+                IRS(dt(2022, 1, 1), "1Y", "A", curves=curve3),
+            ],
+            s=[6.0, 3.0],
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 3),
+            termination=dt(2022, 11, 3),
+            front_stub=dt(2022, 5, 3),
+            stub="Front",
+            frequency="Q",
+            convention="act360",
+            curves=[{"3m": "3m", "6m": "6m"}, "3m"],
+            leg2_fixing_method="ibor",
+        )
+        cashflows = irs.cashflows(solver=solver)
+        assert (cashflows.loc[("leg2", 0), "Rate"] - 3.93693) < 1e-4
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve):

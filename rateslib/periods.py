@@ -32,7 +32,7 @@ from pandas import DataFrame, date_range, Series, NA, isna, notna
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday, CalInput
-from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve
+from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve, index_left
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
@@ -927,13 +927,13 @@ class FloatPeriod(BasePeriod):
             _ = -self.notional * self.dcf * rate / 100
             return _
 
-    def rate(self, curve: Union[Curve, LineCurve]):
+    def rate(self, curve: Union[Curve, LineCurve, dict]):
         """
         Calculating the floating rate for the period.
 
         Parameters
         ----------
-        curve : Curve, LineCurve
+        curve : Curve, LineCurve, IndexCurve, dict of curves
             The forecasting curve object.
 
         Returns
@@ -966,34 +966,71 @@ class FloatPeriod(BasePeriod):
 
         # else next calculations made based on fixings in (None, list, Series)
 
-        if curve._base_type == "dfs":
-            if "rfr" in self.fixing_method:
-                return self._rfr_rate_from_df_curve(curve)
-            elif "ibor" in self.fixing_method:
-                return self._ibor_rate_from_df_curve(curve)
-        elif curve._base_type == "values":
-            if "rfr" in self.fixing_method:
-                return self._rfr_rate_from_line_curve(curve)
-            elif "ibor" in self.fixing_method:
-                return self._ibor_rate_from_line_curve(curve)
+        if "rfr" in self.fixing_method:
+            method = {
+                "dfs": self._rfr_rate_from_df_curve,
+                "values": self._rfr_rate_from_line_curve,
+            }
+            try:
+                return method[curve._base_type](curve)
+            except AttributeError:
+                raise ValueError(
+                    "Must supply a valid curve for forecasting.\n"
+                    "Do not supply a dict of curves for RFR based methods."
+                )
+        elif "ibor" in self.fixing_method:
+            method = {
+                "dfs": self._ibor_rate_from_df_curve,
+                "values": self._ibor_rate_from_line_curve,
+            }
+            if not isinstance(curve, dict):
+                return method[curve._base_type](curve)
+            else:
+                if not self.stub:
+                    curve = curve[f"{self.freq_months}m"]
+                    return method[curve._base_type](curve)
+                else:
+                    return self._interpolated_ibor_from_curve_dict(curve)
         else:
-            raise TypeError(
-                f"Base curve type is unrecognised: {curve._base_type}"
-            )  # pragma: no cover
+            raise ValueError("`fixing_method` not valid for the FloatPeriod.")  # pragma: no cover
 
-    def _rfr_rate_from_df_curve(self, curve: Curve):
-        if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
-            return curve.rate(self.start, self.end) + self.float_spread / 100
+    def _interpolated_ibor_from_curve_dict(self, curve: dict):
+        """
+        Get the rate on all available curves in dict and then determine the ones to interpolate.
+        """
+        calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
+        fixing_date = add_tenor(self.start, f"-{self.method_param}B", NoInput(0), calendar)
 
-        elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
-            start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
-            return curve.rate(start, end) + self.float_spread / 100
-            # TODO: (low:perf) semi-efficient method for lockout under certain conditions
+        def _rate(c: Union[Curve, LineCurve, IndexCurve], tenor):
+            if c._base_type == "dfs":
+                return c.rate(self.start, tenor)
+            else:  # values
+                return c.rate(fixing_date)
+
+        values = {
+            add_tenor(self.start, k, "MF", calendar): _rate(v, k)
+            for k, v in curve.items()
+        }
+        values = dict(sorted(values.items()))
+        dates, rates = list(values.keys()), list(values.values())
+        if self.end > dates[-1]:
+            warnings.warn(
+                "Interpolated stub period has a length longer than the provided "
+                "IBOR curve tenors: using the longest IBOR value.",
+                UserWarning
+            )
+            return rates[-1]
+        elif self.end < dates[0]:
+            warnings.warn(
+                "Interpolated stub period has a length shorter than the provided "
+                "IBOR curve tenors: using the shortest IBOR value.",
+                UserWarning
+            )
+            return rates[0]
         else:
-            # return inefficient calculation
-            # this is also the path for all averaging methods
-            return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
+            i = index_left(dates, len(dates), self.end)
+            _ = rates[i] + (rates[i+1]-rates[i]) * ((self.end-dates[i]) / (dates[i+1] - dates[i]))
+            return _
 
     def _ibor_rate_from_df_curve(self, curve: Curve):
         # the compounding method has no effect on single rate (ibor) fixings.
@@ -1017,7 +1054,7 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_rate_from_line_curve(self, curve: LineCurve):
         # the compounding method has no effect on single rate (ibor) fixings.
-        fixing_date = add_tenor(self.start, f"-{self.method_param}B", None, curve.calendar)
+        fixing_date = add_tenor(self.start, f"-{self.method_param}B", NoInput(0), curve.calendar)
         if isinstance(self.fixings, Series):
             try:
                 return self.fixings[fixing_date] + self.float_spread / 100
@@ -1029,6 +1066,20 @@ class FloatPeriod(BasePeriod):
             raise ValueError("`fixings` cannot be supplied as list, under 'ibor' `fixing_method`.")
 
         return curve[fixing_date] + self.float_spread / 100
+
+    def _rfr_rate_from_df_curve(self, curve: Curve):
+        if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
+            return curve.rate(self.start, self.end) + self.float_spread / 100
+
+        elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
+            start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
+            end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            return curve.rate(start, end) + self.float_spread / 100
+            # TODO: (low:perf) semi-efficient method for lockout under certain conditions
+        else:
+            # return inefficient calculation
+            # this is also the path for all averaging methods
+            return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
 
     def _rfr_rate_from_line_curve(self, curve: LineCurve):
         return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
@@ -2297,9 +2348,11 @@ def _disc_from_curve(curve: Curve, disc_curve: Union[Curve, NoInput]) -> Curve:
 
 
 def _disc_maybe_from_curve(
-    curve: Union[Curve, NoInput], disc_curve: Union[Curve, NoInput]
+    curve: Union[Curve, NoInput, dict], disc_curve: Union[Curve, NoInput]
 ) -> Union[Curve, NoInput]:
     if disc_curve is NoInput.blank:
+        if isinstance(curve, dict):
+            raise ValueError("`disc_curve` cannot be inferred from a dictionary of curves.")
         _: Curve = curve
     else:
         _ = disc_curve
