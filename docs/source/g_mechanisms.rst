@@ -529,7 +529,7 @@ Now we create another :class:`~rateslib.instruments.IRS` and add it to a
        curves="estr",
    )
    pf = Portfolio([irs, irs2])
-   pf.npv(solver=combined_solver)
+   pf.npv(solver=combined_solver, local=True)
    pf.delta(solver=combined_solver)
    pf.gamma(solver=combined_solver)
 

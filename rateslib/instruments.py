@@ -7916,7 +7916,7 @@ class Portfolio(Sensitivities):
         For arguments see :meth:`BaseDerivative.npv()<rateslib.instruments.BaseDerivative.npv>`.
         """
         # TODO look at legs.npv where args len is used.
-        if base is NoInput.blank and fx is NoInput.blank:
+        if not local and base is NoInput.blank and fx is NoInput.blank:
             warnings.warn(
                 "No ``base`` currency is inferred, using ``local`` output. To return a single "
                 "PV specify a ``base`` currency and ensure an ``fx`` or ``solver.fx`` object "

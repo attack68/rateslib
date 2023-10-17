@@ -64,8 +64,8 @@ calculated from that 3M curve directly.
 
 .. ipython:: python
 
-    irs.rate(curves=["3m", "estr], solver=solver)
-    irs.delta(curves=["3m", "estr], solver=solver)
+    irs.rate(curves=["3m", "estr"], solver=solver)
+    irs.delta(curves=["3m", "estr"], solver=solver)
 
 However, it is also possible, only in the case of an *"ibor"* ``fixing_method``, to supply a *dict*
 of forecasting curves, from which it will interpolate the fixing using the maturity date of the
@@ -73,8 +73,8 @@ tenor fixings and the end date of the period.
 
 .. ipython:: python
 
-    irs.rate(curves=[{"3m": "3m", "1m": "1m"}, "estr], solver=solver)
-    irs.delta(curves=[{"3m": "3m", "1m": "1m"}, "estr], solver=solver)
+    irs.rate(curves=[{"3m": "3m", "1m": "1m"}, "estr"], solver=solver)
+    irs.delta(curves=[{"3m": "3m", "1m": "1m"}, "estr"], solver=solver)
 
 Notice that in this case the relevant risk sensitivity exposure has been measured against the
 1M curve to which the IRS has some direct dependence.
