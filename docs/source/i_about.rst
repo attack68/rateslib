@@ -114,5 +114,5 @@ by *rateslib*. Another example is the
 
 About the Author
 ****************
-TBD.
-
+An extended bio is available on Amazon `here <https://www.amazon.com/J-H-M-Darbyshire/e/B0725PW9HY>`_.
+It is also possible to connect via LinkedIn `here <https://www.linkedin.com/in/hamish-darbyshire/>`_.
