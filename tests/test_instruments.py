@@ -2427,6 +2427,74 @@ class TestPortfolio:
             result = pf.npv(local=True)
             assert result == expected
 
+    def test_portfolio_mixed_currencies(self):
+        ll_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 5, 1): 1.0,
+                dt(2022, 9, 3): 1.0
+            },
+            interpolation="log_linear",
+            id="sofr",
+        )
+        ll_solver = Solver(
+            curves=[ll_curve],
+            instruments=[
+                IRS(dt(2022, 1, 1), "4m", "Q", curves="sofr"),
+                IRS(dt(2022, 1, 1), "8m", "Q", curves="sofr"),
+            ],
+            s=[1.85, 2.10],
+            instrument_labels=["4m", "8m"],
+            id="sofr"
+        )
+
+        ll_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 4, 1): 1.0,
+                dt(2022, 10, 1): 1.0
+            },
+            interpolation="log_linear",
+            id="estr",
+        )
+        combined_solver = Solver(
+            curves=[ll_curve],
+            instruments=[
+                IRS(dt(2022, 1, 1), "3m", "Q", curves="estr"),
+                IRS(dt(2022, 1, 1), "9m", "Q", curves="estr"),
+            ],
+            s=[0.75, 1.65],
+            instrument_labels=["3m", "9m"],
+            pre_solvers=[ll_solver],
+            id="estr"
+        )
+
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            frequency="Q",
+            currency="usd",
+            notional=500e6,
+            fixed_rate=2.0,
+            curves="sofr",  # or ["sofr", "sofr"] for forecasting and discounting
+        )
+        irs2 = IRS(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            frequency="Q",
+            currency="eur",
+            notional=-300e6,
+            fixed_rate=1.0,
+            curves="estr",
+        )
+        pf = Portfolio([irs, irs2])
+        result = pf.npv(solver=combined_solver, local=True)
+        assert "eur" in result and "usd" in result
+
+        # the following should execute without warnings
+        pf.delta(solver=combined_solver)
+        pf.gamma(solver=combined_solver)
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])

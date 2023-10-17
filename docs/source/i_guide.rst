@@ -359,8 +359,7 @@ Cookbook
 =========
 
 This is a collection of more detailed examples and explanations that don't necessarily fall
-into any one category. See the :ref:`Cookbook index <cookbook-doc>`, or click a topic directly
-below.
+into any one category. See the :ref:`Cookbook index <cookbook-doc>`.
 
 .. toctree::
     :hidden:
