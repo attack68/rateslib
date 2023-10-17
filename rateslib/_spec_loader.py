@@ -93,6 +93,7 @@ if DEVELOPMENT:
         "eur_irs": _get_kwargs("eur_irs"),
         "eur_irs3": _get_kwargs("eur_irs3"),
         "eur_irs6": _get_kwargs("eur_irs6"),
+        "eur_irs1": _get_kwargs("eur_irs1"),
         "sek_irs": _get_kwargs("sek_irs"),
         "sek_irs3": _get_kwargs("sek_irs3"),
         "nok_irs": _get_kwargs("nok_irs"),

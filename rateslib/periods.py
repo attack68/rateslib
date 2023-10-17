@@ -863,7 +863,7 @@ class FloatPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
+        curve: Union[Curve, dict, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -896,7 +896,7 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
+        curve: Union[Curve, dict, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -919,7 +919,7 @@ class FloatPeriod(BasePeriod):
             fx, _ = _get_fx_and_base(self.currency, fx, base)
             return fx * value
 
-    def cashflow(self, curve: Union[Curve, LineCurve]) -> Union[None, DualTypes]:
+    def cashflow(self, curve: Union[Curve, LineCurve, dict]) -> Union[None, DualTypes]:
         if curve is None:
             return None
         else:
@@ -942,9 +942,17 @@ class FloatPeriod(BasePeriod):
 
         Examples
         --------
+        Using a single forecast *Curve*.
+
         .. ipython:: python
 
            period.rate(curve)
+
+        Using a dict of *Curves* for stub periods calculable under an *"ibor"* ``fixing_method``.
+
+        .. ipython:: python
+
+           period.rate({"1m": curve, "3m": curve, "6m": curve, "12m": curve})
         """
         if isinstance(self.fixings, (float, Dual, Dual2)):
             # if fixings is a single value then return that value (curve unused)
@@ -1159,7 +1167,7 @@ class FloatPeriod(BasePeriod):
 
         Parameters
         ----------
-        curve : Curve, LineCurve
+        curve : Curve, LineCurve, IndexCurve dict of such
             The forecast needed to calculate rates which affect compounding and
             dependent notional exposure.
         approximate : bool, optional
