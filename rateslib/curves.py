@@ -3,7 +3,7 @@
    :suppress:
 
    from rateslib.curves import *
-   from datetime import datetime as dt
+   from rateslib import dt
 """
 
 from __future__ import annotations
@@ -451,12 +451,17 @@ class Curve(_Serialize):
 
         .. ipython:: python
 
+<<<<<<< HEAD
             curve_act365f = Curve(
+=======
+            curve = Curve(
+>>>>>>> main
                 nodes={
                     dt(2022, 1, 1): 1.0,
                     dt(2022, 2, 1): 0.98,
                     dt(2022, 3, 1): 0.978,
                 },
+<<<<<<< HEAD
                 convention='Act365F'
             )
             curve_act365f.rate(dt(2022, 2, 1), dt(2022, 3, 1))
@@ -474,6 +479,10 @@ class Curve(_Serialize):
                 convention='Act360'
             )
             curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
+=======
+            )
+            curve.rate(dt(2022, 2, 1), dt(2022, 3, 1))
+>>>>>>> main
         """
         modifier = self.modifier if modifier is NoInput.blank else modifier
         # calendar = self.calendar if calendar is False else calendar
@@ -606,9 +615,6 @@ class Curve(_Serialize):
 
         Examples
         --------
-        .. ipython:: python
-
-           from rateslib.curves import Curve
 
         .. ipython:: python
 
@@ -1348,9 +1354,6 @@ class LineCurve(Curve):
 
         Examples
         --------
-        .. ipython:: python
-
-           from rateslib.curves import LineCurve
 
         .. ipython:: python
 
