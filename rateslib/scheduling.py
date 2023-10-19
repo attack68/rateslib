@@ -39,7 +39,8 @@ class Schedule:
         The adjusted or unadjusted termination date. If a string, then a tenor must be
         given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
     frequency : str in {"M", "B", "Q", "T", "S", "A", "Z"}, optional
-        The frequency of the schedule.
+        The frequency of the schedule where the options are: M(onthly), B(i-monthly),
+        T(hirdly), Q(uarterly), S(emi-annually), A(nnually), Z(ero-coupon).
     stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}, optional
         The stub type to enact on the swap. Can provide two types, for
         example "SHORTFRONTLONGBACK".
