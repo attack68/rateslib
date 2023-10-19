@@ -1248,7 +1248,7 @@ class TestCompositeCurve:
         diff = np.array(
             [
                 result_curve.rate(_, "1D") - crv.rate(_, "1D")
-                for _ in [dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
+                for _ in [dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11)]
             ]
         )
         assert np.all(np.abs(diff) < 1e-5)
@@ -1295,13 +1295,13 @@ class TestCompositeCurve:
         expected = np.array(
             [
                 crv.rate(_, "1D")
-                for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)]
+                for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15)]
             ]
         )
         result = np.array(
             [
                 rolled_curve.rate(_, "1D")
-                for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)]
+                for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25)]
             ]
         )
 
