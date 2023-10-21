@@ -440,6 +440,23 @@ class TestFloatLeg:
         assert result.iloc[1, 0] == 0.0
         assert result.iloc[2, 0] == 0.0
 
+    def test_leg_fixings_as_2_tuple(self):
+        ser = Series([2.0, 3.0], index=[dt(2022, 6, 2), dt(2022, 7, 4)])
+        float_leg = FloatLeg(
+            effective=dt(2022, 5, 2),
+            termination="4M",
+            frequency="M",
+            fixings=(1.5, ser),
+            currency="SEK",
+            calendar="stk",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        assert float_leg.periods[0].fixings == 1.5
+        assert id(float_leg.periods[1].fixings) == id(ser)
+        assert id(float_leg.periods[2].fixings) == id(ser)
+        assert float_leg.periods[3].fixings == NoInput.blank
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve):

@@ -52,6 +52,19 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
+0.7.0 (not released)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Legs
+     - Allow ``fixings`` as a 2-tuple to manually define the first *FloatPeriod* (say as IBOR stub)
+       and determine the rest from a *Series*.
+
 0.6.0 (19th Oct 2023)
 **********************
 
