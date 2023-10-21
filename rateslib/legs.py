@@ -1973,6 +1973,29 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         """
         return self._fx_fixings
 
+    def _get_fx_fixings_from_series(self, ser: Series, ini_period: int = 0):
+        last_fixing_date = ser.index[-1]
+        fixings_list = []
+        for i in range(ini_period, self.schedule.n_periods):
+            required_date = add_tenor(
+                self.schedule.aschedule[i],
+                f"{self.payment_lag_exchange}B",
+                NoInput(0),
+                self.schedule.calendar,
+            )
+            if required_date > last_fixing_date:
+                break
+            else:
+                try:
+                    fixings_list.append(ser[required_date])
+                except KeyError:
+                    raise ValueError(
+                        "A Series is provided for FX fixings but the required exchange "
+                        f"settlement date, {required_date.strftime('%Y-%d-%m')}, is not "
+                        f"available within the Series."
+                    )
+        return fixings_list
+
     @fx_fixings.setter
     def fx_fixings(self, value):
         if value is NoInput.blank:
@@ -1982,27 +2005,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         elif isinstance(value, (float, Dual, Dual2)):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
-            unavailable_date = value.index[-1]
-            fixings_list = []
-            for i in range(self.schedule.n_periods):
-                required_date = add_tenor(
-                    self.schedule.aschedule[i],
-                    f"{self.payment_lag_exchange}B",
-                    NoInput(0),
-                    self.schedule.calendar,
-                )
-                if required_date > unavailable_date:
-                    break
-                else:
-                    try:
-                        fixings_list.append(value[required_date])
-                    except KeyError:
-                        raise ValueError(
-                            "A Series is provided for FX fixings but the required exchange "
-                            f"settlement date, {required_date.strftime('%Y-%d-%m')}, is not "
-                            f"available within the Series."
-                        )
-            self._fx_fixings = fixings_list
+            self._fx_fixings = self._get_fx_fixings_from_series(value)
+        elif isinstance(value, tuple):
+            self._fx_fixings = [value[0]]
+            self._fx_fixings.extend(self._get_fx_fixings_from_series(value, ini_period=1))
         else:
             raise TypeError("`fx_fixings` should be scalar value, list or Series of such.")
 
