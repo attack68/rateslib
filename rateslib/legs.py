@@ -637,6 +637,28 @@ class FloatLegMixin:
     :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
     """
 
+    def _get_fixings_from_series(self, ser: Series, ini_period: int =0) -> list:
+        """
+        Determine which fixings can be set for Periods with the given Series.
+        """
+        last_fixing_dt = ser.index[-1]
+        if self.fixing_method in [
+            "rfr_payment_delay", "rfr_lockout", "rfr_payment_delay_avg", "rfr_lockout_avg"
+        ]:
+            adj_days = 0
+        else:
+            adj_days = self.method_param
+        first_required_day = [
+            add_tenor(
+                self.schedule.aschedule[i],
+                f"-{adj_days}B",
+                None,
+                self.schedule.calendar,
+            )
+            for i in range(ini_period, self.schedule.n_periods)
+        ]
+        return [ser if last_fixing_dt >= day else NoInput(0) for day in first_required_day]
+
     def _set_fixings(
         self,
         fixings,
@@ -646,28 +668,17 @@ class FloatLegMixin:
         Requires a ``schedule`` object and ``float_args``.
         """
         if fixings is NoInput.blank:
-            fixings = []
+            fixings_ = []
         elif isinstance(fixings, Series):
-            last_fixing = fixings.index[-1]
-            if self.fixing_method in ["rfr_payment_delay", "rfr_lockout"]:
-                adj_days = 0
-            else:
-                # fixing_method in ["rfr_lookback", "rfr_observation_shift", "ibor"]:
-                adj_days = self.method_param
-            first_required_day = [
-                add_tenor(
-                    self.schedule.aschedule[i],
-                    f"-{adj_days}B",
-                    None,
-                    self.schedule.calendar,
-                )
-                for i in range(self.schedule.n_periods)
-            ]
-            fixings = [fixings if last_fixing >= day else NoInput(0) for day in first_required_day]
+            fixings_ = self._get_fixings_from_series(fixings)
+        elif isinstance(fixings, tuple):
+            fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)
         elif not isinstance(fixings, list):
-            fixings = [fixings]
+            fixings_ = [fixings]
+        else:  # fixings as a list should be remaining
+            fixings_ = fixings
 
-        self.fixings = fixings + [NoInput(0)] * (self.schedule.n_periods - len(fixings))
+        self.fixings = fixings_ + [NoInput(0)] * (self.schedule.n_periods - len(fixings_))
 
     @property
     def float_spread(self):
@@ -779,13 +790,14 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     spread_compound_method : str, optional
         The method to use for adding a floating spread to compounded rates. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float, list, or Series optional
+    fixings : float, list, Series, 2-tuple, optional
         If a float scalar, will be applied as the determined fixing for the first
         period. If a list of *n* fixings will be used as the fixings for the first *n*
         periods. If any sublist of length *m* is given, is used as the first *m* RFR
         fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
         indexed ``Series`` will use the fixings that are available in that object,
-        and derive the rest from the ``curve``.
+        and derive the rest from the ``curve``. If a 2-tuple of value and *Series*, the first
+        scalar value is applied to the first period and latter periods handled as with *Series*.
     fixing_method : str, optional
         The method by which floating rates are determined, set by default. See notes.
     method_param : int, optional
@@ -901,7 +913,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
         self,
         *args,
         float_spread: Union[float, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, tuple, NoInput] = NoInput(0),
         fixing_method: Union[str, NoInput] = NoInput(0),
         method_param: Union[int, NoInput] = NoInput(0),
         spread_compound_method: Union[str, NoInput] = NoInput(0),
