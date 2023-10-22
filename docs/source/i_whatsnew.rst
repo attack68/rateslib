@@ -63,7 +63,8 @@ email contact through **rateslib@gmail.com**.
      - Description
    * - Legs
      - Allow ``fixings`` as a 2-tuple to manually define the first *FloatPeriod* (say as IBOR stub)
-       and determine the rest from a *Series*.
+       and determine the rest from a *Series*. Also allow ``fx_fixings`` as a 2-tuple for similar
+       reason for MTM *XCS*.
 
 0.6.0 (19th Oct 2023)
 **********************
