@@ -1970,6 +1970,20 @@ class TestXCS:
         result2 = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - result2) < 1e-3
 
+    def test_fx_fixings_2_tuple(self):
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+            fx_fixings=(1.25, Series([1.5, 1.75], index=[dt(2022, 3, 1), dt(2022, 4, 1)]))
+        )
+        assert xcs.leg2.fx_fixings == [1.25, 1.5, 1.75]
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2):
