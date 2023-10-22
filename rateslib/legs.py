@@ -2008,7 +2008,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             self._fx_fixings = self._get_fx_fixings_from_series(value)
         elif isinstance(value, tuple):
             self._fx_fixings = [value[0]]
-            self._fx_fixings.extend(self._get_fx_fixings_from_series(value, ini_period=1))
+            self._fx_fixings.extend(self._get_fx_fixings_from_series(value[1], ini_period=1))
         else:
             raise TypeError("`fx_fixings` should be scalar value, list or Series of such.")
 

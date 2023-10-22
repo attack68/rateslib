@@ -1451,6 +1451,7 @@ def test_custom_leg():
         (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
         ([1.5], [1.5, NoInput(0), NoInput(0)]),
         (1.25, [1.25, NoInput(0), NoInput(0)]),
+        ((1.25, Series([1.5], index=[dt(2022, 4, 6)])), [1.25, 1.5, NoInput(0)])
     ],
 )
 def test_fixed_leg_exchange_mtm(fx_fixings, exp):
