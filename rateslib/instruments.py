@@ -7622,7 +7622,7 @@ class Spread(Sensitivities):
        spread.cashflows()
     """
 
-    _rate_scalar = 1.0
+    _rate_scalar = 100.0
 
     def __init__(self, instrument1, instrument2):
         self.instrument1 = instrument1
@@ -7690,7 +7690,7 @@ class Spread(Sensitivities):
         """
         leg1_rate = self.instrument1.rate(*args, **kwargs)
         leg2_rate = self.instrument2.rate(*args, **kwargs)
-        return leg2_rate - leg1_rate
+        return (leg2_rate - leg1_rate) * 100.0
 
     # def rate(self, *args, **kwargs):
     #     if len(args) == 0:
@@ -7755,7 +7755,7 @@ class Fly(Sensitivities):
     See examples for :class:`Spread` for similar functionality.
     """
 
-    _rate_scalar = 1.0
+    _rate_scalar = 100.0
 
     def __init__(self, instrument1, instrument2, instrument3):
         self.instrument1 = instrument1
@@ -7811,7 +7811,7 @@ class Fly(Sensitivities):
         leg1_rate = self.instrument1.rate(*args, **kwargs)
         leg2_rate = self.instrument2.rate(*args, **kwargs)
         leg3_rate = self.instrument3.rate(*args, **kwargs)
-        return -leg3_rate + 2 * leg2_rate - leg1_rate
+        return (-leg3_rate + 2 * leg2_rate - leg1_rate) * 100.0
 
     def cashflows(self, *args, **kwargs):
         return concat(
