@@ -140,7 +140,7 @@ it is better elucidated this way).
        pre_solvers=[stir_solver],
        curves=[curve_irs],
        instruments=instruments_irs,
-       s=[0.07, 0.25, 0.5, 0.95, 1.4, 1.8, 2.2, 2.6],
+       s=[-0.07, -0.25, -0.5, -0.95, -1.4, -1.8, -2.2, -2.6],
        instrument_labels=["z23", "h24", "m24", "u24", "z24", "h25", "m25", "u25"],
        id="Convexity",
    )
@@ -155,10 +155,32 @@ Now we can re-risk the original instruments as part of the extended risk framewo
 
    irs.delta(solver=full_solver)
 
-We can even combine the instruments into a single :class:~rateslib.instruments.Portfolio`
+We can even combine the instruments into a single :class:`~rateslib.instruments.Portfolio`
 and observe the combined risk analytics.
 
 .. ipython:: python
 
    pf = Portfolio([stirf, irs])
    pf.delta(solver=full_solver)
+
+Sense checking the numbers
+----------------------------
+
+Futures are generally oversold relative to swaps. The *STIR Curve* is higher than the
+*IRS Curve*.
+
+The *Portfolio* constructed has bought *STIR Futures* and paid *IRS*, at a
+negative spread and thus has positive value as time passes (positive theta). The
+precise notional of the *IRS* should be larger if it were to precisely hedge the delta
+risk of the 1000 lots of the *STIR Future*.
+If the market moves and the convexity adjustments move higher (closer towards zero),
+this portfolio will make MTM gains.
+
+To account for the gain over time (theta value) the *Portfolio* suffers from negative gamma.
+If volatility is less than expected over time this will be advantageous. If the
+volatility is higher and the market movement is significant the loss from gamma will
+be significant and outweight the value offered by the convexity adjustment.
+
+.. ipython:: python
+
+   pf.gamma(solver=full_solver)
