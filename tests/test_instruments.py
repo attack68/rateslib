@@ -2529,7 +2529,7 @@ class TestFly:
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0, curves=mechanism)
         fly = Fly(irs1, irs2, irs3)
-        assert fly.rate(inv) == -irs1.rate(inv) + 2 * irs2.rate(inv) - irs3.rate(inv)
+        assert fly.rate(inv) == (-irs1.rate(inv) + 2 * irs2.rate(inv) - irs3.rate(inv)) * 100.0
 
     def test_fly_cashflows_executes(self, curve):
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve)
@@ -2587,7 +2587,7 @@ class TestSpread:
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         spd = Spread(irs1, irs2)
-        assert spd.rate(inverse) == -irs1.rate(inverse) + irs2.rate(inverse)
+        assert spd.rate(inverse) == (-irs1.rate(inverse) + irs2.rate(inverse)) * 100.0
 
     def test_spread_cashflows_executes(self, curve):
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve)
