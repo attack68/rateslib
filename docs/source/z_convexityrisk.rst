@@ -14,15 +14,15 @@ Building a Risk Framework Including STIR Convexity Adjustments
 ****************************************************************
 
 Common risk frameworks that I have experienced, used :class:`~rateslib.instruments.STIRFuture`
-prices to construct IR *Curves* at the short end. However they typically did so by implying a
-direct curve rate from the future's price, and then adding a convexity adjustment as a parameter,
+prices to construct IR *Curves* at the short end. However, they typically do so by implying a
+direct curve rate from the futures' prices, adding a convexity adjustment as a parameter,
 manually.
 
-When portfolio managers want to know their delta sensitivity versus the convexity parameter itself
+When portfolio managers want to know their delta sensitivity versus the convexity parameter itself,
 they can simply add up the number of *STIRFuture* contracts they have and compare versus swaps. This
-is trivial to do, but, it does not provide a *complete* risk sensitivity framework, or
-:class:`~rateslib.solver.Solver` - it requires thos extra steps. What this page shows is how to
-create a *Solver* for the first 2-years of the
+is trivial to do, but, it does not provide an *automatic* and *complete* risk sensitivity
+framework, or :class:`~rateslib.solver.Solver`: it requires those extra steps. What this
+page demonstrates is how to create a *Solver* for the first 2-years of the
 *Curve* including convexity instruments so that risk against :class:`~rateslib.instruments.IRS`
 (and/or any other relevant *Instruments*) can be actively calculated.
 
@@ -49,7 +49,8 @@ In this framework instrument prices are given in *rate* terms (i.e. price = 100 
        id="stir",
    )
 
-Next we define the instruments and construct the risk framework *Solver*.
+Next we define the instruments and construct the risk framework *Solver*. These *Instruments* are
+the next 8 quarterly IMM 3M SOFR futures as of 2nd November 2023.
 
 .. ipython:: python
 
@@ -71,15 +72,21 @@ Next we define the instruments and construct the risk framework *Solver*.
        id="STIRF"
    )
 
-This *Solver* calculates risk sensitivities against SOFR future rates. It can be used
+This *Solver* calculates risk sensitivities against these SOFR future rates. It can be used
 to risk SOFR futures directly or risk :class:`~rateslib.instruments.IRS` that have been
 mapped specifically to use the *"stir"* curve. This is not entirely accurate because *IRS* should be
 priced from a convexity adjusted *IRS* curve.
+
+Consider below creating a long *STIR Future* position in 1000 lots (at $25 per lot per BP) and
+analysing the *delta* risk sensitivity.
 
 .. ipython:: python
 
    stirf = STIRFuture(dt(2024, 9, 18), dt(2024, 12, 18), spec="sofr3mf", curves="stir", contracts=1000)
    stirf.delta(solver=stir_solver)
+
+Next consider receiving an *IRS* as measured over the same dates in an equivalent contract notional
+of 1bn USD.
 
 .. ipython:: python
 
