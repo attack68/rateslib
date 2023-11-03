@@ -510,10 +510,11 @@ is to be expected.
    solver_with_error.error
 
 
-Composite and Proxy Curves
-**************************
+Composite, Proxy and Multi-CSA Curves
+****************************************
 
-:class:`~rateslib.curves.CompositeCurve` and :class:`~rateslib.fx.ProxyCurve` do not
+:class:`~rateslib.curves.CompositeCurve`, :class:`~rateslib.curves.ProxyCurve` and
+:class:`~rateslib.curves.MultiCsaCurve` do not
 have their own parameters. These rely on the parameters from other fundamental curves.
 It is possible to create a *Solver* defined with *Instruments* that reference these
 complex curves as pricing curves with the *Solver* updating the underlying
