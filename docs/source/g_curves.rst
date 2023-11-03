@@ -13,8 +13,8 @@
 Constructing Curves
 ********************
 
-*Rateslib* has five different curve classes. Three of these are fundamental base
-curves of different types and for different purposes. Two are objects which are
+*Rateslib* has six different curve classes. Three of these are fundamental base
+curves of different types and for different purposes. Three are objects which are
 constructed via references to other curves to allow certain combinations.
 
 The three fundamental curve classes are:
@@ -24,11 +24,12 @@ The three fundamental curve classes are:
    rateslib.curves.LineCurve
    rateslib.curves.IndexCurve
 
-The two, more complex, combination classes are:
+The remaining, more complex, combination classes are:
 
 .. autosummary::
    rateslib.curves.CompositeCurve
    rateslib.curves.ProxyCurve
+   rateslib.curves.MultiCsaCurve
 
 In *rateslib* **defining curves** and then **solving them with calibrating
 instruments** are two separate processes. This provides maximal flexibility whilst
