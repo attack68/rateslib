@@ -85,7 +85,7 @@ analysing the *delta* risk sensitivity.
    stirf = STIRFuture(dt(2024, 9, 18), dt(2024, 12, 18), spec="sofr3mf", curves="stir", contracts=1000)
    stirf.delta(solver=stir_solver)
 
-Next consider receiving an *IRS* as measured over the same dates in an equivalent contract notional
+Next consider paying an *IRS* as measured over the same dates in an equivalent contract notional
 of 1bn USD.
 
 .. ipython:: python
