@@ -1033,6 +1033,13 @@ class Solver(Gradients):
 
         # TODO need to check curves associated with fx object and set order.
         # self._reset_properties_()  performed in iterate
+        self.result = {
+            "status": "INITIALISED",
+            "state": 0,
+            "g": None,
+            "iterations": 0,
+            "time": None,
+        }
         self.iterate()
 
     def _parse_instrument(self, value):
@@ -1317,6 +1324,13 @@ class Solver(Gradients):
                     f"({self.algorithm}), `f_val`: {self.g.real}, "
                     f"`time`: {time() - t0:.4f}s"
                 )
+                self.result = {
+                    "status": "SUCCESS",
+                    "state": 1,
+                    "g": self.g.real,
+                    "iterations": i,
+                    "time": time() - t0,
+                }
                 return None
             elif self.g.real < self.func_tol:
                 print(
@@ -1324,6 +1338,13 @@ class Solver(Gradients):
                     f"({self.algorithm}) , `f_val`: {self.g.real}, "
                     f"`time`: {time() - t0:.4f}s"
                 )
+                self.result = {
+                    "status": "SUCCESS",
+                    "state": 2,
+                    "g": self.g.real,
+                    "iterations": i,
+                    "time": time() - t0,
+                }
                 return None
             self.g_prev = self.g.real
             v_1 = self._update_step_(self.algorithm)
@@ -1339,6 +1360,13 @@ class Solver(Gradients):
             f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
             f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"
         )
+        self.result = {
+            "status": "FAILURE",
+            "state": -1,
+            "g": self.g.real,
+            "iterations": i,
+            "time": time() - t0,
+        }
         return None
         # raise ValueError(f"Max iterations reached, func: {self.f.real}")
 
