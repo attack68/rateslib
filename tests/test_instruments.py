@@ -2314,6 +2314,19 @@ class TestSTIRFuture:
         with pytest.raises(ValueError, match="`metric` must be in"):
             stir.rate(curves=c1, metric="bad")
 
+    def test_analytic_delta(self):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+            contracts=100,
+        )
+        expected = -2500.0
+        result = stir.analytic_delta()
+        assert abs(result-expected) < 1e-10
+
 
 class TestPricingMechanism:
     def test_value(self, curve):

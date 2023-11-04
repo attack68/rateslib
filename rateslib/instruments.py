@@ -5222,6 +5222,15 @@ class STIRFuture(IRS):
         else:
             raise ValueError("`metric` must be in {'price', 'rate'}.")
 
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *STIRFuture*.
+
+        See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        For *STIRFuture* this method requires no arguments.
+        """
+        return -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+
     def cashflows(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),

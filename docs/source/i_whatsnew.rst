@@ -68,6 +68,9 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
        *rate* in basis point terms and not percent.
+   * - Bug
+     - Update :meth:`~rateslib.instruments.STIRFuture.analytic_delta` for
+       :class:`~rateslib.instruments.STIRFuture` to match *delta*.
 
 0.6.0 (19th Oct 2023)
 **********************
