@@ -1424,7 +1424,9 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     @fixed_rate.setter
     def fixed_rate(self, value):
-        # overload the setter for a zero coupon to convert from irr to period rate
+        # overload the setter for a zero coupon to convert from IRR to period rate.
+        # the headline fixed_rate is the IRR rate but the rate attached to Periods is a simple
+        # rate in order to determine cashflows according to the normal cashflow logic.
         self._fixed_rate = value
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         if value is not NoInput.blank:
@@ -1433,7 +1435,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
             period_rate = NoInput(0)
 
         for period in self.periods:
-            if isinstance(period, FixedPeriod):
+            if isinstance(period, FixedPeriod):  # there should only be one FixedPeriod in a Zero
                 period.fixed_rate = period_rate
 
     @property
