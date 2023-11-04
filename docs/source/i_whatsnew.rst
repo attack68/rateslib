@@ -68,6 +68,9 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
        *rate* in basis point terms and not percent.
+   * - Solver
+     - Add an attribute ``result`` that contains retrievable iteration success or failure
+       information.
    * - Bug
      - Update :meth:`~rateslib.instruments.STIRFuture.analytic_delta` for
        :class:`~rateslib.instruments.STIRFuture` to match *delta*.
