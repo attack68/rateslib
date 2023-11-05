@@ -5272,9 +5272,6 @@ class IIRS(BaseDerivative):
     Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
 
-    If ``notional_exchange``, the legs are :class:`~rateslib.legs.IndexFixedLeg`
-    and :class:`~rateslib.legs.FloatLeg`.
-
     Parameters
     ----------
     args : dict
@@ -5328,9 +5325,8 @@ class IIRS(BaseDerivative):
           index_lag=3,
       )
 
-    Create the ZCIS, and demonstrate the :meth:`~rateslib.instruments.ZCIS.rate`,
-    :meth:`~rateslib.instruments.ZCIS.npv`,
-    :meth:`~rateslib.instruments.ZCIS.analytic_delta`, and
+    Create the IIRS, and demonstrate the :meth:`~rateslib.instruments.IIRS.rate`, and
+    :meth:`~rateslib.instruments.IIRS.npv`.
 
     .. ipython:: python
 

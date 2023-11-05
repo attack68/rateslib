@@ -139,7 +139,9 @@ The *Instruments* are set to be *Spreads* between the original *STIR Futures* an
 
 Finally, we add these into a new dependent *Solver* (we do not have to create a
 dependency chain of *Solvers* we could do this all simultaneously in a single *Solver*, but
-it is better elucidated this way).
+it is better elucidated this way). The convexity adjustment rates are shown here beside the
+``s`` argument. Expressed negatively according to market convention (IRS curve is below
+the STIR futures curve).
 
 .. ipython:: python
 
