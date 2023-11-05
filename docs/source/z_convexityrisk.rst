@@ -156,9 +156,16 @@ the STIR futures curve).
 
 Now we can re-risk the original instruments as part of the extended risk framework.
 
+The *STIRFuture* does not have any convexity risk. Its risk is expressed relative to
+other *STIRFutures* so hedging a *STIRFuture* with the same *STIRFuture* is an **exact**
+hedge.
+
 .. ipython:: python
 
    stirf.delta(solver=full_solver)
+
+The *IRS* has convexity risk. Hedging an *IRS* with a *STIRFuture* constructs a portfolio
+that has exposure to the movement of the convexity adjustment.
 
 .. ipython:: python
 
