@@ -101,6 +101,7 @@ Curves
 .. automodapi:: rateslib.curves
    :no-heading:
    :inherited-members:
+   :no-inheritance-diagram:
    :skip: NoInput
    :skip: set_order_convert
    :skip: add_tenor
@@ -121,17 +122,23 @@ Curves
    :skip: Holiday
    :skip: comb
 
+Class Inheritance Diagram
+**************************
+
+.. automod-diagram:: rateslib.curves
+   :parts: 1
 
 FX
 ---
 
 .. automodapi:: rateslib.fx
    :no-heading:
+   :no-inheritance-diagram:
    :skip: NoInput
    :skip: Curve
    :skip: LineCurve
    :skip: ProxyCurve
-   :skip: CompositeCurve
+   :skip: MultiCsaCurve
    :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Dual
@@ -168,6 +175,8 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 Legs
 ----
+
+Link to the :ref:`Legs<legs-doc>` section in the user guide.
 
 .. automodapi:: rateslib.legs
    :no-heading:
@@ -233,12 +242,14 @@ Instruments
    :skip: ZeroFixedLeg
    :skip: forward_fx
    :skip: partial
+   :skip: timedelta
 
 Solver
 ------
 
 .. automodapi:: rateslib.solver
    :no-heading:
+   :skip: MultiCsaCurve
    :skip: NoInput
    :skip: FXRates
    :skip: DataFrame
@@ -259,3 +270,4 @@ Cookbook
 
     z_swpm.rst
     z_dependencychain.rst
+    z_turns.rst

@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rateslib"
-version = "0.4.0"
+version = "0.5.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -19,7 +19,7 @@ keywords = ["interest rate", "derivatives", "swaps", "bonds", "fixed income"]
 dependencies = [
     "numpy>=1.21.5",
     "matplotlib>=3.5.1",
-    "pandas>=1.4.1",
+    "pandas>=1.4.1,<=2.0.3",
 ]
 requires-python = ">=3.9"
 

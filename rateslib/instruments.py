@@ -21,7 +21,7 @@
 """
 
 from abc import abstractmethod, ABCMeta
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Union
 import abc
 import warnings
@@ -33,7 +33,7 @@ import numpy as np
 
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, concat, Series, MultiIndex
+from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
@@ -69,7 +69,10 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 
 
 def _get_curve_from_solver(curve, solver):
-    if getattr(curve, "_is_proxy", False):
+    if isinstance(curve, dict):
+        # When supplying a curve as a dictionary of curves (for IBOR stubs) use recursion
+        return {k: _get_curve_from_solver(v, solver) for k, v in curve.items()}
+    elif getattr(curve, "_is_proxy", False):
         # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
         # proxy curves exist outside of solvers but still have Dual variables associated
         # with curves inside the solver, so can still generate risks to calibrating
@@ -152,14 +155,19 @@ def _get_curves_fx_and_base_maybe_from_solver(
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
     """
+
+    # First process `base`.
     if fx is NoInput.blank and base is NoInput.blank:
         # base will not be inherited from a 2nd level inherited object, i.e.
         # from solver.fx, to preserve single currency instruments being defaulted
         # to their local currency.
         base_ = local_ccy
+    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
+        base_ = fx.base
     else:
         base_ = base
 
+    # Second process `fx`
     if fx is NoInput.blank:
         if solver is NoInput.blank:
             fx_ = NoInput(0)
@@ -189,7 +197,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     elif curves is NoInput.blank:
         curves = curves_attr
 
-    if isinstance(curves, (Curve, str, CompositeCurve)):
+    if isinstance(curves, (Curve, str, CompositeCurve, dict)):
         curves = [curves]
     if solver is NoInput.blank:
 
@@ -198,6 +206,8 @@ def _get_curves_fx_and_base_maybe_from_solver(
                 raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
             elif curve is None or curve is NoInput(0):
                 return NoInput(0)
+            elif isinstance(curve, dict):
+                return {k: check_curve(v) for k, v in curve.items()}
             return curve
 
         curves_ = tuple(check_curve(curve) for curve in curves)
@@ -308,8 +318,8 @@ class Sensitivities:
         local: bool = False,
     ):
         """
-        Calculate delta risk against the calibrating instruments of the
-        :class:`~rateslib.curves.Curve`.
+        Calculate delta risk of an *Instrument* against the calibrating instruments in a
+        :class:`~rateslib.curves.Solver`.
 
         Parameters
         ----------
@@ -322,9 +332,8 @@ class Sensitivities:
             - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
             - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
         solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that constructs
-            :class:`~rateslib.curves.Curve` from calibrating
-            instruments.
+            The :class:`~rateslib.solver.Solver` that calibrates
+            *Curves* from given *Instruments*.
         fx : float, FXRates, FXForwards, optional
             The immediate settlement FX rate that will be used to convert values
             into another currency. A given `float` is used directly. If giving a
@@ -361,8 +370,8 @@ class Sensitivities:
         local: bool = False,
     ):
         """
-        Calculate cross-gamma risk against the calibrating instruments of the
-        :class:`~rateslib.curves.Curve`.
+        Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
+        :class:`~rateslib.curves.Solver`.
 
         Parameters
         ----------
@@ -375,9 +384,8 @@ class Sensitivities:
             - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
             - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
         solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that constructs
-            :class:`~rateslib.curves.Curve` from calibrating
-            instruments.
+            The :class:`~rateslib.solver.Solver` that calibrates
+            *Curves* from given *Instruments*.
         fx : float, FXRates, FXForwards, optional
             The immediate settlement FX rate that will be used to convert values
             into another currency. A given `float` is used directly. If giving a
@@ -681,11 +689,13 @@ class BaseMixin:
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
+
+        dfs = [
+            self.leg1.cashflows(curves[0], curves[1], fx_, base_),
+            self.leg2.cashflows(curves[2], curves[3], fx_, base_),
+        ]
         _ = concat(
-            [
-                self.leg1.cashflows(curves[0], curves[1], fx_, base_),
-                self.leg2.cashflows(curves[2], curves[3], fx_, base_),
-            ],
+            [_ for _ in dfs if not (_.empty or isna(_).all(axis=None))],  # filter empty or na
             keys=["leg1", "leg2"],
         )
         return _
@@ -1002,6 +1012,22 @@ class FXExchange(Sensitivities, BaseMixin):
         _ = forward_fx(self.settlement, curves[1], curves[3], imm_fx)
         return _
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 # Securities
 
@@ -1091,7 +1117,7 @@ class BondMixin:
             "ukg": self._acc_lin_days,
             "uktb": self._acc_lin_days,
             "ust": self._acc_lin_days_long_split,
-            "ust_street": self._acc_lin_days_long_split,
+            "ust_31bii": self._acc_lin_days_long_split,
             "ustb": self._acc_lin_days,
             "sgb": self._acc_30e360,
             "sgbb": self._acc_lin_days,
@@ -1356,26 +1382,6 @@ class BondMixin:
             return price_from_ytm_funcs[calc_mode](ytm, settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
-
-    def accrued(self, settlement: datetime):
-        """
-        Calculate the accrued amount per nominal par value of 100.
-
-        Parameters
-        ----------
-        settlement : datetime
-            The settlement date which to measure accrued interest against.
-
-        Notes
-        -----
-        Fractionally apportions the coupon payment based on calendar days.
-
-        .. math::
-
-           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
-
-        """
-        return self._accrued(settlement, self.calc_mode)
 
     def fwd_from_repo(
         self,
@@ -1745,7 +1751,9 @@ class BondMixin:
         )
         self._set_base_index_if_none(curves[0])
 
-        if settlement is NoInput.blank:
+        if settlement is NoInput.blank and curves[1] is NoInput.blank:
+            settlement = self.leg1.schedule.effective
+        elif settlement is NoInput.blank:
             settlement = add_tenor(
                 curves[1].node_dates[0],
                 f"{self.kwargs['settle']}B",
@@ -1885,10 +1893,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str in {"ukg", "ust", "sgb"}
-        A calculation mode for dealing with bonds that are in short stub or accrual
-        periods. All modes give the same value for YTM at issue date for regular
-        bonds but differ slightly for bonds with stubs or with accrued.
+    calc_mode : str
+        A calculation mode for dealing with bonds under different conventions. See notes.
     curves : CurveType, str or list of such, optional
         A single *Curve* or string id or a list of such.
 
@@ -1909,9 +1915,27 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     Notes
     -----
-    Bond YTM formulae have different treatments for different conventions.
-    *Rateslib* currently identifies three different ``calc_mode`` options;
-    *'ukg', 'ust', 'sgb'* for UK gilt, US treasury and Swedish government bond.
+
+    **Calculation Modes**
+
+    The ``calc_mode`` parameter allows the calculation for yield-to-maturity and accrued interest
+    to branch depending upon the particular convention of different bonds.
+
+    The following modes are currently available with a brief description of its particular
+    action:
+
+    - "ukg": UK Gilt convention. Accrued is linearly proportioned, as are stub periods. Stub yields
+      are compounded.
+    - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
+      proportioning only in the segregated short stub part.
+    - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
+      31-B-ii).
+    - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
+      using 30e360, also for back stubs.
+    - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
+      convention. Yield calculations are still derived with linearly proportioned compounded
+      coupons.
+
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided
     from official sources.
@@ -1957,8 +1981,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usA = FixedRateBond(
            effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=8.75, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=8.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usAc = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=False)
@@ -1966,8 +1990,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usB = FixedRateBond(
            effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=8.5, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usBc = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=False)
@@ -1976,8 +2000,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usC = FixedRateBond(
            effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
            front_stub=dt(1990, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=8.5, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usCc = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=False)
@@ -1985,8 +2009,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usD = FixedRateBond(
            effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=9.5, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=9.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usDc = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=False)
@@ -1995,8 +2019,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usE = FixedRateBond(
            effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
            front_stub=dt(1986, 2, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=10.75, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=10.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usEc = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=False)
@@ -2004,8 +2028,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usF = FixedRateBond(
            effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=10.50, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=10.50, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usFc = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=False)
@@ -2014,8 +2038,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usG = FixedRateBond(
            effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
            front_stub=dt(1989, 6, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST",
-           fixed_rate=9.75, calendar="nyc", ex_div=1,
+           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           fixed_rate=9.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
        usGc = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=False)
@@ -2031,13 +2055,13 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "ukg", uk22c, uk22d],
                ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "ukg", uk23c, uk23d],
                ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "ukg", uk24c, uk24d],
-               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust", usAc, usAd],
-               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust", usBc, usBd],
-               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust", usCc, usCd],
-               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust", usDc, usDd],
-               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust", usEc, usEd],
-               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust", usFc, usFd],
-               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust", usGc, usGd],
+               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust_31bii", usAc, usAd],
+               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust_31bii", usBc, usBd],
+               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust_31bii", usCc, usCd],
+               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust_31bii", usDc, usDd],
+               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust_31bii", usEc, usEd],
+               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust_31bii", usFc, usFd],
+               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust_31bii", usGc, usGd],
            ],
            columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
        )
@@ -2231,7 +2255,25 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    # Digital Methods
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the accrued amount per nominal par value of 100.
+
+        Parameters
+        ----------
+        settlement : datetime
+            The settlement date which to measure accrued interest against.
+
+        Notes
+        -----
+        Fractionally apportions the coupon payment based on calendar days.
+
+        .. math::
+
+           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
+
+        """
+        return self._accrued(settlement, self.calc_mode)
 
     def rate(
         self,
@@ -2267,10 +2309,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm", "fwd_clean_price", "fwd_dirty_price"}
-        forward_settlement : datetime
-            The forward settlement date, required if the metric is in
-            {"fwd_clean_price", "fwd_dirty_price"}.
+            "dirty_price", "ytm"}
+        forward_settlement : datetime, optional
+            The forward settlement date. If not given the settlement date is inferred from the
+            discount *Curve* and the ``settle`` attribute.
 
         Returns
         -------
@@ -2282,12 +2324,15 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
-            settlement = add_tenor(
-                curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
-            )
+            if forward_settlement is NoInput.blank:
+                settlement = add_tenor(
+                    curves[1].node_dates[0],
+                    f"{self.kwargs['settle']}B",
+                    "none",
+                    self.leg1.schedule.calendar,
+                )
+            else:
+                settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
@@ -2299,21 +2344,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "ytm":
                 return self.ytm(dirty_price, settlement, True)
 
-        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
-            if forward_settlement is NoInput.blank:
-                raise ValueError("`forward_settlement` needed to determine forward price.")
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
-            )
-            dirty_price = npv / -self.leg1.notional * 100
-            if metric == "fwd_dirty_price":
-                return dirty_price
-            elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement)
-
         raise ValueError(
-            "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
-            "'fwd_clean_price', 'fwd_dirty_price'}."
+            "`metric` must be in {'dirty_price', 'clean_price', 'ytm'}."
         )
 
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
@@ -2608,6 +2640,22 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         """
         return self._price_from_ytm(ytm, settlement, self.calc_mode, dirty)
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 class IndexFixedRateBond(FixedRateBond):
     _fixed_rate_mixin = True
@@ -2744,10 +2792,10 @@ class IndexFixedRateBond(FixedRateBond):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm", "fwd_clean_price", "fwd_dirty_price"}
-        forward_settlement : datetime
-            The forward settlement date, required if the metric is in
-            {"fwd_clean_price", "fwd_dirty_price"}.
+            "dirty_price", "ytm"}
+        forward_settlement : datetime, optional
+            The forward settlement date. If not given uses the discount *Curve* and the ``settle``
+            attribute of the bond.
 
         Returns
         -------
@@ -2766,12 +2814,15 @@ class IndexFixedRateBond(FixedRateBond):
             "ytm",
             "index_dirty_price",
         ]:
-            settlement = add_tenor(
-                curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
-            )
+            if forward_settlement is NoInput.blank:
+                settlement = add_tenor(
+                    curves[1].node_dates[0],
+                    f"{self.kwargs['settle']}B",
+                    None,
+                    self.leg1.schedule.calendar,
+                )
+            else:
+                settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             index_dirty_price = npv * 100 / -self.leg1.notional
@@ -2789,33 +2840,9 @@ class IndexFixedRateBond(FixedRateBond):
             elif metric == "index_clean_price":
                 return index_dirty_price - self.accrued(settlement) * index_ratio
 
-        elif metric in [
-            "fwd_clean_price",
-            "fwd_dirty_price",
-            "fwd_index_clean_price",
-            "fwd_index_dirty_price",
-        ]:
-            if forward_settlement is NoInput.blank:
-                raise ValueError("`forward_settlement` needed to determine forward price.")
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
-            )
-            index_dirty_price = npv / -self.leg1.notional * 100
-            index_ratio = self.index_ratio(forward_settlement, curves[0])
-            dirty_price = index_dirty_price / index_ratio
-            if metric == "fwd_dirty_price":
-                return dirty_price
-            elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement)
-            elif metric == "fwd_index_dirty_price":
-                return index_dirty_price
-            elif metric == "fwd_index_clean_price":
-                return index_dirty_price - self.accrued(forward_settlement) * index_ratio
-
         raise ValueError(
             "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
-            "'fwd_clean_price', 'fwd_dirty_price', 'index_dirty_price', "
-            "'index_clean_price', 'fwd_index_dirty_price', 'fwd_index_clean_price'}."
+            "'index_dirty_price', 'index_clean_price'}."
         )
 
 
@@ -3400,10 +3427,76 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
+    def _accrual_rate(self, pseudo_period, curve, method_param):
+        """
+        Take a period and try to forecast the rate which determines the accrual,
+        either from known fixings, a curve or forward filling historical fixings.
+
+        This method is required to handle the case where a curve is not provided and
+        fixings are enough.
+        """
+        if pseudo_period.dcf < 1e-10:
+            return 0.0  # there are no fixings in the period.
+
+        if curve is not NoInput.blank:
+            curve_ = curve
+        else:
+            # Test to see if any missing fixings are required:
+            # The fixings calendar and convention are taken from Curve so the pseudo curve
+            # can only get them from the instrument and assume that they align. Otherwise
+            # it is best practice to supply a forecast curve when calculating accrued interest.
+            pseudo_curve = Curve(
+                {},
+                calendar=pseudo_period.calendar,
+                convention=pseudo_period.convention,
+                modifier="F"
+            )
+            try:
+                _ = pseudo_period.rate(pseudo_curve)
+                return _
+            except IndexError:
+                # the pseudo_curve has no nodes so when it needs to calculate a rate it cannot
+                # be indexed.
+                # Try to revert back to using the last fixing as forward projection.
+                try:
+                    if isinstance(pseudo_period.fixings, Series):
+                        last_fixing = pseudo_period.fixings.iloc[-1]
+                    else:
+                        last_fixing = pseudo_period.fixings[-1]
+                    warnings.warn(
+                        "A `Curve` was not supplied. Residual required fixings not yet "
+                        "published are forecast from the last known fixing.", UserWarning
+                    )
+                    # For negative accr in ex-div we need to forecast unpublished rates.
+                    # Build a curve which replicates the last fixing value from fixings.
+                except TypeError:
+                    # then rfr fixing cannot be fetched from attribute
+                    if pseudo_period.dcf < 1e-10:
+                        # then settlement is same as period.start so no rate necessary
+                        # create a dummy curve
+                        last_fixing = 0.0
+                    else:
+                        raise TypeError(
+                            "`fixings` or `curve` are not available for RFR float period. If"
+                            "supplying `fixings` must be a Series or list, "
+                            f"got: {pseudo_period.fixings}"
+                        )
+                curve_ = LineCurve(
+                    {
+                        pseudo_period.start - timedelta(days=0 if isinstance(method_param, NoInput) else method_param): last_fixing,
+                        pseudo_period.end: last_fixing,
+                    },
+                    convention=pseudo_period.convention,
+                    calendar=pseudo_period.calendar,
+                )
+
+        # Otherwise rate to settle is determined fully by known fixings.
+        _ = float(pseudo_period.rate(curve_))
+        return _
+
     def accrued(
         self,
         settlement: datetime,
-        forecast: bool = False,
         curve: Union[Curve, NoInput] = NoInput(0),
     ):
         """
@@ -3413,8 +3506,6 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         ----------
         settlement : datetime
             The settlement date which to measure accrued interest against.
-        forecast : bool, optional
-            Whether to use a curve to forecast future fixings.
         curve : Curve, optional
             If ``forecast`` is *True* and fixings are future based then must provide
             a forecast curve.
@@ -3448,7 +3539,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         - In the analogue mode where very few fixings might be missing, and we require
           these values to calculate negative accrued in an ex-div period we do not
           require a ``curve`` but repeat the last historic fixing.
-        - In the digital mode where the ``settlement`` may be well in the future we
+        - In the digital mode where the ``settlement`` is likely in the future we
           use a ``curve`` to forecast rates,
 
         Examples
@@ -3463,7 +3554,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                termination=dt(2015, 12, 7),
                frequency="S",
                currency="gbp",
-               convention="ActActICMA",
+               convention="Act365F",
                ex_div=3,
                fixings=fixings,
                fixing_method="rfr_observation_shift",
@@ -3483,7 +3574,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                termination=dt(2015, 12, 7),
                frequency="S",
                currency="gbp",
-               convention="ActActICMA",
+               convention="Act365F",
                ex_div=7,
                fixings=fixings,
                fixing_method="ibor",
@@ -3498,16 +3589,16 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
-            if forecast:
-                curve = curve
+            if curve is not NoInput.blank:
+                curve_ = curve
             else:
-                curve = Curve(
+                curve_ = Curve(
                     {  # create a dummy curve. rate() will return the fixing
                         self.leg1.periods[acc_idx].start: 1.0,
                         self.leg1.periods[acc_idx].end: 1.0,
                     }
                 )
-            rate = self.leg1.periods[acc_idx].rate(curve)
+            rate = self.leg1.periods[acc_idx].rate(curve_)
 
             cashflow = (
                 -self.leg1.periods[acc_idx].notional * self.leg1.periods[acc_idx].dcf * rate / 100
@@ -3537,47 +3628,11 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 roll=self.leg1.schedule.roll,
                 calendar=self.leg1.schedule.calendar,
             )
-
-            if curve is not NoInput.blank and (forecast or p.start >= curve.node_dates[0]):
-                # then curve can be used to forecast all relevant rfr rates.
-                curve = curve
-            else:
-                try:
-                    last_fixing = p.fixings[-1]
-                    # For negative accr in ex-div we need to forecast unpublished rates.
-                    # Build a curve which replicates the last fixing value from fixings.
-                except TypeError:
-                    # then rfr fixing cannot be fetched from attribute
-
-                    # if acc_idx == 0 and p.start == self.leg1.schedule.aschedule[0]:
-                    #     # bond settles on issue date of bond, fixing may not be available.
-                    #     accrued_to_settle = 0.
-
-                    if p.dcf < 1e-10:
-                        # then settlement is same as period.start so no rate necessary
-                        # create a dummy curve
-                        last_fixing = 0.0
-                    else:
-                        raise TypeError(
-                            "`fixings` are not available for RFR float period. Must be a "
-                            f"Series or list, {p.fixings} was given."
-                        )
-                curve = LineCurve(
-                    {
-                        self.leg1.periods[acc_idx].start: last_fixing,
-                        self.leg1.periods[acc_idx].end: last_fixing,
-                    }
-                )
-
-            # Otherwise rate to settle is determined fully by known fixings.
-            if p.dcf < 1e-10:
-                rate_to_settle = 0.0  # there are no fixings in the period.
-            else:
-                rate_to_settle = float(p.rate(curve))
+            rate_to_settle = self._accrual_rate(p, curve, self.leg1.method_param)
             accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
 
             if self.ex_div(settlement):
-                rate_to_end = self.leg1.periods[acc_idx].rate(curve)
+                rate_to_end = self._accrual_rate(self.leg1.periods[acc_idx], curve, self.leg1.method_param)
                 accrued_to_end = 100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
                 return accrued_to_settle - accrued_to_end
             else:
@@ -3617,10 +3672,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "spread", "fwd_clean_price", "fwd_dirty_price"}
-        forward_settlement : datetime
-            The forward settlement date, required if the metric is in
-            {"fwd_clean_price", "fwd_dirty_price"}.
+            "dirty_price", "spread"}
+        forward_settlement : datetime, optional
+            The forward settlement date. If not give uses the discount *Curve* and the bond's
+            ``settle`` attribute.}.
 
         Returns
         -------
@@ -3633,12 +3688,15 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "spread"]:
-            settlement = add_tenor(
-                curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
-            )
+            if forward_settlement is NoInput.blank:
+                settlement = add_tenor(
+                    curves[1].node_dates[0],
+                    f"{self.kwargs['settle']}B",
+                    None,
+                    self.leg1.schedule.calendar,
+                )
+            else:
+                settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
@@ -3652,19 +3710,23 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 z = 0.0 if self.float_spread is NoInput.blank else self.float_spread
                 return _ + z
 
-        elif metric in ["fwd_clean_price", "fwd_dirty_price"]:
-            if forward_settlement is NoInput.blank:
-                raise ValueError("`forward_settlement` needed to determine forward price.")
-            npv = self._npv_local(
-                curves[0], curves[1], fx_, base_, forward_settlement, forward_settlement
-            )
-            dirty_price = npv / -self.leg1.notional * 100
-            if metric == "fwd_dirty_price":
-                return dirty_price
-            elif metric == "fwd_clean_price":
-                return dirty_price - self.accrued(forward_settlement, True, curves[0])
-
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread'}.")
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 # Single currency derivatives
@@ -4363,7 +4425,7 @@ class BondFuture(Sensitivities):
         else:
             f_settlement = delivery
         prices_ = [
-            bond.rate(curves, solver, fx, base, "fwd_clean_price", f_settlement)
+            bond.rate(curves, solver, fx, base, "clean_price", f_settlement)
             for bond in self.basket
         ]
         future_prices_ = [price / self.cfs[i] for i, price in enumerate(prices_)]
@@ -4400,6 +4462,22 @@ class BondFuture(Sensitivities):
             return {self.currency: npv_}
         else:
             return npv_ * fx
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
@@ -4612,29 +4690,21 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
         pass
 
-    # def delta(
-    #     self,
-    #     curves: Union[Curve, str, list],
-    #     solver: Solver,
-    #     fx: Optional[Union[float, FXRates, FXForwards]] = None,
-    #     base: Optional[str] = None,
-    # ):
-    #     npv = self.npv(curves, solver, fx, base)
-    #     return solver.delta(npv)
-    #
-    # def gamma(
-    #     self,
-    #     curves: Union[Curve, str, list],
-    #     solver: Solver,
-    #     fx: Optional[Union[float, FXRates, FXForwards]] = None,
-    #     base: Optional[str] = None,
-    # ):
-    #     _ = solver._ad  # store original order
-    #     solver._set_ad_order(2)
-    #     npv = self.npv(curves, solver, fx, base)
-    #     grad_s_sT_P = solver.gamma(npv)
-    #     solver._set_ad_order(_)  # reset original order
-    #     return grad_s_sT_P
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 class IRS(BaseDerivative):
@@ -4956,6 +5026,230 @@ class IRS(BaseDerivative):
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
         # leg2_analytic_delta = self.leg2.analytic_delta(curves[2], curves[3])
         # return irs_npv / leg2_analytic_delta + specified_spd
+
+
+class STIRFuture(IRS):
+    """
+    Create a short term interest rate (STIR) future.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BaseDerivative`.
+    price : float
+        The traded price of the future. Defined as 100 minus the fixed rate.
+    contracts : int
+        The number of traded contracts.
+    bp_value : float.
+        The value of 1bp on the contract as specified by the exchange, e.g. SOFR 3M futures are
+        $25 per bp. This is not the same as tick value where the tick size can be different across
+        different futures.
+    nominal : float
+        The nominal value of the contract. E.g. SOFR 3M futures are $1mm. If not given will use the
+        default notional.
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_float_spread : float, optional
+        The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        The method to use for adding a floating spread to compounded rates. Available
+        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If a float scalar, will be applied as the determined fixing for the first
+        period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        The method by which floating rates are determined, set by default. See notes.
+    leg2_method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseDerivative`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    .. ipython:: python
+
+       usd = Curve(
+           nodes={
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.965,
+               dt(2024, 1, 1): 0.94
+           },
+           id="usd_stir"
+       )
+
+    Create the *STIRFuture*, and demonstrate the :meth:`~rateslib.instruments.STIRFuture.rate`,
+    :meth:`~rateslib.instruments.STIRFuture.npv`,
+
+    .. ipython:: python
+
+       stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves=usd,
+            price=99.50,
+            contracts=10,
+        )
+       stir.rate(metric="price")
+       stir.npv()
+
+    """
+
+    _fixed_rate_mixin = True
+    _leg2_float_spread_mixin = True
+
+    def __init__(
+            self,
+            *args,
+            price: Union[float, NoInput] = NoInput(0),
+            contracts: int = 1,
+            bp_value: Union[float, NoInput] = NoInput(0),
+            nominal: Union[float, NoInput] = NoInput(0),
+            leg2_float_spread: Union[float, NoInput] = NoInput(0),
+            leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+            leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+            leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+            leg2_method_param: Union[int, NoInput] = NoInput(0),
+            **kwargs,
+    ):
+        nominal = defaults.notional if nominal is NoInput.blank else nominal
+        # TODO this overwrite breaks positional arguments
+        kwargs["notional"] = nominal * contracts * -1.0
+        super(IRS, self).__init__(*args, **kwargs)  # call BaseDerivative.__init__()
+        user_kwargs = dict(
+            price=price,
+            fixed_rate=NoInput(0) if price is NoInput.blank else (100 - price),
+            leg2_float_spread=leg2_float_spread,
+            leg2_spread_compound_method=leg2_spread_compound_method,
+            leg2_fixings=leg2_fixings,
+            leg2_fixing_method=leg2_fixing_method,
+            leg2_method_param=leg2_method_param,
+            nominal=nominal,
+            bp_value=bp_value,
+            contracts=contracts,
+        )
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+
+        self._fixed_rate = self.kwargs["fixed_rate"]
+        self._leg2_float_spread = leg2_float_spread
+        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value", "contracts"]))
+        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+    ):
+        """
+        Return the NPV of the derivative by summing legs.
+
+        See :meth:`BaseDerivative.npv`.
+        """
+        # the test for an unpriced IRS is that its fixed rate is not set.
+        mid_price = self.rate(curves, solver, fx, base, metric="price")
+        if self.fixed_rate is NoInput.blank:
+            # set a fixed rate for the purpose of generic methods NPV will be zero.
+            self.leg1.fixed_rate = float(100 - mid_price)
+
+        traded_price = 100 - self.leg1.fixed_rate
+        _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+        if local:
+            return {self.leg1.currency: _}
+        else:
+            return _
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        metric: str = "rate",
+    ):
+        """
+        Return the mid-market rate of the IRS.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that
+            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+        metric : str in {"rate", "price"}
+            The calculation metric that will be returned.
+
+        Returns
+        -------
+        float, Dual or Dual2
+
+        Notes
+        -----
+        The arguments ``fx`` and ``base`` are unused by single currency derivatives
+        rates calculations.
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.leg1.currency
+        )
+        leg2_npv = self.leg2.npv(curves[2], curves[3])
+
+        _ = self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        if metric.lower() == "rate":
+            return _
+        elif metric.lower() == "price":
+            return 100 - _
+        else:
+            raise ValueError("`metric` must be in {'price', 'rate'}.")
+
+    def cashflows(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+    ):
+        return DataFrame.from_records(
+            [{
+                defaults.headers["type"]: type(self).__name__,
+                defaults.headers["stub_type"]: "Regular",
+                defaults.headers["currency"]: self.leg1.currency.upper(),
+                defaults.headers["a_acc_start"]: self.leg1.schedule.effective,
+                defaults.headers["a_acc_end"]: self.leg1.schedule.termination,
+                defaults.headers["payment"]: None,
+                defaults.headers["convention"]: "Exchange",
+                defaults.headers["dcf"]: float(self.leg1.notional) / self.kwargs["nominal"] * self.kwargs["bp_value"] / 100.0,
+                defaults.headers["notional"]: float(self.leg1.notional),
+                defaults.headers["df"]: 1.0,
+                defaults.headers["collateral"]: self.leg1.currency.lower(),
+            }]
+        )
+
+    def spread(self):
+        """
+        Not implemented for *STIRFuture*.
+        """
+        return NotImplementedError()
 
 
 # class Swap(IRS):
@@ -6092,8 +6386,8 @@ class SBS(BaseDerivative):
 
 class FRA(Sensitivities, BaseMixin):
     """
-    Create a forward rate agreement composing a :class:`~rateslib.periods.FixedPeriod`
-    and :class:`~rateslib.periods.FloatPeriod` valued in a customised manner.
+    Create a forward rate agreement composing single period :class:`~rateslib.periods.FixedLeg`
+    and :class:`~rateslib.periods.FloatLeg` valued in a customised manner.
 
     Parameters
     ----------
@@ -6114,10 +6408,7 @@ class FRA(Sensitivities, BaseMixin):
 
     Notes
     -----
-    FRAs are a legacy derivative whose ``fixing_method`` is set to *"ibor"*.
-
-    ``effective`` and ``termination`` are not adjusted prior to initialising
-    ``Periods``. Care should be taken to enter these exactly.
+    FRAs are a legacy derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
 
     Examples
     --------
@@ -6437,11 +6728,27 @@ class FRA(Sensitivities, BaseMixin):
         cfs[defaults.headers["npv_fx"]] = npv_local * float(fx_)
         return DataFrame.from_records([cfs])
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 # Multi-currency derivatives
 
 
-class BaseXCS(BaseDerivative):
+class XCS(BaseDerivative):
     """
     Base class with common methods for multi-currency ``Derivatives``.
 
@@ -6449,38 +6756,167 @@ class BaseXCS(BaseDerivative):
     ----------
     args : tuple
         Required positional arguments for :class:`~rateslib.instruments.BaseDerivative`.
+    fixed : bool, optional
+        Whether *leg1* is fixed or floating rate. Defaults to *False*.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
+    fixed_rate : float, optional
+        If ``fixed``, the fixed rate of *leg1*.
+    float_spread : float, optional
+        If not ``fixed``, the spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
+        `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    spread_compound_method : str, optional
+        If not ``fixed``, the method to use for adding a floating spread to compounded rates.
+        Available options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    fixings : float, list, or Series optional
+        If not ``fixed``, then if a float scalar, will be applied as the determined fixing for
+        the first period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    fixing_method : str, optional
+        If not ``fixed``, the method by which floating rates are determined, set by default.
+        See notes.
+    method_param : int, optional
+        If not ``fixed`` A parameter that is used for the various ``fixing_method`` s. See notes.
+    leg2_fixed : bool, optional
+        Whether *leg2* is fixed or floating rate. Defaults to *False*
+    leg2_mtm : bool optional
+        Whether *leg2* is a mark-to-market leg. Defaults to *True*
     leg2_payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
+    leg2_fixed_rate : float, optional
+        If ``leg2_fixed``, the fixed rate of *leg2*.
+    leg2_float_spread : float, optional
+        If not ``leg2_fixed``, the spread applied to the :class:`~rateslib.legs.FloatLeg`.
+        Can be set to `None` and designated
+        later, perhaps after a mid-market spread for all periods has been calculated.
+    leg2_spread_compound_method : str, optional
+        If not ``leg2_fixed``, the method to use for adding a floating spread to compounded rates.
+        Available options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
+    leg2_fixings : float, list, or Series optional
+        If not ``leg2_fixed``, then if a float scalar, will be applied as the determined fixing for
+        the first period. If a list of *n* fixings will be used as the fixings for the first *n*
+        periods. If any sublist of length *m* is given, is used as the first *m* RFR
+        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
+        indexed ``Series`` will use the fixings that are available in that object,
+        and derive the rest from the ``curve``.
+    leg2_fixing_method : str, optional
+        If not ``leg2_fixed``, the method by which floating rates are determined, set by default.
+        See notes.
+    leg2_method_param : int, optional
+        If not ``leg2_fixed`` A parameter that is used for the various ``fixing_method`` s.
+        See notes.
+    fx_fixings : float, Dual, Dual2, list of such, optional
+        Specify a known initial FX fixing or a list of such for ``mtm`` legs, where leg 1 is
+        considered the domestic currency. For example for an ESTR/SOFR XCS in 100mm EUR notional
+        a value of 1.10 for fx_fixings implies the notional on leg 2 is 110m USD. Fixings that
+        are not specified will be forecast at pricing time with an
+        :class:`~rateslib.fx.FXForwards` object.
     kwargs : dict
         Required keyword arguments for :class:`~rateslib.instruments.BaseDerivative`.
     """
 
-    _is_mtm = False
-
     def __init__(
         self,
         *args,
+        fixed: Union[bool, NoInput] = NoInput(0),
         payment_lag_exchange: Union[int, NoInput] = NoInput(0),
+        fixed_rate: Union[float, NoInput] = NoInput(0),
+        float_spread: Union[float, NoInput] = NoInput(0),
+        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixing_method: Union[str, NoInput] = NoInput(0),
+        method_param: Union[int, NoInput] = NoInput(0),
+        leg2_fixed: Union[bool, NoInput] = NoInput(0),
+        leg2_mtm: Union[bool, NoInput] = NoInput(0),
         leg2_payment_lag_exchange: Union[int, NoInput] = NoInput(1),
+        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        fx_fixings: Union[list, DualTypes, FXRates, FXForwards, NoInput] = NoInput(0),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        # set defaults for missing values
+        default_kwargs = dict(
+            fixed=False if fixed is NoInput.blank else fixed,
+            leg2_fixed=False if leg2_fixed is NoInput.blank else leg2_fixed,
+            leg2_mtm=True if leg2_mtm is NoInput.blank else leg2_mtm
+        )
+        self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
+
+        if self.kwargs["fixed"]:
+            self._fixed_rate_mixin = True
+            self._fixed_rate = fixed_rate
+            leg1_user_kwargs = dict(fixed_rate=fixed_rate)
+            Leg1 = FixedLeg
+        else:
+            self._rate_scalar = 100.0
+            self._float_spread_mixin = True
+            self._float_spread = float_spread
+            leg1_user_kwargs = dict(
+                float_spread=float_spread,
+                spread_compound_method=spread_compound_method,
+                fixings=fixings,
+                fixing_method=fixing_method,
+                method_param=method_param,
+            )
+            Leg1 = FloatLeg
+        leg1_user_kwargs.update(dict(
+            payment_lag_exchange=payment_lag_exchange,
+            initial_exchange=True,
+            final_exchange=True,
+        ))
+
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
-        self.kwargs.update(
-            dict(
-                payment_lag_exchange=payment_lag_exchange,
-                leg2_payment_lag_exchange=leg2_payment_lag_exchange,
-                initial_exchange=True,
-                final_exchange=True,
-                leg2_initial_exchange=True,
-                leg2_final_exchange=True,
+        if self.kwargs["leg2_fixed"]:
+            self._leg2_fixed_rate_mixin = True
+            self._leg2_fixed_rate = leg2_fixed_rate
+            leg2_user_kwargs = dict(
+                leg2_fixed_rate=leg2_fixed_rate
             )
-        )
+            Leg2 = FixedLeg if not leg2_mtm else FixedLegMtm
+        else:
+            self._leg2_float_spread_mixin = True
+            self._leg2_float_spread = leg2_float_spread
+            leg2_user_kwargs = dict(
+                leg2_float_spread=leg2_float_spread,
+                leg2_spread_compound_method=leg2_spread_compound_method,
+                leg2_fixings=leg2_fixings,
+                leg2_fixing_method=leg2_fixing_method,
+                leg2_method_param=leg2_method_param,
+            )
+            Leg2 = FloatLeg if not leg2_mtm else FloatLegMtm
+        leg2_user_kwargs.update(dict(
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
+            leg2_initial_exchange=True,
+            leg2_final_exchange=True,
+        ))
+
+        if self.kwargs["leg2_mtm"]:
+            self._is_mtm = True
+            leg2_user_kwargs.update(dict(
+                leg2_alt_currency=self.kwargs["currency"],
+                leg2_alt_notional=-self.kwargs["notional"],
+                leg2_fx_fixings=fx_fixings,
+            ))
+        else:
+            self._is_mtm = False
+
+        self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
+
+        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=["fixed"]))
+        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
+        self._initialise_fx_fixings(fx_fixings)
 
     @property
     def fx_fixings(self):
@@ -6509,6 +6945,8 @@ class BaseXCS(BaseDerivative):
                 self.fx_fixings = float(fx_fixings)
             else:
                 self._fx_fixings = NoInput(0)
+        else:
+            self._fx_fixings = fx_fixings
 
     def _set_fx_fixings(self, fx):
         """
@@ -6522,7 +6960,7 @@ class BaseXCS(BaseDerivative):
                 if fx is NoInput.blank:
                     if defaults.no_fx_fixings_for_xcs.lower() == "raise":
                         raise ValueError(
-                            "`fx` is required when `fx_fixing` is not pre-set and "
+                            "`fx` is required when `fx_fixings` is not pre-set and "
                             "if rateslib option `no_fx_fixings_for_xcs` is set to "
                             "'raise'."
                         )
@@ -6530,7 +6968,7 @@ class BaseXCS(BaseDerivative):
                         fx_fixing = 1.0
                         if defaults.no_fx_fixings_for_xcs.lower() == "warn":
                             warnings.warn(
-                                "Using 1.0 for FX, no `fx` or `fx_fixing` given and "
+                                "Using 1.0 for FX, no `fx` or `fx_fixings` given and "
                                 "rateslib option `no_fx_fixings_for_xcs` is set to "
                                 "'warn'.",
                                 UserWarning,
@@ -6782,710 +7220,15 @@ class BaseXCS(BaseDerivative):
         return ret
 
 
-class NonMtmXCS(BaseXCS):
+class FXSwap(XCS):
     """
-    Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FloatLeg` s.
+    Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS`.
 
     Parameters
     ----------
     args : dict
         Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for
-        `fx_fixing` implies the notional on leg 2 is 110m USD. If `None` determines
-        this dynamically later.
-    float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    leg2_float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
-
-    Notes
-    -----
-    Non-mtm cross currency swaps create identical yet opposite currency exchanges at
-    the effective date and the payment termination date of the swap. There are no
-    intermediate currency exchanges.
-
-    .. note::
-
-       Although non-MTM XCSs have an ``fx_fixing`` argument, which consists of a single,
-       initial FX fixing, this is internally mapped to the ``fx_fixings`` attribute,
-       which, for MTM XCSs, provides all the FX fixings throughout the swap.
-
-    """
-
-    _float_spread_mixin = True
-    _leg2_float_spread_mixin = True
-    _rate_scalar = 100.0
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        float_spread: Union[float, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
-        )
-
-        self._leg2_float_spread = leg2_float_spread
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
-
-
-class NonMtmFixedFloatXCS(BaseXCS):
-    """
-    Create a non-mark-to-market cross currency swap (XCS) derivative composing a
-    :class:`~rateslib.legs.FixedLeg` and a
-    :class:`~rateslib.legs.FloatLeg`.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-        implies the notional on leg 2 is 110m USD. If `None` determines this
-        dynamically.
-    fixed_rate : float or None
-        The fixed rate applied to leg 1.
-        If `None` will be set to mid-market when curves are provided.
-    leg2_float_spread2 : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
-
-    Notes
-    -----
-    Non-mtm cross currency swaps create identical yet opposite currency exchanges at
-    the effective date and the payment termination date of the swap. There are no
-    intermediate currency exchanges.
-    """
-
-    _fixed_rate_mixin = True
-    _leg2_float_spread_mixin = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-            )
-        )
-        self._leg2_float_spread = leg2_float_spread
-        self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
-
-
-class NonMtmFixedFixedXCS(BaseXCS):
-    """
-    Create a non-mark-to-market cross currency swap (XCS) derivative composing two
-    :class:`~rateslib.legs.FixedLeg` s.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseDerivative`.
-    fx_fixing : float, FXForwards or None
-        The initial FX fixing where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-        implies the notional on leg 2 is 110m USD. If `None` determines this
-        dynamically.
-    fixed_rate : float or None
-        The fixed rate applied to leg 1.
-        If `None` will be set to mid-market when curves are provided.
-    leg2_fixed_rate : float or None
-        The fixed rate applied to leg 2.
-        If `None` will be set to mid-market when curves are provided.
-        Must set the ``fixed_rate`` on at least one leg.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
-
-    Notes
-    -----
-    Non-mtm cross currency swaps create identical yet opposite currency exchanges at
-    the effective date and the payment termination date of the swap. There are no
-    intermediate currency exchanges.
-    """
-
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_fixed_rate=leg2_fixed_rate,
-            )
-        )
-
-        self._leg2_fixed_rate = self.kwargs["leg2_fixed_rate"]
-        self._fixed_rate = self.kwargs["fixed_rate"]
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FixedLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-class XCS(BaseXCS):
-    """
-    Create a mark-to-market cross currency swap (XCS) derivative instrument.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseDerivative`.
-    fx_fixings : float, Dual, Dual2, list of such
-        Specify a known initial FX fixing or a list of such for historical legs,
-        where leg 1 is considered the domestic currency. For
-        example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for
-        `fx_fixings` implies the notional on leg 2 is 110m USD.
-        Fixings that are not specified will be calculated at pricing time with an
-        :class:`~rateslib.fx.FXForwards` object.
-    float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    leg2_float_spread : float or None
-        The float spread applied in a simple way (after daily compounding) to leg 2.
-        If `None` will be set to zero.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float or list, optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given as the first *m* RFR fixings
-        within individual curve and composed into the overall rate.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
-
-    Notes
-    -----
-    Mtm cross currency swaps create notional exchanges on the foreign leg throughout
-    the life of the derivative and adjust the notional on which interest is accrued.
-
-    .. warning::
-
-       ``Amortization`` is not used as an argument by ``XCS``.
-    """
-
-    _float_spread_mixin = True
-    _leg2_float_spread_mixin = True
-    _is_mtm = True
-    _rate_scalar = 100.0
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        float_spread: Union[float, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_float_spread = leg2_float_spread
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLegMtm(**_get(self.kwargs, leg=2))
-
-
-class FixedFloatXCS(BaseXCS):
-    _fixed_rate_mixin = True
-    _leg2_float_spread_mixin = True
-    _is_mtm = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_float_spread: Union[float, NoInput] = NoInput(0),
-        leg2_fixings: Union[float, list, NoInput] = NoInput(0),
-        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-        leg2_method_param: Union[int, NoInput] = NoInput(0),
-        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_float_spread=leg2_float_spread,
-                leg2_spread_compound_method=leg2_spread_compound_method,
-                leg2_fixings=leg2_fixings,
-                leg2_fixing_method=leg2_fixing_method,
-                leg2_method_param=leg2_method_param,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_float_spread = leg2_float_spread
-        self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FloatLegMtm(**_get(self.kwargs, leg=2))
-
-
-class FixedFixedXCS(BaseXCS):
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
-    _is_mtm = True
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        fixed_rate: Union[float, NoInput] = NoInput(0),
-        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                fixed_rate=fixed_rate,
-                leg2_fixed_rate=leg2_fixed_rate,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_fixed_rate = leg2_fixed_rate
-        self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FixedLegMtm(**_get(self.kwargs, leg=2))
-
-
-class FloatFixedXCS(BaseXCS):
-    _float_spread_mixin = True
-    _leg2_fixed_rate_mixin = True
-    _is_mtm = True
-    _rate_scalar = 100.0
-
-    def __init__(
-        self,
-        *args,
-        fx_fixings: Union[list, float, Dual, Dual2] = [],
-        float_spread: Union[float, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        leg2_fixed_rate: Union[float, NoInput] = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                float_spread=float_spread,
-                spread_compound_method=spread_compound_method,
-                fixings=fixings,
-                fixing_method=fixing_method,
-                method_param=method_param,
-                leg2_fixed_rate=leg2_fixed_rate,
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            )
-        )
-
-        if fx_fixings is NoInput.blank:
-            raise ValueError(
-                "`fx_fixings` for MTM XCS should be entered as an empty list, not None."
-            )
-        self._fx_fixings = fx_fixings
-        self._leg2_fixed_rate = leg2_fixed_rate
-        self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = FixedLegMtm(**_get(self.kwargs, leg=2))
-
-
-# class FXSwap(BaseXCS):
-#     """
-#     Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
-#
-#     Parameters
-#     ----------
-#     args : dict
-#         Required positional args to :class:`BaseDerivative`.
-#     fx_fixing : float, FXForwards or None
-#         The initial FX fixing where leg 1 is considered the domestic currency. For
-#         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
-#         implies the notional on leg 2 is 110m USD. If `None` determines this
-#         dynamically.
-#     points : float, optional
-#         The pricing parameter for the FX Swap, which will determine the implicit
-#         fixed rate on leg2.
-#     kwargs : dict
-#         Required keyword arguments to :class:`BaseDerivative`.
-#
-#     Notes
-#     -----
-#     ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
-#     time and the value of ``notional``. The argument value of ``leg2_notional`` does
-#     not impact calculations.
-#
-#     .. note::
-#
-#        *FXSwaps* can be initialised either *priced* or *unpriced*. Priced derivatives
-#        represent traded contracts with defined ``fx_fixing`` and ``points`` values.
-#        This is usual for valuing *npv* against current market conditions. Unpriced
-#        derivatives do not have a set ``fx_fixing`` nor ``points`` values. Any *rate*
-#        calculation should return the mid-market rate and an *npv* of zero.
-#
-#     Examples
-#     --------
-#     To value the *FXSwap* we create *Curves* and :class:`~rateslib.fx.FXForwards`
-#     objects.
-#
-#     .. ipython:: python
-#
-#        usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
-#        eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
-#        eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.971}, id="eurusd")
-#        fxr = FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3))
-#        fxf = FXForwards(
-#            fx_rates=fxr,
-#            fx_curves={"usdusd": usd, "eureur": eur, "eurusd": eurusd},
-#        )
-#
-#     Then we define the *FXSwap*. This in an unpriced instrument.
-#
-#     .. ipython:: python
-#
-#        fxs = FXSwap(
-#            effective=dt(2022, 1, 17),
-#            termination=dt(2022, 4, 19),
-#            calendar="nyc",
-#            currency="usd",
-#            notional=1000000,
-#            leg2_currency="eur",
-#            curves=["usd", "usd", "eur", "eurusd"],
-#        )
-#
-#     Now demonstrate the :meth:`~rateslib.instruments.FXSwap.npv` and
-#     :meth:`~rateslib.instruments.FXSwap.rate` methods:
-#
-#     .. ipython:: python
-#
-#        fxs.npv(curves=[usd, usd, eur, eurusd], fx=fxf)
-#        fxs.rate(curves=[usd, usd, eur, eurusd], fx=fxf)
-#
-#     In the case of *FXSwaps*, whose mid-market price is the difference between two
-#     forward FX rates we can also derive this quantity using the independent
-#     :meth:`FXForwards.swap<rateslib.fx.FXForwards.swap>` method. In this example
-#     the numerical differences are caused by different calculation methods. The
-#     difference here equates to a tolerance of 1e-8, or $1 per $100mm.
-#
-#     .. ipython:: python
-#
-#        fxf.swap("usdeur", [dt(2022, 1, 17), dt(2022, 4, 19)])
-#
-#     """
-#
-#     _fixed_rate_mixin = True
-#     _leg2_fixed_rate_mixin = True
-#     _unpriced = True
-#
-#     def __init__(
-#         self,
-#         *args,
-#         fx_fixing: Optional[Union[float, FXRates, FXForwards]] = None,
-#         points: Optional[float] = None,
-#         # payment_lag_exchange: Optional[int] = None,
-#         # leg2_payment_lag_exchange: Optional[int] = "inherit",
-#         **kwargs,
-#     ):
-#         if fx_fixing is NoInput.blank and points is not NoInput.blank:
-#             raise ValueError(
-#                 "Cannot set `points` on FXSwap initialisation without giving an `fx_fixing`."
-#             )
-#         elif fx_fixing is not NoInput.blank and points is NoInput.blank:
-#             warnings.warn(
-#                 "`fx_fixing` has been provided to FXSwap initialisation but `points` has not.\n"
-#                 "Although this will still work this is not a recommended way to initialise this "
-#                 "instrument. Either create a 'priced' FXSwap which initialises both the `points` "
-#                 "and `fx_fixing` arguments simulatenously, or create an 'unpriced' FXSwap which "
-#                 "leaves both of these arguments to forecasting."
-#             )
-#         super().__init__(*args, **kwargs)
-#         # if leg2_payment_lag_exchange == "inherit":
-#         #     leg2_payment_lag_exchange = payment_lag_exchange
-#         self._fixed_rate = 0.0
-#         self.leg1 = FixedLeg(
-#             fixed_rate=0.0,
-#             effective=self.effective,
-#             termination=self.termination,
-#             frequency="Z",
-#             modifier=self.modifier,
-#             calendar=self.calendar,
-#             payment_lag=self.payment_lag,
-#             payment_lag_exchange=self.payment_lag,
-#             notional=self.notional,
-#             currency=self.currency,
-#             convention=self.convention,
-#             initial_exchange=True,
-#             final_exchange=True,
-#         )
-#         self.leg2 = FixedLeg(
-#             fixed_rate=None,
-#             effective=self.leg2_effective,
-#             termination=self.leg2_termination,
-#             frequency="Z",
-#             modifier=self.leg2_modifier,
-#             calendar=self.leg2_calendar,
-#             payment_lag=self.leg2_payment_lag,
-#             payment_lag_exchange=self.leg2_payment_lag,
-#             notional=self.leg2_notional,
-#             currency=self.leg2_currency,
-#             convention=self.leg2_convention,
-#             initial_exchange=True,
-#             final_exchange=True,
-#         )
-#         self._initialise_fx_fixings(fx_fixing)
-#         self.points = points
-#
-#     @property
-#     def points(self):
-#         return self._points
-#
-#     @points.setter
-#     def points(self, value):
-#         self._unpriced = False
-#         self._points = value
-#         self._leg2_fixed_rate = None
-#         if value is not NoInput.blank:
-#             fixed_rate = (
-#                 value
-#                 * -self.notional
-#                 / (self.leg2.periods[1].dcf * 100 * self.leg2.periods[1].notional)
-#             )
-#             self.leg2_fixed_rate = fixed_rate
-#
-#         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-#
-#     # Commercial use of this code, and/or copying and redistribution is prohibited.
-#     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-#
-#     def _set_pricing_mid(
-#         self,
-#         curves: Optional[Union[Curve, str, list]] = None,
-#         solver: Optional[Solver] = None,
-#         fx: Optional[FXForwards] = None,
-#     ):
-#         points = self.rate(curves, solver, fx)
-#         self.points = float(points)
-#         self._unpriced = True  # setting temporary pricing mid does not define a priced instrument
-#
-#     def rate(
-#         self,
-#         curves: Optional[Union[Curve, str, list]] = None,
-#         solver: Optional[Solver] = None,
-#         fx: Optional[FXForwards] = None,
-#         fixed_rate: bool = False,
-#     ):
-#         """
-#         Return the mid-market pricing parameter of the FXSwap.
-#
-#         Parameters
-#         ----------
-#         curves : list of Curves
-#             A list defines the following curves in the order:
-#
-#             - Forecasting :class:`~rateslib.curves.Curve` for leg1 (if floating).
-#             - Discounting :class:`~rateslib.curves.Curve` for leg1.
-#             - Forecasting :class:`~rateslib.curves.Curve` for leg2 (if floating).
-#             - Discounting :class:`~rateslib.curves.Curve` for leg2.
-#         solver : Solver, optional
-#             The numerical :class:`~rateslib.solver.Solver` that
-#             constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
-#         fx : FXForwards, optional
-#             The FX forwards object that is used to determine the initial FX fixing for
-#             determining ``leg2_notional``, if not specified at initialisation, and for
-#             determining mark-to-market exchanges on mtm XCSs.
-#         fixed_rate : bool
-#             Whether to return the fixed rate for the leg or the FX swap points price.
-#
-#         Returns
-#         -------
-#         float, Dual or Dual2
-#         """
-#         leg2_fixed_rate = super().rate(curves, solver, fx, leg=2)
-#         if fixed_rate:
-#             return leg2_fixed_rate
-#         cf = self.leg2.notional * leg2_fixed_rate * 0.01 * self.leg2.periods[1].dcf
-#         # fwd_fx = (cf + self.leg2.notional) / -self.leg1.notional
-#         # ini_fx = self.leg2.notional / -self.leg1.notional
-#         # TODO decide how to price mid-market rates when ini fx is struck but
-#         # there is no fixed points, i,e the FXswap is semi-determined, which is
-#         # not a real instrument.
-#         return (cf / -self.leg1.notional) * 10000
-
-
-class FXSwap(BaseXCS):
-    """
-    Create an FX swap simulated via a :class:`NonMtmFixedFixedXCS`.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseXCS`.
-    fx_fixing : float, FXForwards or None
+    fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
         implies the notional on leg 2 is 110m USD. If `None` determines this
@@ -7503,16 +7246,16 @@ class FXSwap(BaseXCS):
     -----
     .. warning::
 
-       ``leg2_notional`` is determined by the ``fx_fixing`` either initialised or at price
+       ``leg2_notional`` is determined by the ``fx_fixings`` either initialised or at price
        time and the value of ``notional``. The argument value of ``leg2_notional`` does
        not impact calculations.
 
     *FXSwaps* are technically complicated instruments. To define a fully **priced** *Instrument*
-    they require at least two pricing parameters; ``fx_fixing`` and ``points``. If a
+    they require at least two pricing parameters; ``fx_fixings`` and ``points``. If a
     ``split_notional`` is also given at initialisation it will be assumed to be a split notional
     *FXSwap*. If not, then it will not be assumed to be.
 
-    If ``fx_fixing`` is given then the market pricing parameter ``points`` can be calculated.
+    If ``fx_fixings`` is given then the market pricing parameter ``points`` can be calculated.
     This is an unusual partially *priced* parametrisation, however, and a warning will be emitted.
     As before, if ``split_notional`` is given, or not, at initialisation the *FXSwap* will be
     assumed to be split notional or not.
@@ -7531,7 +7274,7 @@ class FXSwap(BaseXCS):
        :widths: 10 10 10 70
        :header-rows: 1
 
-       * - fx_fixing
+       * - fx_fixings
          - points
          - split_notional
          - Result
@@ -7626,7 +7369,7 @@ class FXSwap(BaseXCS):
            notional=1000000,
            leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
-           fx_fixing=0.90,
+           fx_fixings=0.90,
            split_notional=1001500,
            points=-49.0
        )
@@ -7636,25 +7379,23 @@ class FXSwap(BaseXCS):
 
     """
 
-    _fixed_rate_mixin = True
-    _leg2_fixed_rate_mixin = True
     _unpriced = True
 
-    def _parse_split_flag(self, fx_fixing, points, split_notional):
+    def _parse_split_flag(self, fx_fixings, points, split_notional):
         """
         Determine the rules for a priced, unpriced or partially priced derivative and whether
         it is inferred as split notional or not.
         """
-        is_none = [_ is NoInput.blank for _ in [fx_fixing, points, split_notional]]
+        is_none = [_ is NoInput.blank for _ in [fx_fixings, points, split_notional]]
         if all(is_none) or not any(is_none):
             self._is_split = True
         elif split_notional is NoInput.blank and not any(
-            [_ is NoInput.blank for _ in [fx_fixing, points]]
+            [_ is NoInput.blank for _ in [fx_fixings, points]]
         ):
             self._is_split = False
-        elif fx_fixing is not NoInput.blank:
+        elif fx_fixings is not NoInput.blank:
             warnings.warn(
-                "Initialising FXSwap with `fx_fixing` but without `points` is unconventional.\n"
+                "Initialising FXSwap with `fx_fixings` but without `points` is unconventional.\n"
                 "Pricing can still be performed to determine `points`.",
                 UserWarning,
             )
@@ -7664,10 +7405,10 @@ class FXSwap(BaseXCS):
                 self._is_split = False
         else:
             if points is not NoInput.blank:
-                raise ValueError("Cannot initialise FXSwap with `points` but without `fx_fixing`.")
+                raise ValueError("Cannot initialise FXSwap with `points` but without `fx_fixings`.")
             else:
                 raise ValueError(
-                    "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
+                    "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`"
                 )
 
     def _set_split_notional(self, curve: Union[Curve, NoInput] = NoInput(0), at_init: bool = False):
@@ -7702,32 +7443,28 @@ class FXSwap(BaseXCS):
     def __init__(
         self,
         *args,
-        fx_fixing: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fx_fixings: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         points: Union[float, NoInput] = NoInput(0),
         split_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
-        self._parse_split_flag(fx_fixing, points, split_notional)
+        self._parse_split_flag(fx_fixings, points, split_notional)
 
-        super().__init__(*args, **kwargs)
-        self.kwargs.update(
-            dict(
-                frequency="Z",
-                fixed_rate=0.0,
-                payment_lag_exchange=self.kwargs["payment_lag"],
-                leg2_payment_lag_exchange=self.kwargs["leg2_payment_lag_exchange"],
-                leg2_fixed_rate=NoInput(0),
-                leg2_frequency="Z",
-            )
+        kwargs_overrides = dict(  # specific args for FXSwap passed to the Base XCS
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm=False,
+            fixed_rate=0.0,
+            frequency="Z",
+            leg2_frequency="Z",
+            leg2_fixed_rate=NoInput(0),
+            fx_fixings=fx_fixings,
         )
+        super().__init__(*args, **{**kwargs, **kwargs_overrides})
 
-        self._fixed_rate = 0.0
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.kwargs["split_notional"] = split_notional
         self._set_split_notional(curve=None, at_init=True)
-
-        self.leg2 = FixedLeg(**_get(self.kwargs, leg=2))
-        self._initialise_fx_fixings(fx_fixing)
+        # self._initialise_fx_fixings(fx_fixings)
         self.points = points
 
     @property
@@ -7840,9 +7577,7 @@ class FXSwap(BaseXCS):
 
 class Spread(Sensitivities):
     """
-    A spread instrument defined as the difference in rate between two ``Instruments``.
-
-    The ``Instruments`` used must share common pricing arguments. See notes.
+    A spread instrument defined as the difference in rate between two *Instruments*.
 
     Parameters
     ----------
@@ -7853,13 +7588,13 @@ class Spread(Sensitivities):
 
     Notes
     -----
-    When using :class:`Spread` both ``Instruments`` must be of the same type
-    with shared pricing arguments for their methods. If this is not true
-    consider using the :class:`SpreadX`, cross spread ``Instrument``.
+    When using a :class:`Spread` each *Instrument* must either have pricing parameters
+    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
+    common pricing parameters defined at price time.
 
     Examples
     --------
-    Creating a dynamic :class:`Spread` where the instruments are dynamically priced,
+    Creating a dynamic :class:`Spread` where the *Instruments* are dynamically priced,
     and each share the pricing arguments.
 
     .. ipython:: python
@@ -7872,7 +7607,7 @@ class Spread(Sensitivities):
        spread.rate(curve1)
        spread.cashflows(curve1)
 
-    Creating an assigned :class:`Spread`, where each ``Instrument`` has its own
+    Creating an assigned :class:`Spread`, where each *Instrument* has its own
     assigned pricing arguments.
 
     .. ipython:: python
@@ -7975,6 +7710,22 @@ class Spread(Sensitivities):
             keys=["instrument1", "instrument2"],
         )
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 # class SpreadX:
 #     pass
@@ -7983,9 +7734,6 @@ class Spread(Sensitivities):
 class Fly(Sensitivities):
     """
     A butterfly instrument which is, mechanically, the spread of two spread instruments.
-
-    The ``Instruments`` used must share common dynamic pricing arguments
-    or be statically created. See notes XXXX link o pricingmechanisms.
 
     Parameters
     ----------
@@ -7998,9 +7746,9 @@ class Fly(Sensitivities):
 
     Notes
     -----
-    When using :class:`Spread` both ``Instruments`` must be of the same type
-    with shared pricing arguments for their methods. If this is not true
-    consider using the :class:`FlyX`, cross ``Instrument``.
+    When using a :class:`Fly` each *Instrument* must either have pricing parameters
+    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
+    common pricing parameters defined at price time.
 
     Examples
     --------
@@ -8075,6 +7823,22 @@ class Fly(Sensitivities):
             keys=["instrument1", "instrument2", "instrument3"],
         )
 
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
 
 # class FlyX:
 #     """
@@ -8122,27 +7886,61 @@ class Portfolio(Sensitivities):
     ----------
     instruments : list
         This should be a list of *Instruments*.
+
+    Notes
+    -----
+    When using a :class:`Portfolio` each *Instrument* must either have pricing parameters
+    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
+    common pricing parameters defined at price time.
+
+    Examples
+    --------
+    See examples for :class:`Spread` for similar functionality.
     """
 
     def __init__(self, instruments):
         self.instruments = instruments
 
-    def npv(self, *args, **kwargs):
-        # TODO do not permit a mixing of currencies.
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        **kwargs
+    ):
+        """
+        Return the NPV of the *Portfolio* by summing instrument NPVs.
+
+        For arguments see :meth:`BaseDerivative.npv()<rateslib.instruments.BaseDerivative.npv>`.
+        """
         # TODO look at legs.npv where args len is used.
+        if base is NoInput.blank and fx is NoInput.blank:
+            warnings.warn(
+                "No ``base`` currency is inferred, using ``local`` output. To return a single "
+                "PV specify a ``base`` currency and ensure an ``fx`` or ``solver.fx`` object "
+                "is available to perform the conversion if the currency differs from the local.",
+                UserWarning
+            )
+            local = True
 
         if defaults.pool == 1:
-            return self._npv_single_core(*args, **kwargs)
+            return self._npv_single_core(
+                curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
+            )
 
         from multiprocessing import Pool
         from functools import partial
 
-        func = partial(_instrument_npv, *args, **kwargs)
+        func = partial(
+            _instrument_npv, curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
+        )
         p = Pool(defaults.pool)
         results = p.map(func, self.instruments)
         p.close()
 
-        if kwargs.get("local", False):
+        if local:
             _ = DataFrame(results).fillna(0.0)
             _ = _.sum()
             ret = _.to_dict()
@@ -8181,6 +7979,22 @@ class Portfolio(Sensitivities):
             [_.cashflows(*args, **kwargs) for _ in self.instruments],
             keys=[f"inst{i}" for i in range(len(self.instruments))],
         )
+
+    def delta(self, *args, **kwargs):
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args, **kwargs):
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -8271,7 +8085,7 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         else:
             return _ytm_quadratic_converger2(f, 2 * y - y2 - pad, y, y2 + pad, None, f_, None, tol)
     else:  # y2 < y:
-        # line not hit due to reassessmemt of initial vars?
+        # line not hit due to reassessment of initial vars?
         return _ytm_quadratic_converger2(
             f, y2 - pad, y, 2 * y - y2 + pad, None, f_, None, tol
         )  # pragma: no cover

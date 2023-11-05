@@ -1,9 +1,10 @@
 .. RatesLib documentation master file.
 
-.. image:: _static/rateslib_logo_big.gif
-  :alt: Rateslib
-
 .. raw:: html
+
+   <div style="text-align: center; padding: 2em 0em 3em;">
+       <img alt="rateslib" src="_static/rateslib_logo_big2.png">
+   </div>
 
    <div style="text-align: center">
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.python&label=Python&color=blue" alt="Python">
@@ -15,7 +16,11 @@
       <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.style&label=Code%20Style&color=black" alt="Code Style">
    </div>
 
-**This version is pre-release in Beta. It may change at any point without notice.**
+   <script async defer src="https://buttons.github.io/buttons.js"></script>
+   <div style="text-align: center; padding: 5px 0em 2.5em 0em;">
+   <a class="github-button" href="https://github.com/attack68/rateslib" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star attack68/rateslib on GitHub">Star</a>
+   <a class="github-button" href="https://github.com/attack68/rateslib/issues" data-icon="octicon-issue-opened" data-size="large" data-show-count="true" aria-label="Issue attack68/rateslib on GitHub">Issue</a>
+   </div>
 
 ``Rateslib`` is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis

@@ -14,18 +14,19 @@ It is important to understand that the key elements of this library are
 All of these functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way.
 
-Let's start with a basic *Curve* and *Instrument*.
+Let's start with the fundamental constructors *Curve* and *Instrument*.
 
 A trivial example
 ----------------------------
 
 For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
-here we create one by directly specifying discount factors (DFs) on certain node dates.
+here we create one by directly specifying discount factors (DFs) on certain node dates (sometimes
+called pillar dates in other publications).
 
 .. ipython:: python
 
-   from rateslib import dt
-   from rateslib.curves import Curve
+   from rateslib import *
+
    usd_curve = Curve(
        nodes={
            dt(2022, 1, 1): 1.0,
@@ -42,7 +43,6 @@ by *rateslib*.
 
 .. ipython:: python
 
-   from rateslib.instruments import IRS
    irs = IRS(
        effective=dt(2022, 2, 15),
        termination="6m",
@@ -56,12 +56,11 @@ some of the arguments for a *"usd_irs"* one can run:
 
 .. ipython:: python
 
-   from rateslib import defaults
    defaults.spec["usd_irs"]
 
 
-We can value the IRS in its local currency (USD) by default, and see the generated
-cashflows.
+We can value the *IRS* with the *Curve* in its local currency (USD) by default, and see
+the generated cashflows.
 
 .. ipython:: python
 
@@ -88,7 +87,6 @@ parametrised by some exchange rates.
 
 .. ipython:: python
 
-   from rateslib.fx import FXRates, FXForwards
    fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25})
    fxr.rates_table()
 
@@ -167,7 +165,6 @@ target for the *Solver*.
 
 .. ipython:: python
 
-   from rateslib.instruments import FXSwap
    fxs = FXSwap(
        effective=dt(2022, 2, 1),
        termination="3m",
@@ -187,7 +184,6 @@ risk calculations.
 
 .. ipython:: python
 
-   from rateslib import FixedRateBond
    fxb = FixedRateBond(
        effective=dt(2023, 8, 15),
        termination=dt(2033, 8, 15),
@@ -219,7 +215,7 @@ curve classes,
 :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`, and
 :class:`~rateslib.curves.IndexCurve`. It also touches on some of the more
 advanced curves :class:`~rateslib.curves.CompositeCurve`,
-and :class:`~rateslib.curves.ProxyCurve`.
+:class:`~rateslib.curves.ProxyCurve`, and :class:`~rateslib.curves.MultiCsaCurve`.
 
 .. toctree::
     :hidden:
@@ -244,7 +240,6 @@ a set of instrument prices, ``s``.
 
 .. ipython:: python
 
-   from rateslib.solver import Solver
    usd_args = dict(
        effective=dt(2022, 1, 1),
        spec="usd_irs",
@@ -360,7 +355,19 @@ Specifically those utilities are:
 
     g_utilities.rst
 
+Cookbook
+=========
 
+This is a collection of more detailed examples and explanations that don't necessarily fall
+into any one category. See the :ref:`Cookbook index <cookbook-doc>`, or click a topic directly
+below.
+
+.. toctree::
+    :hidden:
+    :maxdepth: 0
+    :titlesonly:
+
+    g_cookbook.rst
 
 .. toctree::
     :hidden:

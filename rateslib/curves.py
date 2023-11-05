@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Serialize:
+class _Serialize:
     """
     Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
     """
@@ -170,109 +170,7 @@ class Serialize:
         return None
 
 
-class PlotCurve:
-    """
-    Methods mixin for plotting :class:`Curve` or :class:`LineCurve` s.
-    """
-
-    def plot(
-        self,
-        tenor: str,
-        right: Union[datetime, str, NoInput] = NoInput(0),
-        left: Union[datetime, str, NoInput] = NoInput(0),
-        comparators: list[Curve] = [],
-        difference: bool = False,
-        labels: list[str] = [],
-    ):
-        """
-        Plot given forward tenor rates from the curve.
-
-        Parameters
-        ----------
-        tenor : str
-            The tenor of the forward rates to plot, e.g. "1D", "3M".
-        right : datetime or str, optional
-            The right bound of the graph. If given as str should be a tenor format
-            defining a point measured from the initial node date of the curve.
-            Defaults to the final node of the curve minus the ``tenor``.
-        left : datetime or str, optional
-            The left bound of the graph. If given as str should be a tenor format
-            defining a point measured from the initial node date of the curve.
-            Defaults to the initial node of the curve.
-        comparators: list[Curve]
-            A list of curves which to include on the same plot as comparators.
-        difference : bool
-            Whether to plot as comparator minus base curve or outright curve levels in
-            plot. Default is `False`.
-        labels : list[str]
-            A list of strings associated with the plot and comparators. Must be same
-            length as number of plots.
-
-        Returns
-        -------
-        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
-        """
-        if left is NoInput.blank:
-            left_: datetime = self.node_dates[0]
-        elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
-        elif isinstance(left, datetime):
-            left_ = left
-        else:
-            raise ValueError("`left` must be supplied as datetime or tenor string.")
-
-        if right is NoInput.blank:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, "NONE", NoInput(0))
-        elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
-        elif isinstance(right, datetime):
-            right_ = right
-        else:
-            raise ValueError("`right` must be supplied as datetime or tenor string.")
-
-        points: int = (right_ - left_).days
-        x = [left_ + timedelta(days=i) for i in range(points)]
-        rates = [self.rate(_, tenor) for _ in x]
-        if not difference:
-            y = [rates]
-            if comparators is not None:
-                for comparator in comparators:
-                    y.append([comparator.rate(_, tenor) for _ in x])
-        elif difference and len(comparators) > 0:
-            y = []
-            for comparator in comparators:
-                diff = [comparator.rate(_, tenor) - rates[i] for i, _ in enumerate(x)]
-                y.append(diff)
-        return plot(x, y, labels)
-
-    def _plot_fx(
-        self,
-        curve_foreign: Curve,
-        fx_rate: Union[float, Dual],
-        fx_settlement: Union[datetime, NoInput] = NoInput(0),
-        left: datetime = None,
-        right: datetime = None,
-        points: int = None,
-    ):  # pragma: no cover
-        """
-        Debugging method?
-        """
-
-        def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
-            _ = self[date] / curve_foreign[date]
-            if fx_settlement is not NoInput.blank:
-                _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
-            _ *= fx_rate
-            return _
-
-        left, right = self.node_dates[0], self.node_dates[-1]
-        points = (right - left).days
-        x = [left + timedelta(days=i) for i in range(points)]
-        rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
-        return plot(x, [rates])
-
-
-class Curve(Serialize, PlotCurve):
+class Curve(_Serialize):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -303,7 +201,7 @@ class Curve(Serialize, PlotCurve):
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional, set by Default
-        The convention of the curve for determining rates.
+        The convention of the curve for determining rates. Please see :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
     calendar : calendar or str, optional
@@ -314,7 +212,6 @@ class Curve(Serialize, PlotCurve):
         values to float, :class:`~rateslib.dual.Dual` or
         :class:`~rateslib.dual.Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
-
     Notes
     -----
 
@@ -502,12 +399,6 @@ class Curve(Serialize, PlotCurve):
         modifier : str, optional
             The day rule if determining the termination from tenor. If `False` is
             determined from the `Curve` modifier.
-        # calendar : CustomBusinessDay, str, None, optional
-        #     The business day calendar to determine valid business days from which to
-        #     determine rates. If `False` is determined from the `Curve` calendar.
-        # convention : str, optional
-        #     The day count convention used for calculating rates. If `None` is
-        #     determined from the `Curve` convention.
         float_spread : float, optional
             A float spread can be added to the rate in certain cases.
         spread_compound_method : str in {"none_simple", "isda_compounding"}
@@ -524,7 +415,9 @@ class Curve(Serialize, PlotCurve):
         -----
         Calculating rates from a curve implies that the conventions attached to the
         specific index, e.g. USD SOFR, or GBP SONIA, are applicable and these should
-        be set at initialisation of the ``Curve``.
+        be set at initialisation of the ``Curve``. Thus, the convention used to
+        calculate the ``rate`` is taken from the ``Curve`` from which ``rate``
+        is called.
 
         ``modifier`` is only used if a tenor is given as the termination.
 
@@ -545,6 +438,34 @@ class Curve(Serialize, PlotCurve):
           assumed to be comprised of RFR
           rates and an approximation is used to derive to total rate.
 
+        Examples
+        --------
+
+        .. ipython:: python
+
+            curve_act365f = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 2, 1): 0.98,
+                    dt(2022, 3, 1): 0.978,
+                },
+                convention='Act365F'
+            )
+            curve_act365f.rate(dt(2022, 2, 1), dt(2022, 3, 1))
+
+        Using a different convention will result in a different rate:
+
+        .. ipython:: python
+
+            curve_act360 = Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 2, 1): 0.98,
+                    dt(2022, 3, 1): 0.978,
+                },
+                convention='Act360'
+            )
+            curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
         modifier = self.modifier if modifier is NoInput.blank else modifier
         # calendar = self.calendar if calendar is False else calendar
@@ -759,11 +680,7 @@ class Curve(Serialize, PlotCurve):
                     index_lag=self.index_lag,
                 )
 
-            _ = CompositeCurve(
-                curves=[self, shifted],
-                id=id,
-                multi_csa=False,
-            )
+            _ = CompositeCurve(curves=[self, shifted], id=id)
             _.collateral = collateral
             return _
 
@@ -1132,6 +1049,104 @@ class Curve(Serialize, PlotCurve):
             return new_curve
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
+
+    # PLOTTING METHODS
+
+    def plot(
+        self,
+        tenor: str,
+        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: Union[datetime, str, NoInput] = NoInput(0),
+        comparators: list[Curve] = [],
+        difference: bool = False,
+        labels: list[str] = [],
+    ):
+        """
+        Plot given forward tenor rates from the curve.
+
+        Parameters
+        ----------
+        tenor : str
+            The tenor of the forward rates to plot, e.g. "1D", "3M".
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the final node of the curve minus the ``tenor``.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the initial node of the curve.
+        comparators: list[Curve]
+            A list of curves which to include on the same plot as comparators.
+        difference : bool
+            Whether to plot as comparator minus base curve or outright curve levels in
+            plot. Default is `False`.
+        labels : list[str]
+            A list of strings associated with the plot and comparators. Must be same
+            length as number of plots.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+        """
+        if left is NoInput.blank:
+            left_: datetime = self.node_dates[0]
+        elif isinstance(left, str):
+            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
+        elif isinstance(left, datetime):
+            left_ = left
+        else:
+            raise ValueError("`left` must be supplied as datetime or tenor string.")
+
+        if right is NoInput.blank:
+            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, "NONE", NoInput(0))
+        elif isinstance(right, str):
+            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
+        elif isinstance(right, datetime):
+            right_ = right
+        else:
+            raise ValueError("`right` must be supplied as datetime or tenor string.")
+
+        points: int = (right_ - left_).days
+        x = [left_ + timedelta(days=i) for i in range(points)]
+        rates = [self.rate(_, tenor) for _ in x]
+        if not difference:
+            y = [rates]
+            if comparators is not None:
+                for comparator in comparators:
+                    y.append([comparator.rate(_, tenor) for _ in x])
+        elif difference and len(comparators) > 0:
+            y = []
+            for comparator in comparators:
+                diff = [comparator.rate(_, tenor) - rates[i] for i, _ in enumerate(x)]
+                y.append(diff)
+        return plot(x, y, labels)
+
+    def _plot_fx(
+        self,
+        curve_foreign: Curve,
+        fx_rate: Union[float, Dual],
+        fx_settlement: Union[datetime, NoInput] = NoInput(0),
+        left: datetime = None,
+        right: datetime = None,
+        points: int = None,
+    ):  # pragma: no cover
+        """
+        Debugging method?
+        """
+
+        def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
+            _ = self[date] / curve_foreign[date]
+            if fx_settlement is not NoInput.blank:
+                _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
+            _ *= fx_rate
+            return _
+
+        left, right = self.node_dates[0], self.node_dates[-1]
+        points = (right - left).days
+        x = [left + timedelta(days=i) for i in range(points)]
+        rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
+        return plot(x, [rates])
 
 
 class LineCurve(Curve):
@@ -1796,17 +1811,6 @@ class CompositeCurve(IndexCurve):
         The curves to be composited.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
-    multi_csa: bool, optional
-        If *True* defines a multi-CSA discount curve which has a different calculation
-        methodology by selecting the curve within the collection with the highest rate.
-    multi_csa_min_step: int, optional
-        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
-        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
-        in [1, max_step].
-    multi_csa_max_step: int, optional
-        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
-        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
-        in [min_step, 1825].
 
     Examples
     --------
@@ -1983,17 +1987,9 @@ class CompositeCurve(IndexCurve):
     def __init__(
         self,
         curves: Union[list, tuple],
-        multi_csa: bool = False,
-        *,
         id: Union[str, NoInput] = NoInput(0),
-        multi_csa_min_step: Optional[int] = 1,
-        multi_csa_max_step: Optional[int] = 1825,
     ) -> None:
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
-
-        self.multi_csa = multi_csa
-        self.multi_csa_min_step = max(1, multi_csa_min_step)
-        self.multi_csa_max_step = min(1825, multi_csa_max_step)
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
@@ -2011,16 +2007,17 @@ class CompositeCurve(IndexCurve):
 
     def _validate_curve_collection(self):
         """Perform checks to ensure CompositeCurve can exist"""
-        if self.multi_csa and isinstance(self.curves[0], (LineCurve, IndexCurve)):
+        if type(self) is MultiCsaCurve and isinstance(self.curves[0], (LineCurve, IndexCurve)):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
 
-        if self.multi_csa_min_step > self.multi_csa_max_step:
+        if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:
             raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
 
         types = [type(_) for _ in self.curves]
         if any([_ is CompositeCurve for _ in types]):
             raise TypeError(
-                "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented."
+                "Creating a CompositeCurve type containing sub CompositeCurve types is not "
+                "yet implemented."
             )
 
         if not (
@@ -2034,7 +2031,7 @@ class CompositeCurve(IndexCurve):
         if not all([_ == ini_dates[0] for _ in ini_dates[1:]]):
             raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
 
-        if not self.multi_csa:  # for multi_csa DF curve do not check calendars
+        if not type(self) is MultiCsaCurve:  # for multi_csa DF curve do not check calendars
             self._check_init_attribute("calendar")
 
         if self._base_type == "dfs":
@@ -2096,15 +2093,7 @@ class CompositeCurve(IndexCurve):
 
             d = _DCF1d[self.convention.upper()]
 
-            if self.multi_csa:
-                n = (termination - effective).days
-                # TODO (low:perf) when these discount factors are looked up the curve repeats
-                # the lookup could be vectorised to return two values at once.
-                df_num = self[effective]
-                df_den = self[termination]
-                _ = (df_num / df_den - 1) * 100 / (d * n)
-
-            elif approximate:
+            if approximate:
                 # calculates the geometric mean overnight rates in periods and adds
                 _, n = 0.0, (termination - effective).days
                 for curve_ in self.curves:
@@ -2140,49 +2129,12 @@ class CompositeCurve(IndexCurve):
             days = (date - self.curves[0].node_dates[0]).days
             d = _DCF1d[self.convention.upper()]
 
-            if not self.multi_csa:
-                total_rate = 0.0
-                for curve in self.curves:
-                    avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
-                    total_rate += avg_rate
-                _ = 1.0 / (1 + total_rate * d) ** days
-                return _
-            else:
-                # method uses the step and picks the highest (cheapest rate)
-                # in each period
-                _ = 1.0
-                d1 = self.curves[0].node_dates[0]
-
-                def _get_step(step):
-                    return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
-
-                d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
-                # cache stores looked up DF values to next loop, avoiding double calc
-                cache, k = {i: 1.0 for i in range(len(self.curves))}, 1
-                while d2 < date:
-                    min_ratio = 1e5
-                    for i, curve in enumerate(self.curves):
-                        d2_df = curve[d2]
-                        ratio_ = d2_df / cache[i]
-                        min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-                        cache[i] = d2_df
-                    _ *= min_ratio
-                    try:
-                        step = _get_step(defaults.multi_csa_steps[k])
-                    except IndexError:
-                        step = self.multi_csa_max_step
-                    d1, d2, k = d2, d2 + timedelta(days=step), k + 1
-
-                # finish the loop on the correct date
-                if date == d1:
-                    return _
-                else:
-                    min_ratio = 1e5
-                    for i, curve in enumerate(self.curves):
-                        ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
-                        min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-                    _ *= min_ratio
-                    return _
+            total_rate = 0.0
+            for curve in self.curves:
+                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
+                total_rate += avg_rate
+            _ = 1.0 / (1 + total_rate * d) ** days
+            return _
 
         elif self._base_type == "values":
             # will return a composited rate
@@ -2237,18 +2189,8 @@ class CompositeCurve(IndexCurve):
             )
 
         curves = (self.curves[0].shift(spread=spread, composite=composite),)
-        if self.multi_csa:
-            for curve in self.curves[1:]:
-                curves += (curve.shift(spread=spread, composite=composite),)
-        else:
-            curves += self.curves[1:]
-        _ = CompositeCurve(
-            curves=curves,
-            id=id,
-            multi_csa=self.multi_csa,
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
+        curves += self.curves[1:]
+        _ = CompositeCurve(curves=curves, id=id)
         _.collateral = collateral
         return _
 
@@ -2274,12 +2216,7 @@ class CompositeCurve(IndexCurve):
         -------
         CompositeCurve
         """
-        return CompositeCurve(
-            curves=[curve.translate(start, t) for curve in self.curves],
-            multi_csa=self.multi_csa,
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
+        return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
 
     def roll(self, tenor: Union[datetime, str]) -> CompositeCurve:
         """
@@ -2303,12 +2240,7 @@ class CompositeCurve(IndexCurve):
         -------
         CompositeCurve
         """
-        return CompositeCurve(
-            curves=[curve.roll(tenor) for curve in self.curves],
-            multi_csa=self.multi_csa,
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
+        return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
     def index_value(self, date: datetime, interpolation: str = "daily"):
         """
@@ -2319,6 +2251,235 @@ class CompositeCurve(IndexCurve):
         if not isinstance(self.curves[0], IndexCurve):
             raise TypeError("`index_value` not available on non `IndexCurve` types.")
         return super().index_value(date, interpolation)
+
+
+class MultiCsaCurve(CompositeCurve):
+    """
+    A dynamic composition of a sequence of other curves.
+
+    .. note::
+       Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
+       ``modifier``, and ``convention`` must also match.
+
+    Parameters
+    ----------
+    curves : sequence of :class:`Curve`, :class:`LineCurve` or :class:`IndexCurve`
+        The curves to be composited.
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multi-curve framework.
+    multi_csa_min_step: int, optional
+        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
+        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
+        in [1, max_step].
+    multi_csa_max_step: int, optional
+        The minimum calculation step between subsequent DF evaluations to determine a multi-CSA
+        curve term DF. Higher numbers make faster calculations but are less accurate. Should be
+        in [min_step, 1825].
+
+    Notes
+    -----
+    A *MultiCsaCurve* uses a different calculation methodology than a *CompositeCurve* for
+    determining the *rate* by selecting the curve within the collection with the highest rate.
+    """
+
+    def __init__(
+        self,
+        curves: Union[list, tuple],
+        id: Union[str, NoInput] = NoInput(0),
+        multi_csa_min_step: Optional[int] = 1,
+        multi_csa_max_step: Optional[int] = 1825,
+    ) -> None:
+        self.multi_csa_min_step = max(1, multi_csa_min_step)
+        self.multi_csa_max_step = min(1825, multi_csa_max_step)
+        super().__init__(curves, id)
+
+    def rate(
+        self,
+        effective: datetime,
+        termination: Optional[Union[datetime, str]] = None,
+        modifier: Optional[Union[str, bool]] = False,
+    ):
+        """
+        Calculate the cheapest-to-deliver (CTD) rate on the curve.
+
+        If rates are sought for dates prior to the initial node of the curve `None`
+        will be returned.
+
+        Parameters
+        ----------
+        effective : datetime
+            The start date of the period for which to calculate the rate.
+        termination : datetime or str
+            The end date of the period for which to calculate the rate.
+        modifier : str, optional
+            The day rule if determining the termination from tenor. If `False` is
+            determined from the `Curve` modifier.
+
+        Returns
+        -------
+        Dual, Dual2 or float
+        """
+        modifier = self.modifier if modifier is False else modifier
+        if isinstance(termination, str):
+            termination = add_tenor(effective, termination, modifier, self.calendar)
+
+        d = _DCF1d[self.convention.upper()]
+        n = (termination - effective).days
+        # TODO (low:perf) when these discount factors are looked up the curve repeats
+        # the lookup could be vectorised to return two values at once.
+        df_num = self[effective]
+        df_den = self[termination]
+        _ = (df_num / df_den - 1) * 100 / (d * n)
+        return _
+
+    def __getitem__(self, date: datetime):
+        # will return a composited discount factor
+        if date == self.curves[0].node_dates[0]:
+            return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
+        days = (date - self.curves[0].node_dates[0]).days
+        d = _DCF1d[self.convention.upper()]
+
+        # method uses the step and picks the highest (cheapest rate)
+        # in each period
+        _ = 1.0
+        d1 = self.curves[0].node_dates[0]
+
+        def _get_step(step):
+            return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
+
+        d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
+        # cache stores looked up DF values to next loop, avoiding double calc
+        cache, k = {i: 1.0 for i in range(len(self.curves))}, 1
+        while d2 < date:
+            min_ratio = 1e5
+            for i, curve in enumerate(self.curves):
+                d2_df = curve[d2]
+                ratio_ = d2_df / cache[i]
+                min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+                cache[i] = d2_df
+            _ *= min_ratio
+            try:
+                step = _get_step(defaults.multi_csa_steps[k])
+            except IndexError:
+                step = self.multi_csa_max_step
+            d1, d2, k = d2, d2 + timedelta(days=step), k + 1
+
+        # finish the loop on the correct date
+        if date == d1:
+            return _
+        else:
+            min_ratio = 1e5
+            for i, curve in enumerate(self.curves):
+                ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
+                min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+            _ *= min_ratio
+            return _
+
+    def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
+        """
+        Create a new curve with an initial node date moved forward keeping all else
+        constant.
+
+        This curve adjustment preserves forward curve expectations as time evolves.
+        This method is suitable as a way to create a subsequent *opening* curve from a
+        previous day's *closing* curve.
+
+        Parameters
+        ----------
+        start : datetime
+            The new initial node date for the curve, must be in the domain:
+            (node_date[0], node_date[1]]
+        t : bool
+            Set to *True* if the initial knots of the knot sequence should be
+            translated forward.
+
+        Returns
+        -------
+        MultiCsaCurve
+        """
+        return MultiCsaCurve(
+            curves=[curve.translate(start, t) for curve in self.curves],
+            multi_csa_max_step=self.multi_csa_max_step,
+            multi_csa_min_step=self.multi_csa_min_step,
+        )
+
+    def roll(self, tenor: Union[datetime, str]) -> MultiCsaCurve:
+        """
+        Create a new curve with its shape translated in time
+
+        This curve adjustment is a simulation of a future state of the market where
+        forward rates are assumed to have moved so that the present day's curve shape
+        is reflected in the future (or the past). This is often used in trade
+        strategy analysis.
+
+        Parameters
+        ----------
+        tenor : datetime or str
+            The date or tenor by which to roll the curve. If a tenor, as str, will
+            derive the datetime as measured from the initial node date. If supplying a
+            negative tenor, or a past datetime, there is a limit to how far back the
+            curve can be rolled - it will first roll backwards and then attempt to
+            :meth:`translate` forward to maintain the initial node date.
+
+        Returns
+        -------
+        MultiCsaCurve
+        """
+        return MultiCsaCurve(
+            curves=[curve.roll(tenor) for curve in self.curves],
+            multi_csa_max_step=self.multi_csa_max_step,
+            multi_csa_min_step=self.multi_csa_min_step,
+        )
+
+    def shift(
+        self,
+        spread: float,
+        id: Optional[str] = None,
+        composite: Optional[bool] = True,
+        collateral: Optional[str] = None,
+    ) -> MultiCsaCurve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        This curve adjustment preserves the shape of the curve but moves it up or
+        down as a translation.
+        This method is suitable as a way to assess value changes of instruments when
+        a parallel move higher or lower in yields is predicted.
+
+        Parameters
+        ----------
+        spread : float, Dual, Dual2
+            The number of basis points added to the existing curve.
+        id : str, optional
+            Set the id of the returned curve.
+        composite: bool, optional
+            If True will return a CompositeCurve that adds a flat curve to the existing curve.
+            This results in slower calculations but the curve will maintain a dynamic
+            association with the underlying curve and will change if the underlying curve changes.
+        collateral: str, optional
+            Designate a collateral tag for the curve which is used by other methods.
+
+        Returns
+        -------
+        CompositeCurve
+        """
+        if composite:
+            # TODO (med) allow composite composite curves
+            raise ValueError(
+                "Creating a CompositeCurve containing sub CompositeCurves or MultiCsaCurves is "
+                "not yet implemented.\nSet `composite` to False."
+            )
+
+        curves = tuple(_.shift(spread=spread, composite=composite) for _ in self.curves)
+        _ = MultiCsaCurve(
+            curves=curves,
+            id=id,
+            multi_csa_max_step=self.multi_csa_max_step,
+            multi_csa_min_step=self.multi_csa_min_step,
+        )
+        _.collateral = collateral
+        return _
 
 
 class ProxyCurve(Curve):

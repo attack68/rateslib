@@ -11,7 +11,7 @@ from pandas import DataFrame, MultiIndex, concat, Series
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve
-from rateslib.curves import CompositeCurve, ProxyCurve
+from rateslib.curves import CompositeCurve, ProxyCurve, MultiCsaCurve
 from rateslib.fx import FXRates, FXForwards
 
 
@@ -966,7 +966,7 @@ class Solver(Gradients):
         self.curves = {
             curve.id: curve
             for curve in curves
-            if not type(curve) in [ProxyCurve, CompositeCurve]
+            if not type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
             # Proxy and Composite curves have no parameters of their own
         }
         self.variables = ()
@@ -996,7 +996,7 @@ class Solver(Gradients):
             {
                 curve.id: curve
                 for curve in curves
-                if type(curve) in [ProxyCurve, CompositeCurve]
+                if type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
                 # Proxy and Composite curves added to the collection without variables
             }
         )

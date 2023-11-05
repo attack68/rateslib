@@ -34,30 +34,30 @@ Or, it can be installed via the community ``conda-forge`` channel available from
 **Minimum Dependencies**
 
 .. list-table::
-   :widths: 20 20 20 40
+   :widths: 25 25 25 25
    :header-rows: 1
 
 
    * - Package Name
-     - Recommended Min Version
+     - Latest Tested
+     - Recommended Version
      - Earliest Tested
-     - Comment
    * - Python
      - 3.11
+     - 3.11
      - 3.9
-     -
    * - NumPy
-     - 1.23.5
+     - 1.25.2
+     - 1.25.2
      - 1.21.5
-     -
    * - Pandas
-     - 1.5.3
+     - 2.1.0
+     - 2.0.3
      - 1.4.1
-     - (2.0 is currently untested)
    * - Matplotlib
-     - 3.6.3
+     - 3.7.2
+     - 3.7.2
      - 3.5.1
-     - (used for plotting curves)
 
 
 Introduction to Rateslib
@@ -282,16 +282,6 @@ It is also possible to import the library as object and call objects from that,
 
    import rateslib as rl
    curve = rl.Curve(...)
-
-The documentation often imports directly from the underlying code modules for greater
-clarity. There is no operational difference
-in any of theses importing methods, and all are valid.
-
-.. code-block::
-
-   from rateslib.curves import Curve
-   from rateslib.fx import FXRates
-   from rateslib.instruments import IRS
 
 The ``defaults`` object from *rateslib* sets
 parameters and settings that are used when otherwise not set by the user.

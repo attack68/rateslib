@@ -12,22 +12,17 @@ from rateslib.instruments import (
     FloatRateNote,
     Bill,
     IRS,
+    STIRFuture,
     IIRS,
     SBS,
     FXSwap,
     FXExchange,
-    NonMtmXCS,
     Value,
     ZCS,
     ZCIS,
     _get_curve_from_solver,
     FRA,
-    NonMtmFixedFloatXCS,
-    NonMtmFixedFixedXCS,
     XCS,
-    FixedFloatXCS,
-    FixedFixedXCS,
-    FloatFixedXCS,
     Portfolio,
     Spread,
     Fly,
@@ -79,6 +74,22 @@ def eureur():
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
     return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture()
+def simple_solver():
+    curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0, dt(2024, 1, 1): 1.0}, id="curve")
+    solver = Solver(
+        curves=[curve],
+        instruments=[
+            IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+            IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+        ],
+        s=[2.5, 3.0],
+        id="solver",
+        instrument_labels=["1Y", "2Y"],
+    )
+    return solver
 
 
 class TestCurvesandSolver:
@@ -227,10 +238,13 @@ class TestSolverFXandBase:
             s=[4.109589041095898],
             id="Solver",
         )
-        cls.nxcs = NonMtmXCS(
+        cls.nxcs = XCS(
             dt(2022, 2, 1),
             "6M",
             "A",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             curves=[cls.curve] * 4,
             currency="eur",
             leg2_currency="usd",
@@ -356,6 +370,7 @@ class TestNullPricing:
         "inst",
         [
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+            STIRFuture(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="eureur", bp_value=25.0, contracts=-1),
             FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             SBS(
                 dt(2022, 7, 1),
@@ -381,7 +396,7 @@ class TestNullPricing:
                 notional_exchange=True,
             ),
             # TODO add a null price test for ZCIS
-            XCS(
+            XCS(  # XCS - FloatFloat
                 dt(2022, 7, 1),
                 "3M",
                 "A",
@@ -390,57 +405,75 @@ class TestNullPricing:
                 curves=["usdusd", "usdusd", "eureur", "eurusd"],
                 notional=1e6,
             ),
-            NonMtmXCS(
+            XCS(  # XCS-FloatFloatNonMtm
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=False,
+                leg2_fixed=False,
+                leg2_mtm=False,
                 currency="usd",
                 leg2_currency="eur",
                 curves=["usdusd", "usdusd", "eureur", "eurusd"],
                 notional=1e6,
             ),
-            NonMtmFixedFloatXCS(
+            XCS( # XCS-FixedFloatNonMtm
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=True,
+                leg2_fixed=False,
+                leg2_mtm=False,
                 currency="eur",
                 leg2_currency="usd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
-            NonMtmFixedFixedXCS(
+            XCS(  # XCS-FixedFixedNonMtm
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=True,
+                leg2_fixed=True,
+                leg2_mtm=False,
                 currency="eur",
                 leg2_currency="usd",
                 fixed_rate=1.2,
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
-            FixedFloatXCS(
+            XCS(  # XCS - FixedFloat
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=True,
+                leg2_fixed=False,
+                leg2_mtm=True,
                 currency="eur",
                 leg2_currency="usd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
-            FixedFixedXCS(
+            XCS(  # XCS-FixedFixed
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=True,
+                leg2_fixed=True,
+                leg2_mtm=True,
                 currency="eur",
                 leg2_currency="usd",
                 leg2_fixed_rate=1.3,
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
-            FloatFixedXCS(
+            XCS(  # XCS - FloatFixed
                 dt(2022, 7, 1),
                 "3M",
                 "A",
+                fixed=False,
+                leg2_fixed=True,
+                leg2_mtm=True,
                 currency="usd",
                 leg2_currency="eur",
                 curves=["usdusd", "usdusd", "eureur", "eureur"],
@@ -461,7 +494,6 @@ class TestNullPricing:
             FXSwap(
                 dt(2022, 7, 1),
                 "3M",
-                "A",
                 currency="usd",
                 leg2_currency="eur",
                 curves=["usdusd", "usdusd", "eureur", "eureur"],
@@ -554,7 +586,7 @@ class TestNullPricing:
         assert_frame_equal(unpriced_delta, priced_delta)
 
     @pytest.mark.parametrize("inst, param", [
-        (FXSwap(dt(2022, 2, 1), "3M", "A", currency="eur", leg2_currency="usd", curves=[NoInput(0), "eurusd", NoInput(0), "usdusd"]), "points"),
+        (FXSwap(dt(2022, 2, 1), "3M", currency="eur", leg2_currency="usd", curves=[NoInput(0), "eurusd", NoInput(0), "usdusd"]), "points"),
     ])
     def test_null_priced_delta_round_trip_one_pricing_param_fx_fix(self, inst, param):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
@@ -789,6 +821,48 @@ class TestIRS:
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_index_base`"):
             irs.leg2_index_base = 1.0
+
+    def test_irs_interpolated_stubs(self, curve):
+        curve6 = LineCurve({dt(2022, 1, 1): 4.0, dt(2023, 2, 1): 4.0})
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        irs = IRS(
+            effective=dt(2022, 1, 3),
+            termination=dt(2023, 1, 3),
+            front_stub=dt(2022, 2, 10),
+            back_stub=dt(2022, 8, 10),
+            frequency="Q",
+            convention="act360",
+            curves=[{"3m": curve3, "1m": curve1, "6M": curve6}, curve],
+            leg2_fixing_method="ibor",
+        )
+        cashflows = irs.cashflows()
+        assert (cashflows.loc[("leg2", 0), "Rate"] - 1.23729) < 1e-4
+        assert (cashflows.loc[("leg2", 3), "Rate"] - 3.58696) < 1e-4
+
+    def test_irs_interpolated_stubs_solver(self):
+        curve6 = Curve({dt(2022, 1, 1): 4.0, dt(2023, 2, 1): 4.0}, id="6m")
+        curve3 = Curve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0}, id="3m")
+        solver = Solver(
+            curves=[curve6, curve3],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1Y", "A", curves=curve6),
+                IRS(dt(2022, 1, 1), "1Y", "A", curves=curve3),
+            ],
+            s=[6.0, 3.0],
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 3),
+            termination=dt(2022, 11, 3),
+            front_stub=dt(2022, 5, 3),
+            stub="Front",
+            frequency="Q",
+            convention="act360",
+            curves=[{"3m": "3m", "6m": "6m"}, "3m"],
+            leg2_fixing_method="ibor",
+        )
+        cashflows = irs.cashflows(solver=solver)
+        assert (cashflows.loc[("leg2", 0), "Rate"] - 3.93693) < 1e-4
 
 
 class TestIIRS:
@@ -1232,10 +1306,13 @@ class TestNonMtmXCS:
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
         )
 
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="eur",
             leg2_currency="usd",
@@ -1245,10 +1322,13 @@ class TestNonMtmXCS:
         npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             amortization=100e3,
             currency="eur",
@@ -1260,15 +1340,18 @@ class TestNonMtmXCS:
         assert abs(npv) < 1e-9
 
     def test_nonmtmxcs_fx_notional(self):
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
-            fx_fixing=2.0,
+            fx_fixings=2.0,
             notional=1e6,
         )
         assert xcs.leg2_notional == -2e6
@@ -1288,10 +1371,13 @@ class TestNonMtmXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1313,10 +1399,13 @@ class TestNonMtmXCS:
         assert abs(result - result2) < 1e-3
 
         # reverse legs
-        xcs_reverse = NonMtmXCS(
+        xcs_reverse = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="usd",
             leg2_currency="nok",
@@ -1329,10 +1418,13 @@ class TestNonMtmXCS:
         assert abs(result - expected) < 1e-4
 
     def test_no_fx_raises(self, curve, curve2):
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1341,11 +1433,11 @@ class TestNonMtmXCS:
             float_spread=0.0,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.cashflows([curve, curve, curve2, curve2])
 
@@ -1359,10 +1451,13 @@ class TestNonMtmXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1400,18 +1495,66 @@ class TestNonMtmXCS:
             "dual": Dual(10.0, "x"),
             "dual2": Dual2(10.0, "x"),
         }
-        xcs = NonMtmXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixing=mapping[fix],
+            fx_fixings=mapping[fix],
         )
         assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
+
+    def test_is_priced(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            leg2_float_spread=1.0,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+        )
+        result = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
+        assert abs(result - 65.766356) < 1e-5
+
+    def test_no_fx_warns(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            leg2_float_spread=1.0,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+        )
+        with default_context("no_fx_fixings_for_xcs", "warn"):
+            with pytest.warns(UserWarning):
+                xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
 
 
 class TestNonMtmFixedFloatXCS:
@@ -1427,11 +1570,14 @@ class TestNonMtmFixedFloatXCS:
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
             payment_lag=0,
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
@@ -1460,24 +1606,30 @@ class TestNonMtmFixedFloatXCS:
         assert abs(result - validate) < 1e-2
 
     def test_nonmtmfixxcs_fx_notional(self):
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
-            fx_fixing=2.0,
+            fx_fixings=2.0,
             notional=1e6,
         )
         assert xcs.leg2_notional == -2e6
 
     def test_nonmtmfixxcs_no_fx_raises(self, curve, curve2):
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1485,11 +1637,11 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixing` is"):
+        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
             with default_context("no_fx_fixings_for_xcs", "raise"):
                 xcs.cashflows([curve, curve, curve2, curve2])
 
@@ -1499,10 +1651,13 @@ class TestNonMtmFixedFloatXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1540,16 +1695,19 @@ class TestNonMtmFixedFloatXCS:
             "dual": Dual(10.0, "x"),
             "dual2": Dual2(10.0, "x"),
         }
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixing=mapping[fix],
+            fx_fixings=mapping[fix],
             leg2_float_spread=10.0,
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxf)) < 1e-7
@@ -1560,10 +1718,13 @@ class TestNonMtmFixedFloatXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmFixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1655,16 +1816,19 @@ class TestNonMtmFixedFixedXCS:
             "dual": Dual(10.0, "x"),
             "dual2": Dual2(10.0, "x"),
         }
-        xcs = NonMtmFixedFixedXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm = False,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixing=mapping[fix],
+            fx_fixings=mapping[fix],
             leg2_fixed_rate=2.0,
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxr)) < 1e-7
@@ -1675,11 +1839,14 @@ class TestNonMtmFixedFixedXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = NonMtmFixedFixedXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
             payment_lag=0,
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm=False,
             currency="nok",
             leg2_currency="usd",
             payment_lag_exchange=0,
@@ -1750,18 +1917,19 @@ class TestXCS:
             expected,
         )
 
+    @pytest.mark.skip(reason="After merging all XCS to one class inputting `fx_fixings` as list was changed.")
     def test_mtmxcs_fx_fixings_raises(self):
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
+            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), currency="usd", leg2_currency="eur")
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = FixedFloatXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
+            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), fixed=True, leg2_fixed=False, leg2_mtm=True, currency="usd", leg2_currency="eur")
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = FixedFixedXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
+            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), fixed=True, leg2_fixed=True, leg2_mtm=True, currency="usd", leg2_currency="eur")
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
-            _ = FloatFixedXCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0))
+            _ = XCS(dt(2022, 2, 1), "8M", "M", fx_fixings=NoInput(0), fixed=False, leg2_fixed=True, leg2_mtm=True, currency="usd", leg2_currency="eur")
 
     @pytest.mark.parametrize(
         "float_spd, compound, expected",
@@ -1810,10 +1978,13 @@ class TestFixedFloatXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = FixedFloatXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=True,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1834,10 +2005,13 @@ class TestFixedFloatXCS:
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
         )
 
-        xcs = FloatFixedXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=False,
+            leg2_fixed=True,
+            leg2_mtm=True,
             payment_lag=0,
             currency="usd",
             leg2_currency="nok",
@@ -1863,10 +2037,13 @@ class TestFixedFixedXCS:
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", payment_lag=0)
         nok_rate = float(irs.rate(curve2))
-        xcs = FixedFixedXCS(
+        xcs = XCS(
             dt(2022, 2, 1),
             "8M",
             "M",
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm=True,
             payment_lag=0,
             currency="nok",
             leg2_currency="usd",
@@ -1900,7 +2077,6 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
             currency="usd",
             leg2_currency="nok",
             payment_lag=0,
@@ -1918,7 +2094,6 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
             currency="usd",
             leg2_currency="nok",
             payment_lag=0,
@@ -1936,12 +2111,11 @@ class TestFXSwap:
     ])
     def test_fxswap_points_raises(self, points, split_notional):
         if points is not NoInput(0):
-            msg = "Cannot initialise FXSwap with `points` but without `fx_fixing`."
+            msg = "Cannot initialise FXSwap with `points` but without `fx_fixings`."
             with pytest.raises(ValueError, match=msg):
                 FXSwap(
                     dt(2022, 2, 1),
                     "8M",
-                    "M",
                     currency="usd",
                     leg2_currency="nok",
                     payment_lag=0,
@@ -1950,12 +2124,11 @@ class TestFXSwap:
                     points=points,
                 )
         else:
-            msg = "Cannot initialise FXSwap with `split_notional` but without `fx_fixing`"
+            msg = "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`"
             with pytest.raises(ValueError, match=msg):
                 FXSwap(
                     dt(2022, 2, 1),
                     "8M",
-                    "M",
                     currency="usd",
                     leg2_currency="nok",
                     payment_lag=0,
@@ -1969,8 +2142,7 @@ class TestFXSwap:
             fxs = FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                "M",
-                fx_fixing=11.0,
+                fx_fixings=11.0,
                 currency="usd",
                 leg2_currency="nok",
                 payment_lag=0,
@@ -1982,8 +2154,7 @@ class TestFXSwap:
             fxs = FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                "M",
-                fx_fixing=11.0,
+                fx_fixings=11.0,
                 currency="usd",
                 leg2_currency="nok",
                 payment_lag=0,
@@ -1992,7 +2163,7 @@ class TestFXSwap:
             )
             assert fxs._is_split is True
 
-    @pytest.mark.parametrize("fx_fixing, points, split_notional, expected", [
+    @pytest.mark.parametrize("fx_fixings, points, split_notional, expected", [
         (NoInput(0), NoInput(0), NoInput(0), Dual(0, "fx_usdnok", [-1712.833785])),
         (11.0, 1800.0, NoInput(0), Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
         (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
@@ -2000,7 +2171,7 @@ class TestFXSwap:
         (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, "fx_usdnok", [0.0]))
     ])
     def test_fxswap_parameter_combinations_off_mids_given(
-            self, curve, curve2, fx_fixing, points, split_notional, expected
+            self, curve, curve2, fx_fixings, points, split_notional, expected
     ):
         # curve._set_ad_order(1)
         # curve2._set_ad_order(1)
@@ -2019,8 +2190,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
-            fx_fixing=fx_fixing,
+            fx_fixings=fx_fixings,
             points=points,
             split_notional=split_notional,
             currency="usd",
@@ -2040,8 +2210,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            "M",
-            fx_fixing=10.01,
+            fx_fixings=10.01,
             points=1765,
             split_notional=1.01e6,
             currency="usd",
@@ -2066,6 +2235,70 @@ class TestFXSwap:
     #     npv_nok = fxs.npv([NoInput(0), fxf.curve("usd", "nok"), NoInput(0), curve2], NoInput(0), fxf)
     #     npv_usd = fxs.npv([NoInput(0), curve, NoInput(0), fxf.curve("nok", "usd")], NoInput(0), fxf)
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
+
+
+class TestSTIRFuture:
+    def test_stir_rate(self, curve, curve2):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+        )
+        expected = 95.96254344884888
+        result = stir.rate(curve, metric="price")
+        assert abs(100 - result -stir.rate(curve)) < 1e-8
+        assert abs(result-expected) < 1e-8
+
+    def test_stir_no_gamma(self, curve):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        ins = [
+            IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd"),
+        ]
+        solver = Solver(
+            curves=[c1],
+            instruments=ins,
+            s=[1.2],
+            id="solver",
+            instrument_labels=["usd fut"],
+        )
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+        )
+        result = stir.delta(solver=solver).sum().sum()
+        assert abs(result + 25.0) < 1e-7
+
+        result = stir.gamma(solver=solver).sum().sum()
+        assert abs(result) < 1e-7
+
+    def test_stir_npv(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+        )
+        result = stir.npv(curves=c1)
+        expected = (99.5 - (100 - 0.99250894761)) * 2500 * -1.0
+        assert abs(result - expected) < 1e-7
+
+    def test_stir_raises(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+        )
+        with pytest.raises(ValueError, match="`metric` must be in"):
+            stir.rate(curves=c1, metric="bad")
 
 
 class TestPricingMechanism:
@@ -2107,13 +2340,13 @@ class TestPricingMechanism:
     @pytest.mark.parametrize(
         "klass, kwargs",
         [
-            (NonMtmXCS, {}),
-            (NonMtmFixedFloatXCS, {"fixed_rate": 2.0}),
-            (NonMtmFixedFixedXCS, {"fixed_rate": 2.0}),
-            (XCS, {}),
-            (FixedFloatXCS, {"fixed_rate": 2.0}),
-            (FloatFixedXCS, {}),
-            (FixedFixedXCS, {"fixed_rate": 2.0}),
+            (XCS, {"fixed": False, "leg2_fixed": False, "leg2_mtm": False}),
+            (XCS, {"fixed": True, "leg2_fixed": False, "leg2_mtm": False, "fixed_rate": 2.0}),
+            (XCS, {"fixed": True, "leg2_fixed": True, "leg2_mtm": False, "fixed_rate": 2.0}),
+            (XCS, {}),  # defaults to fixed:False, leg2_fixed: False, leg2_mtm: True
+            (XCS, {"fixed": True, "leg2_fixed": False, "leg2_mtm": True, "fixed_rate": 2.0}),
+            (XCS, {"fixed": False, "leg2_fixed": True, "leg2_mtm": True}),
+            (XCS, {"fixed": True, "leg2_fixed": True, "leg2_mtm": True, "fixed_rate": 2.0}),
         ],
     )
     def test_allxcs(self, klass, kwargs, curve, curve2):
@@ -2158,13 +2391,13 @@ class TestPortfolio:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
         pf = Portfolio([irs1, irs2])
-        assert pf.npv() == irs1.npv() + irs2.npv()
+        assert pf.npv(base="usd") == irs1.npv() + irs2.npv()
 
         pf = Portfolio([irs1] * 5)
-        assert pf.npv() == irs1.npv() * 5
+        assert pf.npv(base="usd") == irs1.npv() * 5
 
         with default_context("pool", 2):  # also test parallel processing
-            result = pf.npv()
+            result = pf.npv(base="usd")
             assert result == irs1.npv() * 5
 
     def test_portfolio_npv_local(self, curve):
@@ -2180,6 +2413,16 @@ class TestPortfolio:
         }
         assert result == expected
 
+    def test_portfolio_local_parallel(self, curve):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve, currency="usd")
+        irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="eur")
+        irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
+        pf = Portfolio([irs1, irs2, irs3])
+
+        expected = {
+            "usd": 20093.295095887483,
+            "eur": 5048.87332403382,
+        }
         with default_context("pool", 2):  # also test parallel processing
             result = pf.npv(local=True)
             assert result == expected
@@ -2225,6 +2468,24 @@ class TestFly:
             "gbp": 7523.321141258284,
         }
         assert result == expected
+
+    def test_delta(self, simple_solver):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "A", fixed_rate=1.0, notional=-3e6, curves="curve")
+        irs2 = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.0, notional=3e6, curves="curve")
+        irs3 = IRS(dt(2022, 1, 1), "18m", "A", fixed_rate=1.0, notional=-1e6, curves="curve")
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.delta(solver=simple_solver).to_numpy()
+        expected = np.array([[102.08919479], [-96.14488074]])
+        assert np.all(np.isclose(result, expected))
+
+    def test_gamma(self, simple_solver):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "A", fixed_rate=1.0, notional=-3e6, curves="curve")
+        irs2 = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.0, notional=3e6, curves="curve")
+        irs3 = IRS(dt(2022, 1, 1), "18m", "A", fixed_rate=1.0, notional=-1e6, curves="curve")
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.gamma(solver=simple_solver).to_numpy()
+        expected = np.array([[-0.02944899, 0.009254014565], [0.009254014565, 0.0094239781314]])
+        assert np.all(np.isclose(result, expected))
 
 
 class TestSpread:
@@ -2339,6 +2600,18 @@ class TestSpec:
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
 
+    def test_stir(self):
+        irs = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            convention="30e360",
+        )
+        assert irs.kwargs["convention"] == "30e360"
+        assert irs.kwargs["leg2_convention"] == "act360"
+        assert irs.kwargs["currency"] == "usd"
+        assert irs.kwargs["roll"] == "imm"
+
     def test_sbs(self):
         inst = SBS(
             effective=dt(2022, 1, 1),
@@ -2452,6 +2725,22 @@ class TestSpec:
         assert frn.kwargs["currency"] == "usd"
         assert frn.kwargs["payment_lag"] == 5
         assert frn.kwargs["modifier"] == "mf"
+
+    def test_xcs(self):
+        xcs = XCS(
+            effective=dt(2022, 1, 1),
+            termination="3y",
+            spec="eurusd_xcs",
+            payment_lag=5,
+            calendar="ldn,tgt,nyc",
+        )
+        assert xcs.kwargs["fixing_method"] == "rfr_payment_delay"
+        assert xcs.kwargs["convention"] == "act360"
+        assert xcs.kwargs["currency"] == "eur"
+        assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
+        assert xcs.kwargs["payment_lag"] == 5
+        assert xcs.kwargs["leg2_payment_lag"] == 2
+        assert xcs.kwargs["leg2_calendar"] == "tgt,nyc"
 
 
 @pytest.mark.parametrize("inst, expected", [

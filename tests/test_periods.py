@@ -677,7 +677,7 @@ class TestFloatPeriod:
             convention="act365f",
         )
         result = period.fixings_table(rfr_curve)
-        assert abs(result["notional"][0] - expected) < 1
+        assert abs(result["notional"].iloc[0] - expected) < 1
 
     @pytest.mark.parametrize(
         "method, expected",
@@ -1142,7 +1142,7 @@ class TestFloatPeriod:
         table = period.fixings_table(curve)
         period.float_spread = 200
         table2 = period.fixings_table(curve)
-        assert (table["notional"][0] == table2["notional"][0]) == exp
+        assert (table["notional"].iloc[0] == table2["notional"].iloc[0]) == exp
 
     def test_custom_interp_rate_nan(self):
         float_period = FloatPeriod(
@@ -1266,6 +1266,71 @@ class TestFloatPeriod:
         )
         result = period.rate(curve)
         assert abs(result - exp) < 1e-7
+
+    def test_interpolated_ibor_warns(self):
+        period = FloatPeriod(
+            start=dt(2023, 4, 27),
+            end=dt(2023, 6, 12),
+            payment=dt(2023, 6, 16),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2024, 2, 1): 1.0})
+        with pytest.warns(UserWarning):
+            period.rate({"1m": curve1})
+        with pytest.warns(UserWarning):
+            period.rate({"3m": curve1})
+
+    def test_interpolated_ibor_rate_line(self):
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.rate({"1M": curve1, "3m": curve3})
+        expected = 1.0 + (3.0 - 1.0) * (dt(2023, 4, 1) - dt(2023, 3, 1)) / (dt(2023, 5, 1) - dt(2023, 3, 1))
+        assert abs(result - expected) < 1e-8
+
+    def test_interpolated_ibor_rate_df(self):
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.97})
+        curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99})
+        result = period.rate({"1M": curve1, "3m": curve3})
+        a, b = 0.91399161, 2.778518365
+        expected = a + (b - a) * (dt(2023, 4, 1) - dt(2023, 3, 1)) / (dt(2023, 5, 1) - dt(2023, 3, 1))
+        assert abs(result - expected) < 1e-8
+
+    def test_rfr_period_curve_dict_raises(self, curve):
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="rfr_payment_delay",
+            float_spread=0.0,
+            stub=True,
+        )
+        with pytest.raises(ValueError, match="Must supply a valid curve for forecasting"):
+            period.rate({"rfr": curve})
 
 
 class TestFixedPeriod:
@@ -1535,7 +1600,7 @@ class TestIndexFixedPeriod:
         [
             (300.0, "daily"),
             (
-                Series([1, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
+                Series([1.0, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
                 "daily",
             ),
             (Series([100.0, 500], index=[dt(2022, 4, 2), dt(2022, 4, 4)]), "daily"),

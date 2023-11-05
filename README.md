@@ -1,5 +1,5 @@
-<div style="text-align: center">
-    <img src="docs/source/_static/rateslib_logo_big.gif" alt="Rateslib">
+<div style="text-align: center; padding: 2em 0 2em">
+    <img src="https://rateslib.readthedocs.io/en/latest/_static/rateslib_logo_big2.png" alt="rateslib">
 </div>
 
 <div style="text-align: center">
@@ -14,8 +14,6 @@
 
 # Rateslib
 
-**This version is beta pre-release. It may change at any point without notice.**
-
 ``Rateslib`` is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
 with a high level, well documented API.
@@ -26,7 +24,7 @@ single currency securities and derivatives like fixed rate bonds and IRSs, and a
 multi-currency derivatives such as FX swaps and cross-currency swaps. Options,
 swaptions and inflation are also under consideration for future development.
 
-The techniques and object interation within *rateslib* were inspired by
+The techniques and object interaction within *rateslib* were inspired by
 the requirements of multi-disciplined fixed income teams working, both cooperatively
 and independently, within global investment banks.
 
