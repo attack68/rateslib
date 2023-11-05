@@ -6805,7 +6805,9 @@ class FRA(Sensitivities, BaseMixin):
 
 class XCS(BaseDerivative):
     """
-    Base class with common methods for multi-currency ``Derivatives``.
+    Create a cross-currency swap (XCS) composing relevant fixed or floating *Legs*.
+
+    MTM-XCSs will introduce a MTM *Leg* as *Leg2*.
 
     Parameters
     ----------
