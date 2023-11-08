@@ -74,6 +74,9 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Update :meth:`~rateslib.instruments.STIRFuture.analytic_delta` for
        :class:`~rateslib.instruments.STIRFuture` to match *delta*.
+   * - Bug
+     - Add the ``spec`` argument functionality missing for
+       :class:`~rateslib.instruments.IndexFixedRateBond`.
 
 0.6.0 (19th Oct 2023)
 **********************
