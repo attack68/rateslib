@@ -2718,7 +2718,7 @@ class IndexFixedRateBond(FixedRateBond):
             index_fixings=index_fixings,
         )
         self.kwargs = _push(spec, self.kwargs)
-        
+
         # set defaults for missing values
         default_kwargs = dict(
             calc_mode=defaults.calc_mode,

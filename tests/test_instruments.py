@@ -9,6 +9,7 @@ from rateslib import defaults, default_context
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
+    IndexFixedRateBond,
     FloatRateNote,
     Bill,
     IRS,
@@ -2778,6 +2779,20 @@ class TestSpec:
         assert bond.kwargs["currency"] == "usd"
         assert bond.kwargs["fixed_rate"] == 2.0
         assert bond.kwargs["ex_div"] == 1
+
+    def test_indexfixedratebond(self):
+        bond = IndexFixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="ukti",
+            calc_mode="ust",
+            fixed_rate=2.0
+        )
+        assert bond.calc_mode == "ust"
+        assert bond.kwargs["convention"] == "actacticma"
+        assert bond.kwargs["currency"] == "gbp"
+        assert bond.kwargs["fixed_rate"] == 2.0
+        assert bond.kwargs["ex_div"] == 7
 
     def test_bill(self):
         bill = Bill(
