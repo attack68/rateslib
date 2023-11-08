@@ -115,6 +115,7 @@ if DEVELOPMENT:
         "usd_gb": _get_kwargs("usd_gb"),  # FRB
         "usd_gbb": _get_kwargs("usd_gbb"),
         "gbp_gb": _get_kwargs("gbp_gb"),
+        "gbp_gbi": _get_kwargs("gbp_gbi"),
         "cad_gb": _get_kwargs("cad_gb"),
         "sek_gb": _get_kwargs("sek_gb"),
         "sek_gbb": _get_kwargs("sek_gbb"),
