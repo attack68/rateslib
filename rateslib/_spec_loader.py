@@ -136,6 +136,7 @@ if DEVELOPMENT:
         "ust": INSTRUMENT_SPECS["usd_gb"],
         "ustb": INSTRUMENT_SPECS["usd_gbb"],
         "ukt": INSTRUMENT_SPECS["gbp_gb"],
+        "ukti": INSTRUMENT_SPECS["gbp_gbi"],
         "gilt": INSTRUMENT_SPECS["gbp_gb"],
         "cadgb": INSTRUMENT_SPECS["cad_gb"],
         "sgb": INSTRUMENT_SPECS["sek_gb"],
