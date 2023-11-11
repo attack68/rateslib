@@ -1852,7 +1852,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         The adjusted or unadjusted termination date. If a string, then a tenor must be
         given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
     frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
-        The frequency of the schedule. "Z" is not permitted.
+        The frequency of the schedule. "Z" is **not** permitted. For zero-coupon-bonds use a
+        ``fixed_rate`` of zero and set the frequency according to the yield-to-maturity
+        convention required.
     stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}, optional
         The stub type to enact on the swap. Can provide two types, for
         example "SHORTFRONTLONGBACK".
@@ -2658,6 +2660,37 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
 
 class IndexFixedRateBond(FixedRateBond):
+    # TODO (mid) ensure calculations work for amortizing bonds.
+    """
+    Create an indexed fixed rate bond security.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args for :class:`~rateslib.instruments.FixedRateBond`.
+    index_base : float or None, optional
+        The base index applied to all periods.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the first
+        period.
+        If a list of *n* fixings will be used as the index fixings for the first *n*
+        periods.
+        If a datetime indexed ``Series`` will use the fixings that are available in
+        that object, and derive the rest from the ``curve``.
+    index_method : str
+        Whether the indexing uses a daily measure for settlement or the most recently
+        monthly data taken from the first day of month.
+    index_lag : int, optional
+        The number of months by which the index value is lagged. Used to ensure
+        consistency between curves and forecast values. Defined by default.
+    kwargs : dict
+        Required keyword args for :class:`~rateslib.instruments.FixedRateBond`.
+
+    Examples
+    --------
+    See :class:`~rateslib.instruments.FixedRateBond` for similar.
+    """
+
     _fixed_rate_mixin = True
     _ytm_attribute = "real_cashflow"  # index linked bonds use real cashflows
     _index_base_mixin = True
@@ -2688,15 +2721,8 @@ class IndexFixedRateBond(FixedRateBond):
         settle: Union[int, NoInput] = NoInput(0),
         calc_mode: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
     ):
-        self.curves = curves
-        self.calc_mode = defaults.calc_mode if calc_mode is NoInput.blank else calc_mode.lower()
-        if frequency.lower() == "z":
-            raise ValueError("IndexFixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
-        if payment_lag is NoInput.blank:
-            payment_lag = defaults.payment_lag_specific[type(self).__name__]
-        self._fixed_rate = fixed_rate
-        self._index_base = index_base
         self.kwargs = dict(
             effective=effective,
             termination=termination,
@@ -2714,25 +2740,49 @@ class IndexFixedRateBond(FixedRateBond):
             amortization=amortization,
             convention=convention,
             fixed_rate=fixed_rate,
-            initial_exchange=False,
-            final_exchange=True,
+            initial_exchange=NoInput(0),
+            final_exchange=NoInput(0),
+            ex_div=ex_div,
+            settle=settle,
+            calc_mode=calc_mode,
             index_base=index_base,
             index_method=index_method,
             index_lag=index_lag,
             index_fixings=index_fixings,
         )
-        self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1))
-        self.kwargs.update(
-            dict(
-                ex_div=defaults.ex_div if ex_div is NoInput.blank else ex_div,
-                settle=defaults.settle if settle is NoInput.blank else settle,
-            )
+        self.kwargs = _push(spec, self.kwargs)
+
+        # set defaults for missing values
+        default_kwargs = dict(
+            calc_mode=defaults.calc_mode,
+            initial_exchange=False,
+            final_exchange=True,
+            payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            ex_div=defaults.ex_div,
+            settle=defaults.settle,
+            index_method=defaults.index_method,
+            index_lag=defaults.index_lag,
         )
+        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
+
+        if self.kwargs["frequency"] is NoInput.blank:
+            raise ValueError("`frequency` must be provided for Bond.")
+        # elif self.kwargs["frequency"].lower() == "z":
+        #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
+
+        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.curves = curves
+        self.spec = spec
+
+        self._fixed_rate = fixed_rate
+        self._index_base = index_base
+
+        self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"]))
         if self.leg1.amortization != 0:
-            # Note if amortization is added to FixedRateBonds must systematically
+            # Note if amortization is added to IndexFixedRateBonds must systematically
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
-            raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
+            raise NotImplementedError("`amortization` for IndexFixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: Union[IndexCurve, NoInput]):
         if self.leg1.index_fixings is not NoInput.blank and not isinstance(

@@ -115,6 +115,7 @@ if DEVELOPMENT:
         "usd_gb": _get_kwargs("usd_gb"),  # FRB
         "usd_gbb": _get_kwargs("usd_gbb"),
         "gbp_gb": _get_kwargs("gbp_gb"),
+        "gbp_gbi": _get_kwargs("gbp_gbi"),
         "cad_gb": _get_kwargs("cad_gb"),
         "sek_gb": _get_kwargs("sek_gb"),
         "sek_gbb": _get_kwargs("sek_gbb"),
@@ -136,6 +137,7 @@ if DEVELOPMENT:
         "ust": INSTRUMENT_SPECS["usd_gb"],
         "ustb": INSTRUMENT_SPECS["usd_gbb"],
         "ukt": INSTRUMENT_SPECS["gbp_gb"],
+        "ukti": INSTRUMENT_SPECS["gbp_gbi"],
         "gilt": INSTRUMENT_SPECS["gbp_gb"],
         "cadgb": INSTRUMENT_SPECS["cad_gb"],
         "sgb": INSTRUMENT_SPECS["sek_gb"],
