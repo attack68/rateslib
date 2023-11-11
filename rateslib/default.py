@@ -171,6 +171,7 @@ class Defaults:
     tag = "v"
     algorithm = "levenberg_marquardt"
     curve_not_in_solver = "ignore"
+    ini_lambda = (1000.0, 0.25, 2.0)
 
     # bonds
     calc_mode = "ukg"

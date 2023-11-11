@@ -271,3 +271,5 @@ Cookbook
     z_swpm.rst
     z_dependencychain.rst
     z_turns.rst
+    z_stubs.rst
+    z_convexityrisk.rst

@@ -28,7 +28,8 @@ and :ref:`dual<dual-doc>`.
    rateslib.curves.LineCurve
    rateslib.curves.IndexCurve
    rateslib.curves.CompositeCurve
-   rateslib.fx.ProxyCurve
+   rateslib.curves.ProxyCurve
+   rateslib.curves.MultiCsaCurve
    rateslib.curves.interpolate
    rateslib.curves.index_left
 

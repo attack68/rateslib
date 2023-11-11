@@ -637,6 +637,28 @@ class FloatLegMixin:
     :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
     """
 
+    def _get_fixings_from_series(self, ser: Series, ini_period: int =0) -> list:
+        """
+        Determine which fixings can be set for Periods with the given Series.
+        """
+        last_fixing_dt = ser.index[-1]
+        if self.fixing_method in [
+            "rfr_payment_delay", "rfr_lockout", "rfr_payment_delay_avg", "rfr_lockout_avg"
+        ]:
+            adj_days = 0
+        else:
+            adj_days = self.method_param
+        first_required_day = [
+            add_tenor(
+                self.schedule.aschedule[i],
+                f"-{adj_days}B",
+                None,
+                self.schedule.calendar,
+            )
+            for i in range(ini_period, self.schedule.n_periods)
+        ]
+        return [ser if last_fixing_dt >= day else NoInput(0) for day in first_required_day]
+
     def _set_fixings(
         self,
         fixings,
@@ -646,28 +668,17 @@ class FloatLegMixin:
         Requires a ``schedule`` object and ``float_args``.
         """
         if fixings is NoInput.blank:
-            fixings = []
+            fixings_ = []
         elif isinstance(fixings, Series):
-            last_fixing = fixings.index[-1]
-            if self.fixing_method in ["rfr_payment_delay", "rfr_lockout"]:
-                adj_days = 0
-            else:
-                # fixing_method in ["rfr_lookback", "rfr_observation_shift", "ibor"]:
-                adj_days = self.method_param
-            first_required_day = [
-                add_tenor(
-                    self.schedule.aschedule[i],
-                    f"-{adj_days}B",
-                    None,
-                    self.schedule.calendar,
-                )
-                for i in range(self.schedule.n_periods)
-            ]
-            fixings = [fixings if last_fixing >= day else NoInput(0) for day in first_required_day]
+            fixings_ = self._get_fixings_from_series(fixings)
+        elif isinstance(fixings, tuple):
+            fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)
         elif not isinstance(fixings, list):
-            fixings = [fixings]
+            fixings_ = [fixings]
+        else:  # fixings as a list should be remaining
+            fixings_ = fixings
 
-        self.fixings = fixings + [NoInput(0)] * (self.schedule.n_periods - len(fixings))
+        self.fixings = fixings_ + [NoInput(0)] * (self.schedule.n_periods - len(fixings_))
 
     @property
     def float_spread(self):
@@ -779,13 +790,14 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     spread_compound_method : str, optional
         The method to use for adding a floating spread to compounded rates. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    fixings : float, list, or Series optional
+    fixings : float, list, Series, 2-tuple, optional
         If a float scalar, will be applied as the determined fixing for the first
         period. If a list of *n* fixings will be used as the fixings for the first *n*
         periods. If any sublist of length *m* is given, is used as the first *m* RFR
         fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
         indexed ``Series`` will use the fixings that are available in that object,
-        and derive the rest from the ``curve``.
+        and derive the rest from the ``curve``. If a 2-tuple of value and *Series*, the first
+        scalar value is applied to the first period and latter periods handled as with *Series*.
     fixing_method : str, optional
         The method by which floating rates are determined, set by default. See notes.
     method_param : int, optional
@@ -901,7 +913,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
         self,
         *args,
         float_spread: Union[float, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        fixings: Union[float, list, Series, tuple, NoInput] = NoInput(0),
         fixing_method: Union[str, NoInput] = NoInput(0),
         method_param: Union[int, NoInput] = NoInput(0),
         spread_compound_method: Union[str, NoInput] = NoInput(0),
@@ -1412,7 +1424,9 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     @fixed_rate.setter
     def fixed_rate(self, value):
-        # overload the setter for a zero coupon to convert from irr to period rate
+        # overload the setter for a zero coupon to convert from IRR to period rate.
+        # the headline fixed_rate is the IRR rate but the rate attached to Periods is a simple
+        # rate in order to determine cashflows according to the normal cashflow logic.
         self._fixed_rate = value
         f = 12 / defaults.frequency_months[self.schedule.frequency]
         if value is not NoInput.blank:
@@ -1421,7 +1435,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
             period_rate = NoInput(0)
 
         for period in self.periods:
-            if isinstance(period, FixedPeriod):
+            if isinstance(period, FixedPeriod):  # there should only be one FixedPeriod in a Zero
                 period.fixed_rate = period_rate
 
     @property
@@ -1961,6 +1975,29 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         """
         return self._fx_fixings
 
+    def _get_fx_fixings_from_series(self, ser: Series, ini_period: int = 0):
+        last_fixing_date = ser.index[-1]
+        fixings_list = []
+        for i in range(ini_period, self.schedule.n_periods):
+            required_date = add_tenor(
+                self.schedule.aschedule[i],
+                f"{self.payment_lag_exchange}B",
+                NoInput(0),
+                self.schedule.calendar,
+            )
+            if required_date > last_fixing_date:
+                break
+            else:
+                try:
+                    fixings_list.append(ser[required_date])
+                except KeyError:
+                    raise ValueError(
+                        "A Series is provided for FX fixings but the required exchange "
+                        f"settlement date, {required_date.strftime('%Y-%d-%m')}, is not "
+                        f"available within the Series."
+                    )
+        return fixings_list
+
     @fx_fixings.setter
     def fx_fixings(self, value):
         if value is NoInput.blank:
@@ -1970,27 +2007,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         elif isinstance(value, (float, Dual, Dual2)):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
-            unavailable_date = value.index[-1]
-            fixings_list = []
-            for i in range(self.schedule.n_periods):
-                required_date = add_tenor(
-                    self.schedule.aschedule[i],
-                    f"{self.payment_lag_exchange}B",
-                    NoInput(0),
-                    self.schedule.calendar,
-                )
-                if required_date > unavailable_date:
-                    break
-                else:
-                    try:
-                        fixings_list.append(value[required_date])
-                    except KeyError:
-                        raise ValueError(
-                            "A Series is provided for FX fixings but the required exchange "
-                            f"settlement date, {required_date.strftime('%Y-%d-%m')}, is not "
-                            f"available within the Series."
-                        )
-            self._fx_fixings = fixings_list
+            self._fx_fixings = self._get_fx_fixings_from_series(value)
+        elif isinstance(value, tuple):
+            self._fx_fixings = [value[0]]
+            self._fx_fixings.extend(self._get_fx_fixings_from_series(value[1], ini_period=1))
         else:
             raise TypeError("`fx_fixings` should be scalar value, list or Series of such.")
 

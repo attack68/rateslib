@@ -52,7 +52,33 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
-0.6.0 (not released)
+0.7.0 (not released)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Legs
+     - Allow ``fixings`` as a 2-tuple to manually define the first *FloatPeriod* (say as IBOR stub)
+       and determine the rest from a *Series*. Also allow ``fx_fixings`` as a 2-tuple for similar
+       reason for MTM *XCS*.
+   * - Instruments
+     - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
+       *rate* in basis point terms and not percent.
+   * - Solver
+     - Add an attribute ``result`` that contains retrievable iteration success or failure
+       information.
+   * - Bug
+     - Update :meth:`~rateslib.instruments.STIRFuture.analytic_delta` for
+       :class:`~rateslib.instruments.STIRFuture` to match *delta*.
+   * - Bug
+     - Add the ``spec`` argument functionality missing for
+       :class:`~rateslib.instruments.IndexFixedRateBond`.
+
+0.6.0 (19th Oct 2023)
 **********************
 
 .. list-table::
@@ -69,11 +95,20 @@ email contact through **rateslib@gmail.com**.
    * - Curves
      - Separate :class:`~rateslib.curves.MultiCsaCurve`
        from :class:`~rateslib.curves.CompositeCurve` for increased transparency on its action.
+   * - Curves
+     - Add the ability to supply curves in a dict for forecasting *FloatPeriods* to be
+       able handle interpolated stub periods under an *"ibor"* ``fixing_method``.
+   * - Solver
+     - Added the methods :meth:`~rateslib.solver.Solver.jacobian` and
+       :meth:`~rateslib.solver.Solver.market_movements` for coordinating multiple *Solvers*.
    * - Bug
      - Instrument ``spec`` with ``method_param`` set to 2 day lag for certain IBOR instruments.
    * - Bug
      - The :meth:`~rateslib.instruments.Portfolio.npv` method on a *Portfolio* no longer allows
        mixed currency outputs to be aggregated into a single float value.
+   * - Bug
+     - Now emit a warning if a discount factor or rate is requested on a curve with a spline
+       outside of the rightmost boundary of the spline interval.
 
 
 0.5.1 (11 Sep 2023)

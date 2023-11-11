@@ -863,7 +863,7 @@ class FloatPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
+        curve: Union[Curve, dict, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -896,7 +896,7 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
+        curve: Union[Curve, dict, NoInput] = NoInput(0),
         disc_curve: Union[Curve, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
@@ -919,7 +919,7 @@ class FloatPeriod(BasePeriod):
             fx, _ = _get_fx_and_base(self.currency, fx, base)
             return fx * value
 
-    def cashflow(self, curve: Union[Curve, LineCurve]) -> Union[None, DualTypes]:
+    def cashflow(self, curve: Union[Curve, LineCurve, dict]) -> Union[None, DualTypes]:
         if curve is None:
             return None
         else:
@@ -942,9 +942,17 @@ class FloatPeriod(BasePeriod):
 
         Examples
         --------
+        Using a single forecast *Curve*.
+
         .. ipython:: python
 
            period.rate(curve)
+
+        Using a dict of *Curves* for stub periods calculable under an *"ibor"* ``fixing_method``.
+
+        .. ipython:: python
+
+           period.rate({"1m": curve, "3m": curve, "6m": curve, "12m": curve})
         """
         if isinstance(self.fixings, (float, Dual, Dual2)):
             # if fixings is a single value then return that value (curve unused)
@@ -1150,16 +1158,16 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: Union[Curve, LineCurve],
+        curve: Union[Curve, LineCurve, dict],
         approximate: bool = False,
-        disc_curve: Curve = None,
+        disc_curve: Curve = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures.
 
         Parameters
         ----------
-        curve : Curve, LineCurve
+        curve : Curve, LineCurve, IndexCurve dict of such
             The forecast needed to calculate rates which affect compounding and
             dependent notional exposure.
         approximate : bool, optional
@@ -1270,7 +1278,9 @@ class FloatPeriod(BasePeriod):
             })
            period.fixings_table(ibor_curve)
         """
-        if disc_curve is None and curve._base_type == "dfs":
+        if disc_curve is NoInput.blank and isinstance(curve, dict):
+            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+        elif disc_curve is NoInput.blank and curve._base_type == "dfs":
             disc_curve = curve
 
         if approximate:
@@ -1294,7 +1304,11 @@ class FloatPeriod(BasePeriod):
             table = table.iloc[:-1]
             return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
         elif "ibor" in self.fixing_method:
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
+            if isinstance(curve, dict):
+                calendar = next(iter(curve.values())).calendar
+            else:
+                calendar = curve.calendar
+            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
             return DataFrame(
                 {
                     "obs_dates": [fixing_date],
@@ -1933,7 +1947,7 @@ class IndexMixin(metaclass=ABCMeta):
         ):
             raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
         elif i_lag != i_curve.index_lag:
-            return None  # TODO decide if RolledCurve to correct index lag be attemoted
+            return None  # TODO decide if RolledCurve to correct index lag be attempted
         else:
             return i_curve.index_value(i_date, i_method)
 

@@ -9,6 +9,7 @@ from rateslib import defaults, default_context
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
+    IndexFixedRateBond,
     FloatRateNote,
     Bill,
     IRS,
@@ -1970,6 +1971,20 @@ class TestXCS:
         result2 = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - result2) < 1e-3
 
+    def test_fx_fixings_2_tuple(self):
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+            fx_fixings=(1.25, Series([1.5, 1.75], index=[dt(2022, 3, 1), dt(2022, 4, 1)]))
+        )
+        assert xcs.leg2.fx_fixings == [1.25, 1.5, 1.75]
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2):
@@ -2300,6 +2315,19 @@ class TestSTIRFuture:
         with pytest.raises(ValueError, match="`metric` must be in"):
             stir.rate(curves=c1, metric="bad")
 
+    def test_analytic_delta(self):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+            contracts=100,
+        )
+        expected = -2500.0
+        result = stir.analytic_delta()
+        assert abs(result-expected) < 1e-10
+
 
 class TestPricingMechanism:
     def test_value(self, curve):
@@ -2427,6 +2455,74 @@ class TestPortfolio:
             result = pf.npv(local=True)
             assert result == expected
 
+    def test_portfolio_mixed_currencies(self):
+        ll_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 5, 1): 1.0,
+                dt(2022, 9, 3): 1.0
+            },
+            interpolation="log_linear",
+            id="sofr",
+        )
+        ll_solver = Solver(
+            curves=[ll_curve],
+            instruments=[
+                IRS(dt(2022, 1, 1), "4m", "Q", curves="sofr"),
+                IRS(dt(2022, 1, 1), "8m", "Q", curves="sofr"),
+            ],
+            s=[1.85, 2.10],
+            instrument_labels=["4m", "8m"],
+            id="sofr"
+        )
+
+        ll_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 4, 1): 1.0,
+                dt(2022, 10, 1): 1.0
+            },
+            interpolation="log_linear",
+            id="estr",
+        )
+        combined_solver = Solver(
+            curves=[ll_curve],
+            instruments=[
+                IRS(dt(2022, 1, 1), "3m", "Q", curves="estr"),
+                IRS(dt(2022, 1, 1), "9m", "Q", curves="estr"),
+            ],
+            s=[0.75, 1.65],
+            instrument_labels=["3m", "9m"],
+            pre_solvers=[ll_solver],
+            id="estr"
+        )
+
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            frequency="Q",
+            currency="usd",
+            notional=500e6,
+            fixed_rate=2.0,
+            curves="sofr",  # or ["sofr", "sofr"] for forecasting and discounting
+        )
+        irs2 = IRS(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            frequency="Q",
+            currency="eur",
+            notional=-300e6,
+            fixed_rate=1.0,
+            curves="estr",
+        )
+        pf = Portfolio([irs, irs2])
+        result = pf.npv(solver=combined_solver, local=True)
+        assert "eur" in result and "usd" in result
+
+        # the following should execute without warnings
+        pf.delta(solver=combined_solver)
+        pf.gamma(solver=combined_solver)
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -2447,7 +2543,7 @@ class TestFly:
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0, curves=mechanism)
         fly = Fly(irs1, irs2, irs3)
-        assert fly.rate(inv) == -irs1.rate(inv) + 2 * irs2.rate(inv) - irs3.rate(inv)
+        assert fly.rate(inv) == (-irs1.rate(inv) + 2 * irs2.rate(inv) - irs3.rate(inv)) * 100.0
 
     def test_fly_cashflows_executes(self, curve):
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve)
@@ -2505,7 +2601,7 @@ class TestSpread:
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=mechanism)
         spd = Spread(irs1, irs2)
-        assert spd.rate(inverse) == -irs1.rate(inverse) + irs2.rate(inverse)
+        assert spd.rate(inverse) == (-irs1.rate(inverse) + irs2.rate(inverse)) * 100.0
 
     def test_spread_cashflows_executes(self, curve):
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve)
@@ -2683,6 +2779,20 @@ class TestSpec:
         assert bond.kwargs["currency"] == "usd"
         assert bond.kwargs["fixed_rate"] == 2.0
         assert bond.kwargs["ex_div"] == 1
+
+    def test_indexfixedratebond(self):
+        bond = IndexFixedRateBond(
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="ukti",
+            calc_mode="ust",
+            fixed_rate=2.0
+        )
+        assert bond.calc_mode == "ust"
+        assert bond.kwargs["convention"] == "actacticma"
+        assert bond.kwargs["currency"] == "gbp"
+        assert bond.kwargs["fixed_rate"] == 2.0
+        assert bond.kwargs["ex_div"] == 7
 
     def test_bill(self):
         bill = Bill(

@@ -1009,6 +1009,23 @@ def test_curve_roll_copy(curve):
     assert result == curve
 
 
+def test_curve_spline_warning():
+    curve = Curve(
+        nodes={
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 0.99,
+            dt(2025, 1, 1): 0.97,
+            dt(2026, 1, 1): 0.94,
+            dt(2027, 1, 1): 0.91,
+        },
+        t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
+           dt(2024, 1, 1), dt(2025, 1, 1), dt(2026, 1, 1),
+           dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1)]
+    )
+    with pytest.warns(UserWarning):
+        curve[dt(2028, 1, 1)]
+
+
 def test_index_curve_roll():
     crv = IndexCurve(
         nodes={
@@ -1231,7 +1248,7 @@ class TestCompositeCurve:
         diff = np.array(
             [
                 result_curve.rate(_, "1D") - crv.rate(_, "1D")
-                for _ in [dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11), dt(2026, 4, 5)]
+                for _ in [dt(2023, 1, 25), dt(2023, 3, 24), dt(2024, 11, 11)]
             ]
         )
         assert np.all(np.abs(diff) < 1e-5)
@@ -1278,13 +1295,13 @@ class TestCompositeCurve:
         expected = np.array(
             [
                 crv.rate(_, "1D")
-                for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15), dt(2026, 4, 15)]
+                for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15)]
             ]
         )
         result = np.array(
             [
                 rolled_curve.rate(_, "1D")
-                for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25), dt(2026, 4, 25)]
+                for _ in [dt(2023, 1, 25), dt(2023, 3, 25), dt(2024, 11, 25)]
             ]
         )
 

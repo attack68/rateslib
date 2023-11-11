@@ -3,7 +3,7 @@ import re
 from datetime import datetime as dt
 from datetime import timedelta
 from pandas.testing import assert_frame_equal
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, Index
 import numpy as np
 
 import context
@@ -1331,6 +1331,27 @@ class TestFloatPeriod:
         )
         with pytest.raises(ValueError, match="Must supply a valid curve for forecasting"):
             period.rate({"rfr": curve})
+
+    def test_ibor_stub_fixings_table(self):
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
+        expected = DataFrame(
+            data=[[-1e6, None, 2.01639]],
+            index=Index([dt(2023, 1, 31)], name="obs_dates"),
+            columns=["notional", "dcf", "rates"],
+        )
+        assert_frame_equal(result, expected)
 
 
 class TestFixedPeriod:

@@ -96,7 +96,7 @@ and only a few ``nodes``.
            dt(2022,1,1): 1.0,
            dt(2023,1,1): 0.99,
            dt(2024,1,1): 0.979,
-           dt(2025,1,1): 0.967
+           dt(2025,1,3): 0.967
        },
        id="curve",
    )
@@ -175,10 +175,10 @@ calibrated.
            dt(2022,1,1): 1.0,
            dt(2023,1,1): 0.99,
            dt(2024,1,1): 0.965,
-           dt(2025,1,1): 0.93,
+           dt(2025,1,3): 0.93,
        },
        interpolation="log_linear",
-       t = [dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2025,1,1), dt(2025,1,1), dt(2025,1,1)],
+       t = [dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,3), dt(2025,1,3), dt(2025,1,3), dt(2025,1,3)],
        id="curve",
    )
    solver = Solver(
@@ -196,7 +196,7 @@ calibrated.
    from datetime import datetime as dt
    import numpy as np
    ll_curve = Curve(
-       nodes={dt(2022,1,1): 1.0, dt(2023,1,1): 0.99, dt(2024,1,1): 0.965, dt(2025,1,1): 0.93},
+       nodes={dt(2022,1,1): 1.0, dt(2023,1,1): 0.99, dt(2024,1,1): 0.965, dt(2025,1,3): 0.93},
        interpolation="log_linear",
        id="curve",
    )
@@ -216,9 +216,9 @@ calibrated.
            dt(2022,1,1): 1.0,
            dt(2023,1,1): 0.99,
            dt(2024,1,1): 0.965,
-           dt(2025,1,1): 0.93,
+           dt(2025,1,3): 0.93,
        },
-       t = [dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2025,1,1), dt(2025,1,1), dt(2025,1,1)],
+       t = [dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,3), dt(2025,1,3), dt(2025,1,3), dt(2025,1,3)],
        id="curve",
    )
    solver = Solver(
@@ -510,10 +510,11 @@ is to be expected.
    solver_with_error.error
 
 
-Composite and Proxy Curves
-**************************
+Composite, Proxy and Multi-CSA Curves
+****************************************
 
-:class:`~rateslib.curves.CompositeCurve` and :class:`~rateslib.fx.ProxyCurve` do not
+:class:`~rateslib.curves.CompositeCurve`, :class:`~rateslib.curves.ProxyCurve` and
+:class:`~rateslib.curves.MultiCsaCurve` do not
 have their own parameters. These rely on the parameters from other fundamental curves.
 It is possible to create a *Solver* defined with *Instruments* that reference these
 complex curves as pricing curves with the *Solver* updating the underlying

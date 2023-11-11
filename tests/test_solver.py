@@ -211,10 +211,10 @@ def test_basic_spline_solver():
             dt(2023, 1, 1),
             dt(2023, 1, 1),
             dt(2024, 1, 1),
-            dt(2025, 1, 1),
-            dt(2025, 1, 1),
-            dt(2025, 1, 1),
-            dt(2025, 1, 1),
+            dt(2025, 1, 3),
+            dt(2025, 1, 3),
+            dt(2025, 1, 3),
+            dt(2025, 1, 3),
         ],
         id="v",
     )
@@ -232,7 +232,7 @@ def test_basic_spline_solver():
     )
     assert float(solver.g) < 1e-12
     assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
-    expected = [1, 0.98992503575307, 0.9680378584288896, 0.9408478640732281]
+    expected = [1, 0.98992503575307, 0.9680377261843034, 0.9407048036486593]
     for i, key in enumerate(spline_curve.nodes.keys()):
         assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
 
@@ -1088,7 +1088,7 @@ def test_mechanisms_guide_gamma():
         curves="estr",
     )
     pf = Portfolio([irs, irs2])
-    pf.npv(solver=combined_solver)
+    pf.npv(solver=combined_solver, local=True)
     pf.delta(solver=combined_solver)
     fxr = FXRates({"eurusd": 1.10})
     fxr._set_ad_order(2)
@@ -1500,3 +1500,144 @@ def test_pre_solver_single_fx_object():
     result = gu[dt(2023, 1, 1)]
     expected = 0.988
     assert (result - expected) < 1e-4
+
+
+def test_solver_jacobians_in_text():
+    par_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2027, 1, 1): 1.0,
+            dt(2032, 1, 1): 1.0
+        },
+        id="curve",
+    )
+    par_instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "5Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "10Y", "A", curves="curve"),
+    ]
+    par_solver = Solver(
+        curves=[par_curve],
+        instruments=par_instruments,
+        s=[1.21, 1.635, 1.885, 1.93],
+        id="par_solver",
+        instrument_labels=["1Y", "2Y", "5Y", "10Y"],
+    )
+    fwd_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2027, 1, 1): 1.0,
+            dt(2032, 1, 1): 1.0
+        },
+        id="curve"
+    )
+    fwd_instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2023, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2024, 1, 1), "3Y", "A", curves="curve"),
+        IRS(dt(2027, 1, 1), "5Y", "A", curves="curve"),
+    ]
+    s_fwd = [float(_.rate(solver=par_solver)) for _ in fwd_instruments]
+    fwd_solver = Solver(
+        curves=[fwd_curve],
+        instruments=fwd_instruments,
+        s=s_fwd,
+        id="fwd_solver",
+        instrument_labels=["1Y", "1Y1Y", "2Y3Y", "5Y5Y"],
+    )
+    S_BA = par_solver.jacobian(fwd_solver).to_numpy()
+    S_AB = fwd_solver.jacobian(par_solver).to_numpy()
+    assert np.all(np.isclose(np.eye(4), np.matmul(S_AB, S_BA)))
+
+
+def test_solver_jacobians_pre():
+    par_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+        },
+        id="curve",
+    )
+    par_instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2022, 1, 1), "2Y", "A", curves="curve"),
+    ]
+    par_solver = Solver(
+        curves=[par_curve],
+        instruments=par_instruments,
+        s=[1.21, 1.635],
+        id="par_solver",
+        instrument_labels=["1Y", "2Y"],
+    )
+    par_curve2 = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+        },
+        id="curve2",
+    )
+    par_instruments2 = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve2"),
+        IRS(dt(2022, 1, 1), "2Y", "A", curves="curve2"),
+    ]
+    par_solver2 = Solver(
+        curves=[par_curve2],
+        instruments=par_instruments2,
+        s=[1.21, 1.635],
+        id="par_solver2",
+        instrument_labels=["1Y", "2Y"],
+        pre_solvers=[par_solver],
+    )
+
+    fwd_curve = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+        },
+        id="curve"
+    )
+    fwd_instruments = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
+        IRS(dt(2023, 1, 1), "1Y", "A", curves="curve"),
+    ]
+    s_fwd = [float(_.rate(solver=par_solver2)) for _ in fwd_instruments]
+    fwd_solver = Solver(
+        curves=[fwd_curve],
+        instruments=fwd_instruments,
+        s=s_fwd,
+        id="fwd_solver",
+        instrument_labels=["1Y", "1Y1Y"],
+    )
+    fwd_curve2 = Curve(
+        nodes={
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+        },
+        id="curve2"
+    )
+    fwd_instruments2 = [
+        IRS(dt(2022, 1, 1), "1Y", "A", curves="curve2"),
+        IRS(dt(2023, 1, 1), "1Y", "A", curves="curve2"),
+    ]
+    s_fwd2 = [float(_.rate(solver=par_solver2)) for _ in fwd_instruments2]
+    fwd_solver2 = Solver(
+        curves=[fwd_curve2],
+        instruments=fwd_instruments2,
+        s=s_fwd2,
+        id="fwd_solver2",
+        instrument_labels=["1Y", "1Y1Y"],
+        pre_solvers=[fwd_solver],
+    )
+
+    S_BA = par_solver2.jacobian(fwd_solver2)
+    S_AB = fwd_solver2.jacobian(par_solver2)
+    assert np.all(np.isclose(np.eye(4), np.matmul(S_AB.to_numpy(), S_BA.to_numpy())))

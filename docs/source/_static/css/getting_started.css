@@ -1,5 +1,18 @@
 /* Getting started pages */
 
+.tutorial {
+  width: 100%;
+  text-align: center;
+}
+
+.tutorial span {
+  background-color: #00004f;
+  color: white;
+  text-align: center;
+  padding: 0.2em 0.9em;
+  border-radius: 0.7em;
+}
+
 /* data intro */
 .gs-data {
   font-size: 0.9rem;

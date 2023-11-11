@@ -25,8 +25,13 @@
         "url": "https://rateslib.readthedocs.io/en/0.4.x/"
     },
     {
-        "name": "stable",
+        "name": "0.5.x",
         "version": "0.5.x",
+        "url": "https://rateslib.readthedocs.io/en/0.5.x/"
+    },
+    {
+        "name": "stable",
+        "version": "0.6.x",
         "url": "https://rateslib.readthedocs.io/en/stable/"
     }
 ]

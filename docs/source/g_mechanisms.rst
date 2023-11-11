@@ -398,7 +398,7 @@ which we calibrate with the same instruments.
        nodes={
            dt(2022, 1, 1): 1.0,
            dt(2022, 5, 1): 1.0,
-           dt(2022, 9, 1): 1.0
+           dt(2022, 9, 3): 1.0
        },
        interpolation="log_linear",
        id="sofr"
@@ -407,11 +407,11 @@ which we calibrate with the same instruments.
        nodes={
            dt(2022, 1, 1): 1.0,
            dt(2022, 5, 1): 1.0,
-           dt(2022, 9, 1): 1.0
+           dt(2022, 9, 3): 1.0
        },
        t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
           dt(2022, 5, 1),
-          dt(2022, 9, 1), dt(2022, 9, 1), dt(2022, 9, 1), dt(2022, 9, 1)],
+          dt(2022, 9, 3), dt(2022, 9, 3), dt(2022, 9, 3), dt(2022, 9, 3)],
        id="sofr",
    )
    ll_solver = Solver(curves=[ll_curve], instruments=instruments, s=s, instrument_labels=["4m", "8m"], id="sofr")
@@ -435,7 +435,7 @@ which we calibrate with the same instruments.
        nodes={
            dt(2022, 1, 1): 1.0,
            dt(2022, 5, 1): 1.0,
-           dt(2022, 9, 1): 1.0
+           dt(2022, 9, 3): 1.0
        },
        interpolation="log_linear",
        id="sofr"
@@ -444,11 +444,11 @@ which we calibrate with the same instruments.
        nodes={
            dt(2022, 1, 1): 1.0,
            dt(2022, 5, 1): 1.0,
-           dt(2022, 9, 1): 1.0
+           dt(2022, 9, 3): 1.0
        },
        t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
           dt(2022, 5, 1),
-          dt(2022, 9, 1), dt(2022, 9, 1), dt(2022, 9, 1), dt(2022, 9, 1)],
+          dt(2022, 9, 3), dt(2022, 9, 3), dt(2022, 9, 3), dt(2022, 9, 3)],
        id="sofr",
    )
    ll_solver = Solver(curves=[ll_curve], instruments=instruments, s=s)
@@ -529,7 +529,7 @@ Now we create another :class:`~rateslib.instruments.IRS` and add it to a
        curves="estr",
    )
    pf = Portfolio([irs, irs2])
-   pf.npv(solver=combined_solver)
+   pf.npv(solver=combined_solver, local=True)
    pf.delta(solver=combined_solver)
    pf.gamma(solver=combined_solver)
 

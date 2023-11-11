@@ -63,206 +63,144 @@ Or, it can be installed via the community ``conda-forge`` channel available from
 Introduction to Rateslib
 -------------------------
 
+For what purpose would I use *rateslib*?
+=============================================
+
+- If you want to integrate linear fixed income analysis into your workflow with Python.
+- If you desire a pain free setup process, a user-oriented API, and extensive documentation.
+- If you are new to fixed income and interested to learn about basic and advanced concepts with
+  tools to explore the nuances of these markets, as a companion to various authored books.
+
+Which ``fixed income instruments`` does *rateslib* include?
+===========================================================
+
+.. list-table::
+   :widths: 25 25 25 25
+   :header-rows: 1
+
+
+   * - Single Ccy Derivatives
+     - Multi-Ccy Derivatives
+     - Securities
+     - Combinations
+   * - :class:`~rateslib.instruments.IRS`
+     - :class:`~rateslib.instruments.FXExchange`
+     - :class:`~rateslib.instruments.FixedRateBond`
+     - :class:`~rateslib.instruments.Spread`
+   * - :class:`~rateslib.instruments.SBS`
+     - :class:`~rateslib.instruments.FXSwap`
+     - :class:`~rateslib.instruments.FloatRateNote`
+     - :class:`~rateslib.instruments.Fly`
+   * - :class:`~rateslib.instruments.FRA`
+     - :class:`~rateslib.instruments.XCS`
+     - :class:`~rateslib.instruments.Bill`
+     - :class:`~rateslib.instruments.Portfolio`
+   * - :class:`~rateslib.instruments.STIRFuture`
+     -
+     - :class:`~rateslib.instruments.BondFuture`
+     -
+   * - :class:`~rateslib.instruments.ZCS`
+     -
+     - :class:`~rateslib.instruments.IndexFixedRateBond`
+     -
+   * - :class:`~rateslib.instruments.ZCIS`
+     -
+     -
+     -
+   * - :class:`~rateslib.instruments.IIRS`
+     -
+     -
+     -
+
 .. raw:: html
 
-    <div class="container">
-    <div id="accordion" class="shadow tutorial-accordion">
-
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseOne">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Which &nbsp;<span style="color: darkorange;">fixed income instruments</span>&nbsp; does rateslib include?
-                    </div>
-                    <span class="badge gs-badge-link">
+    <div class="tutorial">
 
 :ref:`Straight to tutorial...<instruments-doc>`
 
 .. raw:: html
 
-                    </span>
-                </div>
-            </div>
-            <div id="collapseOne" class="collapse" data-parent="#accordion">
-                <div class="card-body">
+    </div>
 
-**Securities**
+Does *rateslib* handle ``foreign exchange (FX)``?
+===========================================================
 
-- Discount securities - :class:`~rateslib.instruments.Bill`,
-- Regular nominal bonds - :class:`~rateslib.instruments.FixedRateBond`,
-- Bond futures - :class:`~rateslib.instruments.BondFuture`,
-- Index linked bonds - :class:`~rateslib.instruments.IndexFixedRateBond`,
-- Also FRNs - :class:`~rateslib.instruments.FloatRateNote`.
-
-**Single Currency Derivatives**
-
-- Interest rate swaps (both IBOR and RFR) - :class:`~rateslib.instruments.IRS`,
-- Index interest rate swaps - :class:`~rateslib.instruments.IIRS`,
-- Zero coupon swaps - :class:`~rateslib.instruments.ZCS`,
-- Zero coupon index swaps - :class:`~rateslib.instruments.ZCIS`,
-- Basis swaps - :class:`~rateslib.instruments.SBS`,
-- Forward rate agreements - :class:`~rateslib.instruments.FRA`.
-
-**Multi-currency Derivatives**
-
-- Cross-currency basis swaps - :class:`~rateslib.instruments.XCS`,
-- Non-mtm cross-currency basis swaps - :class:`~rateslib.instruments.NonMtmXCS`,
-- FX swaps - :class:`~rateslib.instruments.FXSwap`.
-
-.. raw:: html
-
-                </div>
-            </div>
-        </div>
-
-.. raw:: html
-
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseAD">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Does rateslib use &nbsp;<span style="color: darkorange;">automatic differentiation (AD)</span>?
-                    </div>
-                    <span class="badge gs-badge-link">
-
-:ref:`Straight to tutorial...<dual-doc>`
-
-.. raw:: html
-
-                    </span>
-                </div>
-            </div>
-            <div id="collapseAD" class="collapse" data-parent="#accordion">
-                <div class="card-body">
-
-**Yes**. The ``rateslib.dual`` module provides ``rateslib`` with its own integrated
-automatic differentiation toolset, using dual numbers, which operate in forward mode
-(as opposed to backwards, or adjoint, mode).
-
-Whenever you see a calculation result that displays a ``<Dual: 2.40..>`` datatype,
-it is sufficient to understand that the real value associated with this is the
-answer (2.40), and can be extracted directly with ``float(result)`` or ``result.real``.
-The ``dual`` attribute of the result contains first derivative information with regards
-to variables that has attributed to its calculation.
-
-.. raw:: html
-
-                </div>
-            </div>
-        </div>
-
-.. raw:: html
-
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseTwo">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Does rateslib handle &nbsp;<span style="color: darkorange;">foreign exchange (FX)</span>?
-                    </div>
-                    <span class="badge gs-badge-link">
-
-:ref:`Straight to tutorial...<fx-doc>`
-
-.. raw:: html
-
-                    </span>
-                </div>
-            </div>
-            <div id="collapseTwo" class="collapse" data-parent="#accordion">
-                <div class="card-body">
-
-**Yes**. Foreign exchange is a pre-requisite of properly handling multi-currency
+**Yes**. Foreign exchange is a pre-requisite of properly handling multi-currency fixed income
 derivatives, so the :class:`~rateslib.fx.FXRates` and :class:`~rateslib.fx.FXForwards`
 classes exist to allow full flexibility and expressing quantities in
 consistent currencies.
 
 .. raw:: html
 
-                </div>
-            </div>
-        </div>
+    <div class="tutorial">
+
+:ref:`Straight to tutorial...<fx-doc>`
 
 .. raw:: html
 
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseThree">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Can rateslib create and plot &nbsp;<span style="color: darkorange;">interest rate curves</span>?
-                    </div>
-                    <span class="badge gs-badge-link">
+    </div>
+
+Can ``Curves`` be constructed and plotted in *rateslib*?
+===========================================================
+
+**Of course**. Building curves is a necessity for pricing fixed income instruments.
+*Rateslib* has three primitive curve structures; :class:`~rateslib.curves.Curve` (which
+is **discount factor based**), :class:`~rateslib.curves.LineCurve` (which is **purely value
+based**), and :class:`~rateslib.curves.IndexCurve` (which is based on a *Curve* but also
+calculates index values which is useful for inflation, for example). All *Curve* types offer
+various interpolation methods, such as log-linear or log-cubic spline and can even splice certain
+interpolation types together.
+
+.. raw:: html
+
+    <div class="tutorial">
 
 :ref:`Straight to tutorial...<curves-doc>`
 
 .. raw:: html
 
-                    </span>
-                </div>
-            </div>
-            <div id="collapseThree" class="collapse" data-parent="#accordion">
-                <div class="card-body">
+    </div>
 
-**Of course**. Building curves is a necessity for pricing fixed income instruments.
-``rateslib`` has two available curve structures, and within those different
-interpolation options:
+Does *rateslib* ``solve`` curves relative to market prices?
+===========================================================
 
-- :class:`~rateslib.curves.Curve`, which is **discount factor based**. The native
-  interpolation options provided for these are ``log_linear``, ``linear_zero_rate``,
-  ``log-cubic spline``, or
-  a mixture of the two with the longer end being log-cubic spline.
-- :class:`~rateslib.curves.LineCurve`, which is **purely value based**. The native
-  interpolation options provided for these are ``linear``, ``flat_forward``,
-  ``cubic spline``, or a
-  mixture of the two with the longer end being cubic spline.
+**Yes**, when a :class:`~rateslib.solver.Solver` is configured along with all the intended
+*Instruments* and their relevant *prices*.
+Multiple algorithms (*gradient descent, Gauss-Newton, Leveberg-Marquardt*) and stopping criteria
+can be used within the optimization routine
+to simultaneously solve multiple *Curve* parameter.
+
+The *Solver* can even construct dependency chains, like sequentially building curves
+with dependencies to other desks on an investment bank trading floor, and internally manage all of
+the **risk sensitivity** calculations.
 
 .. raw:: html
 
-                </div>
-            </div>
-        </div>
-
-.. raw:: html
-
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseFour">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Can rateslib &nbsp;<span style="color: darkorange;">solve</span>&nbsp; interest rates curves from market instruments?
-                    </div>
-                    <span class="badge gs-badge-link">
+    <div class="tutorial">
 
 :ref:`Straight to tutorial...<c-solver-doc>`
 
 .. raw:: html
 
-                    </span>
-                </div>
-            </div>
-            <div id="collapseFour" class="collapse" data-parent="#accordion">
-                <div class="card-body">
-
-**Absolutely**. ``rateslib`` has a state-of-the-art  :class:`~rateslib.solver.Solver`,
-which can use multiple algorithms (*gradient descent, Gauss-Newton, Leveberg-Marquardt*)
-to simultaneously solve the curve parameters to fit provided market instrument prices.
-
-The solver can even construct dependency chains, like sequentially building curves
-with dependencies to other desks in on an investment bank trading floor, and it can
-handle over-specified curves or under-specified curves.
-
-.. raw:: html
-
-                </div>
-            </div>
-        </div>
-
-.. raw:: html
-
     </div>
+
+Does *rateslib* use ``automatic differentiation (AD)``?
+===========================================================
+
+**Yes**. The *dual* module provides *rateslib* with its own integrated
+automatic differentiation toolset, primarily the dual datatypes :class:`~rateslib.dual.Dual` and
+:class:`~rateslib.dual.Dual2`, which operate in forward mode
+(as opposed to backwards, or adjoint, mode). This allows native calculations to store first
+(or second) derivative information as those calculations are made on-the-fly.
+
+.. raw:: html
+
+    <div class="tutorial">
+
+:ref:`Straight to tutorial...<dual-doc>`
+
+.. raw:: html
+
     </div>
 
 
