@@ -1852,7 +1852,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         The adjusted or unadjusted termination date. If a string, then a tenor must be
         given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
     frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
-        The frequency of the schedule. "Z" is not permitted.
+        The frequency of the schedule. "Z" is **not** permitted. For zero-coupon-bonds use a
+        ``fixed_rate`` of zero and set the frequency according to the yield-to-maturity
+        convention required.
     stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}, optional
         The stub type to enact on the swap. Can provide two types, for
         example "SHORTFRONTLONGBACK".
@@ -2658,6 +2660,37 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
 
 class IndexFixedRateBond(FixedRateBond):
+    # TODO (mid) ensure calculations work for amortizing bonds.
+    """
+    Create an indexed fixed rate bond security.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args for :class:`~rateslib.instruments.FixedRateBond`.
+    index_base : float or None, optional
+        The base index applied to all periods.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the first
+        period.
+        If a list of *n* fixings will be used as the index fixings for the first *n*
+        periods.
+        If a datetime indexed ``Series`` will use the fixings that are available in
+        that object, and derive the rest from the ``curve``.
+    index_method : str
+        Whether the indexing uses a daily measure for settlement or the most recently
+        monthly data taken from the first day of month.
+    index_lag : int, optional
+        The number of months by which the index value is lagged. Used to ensure
+        consistency between curves and forecast values. Defined by default.
+    kwargs : dict
+        Required keyword args for :class:`~rateslib.instruments.FixedRateBond`.
+
+    Examples
+    --------
+    See :class:`~rateslib.instruments.FixedRateBond` for similar.
+    """
+
     _fixed_rate_mixin = True
     _ytm_attribute = "real_cashflow"  # index linked bonds use real cashflows
     _index_base_mixin = True
