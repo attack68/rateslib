@@ -868,6 +868,34 @@ class Value(BaseMixin):
 
 
 class FXExchange(Sensitivities, BaseMixin):
+    """
+    Create a simple exchange of two currencies.
+
+    Parameters
+    ----------
+    settlement : datetime
+        The date of the currency exchange.
+    currency : str
+        The currency of the cashflow for which ``notional`` is applicable (3-digit code).
+    leg2_currency : str
+        The currency of the cashflow on the alternate *Leg*.
+    fx_rate : float, optional
+        The FX rate used to derive the notional exchange on *Leg2*.
+    notional : float
+        The cashflow amount for the initial currency.
+    curves : Curve, LineCurve, str or list of such, optional
+        A single :class:`~rateslib.curves.Curve`,
+        :class:`~rateslib.curves.LineCurve` or id or a
+        list of such. A list defines the following curves in the order:
+
+        - Forecasting :class:`~rateslib.curves.Curve` or
+          :class:`~rateslib.curves.LineCurve` for ``leg1``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+        - Forecasting :class:`~rateslib.curves.Curve` or
+          :class:`~rateslib.curves.LineCurve` for ``leg2``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+    """
+
     def __init__(
         self,
         settlement: datetime,
@@ -6805,7 +6833,9 @@ class FRA(Sensitivities, BaseMixin):
 
 class XCS(BaseDerivative):
     """
-    Base class with common methods for multi-currency ``Derivatives``.
+    Create a cross-currency swap (XCS) composing relevant fixed or floating *Legs*.
+
+    MTM-XCSs will introduce a MTM *Leg* as *Leg2*.
 
     Parameters
     ----------
