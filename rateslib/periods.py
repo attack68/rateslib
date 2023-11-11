@@ -1947,7 +1947,7 @@ class IndexMixin(metaclass=ABCMeta):
         ):
             raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
         elif i_lag != i_curve.index_lag:
-            return None  # TODO decide if RolledCurve to correct index lag be attemoted
+            return None  # TODO decide if RolledCurve to correct index lag be attempted
         else:
             return i_curve.index_value(i_date, i_method)
 
