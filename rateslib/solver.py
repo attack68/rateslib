@@ -115,7 +115,7 @@ class Gradients:
 
     def _grad_s_vT_fixed_point_iteration(self):
         """
-        This is not the ideal method becuase it requires second order and reset props.
+        This is not the ideal method because it requires second order and reset props.
         """
         self._set_ad_order(2)
         self._reset_properties_()
@@ -126,6 +126,14 @@ class Gradients:
         grad_v_vT_f = grad2[: self.n, : self.n]
         grad_s_vT_f = grad2[self.n :, : self.n]
         grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
+
+        # The following are alternative representations. Actually faster to calculate and
+        # do not require sensitivity against S variables to be measured.
+        # See 'coding interest rates' equation 12.38
+        # _1 = np.einsum("iy, yz, jz", self.J, self.W, self.J)
+        # _2 = np.einsum("z, zy, ijy", self.x.astype(float), self.W, self.J2)
+        # _3 = 2* (_1 + _2)
+        # _11 = -2 * np.einsum("iz,zj->ji", self.J, self.W)
 
         self.s = _s
         self._set_ad_order(1)
