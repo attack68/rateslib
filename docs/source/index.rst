@@ -39,8 +39,8 @@ and independently, within global investment banks.
 Highlights
 ==========
 
-Curve construction is simple but has huge flexibility
------------------------------------------------------
+*Curve construction is simple but has huge flexibility*
+--------------------------------------------------------
 
 Multiple interpolation modes are offered by default and the generalised process for curve
 solving means very specific pricing artefacts can be accurately modelled with the
@@ -50,7 +50,7 @@ correct formulations. The framework is accessible and requires minimal configura
   :alt: Curve construction is flexible
   :width: 594
 
-API is designed from a user's perspective, and is well documented
+*API is designed for users with full documentation*
 -----------------------------------------------------------------
 
 Although any fixed income library uses complex mathematical processes, the API has been
@@ -60,48 +60,38 @@ For larger series of curves and more complicated object oriented
 associations the API signature does not materially change. Best practice is demonstrated in
 documentation examples.
 
-.. image:: _static/index_1.png
+.. image:: _static/index_2.png
   :alt: Simple instrument definition and pricing
-  :width: 594
+  :width: 590
 
-.. raw:: html
+*Wide range of fixed income Instruments available*
+----------------------------------------------------
 
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseThreeA">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Wide range of securities and derivatives are included..
-                    </div>
-                </div>
-            </div>
-            <div id="collapseThreeA" class="collapse" data-parent="#accordion">
-                <div class="card-body">
-
-The initial beta release of *rateslib* includes all of the standard single currency and
-multi-currency instruments. The large array of input parameters for these gives scope
+The most recent version of *rateslib* contains the main *Instruments* that
+dominate linear fixed income products. The large array of input parameters for these gives scope
 to fully capture the nuances of these products across sectors and geographic regions,
-capturing aspects like trading calendars, day count conventions, payment delays, etc.
+capturing aspects like trading calendars, day count conventions, payment delays, etc. New
+specifications and calendars are continually being added as users enquire.
 
-.. raw:: html
+A good example is a **US Treasury Bond**, replicated here with *rateslib* and the equivalent
+ticket in Bloomberg for reference point.
 
-                </div>
-            </div>
-        </div>
+.. ipython:: python
 
-.. raw:: html
+   ust = FixedRateBond(
+       effective=dt(2023, 8, 15), termination=dt(2033, 8, 15),
+       fixed_rate=3.875, spec="ust"
+   )  # Create a US-Treasury bond
+   ust.price(ytm=4.0, settlement=dt(2025, 2, 14))
+   ust.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
 
-        <div class="card tutorial-card">
-            <div class="card-header collapsed card-link" data-toggle="collapse" data-target="#collapseFourA">
-                <div class="d-flex flex-row tutorial-card-header-1">
-                    <div class="d-flex flex-row tutorial-card-header-2">
-                        <button class="btn btn-dark btn-sm"></button>
-                        Limited software dependencies and transparent workflow..
-                    </div>
-                </div>
-            </div>
-            <div id="collapseFourA" class="collapse" data-parent="#accordion">
-                <div class="card-body">
+.. image:: _static/ust_10y.gif
+  :alt: US Treasury example using the FixedRateBond class
+  :width: 611
+
+
+*Minimal dependencies to other Python libraries*
+--------------------------------------------------
 
 The dependencies are to **NumPy**, **Pandas**, and **Matplotlib**. *Rateslib* does
 not have any dependencies to any automatic
@@ -109,15 +99,6 @@ differentiation libraries, such as PyAudi or JAX, preferring initially to use it
 own forward mode module.
 
 The test coverage is very high.
-
-.. raw:: html
-
-                </div>
-            </div>
-        </div>
-    </div>
-    </div>
-
 
 Licence
 =======
