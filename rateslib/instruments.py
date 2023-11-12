@@ -690,14 +690,15 @@ class BaseMixin:
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
-        dfs = [
-            self.leg1.cashflows(curves[0], curves[1], fx_, base_),
-            self.leg2.cashflows(curves[2], curves[3], fx_, base_),
-        ]
-        _ = concat(
-            [_ for _ in dfs if not (_.empty or isna(_).all(axis=None))],  # filter empty or na
-            keys=["leg1", "leg2"],
-        )
+        df1 = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
+        df2 = self.leg2.cashflows(curves[2], curves[3], fx_, base_)
+        # filter empty or all NaN
+        dfs_filtered = [_ for _ in [df1, df2] if not (_.empty or isna(_).all(axis=None))]
+
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            _ = concat(dfs_filtered, keys=["leg1", "leg2"])
         return _
 
     @abc.abstractmethod
