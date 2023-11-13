@@ -1,12 +1,39 @@
 /* Getting started pages */
 
-code {
+html {
+  --pst-font-size-base: 0.9rem;
+}
+
+html[data-theme="light"] {
+  --pst-color-secondary: darkorange;
+  --pst-color-link-hover: darkorange;
+  --pst-heading-color: #459db9;
+  --pst-color-inline-code: darkorange;
+}
+
+a {
+  text-decoration: none;
+}
+
+.prev-next-area a p.prev-next-title {
+  text-decoration: none;
+}
+
+a.nav-link:hover {
+  text-decoration: none;
+}
+
+code.xref:hover {
   color: darkorange;
 }
 
-.sig-name {
-  color: darkorange;
-}
+/*code {*/
+/*  color: darkorange;*/
+/*}*/
+
+/*.sig-name {*/
+/*  color: darkorange;*/
+/*}*/
 
 .table td, .table th {
   font-size: 0.85em;

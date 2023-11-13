@@ -15,7 +15,7 @@ keywords = ["interest rate", "derivatives", "swaps", "bonds", "fixed income"]
 dependencies = [
     "numpy>=1.21.5",
     "matplotlib>=3.5.1",
-    "pandas>=1.4.1,<=2.0.3",
+    "pandas>=1.4.1",
 ]
 requires-python = ">=3.9"
 
@@ -23,7 +23,6 @@ requires-python = ">=3.9"
 dev = [
     "pytest>=7.0.1",
     "jupyterlab>=3.3.1",
-    "numba>=0.55.1",
     "sphinx>=5.1.1",
     "coverage>=7.1.0",
 ]
