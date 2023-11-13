@@ -58,7 +58,6 @@ html_theme_options = {
 }
 html_logo = "_static/rateslib_logo2a.png"
 html_css_files = [
-    'css/getting_started.css',
     'css/overwrites.css',
 ]
 html_favicon = '_static/favicon.ico'
