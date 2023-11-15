@@ -16,6 +16,7 @@ from rateslib.calendars import (
     _is_imm,
     _is_som,
     _get_imm,
+    _get_years_and_months,
 )
 
 
@@ -390,3 +391,18 @@ def test_dcf_special(start, end, conv, expected, freq_m, term, stub):
 def test_dcf_raises(conv, freq_m, term, stub):
     with pytest.raises(ValueError):
         _ = dcf(dt(2022, 1, 1), dt(2022, 4, 1), conv, term, freq_m, stub)
+
+
+@pytest.mark.parametrize(
+    "d1, d2, exp",
+    [
+        (dt(2009, 3, 1), dt(2012, 1, 15), (2, 10)),
+        (dt(2008, 12, 1), dt(2013, 10, 31), (4, 10)),
+        (dt(2008, 12, 1), dt(2018, 11, 15), (9, 11)),
+        (dt(2008, 12, 1), dt(2038, 5, 15), (29, 5)),
+    ],
+)
+def test_get_years_and_months(d1, d2, exp):
+    result = _get_years_and_months(d1, d2)
+    assert result == exp
+

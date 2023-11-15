@@ -37,7 +37,7 @@ from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
 
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
@@ -3831,6 +3831,18 @@ class BondFuture(Sensitivities):
         The calendar to define delivery days within the delivery window.
     currency: str, optional
         The currency (3-digit code) of the settlement contract.
+    calc_mode: str, optional
+        The method to calculate conversion factors. See notes.
+
+    Notes
+    -----
+    Conversion factors (CFs) ``calc_mode`` are:
+
+    - *"ytm"* which calculates the CF as the clean price percent of par with the bond having a
+      yield-to-maturity on the first delivery day in the delivery window.
+    - *"ust-short"* which applies to CME 2y, 3y and 5y treasury futures. See
+      :download:`CME Treasury Conversion Factors<_static/us_treasury_cfs.pdf>`.
+    - *"ust-long"* which applies to CME 10y and 30y treasury futures.
 
     Examples
     --------
@@ -3973,6 +3985,7 @@ class BondFuture(Sensitivities):
         contracts: Union[int, NoInput] = NoInput(0),
         calendar: Union[str, NoInput] = NoInput(0),
         currency: Union[str, NoInput] = NoInput(0),
+        calc_mode: Union[str, NoInput] = NoInput(0),
     ):
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.coupon = coupon
@@ -3985,6 +3998,7 @@ class BondFuture(Sensitivities):
         # self.last_trading = delivery[1] if last_trading is NoInput.blank else
         self.nominal = defaults.notional if nominal is NoInput.blank else nominal
         self.contracts = 1 if contracts is NoInput.blank else contracts
+        self.calc_mode = defaults.calc_mode_futures if calc_mode is NoInput.blank else calc_mode.lower()
         self._cfs = NoInput(0)
 
     @property
@@ -4060,7 +4074,37 @@ class BondFuture(Sensitivities):
         return self._cfs
 
     def _conversion_factors(self):
-        return tuple(bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket)
+        if self.calc_mode == "ytm":
+            return tuple(bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket)
+        elif self.calc_mode == "ust_short":
+            return tuple(self._cfs_ust(bond, True) for bond in self.basket)
+        elif self.calc_mode == "ust_long":
+            return tuple(self._cfs_ust(bond, False) for bond in self.basket)
+        else:
+            raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
+
+    def _cfs_ust(self, bond: FixedRateBond, short: bool):
+        # See CME pdf in doc Notes for formula.
+        coupon = bond.fixed_rate / 100.0
+        n, z = _get_years_and_months(self.delivery[0], bond.leg1.schedule.termination)
+        if not short:
+            mapping = {0:0, 1:0, 2:0, 3:3, 4:3, 5:3, 6:6, 7:6, 8:6, 9:9, 10:9, 11:9}
+            z = mapping[z]  # round down number of months to quarters
+        if z < 7:
+            v = z
+        elif short:
+            v = z-6
+        else:
+            v = 3
+        a = 1 / 1.03 ** (v / 6.0)
+        b = (coupon / 2) * (6 - v) / 6.0
+        if z < 7:
+            c = 1 / 1.03 ** (2 * n)
+        else:
+            c = 1 / 1.03 ** (2 * n + 1)
+        d = (coupon/0.06) * (1 - c)
+        factor = a * ((coupon / 2) + c + d) - b
+        return round(factor, 4)
 
     def dlv(
         self,
@@ -4084,14 +4128,14 @@ class BondFuture(Sensitivities):
         repo_rate: float, Dual, Dual2 or list/tuple of such
             The repo rates of the bonds to delivery.
         settlement: datetime
-            The settlement date of the bonds, required only if ``dirty`` is *True*.
+            The settlement date of the bonds.
         delivery: datetime, optional
             The date of the futures delivery. If not given uses the final delivery
             day.
         convention: str, optional
             The day count convention applied to the repo rates.
         dirty: bool
-            Whether the bond prices are given including accrued interest.
+            Whether the bond prices are given including accrued interest. Default is *False*.
 
         Returns
         -------

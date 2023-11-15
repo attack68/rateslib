@@ -1691,6 +1691,34 @@ class TestBondFuture:
         result = fut.cfs
         assert abs(result[0] - exp) < 1e-6
 
+    @pytest.mark.parametrize(
+        "mat, coupon, calc_mode, exp",
+        [
+            (dt(2010, 10, 31), 1.5, "ust_short", 0.9229),
+            (dt(2013, 10, 31), 2.75, "ust_short", 0.8653),
+            (dt(2018, 11, 15), 3.75, "ust_long", 0.8357),
+            (dt(2038, 5, 15), 4.5, "ust_long", 0.7943),
+        ],
+    )
+    def test_conversion_factors_cme_treasury(self, mat, coupon, calc_mode, exp):
+        # The expected results are downloaded from the CME website
+        # regarding precalculated conversion factors.
+        # this test allows for an error in the cf < 1e-6.
+        kwargs = dict(
+            effective=dt(2005, 1, 1),
+            spec="ust",
+        )
+        bond1 = FixedRateBond(termination=mat, fixed_rate=coupon, **kwargs)
+
+        fut = BondFuture(
+            delivery=(dt(2008, 12, 1), dt(2008, 12, 29)),
+            coupon=6.0,
+            basket=[bond1],
+            calc_mode=calc_mode,
+        )
+        result = fut.cfs
+        assert abs(result[0] - exp) < 1e-6
+
     def test_dlv_screen_print(self):
         kws = dict(ex_div=7, frequency="S", convention="ActActICMA", calendar=NoInput(0))
         bonds = [

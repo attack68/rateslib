@@ -68,6 +68,9 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
        *rate* in basis point terms and not percent.
+   * - Instruments
+     - Added ``calc_mode`` to :class:`~rateslib.instruments.BondFuture` to calculate CME US treasury
+       conversion factors correctly.
    * - Solver
      - Add an attribute ``result`` that contains retrievable iteration success or failure
        information.

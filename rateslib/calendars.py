@@ -821,6 +821,20 @@ def _add_days(
     return _adjust_date(end, modifier, cal)
 
 
+def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
+    """
+    Get the whole number of years and months between two dates
+    """
+    years: int = d2.year - d1.year
+    if (d2.month == d1.month and d2.day < d1.day) or (d2.month < d1.month):
+        years -= 1
+
+    months: int = (d2.month - d1.month) % 12
+    return years, months
+
+
+
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
