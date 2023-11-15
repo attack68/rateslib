@@ -3841,7 +3841,7 @@ class BondFuture(Sensitivities):
     - *"ytm"* which calculates the CF as the clean price percent of par with the bond having a
       yield-to-maturity on the first delivery day in the delivery window.
     - *"ust_short"* which applies to CME 2y, 3y and 5y treasury futures. See
-      :download:`CME Treasury Conversion Factors<_static/us_treasury_cfs.pdf>`.
+      :download:`CME Treasury Conversion Factors<_static/us-treasury-cfs.pdf>`.
     - *"ust_long"* which applies to CME 10y and 30y treasury futures.
 
     Examples
