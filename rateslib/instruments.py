@@ -4128,14 +4128,14 @@ class BondFuture(Sensitivities):
         repo_rate: float, Dual, Dual2 or list/tuple of such
             The repo rates of the bonds to delivery.
         settlement: datetime
-            The settlement date of the bonds, required only if ``dirty`` is *True*.
+            The settlement date of the bonds.
         delivery: datetime, optional
             The date of the futures delivery. If not given uses the final delivery
             day.
         convention: str, optional
             The day count convention applied to the repo rates.
         dirty: bool
-            Whether the bond prices are given including accrued interest.
+            Whether the bond prices are given including accrued interest. Default is *False*.
 
         Returns
         -------
