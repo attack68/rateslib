@@ -177,6 +177,7 @@ class Defaults:
     calc_mode = "ukg"
     settle = 1
     ex_div = 1
+    calc_mode_futures = "ytm"
 
     # misc
 
