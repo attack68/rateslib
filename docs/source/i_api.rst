@@ -273,3 +273,4 @@ Cookbook
     z_turns.rst
     z_stubs.rst
     z_convexityrisk.rst
+    z_quantlib.rst
