@@ -283,4 +283,5 @@ Results in the following table:
   | FloatPeriod | 2024-01-03 | 2025-01-03 | 2025-01-03 | 0.93439395  | 3.348439139 | 3404246.458  | 3180907.297  |
   +-------------+------------+------------+------------+-------------+-------------+--------------+--------------+
 
-Which is identical to the QuantLib result.
+Which is identical to the QuantLib result. 
+If you're interested in delving deeper into the calculation of discount factors by RatesLib and QuantLib, you may find some insights in this `blog post <https://xiar-fatah.github.io/2023/11/14/rateslib-bootstrapping.html>`_.
