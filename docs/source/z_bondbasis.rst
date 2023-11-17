@@ -83,7 +83,7 @@ the **risk sensitivity** of the bond.
 
 .. container:: twocol
 
-   .. container:: leftside
+   .. container:: leftside40
 
       **Duration** and **Convexity**
 
@@ -99,7 +99,7 @@ the **risk sensitivity** of the bond.
              settlement=dt(2017, 10, 10)
          )
 
-   .. container:: rightside
+   .. container:: rightside60
 
       **Delta** and **Gamma**
 
@@ -113,20 +113,18 @@ the **risk sensitivity** of the bond.
         with option_context("display.float_format", lambda x: '%.6f' % x):
             print(gamma)
 
+.. raw:: html
 
+   <div class="clear"></div>
 
 Metrics for futures
 ---------------------
 
 We can use the same principle to measure the bond future.
 
-The following is a comparison between analogue methods without a *Curve* and
-digital methods that use a numerical *Curve* and discounted cashflows, to measure
-the **risk sensitivity** of the bond.
-
 .. container:: twocol
 
-   .. container:: leftside
+   .. container:: leftside40
 
       **Duration** and **Convexity**
 
@@ -136,13 +134,13 @@ the **risk sensitivity** of the bond.
              future_price=125.2656,
              delivery=dt(2017, 12, 29),
              metric="risk"
-         ) * 100
+         )[0] * -100
          usbf.convexity(
              future_price=125.2656,
              delivery=dt(2017, 12, 29),
-         )
+         )[0]
 
-   .. container:: rightside
+   .. container:: rightside60
 
       **Delta** and **Gamma**
 
@@ -156,10 +154,14 @@ the **risk sensitivity** of the bond.
         with option_context("display.float_format", lambda x: '%.6f' % x):
             print(gamma)
 
+.. raw:: html
 
-The above *Curve* and *Solver* is not completely useful for a bond futures.
-An important part of its pricing is the repo rate, so we extend the *Curve*
-and *Solver* to have this relevant pricing component.
+   <div class="clear"></div>
+
+The above *Curve* and *Solver* is not completely useful for a bond future,
+however.
+An important part of its pricing is the repo rate until delivery, so
+we extend the *Curve* and *Solver* to have this relevant pricing component.
 
 .. ipython:: python
 
@@ -183,3 +185,30 @@ and *Solver* to have this relevant pricing component.
        instrument_labels=["repo", "bond ytm"],
        id="bonds",
    )
+
+**Revised Delta** and **Gamma** including the repo rate
+
+.. ipython:: python
+
+   delta = usbf.delta(solver=solver)
+   with option_context("display.float_format", lambda x: '%.6f' % x):
+       print(delta)
+
+   gamma = usbf.gamma(solver=solver)
+   with option_context("display.float_format", lambda x: '%.6f' % x):
+       print(gamma)
+
+Observe that in this construction the exposure to the bond yield-to-maturity
+is actually close to the analogue DV01 of the future with spot delivery.
+
+.. ipython:: python
+
+   usbf.duration(
+       future_price=125.2656,
+       delivery=dt(2017, 10, 10),
+       metric="risk"
+   )[0] * -100
+
+This calculation is the same as the spot DV01 of the CTD bond multiplied by the
+conversion factor, and in this case the spot CTD DV01 is priced from the given futures
+price assuming spot delivery.

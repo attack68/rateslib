@@ -46,12 +46,16 @@ code.xref:hover {
   font-size: 0.8em;
 }
 
-div.leftside {
-  width: 45%; !important;
+div.leftside40 {
+  width: 38%; !important;
   float: left;
 }
 
-div.rightside {
-  width: 45% !important;
+div.rightside60 {
+  width: 58% !important;
   float: right !important;
+}
+
+div.clear {
+  clear: both;
 }
