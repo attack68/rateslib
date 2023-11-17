@@ -19,6 +19,20 @@ class NoInput(Enum):
 
 
 class Fixings:
+    """
+    Class to load fixing data from CSV files.
+
+    .. warn::
+
+       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
+       This is for a number of reasons; one being a lack of data licensing to distribute such
+       data, and the second being a statically uploaded package relative to daily, dynamic fixing
+       information is not practical.
+
+    To use this class effectively the CSV files must be populated, daily, by the user.
+    See :ref:`working with fixings <cook-fixings-doc>`.
+
+    """
     @staticmethod
     def _load_csv(path):
         abspath = os.path.dirname(os.path.abspath(__file__))
@@ -53,6 +67,7 @@ class Fixings:
         "corra": "cad_rfr",
         "nowa": "nok_rfr",
         "swestr": "sek_rfr",
+        "sofr": "usd_rfr",
     }
 
     def __init__(self):
@@ -64,6 +79,7 @@ class Fixings:
 
 
 def _index_loader(self, name):
+    """Lazy Load values to a Series from a CSV file with a named index."""
     if name in self.alias:
         name = self.alias[name]
     if getattr(self, f"_{name}") is None:
@@ -72,9 +88,11 @@ def _index_loader(self, name):
 
 
 for _ in Fixings.indexes:
+    """Set a property on the Fixings object named in the indexes list."""
     setattr(Fixings, _, property(partial(_index_loader, name=_)))
 
 for _ in Fixings.alias.keys():
+    """Add a property from the alias list linking to its parent name."""
     setattr(Fixings, _, property(partial(_index_loader, name=_)))
 
     # @property
