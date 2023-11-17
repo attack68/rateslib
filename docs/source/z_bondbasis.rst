@@ -105,13 +105,9 @@ the **risk sensitivity** of the bond.
 
       .. ipython:: python
 
-        delta = ust.delta(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(delta)
+        ust.delta(solver=solver)
+        ust.gamma(solver=solver)
 
-        gamma = ust.gamma(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(gamma)
 
 .. raw:: html
 
@@ -146,13 +142,9 @@ We can use the same principle to measure the bond future.
 
       .. ipython:: python
 
-        delta = usbf.delta(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(delta)
+        usbf.delta(solver=solver)
+        usbf.gamma(solver=solver)
 
-        gamma = usbf.gamma(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(gamma)
 
 .. raw:: html
 
