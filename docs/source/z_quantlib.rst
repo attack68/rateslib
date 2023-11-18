@@ -279,4 +279,4 @@ Results in the following table:
   +-------------+------------+------------+------------+-------------+-------------+--------------+--------------+
 
 Which is identical to the *QuantLib* result. 
-If you're interested in delving deeper into the calculation of discount factors by RatesLib and QuantLib, you may find some insights in this `blog post <https://xiar-fatah.github.io/2023/11/14/rateslib-bootstrapping.html>`_.
+If you're interested in delving deeper into the calculation of DFs by *rateslib* and *QuantLib*, you may find some insights in this `blog post <https://xiar-fatah.github.io/2023/11/14/rateslib-bootstrapping.html>`_.
