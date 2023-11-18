@@ -155,7 +155,7 @@ Finally the result beween the two libraries is summarized in the table below:
   ============= ============= ============= ============== 
 
 
-Given that the term structure that have been created by both libraries, the next step is to value an interest rate swap. Starting with QuantLib:
+Given that the term structure that have been created by both libraries, the next step is to value an *IRS*. Starting with *QuantLib*:
 
 .. code-block:: python
 
