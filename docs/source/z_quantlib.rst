@@ -2,7 +2,7 @@
 
 Coming from QuantLib
 ********************
-This document offers a brief comparison between RatesLib and QuantLib for constructing a STIBOR3M-based swap curve. 
+This document offers a brief comparison between *rateslib* and *QuantLib* for constructing a *Curve*. In this example we build a *Curve* whose index is STIBOR-3M. 
 The evaluation includes curve creation and pricing a vanilla interest rate swap using both libraries. Let's start with QuantLib:
 
 .. code-block:: python
