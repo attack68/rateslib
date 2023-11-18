@@ -2,7 +2,6 @@ from pandas import read_csv
 import pandas
 import os
 from enum import Enum
-from functools import partial
 from packaging import version
 from datetime import datetime
 from rateslib._spec_loader import INSTRUMENT_SPECS
@@ -22,7 +21,7 @@ class Fixings:
     """
     Class to lazy load fixing data from CSV files.
 
-    .. warn::
+    .. warning::
 
        *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
        This is for a number of reasons; one being a lack of data licensing to distribute such
@@ -34,16 +33,6 @@ class Fixings:
     See :ref:`working with fixings <cook-fixings-doc>`.
 
     """
-
-    alias = {
-        "sonia": "gbp_rfr",
-        "estr": "eur_rfr",
-        "saron": "chf_rfr",
-        "corra": "cad_rfr",
-        "nowa": "nok_rfr",
-        "swestr": "sek_rfr",
-        "sofr": "usd_rfr",
-    }
 
     @staticmethod
     def _load_csv(dir, path):
@@ -61,9 +50,6 @@ class Fixings:
         return df["rate"].sort_index(ascending=True)
 
     def __getitem__(self, item):
-        if item in self.alias:
-            item = self.alias[item]
-
         if item in self.loaded:
             return self.loaded[item]
 
