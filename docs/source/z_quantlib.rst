@@ -97,12 +97,7 @@ The *rateslib* code below will replicate the *Curve* creation, but note the diff
       interpolation = 'log_linear',  # Interpolation Method 
       nodes={
          **{rl.dt(2023, 1, 3): 1.0}, # Initial node always starts at 1.0
-         **{rl.add_tenor(            
-         rl.dt(2023, 1, 3), 
-         tenor,                          # Pillar dates of the discount factors
-         "MF",                       # Convention
-         "stk"                       # Calendar
-         ): 1.0 for tenor in data.keys()}
+         **{rl.add_tenor(rl.dt(2023, 1, 3), tenor, "MF", "stk"): 1.0 for tenor in data.keys()}
          },
    )
 
