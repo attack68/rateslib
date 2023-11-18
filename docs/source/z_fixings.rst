@@ -24,10 +24,10 @@ within, *rateslib* documentation are shown below along with the source directory
 .. ipython:: python
 
    defaults.fixings.directory
-   defaults.fixings.usd_rfr  # an available alias is 'fixings.sofr'
+   defaults.fixings["usd_rfr"]  # an available alias is 'fixings["sofr"]'
 
 It is possible to overwrite these CSV files (provided the template structure is
-maintained) or to set a new directory and place CSV files there.
+maintained) or to set a new directory and place new CSV files there.
 Due to lazy loading, this should be done before calling any fixing *Series*, and
 all files should be stored in the same folder with the required naming convention.
 
