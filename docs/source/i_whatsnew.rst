@@ -65,6 +65,9 @@ email contact through **rateslib@gmail.com**.
      - Allow ``fixings`` as a 2-tuple to manually define the first *FloatPeriod* (say as IBOR stub)
        and determine the rest from a *Series*. Also allow ``fx_fixings`` as a 2-tuple for similar
        reason for MTM *XCS*.
+   * - Legs
+     - Refactor how the ``defaults.fixings`` object works. **Breaking change**. Explained in
+       :ref:`Working with Fixings <cook-fixings-doc>`.
    * - Instruments
      - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
        *rate* in basis point terms and not percent.
