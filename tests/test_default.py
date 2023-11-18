@@ -10,7 +10,7 @@ from rateslib import dt
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])
 def test_fixings(name):
-    result = getattr(defaults.fixings, name, None)
+    result = defaults.fixings[name]
     assert isinstance(result, Series)
 
 
@@ -33,9 +33,14 @@ def test_calendar_matches_fixings_corra():
         effective=dt(2017, 1, 1),
         termination=dt(2023, 7, 1),
         frequency="A",
-        leg2_fixings=defaults.fixings.corra,
+        leg2_fixings=defaults.fixings["corra"],
         calendar="tro",
         fixed_rate=1.0
     )
     curve = Curve({dt(2017, 1, 1): 1.0, dt(2027, 1, 1): 1.0}, calendar="tro")
     swap.npv(curves=curve)
+
+
+def test_fixings_raises_file_error():
+    with pytest.raises(ValueError, match="Fixing data for the index "):
+        defaults.fixings["nofile"]
