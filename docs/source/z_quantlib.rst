@@ -64,7 +64,7 @@ Finally, the curve is built using `ql.PiecewiseLogLinearDiscount`:
    
    curve = ql.PiecewiseLogLinearDiscount(0, ql.Sweden(), swap_helpers, ql.Actual360())
 
-The RatesLib code below will replicate the curve creation, but note the difference in handling the pillar dates (nodes) of curve:
+The *rateslib* code below will replicate the *Curve* creation, but note the difference in handling the nodes (pillar dates) of the *Curve*:
 
 .. ipython:: python
 
