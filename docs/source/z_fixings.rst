@@ -79,7 +79,7 @@ index lag is 2 business days so the fixing for the below *IRS* effective as of
        leg2_fixings=defaults.fixings["sek_ibor_3m"],
        fixed_rate=2.00,
    )
-   curve = Curve({dt(2023, 1, 3): 1.0, dt(2024, 1, 3): 0.98})
+   curve = Curve({dt(2023, 1, 3): 1.0, dt(2024, 1, 3): 0.97})
    irs.cashflows(curve)
    irs.leg2.fixings_table(curve)
 

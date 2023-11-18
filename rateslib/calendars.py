@@ -746,6 +746,8 @@ def add_tenor(
        import pandas as pd
        from pandas import date_range, Series, DataFrame
        pd.set_option("display.float_format", lambda x: '%.2f' % x)
+       pd.set_option("display.max_columns", None)
+       pd.set_option("display.width", 500)
 
     .. ipython:: python
 
