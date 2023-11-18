@@ -275,3 +275,4 @@ Cookbook
     z_convexityrisk.rst
     z_bondbasis.rst
     z_fixings.rst
+    z_quantlib.rst
