@@ -124,7 +124,7 @@ The next step is to create the *Instruments* and call the :class:`~rateslib.solv
    # Solve for the discount factors
    solver = rl.Solver(
       curves=[curve],
-      instruments=[rl.IRS(termination = term,**instr_args) for term in data.keys()],
+      instruments=[rl.IRS(termination=_, **instr_args) for _ in data.keys()],
       s=[value for value in data.values()]
    )
    curve.nodes
