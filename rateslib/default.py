@@ -95,46 +95,6 @@ for _ in Fixings.alias.keys():
     """Add a property from the alias list linking to its parent name."""
     setattr(Fixings, _, property(partial(_index_loader, name=_)))
 
-    # @property
-    # def sonia(self):
-    #     if self._sonia is None:
-    #         self._sonia = self._load_csv("data/sonia.csv")
-    #     return self._sonia
-    #
-    # @property
-    # def estr(self):
-    #     if self._estr is None:
-    #         self._estr = self._load_csv("data/estr.csv")
-    #     return self._estr
-    #
-    # @property
-    # def sofr(self):
-    #     if self._sofr is None:
-    #         self._sofr = self._load_csv("data/sofr.csv")
-    #     return self._sofr
-    #
-    # @property
-    # def swestr(self):
-    #     if self._swestr is None:
-    #         self._swestr = self._load_csv("data/swestr.csv")
-    #     return self._swestr
-    #
-    # @property
-    # def nowa(self):
-    #     if self._nowa is None:
-    #         self._nowa = self._load_csv("data/nowa.csv")
-    #     return self._nowa
-    #
-    # @property
-    # def corra(self):
-    #     if self._corra is None:
-    #         self._corra = self._load_csv("data/corra.csv")
-    #     return self._corra
-    #
-    # @property
-    # def saron(self):
-    #     raise NotImplementedError("Swiss SIX exchange licence not available.")
-
 
 class Defaults:
     """
