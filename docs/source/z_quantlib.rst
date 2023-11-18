@@ -191,7 +191,7 @@ Given that the term structure that have been created by both libraries, the next
       fixedLegDayCount=ql.Actual360(),
   )
 
-Above we have specified the attributes of our interest rate swap in QuantLib and now we want to price it and extract the NPVs and the corresponding cashflows:
+Above we have specified the attributes of our *IRS* in *QuantLib* and now we want to price it and extract the NPVs and the corresponding cashflows:
 
 .. code-block:: python
 
