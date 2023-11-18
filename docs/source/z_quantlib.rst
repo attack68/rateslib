@@ -131,7 +131,7 @@ The next step is to create the *Instruments* and call the :class:`~rateslib.solv
 
 Finally the result beween the two libraries is summarized in the table below: 
 
-.. table:: Discount Factors from RatesLib and QuantLib
+.. table:: Discount Factors from rateslib and QuantLib
 
   ============= ============= ============= ============== 
     Curve Nodes    RatesLib      QuantLib       Residual    
