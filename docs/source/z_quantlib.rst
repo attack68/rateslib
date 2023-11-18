@@ -267,7 +267,7 @@ Which compared with *rateslib*
 
 Results in the following table:
 
-.. table:: Cashflows attributes from RatesLib
+.. table:: Cashflows attributes from rateslib
 
   +-------------+------------+------------+------------+-------------+-------------+--------------+--------------+
   | Type        | Acc Start  | Acc End    | Payment    | DF          | Rate        | Cashflow     | NPV          |
