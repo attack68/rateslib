@@ -34,9 +34,8 @@ class Fixings:
 
     """
     @staticmethod
-    def _load_csv(path):
-        abspath = os.path.dirname(os.path.abspath(__file__))
-        target = os.path.join(abspath, path)
+    def _load_csv(dir, path):
+        target = os.path.join(dir, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
@@ -72,6 +71,7 @@ class Fixings:
 
     def __init__(self):
 
+        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
         for _ in self.indexes:
             setattr(self, f"_{_}", None)
         for _ in self.alias.keys():
@@ -83,7 +83,7 @@ def _index_loader(self, name):
     if name in self.alias:
         name = self.alias[name]
     if getattr(self, f"_{name}") is None:
-        setattr(self, f"_{name}", self._load_csv(f"data/{name}.csv"))
+        setattr(self, f"_{name}", self._load_csv(self.directory, f"{name}.csv"))
     return getattr(self, f"_{name}")
 
 

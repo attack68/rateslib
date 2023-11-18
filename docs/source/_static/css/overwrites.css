@@ -47,8 +47,8 @@ code.xref:hover {
 }
 
 div.leftside40 {
-  width: 38%; !important;
-  float: left;
+  width: 38% !important;
+  float: left !important;
 }
 
 div.rightside60 {
