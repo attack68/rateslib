@@ -1,7 +1,7 @@
 .. _cook-quantlib-doc:
 
-Coming from QuantLib
-********************
+Comparing Curve Building and Instrument Pricing with QuantLib
+****************************************************************
 This document offers a brief comparison between *rateslib* and *QuantLib* for constructing a *Curve*. In this example we build a *Curve* whose index is STIBOR-3M. 
 The evaluation includes *Curve* creation and pricing an :class:`~rateslib.instruments.IRS` using both libraries. Let's start with *QuantLib*:
 
