@@ -32,7 +32,7 @@ The evaluation includes *Curve* creation and pricing an :class:`~rateslib.instru
    } 
 
 
-The next step is to define the interest rate swaps for bootstrapping using ql.SwapRateHelper:
+The next step is to define the *IRSs* for bootstrapping using `ql.SwapRateHelper`:
 
 .. code-block:: python
 
