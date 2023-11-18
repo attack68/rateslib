@@ -3,7 +3,7 @@
 Coming from QuantLib
 ********************
 This document offers a brief comparison between *rateslib* and *QuantLib* for constructing a *Curve*. In this example we build a *Curve* whose index is STIBOR-3M. 
-The evaluation includes curve creation and pricing a vanilla interest rate swap using both libraries. Let's start with QuantLib:
+The evaluation includes *Curve* creation and pricing an :class:`~rateslib.instruments.IRS` using both libraries. Let's start with *QuantLib*:
 
 .. code-block:: python
 
