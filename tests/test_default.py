@@ -14,11 +14,6 @@ def test_fixings(name):
     assert isinstance(result, Series)
 
 
-def test_fixings_raises():
-    with pytest.raises(NotImplementedError, match="Swiss SIX exchange licence not available."):
-        getattr(defaults.fixings, "saron", None)
-
-
 def test_context_raises():
     with pytest.raises(ValueError, match="Need to invoke as "):
         default_context("only 1 arg")

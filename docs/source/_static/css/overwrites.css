@@ -45,3 +45,17 @@ code.xref:hover {
 .highlight {
   font-size: 0.8em;
 }
+
+div.leftside40 {
+  width: 38% !important;
+  float: left !important;
+}
+
+div.rightside60 {
+  width: 58% !important;
+  float: right !important;
+}
+
+div.clear {
+  clear: both;
+}
