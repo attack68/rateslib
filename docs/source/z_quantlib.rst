@@ -58,7 +58,7 @@ The next step is to define the *IRSs* for bootstrapping using `ql.SwapRateHelper
       ql.Actual360(),                               # Daycount
    ibor_index) for term, rate in data.items()]
 
-Finally, the curve is built using ql.PiecewiseLogLinearDiscount:
+Finally, the curve is built using `ql.PiecewiseLogLinearDiscount`:
 
 .. code-block:: python
    
