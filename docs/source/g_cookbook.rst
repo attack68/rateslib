@@ -15,3 +15,4 @@ into any one category.
     z_stubs.rst
     z_convexityrisk.rst
     z_bondbasis.rst
+    z_fixings.rst

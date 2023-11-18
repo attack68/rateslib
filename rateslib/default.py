@@ -2,6 +2,7 @@ from pandas import read_csv
 import pandas
 import os
 from enum import Enum
+from functools import partial
 from packaging import version
 from datetime import datetime
 from rateslib._spec_loader import INSTRUMENT_SPECS
@@ -18,10 +19,23 @@ class NoInput(Enum):
 
 
 class Fixings:
+    """
+    Class to load fixing data from CSV files.
+
+    .. warn::
+
+       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
+       This is for a number of reasons; one being a lack of data licensing to distribute such
+       data, and the second being a statically uploaded package relative to daily, dynamic fixing
+       information is not practical.
+
+    To use this class effectively the CSV files must be populated, daily, by the user.
+    See :ref:`working with fixings <cook-fixings-doc>`.
+
+    """
     @staticmethod
-    def _load_csv(path):
-        abspath = os.path.dirname(os.path.abspath(__file__))
-        target = os.path.join(abspath, path)
+    def _load_csv(dir, path):
+        target = os.path.join(dir, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
@@ -34,53 +48,52 @@ class Fixings:
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
         return df["rate"].sort_index(ascending=True)
 
+    # fmt: off
+    indexes = [
+        "gbp_rfr", "gbp_ibor_1m", "gbp_ibor_3m", "gbp_ibor_6m", "gbp_ibor_12m",
+        "eur_rfr", "eur_ibor_1m", "eur_ibor_3m", "eur_ibor_6m", "eur_ibor_12m",
+        "usd_rfr", "usd_ibor_1m", "usd_ibor_3m", "usd_ibor_6m", "usd_ibor_12m",
+        "nok_rfr", "nok_ibor_1m", "nok_ibor_3m", "nok_ibor_6m", "nok_ibor_12m",
+        "sek_rfr", "sek_ibor_1m", "sek_ibor_3m", "sek_ibor_6m", "sek_ibor_12m",
+        "chf_rfr", "chf_ibor_1m", "chf_ibor_3m", "chf_ibor_6m", "chf_ibor_12m",
+        "cad_rfr", "cad_ibor_1m", "cad_ibor_3m", "cad_ibor_6m", "cad_ibor_12m",
+    ]
+    # fmt: on
+    alias = {
+        "sonia": "gbp_rfr",
+        "estr": "eur_rfr",
+        "saron": "chf_rfr",
+        "corra": "cad_rfr",
+        "nowa": "nok_rfr",
+        "swestr": "sek_rfr",
+        "sofr": "usd_rfr",
+    }
+
     def __init__(self):
-        self._sonia = None
-        self._estr = None
-        self._sofr = None
-        self._swestr = None
-        self._nowa = None
-        self._corra = None
 
-    @property
-    def sonia(self):
-        if self._sonia is None:
-            self._sonia = self._load_csv("data/sonia.csv")
-        return self._sonia
+        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
+        for _ in self.indexes:
+            setattr(self, f"_{_}", None)
+        for _ in self.alias.keys():
+            setattr(self, f"_{_}", None)
 
-    @property
-    def estr(self):
-        if self._estr is None:
-            self._estr = self._load_csv("data/estr.csv")
-        return self._estr
 
-    @property
-    def sofr(self):
-        if self._sofr is None:
-            self._sofr = self._load_csv("data/sofr.csv")
-        return self._sofr
+def _index_loader(self, name):
+    """Lazy Load values to a Series from a CSV file with a named index."""
+    if name in self.alias:
+        name = self.alias[name]
+    if getattr(self, f"_{name}") is None:
+        setattr(self, f"_{name}", self._load_csv(self.directory, f"{name}.csv"))
+    return getattr(self, f"_{name}")
 
-    @property
-    def swestr(self):
-        if self._swestr is None:
-            self._swestr = self._load_csv("data/swestr.csv")
-        return self._swestr
 
-    @property
-    def nowa(self):
-        if self._nowa is None:
-            self._nowa = self._load_csv("data/nowa.csv")
-        return self._nowa
+for _ in Fixings.indexes:
+    """Set a property on the Fixings object named in the indexes list."""
+    setattr(Fixings, _, property(partial(_index_loader, name=_)))
 
-    @property
-    def corra(self):
-        if self._corra is None:
-            self._corra = self._load_csv("data/corra.csv")
-        return self._corra
-
-    @property
-    def saron(self):
-        raise NotImplementedError("Swiss SIX exchange licence not available.")
+for _ in Fixings.alias.keys():
+    """Add a property from the alias list linking to its parent name."""
+    setattr(Fixings, _, property(partial(_index_loader, name=_)))
 
 
 class Defaults:
