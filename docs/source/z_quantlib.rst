@@ -244,7 +244,7 @@ This results in the following cashflows:
   | FloatPeriod | 2024-01-03   | 2025-01-03 | 2025-01-03  | 0.93439395  | 0.03348     | 3404246.458 | 3180907.297  |
   +-------------+--------------+------------+-------------+-------------+-------------+-------------+--------------+
 
-Which compared with RatesLib
+Which compared with *rateslib*
 
 
 .. ipython:: python
