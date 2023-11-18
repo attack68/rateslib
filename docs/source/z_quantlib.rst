@@ -106,7 +106,7 @@ The *rateslib* code below will replicate the *Curve* creation, but note the diff
    Thus to replicate the result from *QuantLib*, the function :meth:`add_tenor()<rateslib.calendars.add_tenor>` is used to find
    the adjusted maturity dates for each *Instrument* and use those values as input to our *Curve*.
    
-The next step is to create the instruments and call the solver:
+The next step is to create the *Instruments* and call the :class:`~rateslib.solver.Solver`:
 
 .. ipython:: python
 
