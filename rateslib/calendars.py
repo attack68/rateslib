@@ -704,10 +704,12 @@ def add_tenor(
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
-    Note this function does not validate the ``roll`` input, but expects it to be correct.
-    This can be used to correctly replicate a schedule under a given roll day. For example
-    a modified 29th May +3M will default to 29th Aug, but can be made to match 31 Aug with *'eom'*
-    rolls.
+    .. warning::
+
+       Note this function does not validate the ``roll`` input, but expects it to be correct.
+       This can be used to correctly replicate a schedule under a given roll day. For example
+       a modified 29th May +3M will default to 29th Aug, but can be made to match
+       31 Aug with *'eom'* rolls.
 
     Parameters
     ----------
