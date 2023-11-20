@@ -1113,7 +1113,7 @@ def _get_unadjusted_stub_date(
     frequency: str,
     stub: str,
     eom: bool,
-    roll: Optional[Union[int, str]],
+    roll: Union[int, str, NoInput],
 ) -> datetime:
     """
     Return an unadjusted stub date inferred from the dates and frequency.
@@ -1169,7 +1169,7 @@ def _get_unadjusted_short_stub_date(
     frequency: str,
     stub_side: str,
     eom: bool,
-    roll: Optional[Union[int, str]] = None,
+    roll: Union[int, str, NoInput],
 ):
     """
     Return an unadjusted short stub date inferred from the dates and frequency.
