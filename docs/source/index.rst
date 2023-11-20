@@ -46,9 +46,35 @@ Multiple interpolation modes are offered by default and the generalised process 
 solving means very specific pricing artefacts can be accurately modelled with the
 correct formulations. The framework is accessible and requires minimal configuration.
 
-.. image:: _static/index_1.png
-  :alt: Curve construction is flexible
-  :width: 594
+.. container:: twocol
+
+   .. container:: leftside40
+
+      .. code-block:: python
+
+         usd_curve = Curve(
+             nodes={...},
+             convention="act360",
+             calendar="nyc",
+             interpolation="log_linear",
+             id="sofr",
+         )
+         solver = Solver(
+             curves=[usd_curve],
+             instruments=[...],
+             weights=[...],
+             s=[...],
+         )
+
+   .. container:: rightside60
+
+      .. image:: _static/index_sofr.png
+         :alt: Curve construction is flexible
+         :width: 351
+
+.. raw:: html
+
+   <div class="clear"></div>
 
 *API is designed for users with full documentation*
 -----------------------------------------------------------------
@@ -60,9 +86,19 @@ For larger series of curves and more complicated object oriented
 associations the API signature does not materially change. Best practice is demonstrated in
 documentation examples.
 
-.. image:: _static/index_2.png
-  :alt: Simple instrument definition and pricing
-  :width: 590
+.. code-block:: python
+
+   xcs = XCS(
+       effective=dt(2022, 2, 14), termination="15M",
+       notional=100e6, float_spread=-10.25,
+       spec="eurusd_xcs", curves=[...],
+   )  # Create a EUR/USD Cross-Ccy Swap
+
+   xcs.rate(solver=solver)
+   <Dual: -14.294203, [...], [...]>
+
+   xcs.npv(solver=solver, base="eur")
+   <Dual: -50,073.295467, [...], [...]>
 
 *Wide range of fixed income Instruments available*
 ----------------------------------------------------
