@@ -356,7 +356,7 @@ class Curve(_Serialize):
                     "Evaluating points on a curve beyond the endpoint of the basic "
                     "spline interval is undefined.\n"
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
-                    UserWarning
+                    UserWarning,
                 )
             return self._op_exp(self.spline.ppev_single(date))
 

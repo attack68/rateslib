@@ -434,7 +434,9 @@ class Dual(DualBase):
                 return argument * self
             elif isinstance(argument, (*FLOATS, *INTS)):
                 return Dual(self.real * float(argument), self.vars, self.dual * float(argument))
-            raise TypeError(f"Dual operations defined between float, int or Dual, got: {type(argument)}")
+            raise TypeError(
+                f"Dual operations defined between float, int or Dual, got: {type(argument)}"
+            )
 
         if self.vars == argument.vars:
             return Dual(
