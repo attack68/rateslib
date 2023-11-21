@@ -2134,6 +2134,8 @@ class CompositeCurve(IndexCurve):
             # will return a composited discount factor
             if date == self.curves[0].node_dates[0]:
                 return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
+            elif date < self.curves[0].node_dates[0]:
+                return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
             days = (date - self.curves[0].node_dates[0]).days
             d = _DCF1d[self.convention.upper()]
 
