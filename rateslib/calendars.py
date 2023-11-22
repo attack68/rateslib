@@ -76,7 +76,9 @@ CivicHoliday = Holiday("Civic Holiday", month=8, day=1, offset=DateOffset(weekda
 CADLabourDay = Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
 CADThanksgiving = Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
 Rememberance = Holiday("Rememberance", month=11, day=11, observance=next_monday)
-NationalTruth = Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1))
+NationalTruth = Holiday(
+    "National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1)
+)
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -704,10 +706,12 @@ def add_tenor(
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
-    Note this function does not validate the ``roll`` input, but expects it to be correct.
-    This can be used to correctly replicate a schedule under a given roll day. For example
-    a modified 29th May +3M will default to 29th Aug, but can be made to match 31 Aug with *'eom'*
-    rolls.
+    .. warning::
+
+       Note this function does not validate the ``roll`` input, but expects it to be correct.
+       This can be used to correctly replicate a schedule under a given roll day. For example
+       a modified 29th May +3M will default to 29th Aug, but can be made to match
+       31 Aug with *'eom'* rolls.
 
     Parameters
     ----------
@@ -833,8 +837,6 @@ def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
 
     months: int = (d2.month - d1.month) % 12
     return years, months
-
-
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

@@ -637,13 +637,16 @@ class FloatLegMixin:
     :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
     """
 
-    def _get_fixings_from_series(self, ser: Series, ini_period: int =0) -> list:
+    def _get_fixings_from_series(self, ser: Series, ini_period: int = 0) -> list:
         """
         Determine which fixings can be set for Periods with the given Series.
         """
         last_fixing_dt = ser.index[-1]
         if self.fixing_method in [
-            "rfr_payment_delay", "rfr_lockout", "rfr_payment_delay_avg", "rfr_lockout_avg"
+            "rfr_payment_delay",
+            "rfr_lockout",
+            "rfr_payment_delay_avg",
+            "rfr_lockout_avg",
         ]:
             adj_days = 0
         else:

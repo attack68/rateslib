@@ -32,7 +32,14 @@ from pandas import DataFrame, date_range, Series, NA, isna, notna
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday, CalInput
-from rateslib.curves import Curve, LineCurve, IndexCurve, average_rate, CompositeCurve, index_left
+from rateslib.curves import (
+    Curve,
+    LineCurve,
+    IndexCurve,
+    average_rate,
+    CompositeCurve,
+    index_left,
+)
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
@@ -1015,29 +1022,28 @@ class FloatPeriod(BasePeriod):
             else:  # values
                 return c.rate(fixing_date)
 
-        values = {
-            add_tenor(self.start, k, "MF", calendar): _rate(v, k)
-            for k, v in curve.items()
-        }
+        values = {add_tenor(self.start, k, "MF", calendar): _rate(v, k) for k, v in curve.items()}
         values = dict(sorted(values.items()))
         dates, rates = list(values.keys()), list(values.values())
         if self.end > dates[-1]:
             warnings.warn(
                 "Interpolated stub period has a length longer than the provided "
                 "IBOR curve tenors: using the longest IBOR value.",
-                UserWarning
+                UserWarning,
             )
             return rates[-1]
         elif self.end < dates[0]:
             warnings.warn(
                 "Interpolated stub period has a length shorter than the provided "
                 "IBOR curve tenors: using the shortest IBOR value.",
-                UserWarning
+                UserWarning,
             )
             return rates[0]
         else:
             i = index_left(dates, len(dates), self.end)
-            _ = rates[i] + (rates[i+1]-rates[i]) * ((self.end-dates[i]) / (dates[i+1] - dates[i]))
+            _ = rates[i] + (rates[i + 1] - rates[i]) * (
+                (self.end - dates[i]) / (dates[i + 1] - dates[i])
+            )
             return _
 
     def _ibor_rate_from_df_curve(self, curve: Curve):
@@ -1567,7 +1573,9 @@ class FloatPeriod(BasePeriod):
                     "dcf_dates": dcf_dates,
                     "dcf": dcf_vals,
                     "notional": notional_exposure,
-                    "rates": Series(rate, index=obs_dates.index).astype(float), #.apply(float, convert_dtype=float),
+                    "rates": Series(rate, index=obs_dates.index).astype(
+                        float
+                    ),  # .apply(float, convert_dtype=float),
                 }
             )
 
@@ -1627,7 +1635,10 @@ class FloatPeriod(BasePeriod):
         ]:
             start_obs, end_obs = self.start, self.end
             start_dcf, end_dcf = self.start, self.end
-        elif self.fixing_method in ["rfr_observation_shift", "rfr_observation_shift_avg"]:
+        elif self.fixing_method in [
+            "rfr_observation_shift",
+            "rfr_observation_shift_avg",
+        ]:
             start_obs = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = start_obs, end_obs
