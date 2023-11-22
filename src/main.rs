@@ -1,4 +1,6 @@
 // extern crate ndarray;
+// extern crate indexmap;
+// extern crate rateslibrs;
 // use nalgebra as na;
 use std::rc::Rc;
 

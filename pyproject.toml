@@ -1,12 +1,12 @@
 # pyproject.toml
 
-[build-system]
-requires      = ["setuptools>=61.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 #[build-system]
-#requires = ["maturin>=1.0,<2.0"]
-#build-backend = "maturin"
+#requires      = ["setuptools>=61.0.0", "wheel"]
+#build-backend = "setuptools.build_meta"
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "rateslib"
@@ -19,15 +19,19 @@ keywords = ["interest rate", "derivatives", "swaps", "bonds", "fixed income"]
 dependencies = [
     "numpy>=1.21.5",
     "matplotlib>=3.5.1",
-    "pandas>=1.4.1,<=2.0.3",
+    "pandas>=1.4.1",
 ]
 requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.1",
     "jupyterlab>=3.3.1",
-    "numba>=0.55.1",
     "sphinx>=5.1.1",
     "coverage>=7.1.0",
 ]
