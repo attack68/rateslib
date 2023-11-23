@@ -4209,6 +4209,67 @@ class BondFuture(Sensitivities):
         ]
         return df
 
+    def cms(
+        self,
+        curve: Curve,
+        shifts: list[float],
+    ):
+        """
+        Perform CTD multi-security analysis.
+
+        Parameters
+        ----------
+        curve : Curve, IndexCurve
+            A single *Curve* that will be used to discount cashflows and price *Instruments*
+        shifts : list of float
+            The scenarios to analyse.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        This method only operates when the CTD basket has multiple securities
+        """
+        if len(self.basket) == 1:
+            raise ValueError("Multi-security analysis cannot be perfomed with one security.")
+
+        _ad = curve.ad
+        curve._set_ad_order(order=0)  # turn of AD for efficiency
+
+        data = {
+            "Bond": [
+                f"{bond.fixed_rate:,.3f}% " f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+                for bond in self.basket
+            ]
+        }
+        for shift in shifts:
+            _curve = curve.shift(shift, composite=False)
+            settlement = add_tenor(
+                _curve.node_dates[0],
+                f"{self.basket[0].kwargs['settle']}B",
+                None,
+                self.basket[0].leg1.schedule.calendar,
+            )
+            data.update(
+                {
+                    shift: self.net_basis(
+                        future_price=self.rate(curves=_curve),
+                        prices=[_.rate(curves=_curve) for _ in self.basket],
+                        repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
+                        settlement=settlement,
+                        delivery=self.delivery[1],
+                        convention=_curve.convention
+                    )
+                }
+            )
+
+        curve._set_ad_order(_ad)  # return curve to state
+        _ = DataFrame(data=data)
+        return _
+
+
     def gross_basis(
         self,
         future_price: Union[float, Dual, Dual2],

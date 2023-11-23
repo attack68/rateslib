@@ -389,7 +389,7 @@ class Curve(_Serialize):
         modifier: Union[str, bool, NoInput] = NoInput(0),
         # calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
         # convention: Optional[str] = None,
-        float_spread: float = None,
+        float_spread: float = None,  # TODO: NoInput
         spread_compound_method: str = None,
     ):
         """

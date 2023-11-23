@@ -80,17 +80,17 @@ reprice every *Bond* price exactly when using a :class:`~rateslib.solver.Solver`
 .. ipython:: python
 
    unsorted_nodes = {
-       dt(2023, 11, 21): 1.0,
+       dt(2023, 11, 21): 1.0, #  Today's date
        **{_.leg1.schedule.termination: 1.0 for _ in data["bonds"]}
    }
    bcurve = Curve(
        nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
-       id="bcurve"
+       id="bcurve",
    )
    solver = Solver(
        curves=[bcurve],
        instruments=data["bonds"],
-       s=data["prices"]
+       s=data["prices"],
    )
 
 It is now possible to calculate any bond price under a shifted curve. Consider,
@@ -340,3 +340,11 @@ squares calculation) proxies the above mentioned probabilistic variables.
    axs.plot(x2, pps.ppev(x2))
    plt.show()
    plt.close()
+
+
+Using CMS (CTD Multi-Security) Analysis
+----------------------------------------
+
+If the above is a bit of overkill and all we need is a read out of the implied
+net basis for various parallel yield shifts
+
