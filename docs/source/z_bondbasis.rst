@@ -182,8 +182,8 @@ we extend the *Curve* and *Solver* to have this relevant pricing component.
 
 .. ipython:: python
 
-   delta = usbf.delta(solver=solver)
-   gamma = usbf.gamma(solver=solver)
+   usbf.delta(solver=solver)
+   usbf.gamma(solver=solver)
 
 Observe that in this construction the exposure to the bond yield-to-maturity
 is actually close to the analogue DV01 of the future with spot delivery.
