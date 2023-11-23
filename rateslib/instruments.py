@@ -4501,18 +4501,18 @@ class BondFuture(Sensitivities):
         ----------
         future_price : float
             The price of the future.
-        prices : list or tuple of float, Dual, Dual2, optional
-            The prices of the bonds to determine the CTD. Not used is ``ctd_index``
-            is given.
-        settlement : datetime
-            The settlement date of the bonds' ``prices``. Only required if ``prices``
-            are given.
-        delivery : datetime, optional
-            The delivery date of the contract.
-        dirty : bool, optional
-            Whether the ``prices`` given include accrued interest or not.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
         ordered : bool, optional
-            Whether to return the sorted order of CTD indexes and not just a single index for the specific CTD.
+            Whether to return the sorted order of CTD indexes and not just a single index for
+            the specific CTD.
 
         Returns
         -------
