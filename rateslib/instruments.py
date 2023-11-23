@@ -4492,7 +4492,7 @@ class BondFuture(Sensitivities):
         settlement: datetime,
         delivery: Union[datetime, NoInput] = NoInput(0),
         dirty: bool = False,
-        position: Union[int, NoInput] = NoInput(0),
+        ordered: bool = False,
     ):
         """
         Determine the index of the CTD in the basket from implied repo rate.
@@ -4511,6 +4511,8 @@ class BondFuture(Sensitivities):
             The delivery date of the contract.
         dirty : bool, optional
             Whether the ``prices`` given include accrued interest or not.
+        ordered : bool, optional
+            Whether to return the sorted order of CTD indexes and not just a single index for the specific CTD.
 
         Returns
         -------
@@ -4519,13 +4521,13 @@ class BondFuture(Sensitivities):
         implied_repo = self.implied_repo(
             future_price, prices, settlement, delivery, "Act365F", dirty
         )
-        ctd_index_ = implied_repo.index(max(implied_repo))
-        if position is NoInput.blank:
+        if not ordered:
+            ctd_index_ = implied_repo.index(max(implied_repo))
             return ctd_index_
         else:
-            x = {_: v for (_, v) in zip(range(len(implied_repo)), implied_repo)}
-            x = {k: v for k, v in sorted(x.items(), key=lambda item: -item[1])}
-            return list(x.keys())[position]
+            _ = {i: v for (i, v) in zip(range(len(implied_repo)), implied_repo)}
+            _ = {k: v for k, v in sorted(_.items(), key=lambda item: -item[1])}
+            return list(_.keys())
 
     # Digital Methods
 

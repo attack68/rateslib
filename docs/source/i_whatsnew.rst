@@ -83,6 +83,8 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Add the ``spec`` argument functionality missing for
        :class:`~rateslib.instruments.IndexFixedRateBond`.
+   * - Bug
+     - :class:`~rateslib.curves.CompositeCurve` now returns zero for DF item lookups prior to the initinal node date.
 
 0.6.0 (19th Oct 2023)
 **********************
