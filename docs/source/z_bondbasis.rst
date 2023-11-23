@@ -183,12 +183,7 @@ we extend the *Curve* and *Solver* to have this relevant pricing component.
 .. ipython:: python
 
    delta = usbf.delta(solver=solver)
-   with option_context("display.float_format", lambda x: '%.6f' % x):
-       print(delta)
-
    gamma = usbf.gamma(solver=solver)
-   with option_context("display.float_format", lambda x: '%.6f' % x):
-       print(gamma)
 
 Observe that in this construction the exposure to the bond yield-to-maturity
 is actually close to the analogue DV01 of the future with spot delivery.
@@ -203,4 +198,4 @@ is actually close to the analogue DV01 of the future with spot delivery.
 
 This calculation is the same as the spot DV01 of the CTD bond multiplied by the
 conversion factor, and in this case the spot CTD DV01 is priced from the given futures
-price assuming spot delivery.
+price *assuming a futures delivery date at spot*.
