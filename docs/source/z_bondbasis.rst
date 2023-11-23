@@ -105,13 +105,9 @@ the **risk sensitivity** of the bond.
 
       .. ipython:: python
 
-        delta = ust.delta(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(delta)
+        ust.delta(solver=solver)
+        ust.gamma(solver=solver)
 
-        gamma = ust.gamma(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(gamma)
 
 .. raw:: html
 
@@ -146,13 +142,9 @@ We can use the same principle to measure the bond future.
 
       .. ipython:: python
 
-        delta = usbf.delta(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(delta)
+        usbf.delta(solver=solver)
+        usbf.gamma(solver=solver)
 
-        gamma = usbf.gamma(solver=solver)
-        with option_context("display.float_format", lambda x: '%.6f' % x):
-            print(gamma)
 
 .. raw:: html
 
@@ -190,13 +182,8 @@ we extend the *Curve* and *Solver* to have this relevant pricing component.
 
 .. ipython:: python
 
-   delta = usbf.delta(solver=solver)
-   with option_context("display.float_format", lambda x: '%.6f' % x):
-       print(delta)
-
-   gamma = usbf.gamma(solver=solver)
-   with option_context("display.float_format", lambda x: '%.6f' % x):
-       print(gamma)
+   usbf.delta(solver=solver)
+   usbf.gamma(solver=solver)
 
 Observe that in this construction the exposure to the bond yield-to-maturity
 is actually close to the analogue DV01 of the future with spot delivery.
@@ -211,4 +198,4 @@ is actually close to the analogue DV01 of the future with spot delivery.
 
 This calculation is the same as the spot DV01 of the CTD bond multiplied by the
 conversion factor, and in this case the spot CTD DV01 is priced from the given futures
-price assuming spot delivery.
+price *assuming a futures delivery date at spot*.
