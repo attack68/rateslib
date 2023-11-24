@@ -1262,7 +1262,7 @@ class TestFloatPeriod:
             fixing_method=meth,
             method_param=param,
             float_spread=0.0,
-            fixings=defaults.fixings.nowa,
+            fixings=defaults.fixings["nowa"],
         )
         result = period.rate(curve)
         assert abs(result - exp) < 1e-7

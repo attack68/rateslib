@@ -115,7 +115,7 @@ class Gradients:
 
     def _grad_s_vT_fixed_point_iteration(self):
         """
-        This is not the ideal method becuase it requires second order and reset props.
+        This is not the ideal method because it requires second order and reset props.
         """
         self._set_ad_order(2)
         self._reset_properties_()
@@ -126,6 +126,14 @@ class Gradients:
         grad_v_vT_f = grad2[: self.n, : self.n]
         grad_s_vT_f = grad2[self.n :, : self.n]
         grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
+
+        # The following are alternative representations. Actually faster to calculate and
+        # do not require sensitivity against S variables to be measured.
+        # See 'coding interest rates' equation 12.38
+        # _1 = np.einsum("iy, yz, jz", self.J, self.W, self.J)
+        # _2 = np.einsum("z, zy, ijy", self.x.astype(float), self.W, self.J2)
+        # _3 = 2* (_1 + _2)
+        # _11 = -2 * np.einsum("iz,zj->ji", self.J, self.W)
 
         self.s = _s
         self._set_ad_order(1)
@@ -932,7 +940,7 @@ class Solver(Gradients):
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
-        ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0)
+        ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0),
     ) -> None:
         self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
         if ini_lambda is NoInput.blank:
@@ -941,7 +949,7 @@ class Solver(Gradients):
             self.ini_lambda = ini_lambda
         self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
-        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id # 1 in a million clash
+        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
@@ -1801,12 +1809,14 @@ class Solver(Gradients):
         """
         r_0 = self.r_pre
         r_1 = np.array(
-            [_[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}}) for _ in
-             self.pre_instruments]
+            [
+                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                for _ in self.pre_instruments
+            ]
         )
         return DataFrame(
             (r_1 - r_0) * 100 / np.array(self.pre_rate_scalars),
-            index=self.pre_instrument_labels
+            index=self.pre_instrument_labels,
         )
 
     def jacobian(self, solver: Solver):
@@ -1904,6 +1914,7 @@ class Solver(Gradients):
             columns=self.pre_instrument_labels,
             index=solver.pre_instrument_labels,
         )
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

@@ -37,7 +37,7 @@ from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
 
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
 from rateslib.solver import Solver
@@ -690,14 +690,15 @@ class BaseMixin:
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
 
-        dfs = [
-            self.leg1.cashflows(curves[0], curves[1], fx_, base_),
-            self.leg2.cashflows(curves[2], curves[3], fx_, base_),
-        ]
-        _ = concat(
-            [_ for _ in dfs if not (_.empty or isna(_).all(axis=None))],  # filter empty or na
-            keys=["leg1", "leg2"],
-        )
+        df1 = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
+        df2 = self.leg2.cashflows(curves[2], curves[3], fx_, base_)
+        # filter empty or all NaN
+        dfs_filtered = [_ for _ in [df1, df2] if not (_.empty or isna(_).all(axis=None))]
+
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            _ = concat(dfs_filtered, keys=["leg1", "leg2"])
         return _
 
     @abc.abstractmethod
@@ -1390,7 +1391,11 @@ class BondMixin:
         return 1 / (1 + d_ * ytm / 100)  # simple interest
 
     def _price_from_ytm(
-        self, ytm: float, settlement: datetime, calc_mode: Union[str, NoInput], dirty: bool = False
+        self,
+        ytm: float,
+        settlement: datetime,
+        calc_mode: Union[str, NoInput],
+        dirty: bool = False,
     ):
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
@@ -1851,7 +1856,10 @@ class BondMixin:
         metric = "dirty_price" if dirty else "clean_price"
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
 
-        a, b = 0.5 * npv_price.gradient("z_spread", 2)[0][0], npv_price.gradient("z_spread", 1)[0]
+        a, b = (
+            0.5 * npv_price.gradient("z_spread", 2)[0][0],
+            npv_price.gradient("z_spread", 1)[0],
+        )
         z = _quadratic_equation(a, b, float(npv_price) - float(price))
         # first z is solved by using 1st and 2nd derivatives to get close to target NPV
 
@@ -2374,9 +2382,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             elif metric == "ytm":
                 return self.ytm(dirty_price, settlement, True)
 
-        raise ValueError(
-            "`metric` must be in {'dirty_price', 'clean_price', 'ytm'}."
-        )
+        raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'ytm'}.")
 
     # def par_spread(self, *args, price, settlement, dirty, **kwargs):
     #     """
@@ -2805,7 +2811,9 @@ class IndexFixedRateBond(FixedRateBond):
         self._fixed_rate = fixed_rate
         self._index_base = index_base
 
-        self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"]))
+        self.leg1 = IndexFixedLeg(
+            **_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"])
+        )
         if self.leg1.amortization != 0:
             # Note if amortization is added to IndexFixedRateBonds must systematically
             # go through and update all methods. Many rely on the quantity
@@ -3266,7 +3274,10 @@ class Bill(FixedRateBond):
         return 100 / (1 + rate * dcf / 100)
 
     def ytm(
-        self, price: DualTypes, settlement: datetime, calc_mode: Union[str, NoInput] = NoInput(0)
+        self,
+        price: DualTypes,
+        settlement: datetime,
+        calc_mode: Union[str, NoInput] = NoInput(0),
     ):
         """
         Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
@@ -3527,7 +3538,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 {},
                 calendar=pseudo_period.calendar,
                 convention=pseudo_period.convention,
-                modifier="F"
+                modifier="F",
             )
             try:
                 _ = pseudo_period.rate(pseudo_curve)
@@ -3543,7 +3554,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                         last_fixing = pseudo_period.fixings[-1]
                     warnings.warn(
                         "A `Curve` was not supplied. Residual required fixings not yet "
-                        "published are forecast from the last known fixing.", UserWarning
+                        "published are forecast from the last known fixing.",
+                        UserWarning,
                     )
                     # For negative accr in ex-div we need to forecast unpublished rates.
                     # Build a curve which replicates the last fixing value from fixings.
@@ -3561,7 +3573,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                         )
                 curve_ = LineCurve(
                     {
-                        pseudo_period.start - timedelta(days=0 if isinstance(method_param, NoInput) else method_param): last_fixing,
+                        pseudo_period.start
+                        - timedelta(
+                            days=0 if isinstance(method_param, NoInput) else method_param
+                        ): last_fixing,
                         pseudo_period.end: last_fixing,
                     },
                     convention=pseudo_period.convention,
@@ -3710,7 +3725,9 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
 
             if self.ex_div(settlement):
-                rate_to_end = self._accrual_rate(self.leg1.periods[acc_idx], curve, self.leg1.method_param)
+                rate_to_end = self._accrual_rate(
+                    self.leg1.periods[acc_idx], curve, self.leg1.method_param
+                )
                 accrued_to_end = 100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
                 return accrued_to_settle - accrued_to_end
             else:
@@ -3830,6 +3847,18 @@ class BondFuture(Sensitivities):
         The calendar to define delivery days within the delivery window.
     currency: str, optional
         The currency (3-digit code) of the settlement contract.
+    calc_mode: str, optional
+        The method to calculate conversion factors. See notes.
+
+    Notes
+    -----
+    Conversion factors (CFs) ``calc_mode`` are:
+
+    - *"ytm"* which calculates the CF as the clean price percent of par with the bond having a
+      yield-to-maturity on the first delivery day in the delivery window.
+    - *"ust_short"* which applies to CME 2y, 3y and 5y treasury futures. See
+      :download:`CME Treasury Conversion Factors<_static/us-treasury-cfs.pdf>`.
+    - *"ust_long"* which applies to CME 10y and 30y treasury futures.
 
     Examples
     --------
@@ -3972,6 +4001,7 @@ class BondFuture(Sensitivities):
         contracts: Union[int, NoInput] = NoInput(0),
         calendar: Union[str, NoInput] = NoInput(0),
         currency: Union[str, NoInput] = NoInput(0),
+        calc_mode: Union[str, NoInput] = NoInput(0),
     ):
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.coupon = coupon
@@ -3984,6 +4014,9 @@ class BondFuture(Sensitivities):
         # self.last_trading = delivery[1] if last_trading is NoInput.blank else
         self.nominal = defaults.notional if nominal is NoInput.blank else nominal
         self.contracts = 1 if contracts is NoInput.blank else contracts
+        self.calc_mode = (
+            defaults.calc_mode_futures if calc_mode is NoInput.blank else calc_mode.lower()
+        )
         self._cfs = NoInput(0)
 
     @property
@@ -4059,7 +4092,50 @@ class BondFuture(Sensitivities):
         return self._cfs
 
     def _conversion_factors(self):
-        return tuple(bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket)
+        if self.calc_mode == "ytm":
+            return tuple(bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket)
+        elif self.calc_mode == "ust_short":
+            return tuple(self._cfs_ust(bond, True) for bond in self.basket)
+        elif self.calc_mode == "ust_long":
+            return tuple(self._cfs_ust(bond, False) for bond in self.basket)
+        else:
+            raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
+
+    def _cfs_ust(self, bond: FixedRateBond, short: bool):
+        # See CME pdf in doc Notes for formula.
+        coupon = bond.fixed_rate / 100.0
+        n, z = _get_years_and_months(self.delivery[0], bond.leg1.schedule.termination)
+        if not short:
+            mapping = {
+                0: 0,
+                1: 0,
+                2: 0,
+                3: 3,
+                4: 3,
+                5: 3,
+                6: 6,
+                7: 6,
+                8: 6,
+                9: 9,
+                10: 9,
+                11: 9,
+            }
+            z = mapping[z]  # round down number of months to quarters
+        if z < 7:
+            v = z
+        elif short:
+            v = z - 6
+        else:
+            v = 3
+        a = 1 / 1.03 ** (v / 6.0)
+        b = (coupon / 2) * (6 - v) / 6.0
+        if z < 7:
+            c = 1 / 1.03 ** (2 * n)
+        else:
+            c = 1 / 1.03 ** (2 * n + 1)
+        d = (coupon / 0.06) * (1 - c)
+        factor = a * ((coupon / 2) + c + d) - b
+        return round(factor, 4)
 
     def dlv(
         self,
@@ -4083,14 +4159,14 @@ class BondFuture(Sensitivities):
         repo_rate: float, Dual, Dual2 or list/tuple of such
             The repo rates of the bonds to delivery.
         settlement: datetime
-            The settlement date of the bonds, required only if ``dirty`` is *True*.
+            The settlement date of the bonds.
         delivery: datetime, optional
             The date of the futures delivery. If not given uses the final delivery
             day.
         convention: str, optional
             The day count convention applied to the repo rates.
         dirty: bool
-            Whether the bond prices are given including accrued interest.
+            Whether the bond prices are given including accrued interest. Default is *False*.
 
         Returns
         -------
@@ -4503,8 +4579,7 @@ class BondFuture(Sensitivities):
         else:
             f_settlement = delivery
         prices_ = [
-            bond.rate(curves, solver, fx, base, "clean_price", f_settlement)
-            for bond in self.basket
+            bond.rate(curves, solver, fx, base, "clean_price", f_settlement) for bond in self.basket
         ]
         future_prices_ = [price / self.cfs[i] for i, price in enumerate(prices_)]
         future_price = min(future_prices_)
@@ -5186,18 +5261,18 @@ class STIRFuture(IRS):
     _leg2_float_spread_mixin = True
 
     def __init__(
-            self,
-            *args,
-            price: Union[float, NoInput] = NoInput(0),
-            contracts: int = 1,
-            bp_value: Union[float, NoInput] = NoInput(0),
-            nominal: Union[float, NoInput] = NoInput(0),
-            leg2_float_spread: Union[float, NoInput] = NoInput(0),
-            leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
-            leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
-            leg2_fixing_method: Union[str, NoInput] = NoInput(0),
-            leg2_method_param: Union[int, NoInput] = NoInput(0),
-            **kwargs,
+        self,
+        *args,
+        price: Union[float, NoInput] = NoInput(0),
+        contracts: int = 1,
+        bp_value: Union[float, NoInput] = NoInput(0),
+        nominal: Union[float, NoInput] = NoInput(0),
+        leg2_float_spread: Union[float, NoInput] = NoInput(0),
+        leg2_spread_compound_method: Union[str, NoInput] = NoInput(0),
+        leg2_fixings: Union[float, list, Series, NoInput] = NoInput(0),
+        leg2_fixing_method: Union[str, NoInput] = NoInput(0),
+        leg2_method_param: Union[int, NoInput] = NoInput(0),
+        **kwargs,
     ):
         nominal = defaults.notional if nominal is NoInput.blank else nominal
         # TODO this overwrite breaks positional arguments
@@ -5219,7 +5294,9 @@ class STIRFuture(IRS):
 
         self._fixed_rate = self.kwargs["fixed_rate"]
         self._leg2_float_spread = leg2_float_spread
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value", "contracts"]))
+        self.leg1 = FixedLeg(
+            **_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value", "contracts"])
+        )
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
     def npv(
@@ -5317,19 +5394,24 @@ class STIRFuture(IRS):
         base: Union[str, NoInput] = NoInput(0),
     ):
         return DataFrame.from_records(
-            [{
-                defaults.headers["type"]: type(self).__name__,
-                defaults.headers["stub_type"]: "Regular",
-                defaults.headers["currency"]: self.leg1.currency.upper(),
-                defaults.headers["a_acc_start"]: self.leg1.schedule.effective,
-                defaults.headers["a_acc_end"]: self.leg1.schedule.termination,
-                defaults.headers["payment"]: None,
-                defaults.headers["convention"]: "Exchange",
-                defaults.headers["dcf"]: float(self.leg1.notional) / self.kwargs["nominal"] * self.kwargs["bp_value"] / 100.0,
-                defaults.headers["notional"]: float(self.leg1.notional),
-                defaults.headers["df"]: 1.0,
-                defaults.headers["collateral"]: self.leg1.currency.lower(),
-            }]
+            [
+                {
+                    defaults.headers["type"]: type(self).__name__,
+                    defaults.headers["stub_type"]: "Regular",
+                    defaults.headers["currency"]: self.leg1.currency.upper(),
+                    defaults.headers["a_acc_start"]: self.leg1.schedule.effective,
+                    defaults.headers["a_acc_end"]: self.leg1.schedule.termination,
+                    defaults.headers["payment"]: None,
+                    defaults.headers["convention"]: "Exchange",
+                    defaults.headers["dcf"]: float(self.leg1.notional)
+                    / self.kwargs["nominal"]
+                    * self.kwargs["bp_value"]
+                    / 100.0,
+                    defaults.headers["notional"]: float(self.leg1.notional),
+                    defaults.headers["df"]: 1.0,
+                    defaults.headers["collateral"]: self.leg1.currency.lower(),
+                }
+            ]
         )
 
     def spread(self):
@@ -6934,7 +7016,7 @@ class XCS(BaseDerivative):
         default_kwargs = dict(
             fixed=False if fixed is NoInput.blank else fixed,
             leg2_fixed=False if leg2_fixed is NoInput.blank else leg2_fixed,
-            leg2_mtm=True if leg2_mtm is NoInput.blank else leg2_mtm
+            leg2_mtm=True if leg2_mtm is NoInput.blank else leg2_mtm,
         )
         self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
 
@@ -6955,20 +7037,20 @@ class XCS(BaseDerivative):
                 method_param=method_param,
             )
             Leg1 = FloatLeg
-        leg1_user_kwargs.update(dict(
-            payment_lag_exchange=payment_lag_exchange,
-            initial_exchange=True,
-            final_exchange=True,
-        ))
+        leg1_user_kwargs.update(
+            dict(
+                payment_lag_exchange=payment_lag_exchange,
+                initial_exchange=True,
+                final_exchange=True,
+            )
+        )
 
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
         if self.kwargs["leg2_fixed"]:
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
-            leg2_user_kwargs = dict(
-                leg2_fixed_rate=leg2_fixed_rate
-            )
+            leg2_user_kwargs = dict(leg2_fixed_rate=leg2_fixed_rate)
             Leg2 = FixedLeg if not leg2_mtm else FixedLegMtm
         else:
             self._leg2_float_spread_mixin = True
@@ -6981,19 +7063,23 @@ class XCS(BaseDerivative):
                 leg2_method_param=leg2_method_param,
             )
             Leg2 = FloatLeg if not leg2_mtm else FloatLegMtm
-        leg2_user_kwargs.update(dict(
-            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
-            leg2_initial_exchange=True,
-            leg2_final_exchange=True,
-        ))
+        leg2_user_kwargs.update(
+            dict(
+                leg2_payment_lag_exchange=leg2_payment_lag_exchange,
+                leg2_initial_exchange=True,
+                leg2_final_exchange=True,
+            )
+        )
 
         if self.kwargs["leg2_mtm"]:
             self._is_mtm = True
-            leg2_user_kwargs.update(dict(
-                leg2_alt_currency=self.kwargs["currency"],
-                leg2_alt_notional=-self.kwargs["notional"],
-                leg2_fx_fixings=fx_fixings,
-            ))
+            leg2_user_kwargs.update(
+                dict(
+                    leg2_alt_currency=self.kwargs["currency"],
+                    leg2_alt_notional=-self.kwargs["notional"],
+                    leg2_fx_fixings=fx_fixings,
+                )
+            )
         else:
             self._is_mtm = False
 
@@ -7993,7 +8079,7 @@ class Portfolio(Sensitivities):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Return the NPV of the *Portfolio* by summing instrument NPVs.
@@ -8006,7 +8092,7 @@ class Portfolio(Sensitivities):
                 "No ``base`` currency is inferred, using ``local`` output. To return a single "
                 "PV specify a ``base`` currency and ensure an ``fx`` or ``solver.fx`` object "
                 "is available to perform the conversion if the currency differs from the local.",
-                UserWarning
+                UserWarning,
             )
             local = True
 
@@ -8019,7 +8105,13 @@ class Portfolio(Sensitivities):
         from functools import partial
 
         func = partial(
-            _instrument_npv, curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
+            _instrument_npv,
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            base=base,
+            local=local,
+            **kwargs,
         )
         p = Pool(defaults.pool)
         results = p.map(func, self.instruments)

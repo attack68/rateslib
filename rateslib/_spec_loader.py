@@ -39,7 +39,7 @@ if DEVELOPMENT:
             df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)
         return df
 
-    path = "data/instrument_spec.csv"
+    path = "data/__instrument_spec.csv"
     abspath = os.path.dirname(os.path.abspath(__file__))
     target = os.path.join(abspath, path)
     df = pd.read_csv(target)

@@ -12,16 +12,36 @@ from rateslib._spec_loader import INSTRUMENT_SPECS
 
 
 class NoInput(Enum):
+    """
+    Enumerable type to handle setting default values.
+
+    See :ref:`<default values <defaults-doc>`.
+    """
     blank = 0
     inherit = 1
     negate = -1
 
 
 class Fixings:
+    """
+    Class to lazy load fixing data from CSV files.
+
+    .. warning::
+
+       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
+       This is for a number of reasons; one being a lack of data licensing to distribute such
+       data, and the second being a statically uploaded package relative to daily, dynamic fixing
+       information is not practical.
+
+    To use this class effectively the CSV files must be populated by the user, ideally scheduled
+    regularly to continuously update these files with incoming fixing data.
+    See :ref:`working with fixings <cook-fixings-doc>`.
+
+    """
+
     @staticmethod
-    def _load_csv(path):
-        abspath = os.path.dirname(os.path.abspath(__file__))
-        target = os.path.join(abspath, path)
+    def _load_csv(dir, path):
+        target = os.path.join(dir, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
@@ -34,53 +54,28 @@ class Fixings:
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
         return df["rate"].sort_index(ascending=True)
 
+    def __getitem__(self, item):
+        if item in self.loaded:
+            return self.loaded[item]
+
+        try:
+            s = self._load_csv(self.directory, f"{item}.csv")
+        except FileNotFoundError:
+            raise ValueError(
+                f"Fixing data for the index '{item}' has been attempted, but there is no file:\n"
+                f"'{item}.csv' located in the search directory: '{self.directory}'\n"
+                "Create a CSV file in the directory with the above name and the exact "
+                "template structure:\n###################\n"
+                "reference_date,rate\n26-08-2023,5.6152\n27-08-2023,5.6335\n##################\n"
+                "For further info see 'Working with Fixings' in the documentation cookbook."
+            )
+
+        self.loaded[item] = s
+        return s
+
     def __init__(self):
-        self._sonia = None
-        self._estr = None
-        self._sofr = None
-        self._swestr = None
-        self._nowa = None
-        self._corra = None
-
-    @property
-    def sonia(self):
-        if self._sonia is None:
-            self._sonia = self._load_csv("data/sonia.csv")
-        return self._sonia
-
-    @property
-    def estr(self):
-        if self._estr is None:
-            self._estr = self._load_csv("data/estr.csv")
-        return self._estr
-
-    @property
-    def sofr(self):
-        if self._sofr is None:
-            self._sofr = self._load_csv("data/sofr.csv")
-        return self._sofr
-
-    @property
-    def swestr(self):
-        if self._swestr is None:
-            self._swestr = self._load_csv("data/swestr.csv")
-        return self._swestr
-
-    @property
-    def nowa(self):
-        if self._nowa is None:
-            self._nowa = self._load_csv("data/nowa.csv")
-        return self._nowa
-
-    @property
-    def corra(self):
-        if self._corra is None:
-            self._corra = self._load_csv("data/corra.csv")
-        return self._corra
-
-    @property
-    def saron(self):
-        raise NotImplementedError("Swiss SIX exchange licence not available.")
+        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
+        self.loaded = {}
 
 
 class Defaults:
@@ -177,6 +172,7 @@ class Defaults:
     calc_mode = "ukg"
     settle = 1
     ex_div = 1
+    calc_mode_futures = "ytm"
 
     # misc
 

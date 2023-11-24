@@ -165,7 +165,7 @@ class Schedule:
     **Inferred stub dates from inputs**
 
     The following input arguments are provided; ``stub``, ``front_stub`` and
-    ``back_stub``. These are optional and in the case one or more are *None*, then
+    ``back_stub``. These are optional and in the case one or more are *NoInput*, then
     the code will attempt to infer stub scheduling.
 
     .. list-table:: Inference when ``stub`` is *None* in combination with stub dates
@@ -175,13 +175,13 @@ class Schedule:
        * - ``front_stub``:
          - datetime
          - datetime
-         - *None*
-         - *None*
+         - *NoInput*
+         - *NoInput*
        * - ``back_stub``:
          - datetime
-         - *None*
+         - *NoInput*
          - datetime
-         - *None*
+         - *NoInput*
        * - ``stub`` defaults to:
          - *"FRONTBACK"*
          - *"FRONT"*
@@ -198,7 +198,7 @@ class Schedule:
     ``effective`` or ``termination`` dates. If they do not align then an error is
     raised.
 
-    In the case all are *None* and :meth:`_infer_stub_date` is called this will first
+    In the case all are *NoInput* and :meth:`_infer_stub_date` is called this will first
     check for a regular swap to ensure a stub is required and if so will generate the
     appropriate stub at the front or back as necessary.
 
@@ -210,13 +210,13 @@ class Schedule:
        * - ``front_stub``:
          - datetime
          - datetime
-         - *None*
-         - *None*
+         - *NoInput*
+         - *NoInput*
        * - ``back_stub``:
          - datetime
-         - *None*
+         - *NoInput*
          - datetime
-         - *None*
+         - *NoInput*
        * - ``stub`` is dual sided
          - :meth:`_check_regular_swap`
          - :meth:`_infer_stub_date`
@@ -815,7 +815,7 @@ def _check_regular_swap(
     termination : datetime
         The adjusted or unadjusted termination date.
     frequency : str in {}, optional
-        aml
+        The frequency of the schedule.
     modifier : str,
         The date modification rule in {'NONE', 'F', 'MF', 'P', 'MP'}.
     eom : bool
@@ -843,14 +843,14 @@ def _check_regular_swap(
     date is Fri 4th March 2022 and a 1Y1Y swap is traded. This can have the
     following implications:
 
-     - Sat 4th March 2023 (1Y forward) is modified to Mon 6th March effective date and
-       the swap is then defined as 1Y out of 6th March making the termination date
-       Wed 6th March 2024. The swap is defined with a 6th roll as per the effective
-       date.
-     - Sat 4th March 2023 is modified to Mon 6th March but the termination date remains
-       as the valid date measured 1Y from 4th March, i.e. Mon 4th March 2024. The
-       swap is set to have 4th rolls. (These 4th rolls would even be valid if the
-       termination date had to be modified to the 5th, or 6th, say).
+    - Sat 4th March 2023 (1Y forward) is modified to Mon 6th March effective date and
+      the swap is then defined as 1Y out of 6th March making the termination date
+      Wed 6th March 2024. The swap is defined with a 6th roll as per the effective
+      date.
+    - Sat 4th March 2023 is modified to Mon 6th March but the termination date remains
+      as the valid date measured 1Y from 4th March, i.e. Mon 4th March 2024. The
+      swap is set to have 4th rolls. (These 4th rolls would even be valid if the
+      termination date had to be modified to the 5th, or 6th, say).
 
     Although the first bullet is prevalent in the GBP market, other
     markets such as EUR adopt the second approach, and the second also provides a more
@@ -924,7 +924,7 @@ def _infer_stub_date(
     termination : datetime
         The adjusted or unadjusted termination date.
     frequency : str in {}, optional
-        aml
+        The frequency of the schedule.
     stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}
         The stub type to enact on the swap. Can provide two types, for
         example "SHORTFRONTLONGBACK".
@@ -951,10 +951,11 @@ def _infer_stub_date(
     -----
     Only the following inferences are possible:
 
-      - ``front_stub``: when ``stub`` is front sided only and ``back_stub`` is *None*.
-      - ``front_stub``: when ``stub`` is dual sided and ``back_stub`` is specified.
-      - ``back_stub``: when ``stub`` is back sided only and ``front_stub`` is *None*.
-      - ``back_stub``: when ``stub`` is dual sided and ``front_stub`` is specified.
+    - ``front_stub``: when ``stub`` is front sided only and ``back_stub`` is *NoInput*.
+    - ``front_stub``: when ``stub`` is dual sided and ``back_stub`` is specified.
+    - ``back_stub``: when ``stub`` is back sided only and ``front_stub`` is *NoInput*.
+    - ``back_stub``: when ``stub`` is dual sided and ``front_stub`` is specified.
+
     """
     if "FRONT" in stub and "BACK" in stub:  # stub is dual sided
         dead_front_stub, dead_back_stub = False, False
@@ -1113,7 +1114,7 @@ def _get_unadjusted_stub_date(
     frequency: str,
     stub: str,
     eom: bool,
-    roll: Optional[Union[int, str]],
+    roll: Union[int, str, NoInput],
 ) -> datetime:
     """
     Return an unadjusted stub date inferred from the dates and frequency.
@@ -1169,7 +1170,7 @@ def _get_unadjusted_short_stub_date(
     frequency: str,
     stub_side: str,
     eom: bool,
-    roll: Optional[Union[int, str]] = None,
+    roll: Union[int, str, NoInput],
 ):
     """
     Return an unadjusted short stub date inferred from the dates and frequency.

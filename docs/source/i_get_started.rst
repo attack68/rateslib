@@ -47,16 +47,16 @@ Or, it can be installed via the community ``conda-forge`` channel available from
      - 3.11
      - 3.9
    * - NumPy
-     - 1.25.2
-     - 1.25.2
+     - 1.26.1
+     - 1.26.1
      - 1.21.5
    * - Pandas
-     - 2.1.0
-     - 2.0.3
+     - 2.1.3
+     - 2.1.3
      - 1.4.1
    * - Matplotlib
-     - 3.7.2
-     - 3.7.2
+     - 3.8.1
+     - 3.8.1
      - 3.5.1
 
 

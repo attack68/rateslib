@@ -76,7 +76,9 @@ CivicHoliday = Holiday("Civic Holiday", month=8, day=1, offset=DateOffset(weekda
 CADLabourDay = Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
 CADThanksgiving = Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
 Rememberance = Holiday("Rememberance", month=11, day=11, observance=next_monday)
-NationalTruth = Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1))
+NationalTruth = Holiday(
+    "National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1)
+)
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -704,10 +706,12 @@ def add_tenor(
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
-    Note this function does not validate the ``roll`` input, but expects it to be correct.
-    This can be used to correctly replicate a schedule under a given roll day. For example
-    a modified 29th May +3M will default to 29th Aug, but can be made to match 31 Aug with *'eom'*
-    rolls.
+    .. warning::
+
+       Note this function does not validate the ``roll`` input, but expects it to be correct.
+       This can be used to correctly replicate a schedule under a given roll day. For example
+       a modified 29th May +3M will default to 29th Aug, but can be made to match
+       31 Aug with *'eom'* rolls.
 
     Parameters
     ----------
@@ -746,6 +750,8 @@ def add_tenor(
        import pandas as pd
        from pandas import date_range, Series, DataFrame
        pd.set_option("display.float_format", lambda x: '%.2f' % x)
+       pd.set_option("display.max_columns", None)
+       pd.set_option("display.width", 500)
 
     .. ipython:: python
 
@@ -819,6 +825,18 @@ def _add_days(
 ) -> datetime:
     end = start + timedelta(days=days)
     return _adjust_date(end, modifier, cal)
+
+
+def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
+    """
+    Get the whole number of years and months between two dates
+    """
+    years: int = d2.year - d1.year
+    if (d2.month == d1.month and d2.day < d1.day) or (d2.month < d1.month):
+        years -= 1
+
+    months: int = (d2.month - d1.month) % 12
+    return years, months
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
