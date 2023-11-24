@@ -4211,18 +4211,28 @@ class BondFuture(Sensitivities):
 
     def cms(
         self,
-        curve: Curve,
+        prices: list[float],
+        settlement: datetime,
         shifts: list[float],
+        delivery: Union[datetime, NoInput] = NoInput(0),
+        dirty: bool = False,
     ):
         """
         Perform CTD multi-security analysis.
 
         Parameters
         ----------
-        curve : Curve, IndexCurve
-            A single *Curve* that will be used to discount cashflows and price *Instruments*
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
         shifts : list of float
             The scenarios to analyse.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        dirty: bool
+            Whether the bond prices are given including accrued interest. Default is *False*.
 
         Returns
         -------
@@ -4234,6 +4244,26 @@ class BondFuture(Sensitivities):
         """
         if len(self.basket) == 1:
             raise ValueError("Multi-security analysis cannot be perfomed with one security.")
+
+        # build a curve for pricing
+        today = add_tenor(
+            settlement,
+            f"-{self.basket[0].kwargs['settle']}B",
+            None,
+            self.basket[0].leg1.schedule.calendar,
+        )
+        unsorted_nodes = {
+            today: 1.0,
+            **{_.leg1.schedule.termination: 1.0 for _ in self.basket}
+        }
+        _curve = Curve(
+            nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
+        )
+        solver = Solver(
+            curves=[bcurve],
+            instruments=data["bonds"],
+            s=data["prices"]
+        )
 
         _ad = curve.ad
         curve._set_ad_order(order=0)  # turn of AD for efficiency
@@ -4268,7 +4298,6 @@ class BondFuture(Sensitivities):
         curve._set_ad_order(_ad)  # return curve to state
         _ = DataFrame(data=data)
         return _
-
 
     def gross_basis(
         self,
