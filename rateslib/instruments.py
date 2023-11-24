@@ -4243,7 +4243,8 @@ class BondFuture(Sensitivities):
         This method only operates when the CTD basket has multiple securities
         """
         if len(self.basket) == 1:
-            raise ValueError("Multi-security analysis cannot be perfomed with one security.")
+            raise ValueError("Multi-security analysis cannot be performed with one security.")
+        delivery = self.delivery[1] if delivery is NoInput.blank else delivery
 
         # build a curve for pricing
         today = add_tenor(
@@ -4256,17 +4257,21 @@ class BondFuture(Sensitivities):
             today: 1.0,
             **{_.leg1.schedule.termination: 1.0 for _ in self.basket}
         }
-        _curve = Curve(
+        bcurve = Curve(
             nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
+            convention="act365f"  # use the most natural DCF without scaling
         )
         solver = Solver(
             curves=[bcurve],
-            instruments=data["bonds"],
-            s=data["prices"]
+            instruments=[(_, (), {"curves": bcurve}) for _ in self.basket],
+            s=prices,
         )
-
-        _ad = curve.ad
-        curve._set_ad_order(order=0)  # turn of AD for efficiency
+        if solver.result["STATUS"] != "SUCCESS":
+            return ValueError(
+                "A bond curve could not be solved for analysis. "
+                "See 'Cookbook: Bond Future CTD Multi-Security Analysis'."
+            )
+        bcurve._set_ad_order(order=0)  # turn of AD for efficiency
 
         data = {
             "Bond": [
@@ -4275,13 +4280,7 @@ class BondFuture(Sensitivities):
             ]
         }
         for shift in shifts:
-            _curve = curve.shift(shift, composite=False)
-            settlement = add_tenor(
-                _curve.node_dates[0],
-                f"{self.basket[0].kwargs['settle']}B",
-                None,
-                self.basket[0].leg1.schedule.calendar,
-            )
+            _curve = bcurve.shift(shift, composite=False)
             data.update(
                 {
                     shift: self.net_basis(
@@ -4289,13 +4288,12 @@ class BondFuture(Sensitivities):
                         prices=[_.rate(curves=_curve) for _ in self.basket],
                         repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
                         settlement=settlement,
-                        delivery=self.delivery[1],
+                        delivery=delivery,
                         convention=_curve.convention
                     )
                 }
             )
 
-        curve._set_ad_order(_ad)  # return curve to state
         _ = DataFrame(data=data)
         return _
 
