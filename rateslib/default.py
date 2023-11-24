@@ -12,6 +12,11 @@ from rateslib._spec_loader import INSTRUMENT_SPECS
 
 
 class NoInput(Enum):
+    """
+    Enumerable type to handle setting default values.
+
+    See :ref:`<default values <defaults-doc>`.
+    """
     blank = 0
     inherit = 1
     negate = -1
