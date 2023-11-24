@@ -356,7 +356,8 @@ This method replicates the above process for a sequence of provide parallel shif
        shifts=[-100, -50, 0, 50, 100]
    )
 
-This can be broadly compared with Bloomberg, except this page re-ordered some of the bonds.
+This can be broadly compared with Bloomberg, except this page re-ordered some of the bonds, and is
+expressed in 32nds instead of decimals above.
 
 .. image:: _static/usz3ctd.png
   :alt: Bloomberg CMS function
