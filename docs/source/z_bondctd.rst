@@ -345,6 +345,18 @@ squares calculation) proxies the above mentioned probabilistic variables.
 Using CMS (CTD Multi-Security) Analysis
 ----------------------------------------
 
-If the above is a bit of overkill and all we need is a read out of the implied
-net basis for various parallel yield shifts
+The above analysis can be replicated with the :meth:`~rateslib.instruments.BondFuture.cms` method.
+This method replicates the above process for a sequence of provide parallel shifts.
 
+.. ipython:: python
+
+   usz3.cms(
+       prices=data["prices"],
+       settlement=dt(2023, 11, 22),
+       shifts=[-100, -50, 0, 50, 100]
+   )
+
+This can be broadly compared with Bloomberg, except this page re-ordered some of the bonds.
+
+.. image:: _static/usz3ctd.png
+  :alt: Bloomberg CMS function
