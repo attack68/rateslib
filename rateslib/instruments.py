@@ -4289,12 +4289,12 @@ class BondFuture(Sensitivities):
                 {
                     shift: self.net_basis(
                         future_price=self.rate(curves=_curve),
-                        prices=[_.rate(curves=_curve) for _ in self.basket],
+                        prices=[_.rate(curves=_curve, metric=metric) for _ in self.basket],
                         repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
                         settlement=settlement,
                         delivery=delivery,
                         convention=_curve.convention,
-                        dirty=False,
+                        dirty=dirty,
                     )
                 }
             )
@@ -4381,11 +4381,18 @@ class BondFuture(Sensitivities):
         else:
             r_ = repo_rate
 
-        net_basis_ = tuple(
-            bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
-            - self.cfs[i] * future_price
-            for i, bond in enumerate(self.basket)
-        )
+        if dirty:
+            net_basis_ = tuple(
+                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                - self.cfs[i] * future_price - bond.accrued(f_settlement)
+                for i, bond in enumerate(self.basket)
+            )
+        else:
+            net_basis_ = tuple(
+                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                - self.cfs[i] * future_price
+                for i, bond in enumerate(self.basket)
+            )
         return net_basis_
 
     def implied_repo(
