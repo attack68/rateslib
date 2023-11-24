@@ -252,7 +252,7 @@ squares calculation) proxies the above mentioned probabilistic variables.
        t=[-50, -50, -50, -50, -35, -20, 0, 20, 35, 50, 65, 80, 100, 100, 100, 100]
    );
    pps.csolve(x + x + x, y1 + y2 + y3, 0, 0, allow_lsq=True);
-   x2 = list(range(-50, 101, 1));
+   x2 = [_ for _ in range(-50, 101, 1)];
    axs.plot(x2, pps.ppev(x2));
 
 
@@ -336,7 +336,7 @@ squares calculation) proxies the above mentioned probabilistic variables.
        t=[-50, -50, -50, -50, -35, -20, 0, 20, 35, 50, 65, 80, 100, 100, 100, 100]
    )
    pps.csolve(x + x + x, y1 + y2 + y3, 0, 0, allow_lsq=True)
-   x2 = list(range(-50, 101, 1))
+   x2 = [_ for _ in range(-50, 101, 1)]
    axs.plot(x2, pps.ppev(x2))
    plt.show()
    plt.close()
