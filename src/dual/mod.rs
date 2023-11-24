@@ -3,7 +3,7 @@ use ndarray::{Array1, Array, arr1};
 use num_traits;
 use num_traits::Pow;
 // use std::collections::HashSet;
-use std::rc::Rc;
+use std::sync::Arc;
 
 // use indexmap::indexset;
 use indexmap::set::IndexSet;
@@ -22,16 +22,16 @@ pub enum Duals {
 impl_op_ex!(+ |a: &Duals, b: &Duals| -> Duals {
     use Duals::*;
     match a {
-        Float(MT)=>{
+        Float(mt)=>{
             match b {
-                Float(MTO) => Float(MT + MTO),
-                Dual(MTO) => Dual(MT + MTO)
+                Float(mto) => Float(mt + mto),
+                Dual(mto) => Dual(mt + mto)
             }
         },
-        Dual(MT) => {
+        Dual(mt) => {
             match b {
-                Float(MTO) => Dual(MT + MTO),
-                Dual(MTO) => Dual(MT + MTO),
+                Float(mto) => Dual(mt + mto),
+                Dual(mto) => Dual(mt + mto),
             }
         }
     }

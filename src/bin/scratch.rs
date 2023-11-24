@@ -1,6 +1,6 @@
 // use chrono::naive::NaiveDate;
 // use rateslibrs::interpolate::{interpolate_with_method};
-use rateslibrs::dual::Duals;
+use crate::dual::Duals;
 // use std::ops::Add;
 
 // #[derive(Debug, Clone)]

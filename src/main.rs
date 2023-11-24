@@ -2,10 +2,10 @@
 // extern crate indexmap;
 // extern crate rateslibrs;
 // use nalgebra as na;
-use std::rc::Rc;
+use std::sync::Arc;
 
-// use rateslibrs::dual::{Dual};
-use rateslibrs::dual::dual1::Dual;
+pub mod dual;
+use dual::dual1::Dual;
 use indexmap::set::IndexSet;
 use ndarray::Array;
 
@@ -18,8 +18,8 @@ fn main() {
     let vars = IndexSet::from_iter((0..2).map(|x| format!("v{}", x).to_string()));
     let dual_2 = Array::ones(3);
     let vars2 = IndexSet::from_iter((0..3).map(|x| format!("v{}", x).to_string()));
-    let a = Dual { real: 2.0, vars: Rc::new(vars), dual: dual_ };
-    let b = Dual { real: 3.0, vars: Rc::new(vars2), dual: dual_2 };
+    let a = Dual { real: 2.0, vars: Arc::new(vars), dual: dual_ };
+    let b = Dual { real: 3.0, vars: Arc::new(vars2), dual: dual_2 };
     // for i in 1..50000 {
     //     dual_add_bm(&a, &b);
     // }
@@ -52,13 +52,13 @@ mod tests {
 
     #[test]
     fn add_dual_float() {
-        let result = 10.0 + Dual::new(20.0, &["a"], &[]) + Dual::new(5.0, &["b"], &[2.0]) + 10.0;
-        assert_eq!(result, Dual::new(45.0, &["a", "b"], &[1.0, 2.0]))
+        let result = 10.0 + Dual::new(20.0, vec!["a".to_string()], vec![]) + Dual::new(5.0, vec!["b".to_string()], vec![2.0]) + 10.0;
+        assert_eq!(result, Dual::new(45.0, vec!["a".to_string(), "b".to_string()], vec![1.0, 2.0]))
     }
 
     #[test]
     fn sub_dual_float() {
-        let result = 100.0 - Dual::new(20.0, &["a"], &[]) - Dual::new(5.0, &["b"], &[2.0]) - 10.0;
-        assert_eq!(result, Dual::new(65.0, &["a", "b"], &[-1.0, -2.0]))
+        let result = 100.0 - Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()) - Dual::new(5.0, ["b".to_string()].to_vec(), [2.0].to_vec()) - 10.0;
+        assert_eq!(result, Dual::new(65.0, ["a".to_string(), "b".to_string()].to_vec(), [-1.0, -2.0].to_vec()))
     }
 }
