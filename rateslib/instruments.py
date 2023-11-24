@@ -4261,12 +4261,16 @@ class BondFuture(Sensitivities):
             nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
             convention="act365f"  # use the most natural DCF without scaling
         )
+        if dirty:
+            metric = "dirty_price"
+        else:
+            metric = "clean_price"
         solver = Solver(
             curves=[bcurve],
-            instruments=[(_, (), {"curves": bcurve}) for _ in self.basket],
+            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],
             s=prices,
         )
-        if solver.result["STATUS"] != "SUCCESS":
+        if solver.result["status"] != "SUCCESS":
             return ValueError(
                 "A bond curve could not be solved for analysis. "
                 "See 'Cookbook: Bond Future CTD Multi-Security Analysis'."
@@ -4289,7 +4293,8 @@ class BondFuture(Sensitivities):
                         repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
                         settlement=settlement,
                         delivery=delivery,
-                        convention=_curve.convention
+                        convention=_curve.convention,
+                        dirty=False,
                     )
                 }
             )
