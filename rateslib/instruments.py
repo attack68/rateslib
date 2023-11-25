@@ -8096,6 +8096,7 @@ class Portfolio(Sensitivities):
             )
             local = True
 
+        # if the pool is 1 do not do any parallel processing and return the single core func
         if defaults.pool == 1:
             return self._npv_single_core(
                 curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
@@ -8137,6 +8138,9 @@ class Portfolio(Sensitivities):
 
     def _npv_single_core(self, *args, **kwargs):
         if kwargs.get("local", False):
+            # dicts = [instrument.npv(*args, **kwargs) for instrument in self.instruments]
+            # result = dict(reduce(operator.add, map(Counter, dicts)))
+
             ret = {}
             for instrument in self.instruments:
                 i_npv = instrument.npv(*args, **kwargs)
@@ -8146,9 +8150,8 @@ class Portfolio(Sensitivities):
                     else:
                         ret[ccy] = i_npv[ccy]
         else:
-            ret = 0
-            for instrument in self.instruments:
-                ret += instrument.npv(*args, **kwargs)
+            _ = (instrument.npv(*args, **kwargs) for instrument in self.instruments)
+            ret = sum(_)
         return ret
 
     def cashflows(self, *args, **kwargs):
