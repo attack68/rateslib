@@ -308,7 +308,7 @@ class BaseLeg(metaclass=ABCMeta):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        _ = [period.analytic_delta(*args, **kwargs) for period in self.periods]
+        _ = (period.analytic_delta(*args, **kwargs) for period in self.periods)
         return sum(_)
 
     def cashflows(self, *args, **kwargs) -> DataFrame:
@@ -330,10 +330,10 @@ class BaseLeg(metaclass=ABCMeta):
         """
         _is_local = (len(args) == 5 and args[4]) or kwargs.get("local", False)
         if _is_local:
-            _ = [period.npv(*args, **kwargs)[self.currency] for period in self.periods]
+            _ = (period.npv(*args, **kwargs)[self.currency] for period in self.periods)
             return {self.currency: sum(_)}
         else:
-            _ = [period.npv(*args, **kwargs) for period in self.periods]
+            _ = (period.npv(*args, **kwargs) for period in self.periods)
             return sum(_)
 
     @property
