@@ -6,11 +6,15 @@ use std::sync::Arc;
 
 pub mod dual;
 use dual::dual1::Dual;
+use dual::Duals;
 use indexmap::set::IndexSet;
 use ndarray::Array;
 
 fn dual_add_bm(a: &Dual, b: &Dual) -> Dual {
     a + b
+}
+fn duals_add<T> (lhs: &T, rhs: &T) -> T {
+    lhs + rhs
 }
 
 fn main() {
@@ -48,7 +52,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::Dual;
+    use crate::{Dual, duals_add};
 
     #[test]
     fn add_dual_float() {
@@ -60,5 +64,11 @@ mod tests {
     fn sub_dual_float() {
         let result = 100.0 - Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()) - Dual::new(5.0, ["b".to_string()].to_vec(), [2.0].to_vec()) - 10.0;
         assert_eq!(result, Dual::new(65.0, ["a".to_string(), "b".to_string()].to_vec(), [-1.0, -2.0].to_vec()))
+    }
+
+    #[test]
+    fn duals_add_test() {
+        let result = duals_add(Duals::23.0, Duals::Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()));
+        assert_eq!(result, Duals::Dual::new(43.0, ["a".to_string()].to_vec(), [].to_vec()))
     }
 }

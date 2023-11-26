@@ -13,29 +13,29 @@ pub mod dual1;
 use crate::dual::dual1::Dual;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Duals {
     Float(f64),
     Dual(Dual),
 }
 
-impl_op_ex!(+ |a: &Duals, b: &Duals| -> Duals {
-    use Duals::*;
-    match a {
-        Float(mt)=>{
-            match b {
-                Float(mto) => Float(mt + mto),
-                Dual(mto) => Dual(mt + mto)
-            }
-        },
-        Dual(mt) => {
-            match b {
-                Float(mto) => Dual(mt + mto),
-                Dual(mto) => Dual(mt + mto),
-            }
-        }
-    }
-});
+// impl_op_ex!(+ |a: &Duals, b: &Duals| -> Duals {
+//     use Duals::*;
+//     match a {
+//         Float(mt)=>{
+//             match b {
+//                 Float(mto) => Float(mt + mto),
+//                 Dual(mto) => Dual(mt + mto)
+//             }
+//         },
+//         Dual(mt) => {
+//             match b {
+//                 Float(mto) => Dual(mt + mto),
+//                 Dual(mto) => Dual(mt + mto),
+//             }
+//         }
+//     }
+// });
 
 // impl std::ops::Add for &Duals {
 //     type Output = Duals;

@@ -1,3 +1,6 @@
+mod tests;
+pub mod dual_rebuild;
+
 pub mod dual;
 pub mod interpolate;
 pub mod point;

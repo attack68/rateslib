@@ -9,12 +9,17 @@ use std::sync::Arc;
 use indexmap::set::IndexSet;
 use auto_ops::{impl_op, impl_op_commutative, impl_op_ex};
 
+use pyo3::exceptions::PyIndexError;
+use pyo3::types::PyFloat;
+use pyo3::prelude::*;
+
+
 fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
     // used rather than equality for float numbers
     return (a-b).abs() < abs_tol.unwrap_or(1e-8)
 }
 
-
+#[pyclass]
 #[derive(Clone, Debug)]
 pub struct Dual {
     pub real : f64,
@@ -22,9 +27,9 @@ pub struct Dual {
     pub dual : Array1<f64>,
 }
 
-
+#[pymethods]
 impl Dual {
-
+    #[new]
     pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         let new_dual;
         if dual.len() != 0 && vars.len() != dual.len() {
@@ -40,21 +45,6 @@ impl Dual {
             dual: new_dual,
         }
     }
-    // pub fn new(real: f64, vars: &[&str], dual: &[f64]) -> Dual {
-    //     let new_dual;
-    //     if dual.len() != 0 && vars.len() != dual.len() {
-    //         panic!("`dual` must have same length as `vars` or have zero length.")
-    //     } else if dual.len() == 0 && vars.len() > 0 {
-    //         new_dual = Array::ones(vars.len());
-    //     } else {
-    //         new_dual = arr1(&dual);
-    //     }
-    //     Dual {
-    //         real: real,
-    //         vars: Arc::new(IndexSet::from_iter(vars.iter().map(|x| x.to_string()))),
-    //         dual: new_dual,
-    //     }
-    // }
 }
 
 
@@ -337,8 +327,4 @@ pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
 //         }
 //     }
 // }
-
-
-
-
 
