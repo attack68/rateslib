@@ -341,7 +341,7 @@ If you do *3)* then you can provide a *Solver* which contains the *Curves* and w
 resolve the string mapping: ``instrument.npv(solver=my_solver)``. Or you can also provide *Curves*
 directly, like for *1)*.
 
-**Best practice** in *rateslib* is to use *iii)*. This is the safest and most flexible approach and
+**Best practice** in *rateslib* is to use *3)*. This is the safest and most flexible approach and
 designed to work best with risk sensitivity calculations also.
 
 
