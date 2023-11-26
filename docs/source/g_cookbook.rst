@@ -28,5 +28,6 @@ into any one category.
 
 .. toctree::
     :titlesonly:
+
     z_convexityrisk.rst
     z_bondbasis.rst
