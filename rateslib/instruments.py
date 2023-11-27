@@ -4209,6 +4209,99 @@ class BondFuture(Sensitivities):
         ]
         return df
 
+    def cms(
+        self,
+        prices: list[float],
+        settlement: datetime,
+        shifts: list[float],
+        delivery: Union[datetime, NoInput] = NoInput(0),
+        dirty: bool = False,
+    ):
+        """
+        Perform CTD multi-security analysis.
+
+        Parameters
+        ----------
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
+        shifts : list of float
+            The scenarios to analyse.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        dirty: bool
+            Whether the bond prices are given including accrued interest. Default is *False*.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        This method only operates when the CTD basket has multiple securities
+        """
+        if len(self.basket) == 1:
+            raise ValueError("Multi-security analysis cannot be performed with one security.")
+        delivery = self.delivery[1] if delivery is NoInput.blank else delivery
+
+        # build a curve for pricing
+        today = add_tenor(
+            settlement,
+            f"-{self.basket[0].kwargs['settle']}B",
+            None,
+            self.basket[0].leg1.schedule.calendar,
+        )
+        unsorted_nodes = {
+            today: 1.0,
+            **{_.leg1.schedule.termination: 1.0 for _ in self.basket}
+        }
+        bcurve = Curve(
+            nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
+            convention="act365f"  # use the most natural DCF without scaling
+        )
+        if dirty:
+            metric = "dirty_price"
+        else:
+            metric = "clean_price"
+        solver = Solver(
+            curves=[bcurve],
+            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],
+            s=prices,
+        )
+        if solver.result["status"] != "SUCCESS":
+            return ValueError(
+                "A bond curve could not be solved for analysis. "
+                "See 'Cookbook: Bond Future CTD Multi-Security Analysis'."
+            )
+        bcurve._set_ad_order(order=0)  # turn of AD for efficiency
+
+        data = {
+            "Bond": [
+                f"{bond.fixed_rate:,.3f}% " f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+                for bond in self.basket
+            ]
+        }
+        for shift in shifts:
+            _curve = bcurve.shift(shift, composite=False)
+            data.update(
+                {
+                    shift: self.net_basis(
+                        future_price=self.rate(curves=_curve),
+                        prices=[_.rate(curves=_curve, metric=metric) for _ in self.basket],
+                        repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
+                        settlement=settlement,
+                        delivery=delivery,
+                        convention=_curve.convention,
+                        dirty=dirty,
+                    )
+                }
+            )
+
+        _ = DataFrame(data=data)
+        return _
+
     def gross_basis(
         self,
         future_price: Union[float, Dual, Dual2],
@@ -4288,11 +4381,18 @@ class BondFuture(Sensitivities):
         else:
             r_ = repo_rate
 
-        net_basis_ = tuple(
-            bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
-            - self.cfs[i] * future_price
-            for i, bond in enumerate(self.basket)
-        )
+        if dirty:
+            net_basis_ = tuple(
+                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                - self.cfs[i] * future_price - bond.accrued(f_settlement)
+                for i, bond in enumerate(self.basket)
+            )
+        else:
+            net_basis_ = tuple(
+                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                - self.cfs[i] * future_price
+                for i, bond in enumerate(self.basket)
+            )
         return net_basis_
 
     def implied_repo(
@@ -4492,6 +4592,7 @@ class BondFuture(Sensitivities):
         settlement: datetime,
         delivery: Union[datetime, NoInput] = NoInput(0),
         dirty: bool = False,
+        ordered: bool = False,
     ):
         """
         Determine the index of the CTD in the basket from implied repo rate.
@@ -4500,16 +4601,18 @@ class BondFuture(Sensitivities):
         ----------
         future_price : float
             The price of the future.
-        prices : list or tuple of float, Dual, Dual2, optional
-            The prices of the bonds to determine the CTD. Not used is ``ctd_index``
-            is given.
-        settlement : datetime
-            The settlement date of the bonds' ``prices``. Only required if ``prices``
-            are given.
-        delivery : datetime, optional
-            The delivery date of the contract.
-        dirty : bool, optional
-            Whether the ``prices`` given include accrued interest or not.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
+        ordered : bool, optional
+            Whether to return the sorted order of CTD indexes and not just a single index for
+            the specific CTD.
 
         Returns
         -------
@@ -4518,8 +4621,13 @@ class BondFuture(Sensitivities):
         implied_repo = self.implied_repo(
             future_price, prices, settlement, delivery, "Act365F", dirty
         )
-        ctd_index_ = implied_repo.index(max(implied_repo))
-        return ctd_index_
+        if not ordered:
+            ctd_index_ = implied_repo.index(max(implied_repo))
+            return ctd_index_
+        else:
+            _ = {i: v for (i, v) in zip(range(len(implied_repo)), implied_repo)}
+            _ = {k: v for k, v in sorted(_.items(), key=lambda item: -item[1])}
+            return list(_.keys())
 
     # Digital Methods
 

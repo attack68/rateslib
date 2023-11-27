@@ -720,7 +720,7 @@ def add_tenor(
     tenor : str
         The tenor to add, identified by calendar days, `"D"`, months, `"M"`,
         years, `"Y"` or business days, `"B"`, for example `"10Y"` or `"5B"`.
-    modifier : str, optional
+    modifier : str, optional in {"NONE", "MF", "F", "MP", "P"}
         The modification rule to apply if the tenor is calendar days, months or years.
     calendar : CustomBusinessDay or str, optional
         The calendar for use with business day adjustment and modification.

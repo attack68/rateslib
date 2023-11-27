@@ -108,7 +108,6 @@ the **risk sensitivity** of the bond.
         ust.delta(solver=solver)
         ust.gamma(solver=solver)
 
-
 .. raw:: html
 
    <div class="clear"></div>
@@ -150,7 +149,7 @@ We can use the same principle to measure the bond future.
 
    <div class="clear"></div>
 
-The above *Curve* and *Solver* is not completely useful for a bond future,
+The above *Curve* and *Solver* are not completely useful for a bond future,
 however.
 An important part of its pricing is the repo rate until delivery, so
 we extend the *Curve* and *Solver* to have this relevant pricing component.
@@ -160,7 +159,7 @@ we extend the *Curve* and *Solver* to have this relevant pricing component.
    bcurve = Curve(
        nodes={
            dt(2017, 10, 9): 1.0,
-           dt(2017, 12, 29): 1.0,
+           dt(2017, 12, 29): 1.0,  #  node for the repo rate to delivery
            dt(2024, 8, 17): 1.0,
        },
        calendar="nyc",

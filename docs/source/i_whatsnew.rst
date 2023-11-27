@@ -62,18 +62,24 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Legs
+     - Refactor how the ``defaults.fixings`` object works. **Breaking change**. Explained in
+       :ref:`Working with Fixings <cook-fixings-doc>`.
+   * - Legs
      - Allow ``fixings`` as a 2-tuple to manually define the first *FloatPeriod* (say as IBOR stub)
        and determine the rest from a *Series*. Also allow ``fx_fixings`` as a 2-tuple for similar
        reason for MTM *XCS*.
-   * - Legs
-     - Refactor how the ``defaults.fixings`` object works. **Breaking change**. Explained in
-       :ref:`Working with Fixings <cook-fixings-doc>`.
    * - Instruments
      - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
        *rate* in basis point terms and not percent.
    * - Instruments
      - Added ``calc_mode`` to :class:`~rateslib.instruments.BondFuture` to calculate CME US treasury
        conversion factors correctly.
+   * - Instruments
+     - :class:`~rateslib.instruments.BondFuture.ctd_index` can now optionally return the ordered set of CTD indexes
+       instead of just the CTD.
+   * - Instruments
+     - Added :meth:`~rateslib.instruments.BondFuture.cms` to perform multi-security CTD analysis on
+       :class:`~rateslib.instruments.BondFuture`.
    * - Solver
      - Add an attribute ``result`` that contains retrievable iteration success or failure
        information.
@@ -83,6 +89,11 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Add the ``spec`` argument functionality missing for
        :class:`~rateslib.instruments.IndexFixedRateBond`.
+   * - Bug
+     - :class:`~rateslib.curves.CompositeCurve` now returns zero for DF item lookups prior to the initial node date.
+   * - Bug
+     - :class:`~rateslib.instruments.BondFuture.net_basis` now deducts accrued from the result when the prices are
+       provided ``dirty``.
 
 0.6.0 (19th Oct 2023)
 **********************
