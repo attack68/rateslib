@@ -18,7 +18,8 @@ quickly rising yields led to multiple changes in the CTD bond.
 
 This page will demonstrate how one might use *rateslib* to perform some of this analysis.
 
-First we need to configure all of the *Instruments* and their prices. This is shown statically below.
+First we need to configure all of the *Instruments* and their prices. This is shown statically below (and actually
+there were many more bonds available in this basket, but this group proved to be the most relevant).
 
 .. ipython:: python
 
