@@ -1,7 +1,7 @@
 {
   "coverage": "99%",
   "licence": "CC-BY-NC-ND-4.0",
-  "pypi": "v0.6.0",
+  "pypi": "v0.7.0",
   "conda": "v0.6.0",
   "python": "3.9 | 3.10 | 3.11",
   "style": "black",

@@ -52,7 +52,7 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
-0.7.0 (not released)
+0.7.0 (29th Nov 2023)
 **********************
 
 .. list-table::
