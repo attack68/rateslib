@@ -5,3 +5,14 @@ include rateslib/data/nowa.csv
 include rateslib/data/sofr.csv
 include rateslib/data/sonia.csv
 include rateslib/data/swestr.csv
+include rateslib/data/eur_ibor_1m.csv
+include rateslib/data/eur_ibor_3m.csv
+include rateslib/data/eur_ibor_6m.csv
+include rateslib/data/eur_ibor_12m.csv
+include rateslib/data/eur_rfr.csv
+include rateslib/data/gbp_rfr.csv
+include rateslib/data/cad_rfr.csv
+include rateslib/data/chf_rfr.csv
+include rateslib/data/nok_rfr.csv
+include rateslib/data/sek_rfr.csv
+include rateslib/data/usd_rfr.csv

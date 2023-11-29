@@ -14,8 +14,9 @@ Perform this on development environment as well as specified minimum.
 $ pytest -W error
 Checking for uncaptured warnings.
 
-6) Commit and push any changes - this will temporarily break readthedocs which will build from push.
-7) Create a new release branch, e.g. '0.3.x' and checkout
+6) Add to the MANIFEST.in file if anything needs including
+7) Commit and push any changes - this will temporarily break readthedocs which will build from push.
+8) Create a new release branch, e.g. '0.3.x' and checkout
 
 On "release branch":
 
@@ -23,6 +24,7 @@ On "release branch":
 2) Delete the switcher in the releases branch since this is taken from main branch
 3) Build the INSTRUMENT_SPEC from the loader file and print the dict. Paste to file and set
    DEVELOPMENT to False.
+
 4) Commit and Push the branch.
 
 Build:
