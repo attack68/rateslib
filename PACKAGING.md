@@ -40,3 +40,8 @@ $ pip install -i https://test.pypi.org/simple rateslib
 In Read-the-Docs admin console:
 
 1) Add a new branch for auto built docs.
+
+In GITHUB:
+
+1) Add a new release.
+2) Update the Repo PNG with the new badges.
