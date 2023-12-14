@@ -1,6 +1,7 @@
 from math import isclose
 from abc import abstractmethod, ABCMeta
 from typing import Union, Optional
+from statistics import NormalDist
 import math
 import numpy as np
 
@@ -564,6 +565,20 @@ def dual_log(x, base=None):
         return math.log(x)
     else:
         return math.log(x, base)
+
+
+def dual_norm_cdf(x):
+    if isinstance(x, Dual):
+        a = float(x) / math.sqrt(2)
+        base = NormalDist().cdf(float(x))
+        scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * float(x)**2)
+        return Dual(base, x.vars, scalar * x.dual)
+    elif isinstance(x, Dual2):
+        return NotImplementedError("Normal CDF not implemented for Dual2")
+    else:
+        return NormalDist().cdf(x)
+
+
 
 
 def _pivot_matrix(A, method=1):
