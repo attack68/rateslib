@@ -568,17 +568,32 @@ def dual_log(x, base=None):
 
 
 def dual_norm_cdf(x):
+    """
+    Return the cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    base = NormalDist().cdf(float(x))
     if isinstance(x, Dual):
-        a = float(x) / math.sqrt(2)
-        base = NormalDist().cdf(float(x))
         scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * float(x)**2)
         return Dual(base, x.vars, scalar * x.dual)
     elif isinstance(x, Dual2):
-        return NotImplementedError("Normal CDF not implemented for Dual2")
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * float(x) ** 2)
+        scalar2 = scalar * -float(x)
+        return Dual2(
+            base,
+            x.vars,
+            scalar * x.dual,
+            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
+        )
     else:
-        return NormalDist().cdf(x)
-
-
+        return base
 
 
 def _pivot_matrix(A, method=1):

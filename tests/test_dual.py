@@ -10,6 +10,7 @@ from rateslib.dual import (
     dual_exp,
     dual_log,
     dual_solve,
+    dual_norm_cdf,
     set_order,
     _plu_decomp,
     _pivot_matrix,
@@ -594,6 +595,16 @@ def test_exp(x):
     result = dual_exp(x)
     expected = math.exp(2)
     assert result == expected
+
+
+def test_norm_cdf():
+    x = Dual2(1.25, "x")
+    value = dual_norm_cdf(x)
+    value2 = dual_norm_cdf(x + 0.00001)
+    assert abs(value.gradient("x")[0] - (value2 - value) * 100000) < 1e-5
+
+    second = (value2.gradient("x")[0] - value.gradient("x")[0])*100000
+    assert abs(value.gradient("x", order=2)[0] - second) < 1e-5
 
 
 def test_downcast_vars():
