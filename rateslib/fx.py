@@ -1780,3 +1780,46 @@ def forward_fx(
     # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
     _ *= fx_rate
     return _
+
+from rateslib.dual import dual_log, dual_exp, dual_norm_cdf
+from statistics import NormalDist
+def GKF(F, K, t, df1, df2, vol, method):
+    r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
+    vs = vol * t**0.5
+    S_imm = F * df2 / df1
+
+    if method=="GKF":
+        d1 = (dual_log(F / K) + 0.5 * vol**2 * t) / vs
+        d2 = d1 - vs
+        Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+        _ = dual_exp(-r2 * t) * (F * Nd1 - K * Nd2)
+
+    elif method=="GKS":
+        d1 = (dual_log(S_imm / K) + (r2-r1+0.5*vol**2) * t) / vs
+        d2 = d1 - vs
+        Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+        _ = df1 * S_imm * Nd1 - K * df2 * Nd2
+
+    return _
+
+def GKModel(S, K, t, ccy1, ccy2, vol):
+    d1 = (dual_log(S / K) + 1)
+
+
+class FXOption:
+    style = "european"
+    def __init__(
+        self,
+        pair: str,
+        expiry: Union[datetime, str],
+        kind: str = "call",
+        notional: float = NoInput(0),
+        eval_date: Union[datetime, NoInput] = NoInput(0),
+        
+        delivery: str = NoInput(0),
+
+        strike: Union[float, Dual, Dual2, str] = NoInput(0),
+        premium = NoInput(0),
+        payment: Union[str, datetime] = NoInput(0),
+    ):
+

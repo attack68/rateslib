@@ -4,6 +4,7 @@ from typing import Union, Optional
 from statistics import NormalDist
 import math
 import numpy as np
+from rateslib.default import NoInput
 
 PRECISION = 1e-14
 FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
@@ -56,7 +57,9 @@ class DualBase(metaclass=ABCMeta):
     def __eq__(self, argument):
         """Compare an argument with a Dual number for equality."""
         if not isinstance(argument, type(self)):
-            if not isinstance(argument, (*FLOATS, *INTS)):
+            if isinstance(argument, NoInput):
+                return False
+            elif not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
             argument = type(self)(float(argument))
         if self.vars == argument.vars:
