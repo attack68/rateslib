@@ -59,7 +59,7 @@ from rateslib.legs import (
     ZeroIndexLeg,
     IndexFixedLeg,
 )
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import Dual, Dual2, DualTypes, dual_log, dual_exp, dual_norm_cdf
 from rateslib.fx import FXForwards, FXRates, forward_fx
 
 
@@ -316,6 +316,7 @@ class Sensitivities:
         fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
+        **kwargs
     ):
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
@@ -353,7 +354,7 @@ class Sensitivities:
         """
         if solver is NoInput.blank:
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True)
+        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0), solver, NoInput(0), fx, base, NoInput(0)
         )
@@ -368,6 +369,7 @@ class Sensitivities:
         fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
+        **kwargs
     ):
         """
         Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
@@ -419,7 +421,7 @@ class Sensitivities:
         _ad1 = solver._ad
         solver._set_ad_order(2)
 
-        npv = self.npv(curves, solver, fx_, base_, local=True)
+        npv = self.npv(curves, solver, fx_, base_, local=True, **kwargs)
         grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
@@ -7849,6 +7851,90 @@ class FXSwap(XCS):
             self._set_pricing_mid(curves, solver, fx)
         ret = super().cashflows(curves, solver, fx, base)
         return ret
+
+
+# FX Options
+
+class FXOption(Sensitivities):
+    style = "european"
+
+    def __init__(
+        self,
+        pair: str,
+        expiry: Union[datetime, str],
+        kind: str = "call",
+        notional: float = NoInput(0),
+        eval_date: Union[datetime, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        modifier: Union[str, NoInput] = NoInput(0),
+        delivery_lag: Union[int, NoInput] = NoInput(0),
+        strike: Union[DualTypes, str, NoInput] = NoInput(0),
+        premium: Union[float, NoInput] = NoInput(0),
+        payment_lag: Union[str, datetime, NoInput] = NoInput(0),
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
+    ):
+        self.pair = pair.lower()
+
+        if isinstance(expiry, datetime):
+            self.expiry = expiry
+        elif isinstance(expiry, str) and isinstance(eval_date, datetime):
+            self.expiry = add_tenor(eval_date, expiry, modifier, calendar, NoInput(0))
+        else:
+            raise ValueError("`expiry` must be datetime or string tenor when `eval_date` is given.")
+
+        _ = delivery_lag if delivery_lag is not NoInput.blank else defaults.delivery_lag
+        self.delivery = add_tenor(self.expiry, f"{_}b", "F", calendar, NoInput(0))
+        self.delivery_lag = _
+        _ = payment_lag if payment_lag is not NoInput.blank else defaults.payment_lag
+        self.payment = add_tenor(self.expiry, f"{_}b", "F", calendar, NoInput(0))
+        self.payment_lag = _
+
+        self.notional = notional if notional is not NoInput.blank else defaults.notional
+        self.strike = strike
+        self.premium = premium
+
+        self.curves = curves
+        self.spec = spec
+
+    def _set_pricing_mid(self):
+        pass
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: float = NoInput(0)
+    ):
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.pair[3:]
+        )
+        F = fx.rate(self.pair, settlement=self.delivery)
+        t = (self.expiry - curves[1].node_dates[0]) / timedelta(days=365)
+        df1, df2 = curves[1][self.delivery], curves[3][self.delivery]
+        _ = self._garman_kolhagen_forward(F, self.strike, t, df1, df2, vol)
+        return _ / curves[3][self.payment]
+
+    @staticmethod
+    def _garman_kolhagen_forward(F, K, t, df1, df2, vol):
+        r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
+        vs = vol * t ** 0.5
+
+        d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t) / vs
+        d2 = d1 - vs
+        Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+        _ = dual_exp(-r2 * t) * (F * Nd1 - K * Nd2)
+
+        # Spot formulation instead of F
+        # https://quant.stackexchange.com/a/63661/29443
+        # S_imm = F * df2 / df1
+        # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
+        # d2 = d1 - vs
+        # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+        # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
+        return _
 
 
 # Generic Instruments

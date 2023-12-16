@@ -145,6 +145,8 @@ class Defaults:
     spread_compound_method = "none_simple"
     base_currency = "usd"
 
+    delivery_lag = 2
+
     # Curves
 
     interpolation = {

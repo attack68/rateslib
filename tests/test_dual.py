@@ -607,6 +607,12 @@ def test_norm_cdf():
     assert abs(value.gradient("x", order=2)[0] - second) < 1e-5
 
 
+def test_norm_cdf_value():
+    result = dual_norm_cdf(1.0)
+    expected = 0.8413
+    assert abs(result - expected) < 1e-4
+
+
 def test_downcast_vars():
     w = Dual(
         2,
