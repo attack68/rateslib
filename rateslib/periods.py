@@ -2472,6 +2472,24 @@ class FXOption:
         points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
         return points_premium * 10000.0
 
+    def implied_vol(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        premium: Union[float, NoInput] = NoInput(0),
+    ):
+        vol_ = Dual(0.25, "vol")
+        for i in range(20):
+            f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_) - premium
+            if abs(f_) < 1e-10:
+                break
+            vol_ = Dual(float(vol_ - f_ / f_.gradient("vol")), "vol")
+
+        return float(vol_)  # return a float TODO check whether Dual can be returned.
+
 
 def _float_or_none(val):
     if val is None:
