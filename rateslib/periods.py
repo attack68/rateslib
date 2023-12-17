@@ -465,11 +465,7 @@ class FixedPeriod(BasePeriod):
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,

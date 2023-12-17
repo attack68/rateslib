@@ -1887,6 +1887,7 @@ def test_base_period_dates_raise():
     with pytest.raises(ValueError):
         _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), "Q")
 
+
 @pytest.fixture()
 def fxfo():
     # FXForwards for FX Options tests
@@ -2018,3 +2019,4 @@ class TestFXOption:
         )
         expected = 0.08899600982866121  # Tullets have trade confo at 8.9%
         assert abs(expected - result) < 1e-9
+
