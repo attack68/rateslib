@@ -2000,3 +2000,21 @@ class TestFXOption:
         )
         expected = 70.256824  # 70.25 premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
+
+    def test_implied_vol(self, fxfo):
+        fxo = FXOption(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.implied_vol(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            premium=70.25,
+        )
+        expected = 0.08899600982866121  # Tullets have trade confo at 8.9%
+        assert abs(expected - result) < 1e-9
