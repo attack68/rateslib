@@ -921,11 +921,7 @@ class FloatPeriod(BasePeriod):
         if self.payment < disc_curve_.node_dates[0]:
             return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Union[Curve, LineCurve, dict]) -> Union[None, DualTypes]:
         if curve is None:
@@ -1800,11 +1796,7 @@ class Cashflow:
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,
@@ -2033,11 +2025,7 @@ class IndexMixin(metaclass=ABCMeta):
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow(curve) * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     @property
     @abstractmethod
@@ -2521,8 +2509,8 @@ def _maybe_local(value, local, currency, fx, base):
     """
     Return NPVs in scalar form or dict form.
     """
-    if not local:
-        return value
+    if local:
+        return {currency: value}
     else:
         fx, _ = _get_fx_and_base(currency, fx, base)
-        return {currency: value * fx}
+        return value * fx
