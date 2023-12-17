@@ -15,8 +15,9 @@ from rateslib.periods import (
     IndexFixedPeriod,
     IndexCashflow,
     IndexMixin,
+    FXOption,
 )
-from rateslib.fx import FXRates
+from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
 from rateslib import defaults
@@ -1885,3 +1886,117 @@ class TestIndexCashflow:
 def test_base_period_dates_raise():
     with pytest.raises(ValueError):
         _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), "Q")
+
+@pytest.fixture()
+def fxfo():
+    # FXForwards for FX Options tests
+    eureur = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9908630928802933}, calendar="tgt", id="eureur"
+    )
+    usdusd = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9798648182834734}, calendar="nyc", id="usdusd"
+    )
+    eurusd = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9909918247663814}, id="eurusd"
+    )
+    fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
+    fxf = FXForwards(
+        fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
+        fx_rates=fxr
+    )
+    # fxf.swap("eurusd", [dt(2023, 3, 20), dt(2023, 6, 20)]) = 60.10
+    return fxf
+
+
+class TestFXOption:
+
+    def test_npv(self, fxfo):
+        fxo = FXOption(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
+        expected = 140513.647629 # 140500 USD premium according to Tullets calcs (may be rounded)
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_in_past(self, fxfo):
+        fxo = FXOption(
+            pair="eurusd",
+            expiry=dt(2022, 6, 16),
+            delivery=dt(2022, 6, 20),
+            payment=dt(2022, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        assert result == 0.0
+
+    def test_npv_option_fixing(self, fxfo):
+        fxo = FXOption(
+            pair="eurusd",
+            expiry=dt(2023, 3, 15),
+            delivery=dt(2023, 3, 17),
+            payment=dt(2023, 3, 17),
+            strike=1.101,
+            notional=20e6,
+            option_fixing=1.102,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = (1.102-1.101) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
+        assert abs(result - expected) < 1e-9
+
+        # worthless option
+        fxo = FXOption(
+            pair="eurusd",
+            expiry=dt(2023, 3, 15),
+            delivery=dt(2023, 3, 17),
+            payment=dt(2023, 3, 17),
+            strike=1.101,
+            notional=20e6,
+            option_fixing=1.100,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = 0.0
+        assert abs(result - expected) < 1e-9
+
+    def test_premium_points(self, fxfo):
+        fxo = FXOption(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.rate(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = 70.256824  # 70.25 premium according to Tullets calcs (may be rounded)
+        assert abs(result - expected) < 1e-6

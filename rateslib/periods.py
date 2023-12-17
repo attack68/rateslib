@@ -56,9 +56,9 @@ def _get_fx_and_base(
 ):
     # TODO these can be removed when no traces of None remain.
     if fx is None:
-        raise NotImplementedError("TraceBack for NoInput")
+        raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
     if base is None:
-        raise NotImplementedError("TraceBack for NoInput")
+        raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
     if isinstance(fx, (FXRates, FXForwards)):
         base = fx.base if base is NoInput.blank else base.lower()
@@ -2388,16 +2388,15 @@ class FXOption:
         """
         Option price in points terms for immediate premium settlement
         """
-        r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
         vs = vol * t ** 0.5
-
         d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t) / vs
         d2 = d1 - vs
         Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
-        _ = dual_exp(-r2 * t) * (F * Nd1 - K * Nd2)
+        _ = df2 * (F * Nd1 - K * Nd2)
 
         # Spot formulation instead of F (Garman Kohlhagen formulation)
         # https://quant.stackexchange.com/a/63661/29443
+        # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
         # S_imm = F * df2 / df1
         # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
         # d2 = d1 - vs
@@ -2440,7 +2439,7 @@ class FXOption:
                 F=f,
                 K=self.strike,
                 t=(self.expiry - disc_curve_ccy2.node_dates[0]) / timedelta(days=365),
-                df1=disc_curve[self.expiry],
+                df1=None,   # not required: disc_curve[self.expiry],
                 df2=df2,
                 vol=vol,
             )
