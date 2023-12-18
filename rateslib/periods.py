@@ -2342,9 +2342,13 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         return 0.0
 
 
-class FXOption:
-    style = "european"
+class FXOption(metaclass=ABCMeta):
+    # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
 
+    style = "european"
+    kind = None
+
+    @abstractmethod
     def __init__(
         self,
         pair: str,
@@ -2354,7 +2358,6 @@ class FXOption:
         strike: Union[DualTypes, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         option_fixing: Union[float, NoInput] = NoInput(0),
-        kind: str = "call",
     ):
         self.pair = pair.lower()
         self.currency = self.pair[3:]
@@ -2364,7 +2367,6 @@ class FXOption:
         self.payment = payment
         self.delivery = delivery
         self.expiry = expiry
-        self.kind = kind
         self.option_fixing = option_fixing
 
     @staticmethod
@@ -2469,9 +2471,41 @@ class FXOption:
             f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_) - premium
             if abs(f_) < 1e-10:
                 break
-            vol_ = Dual(float(vol_ - f_ / f_.gradient("vol")), "vol")
+            vol_ = Dual(float(vol_ - f_ / f_.gradient("vol")[0]), "vol")
 
         return float(vol_)  # return a float TODO check whether Dual can be returned.
+
+
+class FXCall(FXOption):
+    kind = "call"
+
+    def __init__(
+        self,
+        pair: str,
+        expiry: datetime,
+        delivery: datetime,
+        payment: datetime,
+        strike: Union[DualTypes, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        option_fixing: Union[float, NoInput] = NoInput(0),
+    ):
+        super().__init__(pair, expiry, delivery, payment, strike, notional, option_fixing)
+
+
+class FXPut(FXOption):
+    kind = "put"
+
+    def __init__(
+        self,
+        pair: str,
+        expiry: datetime,
+        delivery: datetime,
+        payment: datetime,
+        strike: Union[DualTypes, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        option_fixing: Union[float, NoInput] = NoInput(0),
+    ):
+        super().__init__(pair, expiry, delivery, payment, strike, notional, option_fixing)
 
 
 def _float_or_none(val):

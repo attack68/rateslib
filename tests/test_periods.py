@@ -15,7 +15,8 @@ from rateslib.periods import (
     IndexFixedPeriod,
     IndexCashflow,
     IndexMixin,
-    FXOption,
+    FXCall,
+    FXPut,
 )
 from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
@@ -1912,7 +1913,7 @@ def fxfo():
 class TestFXOption:
 
     def test_npv(self, fxfo):
-        fxo = FXOption(
+        fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -1930,7 +1931,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     def test_npv_in_past(self, fxfo):
-        fxo = FXOption(
+        fxo = FXCall(
             pair="eurusd",
             expiry=dt(2022, 6, 16),
             delivery=dt(2022, 6, 20),
@@ -1947,7 +1948,7 @@ class TestFXOption:
         assert result == 0.0
 
     def test_npv_option_fixing(self, fxfo):
-        fxo = FXOption(
+        fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
@@ -1966,7 +1967,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-9
 
         # worthless option
-        fxo = FXOption(
+        fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
@@ -1985,7 +1986,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-9
 
     def test_premium_points(self, fxfo):
-        fxo = FXOption(
+        fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -2003,7 +2004,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     def test_implied_vol(self, fxfo):
-        fxo = FXOption(
+        fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -2020,3 +2021,38 @@ class TestFXOption:
         expected = 0.08899600982866121  # Tullets have trade confo at 8.9%
         assert abs(expected - result) < 1e-9
 
+    def test_premium_put(self, fxfo):
+        fxo = FXPut(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+        )
+        result = fxo.rate(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.1015
+        )
+        expected = 83.874039  # Tullets trade confo has 83.75
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_put(self, fxfo):
+        fxo = FXPut(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.1015
+        ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
+        expected = 167748.077642  # Tullets trade confo has 167 500
+        assert abs(result - expected) < 1e-6
