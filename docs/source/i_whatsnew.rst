@@ -52,6 +52,21 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
+
+1.0.0 (Not released)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Bug
+     - :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+       settled payment date.
+
+
 0.7.0 (29th Nov 2023)
 **********************
 
