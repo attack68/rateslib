@@ -15,8 +15,8 @@ from rateslib.periods import (
     IndexFixedPeriod,
     IndexCashflow,
     IndexMixin,
-    FXCall,
-    FXPut,
+    FXCallPeriod,
+    FXPutPeriod,
 )
 from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
@@ -1913,7 +1913,7 @@ def fxfo():
 class TestFXOption:
 
     def test_npv(self, fxfo):
-        fxo = FXCall(
+        fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -1931,7 +1931,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     def test_npv_in_past(self, fxfo):
-        fxo = FXCall(
+        fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2022, 6, 16),
             delivery=dt(2022, 6, 20),
@@ -1948,7 +1948,7 @@ class TestFXOption:
         assert result == 0.0
 
     def test_npv_option_fixing(self, fxfo):
-        fxo = FXCall(
+        fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
@@ -1967,7 +1967,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-9
 
         # worthless option
-        fxo = FXCall(
+        fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
@@ -1986,7 +1986,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-9
 
     def test_premium_points(self, fxfo):
-        fxo = FXCall(
+        fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -2004,7 +2004,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     def test_implied_vol(self, fxfo):
-        fxo = FXCall(
+        fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -2022,7 +2022,7 @@ class TestFXOption:
         assert abs(expected - result) < 1e-9
 
     def test_premium_put(self, fxfo):
-        fxo = FXPut(
+        fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -2040,7 +2040,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     def test_npv_put(self, fxfo):
-        fxo = FXPut(
+        fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
@@ -2056,3 +2056,59 @@ class TestFXOption:
         ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 167748.077642  # Tullets trade confo has 167 500
         assert abs(result - expected) < 1e-6
+
+    def test_strike_from_forward_delta(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo._strike_from_forward_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            0.25,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0])
+        )
+        expected = 1.101271021340
+        assert abs(result - expected) < 1e-9
+
+    def test_strike_from_forward_delta(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            -0.25,
+            0.1015,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0])
+        )
+        expected = 1.0327823385682198
+        assert abs(result - expected) < 1e-9
+
+    def test_strike_from_spot_delta(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            -0.25,
+            0.1015,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            v1=fxfo.curve("eur","usd")[dt(2023, 6, 20)],
+            kind="spot"
+        )
+        expected = 1.0327823385682198
+        assert abs(result - expected) < 1e-9

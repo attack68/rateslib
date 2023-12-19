@@ -146,6 +146,7 @@ class Defaults:
     base_currency = "usd"
 
     delivery_lag = 2
+    delta_type = "forward"
 
     # Curves
 

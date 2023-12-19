@@ -48,6 +48,7 @@ from rateslib.periods import (
     IndexMixin,
     _disc_from_curve,
     _disc_maybe_from_curve,
+    FXCallPeriod,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -7855,14 +7856,13 @@ class FXSwap(XCS):
 
 # FX Options
 
-class FXOption(Sensitivities):
+class FXCall(Sensitivities):
     style = "european"
 
     def __init__(
         self,
         pair: str,
         expiry: Union[datetime, str],
-        kind: str = "call",
         notional: float = NoInput(0),
         eval_date: Union[datetime, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
@@ -7870,35 +7870,109 @@ class FXOption(Sensitivities):
         delivery_lag: Union[int, NoInput] = NoInput(0),
         strike: Union[DualTypes, str, NoInput] = NoInput(0),
         premium: Union[float, NoInput] = NoInput(0),
+        premium_ccy: Union[str, NoInput] = NoInput(0),
         payment_lag: Union[str, datetime, NoInput] = NoInput(0),
+        option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[float, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
     ):
-        self.pair = pair.lower()
-
-        if isinstance(expiry, datetime):
-            self.expiry = expiry
-        elif isinstance(expiry, str) and isinstance(eval_date, datetime):
-            self.expiry = add_tenor(eval_date, expiry, modifier, calendar, NoInput(0))
-        else:
-            raise ValueError("`expiry` must be datetime or string tenor when `eval_date` is given.")
-
-        _ = delivery_lag if delivery_lag is not NoInput.blank else defaults.delivery_lag
-        self.delivery = add_tenor(self.expiry, f"{_}b", "F", calendar, NoInput(0))
-        self.delivery_lag = _
-        _ = payment_lag if payment_lag is not NoInput.blank else defaults.payment_lag
-        self.payment = add_tenor(self.expiry, f"{_}b", "F", calendar, NoInput(0))
-        self.payment_lag = _
-
-        self.notional = notional if notional is not NoInput.blank else defaults.notional
-        self.strike = strike
-        self.premium = premium
+        self.kwargs = dict(
+            pair=pair,
+            expiry=expiry,
+            notional=notional,
+            strike=strike,
+            premium=premium,
+            premium_ccy=premium_ccy,
+            option_fixing=option_fixing,
+            payment_lag=payment_lag,
+            delivery_lag=delivery_lag,
+            calendar=calendar,
+            modifier=modifier,
+            delta_type=delta_type,
+        )
+        self.kwargs = _push(spec, self.kwargs)
+        # set some defaults if missing
+        self.kwargs["delta_type"] = (
+            defaults.delta_type
+            if self.kwargs["delta_type"] is NoInput.blank
+            else self.kwargs["delta_type"]
+        )
+        self.kwargs["notional"] = (
+            defaults.notional
+            if self.kwargs["notional"] is NoInput.blank
+            else self.kwargs["notional"]
+        )
+        if isinstance(self.kwargs["expiry"], str):
+            if not isinstance(eval_date, datetime):
+                raise ValueError("`expiry` as string tenor requires `eval_date`.")
+            self.kwargs["expiry"] = add_tenor(eval_date, expiry, modifier, calendar, NoInput(0))
+        self.kwargs["delivery_lag"] = (
+            defaults.delivery_lag
+            if self.kwargs["delivery_lag"] is NoInput.blank
+            else self.kwargs["delivery_lag"]
+        )
+        self.kwargs["delivery"] = add_tenor(
+            self.kwargs["expiry"], f"{self.kwargs['delivery_lag']}b", "F", calendar, NoInput(0)
+        )
+        self.kwargs["payment_lag"] = (
+            defaults.payment_lag
+            if self.kwargs["payment_lag"] is NoInput.blank
+            else self.kwargs["payment_lag"]
+        )
+        self.kwargs["payment"] = add_tenor(
+            self.kwargs["expiry"], f"{self.kwargs['payment_lag']}b", "F", calendar, NoInput(0)
+        )
+        # nothing to inherit or negate.
+        # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
         self.curves = curves
         self.spec = spec
 
-    def _set_pricing_mid(self):
-        pass
+        self.periods = [
+            FXCallPeriod(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+            ),
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            )
+        ]
+
+    def _set_pricing_mid(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        vol: float = NoInput(0),
+    ):
+        """
+        Sets parameters for the option at dynamic price time
+        """
+        if isinstance(self.kwargs["strike"], str) and self.kwargs["strike"][-1].lower() == "d":
+            # then strike is commanded by delta
+            k = self.periods[0]._strike_from_delta(
+                f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+                delta=float(self.kwargs["strike"][:-1])/100,
+                vol=vol,
+                t=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                v1=curves[1][self.kwargs["payment"]],
+                kind=self.kwargs["delta_type"],
+            )
+            self.periods[0].strike = k
+        if self.kwargs["premium"] is NoInput.blank:
+            # then set the CashFlow to mid-market
+            npv = self.periods[0].npv(curves[1], curves[3], fx, vol=vol)
+            premium = npv / curves[3][self.kwargs["payment"]]
+            self.periods[1].notional = float(premium)
 
     def rate(
         self,
@@ -7909,33 +7983,32 @@ class FXOption(Sensitivities):
         vol: float = NoInput(0)
     ):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.pair[3:]
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
-        F = fx.rate(self.pair, settlement=self.delivery)
-        t = (self.expiry - curves[1].node_dates[0]) / timedelta(days=365)
-        df1, df2 = curves[1][self.delivery], curves[3][self.delivery]
-        _ = self._garman_kolhagen_forward(F, self.strike, t, df1, df2, vol)
-        return _ / curves[3][self.payment]
+        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        return self.periods[0].rate(curves[1], curves[3], fx, base, False, vol)
 
-    @staticmethod
-    def _garman_kolhagen_forward(F, K, t, df1, df2, vol):
-        r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
-        vs = vol * t ** 0.5
-
-        d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t) / vs
-        d2 = d1 - vs
-        Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
-        _ = dual_exp(-r2 * t) * (F * Nd1 - K * Nd2)
-
-        # Spot formulation instead of F
-        # https://quant.stackexchange.com/a/63661/29443
-        # S_imm = F * df2 / df1
-        # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
-        # d2 = d1 - vs
-        # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
-        # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
-        return _
-
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0)
+    ):
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
+        prem_npv = self.periods[1].npv(NoInput(0), curves[3], fx, base, local)
+        if local:
+            return {
+                k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)
+            }
+        else:
+            return opt_npv + prem_npv
 
 # Generic Instruments
 

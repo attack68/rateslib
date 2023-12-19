@@ -21,8 +21,9 @@
 from abc import abstractmethod, ABCMeta
 from datetime import datetime, timedelta
 from typing import Optional, Union
+from statistics import NormalDist
 import warnings
-from math import comb, log
+from math import comb, log, exp
 
 import numpy as np
 
@@ -2347,6 +2348,7 @@ class FXOption(metaclass=ABCMeta):
 
     style = "european"
     kind = None
+    phi = 0.0
 
     @abstractmethod
     def __init__(
@@ -2370,15 +2372,17 @@ class FXOption(metaclass=ABCMeta):
         self.option_fixing = option_fixing
 
     @staticmethod
-    def _black76(F, K, t, df1, df2, vol):
+    def _black76(F, K, t, v1, v2, vol, phi):
         """
-        Option price in points terms for immediate premium settlement
+        Option price in points terms for immediate premium settlement.
+
+        (forward, strike, time to expiry, df ccy1, df ccy 2, volatility in %, phi for put/call)
         """
         vs = vol * t ** 0.5
         d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t) / vs
         d2 = d1 - vs
-        Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
-        _ = df2 * (F * Nd1 - K * Nd2)
+        Nd1, Nd2 = dual_norm_cdf(phi*d1), dual_norm_cdf(phi*d2)
+        _ = phi * v2 * (F * Nd1 - K * Nd2)
 
         # Spot formulation instead of F (Garman Kohlhagen formulation)
         # https://quant.stackexchange.com/a/63661/29443
@@ -2420,19 +2424,16 @@ class FXOption(metaclass=ABCMeta):
         else:
             # value is expressed in currency (i.e. pair[3:])
             f = fx.rate(self.pair, self.delivery)
-            df2 = disc_curve_ccy2[self.expiry]
+            v2 = disc_curve_ccy2[self.expiry]
             value = self._black76(
                 F=f,
                 K=self.strike,
-                t=(self.expiry - disc_curve_ccy2.node_dates[0]) / timedelta(days=365),
-                df1=None,   # not required: disc_curve[self.expiry],
-                df2=df2,
+                t=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+                v1=None,   # not required: disc_curve[self.expiry],
+                v2=v2,
                 vol=vol,
+                phi=self.phi,  # controls calls or put price
             )
-            if self.kind == "put":
-                # c + k = f + p
-                value += (self.strike - f) * df2
-
             value *= self.notional
 
         return _maybe_local(value, local, self.currency, fx, base)
@@ -2475,9 +2476,32 @@ class FXOption(metaclass=ABCMeta):
 
         return float(vol_)  # return a float TODO check whether Dual can be returned.
 
+    def _strike_from_delta(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: DualTypes,
+        t: DualTypes,
+        v1: DualTypes = NoInput(0),
+        kind="forward",
+    ):
+        vol, t, f = float(vol), float(t), float(f)
+        if kind == "forward":
+            _ = NormalDist().inv_cdf(self.phi*delta)
+            _ = f * exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
+        elif kind == "spot":
+            v1 = float(v1)
+            _ = NormalDist().inv_cdf(self.phi*delta/v1)
+            _ = f * exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
+        return _
 
-class FXCall(FXOption):
+    def _t_to_expiry(self, now: datetime):
+        return (self.expiry - now) / timedelta(days=365)
+
+
+class FXCallPeriod(FXOption):
     kind = "call"
+    phi = 1.0
 
     def __init__(
         self,
@@ -2492,8 +2516,9 @@ class FXCall(FXOption):
         super().__init__(pair, expiry, delivery, payment, strike, notional, option_fixing)
 
 
-class FXPut(FXOption):
+class FXPutPeriod(FXOption):
     kind = "put"
+    phi = -1.0
 
     def __init__(
         self,
