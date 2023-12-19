@@ -6989,7 +6989,8 @@ class FRA(Sensitivities, BaseMixin):
         fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
         cf = float(self.cashflow(curves[0]))
-        npv_local = self.cashflow(curves[0]) * curves[1][self.leg1.schedule.pschedule[0]]
+        df = float(curves[1][self.leg1.schedule.pschedule[0]])
+        npv_local = cf * df
 
         _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
         _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
@@ -7000,6 +7001,7 @@ class FRA(Sensitivities, BaseMixin):
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
         cfs[defaults.headers["npv"]] = npv_local
+        cfs[defaults.headers["df"]] = df
         cfs[defaults.headers["fx"]] = float(fx_)
         cfs[defaults.headers["npv_fx"]] = npv_local * float(fx_)
         return DataFrame.from_records([cfs])
