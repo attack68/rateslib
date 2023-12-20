@@ -26,6 +26,7 @@ from typing import Optional, Union
 import abc
 import warnings
 from functools import partial
+from textwrap import dedent
 
 # from math import sqrt
 
@@ -5076,6 +5077,32 @@ class IRS(BaseDerivative):
     _fixed_rate_mixin = True
     _leg2_float_spread_mixin = True
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid $100mm 5Y USD SOFR IRS at 2.5% with 5d observation shift and normal conventions.'
+
+        Rateslib configuration:
+        IRS(
+            effective=dt(2023, 12, 20),
+            termination="5y",     # effective and termination dates required.
+            frequency="a",
+            calendar="nyc",
+            modifier="mf",        
+            roll=20,              # schedule configuration
+            currency="usd",
+            notional=100e6,       # currency and notional
+            convention="act360",
+            leg2_fixing_method="rfr_observation_shift",
+            leg2_method_param=5,
+            # leg2_fixings=NoInput(0),
+            fixed_rate=2.50       # pricing parameters
+            #  spec=NoInput(0),   # possible auto-defined IRS exist in defaults.
+            #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+        )    
+        """))
+
     def __init__(
         self,
         *args,
@@ -7661,6 +7688,29 @@ class FXSwap(XCS):
     """
 
     _unpriced = True
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid 3M USDEUR FX Swap in $100mm/€105mm (split notional $101.5mm) at -305.5 points.'
+        
+        Rateslib configuration:
+        FXSwap(
+            effective=dt(2023, 12, 20),
+            termination="3m",     # effective and termination dates required.
+            calendar="nyc,tgt",
+            modifier="mf",        # calendar and modifier to determine termination.
+            currency="usd",
+            leg2_currency="eur",  # currencies are specified directly in lowercase.
+            notional=-100e6,
+            split_notional=-101.5e6,
+            fx_fixings=1.05,
+            points=-305.5,        # all pricing parameters are defined
+            #  spec=NoInput(0),   # possible auto-defined FXSwaps exist in defaults.
+            #  curves=[None, usdusd, None, eurusd],  # curves for discounting each leg optional.
+        )    
+        """))
 
     def _parse_split_flag(self, fx_fixings, points, split_notional):
         """
