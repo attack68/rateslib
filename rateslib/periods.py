@@ -41,7 +41,15 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.dual import Dual, Dual2, DualTypes, dual_norm_cdf, dual_exp, dual_log
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    DualTypes,
+    dual_norm_cdf,
+    dual_exp,
+    dual_log,
+    dual_inv_norm_cdf,
+)
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -2486,14 +2494,13 @@ class FXOption(metaclass=ABCMeta):
         vspot: DualTypes = NoInput(0),
         kind="forward",
     ):
-        vol, t, f = float(vol), float(t), float(f)
         if kind == "forward":
-            _ = NormalDist().inv_cdf(self.phi*delta)
-            _ = f * exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
+            _ = dual_inv_norm_cdf(self.phi*delta)
+            _ = f * dual_exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
         elif kind == "spot":
             v1 = float(v1/vspot)
-            _ = NormalDist().inv_cdf(self.phi*delta/v1)
-            _ = f * exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
+            _ = dual_inv_norm_cdf(self.phi*delta/v1)
+            _ = f * dual_exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
         return _
 
     def _t_to_expiry(self, now: datetime):
