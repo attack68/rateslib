@@ -1893,13 +1893,13 @@ def test_base_period_dates_raise():
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9908630928802933}, calendar="tgt", id="eureur"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
     )
     usdusd = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9798648182834734}, calendar="nyc", id="usdusd"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
     )
     eurusd = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9909918247663814}, id="eurusd"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd"
     )
     fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
     fxf = FXForwards(
@@ -1927,7 +1927,7 @@ class TestFXOption:
             fx=fxfo,
             vol=0.089,
         ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
-        expected = 140513.647629 # 140500 USD premium according to Tullets calcs (may be rounded)
+        expected = 140525.690893 # 140500 USD premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
 
     def test_npv_in_past(self, fxfo):
@@ -2000,7 +2000,7 @@ class TestFXOption:
             fx=fxfo,
             vol=0.089,
         )
-        expected = 70.256824  # 70.25 premium according to Tullets calcs (may be rounded)
+        expected = 70.262845  # 70.25 premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
 
     def test_implied_vol(self, fxfo):
@@ -2018,7 +2018,7 @@ class TestFXOption:
             fx=fxfo,
             premium=70.25,
         )
-        expected = 0.08899600982866121  # Tullets have trade confo at 8.9%
+        expected = 0.08899248930016586  # Tullets have trade confo at 8.9%
         assert abs(expected - result) < 1e-9
 
     def test_premium_put(self, fxfo):
@@ -2036,7 +2036,7 @@ class TestFXOption:
             fxfo,
             vol=0.1015
         )
-        expected = 83.874039  # Tullets trade confo has 83.75
+        expected = 83.881228  # Tullets trade confo has 83.75
         assert abs(result - expected) < 1e-6
 
     def test_npv_put(self, fxfo):
@@ -2054,7 +2054,7 @@ class TestFXOption:
             fxfo,
             vol=0.1015
         ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
-        expected = 167748.077642  # Tullets trade confo has 167 500
+        expected = 167762.455137  # Tullets trade confo has 167 500
         assert abs(result - expected) < 1e-6
 
     def test_strike_from_forward_delta(self, fxfo):
@@ -2066,16 +2066,16 @@ class TestFXOption:
             strike=1.101,
             notional=20e6,
         )
-        result = fxo._strike_from_forward_delta(
+        result = fxo._strike_from_delta(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             0.25,
             0.089,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0])
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
         )
         expected = 1.101271021340
         assert abs(result - expected) < 1e-9
 
-    def test_strike_from_forward_delta(self, fxfo):
+    def test_strike_from_forward_delta_put(self, fxfo):
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2094,6 +2094,27 @@ class TestFXOption:
         assert abs(result - expected) < 1e-9
 
     def test_strike_from_spot_delta(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            0.25,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            v1=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            kind="spot",
+        )
+        expected = 1.1010192011340847
+        assert abs(result - expected) < 1e-9
+
+    def test_strike_from_spot_delta_put(self, fxfo):
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2108,7 +2129,8 @@ class TestFXOption:
             0.1015,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
             v1=fxfo.curve("eur","usd")[dt(2023, 6, 20)],
-            kind="spot"
+            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            kind="spot",
         )
-        expected = 1.0327823385682198
+        expected = 1.0330517323059478
         assert abs(result - expected) < 1e-9

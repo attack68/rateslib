@@ -2483,6 +2483,7 @@ class FXOption(metaclass=ABCMeta):
         vol: DualTypes,
         t: DualTypes,
         v1: DualTypes = NoInput(0),
+        vspot: DualTypes = NoInput(0),
         kind="forward",
     ):
         vol, t, f = float(vol), float(t), float(f)
@@ -2490,7 +2491,7 @@ class FXOption(metaclass=ABCMeta):
             _ = NormalDist().inv_cdf(self.phi*delta)
             _ = f * exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
         elif kind == "spot":
-            v1 = float(v1)
+            v1 = float(v1/vspot)
             _ = NormalDist().inv_cdf(self.phi*delta/v1)
             _ = f * exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
         return _

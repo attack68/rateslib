@@ -599,6 +599,35 @@ def dual_norm_cdf(x):
         return base
 
 
+def dual_inv_norm_cdf(x):
+    """
+    Return the inverse cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    base = NormalDist().inv_cdf(float(x))
+    if isinstance(x, Dual):
+        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
+        return Dual(base, x.vars, scalar * x.dual)
+    elif isinstance(x, Dual2):
+        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
+        scalar2 = base * scalar**2
+        return Dual2(
+            base,
+            x.vars,
+            scalar * x.dual,
+            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
+        )
+    else:
+        return base
+
+
 def _pivot_matrix(A, method=1):
     """
     Returns the pivoting matrix for P, used in Doolittle's method.
