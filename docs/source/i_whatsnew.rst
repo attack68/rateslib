@@ -63,7 +63,7 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Bug
-     - :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+     - FRA :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
        settled payment date.
 
 
