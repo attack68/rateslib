@@ -7859,6 +7859,32 @@ class FXSwap(XCS):
 # FX Options
 
 class FXCall(Sensitivities):
+    """
+    Create an *FX Call* option.
+
+    Parameters
+    ----------
+    pair: str
+        The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
+    expiry: datetime, str
+        The expiry of the option.
+    notional: float
+        The amount in ccy1 (left side of pair) on which the option is based.
+    strike: float, Dual, Dual2,
+        The strike value of the option.
+    eval_date: datetime, optional
+        The date from which to evaluate a string tenor expiry.
+    modifier : str, optional
+        The modification rule, in {"F", "MF", "P", "MP"} for date evaluation.
+    calendar : calendar or str, optional
+        The holiday calendar object to use. If str, looks up named calendar from
+        static data.
+    delivery_lag: int, optional
+    payment_lag: int, optional
+
+
+    """
+
     style = "european"
 
     def __init__(
@@ -8167,10 +8193,6 @@ class Spread(Sensitivities):
         return super().gamma(*args, **kwargs)
 
 
-# class SpreadX:
-#     pass
-
-
 class Fly(Sensitivities):
     """
     A butterfly instrument which is, mechanically, the spread of two spread instruments.
@@ -8278,38 +8300,6 @@ class Fly(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
-
-
-# class FlyX:
-#     """
-#     A butterly instrument which is the spread of two spread instruments
-#     """
-#     def __init__(self, instrument1, instrument2, instrument3):
-#         self.instrument1 = instrument1
-#         self.instrument2 = instrument2
-#         self.instrument3 = instrument3
-#
-#     def npv(self, *args, **kwargs):
-#         if len(args) == 0:
-#             args1 = (kwargs.get("curve1", None), kwargs.get("disc_curve1", None))
-#             args2 = (kwargs.get("curve2", None), kwargs.get("disc_curve2", None))
-#             args3 = (kwargs.get("curve3", None), kwargs.get("disc_curve3", None))
-#         else:
-#             args1 = args
-#             args2 = args
-#             args3 = args
-#         return self.instrument1.npv(*args1) + self.instrument2.npv(*args2) + self.instrument3.npv(*args3)
-#
-#     def rate(self, *args, **kwargs):
-#         if len(args) == 0:
-#             args1 = (kwargs.get("curve1", None), kwargs.get("disc_curve1", None))
-#             args2 = (kwargs.get("curve2", None), kwargs.get("disc_curve2", None))
-#             args3 = (kwargs.get("curve3", None), kwargs.get("disc_curve3", None))
-#         else:
-#             args1 = args
-#             args2 = args
-#             args3 = args
-#         return 2 * self.instrument2.rate(*args2) - self.instrument1.rate(*args1) - self.instrument3.rate(*args3)
 
 
 def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
