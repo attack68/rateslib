@@ -28,6 +28,7 @@ from rateslib.instruments import (
     Spread,
     Fly,
     FXCall,
+    FXPut,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
@@ -3013,4 +3014,37 @@ class TestFXOptions:
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
         expected = 70.217188
+        assert abs(result - expected) < 1e-6
+
+    def test_fx_call_rate_expiry_tenor(self, fxfo):
+        fxo = FXCall(
+            pair="eurusd",
+            expiry="3m",
+            eval_date=dt(2023, 3, 16),
+            modifier="mf",
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=dt(2023, 6, 20),
+            calendar="tgt",
+            strike="25d",
+            delta_type="spot",
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=0.089)
+        expected = 70.217188
+        assert abs(result - expected) < 1e-6
+
+    def test_fx_put_rate(self, fxfo):
+        fxo = FXPut(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike="-25d",
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=0.101)
+        expected = 83.595312
         assert abs(result - expected) < 1e-6

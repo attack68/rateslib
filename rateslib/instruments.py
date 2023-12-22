@@ -8070,7 +8070,7 @@ class FXCall(FXOption):
 
 class FXPut(FXOption):
     """
-    Create an *FX Call* option.
+    Create an *FX Put* option.
 
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
@@ -8096,6 +8096,42 @@ class FXPut(FXOption):
                 currency=self.kwargs["premium_ccy"],
                 stub_type="Premium",
             )
+        ]
+
+
+class FXRiskReversal(FXOption):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.kwargs["option_fixing"] is NoInput.blank:
+            self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
+        self.periods[
+            FXPut(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=self.kwargs["strike"][0],
+                notional=-self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"][0],
+                delta_type=self.kwargs["delta_type"],
+            ),
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=self.kwargs["strike"][1],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"][1],
+                delta_type=self.kwargs["delta_type"],
+            ),
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            ),
         ]
 
 
