@@ -2351,7 +2351,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         return 0.0
 
 
-class FXOption(metaclass=ABCMeta):
+class FXOptionPeriod(metaclass=ABCMeta):
     # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
 
     style = "european"
@@ -2509,7 +2509,7 @@ class FXOption(metaclass=ABCMeta):
         return (self.expiry - now) / timedelta(days=365)
 
 
-class FXCallPeriod(FXOption):
+class FXCallPeriod(FXOptionPeriod):
     kind = "call"
     phi = 1.0
 
@@ -2536,7 +2536,7 @@ class FXCallPeriod(FXOption):
         )
 
 
-class FXPutPeriod(FXOption):
+class FXPutPeriod(FXOptionPeriod):
     kind = "put"
     phi = -1.0
 

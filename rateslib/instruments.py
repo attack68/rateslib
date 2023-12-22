@@ -49,6 +49,7 @@ from rateslib.periods import (
     _disc_from_curve,
     _disc_maybe_from_curve,
     FXCallPeriod,
+    FXPutPeriod,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -7858,9 +7859,9 @@ class FXSwap(XCS):
 
 # FX Options
 
-class FXCall(Sensitivities):
+class FXOption(Sensitivities):
     """
-    Create an *FX Call* option.
+    Create an *FX Option*.
 
     Parameters
     ----------
@@ -7972,25 +7973,6 @@ class FXCall(Sensitivities):
         self.curves = curves
         self.spec = spec
 
-        self.periods = [
-            FXCallPeriod(
-                pair=self.kwargs["pair"],
-                expiry=self.kwargs["expiry"],
-                delivery=self.kwargs["delivery"],
-                payment=self.kwargs["payment"],
-                strike=self.kwargs["strike"],
-                notional=self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"],
-            ),
-            Cashflow(
-                notional=self.kwargs["premium"],
-                payment=self.kwargs["payment"],
-                currency=self.kwargs["premium_ccy"],
-                stub_type="Premium",
-            )
-        ]
-
     def _set_pricing_mid(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -8053,6 +8035,69 @@ class FXCall(Sensitivities):
             }
         else:
             return opt_npv + prem_npv
+
+
+class FXCall(Sensitivities):
+    """
+    Create an *FX Call* option.
+
+    For parameters see :class:`~rateslib.instruments.FXOption`.
+    """
+
+    style = "european"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.periods = [
+            FXCallPeriod(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+            ),
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            )
+        ]
+
+
+class FXPut(Sensitivities):
+    """
+    Create an *FX Call* option.
+
+    For parameters see :class:`~rateslib.instruments.FXOption`.
+    """
+
+    style = "european"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.periods = [
+            FXPutPeriod(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+            ),
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            )
+        ]
+
 
 # Generic Instruments
 
