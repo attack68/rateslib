@@ -2504,6 +2504,7 @@ class FXOption(metaclass=ABCMeta):
         return _
 
     def _t_to_expiry(self, now: datetime):
+        # TODO make this a dual, associated with theta
         return (self.expiry - now) / timedelta(days=365)
 
 
