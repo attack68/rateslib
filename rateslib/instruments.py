@@ -8037,7 +8037,7 @@ class FXOption(Sensitivities):
             return opt_npv + prem_npv
 
 
-class FXCall(Sensitivities):
+class FXCall(FXOption):
     """
     Create an *FX Call* option.
 
@@ -8068,7 +8068,7 @@ class FXCall(Sensitivities):
         ]
 
 
-class FXPut(Sensitivities):
+class FXPut(FXOption):
     """
     Create an *FX Call* option.
 

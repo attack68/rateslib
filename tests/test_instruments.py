@@ -2966,13 +2966,13 @@ def test_fx_settlements_table_no_fxf():
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9908630928802933}, calendar="tgt", id="eureur"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
     )
     usdusd = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9798648182834734}, calendar="nyc", id="usdusd"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
     )
     eurusd = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9909918247663814}, id="eurusd"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd"
     )
     fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
     fxf = FXForwards(
@@ -3012,5 +3012,5 @@ class TestFXOptions:
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
-        expected = 100
+        expected = 70.217188
         assert abs(result - expected) < 1e-6

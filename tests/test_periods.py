@@ -2065,6 +2065,7 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
+            delta_type="forward",
         )
         result = fxo._strike_from_delta(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2083,6 +2084,7 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
+            delta_type="forward",
         )
         result = fxo._strike_from_delta(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2101,6 +2103,7 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
+            delta_type="spot",
         )
         result = fxo._strike_from_delta(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2109,7 +2112,6 @@ class TestFXOption:
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
             v1=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            kind="spot",
         )
         expected = 1.1010192011340847
         assert abs(result - expected) < 1e-9
@@ -2122,6 +2124,7 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
+            delta_type="spot",
         )
         result = fxo._strike_from_delta(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2130,7 +2133,6 @@ class TestFXOption:
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
             v1=fxfo.curve("eur","usd")[dt(2023, 6, 20)],
             vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            kind="spot",
         )
         expected = 1.0330517323059478
         assert abs(result - expected) < 1e-9
