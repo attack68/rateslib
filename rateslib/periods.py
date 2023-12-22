@@ -2368,6 +2368,7 @@ class FXOption(metaclass=ABCMeta):
         strike: Union[DualTypes, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
     ):
         self.pair = pair.lower()
         self.currency = self.pair[3:]
@@ -2378,6 +2379,7 @@ class FXOption(metaclass=ABCMeta):
         self.delivery = delivery
         self.expiry = expiry
         self.option_fixing = option_fixing
+        self.delta_type = defaults.delta_type if delta_type is NoInput.blank else delta_type.lower()
 
     @staticmethod
     def _black76(F, K, t, v1, v2, vol, phi):
@@ -2492,12 +2494,11 @@ class FXOption(metaclass=ABCMeta):
         t: DualTypes,
         v1: DualTypes = NoInput(0),
         vspot: DualTypes = NoInput(0),
-        kind="forward",
     ):
-        if kind == "forward":
+        if self.delta_type == "forward":
             _ = dual_inv_norm_cdf(self.phi*delta)
             _ = f * dual_exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
-        elif kind == "spot":
+        elif self.delta_type == "spot":
             v1 = float(v1/vspot)
             _ = dual_inv_norm_cdf(self.phi*delta/v1)
             _ = f * dual_exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
@@ -2521,8 +2522,18 @@ class FXCallPeriod(FXOption):
         strike: Union[DualTypes, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
     ):
-        super().__init__(pair, expiry, delivery, payment, strike, notional, option_fixing)
+        super().__init__(
+            pair,
+            expiry,
+            delivery,
+            payment,
+            strike,
+            notional,
+            option_fixing,
+            delta_type,
+        )
 
 
 class FXPutPeriod(FXOption):
@@ -2538,8 +2549,18 @@ class FXPutPeriod(FXOption):
         strike: Union[DualTypes, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
     ):
-        super().__init__(pair, expiry, delivery, payment, strike, notional, option_fixing)
+        super().__init__(
+            pair,
+            expiry,
+            delivery,
+            payment,
+            strike,
+            notional,
+            option_fixing,
+            delta_type,
+        )
 
 
 def _float_or_none(val):

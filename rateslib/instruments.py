@@ -7870,8 +7870,8 @@ class FXCall(Sensitivities):
         The expiry of the option.
     notional: float
         The amount in ccy1 (left side of pair) on which the option is based.
-    strike: float, Dual, Dual2,
-        The strike value of the option.
+    strike: float, Dual, Dual2, str
+        The strike value of the option. If str should be labelled with a 'd' for delta e.g. "25d".
     eval_date: datetime, optional
         The date from which to evaluate a string tenor expiry.
     modifier : str, optional
@@ -7880,8 +7880,20 @@ class FXCall(Sensitivities):
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
     delivery_lag: int, optional
-    payment_lag: int, optional
-
+        The number of business days after expiry that the physical settlement of the FX exchange occurs.
+    payment_lag: int or datetime, optional
+        The number of business days after expiry to pay premium. If a *datetime* is given this will
+        set the premium date explicitly.
+    delta_type: str in {"spot", "forward"}
+        When deriving strike from delta use the equation associated with spot or forward delta.
+    curves : Curve, LineCurve, str or list of such, optional
+        For *FXOptions* curves should be expressed as a list with the discount curves
+        entered either as *Curve* or str for discounting cashflows in the appropriate currency
+        with a consistent collateral on each side. E.g. *[None, "eurusd", None, "usdusd"]*.
+        Forecasting curves are not relevant.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
 
     """
 
@@ -7948,9 +7960,12 @@ class FXCall(Sensitivities):
             if self.kwargs["payment_lag"] is NoInput.blank
             else self.kwargs["payment_lag"]
         )
-        self.kwargs["payment"] = add_tenor(
-            self.kwargs["expiry"], f"{self.kwargs['payment_lag']}b", "F", calendar, NoInput(0)
-        )
+        if isinstance(self.kwargs["payment_lag"], datetime):
+            self.kwargs["payment"] = self.kwargs["payment_lag"]
+        else:
+            self.kwargs["payment"] = add_tenor(
+                self.kwargs["expiry"], f"{self.kwargs['payment_lag']}b", "F", calendar, NoInput(0)
+            )
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
@@ -7966,6 +7981,7 @@ class FXCall(Sensitivities):
                 strike=self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
             ),
             Cashflow(
                 notional=self.kwargs["premium"],
@@ -7993,7 +8009,7 @@ class FXCall(Sensitivities):
                 vol=vol,
                 t=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
                 v1=curves[1][self.kwargs["payment"]],
-                kind=self.kwargs["delta_type"],
+                vspot=curves[1][fx.fx_rates.settlement],
             )
             self.periods[0].strike = k
         if self.kwargs["premium"] is NoInput.blank:
