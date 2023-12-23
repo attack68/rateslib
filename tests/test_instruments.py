@@ -29,6 +29,7 @@ from rateslib.instruments import (
     Fly,
     FXCall,
     FXPut,
+    FXRiskReversal,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
@@ -3048,3 +3049,19 @@ class TestFXOptions:
         result = fxo.rate(curves, fx=fxfo, vol=0.101)
         expected = 83.595312
         assert abs(result - expected) < 1e-6
+
+    def test_risk_reversal_rate(self, fxfo):
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["-25d", "25d"],
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=[0.101, 0.089])
+        expected = 1.0
+        assert abs(result - expected) < 1e-8
+

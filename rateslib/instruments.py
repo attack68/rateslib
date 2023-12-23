@@ -8105,12 +8105,12 @@ class FXRiskReversal(FXOption):
         super().__init__(*args, **kwargs)
         if self.kwargs["option_fixing"] is NoInput.blank:
             self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
-        self.periods[
+        self.periods = [
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
-                delivery=self.kwargs["delivery"],
-                payment=self.kwargs["payment"],
+                delivery_lag=self.kwargs["delivery_lag"],
+                payment_lag=self.kwargs["payment_lag"],
                 strike=self.kwargs["strike"][0],
                 notional=-self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][0],
@@ -8119,8 +8119,8 @@ class FXRiskReversal(FXOption):
             FXCall(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
-                delivery=self.kwargs["delivery"],
-                payment=self.kwargs["payment"],
+                delivery_lag=self.kwargs["delivery_lag"],
+                payment_lag=self.kwargs["payment_lag"],
                 strike=self.kwargs["strike"][1],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][1],
@@ -8133,6 +8133,21 @@ class FXRiskReversal(FXOption):
                 stub_type="Premium",
             ),
         ]
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol, vol]
+
+        _1 = self.periods[1].rate(curves, solver, fx, base, vol[1])
+        _0 = self.periods[0].rate(curves, solver, fx, base, vol[0])
+        return _1 - _0
 
 
 # Generic Instruments
