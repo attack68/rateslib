@@ -2508,59 +2508,36 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # TODO make this a dual, associated with theta
         return (self.expiry - now) / timedelta(days=365)
 
+    def _payoff_at_expiry(self, range: Union[list[float], NoInput] = NoInput(0)):
+        if self.strike is NoInput.blank:
+            raise ValueError("Cannot return payoff for option without a specified `strike`.")
+        if range is NoInput.blank:
+            x = np.linspace(0, 20, 1001)
+        else:
+            x = np.linspace(range[0], range[1], 1001)
+        _ = (x - self.strike) * self.phi
+        __ = np.zeros(1001)
+        if self.phi > 0:  # call
+            y = np.where(x < self.strike, __, _) * self.notional
+        else:  # put
+            y = np.where(x > self.strike, __, _) * self.notional
+        return x, y
+
 
 class FXCallPeriod(FXOptionPeriod):
     kind = "call"
     phi = 1.0
 
-    def __init__(
-        self,
-        pair: str,
-        expiry: datetime,
-        delivery: datetime,
-        payment: datetime,
-        strike: Union[DualTypes, NoInput] = NoInput(0),
-        notional: Union[float, NoInput] = NoInput(0),
-        option_fixing: Union[float, NoInput] = NoInput(0),
-        delta_type: Union[str, NoInput] = NoInput(0),
-    ):
-        super().__init__(
-            pair,
-            expiry,
-            delivery,
-            payment,
-            strike,
-            notional,
-            option_fixing,
-            delta_type,
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 class FXPutPeriod(FXOptionPeriod):
     kind = "put"
     phi = -1.0
 
-    def __init__(
-        self,
-        pair: str,
-        expiry: datetime,
-        delivery: datetime,
-        payment: datetime,
-        strike: Union[DualTypes, NoInput] = NoInput(0),
-        notional: Union[float, NoInput] = NoInput(0),
-        option_fixing: Union[float, NoInput] = NoInput(0),
-        delta_type: Union[str, NoInput] = NoInput(0),
-    ):
-        super().__init__(
-            pair,
-            expiry,
-            delivery,
-            payment,
-            strike,
-            notional,
-            option_fixing,
-            delta_type,
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 def _float_or_none(val):

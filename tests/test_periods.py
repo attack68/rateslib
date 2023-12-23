@@ -2136,3 +2136,33 @@ class TestFXOption:
         )
         expected = 1.0330517323059478
         assert abs(result - expected) < 1e-9
+
+    def test_payoff_at_expiry(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        assert result[0][0] == 1.07
+        assert result[0][-1] == 1.13
+        assert result[1][0] == 0.0
+        assert result[1][-1] == (1.13 - 1.101) * 20e6
+
+    def test_payoff_at_expiry_put(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        assert result[0][0] == 1.07
+        assert result[0][-1] == 1.13
+        assert result[1][0] == (1.101 - 1.07) * 20e6
+        assert result[1][-1] == 0.0
