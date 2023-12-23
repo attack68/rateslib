@@ -7859,6 +7859,7 @@ class FXSwap(XCS):
 
 # FX Options
 
+
 class FXOption(Sensitivities):
     """
     Create an *FX Option*.
@@ -8115,6 +8116,8 @@ class FXRiskReversal(FXOption):
                 notional=-self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][0],
                 delta_type=self.kwargs["delta_type"],
+                premium=NoInput(0) if self.kwargs["premium"] is NoInput.blank else 0.0,
+                premium_ccy=self.kwargs["premium_ccy"],
             ),
             FXCall(
                 pair=self.kwargs["pair"],
@@ -8125,14 +8128,11 @@ class FXRiskReversal(FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][1],
                 delta_type=self.kwargs["delta_type"],
-            ),
-            Cashflow(
-                notional=self.kwargs["premium"],
-                payment=self.kwargs["payment"],
-                currency=self.kwargs["premium_ccy"],
-                stub_type="Premium",
+                premium=self.kwargs["premium"],
+                premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
+
 
     def rate(
         self,
@@ -8148,6 +8148,28 @@ class FXRiskReversal(FXOption):
         _1 = self.periods[1].rate(curves, solver, fx, base, vol[1])
         _0 = self.periods[0].rate(curves, solver, fx, base, vol[0])
         return _1 - _0
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0)
+    ):
+        if not isinstance(vol, list):
+            vol = [vol, vol]
+
+        _0 = self.periods[0].npv(curves, solver, fx, base, local, vol[0])
+        _1 = self.periods[1].npv(curves, solver, fx, base, local, vol[1])
+        if local:
+            return {
+                k: _0.get(k, 0) + _1.get(k, 0)
+                for k in set(_0) | set(_1)
+            }
+        else:
+            return _0 + _1
 
 
 # Generic Instruments
