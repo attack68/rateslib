@@ -842,6 +842,19 @@ class Value(BaseMixin):
         self.effective = effective
         self.curves = curves
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Description:
+        'A pseudo-instrument to return a curve value.'
+
+        Rateslib configuration:
+        Value(
+            effective=dt(2023, 12, 20),
+            #  curves=usdusd,     # curve for extracting the value
+        )    
+        """))
+
     def rate(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -911,7 +924,7 @@ class FXExchange(Sensitivities, BaseMixin):
         self.settlement = settlement
         self.pair = f"{currency.lower()}{leg2_currency.lower()}"
         self.leg1 = Cashflow(
-            notional=defaults.notional if notional is NoInput.blank else notional,
+            notional=-defaults.notional if notional is NoInput.blank else -notional,
             currency=currency.lower(),
             payment=settlement,
             stub_type="Exchange",
@@ -925,6 +938,23 @@ class FXExchange(Sensitivities, BaseMixin):
             rate=fx_rate,
         )
         self.fx_rate = fx_rate
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Bought $100mm Selling €105mm for settlement 16th March 2023.'
+
+        Rateslib configuration:
+        FXExchange(
+            settlement=dt(2023, 3, 16),
+            currency="usd",
+            leg2_currency="eur",
+            fx_rate=1.05,
+            notional=100e6,
+            #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+        )    
+        """))
 
     @property
     def fx_rate(self):

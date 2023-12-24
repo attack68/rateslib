@@ -508,7 +508,7 @@ class TestNullPricing:
                 currency="eur",
                 leg2_currency="usd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
-                notional=1e6 * 25 / 74.27,
+                notional=-1e6 * 25 / 74.27,
             ),
         ],
     )
@@ -1198,9 +1198,9 @@ class TestFXExchange:
                 "Period": ["Exchange", "Exchange"],
                 "Ccy": ["EUR", "USD"],
                 "Payment": [dt(2022, 10, 1), dt(2022, 10, 1)],
-                "Notional": [1e6, -2050000.0],
+                "Notional": [-1e6, 2050000.0],
                 "Rate": [None, 2.05],
-                "Cashflow": [-1e6, 2050000.0],
+                "Cashflow": [1e6, -2050000.0],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 0)])
         )
@@ -1252,7 +1252,7 @@ class TestFXExchange:
         # result_ = fxe.npv([curve] * 4, fx=2.0, local=True)
         with pytest.warns(UserWarning):
             result = fxe.npv([curve] * 4, fx=2.0)
-            expected = -993433.103425 * 2.0 + 1200080.27069
+            expected = 993433.103425 * 2.0 - 1200080.27069
             assert abs(result - expected) < 1e-5
 
         # with pytest.raises(ValueError, match="Cannot calculate `npv`"):
@@ -2876,7 +2876,7 @@ class TestSpec:
     ),
     (
     FXExchange(dt(2022, 1, 15), currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
-    DataFrame([[-1000000.0, 1101072.93429]],
+    DataFrame([[1000000.0, -1101072.93429]],
               index=Index([dt(2022, 1, 15)], name="payment"),
               columns=MultiIndex.from_tuples([("EUR", "eur"), ("USD", "eur")],
                                              names=["local_ccy", "collateral_ccy"])

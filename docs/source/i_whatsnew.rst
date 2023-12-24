@@ -62,6 +62,12 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Instruments
+     - Reverse the notional direction of :class:`~rateslib.instruments.FXExchange` to be more
+       intuitive.
+   * - Instruments
+     - Add a class method: :meth:`~rateslib.instruments.IRS.example` to each *Instrument* to
+       provide a more intuitive way to initialise.
    * - Bug
      - FRA :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
        settled payment date.
