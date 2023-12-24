@@ -943,7 +943,7 @@ class FXExchange(Sensitivities, BaseMixin):
     def example(cls):
         print(dedent("""\
         Broker confirmation:
-        'You Bought $100mm Selling €105mm for settlement 16th March 2023.'
+        'You Bought $100mm Selling €105mm (USDEUR 1.05) for settlement 16th March 2023.'
 
         Rateslib configuration:
         FXExchange(
@@ -952,7 +952,7 @@ class FXExchange(Sensitivities, BaseMixin):
             leg2_currency="eur",
             fx_rate=1.05,
             notional=100e6,
-            #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+            #  curves=[None, usdusd, None, eurusd],  # curves for discounting each currency.
         )    
         """))
 
@@ -2319,6 +2319,23 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Bought $100mm Selling €105mm (USDEUR 1.05) for settlement 16th March 2023.'
+
+        Rateslib configuration:
+        FXExchange(
+            settlement=dt(2023, 3, 16),
+            currency="usd",
+            leg2_currency="eur",
+            fx_rate=1.05,
+            notional=100e6,
+            #  curves=[None, usdusd, None, eurusd],  # curves for discounting each currency.
+        )    
+        """))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
