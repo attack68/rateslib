@@ -7978,7 +7978,7 @@ class FXOption(Sensitivities):
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
         solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
         vol: float = NoInput(0),
     ):
         """
@@ -7992,7 +7992,9 @@ class FXOption(Sensitivities):
                 vol=vol,
                 t=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
                 v1=curves[1][self.kwargs["payment"]],
-                vspot=curves[1][fx.fx_rates.settlement],
+                vspot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                # TODO provide a mechanism for defining spot date with FX crosses
+                # which are only directly available in FXForwards for majors.
             )
             self.periods[0].strike = k
         if self.kwargs["premium"] is NoInput.blank:
@@ -8005,7 +8007,7 @@ class FXOption(Sensitivities):
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
         solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: float = NoInput(0)
     ):
@@ -8019,7 +8021,7 @@ class FXOption(Sensitivities):
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
         solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0)
