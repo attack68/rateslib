@@ -125,6 +125,7 @@ class FXRates:
 
         # find currencies
         self.pairs = [k for k in self.fx_rates.keys()]
+        self.pairs_settlement = {pair: settlement for pair in self.pairs}
         self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
         self.currencies = {
             k: i
@@ -838,6 +839,9 @@ class FXForwards:
                         fx_rates=fx_rates_obj,
                         fx_curves=sub_curves,
                     )
+                    settlement_pairs = {
+                        pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs
+                    }
                 else:
                     # calculate additional FX rates from previous objects
                     # in the same settlement frame.
@@ -860,6 +864,9 @@ class FXForwards:
                         self.fx_curves, fx_rates_obj.currencies_list + pre_currencies
                     )
                     acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
+                    settlement_pairs.update(
+                        {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs}
+                    )
 
             if base is not NoInput.blank:
                 acyclic_fxf.base = base.lower()
@@ -874,6 +881,7 @@ class FXForwards:
                 "pairs",
             ]:
                 setattr(self, attr, getattr(acyclic_fxf, attr))
+            self.pairs_settlement = settlement_pairs
         else:
             self.currencies = self.fx_rates.currencies
             self.q = len(self.currencies.keys())
@@ -885,6 +893,7 @@ class FXForwards:
             self.pairs = self.fx_rates.pairs
             self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
             self.fx_rates_immediate = self._update_fx_rates_immediate()
+            self.pairs_settlement = self.fx_rates.pairs_settlement
 
     def __init__(
         self,
