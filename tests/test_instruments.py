@@ -3035,6 +3035,31 @@ class TestFXOptions:
         expected = 70.217188
         assert abs(result - expected) < 1e-6
 
+    def test_fx_call_plot_payoff(self, fxfo):
+        fxc = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            strike=1.101,
+            premium=0.0,
+        )
+        result = fxc.plot_payoff([1.03, 1.12])
+        x, y = result[2][0]._x, result[2][0]._y
+        assert x[0] == 1.03
+        assert x[1000] == 1.12
+        assert y[0] == 0.0
+        assert y[1000] == (1.12 - 1.101) * 20e6
+
+    def test_fx_call_plot_payoff_raises(self, fxfo):
+        fxc = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            strike=1.101,
+        )
+        with pytest.raises(ValueError, match="`premium`"):
+            fxc.plot_payoff([1.03, 1.12])
+
     def test_fx_put_rate(self, fxfo):
         fxo = FXPut(
             pair="eurusd",
@@ -3079,4 +3104,22 @@ class TestFXOptions:
         result = fxo.npv(curves, fx=fxfo, vol=[0.101, 0.089])
         expected = 0.0
         assert abs(result - expected) < 1e-6
+
+    def test_risk_reversal_plot(self, fxfo):
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["-25d", "25d"],
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.plot_payoff([1.03, 1.12], curves, fx=fxfo, vol=[0.101, 0.089])
+        x, y = result[2][0]._x, result[2][0]._y
+        assert x[0] == 1.03
+        assert x[1000] == 1.12
+        assert y[0] == 0.0
+        assert y[1000] == (1.12 - 1.101) * 20e6
 

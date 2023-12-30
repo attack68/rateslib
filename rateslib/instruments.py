@@ -36,7 +36,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
-from rateslib.default import NoInput
+from rateslib.default import NoInput, plot
 from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
 
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
@@ -7999,7 +7999,16 @@ class FXOption(Sensitivities):
             self.periods[0].strike = k
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
-            npv = self.periods[0].npv(curves[1], curves[3], fx, vol=vol)
+            try:
+                npv = self.periods[0].npv(curves[1], curves[3], fx, vol=vol)
+            except AttributeError:
+                raise ValueError(
+                    "`premium` has not been configured for the specified FXOption.\nThis is "
+                    "normally determined at mid-market from the given `curves` and `vol` but "
+                    "in this case these values do not provide a valid calculation. "
+                    "If not required, initialise the "
+                    "FXOption with a `premium` of 0.0, and this will be avoided."
+                )
             premium = npv / curves[3][self.kwargs["payment"]]
             self.periods[1].notional = float(premium)
 
@@ -8038,6 +8047,39 @@ class FXOption(Sensitivities):
             }
         else:
             return opt_npv + prem_npv
+
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Mechanics to determine (x,y) coordinates for payoff at expiry plot.
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        x, y = self.periods[0]._payoff_at_expiry(range)
+        return x, y
+
+    def plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
+        return plot(x, [y])
 
 
 class FXCall(FXOption):
@@ -8160,8 +8202,6 @@ class FXRiskReversal(FXOption):
             ),
         ]
 
-
-
     def rate(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -8184,7 +8224,7 @@ class FXRiskReversal(FXOption):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0)
+        vol: Union[list[float], float] = NoInput(0),
     ):
         if not isinstance(vol, list):
             vol = [vol, vol]
@@ -8198,6 +8238,23 @@ class FXRiskReversal(FXOption):
             }
         else:
             return _0 + _1
+
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol, vol]
+
+        x, _0 = self.periods[0]._plot_payoff(range, curves, solver, fx, base, local, vol[0])
+        x, _1 = self.periods[1]._plot_payoff(range, curves, solver, fx, base, local, vol[1])
+        return x, _0 + _1
 
 
 # Generic Instruments

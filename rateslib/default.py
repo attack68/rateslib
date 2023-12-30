@@ -294,12 +294,15 @@ def plot(x, y: list, labels=[]):
         lines.append(line)
     if labels and len(labels) == len(lines):
         ax.legend(lines, labels)
-    years = mdates.YearLocator()  # every year
-    months = mdates.MonthLocator()  # every month
-    yearsFmt = mdates.DateFormatter("%Y")
-    ax.xaxis.set_major_locator(years)
-    ax.xaxis.set_major_formatter(yearsFmt)
-    ax.xaxis.set_minor_locator(months)
+
     ax.grid(True)
-    fig.autofmt_xdate()
+
+    if isinstance(x[0], datetime):
+        years = mdates.YearLocator()  # every year
+        months = mdates.MonthLocator()  # every month
+        yearsFmt = mdates.DateFormatter("%Y")
+        ax.xaxis.set_major_locator(years)
+        ax.xaxis.set_major_formatter(yearsFmt)
+        ax.xaxis.set_minor_locator(months)
+        fig.autofmt_xdate()
     return fig, ax, lines
