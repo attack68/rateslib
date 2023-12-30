@@ -8113,11 +8113,15 @@ class FXRiskReversal(FXOption):
 
     Parameters
     ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
     strike: 2-element sequence
         The first element is applied to the lower strike put and the
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
     option_fixing: 2-element sequence, optional
         The option fixing is applied to the put and call in order.
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
     Notes
     -----
@@ -8155,6 +8159,8 @@ class FXRiskReversal(FXOption):
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
+
+
 
     def rate(
         self,
