@@ -8103,6 +8103,27 @@ class FXPut(FXOption):
 
 
 class FXRiskReversal(FXOption):
+    """
+    Create an *FX Risk Reversal* option strategy.
+
+    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    strike: 2-element sequence
+        The first element is applied to the lower strike put and the
+        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
+    option_fixing: 2-element sequence, optional
+        The option fixing is applied to the put and call in order.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -8134,7 +8155,6 @@ class FXRiskReversal(FXOption):
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
-
 
     def rate(
         self,
