@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal
 import numpy as np
 
 import context
-from rateslib import defaults, default_context
+from rateslib import defaults, default_context, Instruments
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
@@ -2959,3 +2959,9 @@ def test_fx_settlements_table_no_fxf():
     result = irs_mkt.cashflows_table(solver=solver)
     assert abs(result.iloc[0, 0] - 69.49810) < 1e-5
     assert abs(result.iloc[3, 0] - 69.49810) < 1e-5
+
+
+@pytest.mark.parametrize("Inst", [Inst for Inst in Instruments])
+def test_examples(Inst):
+    assert getattr(Inst, "example", None) is not None
+    # test an example function is written for the class

@@ -6107,6 +6107,33 @@ class ZCS(BaseDerivative):
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroFloatLeg(**_get(self.kwargs, leg=2))
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Received £100mm 15Y ZCS effective 16th March 2023 at IRR of 2.15% (under Act365F), 
+        compounding annually.'
+
+        Rateslib configuration:
+        ZCS(
+            effective=dt(2023, 3, 16),  
+            termination="15Y",            # effective and termination dates required.
+            frequency="A",
+            modifier="mf",
+            eom=True,
+            calendar="ldn",               # schedule configuration
+            currency="gbp",
+            notional=-100e6,              # currency and notional
+            convention="act365f",
+            fixed_rate=2.15,
+            leg2_fixing_method="rfr_payment_delay",
+            # leg2_fixings=NoInput(0),
+            leg2_method_param=0,          # pricing parameters
+            # curves=gbpgbp,              # curves for forecasting and discounting each leg.
+            # spec=NoInput(0),            # possible auto-defined IRS exist in defaults.
+        )    
+        """))
+
     def analytic_delta(self, *args, **kwargs):
         """
         Return the analytic delta of a leg of the derivative object.
