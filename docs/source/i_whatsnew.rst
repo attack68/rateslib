@@ -63,8 +63,11 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Bug
-     - :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+     - :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
        settled payment date.
+   * - Bug
+     - :meth:`~rateslib.legs.FloatLeg.fixings_table` now generates exact results (not in approximate mode) when RFR
+       fixings are included in any period.
 
 
 0.7.0 (29th Nov 2023)
