@@ -15,7 +15,7 @@ class NoInput(Enum):
     """
     Enumerable type to handle setting default values.
 
-    See :ref:`<default values <defaults-doc>`.
+    See :ref:`default values <defaults-doc>`.
     """
     blank = 0
     inherit = 1

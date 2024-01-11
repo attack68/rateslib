@@ -903,6 +903,38 @@ def test_fxforwards_cyclic_system_restructured():
     assert abs(result - expected) < 1e-2
 
 
+def test_fxforwards_settlement_pairs():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+    fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2, fxr3],  # FXRates as list
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        },
+    )
+    assert fxf.pairs_settlement["eurusd"] == dt(2022, 1, 3)
+    assert fxf.pairs_settlement["usdcad"] == dt(2022, 1, 2)
+    assert fxf.pairs_settlement["gbpusd"] == dt(2022, 1, 3)
+
+    fxf = FXForwards(
+        fx_rates=fxr1,  # FXRates as list
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        },
+    )
+    assert fxf.pairs_settlement["eurusd"] == dt(2022, 1, 3)
+
+
+
 def test_fxforwards_positions_when_immediate_aligns_with_settlement():
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 1))
