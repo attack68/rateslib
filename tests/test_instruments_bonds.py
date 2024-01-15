@@ -1009,6 +1009,34 @@ class TestIndexFixedRateBond:
     # def test_convexity(self):
     #     assert False
 
+    def test_latest_fixing(self):
+        # this is German government inflation bond with fixings given for a specific settlement
+        # calculation
+
+        ibnd = IndexFixedRateBond(
+            effective=dt(2021, 2, 11),
+            front_stub=dt(2022, 4, 15),
+            termination=dt(2033, 4, 15),
+            convention="ActActICMA",
+            calendar="tgt",
+            frequency="A",
+            index_lag=3,
+            index_base=124.17000 / 1.18851,  # implying from 1st Jan 2024 on webpage
+            index_method="daily",
+            payment_lag=0,
+            currency="eur",
+            fixed_rate=0.1,
+            ex_div=1,
+            settle=1,
+            index_fixings=Series(
+                data=[124.17, 123.46],
+                index=[dt(2024, 1, 1), dt(2024, 2, 1)]
+            ),
+        )
+        result = ibnd.ytm(price=100.32, settlement=dt(2024, 1, 5))
+        expected = 0.065
+        assert (result - expected) < 1e-2
+
 
 class TestBill:
     def test_bill_discount_rate(self):

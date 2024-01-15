@@ -1469,7 +1469,8 @@ class FloatPeriod(BasePeriod):
                 [rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
             )
             v = disc_curve[self.payment]
-            notional_exposure *= -self.notional * (self.dcf / dcf_of_r) * v / v_with_r
+            mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
+            notional_exposure[mask] *= (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
             # notional_exposure[fixed.drop_index(drop=True)] = 0.0
             notional_exposure[fixed.to_numpy()] = 0.0
             extra_cols = {

@@ -1971,7 +1971,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
       proportioning only in the segregated short stub part.
     - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
-      31-B-ii).
+      31-B-ii). Otherwise referred to as the 'Treasury' method.
     - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
       using 30e360, also for back stubs.
     - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
@@ -2882,7 +2882,7 @@ class IndexFixedRateBond(FixedRateBond):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm"}
+            "dirty_price", "ytm", "index_clean_price", "index_dirty_price"}
         forward_settlement : datetime, optional
             The forward settlement date. If not given uses the discount *Curve* and the ``settle``
             attribute of the bond.
