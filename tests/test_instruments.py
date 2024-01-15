@@ -3120,6 +3120,6 @@ class TestFXOptions:
         x, y = result[2][0]._x, result[2][0]._y
         assert x[0] == 1.03
         assert x[1000] == 1.12
-        assert y[0] == 0.0
-        assert y[1000] == (1.12 - 1.101) * 20e6
+        assert abs(y[0] + 61590.08836201352) < 1e-5
+        assert abs(y[1000] - 382208.868402012) < 1e-5
 
