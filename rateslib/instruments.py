@@ -1861,27 +1861,36 @@ class BondMixin:
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
         ad_ = curves[1].ad
-        curves[1]._set_ad_order(2)
-        disc_curve = curves[1].shift(Dual2(0, "z_spread"), composite=False)
-        curves[1]._set_ad_order(0)
         metric = "dirty_price" if dirty else "clean_price"
+
+        curves[1]._set_ad_order(1)
+        disc_curve = curves[1].shift(Dual(0, "z_spread"), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
 
+        # find a first order approximation of z
+        b = npv_price.gradient("z_spread", 1)[0]
+        c = float(npv_price) - float(price)
+        z_hat = -c / b
+
+        # shift the curve to the first order approximation and fine tune with 2nd order approxim.
+        curves[1]._set_ad_order(2)
+        disc_curve = curves[1].shift(Dual2(z_hat, "z_spread"), composite=False)
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         a, b = (
             0.5 * npv_price.gradient("z_spread", 2)[0][0],
             npv_price.gradient("z_spread", 1)[0],
         )
-        z = _quadratic_equation(a, b, float(npv_price) - float(price))
-        # first z is solved by using 1st and 2nd derivatives to get close to target NPV
+        z_hat2 = _quadratic_equation(a, b, float(npv_price) - float(price))
 
-        # TODO (low) add a tolerance here to continually converge to the solution, via GradDes?
-        disc_curve = curves[1].shift(z, composite=False)
+        # perform one final approximation albeit the additional price calculation slows calc time
+        curves[1]._set_ad_order(0)
+        disc_curve = curves[1].shift(z_hat+z_hat2, composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
-        diff = npv_price - price
-        new_b = b + 2 * a * z
-        z = z - diff / new_b
-        # then a final linear adjustment is made which is usually very small
+        b = b + 2 * a * z_hat2  # forecast the new gradient
+        c = float(npv_price) - float(price)
+        z_hat3 = -c / b
 
+        z = z_hat + z_hat2 + z_hat3
         curves[1]._set_ad_order(ad_)
         return z
 

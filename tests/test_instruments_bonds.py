@@ -747,10 +747,10 @@ class TestFixedRateBond:
         assert abs(result - 1.0) < 1e-8
 
     @pytest.mark.parametrize("price, tol", [
-        (112.0, 1e-6),
-        (104.0, 1e-5),
-        (96.0, 1e-3),
-        (91.0, 1e-2)
+        (112.0, 1e-10),
+        (104.0, 1e-10),
+        (96.0, 1e-9),
+        (91.0, 1e-7)
     ])
     def test_oaspread(self, price, tol):
         gilt = FixedRateBond(
@@ -773,9 +773,12 @@ class TestFixedRateBond:
         assert abs(result - price) < tol
 
     @pytest.mark.parametrize("price, tol", [
-        (85, 1e-2),
-        (75, 1e-1),
-        (65, 1e-1),
+        (85, 1e-8),
+        (75, 1e-6),
+        (65, 1e-4),
+        (55, 1e-3),
+        (45, 1e-1),
+        (35, 0.20),
     ])
     def test_oaspread_low_price(self, price, tol):
         gilt = FixedRateBond(
