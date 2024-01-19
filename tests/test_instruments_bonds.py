@@ -772,6 +772,31 @@ class TestFixedRateBond:
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
+    @pytest.mark.parametrize("price, tol", [
+        (85, 1e-2),
+        (75, 1e-1),
+        (65, 1e-1),
+    ])
+    def test_oaspread_low_price(self, price, tol):
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
+        # result = gilt.npv(curve) = 113.22198344812742
+        result = gilt.oaspread(curve, price=price)
+        curve_z = curve.shift(result, composite=False)
+        result = gilt.rate(curve_z, metric="clean_price")
+        assert abs(result - price) < tol
+
     def test_cashflows_no_curve(self):
         gilt = FixedRateBond(
             effective=dt(2001, 1, 1),

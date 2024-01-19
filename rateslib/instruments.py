@@ -37,9 +37,9 @@ from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months, _DCF1d
 
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
+from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve, average_rate
 from rateslib.solver import Solver
 from rateslib.periods import (
     Cashflow,
@@ -1424,6 +1424,7 @@ class BondMixin:
         repo_rate: Union[float, Dual, Dual2],
         convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
+        method: str = "proceeds"
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1443,6 +1444,8 @@ class BondMixin:
             values.
         dirty : bool, optional
             Whether the input and output price are specified including accrued interest.
+        method : str in {"proceeds", "compounded"}, optional
+            The method for determining the forward price.
 
         Returns
         -------
@@ -1484,9 +1487,17 @@ class BondMixin:
 
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
-            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
-            total_rtn -= accrued_coup
+            if method.lower() == "proceeds":
+                dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
+                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
+                total_rtn -= accrued_coup
+            elif method.lower() == "compounded":
+                r_bar, d, _ = average_rate(settlement, forward_settlement, convention, repo_rate)
+                n = (forward_settlement - self.leg1.periods[p_idx].payment).days
+                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + d * r_bar / 100) ** n
+                total_rtn -= accrued_coup
+            else:
+                raise ValueError("`method` must be in {'proceeds', 'compounded'}.")
 
         forward_price = total_rtn / -self.leg1.notional * 100
         if dirty:
