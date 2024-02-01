@@ -262,7 +262,7 @@ a set of instrument prices, ``s``.
        id="us_rates"
    )
 
-Solving was a success! Observe the DFs on the *Curve* have been updated:
+Solving was a success! Observe that the DFs on the *Curve* have been updated:
 
 .. ipython:: python
 
