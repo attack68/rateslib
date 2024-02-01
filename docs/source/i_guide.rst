@@ -324,7 +324,7 @@ detailed instructions of the way in which the associations can be constructed in
     g_mechanisms.rst
 
 The **key takeway** is that when you initialise and create an *Instrument* you can do one
-of three things;
+of three things:
 
 1) Not provide any *Curves* for pricing upfront (``curves=NoInput(0)``).
 2) Create an explicit association to pre-existing Python objects, e.g. ``curves=my_curve``.
