@@ -160,7 +160,7 @@ parameters that are used to build up the instruments.
 Multi-currency instruments
 --------------------------
 
-Lets take a quick look at a multi-currency instrument: the
+Let's take a quick look at a multi-currency instrument: the
 :class:`~rateslib.instruments.FXSwap`. All instruments have a mid-market pricing
 function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>`. Keeping a
 consistent function name across all *Instruments* allows any of them to be used within a
