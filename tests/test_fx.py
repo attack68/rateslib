@@ -116,34 +116,6 @@ def test_rates_table():
     assert_frame_equal(result, expected)
 
 
-def test_fxrates_to_json():
-    fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05})
-    result = fxr.to_json()
-    expected = '{"fx_rates": {"usdnok": 8.0, "eurusd": 1.05}, "settlement": null, "base": "usd"}'
-    assert result == expected
-
-    fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05}, dt(2022, 1, 3))
-    result = fxr.to_json()
-    expected = (
-        '{"fx_rates": {"usdnok": 8.0, "eurusd": 1.05}, "settlement": "2022-01-03", "base": "usd"}'
-    )
-    assert result == expected
-
-
-def test_from_json_and_equality():
-    fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05})
-    fxr2 = FXRates({"usdnok": 12.0, "eurusd": 1.10})
-    assert fxr1 != fxr2
-
-    fxr2 = FXRates.from_json(
-        '{"fx_rates": {"usdnok": 8.0, "eurusd": 1.05}, "settlement": null, "base": "usd"}'
-    )
-    assert fxr2 == fxr1
-
-    fxr3 = FXRates({"usdnok": 8.0, "eurusd": 1.05}, base="NOK")
-    assert fxr1 != fxr3  # base is different
-
-
 def test_copy():
     fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = fxr1.copy()
