@@ -11,7 +11,7 @@ FX Spot Rates
 ***********************
 
 This documentation page discusses the methods of the
-:class:`~rateslib.fx.FXRates` class which are summarised below,
+:class:`~rateslib.fx.FXRates` class which are summarised below:
 
 .. autosummary::
    rateslib.fx.FXRates
