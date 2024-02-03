@@ -7528,7 +7528,7 @@ class FXSwap(XCS):
     Parameters
     ----------
     args : dict
-        Required positional args to :class:`BaseXCS`.
+        Required positional args to :class:`XCS`.
     fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
@@ -7541,7 +7541,7 @@ class FXSwap(XCS):
         The accrued notional at termination of the domestic leg accounting for interest
         payable at domestic interest rates.
     kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
+        Required keyword arguments to :class:`XCS`.
 
     Notes
     -----

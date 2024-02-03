@@ -181,7 +181,7 @@ not provided at initialisation, nor is the "eurgbp" curve.
 
 In these circumstances the :meth:`~rateslib.fx.FXForwards.curve` method will derive the
 combination of existing curves that can be combined to yield required DFs on-the-fly.
-This creates a :class:`~rateslib.fx.ProxyCurve`.
+This creates a :class:`~rateslib.curves.ProxyCurve`.
 
 In the above framework GBP is the cheapest to deliver collateral, and USD is the
 most expensive. We can observe this
