@@ -2344,16 +2344,27 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     def example(cls):
         print(dedent("""\
         Broker confirmation:
-        'You Bought $100mm Selling €105mm (USDEUR 1.05) for settlement 16th March 2023.'
+        'You Bought $100mm 3.875% Aug-33 US Treasury Bond.'
 
         Rateslib configuration:
-        FXExchange(
-            settlement=dt(2023, 3, 16),
+        FixedRateBond(
+            effective=dt(2022, 8, 15)
+            termination=dt(2033, 8, 15),   # effective and termination dates required.   
+            frequency="s",
+            calendar="nyc",
+            modifier="none",     
+            payment_lag=0,
+            payment_lag_exchange=0,   
+            roll=15,              # schedule configuration
             currency="usd",
-            leg2_currency="eur",
-            fx_rate=1.05,
-            notional=100e6,
-            #  curves=[None, usdusd, None, eurusd],  # curves for discounting each currency.
+            notional=-100e6,      # currency and notional
+            convention="ActActICMA",
+            settle=1,
+            ex_div=1,
+            calc_mode="ust",
+            fixed_rate=3.875      # pricing parameters
+            #  spec=NoInput(0),   # possible auto-defined US Treasury exist in defaults.
+            #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
         )    
         """))
 
