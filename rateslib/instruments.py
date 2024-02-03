@@ -38,9 +38,9 @@ from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months, _DCF1d
 
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
+from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve, average_rate
 from rateslib.solver import Solver
 from rateslib.periods import (
     Cashflow,
@@ -1455,6 +1455,7 @@ class BondMixin:
         repo_rate: Union[float, Dual, Dual2],
         convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
+        method: str = "proceeds"
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1474,6 +1475,8 @@ class BondMixin:
             values.
         dirty : bool, optional
             Whether the input and output price are specified including accrued interest.
+        method : str in {"proceeds", "compounded"}, optional
+            The method for determining the forward price.
 
         Returns
         -------
@@ -1515,9 +1518,17 @@ class BondMixin:
 
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
-            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
-            total_rtn -= accrued_coup
+            if method.lower() == "proceeds":
+                dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
+                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
+                total_rtn -= accrued_coup
+            elif method.lower() == "compounded":
+                r_bar, d, _ = average_rate(settlement, forward_settlement, convention, repo_rate)
+                n = (forward_settlement - self.leg1.periods[p_idx].payment).days
+                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + d * r_bar / 100) ** n
+                total_rtn -= accrued_coup
+            else:
+                raise ValueError("`method` must be in {'proceeds', 'compounded'}.")
 
         forward_price = total_rtn / -self.leg1.notional * 100
         if dirty:
@@ -1881,27 +1892,36 @@ class BondMixin:
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
         ad_ = curves[1].ad
-        curves[1]._set_ad_order(2)
-        disc_curve = curves[1].shift(Dual2(0, "z_spread"), composite=False)
-        curves[1]._set_ad_order(0)
         metric = "dirty_price" if dirty else "clean_price"
+
+        curves[1]._set_ad_order(1)
+        disc_curve = curves[1].shift(Dual(0, "z_spread"), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
 
+        # find a first order approximation of z
+        b = npv_price.gradient("z_spread", 1)[0]
+        c = float(npv_price) - float(price)
+        z_hat = -c / b
+
+        # shift the curve to the first order approximation and fine tune with 2nd order approxim.
+        curves[1]._set_ad_order(2)
+        disc_curve = curves[1].shift(Dual2(z_hat, "z_spread"), composite=False)
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         a, b = (
             0.5 * npv_price.gradient("z_spread", 2)[0][0],
             npv_price.gradient("z_spread", 1)[0],
         )
-        z = _quadratic_equation(a, b, float(npv_price) - float(price))
-        # first z is solved by using 1st and 2nd derivatives to get close to target NPV
+        z_hat2 = _quadratic_equation(a, b, float(npv_price) - float(price))
 
-        # TODO (low) add a tolerance here to continually converge to the solution, via GradDes?
-        disc_curve = curves[1].shift(z, composite=False)
+        # perform one final approximation albeit the additional price calculation slows calc time
+        curves[1]._set_ad_order(0)
+        disc_curve = curves[1].shift(z_hat+z_hat2, composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
-        diff = npv_price - price
-        new_b = b + 2 * a * z
-        z = z - diff / new_b
-        # then a final linear adjustment is made which is usually very small
+        b = b + 2 * a * z_hat2  # forecast the new gradient
+        c = float(npv_price) - float(price)
+        z_hat3 = -c / b
 
+        z = z_hat + z_hat2 + z_hat3
         curves[1]._set_ad_order(ad_)
         return z
 
@@ -1998,7 +2018,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
       proportioning only in the segregated short stub part.
     - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
-      31-B-ii).
+      31-B-ii). Otherwise referred to as the 'Treasury' method.
     - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
       using 30e360, also for back stubs.
     - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
@@ -2926,7 +2946,7 @@ class IndexFixedRateBond(FixedRateBond):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm"}
+            "dirty_price", "ytm", "index_clean_price", "index_dirty_price"}
         forward_settlement : datetime, optional
             The forward settlement date. If not given uses the discount *Curve* and the ``settle``
             attribute of the bond.
@@ -7609,7 +7629,7 @@ class FXSwap(XCS):
     Parameters
     ----------
     args : dict
-        Required positional args to :class:`BaseXCS`.
+        Required positional args to :class:`XCS`.
     fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
@@ -7622,7 +7642,7 @@ class FXSwap(XCS):
         The accrued notional at termination of the domestic leg accounting for interest
         payable at domestic interest rates.
     kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
+        Required keyword arguments to :class:`XCS`.
 
     Notes
     -----

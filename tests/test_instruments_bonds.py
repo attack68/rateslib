@@ -747,10 +747,10 @@ class TestFixedRateBond:
         assert abs(result - 1.0) < 1e-8
 
     @pytest.mark.parametrize("price, tol", [
-        (112.0, 1e-6),
-        (104.0, 1e-5),
-        (96.0, 1e-3),
-        (91.0, 1e-2)
+        (112.0, 1e-10),
+        (104.0, 1e-10),
+        (96.0, 1e-9),
+        (91.0, 1e-7)
     ])
     def test_oaspread(self, price, tol):
         gilt = FixedRateBond(
@@ -766,6 +766,34 @@ class TestFixedRateBond:
             settle=0,
         )
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
+        # result = gilt.npv(curve) = 113.22198344812742
+        result = gilt.oaspread(curve, price=price)
+        curve_z = curve.shift(result, composite=False)
+        result = gilt.rate(curve_z, metric="clean_price")
+        assert abs(result - price) < tol
+
+    @pytest.mark.parametrize("price, tol", [
+        (85, 1e-8),
+        (75, 1e-6),
+        (65, 1e-4),
+        (55, 1e-3),
+        (45, 1e-1),
+        (35, 0.20),
+    ])
+    def test_oaspread_low_price(self, price, tol):
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=1.0,
+            notional=-100,
+            settle=0,
+        )
+        curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
         curve_z = curve.shift(result, composite=False)
@@ -1008,6 +1036,34 @@ class TestIndexFixedRateBond:
     #
     # def test_convexity(self):
     #     assert False
+
+    def test_latest_fixing(self):
+        # this is German government inflation bond with fixings given for a specific settlement
+        # calculation
+
+        ibnd = IndexFixedRateBond(
+            effective=dt(2021, 2, 11),
+            front_stub=dt(2022, 4, 15),
+            termination=dt(2033, 4, 15),
+            convention="ActActICMA",
+            calendar="tgt",
+            frequency="A",
+            index_lag=3,
+            index_base=124.17000 / 1.18851,  # implying from 1st Jan 2024 on webpage
+            index_method="daily",
+            payment_lag=0,
+            currency="eur",
+            fixed_rate=0.1,
+            ex_div=1,
+            settle=1,
+            index_fixings=Series(
+                data=[124.17, 123.46],
+                index=[dt(2024, 1, 1), dt(2024, 2, 1)]
+            ),
+        )
+        result = ibnd.ytm(price=100.32, settlement=dt(2024, 1, 5))
+        expected = 0.065
+        assert (result - expected) < 1e-2
 
 
 class TestBill:

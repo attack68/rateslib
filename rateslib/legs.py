@@ -668,7 +668,8 @@ class FloatLegMixin:
         if fixings is NoInput.blank:
             fixings_ = []
         elif isinstance(fixings, Series):
-            fixings_ = self._get_fixings_from_series(fixings)
+            fixings_ = fixings.sort_index()
+            fixings_ = self._get_fixings_from_series(fixings_)
         elif isinstance(fixings, tuple):
             fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)
         elif not isinstance(fixings, list):

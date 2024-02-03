@@ -414,10 +414,10 @@ class PPSpline:
 
            \\$(x) = \\sum_{i=1}^n c_i B_{(i,k,\\mathbf{t})}(x)
         """
-        sum = 0
-        for i, c_ in enumerate(self.c):
-            sum += c_ * bsplev_single(x, i, self.k, self.t)
-        return sum
+        _ = np.array([
+            bsplev_single(x, i, self.k, self.t) for i in range(self.n)
+        ])
+        return np.dot(_, self.c)
 
     def ppev(self, x):
         """

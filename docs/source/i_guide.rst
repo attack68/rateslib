@@ -160,7 +160,7 @@ parameters that are used to build up the instruments.
 Multi-currency instruments
 --------------------------
 
-Lets take a quick look at a multi-currency instrument: the
+Let's take a quick look at a multi-currency instrument: the
 :class:`~rateslib.instruments.FXSwap`. All instruments have a mid-market pricing
 function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>`. Keeping a
 consistent function name across all *Instruments* allows any of them to be used within a
@@ -262,7 +262,7 @@ a set of instrument prices, ``s``.
        id="us_rates"
    )
 
-Solving was a success! Observe the DFs on the *Curve* have been updated:
+Solving was a success! Observe that the DFs on the *Curve* have been updated:
 
 .. ipython:: python
 
@@ -324,7 +324,7 @@ detailed instructions of the way in which the associations can be constructed in
     g_mechanisms.rst
 
 The **key takeway** is that when you initialise and create an *Instrument* you can do one
-of three things;
+of three things:
 
 1) Not provide any *Curves* for pricing upfront (``curves=NoInput(0)``).
 2) Create an explicit association to pre-existing Python objects, e.g. ``curves=my_curve``.

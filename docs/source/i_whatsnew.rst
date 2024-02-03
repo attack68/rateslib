@@ -22,14 +22,6 @@ email contact through **rateslib@gmail.com**.
      - Description
      - Consideration
      - Timeframe
-   * - Coding Interest Rates
-     - Officially document this library's algorithms and release the book.
-     - Planned
-     - End 2023
-   * - Version 1.0
-     - Release the official first non-beta version of this library.
-     - Planned
-     - End 2023
    * - Vanilla FX options and volatility products
      - Adding option instruments and benchmark trades such as risk-reversals.
      - Highly likely (v2.0?)
@@ -53,8 +45,8 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-1.0.0 (Not released)
-**********************
+1.1.0 (not released)
+*********************
 
 .. list-table::
    :widths: 25 75
@@ -71,6 +63,23 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - FRA :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
        settled payment date.
+
+
+1.0.0 (1st Feb 2024)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Bug
+     - FRA :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+       settled payment date.
+   * - Bug
+     - :meth:`~rateslib.legs.FloatLeg.fixings_table` now generates exact results (not in approximate mode) when RFR
+       fixings are included in any period.
 
 
 0.7.0 (29th Nov 2023)
