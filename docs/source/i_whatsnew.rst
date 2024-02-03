@@ -60,9 +60,6 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - Add a class method: :meth:`~rateslib.instruments.IRS.example` to each *Instrument* to
        provide a more intuitive way to initialise.
-   * - Bug
-     - FRA :class:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
-       settled payment date.
 
 
 1.0.0 (1st Feb 2024)
