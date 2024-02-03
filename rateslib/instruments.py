@@ -3198,6 +3198,29 @@ class Bill(FixedRateBond):
             spec=spec,
         )
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Bought $20mm 19-Feb-2004 US T-Bill.'
+
+        Rateslib configuration:
+        bill = Bill(
+           effective=dt(2004, 1, 22),
+           termination=dt(2004, 2, 19),  # effective and termination dates required. 
+           calendar="nyc",
+           modifier="none",     
+           payment_lag=0,        # schedule control
+           currency="usd",
+           notional=-20e6,       # negative notional receives fixed, i.e. buys a bill
+           convention="Act360",
+           settle=1,
+           calc_mode="ustb",     # pricing parameters
+           #  spec=NoInput(0),   # possible auto-defined US T Bill exist in defaults.
+           #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+        )   
+        """))
+
     @property
     def dcf(self):
         # bills will typically have 1 period since they are configured with frequency "z".
@@ -3594,6 +3617,37 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+            Broker confirmation:
+            'You Bought $10mm 25-Aug-27 Quarterly FRN at SOFR (5d shift) + 100bps.'
+
+            Rateslib configuration:
+            FloatRateNote(
+                effective=dt(2022, 8, 25)
+                termination=dt(2027, 8, 25),   # effective and termination dates required.   
+                frequency="q",
+                calendar="nyc",
+                modifier="none",     
+                payment_lag=0,
+                payment_lag_exchange=0,   
+                roll=25,             # schedule configuration
+                currency="usd",
+                notional=-10e6,      # currency and notional
+                convention="ActActICMA",
+                settle=1,
+                ex_div=1,
+                spread_compound_method="none_simple",
+                fixing_method="rfr_observation_shift",
+                method_param=5,
+                # fixings=NoInput(0),
+                float_spread=100.0    # pricing parameters
+                #  spec=NoInput(0),   # possible auto-defined FRN types exist in defaults.
+                #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+            )    
+            """))
 
     def _accrual_rate(self, pseudo_period, curve, method_param):
         """
