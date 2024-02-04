@@ -1088,6 +1088,9 @@ class FXExchange(Sensitivities, BaseMixin):
         """
         return super().gamma(*args, **kwargs)
 
+    def analytic_delta(self, *args, **kwargs):
+        return 0.0
+
 
 # Securities
 
@@ -6734,6 +6737,36 @@ class SBS(BaseDerivative):
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid €100mm 5Y EUR 3s6s single-swap basis at 3m + 6.5bps.'
+
+        Rateslib configuration:
+        SBS(
+            effective=dt(2023, 12, 20),
+            termination="5y",     
+            frequency="q",
+            leg2_frequency="s",          # effective, termination and frequency dates required.               
+            calendar="tgt",
+            modifier="mf",        
+            roll=20,                     # schedule configuration
+            currency="eur",
+            notional=100e6,              # currency and notional
+            convention="act360",
+            fixing_method="ibor",
+            method_param=2,
+            leg2_fixing_method="ibor",
+            leg2_method_param=2,
+            # fixings=NoInput(0),
+            # leg2_fixings=NoInput(0),
+            float_spread=6.50            # pricing parameters
+            # spec=NoInput(0),           # possible auto-defined IRS exist in defaults.
+            # curves=["euribor3m", "estr", "euribor6m", "estr"], # curves optional.
+        )    
+        """))
 
     def _set_pricing_mid(self, curves, solver):
         if self.float_spread is NoInput.blank and self.leg2_float_spread is NoInput.blank:

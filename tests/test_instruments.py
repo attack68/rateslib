@@ -2978,5 +2978,8 @@ def test_fx_settlements_table_no_fxf():
 
 @pytest.mark.parametrize("Inst", [Inst for Inst in Instruments])
 def test_examples(Inst):
-    assert getattr(Inst, "example", None) is not None
-    # test an example function is written for the class
+    # test an example function is written for the Instrument class
+    try:
+        getattr(Inst, "example", None)()
+    except TypeError:  # NoneType is not callable
+        assert False

@@ -57,7 +57,7 @@ The below example demonstrates this composition when creating an :class:`~ratesl
    irs.leg2.periods
 
 
-Examples of Every Instrument
+Examples of Each Instrument
 ******************************
 
 IRS
@@ -149,6 +149,81 @@ Suppose *"You Paid 500m 1x4 28th FRA in EUR at 2.5%".*
 - "eur_fra3": Euribor 3M FRA
 - "eur_fra6": Euribor 6M FRA
 - "sek_fra3": Stibor 3M FRA
+
+SBS
+----
+
+Suppose *"You Paid 5Y EUR single-swap 3s6s basis at 6.5bp in €100mm."*
+
+.. ipython:: python
+
+   sbs = SBS(
+       effective=dt(2023, 12, 20),
+       termination="5y",
+       frequency="q",
+       leg2_frequency="s",          # effective, termination and frequency dates required.
+       calendar="tgt",
+       modifier="mf",
+       roll=20,                     # schedule configuration
+       currency="eur",
+       notional=100e6,              # currency and notional
+       convention="act360",
+       fixing_method="ibor",
+       method_param=2,
+       leg2_fixing_method="ibor",
+       leg2_method_param=2,
+       # fixings=NoInput(0),
+       # leg2_fixings=NoInput(0),
+       float_spread=6.50            # pricing parameters
+       # spec=NoInput(0),           # possible auto-defined IRS exist in defaults.
+       # curves=["euribor3m", "estr", "euribor6m", "estr"], # curves optional.
+   )
+
+**Available** ``spec`` **defaults:**
+
+- "eur_sbs36": Euribor 3m vs 6m single basis swap
+
+ZCS
+----
+
+Suppose *"You Received £100mm 15Y ZCS effective 16th March 2023 at IRR of 2.15% (under Act365F),
+compounding annually."*
+
+.. ipython:: python
+
+   zcs = ZCS(
+       effective=dt(2023, 3, 16),
+       termination="15Y",
+       frequency="A",                # effective, termination and compounding frequency required.
+       modifier="mf",
+       eom=True,
+       calendar="ldn",               # schedule configuration
+       currency="gbp",
+       notional=-100e6,              # currency and notional
+       convention="act365f",
+       fixed_rate=2.15,
+       leg2_fixing_method="rfr_payment_delay",
+       leg2_fixings=NoInput(0),
+       leg2_method_param=0,          # pricing parameters
+       curves="gbpgbp",              # curves for forecasting and discounting each leg.
+       spec=NoInput(0),              # possible auto-defined ZCS exist in defaults.
+    )
+
+FXExchange
+-----------
+
+Suppose *"You Bought £100mm Selling $125mm (GBPUSD 1.25) for settlement 16th March 2023."*
+
+.. ipython:: python
+
+   fxe = FXExchange(
+       settlement=dt(2023, 3, 16),
+       currency="gbp",
+       leg2_currency="usd",
+       fx_rate=1.25,
+       notional=100e6,
+       #  curves=[None, gbpusd, None, usdusd],  # curves for discounting each currency.
+   )
 
 FXSwap
 -------
