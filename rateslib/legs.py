@@ -308,10 +308,8 @@ class BaseLeg(metaclass=ABCMeta):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        sum = 0
-        for period in self.periods:
-            sum += period.analytic_delta(*args, **kwargs)
-        return sum
+        _ = (period.analytic_delta(*args, **kwargs) for period in self.periods)
+        return sum(_)
 
     def cashflows(self, *args, **kwargs) -> DataFrame:
         """
@@ -330,16 +328,13 @@ class BaseLeg(metaclass=ABCMeta):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        sum = 0
         _is_local = (len(args) == 5 and args[4]) or kwargs.get("local", False)
         if _is_local:
-            for period in self.periods:
-                sum += period.npv(*args, **kwargs)[self.currency]
-            return {self.currency: sum}
+            _ = (period.npv(*args, **kwargs)[self.currency] for period in self.periods)
+            return {self.currency: sum(_)}
         else:
-            for period in self.periods:
-                sum += period.npv(*args, **kwargs)
-            return sum
+            _ = (period.npv(*args, **kwargs) for period in self.periods)
+            return sum(_)
 
     @property
     def _is_linear(self):
@@ -370,7 +365,7 @@ class BaseLeg(metaclass=ABCMeta):
                 a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
                 a += a_
                 b += b_
-            except AttributeError:
+            except AttributeError:  # the period might be of wrong kind: TODO: better filter
                 pass
         c = -target_npv
 
@@ -673,7 +668,8 @@ class FloatLegMixin:
         if fixings is NoInput.blank:
             fixings_ = []
         elif isinstance(fixings, Series):
-            fixings_ = self._get_fixings_from_series(fixings)
+            fixings_ = fixings.sort_index()
+            fixings_ = self._get_fixings_from_series(fixings_)
         elif isinstance(fixings, tuple):
             fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)
         elif not isinstance(fixings, list):
@@ -1205,10 +1201,8 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     @property
     def dcf(self):
-        _ = 0.0
-        for period in self.periods:
-            _ += period.dcf
-        return _
+        _ = [period.dcf for period in self.periods]
+        return sum(_)
 
     def rate(self, curve):
         """
@@ -1447,10 +1441,8 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         The DCF of a *ZeroFixedLeg* is defined as DCF of the single *FixedPeriod*
         spanning the *Leg*.
         """
-        _ = 0.0
-        for period in self.periods:
-            _ += period.dcf
-        return _
+        _ = [period.dcf for period in self.periods]
+        return sum(_)
 
     def cashflows(
         self,
@@ -1528,10 +1520,8 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         """
         Analytic delta based on period rate and not IRR.
         """
-        _ = 0.0
-        for period in self.periods:
-            _ += period.analytic_delta(*args, **kwargs)
-        return _
+        _ = [period.analytic_delta(*args, **kwargs) for period in self.periods]
+        return sum(_)
 
     def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
         """

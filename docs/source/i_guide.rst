@@ -100,6 +100,8 @@ We now have a mechanism by which to specify values in other currencies.
 One observes that the value returned here is not a float but a :class:`~rateslib.dual.Dual`
 which is part of *rateslib's* AD framework. One can read more about this particular treatment of FX
 :ref:`here<fx-dual-doc>` and more generally about the dual AD framework :ref:`here<dual-doc>`.
+It is possible to call ``float()`` on this *Dual* to discard the sensitivity information and return
+just a regular *float*.
 
 FX forwards
 ------------
@@ -158,10 +160,11 @@ parameters that are used to build up the instruments.
 Multi-currency instruments
 --------------------------
 
-Lets take a quick look at a multi-currency instrument: the
+Let's take a quick look at a multi-currency instrument: the
 :class:`~rateslib.instruments.FXSwap`. All instruments have a mid-market pricing
-function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>` which is used as the
-target for the *Solver*.
+function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>`. Keeping a
+consistent function name across all *Instruments* allows any of them to be used within a
+:class:`~rateslib.solver.Solver` to calibrate *Curves* around target mid-market rates.
 
 .. ipython:: python
 
@@ -206,6 +209,9 @@ risk calculations.
     :titlesonly:
 
     g_instruments.rst
+
+There are some interesting :ref:`Cookbook <cookbook-doc>` articles
+on :class:`~rateslib.instruments.BondFuture` and cheapest-to-deliver (CTD) analysis.
 
 Calibrating curves with a solver
 =================================
@@ -256,7 +262,7 @@ a set of instrument prices, ``s``.
        id="us_rates"
    )
 
-Solving was a success! Observe the DFs on the *Curve* have been updated:
+Solving was a success! Observe that the DFs on the *Curve* have been updated:
 
 .. ipython:: python
 
@@ -317,11 +323,32 @@ detailed instructions of the way in which the associations can be constructed in
 
     g_mechanisms.rst
 
+The **key takeway** is that when you initialise and create an *Instrument* you can do one
+of three things:
+
+1) Not provide any *Curves* for pricing upfront (``curves=NoInput(0)``).
+2) Create an explicit association to pre-existing Python objects, e.g. ``curves=my_curve``.
+3) Define some reference to a *Curves* mapping with strings using ``curves="my_curve_id"``.
+
+
+If you do *1)* then you have to provide *Curves* at price
+time: ``instrument.npv(curves=my_curve)``.
+
+If you do *2)* then you do not need to provide anything further at price time:
+``instrument.npv()``, or can provide new *Curves* directly, like for *1)*.
+
+If you do *3)* then you can provide a *Solver* which contains the *Curves* and will
+resolve the string mapping: ``instrument.npv(solver=my_solver)``. Or you can also provide *Curves*
+directly, like for *1)*.
+
+**Best practice** in *rateslib* is to use *3)*. This is the safest and most flexible approach and
+designed to work best with risk sensitivity calculations also.
+
 
 Risk Sensitivities
 ===================
 
-Probably *rateslib's* main objective is to capture delta and gamma risks in a
+*Rateslib's* main objective is to capture delta and gamma risks in a
 generalised and holistic mathematical framework. See the
 :ref:`risk framework<risk-toc-doc>` notes.
 

@@ -1465,9 +1465,13 @@ class FloatPeriod(BasePeriod):
                 rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
             notional_exposure = Series(
                 [rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
-            )
+            ).astype(float)
             v = disc_curve[self.payment]
-            notional_exposure *= -self.notional * (self.dcf / dcf_of_r) * v / v_with_r
+            mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
+
+            notional_exposure[mask] *= -self.notional * (self.dcf / dcf_of_r[mask]) * float(v)
+            notional_exposure[mask] /= v_with_r[mask].astype(float)
+            # notional_exposure[mask] *= (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
             # notional_exposure[fixed.drop_index(drop=True)] = 0.0
             notional_exposure[fixed.to_numpy()] = 0.0
             extra_cols = {

@@ -556,8 +556,14 @@ def dual_log(x, base=None):
     """
     if isinstance(x, (Dual, Dual2)):
         val = x.__log__()
-        return val if base is None else val * (1 / math.log(base))
-    return math.log(x) if base is None else math.log(x, base)
+        if base is None:
+            return val
+        else:
+            return val * (1 / math.log(base))
+    elif base is None:
+        return math.log(x)
+    else:
+        return math.log(x, base)
 
 
 def _pivot_matrix(A, method=1):

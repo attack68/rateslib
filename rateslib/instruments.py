@@ -37,9 +37,9 @@ from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months, _DCF1d
 
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve
+from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve, average_rate
 from rateslib.solver import Solver
 from rateslib.periods import (
     Cashflow,
@@ -1424,6 +1424,7 @@ class BondMixin:
         repo_rate: Union[float, Dual, Dual2],
         convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
+        method: str = "proceeds"
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1443,6 +1444,8 @@ class BondMixin:
             values.
         dirty : bool, optional
             Whether the input and output price are specified including accrued interest.
+        method : str in {"proceeds", "compounded"}, optional
+            The method for determining the forward price.
 
         Returns
         -------
@@ -1484,9 +1487,17 @@ class BondMixin:
 
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
-            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
-            total_rtn -= accrued_coup
+            if method.lower() == "proceeds":
+                dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
+                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
+                total_rtn -= accrued_coup
+            elif method.lower() == "compounded":
+                r_bar, d, _ = average_rate(settlement, forward_settlement, convention, repo_rate)
+                n = (forward_settlement - self.leg1.periods[p_idx].payment).days
+                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + d * r_bar / 100) ** n
+                total_rtn -= accrued_coup
+            else:
+                raise ValueError("`method` must be in {'proceeds', 'compounded'}.")
 
         forward_price = total_rtn / -self.leg1.notional * 100
         if dirty:
@@ -1850,27 +1861,36 @@ class BondMixin:
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
         ad_ = curves[1].ad
-        curves[1]._set_ad_order(2)
-        disc_curve = curves[1].shift(Dual2(0, "z_spread"), composite=False)
-        curves[1]._set_ad_order(0)
         metric = "dirty_price" if dirty else "clean_price"
+
+        curves[1]._set_ad_order(1)
+        disc_curve = curves[1].shift(Dual(0, "z_spread"), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
 
+        # find a first order approximation of z
+        b = npv_price.gradient("z_spread", 1)[0]
+        c = float(npv_price) - float(price)
+        z_hat = -c / b
+
+        # shift the curve to the first order approximation and fine tune with 2nd order approxim.
+        curves[1]._set_ad_order(2)
+        disc_curve = curves[1].shift(Dual2(z_hat, "z_spread"), composite=False)
+        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         a, b = (
             0.5 * npv_price.gradient("z_spread", 2)[0][0],
             npv_price.gradient("z_spread", 1)[0],
         )
-        z = _quadratic_equation(a, b, float(npv_price) - float(price))
-        # first z is solved by using 1st and 2nd derivatives to get close to target NPV
+        z_hat2 = _quadratic_equation(a, b, float(npv_price) - float(price))
 
-        # TODO (low) add a tolerance here to continually converge to the solution, via GradDes?
-        disc_curve = curves[1].shift(z, composite=False)
+        # perform one final approximation albeit the additional price calculation slows calc time
+        curves[1]._set_ad_order(0)
+        disc_curve = curves[1].shift(z_hat+z_hat2, composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
-        diff = npv_price - price
-        new_b = b + 2 * a * z
-        z = z - diff / new_b
-        # then a final linear adjustment is made which is usually very small
+        b = b + 2 * a * z_hat2  # forecast the new gradient
+        c = float(npv_price) - float(price)
+        z_hat3 = -c / b
 
+        z = z_hat + z_hat2 + z_hat3
         curves[1]._set_ad_order(ad_)
         return z
 
@@ -1967,7 +1987,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
       proportioning only in the segregated short stub part.
     - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
-      31-B-ii).
+      31-B-ii). Otherwise referred to as the 'Treasury' method.
     - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
       using 30e360, also for back stubs.
     - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
@@ -2878,7 +2898,7 @@ class IndexFixedRateBond(FixedRateBond):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm"}
+            "dirty_price", "ytm", "index_clean_price", "index_dirty_price"}
         forward_settlement : datetime, optional
             The forward settlement date. If not given uses the discount *Curve* and the ``settle``
             attribute of the bond.
@@ -4209,6 +4229,99 @@ class BondFuture(Sensitivities):
         ]
         return df
 
+    def cms(
+        self,
+        prices: list[float],
+        settlement: datetime,
+        shifts: list[float],
+        delivery: Union[datetime, NoInput] = NoInput(0),
+        dirty: bool = False,
+    ):
+        """
+        Perform CTD multi-security analysis.
+
+        Parameters
+        ----------
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
+        shifts : list of float
+            The scenarios to analyse.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        dirty: bool
+            Whether the bond prices are given including accrued interest. Default is *False*.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        This method only operates when the CTD basket has multiple securities
+        """
+        if len(self.basket) == 1:
+            raise ValueError("Multi-security analysis cannot be performed with one security.")
+        delivery = self.delivery[1] if delivery is NoInput.blank else delivery
+
+        # build a curve for pricing
+        today = add_tenor(
+            settlement,
+            f"-{self.basket[0].kwargs['settle']}B",
+            None,
+            self.basket[0].leg1.schedule.calendar,
+        )
+        unsorted_nodes = {
+            today: 1.0,
+            **{_.leg1.schedule.termination: 1.0 for _ in self.basket}
+        }
+        bcurve = Curve(
+            nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
+            convention="act365f"  # use the most natural DCF without scaling
+        )
+        if dirty:
+            metric = "dirty_price"
+        else:
+            metric = "clean_price"
+        solver = Solver(
+            curves=[bcurve],
+            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],
+            s=prices,
+        )
+        if solver.result["status"] != "SUCCESS":
+            return ValueError(
+                "A bond curve could not be solved for analysis. "
+                "See 'Cookbook: Bond Future CTD Multi-Security Analysis'."
+            )
+        bcurve._set_ad_order(order=0)  # turn of AD for efficiency
+
+        data = {
+            "Bond": [
+                f"{bond.fixed_rate:,.3f}% " f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+                for bond in self.basket
+            ]
+        }
+        for shift in shifts:
+            _curve = bcurve.shift(shift, composite=False)
+            data.update(
+                {
+                    shift: self.net_basis(
+                        future_price=self.rate(curves=_curve),
+                        prices=[_.rate(curves=_curve, metric=metric) for _ in self.basket],
+                        repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
+                        settlement=settlement,
+                        delivery=delivery,
+                        convention=_curve.convention,
+                        dirty=dirty,
+                    )
+                }
+            )
+
+        _ = DataFrame(data=data)
+        return _
+
     def gross_basis(
         self,
         future_price: Union[float, Dual, Dual2],
@@ -4288,11 +4401,18 @@ class BondFuture(Sensitivities):
         else:
             r_ = repo_rate
 
-        net_basis_ = tuple(
-            bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
-            - self.cfs[i] * future_price
-            for i, bond in enumerate(self.basket)
-        )
+        if dirty:
+            net_basis_ = tuple(
+                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                - self.cfs[i] * future_price - bond.accrued(f_settlement)
+                for i, bond in enumerate(self.basket)
+            )
+        else:
+            net_basis_ = tuple(
+                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                - self.cfs[i] * future_price
+                for i, bond in enumerate(self.basket)
+            )
         return net_basis_
 
     def implied_repo(
@@ -4492,6 +4612,7 @@ class BondFuture(Sensitivities):
         settlement: datetime,
         delivery: Union[datetime, NoInput] = NoInput(0),
         dirty: bool = False,
+        ordered: bool = False,
     ):
         """
         Determine the index of the CTD in the basket from implied repo rate.
@@ -4500,16 +4621,18 @@ class BondFuture(Sensitivities):
         ----------
         future_price : float
             The price of the future.
-        prices : list or tuple of float, Dual, Dual2, optional
-            The prices of the bonds to determine the CTD. Not used is ``ctd_index``
-            is given.
-        settlement : datetime
-            The settlement date of the bonds' ``prices``. Only required if ``prices``
-            are given.
-        delivery : datetime, optional
-            The delivery date of the contract.
-        dirty : bool, optional
-            Whether the ``prices`` given include accrued interest or not.
+        prices: sequence of float, Dual, Dual2
+            The prices of the bonds in the deliverable basket (ordered).
+        settlement: datetime
+            The settlement date of the bonds.
+        delivery: datetime, optional
+            The date of the futures delivery. If not given uses the final delivery
+            day.
+        dirty: bool
+            Whether the bond prices are given including accrued interest.
+        ordered : bool, optional
+            Whether to return the sorted order of CTD indexes and not just a single index for
+            the specific CTD.
 
         Returns
         -------
@@ -4518,8 +4641,13 @@ class BondFuture(Sensitivities):
         implied_repo = self.implied_repo(
             future_price, prices, settlement, delivery, "Act365F", dirty
         )
-        ctd_index_ = implied_repo.index(max(implied_repo))
-        return ctd_index_
+        if not ordered:
+            ctd_index_ = implied_repo.index(max(implied_repo))
+            return ctd_index_
+        else:
+            _ = {i: v for (i, v) in zip(range(len(implied_repo)), implied_repo)}
+            _ = {k: v for k, v in sorted(_.items(), key=lambda item: -item[1])}
+            return list(_.keys())
 
     # Digital Methods
 
@@ -6878,7 +7006,8 @@ class FRA(Sensitivities, BaseMixin):
         fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
         cf = float(self.cashflow(curves[0]))
-        npv_local = self.cashflow(curves[0]) * curves[1][self.leg1.schedule.pschedule[0]]
+        df = float(curves[1][self.leg1.schedule.pschedule[0]])
+        npv_local = cf * df
 
         _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
         _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
@@ -6889,6 +7018,7 @@ class FRA(Sensitivities, BaseMixin):
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
         cfs[defaults.headers["npv"]] = npv_local
+        cfs[defaults.headers["df"]] = df
         cfs[defaults.headers["fx"]] = float(fx_)
         cfs[defaults.headers["npv_fx"]] = npv_local * float(fx_)
         return DataFrame.from_records([cfs])
@@ -7398,7 +7528,7 @@ class FXSwap(XCS):
     Parameters
     ----------
     args : dict
-        Required positional args to :class:`BaseXCS`.
+        Required positional args to :class:`XCS`.
     fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
@@ -7411,7 +7541,7 @@ class FXSwap(XCS):
         The accrued notional at termination of the domestic leg accounting for interest
         payable at domestic interest rates.
     kwargs : dict
-        Required keyword arguments to :class:`BaseXCS`.
+        Required keyword arguments to :class:`XCS`.
 
     Notes
     -----
@@ -8096,6 +8226,7 @@ class Portfolio(Sensitivities):
             )
             local = True
 
+        # if the pool is 1 do not do any parallel processing and return the single core func
         if defaults.pool == 1:
             return self._npv_single_core(
                 curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
@@ -8137,6 +8268,9 @@ class Portfolio(Sensitivities):
 
     def _npv_single_core(self, *args, **kwargs):
         if kwargs.get("local", False):
+            # dicts = [instrument.npv(*args, **kwargs) for instrument in self.instruments]
+            # result = dict(reduce(operator.add, map(Counter, dicts)))
+
             ret = {}
             for instrument in self.instruments:
                 i_npv = instrument.npv(*args, **kwargs)
@@ -8146,9 +8280,8 @@ class Portfolio(Sensitivities):
                     else:
                         ret[ccy] = i_npv[ccy]
         else:
-            ret = 0
-            for instrument in self.instruments:
-                ret += instrument.npv(*args, **kwargs)
+            _ = (instrument.npv(*args, **kwargs) for instrument in self.instruments)
+            ret = sum(_)
         return ret
 
     def cashflows(self, *args, **kwargs):

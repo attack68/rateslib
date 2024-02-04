@@ -219,6 +219,84 @@ class TestFloatLeg:
         ).set_index("obs_dates")
         assert_frame_equal(result, expected, rtol=1e-5)
 
+    def test_rfr_with_fixings_fixings_table_issue(self):
+        from rateslib import IRS
+        instruments = [
+            IRS(dt(2024, 1, 15), dt(2024, 3, 20), spec="eur_irs", curves="estr"),
+            IRS(dt(2024, 3, 20), dt(2024, 6, 19), spec="eur_irs", curves="estr"),
+            IRS(dt(2024, 6, 19), dt(2024, 9, 18), spec="eur_irs", curves="estr"),
+        ]
+        curve = Curve(
+            nodes={
+                dt(2024, 1, 11): 1.0,
+                dt(2024, 3, 20): 1.0,
+                dt(2024, 6, 19): 1.0,
+                dt(2024, 9, 18): 1.0,
+            },
+            calendar="tgt",
+            convention="act360",
+            id="estr",
+        )
+        from rateslib import Solver
+        Solver(
+            curves=[curve],
+            instruments=instruments,
+            s=[
+                3.89800324,
+                3.63414284,
+                3.16864932,
+            ],
+            id="eur",
+        )
+        fixings = Series(
+            data=[
+                3.904,
+                3.904,
+                3.904,
+                3.905,
+                3.902,
+                3.904,
+                3.906,
+                3.882,
+                3.9,
+                3.9,
+                3.899,
+                3.899,
+                3.901,
+                3.901,
+            ],
+            index=[
+                dt(2024, 1, 10),
+                dt(2024, 1, 9),
+                dt(2024, 1, 8),
+                dt(2024, 1, 5),
+                dt(2024, 1, 4),
+                dt(2024, 1, 3),
+                dt(2024, 1, 2),
+                dt(2023, 12, 29),
+                dt(2023, 12, 28),
+                dt(2023, 12, 27),
+                dt(2023, 12, 22),
+                dt(2023, 12, 21),
+                dt(2023, 12, 20),
+                dt(2023, 12, 19),
+            ],
+        )
+
+        swap = IRS(
+            dt(2023, 12, 20),
+            dt(2024, 1, 31),
+            spec="eur_irs",
+            curves="estr",
+            leg2_fixings=fixings,
+            notional=3e9,
+            fixed_rate=3.922,
+        )
+        result = swap.leg2.fixings_table(curve)
+        assert result.loc[dt(2024, 1, 10), "notional"] == 0.0
+        assert abs(result.loc[dt(2024, 1, 11), "notional"] - 3006829846) < 1.0
+        assert abs(result.loc[dt(2023, 12, 20), "rates"] - 3.901) < 0.001
+
     def test_float_leg_set_float_spread(self, curve):
         float_leg = FloatLeg(
             effective=dt(2022, 1, 1),

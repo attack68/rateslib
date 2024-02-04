@@ -10,7 +10,7 @@ build-backend = "maturin"
 
 [project]
 name = "rateslib"
-version = "0.6.0"
+version = "1.0.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]

@@ -22,14 +22,6 @@ email contact through **rateslib@gmail.com**.
      - Description
      - Consideration
      - Timeframe
-   * - Coding Interest Rates
-     - Officially document this library's algorithms and release the book.
-     - Planned
-     - End 2023
-   * - Version 1.0
-     - Release the official first non-beta version of this library.
-     - Planned
-     - End 2023
    * - Vanilla FX options and volatility products
      - Adding option instruments and benchmark trades such as risk-reversals.
      - Highly likely (v2.0?)
@@ -52,7 +44,25 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
-0.7.0 (not released)
+
+1.0.0 (1st Feb 2024)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Bug
+     - :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+       settled payment date.
+   * - Bug
+     - :meth:`~rateslib.legs.FloatLeg.fixings_table` now generates exact results (not in approximate mode) when RFR
+       fixings are included in any period.
+
+
+0.7.0 (29th Nov 2023)
 **********************
 
 .. list-table::
@@ -62,18 +72,24 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Legs
+     - Refactor how the ``defaults.fixings`` object works. **Breaking change**. Explained in
+       :ref:`Working with Fixings <cook-fixings-doc>`.
+   * - Legs
      - Allow ``fixings`` as a 2-tuple to manually define the first *FloatPeriod* (say as IBOR stub)
        and determine the rest from a *Series*. Also allow ``fx_fixings`` as a 2-tuple for similar
        reason for MTM *XCS*.
-   * - Legs
-     - Refactor how the ``defaults.fixings`` object works. **Breaking change**. Explained in
-       :ref:`Working with Fixings <cook-fixings-doc>`.
    * - Instruments
      - :class:`~rateslib.instruments.Fly` and :class:`~rateslib.instruments.Spread` now express
        *rate* in basis point terms and not percent.
    * - Instruments
      - Added ``calc_mode`` to :class:`~rateslib.instruments.BondFuture` to calculate CME US treasury
        conversion factors correctly.
+   * - Instruments
+     - :class:`~rateslib.instruments.BondFuture.ctd_index` can now optionally return the ordered set of CTD indexes
+       instead of just the CTD.
+   * - Instruments
+     - Added :meth:`~rateslib.instruments.BondFuture.cms` to perform multi-security CTD analysis on
+       :class:`~rateslib.instruments.BondFuture`.
    * - Solver
      - Add an attribute ``result`` that contains retrievable iteration success or failure
        information.
@@ -83,6 +99,11 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Add the ``spec`` argument functionality missing for
        :class:`~rateslib.instruments.IndexFixedRateBond`.
+   * - Bug
+     - :class:`~rateslib.curves.CompositeCurve` now returns zero for DF item lookups prior to the initial node date.
+   * - Bug
+     - :class:`~rateslib.instruments.BondFuture.net_basis` now deducts accrued from the result when the prices are
+       provided ``dirty``.
 
 0.6.0 (19th Oct 2023)
 **********************
