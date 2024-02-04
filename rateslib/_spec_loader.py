@@ -107,6 +107,8 @@ if DEVELOPMENT:
         "eurusd_xcs": _get_kwargs("eurusd_xcs"),  # XCS
         "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
         "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),
+        "eurusd_fxs": _get_kwargs("eurusd_fxs"), # FXS
+        "gbpusd_fxs": _get_kwargs("gbpusd_fxs"),
         "eur_zcis": _get_kwargs("eur_zcis"),  # ZCIS
         "gbp_zcis": _get_kwargs("gbp_zcis"),
         "usd_zcis": _get_kwargs("usd_zcis"),
