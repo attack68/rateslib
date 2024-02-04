@@ -7018,6 +7018,33 @@ class FRA(Sensitivities, BaseMixin):
         if self.leg1.schedule.n_periods != 1 or self.leg2.schedule.n_periods != 1:
             raise ValueError("FRA scheduling inputs did not define a single period.")
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+            Broker confirmation:
+            'You Paid 500m 1x4 28th FRA in EUR at 2.5%.'
+
+            Rateslib configuration:
+            FRA(
+                effective=dt(2022, 2, 28),
+                termination="3m",
+                frequency="q",        # effective, termination and frequency required.
+                roll=28,
+                eom=False,
+                modifier="mf",
+                calendar="tgt",       # calendar and modifier to determine termination.
+                payment_lag=0,
+                notional=500e6,
+                currency="eur",       # notional and currency
+                convention="act360",
+                method_param=2,       # IBOR lag
+                fixed_rate=2.50,
+                #  fixings=NoInput(0),
+                #  curves=["euribor3m", "estr"],  # curves for forecasting and discounting optional.
+                #  spec=NoInput(0),   # possible auto-defined FRAs exist in defaults.
+            )  
+            """))
+
     def _set_pricing_mid(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
