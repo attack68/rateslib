@@ -186,7 +186,8 @@ Suppose *"You Paid 5Y EUR single-swap 3s6s basis at 6.5bp in €100mm."*
 ZCS
 ----
 
-Suppose *"You Received £100mm 15Y ZCS effective 16th March 2023 at IRR of 2.15% (under Act365F),
+Suppose *"You Received £100mm 15Y Zero Coupon Swap effective
+16th March 2023 at IRR of 2.15% (under Act365F),
 compounding annually."*
 
 .. ipython:: python
@@ -209,6 +210,42 @@ compounding annually."*
        spec=NoInput(0),              # possible auto-defined ZCS exist in defaults.
     )
 
+**Available** ``spec`` **defaults:**
+
+- "gbp_zcs": GBP Zero coupon swap
+
+ZCIS
+-----
+
+Suppose *"You received €100m 5Y Zero Coupon Inflation Swap at an IRR of 1.15% versus EUR-CPI
+with a 3-month lag".*
+
+.. ipython:: python
+
+   zcis = ZCIS(
+       effective=dt(2022, 1, 1),
+       termination="5Y",
+       frequency="A",
+       calendar="tgt",
+       modifier="mf",
+       currency="eur",
+       fixed_rate=1.15,
+       convention="1+",
+       notional=-100e6,
+       leg2_index_base=100.0,
+       leg2_index_method="monthly",
+       leg2_index_lag=3,
+       leg2_index_fixings=NoInput(0),
+       curves=[None, "estr", "eur_cpi", "estr"],
+       spec=NoInput(0),
+   )
+
+**Available** ``spec`` **defaults:**
+
+- "eur_zcis": EUR Zero coupon inflation swap
+- "gbp_zcis": GBP Zero coupon inflation swap
+- "usd_zcis": USD Zero coupon inflation swap
+
 FXExchange
 -----------
 
@@ -222,7 +259,7 @@ Suppose *"You Bought £100mm Selling $125mm (GBPUSD 1.25) for settlement 16th Ma
        leg2_currency="usd",
        fx_rate=1.25,
        notional=100e6,
-       #  curves=[None, gbpusd, None, usdusd],  # curves for discounting each currency.
+       curves=[None, "gbpusd", None, "usdusd"],  # curves for discounting each currency, optional
    )
 
 FXSwap

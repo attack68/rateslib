@@ -6471,6 +6471,33 @@ class ZCIS(BaseDerivative):
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroIndexLeg(**_get(self.kwargs, leg=2))
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Received €100mm 5Y ZCIS effective 1st Jan 2022 at IRR of 1.15% vs EUR-CPI with a
+        3 month lag, compounding fixed annually.'
+
+        Rateslib configuration:
+        ZCIS(
+            effective=dt(2022, 1, 1),
+            termination="5Y",
+            frequency="A",
+            calendar="tgt",
+            modifier="mf", 
+            currency="eur",
+            fixed_rate=1.15,
+            convention="1+",
+            notional=-100e6,
+            leg2_index_base=100.0,
+            leg2_index_method="monthly",
+            leg2_index_lag=3,
+            leg2_index_fixings=NoInput(0), 
+            curves=[None, "estr", "eur_cpi", "estr"],
+            spec=NoInput(0), 
+        )  
+        """))
+
     def _set_pricing_mid(self, curves, solver):
         if self.fixed_rate is NoInput.blank:
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
