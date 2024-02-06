@@ -288,3 +288,45 @@ Suppose *"You Paid 3M EURUSD FX Swap in €100mm/$105mm (split notional €101.5
 
 - "eurusd_fxs": EUR/USD FX swap
 - "gbpusd_fxs": GBP/USD FX swap
+
+XCS
+----
+
+Suppose *"You Paid €100mm 5Y EUR/USD MTM Cross currency swap @-15bp under normal RFR conventions,
+with initial FX fixing agreed at EURUSD 1.08."*
+
+.. ipython:: python
+
+   xcs = XCS(
+       effective=dt(2023, 12, 20),
+       termination="5y",            # effective and termination dates required.
+       frequency="q",
+       calendar="tgt,nyc",
+       modifier="mf",
+       payment_lag=2,
+       payment_lag_exchange=0,
+       roll=20,                     # schedule configuration
+       currency="eur",
+       leg2_currency="usd",
+       fx_fixings=1.08,
+       notional=100e6,              # currency and notional
+       fixed=False,
+       leg2_fixed=False,
+       leg2_mtm=True,
+       convention="act360",
+       fixing_method="rfr_payment_delay",
+       leg2_fixing_method="rfr_payment_delay",
+       method_param=NoInput(0),
+       leg2_method_param=NoInput(0),
+       fixings=NoInput(0),
+       leg2_fixings=NoInput(0),
+       float_spread=-15.0,           # pricing parameters
+       spec=NoInput(0),              # possible auto-defined XCS exist in defaults.
+       curves=["eureur", "eurusd", "usdusd", "usdusd"],  # curves optional.
+   )
+
+**Available** ``spec`` **defaults:**
+
+- "eurusd_xcs": EUR/USD MTM Cross currency swap
+- "gbpusd_xcs": GBP/USD MTM Cross currency swap
+- "eurgbp_xcs": EUR/GBP MTM Cross currency swap

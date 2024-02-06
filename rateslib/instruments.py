@@ -7472,6 +7472,43 @@ class XCS(BaseDerivative):
         self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
         self._initialise_fx_fixings(fx_fixings)
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid €100mm 5Y EUR/USD MTM Cross currency swap -15bp under normal RFR conventions,
+        with initial FX fixing agreed at EURUSD 1.08.'
+
+        Rateslib configuration:
+        XCS(
+            effective=dt(2023, 12, 20),
+            termination="5y",            # effective and termination dates required.
+            frequency="q",
+            calendar="tgt,nyc",
+            modifier="mf",
+            payment_lag=2,
+            payment_lag_exchange=0,        
+            roll=20,                     # schedule configuration
+            currency="eur",
+            leg2_currency="usd",
+            fx_fixings=1.08,
+            notional=100e6,              # currency and notional
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=True,
+            convention="act360",
+            fixing_method="rfr_payment_delay",
+            leg2_fixing_method="rfr_payment_delay",
+            method_param=NoInput(0),
+            leg2_method_param=NoInput(0),
+            fixings=NoInput(0),
+            leg2_fixings=NoInput(0),
+            float_spread=-15.0            # pricing parameters
+            spec=NoInput(0),              # possible auto-defined IRS exist in defaults.
+            curves=["eureur", "eurusd", "usdusd", "usdusd"],  # curves optional.
+        )    
+        """))
+
     @property
     def fx_fixings(self):
         return self._fx_fixings
