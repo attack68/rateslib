@@ -1,5 +1,7 @@
 .. _whatsnew-doc:
 
+.. role:: red
+
 **************
 Release Notes
 **************
@@ -56,10 +58,12 @@ email contact through **rateslib@gmail.com**.
      - Description
    * - Instruments
      - Reverse the notional direction of :class:`~rateslib.instruments.FXExchange` to be more
-       intuitive.
+       intuitive. :red:`Breaking change!`
    * - Instruments
      - Add a class method: :meth:`~rateslib.instruments.IRS.example` to each *Instrument* to
        provide a more intuitive way to initialise.
+   * - Instruments
+     - Relabel the specification `sek_iirs` as `sek_iirs3`. :red:`Breaking change!`
 
 
 1.0.0 (1st Feb 2024)

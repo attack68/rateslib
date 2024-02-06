@@ -1,5 +1,5 @@
-﻿kind,leg,kwarg,dtype,test,usd_irs,gbp_irs,eur_irs,sek_irs,nok_irs,chf_irs,eur_irs6,eur_irs3,eur_irs1,sek_irs3,nok_irs3,nok_irs6,eurusd_xcs,gbpusd_xcs,eurgbp_xcs,eurusd_fxs,gbpusd_fxs,eur_zcis,gbp_zcis,usd_zcis,gbp_zcs,sek_iirs,eur_sbs36,usd_gb,gbp_gb,gbp_gbi,sek_gb,cad_gb,usd_gbb,sek_gbb,sek_fra3,eur_fra3,eur_fra6,usd_frn5,usd_stir,usd_stir1,eur_stir,eur_stir1,eur_stir3,gbp_stir
-meta,meta,currency,str,TES,usd,gbp,eur,sek,nok,chf,eur,eur,eur,sek,nok,nok,eur/usd,gbp/usd,gbp/usd,eur/usd,gbp/usd,eur,gbp,usd,gbp,sek_iirs,eur,usd,gbp,gbp,sek,cad,usd,sek,sek,eur,eur,usd,usd,usd,eur,eur,eur,gbp
+﻿kind,leg,kwarg,dtype,test,usd_irs,gbp_irs,eur_irs,sek_irs,nok_irs,chf_irs,eur_irs6,eur_irs3,eur_irs1,sek_irs3,nok_irs3,nok_irs6,eurusd_xcs,gbpusd_xcs,eurgbp_xcs,eurusd_fxs,gbpusd_fxs,eur_zcis,gbp_zcis,usd_zcis,gbp_zcs,sek_iirs3,eur_sbs36,usd_gb,gbp_gb,gbp_gbi,sek_gb,cad_gb,usd_gbb,sek_gbb,sek_fra3,eur_fra3,eur_fra6,usd_frn5,usd_stir,usd_stir1,eur_stir,eur_stir1,eur_stir3,gbp_stir
+meta,meta,currency,str,TES,usd,gbp,eur,sek,nok,chf,eur,eur,eur,sek,nok,nok,eur/usd,gbp/usd,gbp/usd,eur/usd,gbp/usd,eur,gbp,usd,gbp,sek,eur,usd,gbp,gbp,sek,cad,usd,sek,sek,eur,eur,usd,usd,usd,eur,eur,eur,gbp
 meta,meta,instrument,str,none,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,xcs,xcs,xcs,fxs,fxs,zcis,zcis,zcis,zcs,iirs,sbs,frb,frb,ifrb,frb,frb,bill,bill,fra,fra,fra,frn,stir,stir,stir,stir,stir,stir
 meta,meta,sub_type,str,none,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 meta,meta,bloomberg_ticker,str,none,usosfr,bpsws,eeswe,sksws,nks,sfsnt,eusa,eusw_v3,,sksw,nksw_v3,nksw,euxoqq,bpxoqq,ebxoqq,eur,gbp,euswi,bpswit,usswit,,,,,,,,,,,,,,,SFR,SF1,KTR,,ER,SFI
@@ -28,7 +28,7 @@ base_derivative,leg2,front_stub,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg2,back_stub,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg2,roll,,1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,imm,imm,imm,imm,imm,imm
 base_derivative,leg2,eom,bool,FALSE,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE
-base_derivative,leg2,modifier,str,mp,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,mf,mf,mf,mf,mf,mf
+base_derivative,leg2,modifier,str,mp,,,,,,,,,,,,,,,,,,,,,,mf,,,,,,,,,,,,,mf,mf,mf,mf,mf,mf
 base_derivative,leg2,calendar,str,"nyc,tgt,ldn",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,nyc,nyc,tgt,tgt,tgt,ldn
 base_derivative,leg2,payment_lag,int,3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,0
 base_derivative,leg2,notional,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

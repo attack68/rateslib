@@ -246,6 +246,43 @@ with a 3-month lag".*
 - "gbp_zcis": GBP Zero coupon inflation swap
 - "usd_zcis": USD Zero coupon inflation swap
 
+IIRS
+-----
+
+Suppose *"You bought an inflation asset swap, by Paying £100mm 5Y IIRS effective
+1st Jan 2022 at 1.15% indexed at GBP-CPI with a 3 month lag, versus SONIA paid semi-annually
+@ -50bps."*
+
+.. ipython:: python
+
+   iirs = IIRS(
+       effective=dt(2022, 1, 1),
+       termination="5Y",
+       frequency="S",
+       calendar="ldn",
+       modifier="none",
+       leg2_modifier="mf",
+       currency="gbp",
+       fixed_rate=1.15,
+       payment_lag=0,
+       convention="ActActICMA",
+       leg2_convention="act365f",
+       notional=100e6,
+       index_base=100.0,
+       index_method="monthly",
+       index_lag=3,
+       index_fixings=NoInput(0),
+       leg2_fixing_method="rfr_payment_delay",
+       leg2_fixings=NoInput(0),
+       leg2_float_spread=-50.0,
+       curves=["gbp_cpi", "sonia", "sonia", "sonia"],
+       spec=NoInput(0),
+   )
+
+**Available** ``spec`` **defaults:**
+
+- "sek_iirs3": SEK inflation IRS versus Stibor 3m
+
 FXExchange
 -----------
 

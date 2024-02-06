@@ -70,3 +70,8 @@ div.tutorial span{
   border-radius: 0.5em;
   padding: 0.25em;
 }
+
+.red {
+  color: red;
+  font-style: italic;
+}
