@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn duals_add_test() {
-        let result = duals_add(Duals::23.0, Duals::Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()));
+        let result = duals_add(Duals::Float::23.0, Duals::Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()));
         assert_eq!(result, Duals::Dual::new(43.0, ["a".to_string()].to_vec(), [].to_vec()))
     }
 }

@@ -1,7 +1,3 @@
-// use ndarray_einsum_beta::*;
-// use indexmap::indexset;
-// use std::collections::HashSet;
-
 use ndarray::{Array1, Array, arr1};
 use num_traits;
 use num_traits::Pow;
@@ -12,7 +8,7 @@ use auto_ops::{impl_op, impl_op_commutative, impl_op_ex};
 use pyo3::exceptions::PyIndexError;
 use pyo3::types::PyFloat;
 use pyo3::prelude::*;
-
+use pyo3::class::number::PyNumberProtocol;
 
 fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
     // used rather than equality for float numbers
@@ -29,6 +25,28 @@ pub struct Dual {
 
 #[pymethods]
 impl Dual {
+    /// Return a Dual with associated metrics.
+    ///
+    /// # Arguments
+    ///
+    /// * `real` - An f64 holding the representative value of the function.
+    /// * `vars` - A Vec of String that labels the variables of the function. Must contain unique
+    ///            values.
+    /// * `dual` - A Vec of f64 that contains the first derivative information of the function.
+    ///            Must be same length as `vars` or empty.
+    ///
+    /// # Notes
+    ///
+    /// If `dual` is an empty vector it will be automatically set to vector of 1.0's with the same
+    /// length as `vars`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::dual_rebuild::Dual1;
+    /// let f = Dual(2.5, Vec::from([String::from("x")]), Vec::new())
+    /// ```
+
     #[new]
     pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         let new_dual;
@@ -50,6 +68,12 @@ impl Dual {
 
 impl Dual {
     fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
+        // Return two equivalent Duals with same vars.
+        //
+        // # Arguments
+        //
+        // * `other` - Alternative Dual against which vars comparison is made
+
         // check the set of vars in each Dual are equivalent
         // println!("check vars len");
         if self.vars.len() == other.vars.len() {
@@ -71,12 +95,16 @@ impl Dual {
     }
 
     fn to_combined_vars_explicit(&self, other: &Dual) -> (Dual, Dual) {
+        // Return two equivalent Duals with the same, but recast, vars.
+
         // Both Duals assumed to have different vars so combine the vars and recast the Duals
         let comb_vars = Arc::new(IndexSet::from_iter(self.vars.union(&other.vars).map(|x| x.clone())));
         (self.to_new_vars(&comb_vars), other.to_new_vars(&comb_vars))
     }
 
     fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
+        // Return a Dual with its vars re-ordered if necessary.
+
         // new vars are the same as self.vars but may have a different order
         if self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
             // vars are identical
@@ -89,13 +117,7 @@ impl Dual {
     }
 
     fn to_new_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
-        // Take a Dual and redefine its derivatives according to a new set of variable tags.
-
-        // let a: HashSet<_> = self.vars.iter().collect();
-        // let b: HashSet<_> = new_vars.iter().collect();
-        // let same_vars = a == b;
-        // let same_vars: bool = self.vars == *new_vars;
-        // let same_vars: bool = self.vars.iter().zip(new_vars.iter()).filter(|&(a, b)| a == b).count() == self.vars.len();
+        // Return a Dual with a new set of vars.
 
         let mut dual = Array::zeros(new_vars.len());
         for (i, index) in new_vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
@@ -328,3 +350,9 @@ pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
 //     }
 // }
 
+#[pyproto]
+impl PyNumberProtocol for Dual {
+    fn __add__(lhs: Dual, rhs: Dual) -> PyResult<Dual> {
+        Ok(lhs + rhs)
+    }
+}
