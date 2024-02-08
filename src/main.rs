@@ -13,9 +13,9 @@ use ndarray::Array;
 fn dual_add_bm(a: &Dual, b: &Dual) -> Dual {
     a + b
 }
-fn duals_add<T> (lhs: &T, rhs: &T) -> T {
-    lhs + rhs
-}
+// fn duals_add<T> (lhs: &T, rhs: &T) -> T {
+//     lhs + rhs
+// }
 
 fn main() {
     let dual_ = Array::ones(2);
@@ -52,7 +52,15 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Dual, duals_add};
+    use std::sync::Arc;
+    use crate::{Dual};
+
+    #[test]
+    fn clone_arc() {
+        let d1 = Dual::new(20.0, vec!["a".to_string()], vec![]);
+        let d2 = d1.clone();
+        assert!(Arc::ptr_eq(&d1.vars, &d2.vars))
+    }
 
     #[test]
     fn add_dual_float() {
@@ -61,14 +69,21 @@ mod tests {
     }
 
     #[test]
-    fn sub_dual_float() {
-        let result = 100.0 - Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()) - Dual::new(5.0, ["b".to_string()].to_vec(), [2.0].to_vec()) - 10.0;
-        assert_eq!(result, Dual::new(65.0, ["a".to_string(), "b".to_string()].to_vec(), [-1.0, -2.0].to_vec()))
+    fn add_dual_same() {
+        let result = Dual::new(20.0, vec!["a".to_string(), "b".to_string()], vec![]) + Dual::new(5.0, vec!["a".to_string(), "b".to_string()], vec![2.0, 2.5]);
+        assert_eq!(result, Dual::new(25.0, vec!["a".to_string(), "b".to_string()], vec![3.0, 3.5]))
     }
 
-    #[test]
-    fn duals_add_test() {
-        let result = duals_add(Duals::Float::23.0, Duals::Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()));
-        assert_eq!(result, Duals::Dual::new(43.0, ["a".to_string()].to_vec(), [].to_vec()))
-    }
+    //
+    // #[test]
+    // fn sub_dual_float() {
+    //     let result = 100.0 - Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()) - Dual::new(5.0, ["b".to_string()].to_vec(), [2.0].to_vec()) - 10.0;
+    //     assert_eq!(result, Dual::new(65.0, ["a".to_string(), "b".to_string()].to_vec(), [-1.0, -2.0].to_vec()))
+    // }
+    //
+    // #[test]
+    // fn duals_add_test() {
+    //     let result = duals_add(Duals::Float::23.0, Duals::Dual::new(20.0, ["a".to_string()].to_vec(), [].to_vec()));
+    //     assert_eq!(result, Duals::Dual::new(43.0, ["a".to_string()].to_vec(), [].to_vec()))
+    // }
 }

@@ -81,8 +81,8 @@ impl Dual {
         Ok(Vec::from_iter(self.vars.iter()))
     }
 
-    fn gradient<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.dual.to_pyarray(py))
+    fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
+        Ok(self.ggradient(vars).to_pyarray(py))
     }
 
 //     #[getter]
@@ -90,14 +90,17 @@ impl Dual {
 //         Ok(self.dual)
 //     }
 
+    fn arc_check(&self, other: &Dual) -> PyResult<bool> {
+        Ok(Arc::ptr_eq(&self.vars, &other.vars))
+    }
+
     fn __add__(&self, other: DualOrF64) -> Self {
         match other {
-            DualOrF64::Dual(r) => self.clone() + r,
-            DualOrF64::F64(r) => self.clone() + r
+            DualOrF64::Dual(r) => self + r,
+            DualOrF64::F64(r) => self + r
         }
     }
 }
-
 
 impl Dual {
     fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
@@ -108,13 +111,13 @@ impl Dual {
         // * `other` - Alternative Dual against which vars comparison is made
 
         // check the set of vars in each Dual are equivalent
-        // println!("check vars len");
+        println!("check vars len");
         if self.vars.len() == other.vars.len() {
             // vars may be the same or different or same but not ordered similarly
-            // println!("check vars are same");
+            println!("check vars are same");
             if self.vars.iter().all(|var| other.vars.contains(var)) {
                 // vars are the same but may be ordered differently
-                // println!("check vars are same order");
+                println!("check vars are same order");
                 (self.clone(), other.to_new_ordered_vars(&self.vars))
             } else {
                 // vars are different so both must be recast
@@ -122,7 +125,7 @@ impl Dual {
             }
         } else {
             // vars are definitely different
-            // println!("not same number vars");
+            println!("not same number vars");
             self.to_combined_vars_explicit(other)
         }
     }
@@ -142,7 +145,7 @@ impl Dual {
         if self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
             // vars are identical
             // println!("clone vars");
-            self.clone()
+            Dual {vars: Arc::clone(new_vars), real: self.real, dual: self.dual.clone()}
         } else {
             // println!("to new vars");
             self.to_new_vars(new_vars)
@@ -167,6 +170,16 @@ impl Dual {
         return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
     }
 
+    fn ggradient(&self, vars: Vec<String>) -> Array1<f64> {
+        let mut dual = Array::zeros(vars.len());
+        for (i, index) in vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
+            match index {
+                Some(value) => { dual[[i]] = self.dual[[value]] }
+                None => { dual[[i]] = 0.0 }
+            }
+        }
+        dual
+    }
 }
 
 impl num_traits::identities::One for Dual {
@@ -226,7 +239,7 @@ impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
         Dual {real: a.real + b.real, dual: &a.dual + &b.dual, vars: Arc::clone(&a.vars)}
     }
     else {
-        let (x, y) = a.to_combined_vars_explicit(b);
+        let (x, y) = a.to_combined_vars(b);
         x + y
     }
 });
