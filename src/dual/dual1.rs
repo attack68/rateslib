@@ -1,3 +1,4 @@
+use numpy::{PyArray, ToPyArray, PyArray1};
 use ndarray::{Array1, Array, arr1};
 use num_traits;
 use num_traits::Pow;
@@ -79,6 +80,15 @@ impl Dual {
     fn vars(&self) -> PyResult<Vec<&String>> {
         Ok(Vec::from_iter(self.vars.iter()))
     }
+
+    fn gradient<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
+        Ok(self.dual.to_pyarray(py))
+    }
+
+//     #[getter]
+//     fn dual(&self) -> PyArray1<f64> {
+//         Ok(self.dual)
+//     }
 
     fn __add__(&self, other: DualOrF64) -> Self {
         match other {
