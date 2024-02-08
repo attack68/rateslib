@@ -8,7 +8,7 @@ use auto_ops::{impl_op, impl_op_commutative, impl_op_ex};
 use pyo3::exceptions::PyIndexError;
 use pyo3::types::PyFloat;
 use pyo3::prelude::*;
-use pyo3::class::number::PyNumberProtocol;
+use pyo3::conversion::FromPyObject;
 
 fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
     // used rather than equality for float numbers
@@ -21,6 +21,12 @@ pub struct Dual {
     pub real : f64,
     pub vars : Arc<IndexSet<String>>,
     pub dual : Array1<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, FromPyObject)]
+pub enum DualOrF64 {
+    Dual(Dual),
+    F64(f64),
 }
 
 #[pymethods]
@@ -61,6 +67,23 @@ impl Dual {
             real: real,
             vars: Arc::new(IndexSet::from_iter(vars)),
             dual: new_dual,
+        }
+    }
+
+    #[getter]
+    fn real(&self) -> PyResult<f64> {
+        Ok(self.real)
+    }
+
+    #[getter]
+    fn vars(&self) -> PyResult<Vec<&String>> {
+        Ok(Vec::from_iter(self.vars.iter()))
+    }
+
+    fn __add__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(r) => self.clone() + r,
+            DualOrF64::F64(r) => self.clone() + r
         }
     }
 }
@@ -133,6 +156,7 @@ impl Dual {
         // test if the vars of a Dual have the same elements but possibly a different order
         return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
     }
+
 }
 
 impl num_traits::identities::One for Dual {
@@ -349,10 +373,3 @@ pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
 //         }
 //     }
 // }
-
-#[pyproto]
-impl PyNumberProtocol for Dual {
-    fn __add__(lhs: Dual, rhs: Dual) -> PyResult<Dual> {
-        Ok(lhs + rhs)
-    }
-}
