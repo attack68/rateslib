@@ -96,13 +96,23 @@ impl Dual {
 
     fn __repr__(&self) -> PyResult<String> {
         let mut _vars = Vec::from_iter(self.vars.iter().take(3).map(String::as_str)).join(", ");
+        let mut _dual = Vec::from_iter(self.dual.iter().take(3).map(|x| x.to_string())).join(", ");
         if self.vars.len() > 3 {
             _vars.push_str(", ...");
+            _dual.push_str(", ...");
         }
-
-        let fs = format!("<Dual: {:.6}, ({}) , []>", self.real, _vars);
+        let fs = format!("<Dual: {:.6}, ({}), [{}]>", self.real, _vars, _dual);
         Ok(fs)
     }
+
+    fn __eq__(&self, other:DualOrF64) -> PyResult<bool> {
+        match other {
+            DualOrF64::Dual(d) => Ok(d.eq(self)),
+            DualOrF64::F64(f) => Ok(Dual::new(f, Vec::new(), Vec::new()).eq(self))
+        }
+    }
+
+    fn __neg__(&self) -> Self {-self}
 
     fn __add__(&self, other: DualOrF64) -> Self {
         match other {

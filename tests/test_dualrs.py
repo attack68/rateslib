@@ -23,7 +23,13 @@ def test_zero_init():
 
 def test_dual_repr(x_1):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, ('v0', 'v1'), [1 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1, 2]>"
+
+
+def test_dual_repr_4vars():
+    x = Dual(1.23456789, ["a", "b", "c", "d"], [1.01, 2, 3.50001, 4])
+    result = x.__repr__()
+    assert result == "<Dual: 1.234568, (a, b, c, ...), [1.01, 2, 3.50001, ...]>"
 
 
 def test_dual_str(x_1):
@@ -34,10 +40,36 @@ def test_dual_str(x_1):
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 1.00),
+        (["v1"], 2.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
 def test_gradient_method(vars, expected, x_1):
     result = x_1.gradient(vars)
     assert np.all(result == expected)
+
+
+def test_neg(x_1):
+    result = -x_1
+    expected = Dual(-1, vars=["v0", "v1"], dual=[-1, -2])
+    assert result == expected
+
+
+def test_eq_ne(x_1):
+    # non-matching types
+    assert 0 != Dual(0, ["single_var"], [])
+    # floats
+    assert 2.0 == Dual(2, [], [])
+    assert Dual(2, [], []) == 2.0
+    # equality
+    assert x_1 == Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
+    # non-matching elements
+    assert x_1 != Dual(2, vars=["v0", "v1"], dual=np.array([1, 2]))
+    assert x_1 != Dual(1, vars=["v0", "v1"], dual=np.array([2, 2]))
+    assert x_1 != Dual(1, vars=["v2", "v1"], dual=np.array([1, 2]))
+
+
+def test_lt():
+    assert Dual(1, ["x"], []) < Dual(2, ["y"], [])
+    assert Dual(1, "x") < 10
+    assert not Dual(1, "x") < 0
