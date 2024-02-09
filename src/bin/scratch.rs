@@ -1,6 +1,6 @@
 // use chrono::naive::NaiveDate;
 // use rateslibrs::interpolate::{interpolate_with_method};
-use crate::dual::Duals;
+// use dual::Duals;
 // use std::ops::Add;
 
 // #[derive(Debug, Clone)]
@@ -36,11 +36,11 @@ use crate::dual::Duals;
 //     a + b
 // }
 
-fn main() {
-    let x = Duals::Float(2.0);
-    let y = Duals::Float(3.0);
-    let z = x + y;
-    println!("{:?}", z);
+// fn main() {
+//     let x = Duals::Float(2.0);
+//     let y = Duals::Float(3.0);
+//     let z = x + y;
+//     println!("{:?}", z);
     // let x_1 = NaiveDate::from_ymd_opt(2003, 12, 2).unwrap();
     // let x_2 = NaiveDate::from_ymd_opt(2003, 12, 22).unwrap();
     // let x = NaiveDate::from_ymd_opt(2003, 12, 18).unwrap();
@@ -51,4 +51,4 @@ fn main() {
     // let z = interpolate_with_method(&x, &x_1, y_1, &x_2, y_2, "linear", None);
     // println!("{:?}", z);
     // println!("{}", x_1)
-}
+// }

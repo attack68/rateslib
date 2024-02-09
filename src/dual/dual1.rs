@@ -50,7 +50,7 @@ impl Dual {
     /// # Examples
     ///
     /// ```
-    /// use crate::dual_rebuild::Dual1;
+    /// use crate::dual::dual1::Dual;
     /// let f = Dual(2.5, Vec::from([String::from("x")]), Vec::new())
     /// ```
 
@@ -85,10 +85,10 @@ impl Dual {
         Ok(self.ggradient(vars).to_pyarray(py))
     }
 
-//     #[getter]
-//     fn dual(&self) -> PyArray1<f64> {
-//         Ok(self.dual)
-//     }
+    #[getter]
+    fn dual<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
+        Ok(self.dual.to_pyarray(py))
+    }
 
     fn arc_check(&self, other: &Dual) -> PyResult<bool> {
         Ok(Arc::ptr_eq(&self.vars, &other.vars))
@@ -96,36 +96,39 @@ impl Dual {
 
     fn __add__(&self, other: DualOrF64) -> Self {
         match other {
-            DualOrF64::Dual(r) => self + r,
-            DualOrF64::F64(r) => self + r
+            DualOrF64::Dual(d) => self + d,
+            DualOrF64::F64(f) => self + f
+        }
+    }
+
+    fn __radd__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => self + d,
+            DualOrF64::F64(f) => self + f
         }
     }
 }
 
 impl Dual {
+    /// Return two equivalent Duals with same vars.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Alternative Dual against which vars comparison is made
+    ///
+    /// # Notes
+    ///
+    ///
     fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
-        // Return two equivalent Duals with same vars.
-        //
-        // # Arguments
-        //
-        // * `other` - Alternative Dual against which vars comparison is made
-
         // check the set of vars in each Dual are equivalent
-        println!("check vars len");
-        if self.vars.len() == other.vars.len() {
-            // vars may be the same or different or same but not ordered similarly
-            println!("check vars are same");
-            if self.vars.iter().all(|var| other.vars.contains(var)) {
-                // vars are the same but may be ordered differently
-                println!("check vars are same order");
-                (self.clone(), other.to_new_ordered_vars(&self.vars))
-            } else {
-                // vars are different so both must be recast
-                self.to_combined_vars_explicit(other)
-            }
+        if self.vars.len() >= other.vars.len() && other.vars.iter().all(|var| self.vars.contains(var)) {
+            // vars in other are contained within self
+            (self.clone(), other.to_new_ordered_vars(&self.vars))
+        } else if self.vars.len() < other.vars.len() && self.vars.iter().all(|var| other.vars.contains(var)) {
+            // vars in self are contained within other
+            (self.to_new_ordered_vars(&other.vars), other.clone())
         } else {
-            // vars are definitely different
-            println!("not same number vars");
+            // vars in both Dual are different so recast
             self.to_combined_vars_explicit(other)
         }
     }
