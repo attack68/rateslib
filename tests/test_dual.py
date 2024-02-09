@@ -4,6 +4,7 @@ import numpy as np
 from packaging import version
 
 import context
+
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -18,27 +19,27 @@ from rateslib.dual import (
 
 @pytest.fixture()
 def x_1():
-    return Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
+    return Dual(1, vars=["v0", "v1"], dual=[1, 2])
 
 
 @pytest.fixture()
 def x_2():
-    return Dual(2, vars=["v0", "v2"], dual=np.array([0, 3]))
+    return Dual(2, vars=["v0", "v2"], dual=[0, 3])
 
 
 @pytest.fixture()
 def y_1():
-    return Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]))
+    return Dual2(1, vars=["v0", "v1"], dual=[1, 2])
 
 
 @pytest.fixture()
 def y_2():
-    return Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
+    return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=np.ones((2, 2)))
 
 
 @pytest.fixture()
 def y_3():
-    return Dual2(2, vars=["v0", "v2"], dual=np.array([0, 3]), dual2=np.ones((2, 2)))
+    return Dual2(2, vars=["v0", "v2"], dual=[0, 3], dual2=np.ones((2, 2)))
 
 
 @pytest.fixture()

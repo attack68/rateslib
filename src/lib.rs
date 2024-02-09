@@ -7,7 +7,7 @@ pub mod interpolate;
 use dual::dual1::Dual;
 // use point::{PointVec, Dual};
 
-use pyo3::exceptions::PyIndexError;
+// use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 
 #[pymodule]

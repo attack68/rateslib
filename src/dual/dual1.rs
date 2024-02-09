@@ -4,7 +4,7 @@ use num_traits;
 use num_traits::Pow;
 use std::sync::Arc;
 use indexmap::set::IndexSet;
-use auto_ops::{impl_op, impl_op_commutative, impl_op_ex};
+use auto_ops::{impl_op, impl_op_commutative, impl_op_ex, impl_op_ex_commutative};
 
 use pyo3::exceptions::PyIndexError;
 use pyo3::types::PyFloat;
@@ -107,10 +107,38 @@ impl Dual {
             DualOrF64::F64(f) => self + f
         }
     }
+
+    fn __sub__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => self - d,
+            DualOrF64::F64(f) => self - f
+        }
+    }
+
+    fn __rsub__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => d - self,
+            DualOrF64::F64(f) => f - self
+        }
+    }
+
+    fn __mul__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => self * d,
+            DualOrF64::F64(f) => self * f
+        }
+    }
+
+    fn __rmul__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => d * self,
+            DualOrF64::F64(f) => f * self
+        }
+    }
 }
 
 impl Dual {
-    /// Return two equivalent Duals with same vars.
+    /// Return two equivalent Dual with same vars.
     ///
     /// # Arguments
     ///
@@ -120,7 +148,6 @@ impl Dual {
     ///
     ///
     fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
-        // check the set of vars in each Dual are equivalent
         if self.vars.len() >= other.vars.len() && other.vars.iter().all(|var| self.vars.contains(var)) {
             // vars in other are contained within self
             (self.clone(), other.to_new_ordered_vars(&self.vars))
@@ -128,29 +155,30 @@ impl Dual {
             // vars in self are contained within other
             (self.to_new_ordered_vars(&other.vars), other.clone())
         } else {
-            // vars in both Dual are different so recast
+            // vars in both self and other are different so recast
             self.to_combined_vars_explicit(other)
         }
     }
 
+    /// Return two equivalent Dual with the unionised same, but explicitly recast, vars.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Alternative Dual against which vars comparison is made
+    ///
+    /// # Notes
+    ///
+    ///
     fn to_combined_vars_explicit(&self, other: &Dual) -> (Dual, Dual) {
-        // Return two equivalent Duals with the same, but recast, vars.
-
-        // Both Duals assumed to have different vars so combine the vars and recast the Duals
         let comb_vars = Arc::new(IndexSet::from_iter(self.vars.union(&other.vars).map(|x| x.clone())));
         (self.to_new_vars(&comb_vars), other.to_new_vars(&comb_vars))
     }
 
-    fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
-        // Return a Dual with its vars re-ordered if necessary.
-
-        // new vars are the same as self.vars but may have a different order
+    /// Return a Dual with recast vars if required.
+    pub fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
         if self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
-            // vars are identical
-            // println!("clone vars");
             Dual {vars: Arc::clone(new_vars), real: self.real, dual: self.dual.clone()}
         } else {
-            // println!("to new vars");
             self.to_new_vars(new_vars)
         }
     }
@@ -231,12 +259,13 @@ impl std::ops::MulAssign for Dual {
 }
 
 impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}});
-// impl_op!(- |a: &Dual| -> Dual { Dual {vars: a.vars.clone(), real: -a.real, dual: -a.dual.clone()}});
+impl_op!(- |a: &Dual| -> Dual { Dual {vars: a.vars.clone(), real: -a.real, dual: -(a.dual.clone())}});
 
-impl_op_commutative!(+ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
-impl_op_commutative!(+ |a: Dual, b: &f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
-impl_op_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
-impl_op_commutative!(+ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
+// impl_op_commutative!(+ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
+// impl_op_commutative!(+ |a: Dual, b: &f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
+// impl_op_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
+// impl_op_commutative!(+ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
+impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
 impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
         Dual {real: a.real + b.real, dual: &a.dual + &b.dual, vars: Arc::clone(&a.vars)}
@@ -247,26 +276,26 @@ impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
     }
 });
 
-impl_op!(- |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real - b, dual: a.dual} });
-impl_op!(- |a: f64, b: Dual| -> Dual { Dual {vars: b.vars, real: a - b.real, dual: -b.dual} });
+impl_op_ex!(- |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
+impl_op_ex!(- |a: &f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a - b.real, dual: -(b.dual.clone())} });
 impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
         Dual {real: a.real - b.real, dual: &a.dual - &b.dual, vars: a.vars.clone()}
     }
     else {
-        let (x, y) = a.to_combined_vars_explicit(b);
+        let (x, y) = a.to_combined_vars(b);
         x - y
     }
 });
 
-impl_op!(* |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real * b, dual: a.dual * b} });
-impl_op!(* |a: f64, b: Dual| -> Dual { Dual {vars: b.vars, real: a * b.real, dual: b.dual * a} });
+impl_op_ex!(* |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real * b, dual: b * &a.dual} });
+impl_op_ex!(* |a: f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a * b.real, dual: a * &b.dual} });
 impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
         Dual {real: a.real * b.real, dual: &a.dual * b.real + &b.dual * a.real, vars: a.vars.clone()}
     }
     else {
-        let (x, y) = a.to_combined_vars_explicit(b);
+        let (x, y) = a.to_combined_vars(b);
         x * y
     }
 });

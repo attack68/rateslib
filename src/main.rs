@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub mod dual;
 use dual::dual1::Dual;
-use dual::Duals;
+// use dual::Duals;
 use indexmap::set::IndexSet;
 use ndarray::Array;
 

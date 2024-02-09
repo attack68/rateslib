@@ -1,13 +1,8 @@
 use ndarray::{Array1, Array, arr1};
-// use ndarray_einsum_beta::*;
 use num_traits;
 use num_traits::Pow;
-// use std::collections::HashSet;
 use std::sync::Arc;
 
-// use indexmap::indexset;
-use indexmap::set::IndexSet;
-use auto_ops::{impl_op, impl_op_commutative, impl_op_ex, impl_op_ex_commutative};
 
 pub mod dual1;
 use crate::dual::dual1::Dual;

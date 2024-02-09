@@ -10,6 +10,16 @@ fn clone_arc() {
 }
 
 #[test]
+fn to_new_ordered_vars() {
+    let d1 = Dual::new(20.0, vec!["a".to_string()], vec![]);
+    let d2 = Dual::new(20.0, vec!["a".to_string(), "b".to_string()], vec![]);
+    let d3 = d1.to_new_ordered_vars(&d2.vars);
+    assert!(Arc::ptr_eq(&d3.vars, &d2.vars));
+    let d4 = d2.to_new_ordered_vars(&d1.vars);
+    assert!(Arc::ptr_eq(&d4.vars, &d1.vars));
+}
+
+#[test]
 fn add_dual_float() {
     let result = 10.0 + Dual::new(20.0, vec!["a".to_string()], vec![]) + Dual::new(5.0, vec!["b".to_string()], vec![2.0]) + 10.0;
     assert_eq!(result, Dual::new(45.0, vec!["a".to_string(), "b".to_string()], vec![1.0, 2.0]))
