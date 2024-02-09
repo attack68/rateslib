@@ -94,6 +94,16 @@ impl Dual {
         Ok(Arc::ptr_eq(&self.vars, &other.vars))
     }
 
+    fn __repr__(&self) -> PyResult<String> {
+        let mut _vars = Vec::from_iter(self.vars.iter().take(3).map(String::as_str)).join(", ");
+        if self.vars.len() > 3 {
+            _vars.push_str(", ...");
+        }
+
+        let fs = format!("<Dual: {:.6}, ({}) , []>", self.real, _vars);
+        Ok(fs)
+    }
+
     fn __add__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => self + d,
