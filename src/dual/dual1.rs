@@ -4,6 +4,7 @@ use num_traits;
 use num_traits::Pow;
 use std::sync::Arc;
 use indexmap::set::IndexSet;
+use std::cmp::Ordering;
 use auto_ops::{impl_op, impl_op_commutative, impl_op_ex, impl_op_ex_commutative};
 
 use pyo3::exceptions::PyIndexError;
@@ -352,6 +353,42 @@ impl PartialEq<Dual> for Dual {
         } else {
             let (x, y) = self.to_combined_vars(other);
             x.eq(&y)
+        }
+    }
+}
+
+impl PartialOrd<f64> for Dual {
+    fn partial_cmp(&self, other: &f64) -> Option<Ordering>{
+        if self.real == *other {
+            Some(Ordering::Equal)
+        } else if self.real < *other {
+            Some(Ordering::Less)
+        } else {
+            Some(Ordering::Greater)
+        }
+    }
+}
+
+impl PartialOrd<Dual> for f64 {
+    fn partial_cmp(&self, other: &Dual) -> Option<Ordering>{
+        if *self == other.real {
+            Some(Ordering::Equal)
+        } else if *self < other.real {
+            Some(Ordering::Less)
+        } else {
+            Some(Ordering::Greater)
+        }
+    }
+}
+
+impl PartialOrd<Dual> for Dual {
+    fn partial_cmp(&self, other: &Dual) -> Option<Ordering>{
+        if self.real == other.real {
+            Some(Ordering::Equal)
+        } else if self.real < other.real {
+            Some(Ordering::Less)
+        } else {
+            Some(Ordering::Greater)
         }
     }
 }
