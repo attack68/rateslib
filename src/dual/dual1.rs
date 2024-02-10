@@ -168,7 +168,9 @@ impl Dual {
     ///
     ///
     fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
-        if self.vars.len() >= other.vars.len() && other.vars.iter().all(|var| self.vars.contains(var)) {
+        if Arc::ptr_eq(&self.vars, &other.vars) {
+            (self.clone(), other.clone())
+        } else if self.vars.len() >= other.vars.len() && other.vars.iter().all(|var| self.vars.contains(var)) {
             // vars in other are contained within self
             (self.clone(), other.to_new_ordered_vars(&self.vars))
         } else if self.vars.len() < other.vars.len() && self.vars.iter().all(|var| other.vars.contains(var)) {
@@ -196,7 +198,7 @@ impl Dual {
 
     /// Return a Dual with recast vars if required.
     pub fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
-        if self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
+        if self.vars.len() == new_vars.len() && self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
             Dual {vars: Arc::clone(new_vars), real: self.real, dual: self.dual.clone()}
         } else {
             self.to_new_vars(new_vars)
@@ -230,6 +232,10 @@ impl Dual {
             }
         }
         dual
+    }
+
+    pub fn abs(&self) -> f64 {
+        self.real.abs()
     }
 }
 
@@ -339,18 +345,14 @@ impl PartialEq<Dual> for f64 {
 impl PartialEq<Dual> for Dual {
     fn eq(&self, other: &Dual) -> bool {
         if self.real != other.real {
-            return false
+            false
+        } else if Arc::ptr_eq(&self.vars, &other.vars) {
+            let boo = self.dual.iter().eq(other.dual.iter());
+            boo
+        } else {
+            let (x, y) = self.to_combined_vars(other);
+            x.eq(&y)
         }
-        if ! self.is_same_vars(&other) {
-            return false
-        }
-        let another = other.to_new_vars(&self.vars);
-        for (i, elem) in self.dual.iter().enumerate() {
-            if ! is_close(&another.dual[[i]], &elem, None) {
-                return false
-            }
-        }
-        return true
     }
 }
 
