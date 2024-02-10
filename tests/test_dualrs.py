@@ -74,17 +74,53 @@ def test_lt():
     assert Dual(1, ["x"], []) < 10
     assert 0.5 < Dual(1, ["x"], [])
 
+
 def test_le():
     assert Dual(1.0, ["x"], []) <= Dual(1.0, ["y"], [])
     assert Dual(1, ["x"], []) <= 1.0
     assert 1.0 <= Dual(1.0, ["x"], [])
+
 
 def test_gt():
     assert Dual(3, ["x"], []) > Dual(2, ["y"], [])
     assert Dual(1, ["x"], []) > 0.5
     assert 0.5 > Dual(0.3, ["x"], [])
 
+
 def test_ge():
     assert Dual(1.0, ["x"], []) >= Dual(1.0, ["y"], [])
     assert Dual(1, ["x"], []) >= 1.0
     assert 1.0 >= Dual(1.0, ["x"], [])
+
+
+@pytest.mark.parametrize(
+    "op, expected",
+    [
+        ("__add__", Dual(3, vars=["v0", "v1", "v2"], dual=[1, 2, 3])),
+        ("__sub__", Dual(-1, vars=["v0", "v1", "v2"], dual=[1, 2, -3])),
+        ("__mul__", Dual(2, vars=["v0", "v1", "v2"], dual=[2, 4, 3])),
+        ("__truediv__", Dual(0.5, vars=["v0", "v1", "v2"], dual=[0.5, 1, -0.75])),
+    ],
+)
+def test_ops(x_1, x_2, op, expected):
+    result = getattr(x_1, op)(x_2)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "op, expected",
+    [
+        ("__add__", Dual(1 + 2.5, vars=["v0", "v1"], dual=[1, 2])),
+        ("__sub__", Dual(1 - 2.5, vars=["v0", "v1"], dual=[1, 2])),
+        ("__mul__", Dual(1 * 2.5, vars=["v0", "v1"], dual=[2.5, 5.0])),
+        ("__truediv__", Dual(1 / 2.5, vars=["v0", "v1"], dual=[1/2.5, 2/2.5])),
+    ],
+)
+def test_left_op_with_float(x_1, op, expected):
+    result = getattr(x_1, op)(2.5)
+    assert result == expected
+
+
+def test_op_inversions(x_1, x_2):
+    assert (x_1 + x_2) - (x_2 + x_1) == 0
+    assert (x_1 / x_2) * (x_2 / x_1) == 1

@@ -82,13 +82,13 @@ impl Dual {
         Ok(Vec::from_iter(self.vars.iter()))
     }
 
-    fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.ggradient(vars).to_pyarray(py))
-    }
-
     #[getter]
     fn dual<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
         Ok(self.dual.to_pyarray(py))
+    }
+
+    fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
+        Ok(self.ggradient(vars).to_pyarray(py))
     }
 
     fn arc_check(&self, other: &Dual) -> PyResult<bool> {
@@ -182,6 +182,13 @@ impl Dual {
         match other {
             DualOrF64::Dual(d) => d * self,
             DualOrF64::F64(f) => f * self
+        }
+    }
+
+    fn __truediv__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => self / d,
+            DualOrF64::F64(f) => self / f
         }
     }
 }
@@ -316,10 +323,6 @@ impl std::ops::MulAssign for Dual {
 impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}});
 impl_op!(- |a: &Dual| -> Dual { Dual {vars: a.vars.clone(), real: -a.real, dual: -(a.dual.clone())}});
 
-// impl_op_commutative!(+ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
-// impl_op_commutative!(+ |a: Dual, b: &f64| -> Dual { Dual {vars: a.vars, real: a.real + b, dual: a.dual} });
-// impl_op_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
-// impl_op_commutative!(+ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
 impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
 impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
@@ -343,8 +346,7 @@ impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
     }
 });
 
-impl_op_ex!(* |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real * b, dual: b * &a.dual} });
-impl_op_ex!(* |a: f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a * b.real, dual: a * &b.dual} });
+impl_op_ex_commutative!(* |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real * b, dual: b * &a.dual} });
 impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
         Dual {real: a.real * b.real, dual: &a.dual * b.real + &b.dual * a.real, vars: a.vars.clone()}
@@ -355,8 +357,8 @@ impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
     }
 });
 
-impl_op!(/ |a: Dual, b: f64| -> Dual { Dual {vars: a.vars, real: a.real / b, dual: a.dual / b} });
-impl_op!(/ |a: f64, b: Dual| -> Dual { a * b.pow(-1.0) });
+impl_op_ex!(/ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: &a.dual / b} });
+impl_op_ex!(/ |a: f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 
 impl PartialEq<f64> for Dual {
@@ -433,91 +435,3 @@ pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
     let z = a1.into_iter().zip(a2.into_iter()).map(|(x, y)| x * y).collect::<Vec<Dual>>();
     return z.into_iter().sum::<Dual>()
 }
-
-// #[derive(Clone, Debug, Add, Sub, Mul)]
-// pub enum Duals {Dual(Dual), Float(f64)}
-
-// impl_op!(+ |a: Duals, b: Duals| -> Duals {
-//     match a {
-//         Dual => {
-//             match b {
-//                 Dual => Duals::Dual(a) + Duals::Dual(b),
-//                 Float=> Duals::Dual(a) + Duals::Float(b),
-//             }
-//         },
-//         Float => {
-//             match b {
-//                 Dual => Duals::Float(a) + Duals::Dual(b),
-//                 Float=> Duals::Float(a) + Duals::Float(b),
-//             }
-//         }
-//     }
-// });
-// impl_op!(- |a: Duals, b: Duals| -> Duals { a - b });
-// impl_op!(* |a: Duals, b: Duals| -> Duals { a * b });
-// impl_op!(/ |a: Duals, b: Duals| -> Duals { a / b });
-
-
-// impl ops::Add<f64> for Dual {
-//     type Output = Dual;
-//     fn add(self, other: f64) -> Dual {
-//         Dual {vars: self.vars, real: self.real + other, dual: self.dual}
-//     }
-// }
-
-// impl ops::Sub<f64> for Dual {
-//     type Output = Dual;
-//     fn sub(self, other: f64) -> Dual {
-//         Dual {vars: self.vars, real: self.real - other, dual: self.dual}
-//     }
-// }
-
-// impl ops::Mul<f64> for Dual {
-//     type Output = Dual;
-//     fn mul(self, other: f64) -> Dual {
-//         Dual {vars: self.vars, real: self.real * other, dual: self.dual * other}
-//     }
-// }
-
-// impl ops::Neg for Dual {
-//     type Output = Dual;
-//     fn neg(self) -> Dual {
-//         Dual {vars: self.vars, real: -self.real, dual: -self.dual}
-//     }
-// }
-
-// impl ops::Add<Dual> for Dual {
-//     type Output = Dual;
-//     fn add(self, other: Dual) -> Dual {
-//         let (x, y) = self.to_combined_vars(other);
-//         Dual {
-//             real: x.real + y.real,
-//             dual: x.dual + y.dual,
-//             vars: x.vars,
-//         }
-//     }
-// }
-
-// impl ops::Sub<Dual> for Dual {
-//     type Output = Dual;
-//     fn sub(self, other: Dual) -> Dual {
-//         let (x, y) = self.to_combined_vars(other);
-//         Dual {
-//             real: x.real - y.real,
-//             dual: x.dual - y.dual,
-//             vars: x.vars
-//         }
-//     }
-// }
-
-// impl ops::Mul<Dual> for Dual {
-//     type Output = Dual;
-//     fn mul(self, other: Dual) -> Dual {
-//         let (x, y) = self.to_combined_vars(other);
-//         Dual {
-//             real: x.real * y.real,
-//             dual: x.dual * y.real + y.dual * x.real,
-//             vars: x.vars
-//         }
-//     }
-// }
