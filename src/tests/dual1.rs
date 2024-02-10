@@ -20,18 +20,6 @@ fn to_new_ordered_vars() {
 }
 
 #[test]
-fn add_dual_float() {
-    let result = 10.0 + Dual::new(20.0, vec!["a".to_string()], vec![]) + Dual::new(5.0, vec!["b".to_string()], vec![2.0]) + 10.0;
-    assert_eq!(result, Dual::new(45.0, vec!["a".to_string(), "b".to_string()], vec![1.0, 2.0]))
-}
-
-#[test]
-fn add_dual_same() {
-    let result = Dual::new(20.0, vec!["a".to_string(), "b".to_string()], vec![]) + Dual::new(5.0, vec!["a".to_string(), "b".to_string()], vec![2.0, 2.5]);
-    assert_eq!(result, Dual::new(25.0, vec!["a".to_string(), "b".to_string()], vec![3.0, 3.5]))
-}
-
-#[test]
 fn new_dual() {
     let result = Dual::new(2.3, Vec::from([String::from("a")]), Vec::new());
 }
@@ -72,5 +60,56 @@ fn eq_ne() {
     assert!(d != Dual::new(2.0, Vec::from([String::from("b")]), Vec::from([2.3])));
     assert!(d != Dual::new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])));
     assert!(d != Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])));
+}
+
+#[test]
+fn add_f64() {
+    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let result = 10.0 + d1 + 15.0;
+    let expected = Dual::new(26.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn add() {
+    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
+    let expected = Dual::new(3.0, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![1.0, 2.0, 3.0]);
+    let result = d1 + d2;
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn sub_f64() {
+    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let result = (10.0 - d1) -15.0;
+    let expected = Dual::new(-6.0, vec!["v0".to_string(), "v1".to_string()], vec![-1.0, -2.0]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn sub() {
+    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
+    let expected = Dual::new(-1.0, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![1.0, 2.0, -3.0]);
+    let result = d1 - d2;
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn mul_f64() {
+    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let result = 10.0 * d1 * 2.0;
+    let expected = Dual::new(20.0, vec!["v0".to_string(), "v1".to_string()], vec![20.0, 40.0]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn mul() {
+    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
+    let expected = Dual::new(2.0, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![2.0, 4.0, 3.0]);
+    let result = d1 * d2;
+    assert_eq!(result, expected)
 }
 

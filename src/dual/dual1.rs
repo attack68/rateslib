@@ -296,7 +296,7 @@ impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
     }
 });
 
-impl_op_ex!(- |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
+impl_op_ex!(- |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real - b, dual: a.dual.clone()} });
 impl_op_ex!(- |a: &f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a - b.real, dual: -(b.dual.clone())} });
 impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
