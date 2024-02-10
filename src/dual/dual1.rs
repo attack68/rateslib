@@ -191,6 +191,20 @@ impl Dual {
             DualOrF64::F64(f) => self / f
         }
     }
+
+    fn __rtruediv__(&self, other: DualOrF64) -> Self {
+        match other {
+            DualOrF64::Dual(d) => d / self,
+            DualOrF64::F64(f) => f / self
+        }
+    }
+
+    fn __pow__(&self, power: f64, modulo: Option<i32>) -> Self {
+        if modulo.unwrap_or(0) != 0 {
+            panic!("Power function with mod not available for Dual.")
+        }
+        self.clone().pow(power)
+    }
 }
 
 impl Dual {

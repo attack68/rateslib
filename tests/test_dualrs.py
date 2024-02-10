@@ -121,6 +121,58 @@ def test_left_op_with_float(x_1, op, expected):
     assert result == expected
 
 
+def test_right_op_with_float(x_1):
+    assert 2.5 + x_1 == Dual(1 + 2.5, vars=["v0", "v1"], dual=[1, 2])
+    assert 2.5 - x_1 == Dual(2.5 - 1, vars=["v0", "v1"], dual=[-1, -2])
+    assert 2.5 * x_1 == x_1 * 2.5
+    assert 2.5 / x_1 == (x_1 / 2.5) ** -1.0
+
+
 def test_op_inversions(x_1, x_2):
     assert (x_1 + x_2) - (x_2 + x_1) == 0
     assert (x_1 / x_2) * (x_2 / x_1) == 1
+
+
+def test_inverse(x_1):
+    assert x_1 * x_1**-1 == 1
+
+
+def test_power_identity(x_1):
+    result = x_1**1
+    assert result == x_1
+
+
+@pytest.mark.parametrize(
+    "power, expected",
+    [
+        (1, (2, 1)),
+        (2, (4, 4)),
+        (3, (8, 12)),
+        (4, (16, 32)),
+        (5, (32, 80)),
+        (6, (64, 192)),
+    ],
+)
+def test_dual_power_1d(power, expected):
+    x = Dual(2, vars=["x"], dual=[1])
+    f = x**power
+    assert f.real == expected[0]
+    assert f.dual[0] == expected[1]
+
+
+def test_dual_truediv(x_1):
+    expected = Dual(1, [], [])
+    result = x_1 / x_1
+    assert result == expected
+
+
+def test_combined_vars_sorted(x_1):
+    x = Dual(2, vars=["a", "v0", "z"], dual=[])
+    result = x_1 * x
+    expected = ["v0", "v1", "a", "z"]
+    assert result.vars == expected
+    # x vars are stored first
+    result = x * x_1
+    expected = ["a", "v0", "z", "v1"]
+    assert result.vars == expected
+
