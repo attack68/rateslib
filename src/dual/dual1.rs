@@ -330,10 +330,9 @@ impl PartialEq<f64> for Dual {
     }
 }
 
-impl std::iter::Sum for Dual {
-    fn sum<I>(iter: I) -> Self
-    where I: Iterator<Item = Dual> {
-        return iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
+impl PartialEq<Dual> for f64 {
+    fn eq(&self, other: &Dual) -> bool {
+        return Dual::new(*self, [].to_vec(), [].to_vec()) == *other;
     }
 }
 
@@ -352,6 +351,13 @@ impl PartialEq<Dual> for Dual {
             }
         }
         return true
+    }
+}
+
+impl std::iter::Sum for Dual {
+    fn sum<I>(iter: I) -> Self
+    where I: Iterator<Item = Dual> {
+        return iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
     }
 }
 

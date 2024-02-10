@@ -43,3 +43,34 @@ fn new_dual_panic() {
         2.3, Vec::from([String::from("a"), String::from("b")]), Vec::from([1.0])
     );
 }
+
+#[test]
+fn zero_init() {
+    let d = Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]), Vec::new());
+    for (_, val) in d.dual.indexed_iter() {
+        assert!(*val == 1.0)
+    }
+}
+
+#[test]
+fn negate() {
+    let d = Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]), Vec::from([2., -1.4]));
+    let d2 = -d.clone();
+    assert!(d2.real == -2.3);
+    assert!(Arc::ptr_eq(&d.vars, &d2.vars));
+    assert!(d2.dual[0] == -2.0);
+    assert!(d2.dual[1] == 1.4);
+}
+
+#[test]
+fn eq_ne() {
+    assert!(Dual::new(0.0, Vec::from([String::from("a")]), Vec::new()) != 0.0);
+    assert!(Dual::new(2.0, Vec::new(), Vec::new()) == 2.0);
+    assert!(2.0 == Dual::new(2.0, Vec::new(), Vec::new()));
+    let d = Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([2.3]));
+    assert!(d == Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])));
+    assert!(d != Dual::new(2.0, Vec::from([String::from("b")]), Vec::from([2.3])));
+    assert!(d != Dual::new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])));
+    assert!(d != Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])));
+}
+
