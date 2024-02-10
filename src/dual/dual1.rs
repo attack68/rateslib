@@ -113,6 +113,34 @@ impl Dual {
         }
     }
 
+    fn __lt__(&self, other:DualOrF64) -> PyResult<bool> {
+        match other {
+            DualOrF64::Dual(d) => Ok(self < &d),
+            DualOrF64::F64(f) => Ok(self < &f)
+        }
+    }
+
+    fn __le__(&self, other:DualOrF64) -> PyResult<bool> {
+        match other {
+            DualOrF64::Dual(d) => Ok(self <= &d),
+            DualOrF64::F64(f) => Ok(self <= &f)
+        }
+    }
+
+    fn __gt__(&self, other:DualOrF64) -> PyResult<bool> {
+        match other {
+            DualOrF64::Dual(d) => Ok(self > &d),
+            DualOrF64::F64(f) => Ok(self > &f)
+        }
+    }
+
+    fn __ge__(&self, other:DualOrF64) -> PyResult<bool> {
+        match other {
+            DualOrF64::Dual(d) => Ok(self >= &d),
+            DualOrF64::F64(f) => Ok(self >= &f)
+        }
+    }
+
     fn __neg__(&self) -> Self {-self}
 
     fn __add__(&self, other: DualOrF64) -> Self {

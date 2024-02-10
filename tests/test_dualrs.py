@@ -71,5 +71,20 @@ def test_eq_ne(x_1):
 
 def test_lt():
     assert Dual(1, ["x"], []) < Dual(2, ["y"], [])
-    assert Dual(1, "x") < 10
-    assert not Dual(1, "x") < 0
+    assert Dual(1, ["x"], []) < 10
+    assert 0.5 < Dual(1, ["x"], [])
+
+def test_le():
+    assert Dual(1.0, ["x"], []) <= Dual(1.0, ["y"], [])
+    assert Dual(1, ["x"], []) <= 1.0
+    assert 1.0 <= Dual(1.0, ["x"], [])
+
+def test_gt():
+    assert Dual(3, ["x"], []) > Dual(2, ["y"], [])
+    assert Dual(1, ["x"], []) > 0.5
+    assert 0.5 > Dual(0.3, ["x"], [])
+
+def test_ge():
+    assert Dual(1.0, ["x"], []) >= Dual(1.0, ["y"], [])
+    assert Dual(1, ["x"], []) >= 1.0
+    assert 1.0 >= Dual(1.0, ["x"], [])
