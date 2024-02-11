@@ -176,7 +176,10 @@ class Dual2(DualBase):
             self.vars = tuple(vars)
         n = len(self.vars)
         self.real = real
-        self.dual = np.asarray(dual.copy()) if dual is not None else np.ones(n)
+        if dual is None or len(dual) == 0:
+            self.dual: np.ndarray = np.ones(n)
+        else:
+            self.dual = np.asarray(dual.copy())
         self.dual2 = np.asarray(dual2.copy()) if dual2 is not None else np.zeros((n, n))
 
     def __repr__(self):
