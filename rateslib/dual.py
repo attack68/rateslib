@@ -522,9 +522,54 @@ class Dual(DualBase):
     #     return output
 
 
+def dual_exp(x):
+    """
+    Calculate the exponential value of a regular int or float or a dual number.
+
+    Parameters
+    ----------
+    x : int, float, Dual, Dual2
+        Value to calculate exponent of.
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(x, (Dual, Dual2)):
+        return x.__exp__()
+    return math.exp(x)
+
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def dual_log(x, base=None):
+    """
+    Calculate the logarithm of a regular int or float or a dual number.
+
+    Parameters
+    ----------
+    x : int, float, Dual, Dual2
+        Value to calculate exponent of.
+    base : int, float, optional
+        Base of the logarithm. Defaults to e to compute natural logarithm
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(x, (Dual, Dual2)):
+        val = x.__log__()
+        if base is None:
+            return val
+        else:
+            return val * (1 / math.log(base))
+    elif base is None:
+        return math.log(x)
+    else:
+        return math.log(x, base)
 
 
 def _pivot_matrix(A, method=1):
@@ -656,6 +701,28 @@ def dual_solve(A, b, allow_lsq=False):
     return x
 
 
+def set_order(val, order):
+    """
+    Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
+    unchanged.
+
+    Parameters
+    ----------
+    val : float, int, Dual or Dual2
+        The value to convert the order of.
+    order : int in [0, 1, 2]
+        The AD order to convert to. If ``val`` is float or int 0 will be used.
+
+    Returns
+    -------
+    float, int, Dual or Dual2
+    """
+    if isinstance(val, (*FLOATS, *INTS)):
+        return val
+    elif isinstance(val, (Dual, Dual2)):
+        return val._set_order(order)
+
+
 def set_order_convert(val, order, tag):
     """
     Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
@@ -687,73 +754,6 @@ def set_order_convert(val, order, tag):
             return val
         else:
             return val._set_order(order)
-
-
-def dual_exp(x):
-    """
-    Calculate the exponential value of a regular int or float or a dual number.
-
-    Parameters
-    ----------
-    x : int, float, Dual, Dual2
-        Value to calculate exponent of.
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    if isinstance(x, (Dual, Dual2)):
-        return x.__exp__()
-    return math.exp(x)
-
-
-def dual_log(x, base=None):
-    """
-    Calculate the logarithm of a regular int or float or a dual number.
-
-    Parameters
-    ----------
-    x : int, float, Dual, Dual2
-        Value to calculate exponent of.
-    base : int, float, optional
-        Base of the logarithm. Defaults to e to compute natural logarithm
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    if isinstance(x, (Dual, Dual2)):
-        val = x.__log__()
-        if base is None:
-            return val
-        else:
-            return val * (1 / math.log(base))
-    elif base is None:
-        return math.log(x)
-    else:
-        return math.log(x, base)
-
-
-def set_order(val, order):
-    """
-    Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
-    unchanged.
-
-    Parameters
-    ----------
-    val : float, int, Dual or Dual2
-        The value to convert the order of.
-    order : int in [0, 1, 2]
-        The AD order to convert to. If ``val`` is float or int 0 will be used.
-
-    Returns
-    -------
-    float, int, Dual or Dual2
-    """
-    if isinstance(val, (*FLOATS, *INTS)):
-        return val
-    elif isinstance(val, (Dual, Dual2)):
-        return val._set_order(order)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
