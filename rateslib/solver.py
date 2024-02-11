@@ -100,7 +100,7 @@ class Gradients:
         """
         algorithm = algorithm or self._grad_s_vT_final_iteration_algo
         _s = self.s
-        self.s = np.array([Dual(v, f"s{i}") for i, v in enumerate(self.s)])
+        self.s = np.array([Dual(v, [f"s{i}"], []) for i, v in enumerate(self.s)])
         self._reset_properties_()
         v_1 = self._update_step_(algorithm)
         s_vars = [f"s{i}" for i in range(self.m)]

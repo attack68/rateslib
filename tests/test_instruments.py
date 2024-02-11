@@ -2179,11 +2179,11 @@ class TestFXSwap:
             assert fxs._is_split is True
 
     @pytest.mark.parametrize("fx_fixings, points, split_notional, expected", [
-        (NoInput(0), NoInput(0), NoInput(0), Dual(0, "fx_usdnok", [-1712.833785])),
-        (11.0, 1800.0, NoInput(0), Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
-        (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
-        (10.032766762996951, 1754.5623360395632, NoInput(0), Dual(0, "fx_usdnok", [2654.42027107])),
-        (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, "fx_usdnok", [0.0]))
+        (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [-1712.833785])),
+        (11.0, 1800.0, NoInput(0), Dual(-3734.617680, ["fx_usdnok"], [3027.88203904])),
+        (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, ["fx_usdnok"], [3071.05755945])),
+        (10.032766762996951, 1754.5623360395632, NoInput(0), Dual(0, ["fx_usdnok"], [2654.42027107])),
+        (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, ["fx_usdnok"], [0.0]))
     ])
     def test_fxswap_parameter_combinations_off_mids_given(
             self, curve, curve2, fx_fixings, points, split_notional, expected
