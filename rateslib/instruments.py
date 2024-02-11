@@ -1864,7 +1864,7 @@ class BondMixin:
         metric = "dirty_price" if dirty else "clean_price"
 
         curves[1]._set_ad_order(1)
-        disc_curve = curves[1].shift(Dual(0, "z_spread"), composite=False)
+        disc_curve = curves[1].shift(Dual(0, ["z_spread"], []), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
 
         # find a first order approximation of z
@@ -2488,7 +2488,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         if isinstance(price, Dual):
             # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(Dual(x, "y"), settlement, self.calc_mode, dirty)
+            p = self._price_from_ytm(Dual(x, ["y"], []), settlement, self.calc_mode, dirty)
             return Dual(x, price.vars, 1 / p.gradient("y")[0] * price.dual)
         elif isinstance(price, Dual2):
             # use the IFT in 2nd order to express x as a Dual2
@@ -2574,12 +2574,12 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.price(4.455, dt(1999, 5, 27))
         """
         if metric == "risk":
-            _ = -self.price(Dual(float(ytm), "y"), settlement).gradient("y")[0]
+            _ = -self.price(Dual(float(ytm), ["y"], []), settlement).gradient("y")[0]
         elif metric == "modified":
-            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
+            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
             _ = -price.gradient("y")[0] / float(price) * 100
         elif metric == "duration":
-            price = -self.price(Dual(float(ytm), "y"), settlement, dirty=True)
+            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
             f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
             v = 1 + float(ytm) / (100 * f)
             _ = -price.gradient("y")[0] / float(price) * v * 100

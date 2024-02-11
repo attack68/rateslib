@@ -100,7 +100,7 @@ class Gradients:
         """
         algorithm = algorithm or self._grad_s_vT_final_iteration_algo
         _s = self.s
-        self.s = np.array([Dual(v, f"s{i}") for i, v in enumerate(self.s)])
+        self.s = np.array([Dual(v, [f"s{i}"], []) for i, v in enumerate(self.s)])
         self._reset_properties_()
         v_1 = self._update_step_(algorithm)
         s_vars = [f"s{i}" for i in range(self.m)]
@@ -1359,7 +1359,7 @@ class Solver(Gradients):
             _ = 0
             for id, curve in self.curves.items():
                 for k in curve.node_dates[curve._ini_solve :]:
-                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars)
+                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars, [])
                     _ += 1
                 curve.csolve()
             self._reset_properties_()
