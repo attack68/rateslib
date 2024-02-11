@@ -371,12 +371,12 @@ class FXRates:
 
         """
         if isinstance(value, (float, int)):
-            value = Dual(value)
+            value = Dual(value, [], [])
         base = self.base if base is NoInput.blank else base.lower()
         _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
-                delta = value.gradient(pair)[0]
+                delta = value.gradient([pair])[0]
                 _ += self._get_positions_from_delta(delta, pair[3:], base)
         return Series(_, index=self.currencies_list)
 
