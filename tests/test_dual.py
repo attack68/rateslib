@@ -11,9 +11,8 @@ from rateslib.dual import (
     dual_log,
     dual_solve,
     set_order,
-    _plu_decomp,
-    _pivot_matrix,
 )
+from rateslib.dual.dual import _plu_decomp, _pivot_matrix
 
 
 @pytest.fixture()
@@ -564,8 +563,8 @@ def test_combined_vars_sorted(y_3):
     "x",
     [
         2,
-        Dual(2),
-        Dual2(2),
+        Dual(2, [], []),
+        Dual2(2, [], []),
     ],
 )
 def test_log(x):
@@ -586,7 +585,7 @@ def test_dual_log_base():
     "x",
     [
         2,
-        Dual(2),
+        Dual(2, [], []),
         Dual2(2),
     ],
 )
@@ -813,7 +812,7 @@ def test_numpy_equality(y_2):
 @pytest.mark.parametrize(
     "z",
     [
-        Dual(2.0, "y"),
+        Dual(2.0, ["y"], []),
         Dual2(3.0, "x", np.array([1]), np.array([[2]])),
     ],
 )
@@ -821,7 +820,7 @@ def test_numpy_equality(y_2):
     "arg",
     [
         2.2,
-        Dual(3, "x"),
+        Dual(3, ["x"], []),
         Dual2(3, "x", np.array([2]), np.array([[3]])),
     ],
 )
@@ -855,7 +854,7 @@ def test_numpy_broadcast_ops_types(z, arg, op_str):
 @pytest.mark.parametrize(
     "z",
     [
-        Dual(2.0, "y"),
+        Dual(2.0, ["y"], []),
         Dual2(3.0, "x", np.array([1]), np.array([[2]])),
     ],
 )
@@ -901,7 +900,7 @@ def test_numpy_einsum_works(y_2, y_1):
 @pytest.mark.parametrize(
     "z",
     [
-        Dual(2.0, "y"),
+        Dual(2.0, ["y"], []),
         Dual2(3.0, "x", np.array([1]), np.array([[2]])),
     ],
 )

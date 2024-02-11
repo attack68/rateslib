@@ -119,7 +119,7 @@ class FXRates:
         def _convert_dual(k, v):
             if isinstance(v, Dual):
                 return v
-            return Dual(v, f"fx_{k.lower()}")
+            return Dual(v, [f"fx_{k.lower()}"], [])
 
         self.fx_rates = {k.lower(): _convert_dual(k, v) for k, v in fx_rates.items()}
 
