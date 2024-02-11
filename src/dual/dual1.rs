@@ -25,11 +25,21 @@ pub struct Dual {
     pub dual : Array1<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq, FromPyObject)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
 pub enum DualOrF64 {
     Dual(Dual),
     F64(f64),
 }
+
+impl DualOrF64 {
+    pub fn abs(&self) -> Self {
+        match self {
+            DualOrF64::Dual(d) => DualOrF64::F64(d.abs()),
+            DualOrF64::F64(f) => DualOrF64::F64(f.abs()),
+        }
+    }
+}
+
 
 #[pymethods]
 impl Dual {
