@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import math
+from packaging import version
 
 import context
 
@@ -188,3 +189,131 @@ def test_log(x_1):
     result = x_1.__log__()
     expected = Dual(0.0, ["v0", "v1"], [1.0, 2.0])
     assert result == expected
+
+
+# Test NumPy compat
+
+
+def test_numpy_isclose(x_1):
+    # np.isclose not supported for non-numeric dtypes
+    a = np.array([x_1, x_1])
+    b = np.array([x_1, x_1])
+    with pytest.raises(TypeError):
+        assert np.isclose(a, b)
+
+
+def test_numpy_equality(x_1):
+    # instead of isclose use == (which uses math.isclose elementwise) and then np.all
+    a = np.array([x_1, x_1])
+    b = np.array([x_1, x_1])
+    result = a == b
+    assert np.all(result)
+
+
+@pytest.mark.parametrize(
+    "z",
+    [
+        Dual(2.0, ["y"], []),
+        # Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+    ],
+)
+@pytest.mark.parametrize(
+    "arg",
+    [
+        2.2,
+        Dual(3, ["x"], []),
+        # Dual2(3, "x", np.array([2]), np.array([[3]])),
+    ],
+)
+@pytest.mark.parametrize(
+    "op_str",
+    [
+        "add",
+        "sub",
+        "mul",
+        "truediv",
+    ],
+)
+def test_numpy_broadcast_ops_types(z, arg, op_str):
+    op = "__" + op_str + "__"
+    types = [Dual] # ,Dual2]
+    if type(z) in types and type(arg) in types and type(arg) is not type(z):
+        pytest.skip("Cannot operate Dual and Dual2 together.")
+    result = getattr(np.array([z, z]), op)(arg)
+    expected = np.array([getattr(z, op)(arg), getattr(z, op)(arg)])
+    assert np.all(result == expected)
+
+    result = getattr(arg, op)(np.array([z, z]))
+    if result is NotImplemented:
+        opr = "__r" + op_str + "__"
+        result = getattr(np.array([z, z]), opr)(arg)
+        expected = np.array([getattr(z, opr)(arg), getattr(z, opr)(arg)])
+    else:
+        expected = np.array([getattr(arg, op)(z), getattr(arg, op)(z)])
+    assert np.all(result == expected)
+
+
+@pytest.mark.parametrize(
+    "z",
+    [
+        Dual(2.0, ["y"], []),
+        # Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+    ],
+)
+def test_numpy_broadcast_pow_types(z):
+    result = np.array([z, z]) ** 3
+    expected = np.array([z**3, z**3])
+    assert np.all(result == expected)
+
+    result = z ** np.array([3, 4])
+    expected = np.array([z**3, z**4])
+    assert np.all(result == expected)
+
+
+def test_numpy_matmul(x_1):
+    x_2 = Dual(2.5, ["x", "y"], [3.0, -2.0])
+    a = np.array([x_1, x_2])
+    result = np.matmul(a[:, np.newaxis], a[np.newaxis, :])
+    expected = np.array([[x_1 * x_1, x_1 * x_2], [x_2 * x_1, x_2 * x_2]])
+    assert np.all(result == expected)
+
+
+@pytest.mark.skipif(
+    version.parse(np.__version__) < version.parse("1.25.0"),
+    reason="Object dtypes not accepted by NumPy in <1.25.0",
+)
+def test_numpy_einsum_works(x_1):
+    x_2 = Dual(2.5, ["x", "y"], [3.0, -2.0])
+    a = np.array([x_1, x_2])
+    result = np.einsum("i,j", a, a, optimize=True)
+    expected = np.array([[x_1 * x_1, x_1 * x_2], [x_2 * x_1, x_2 * x_2]])
+    assert np.all(result == expected)
+
+
+@pytest.mark.parametrize(
+    "z",
+    [
+        Dual(2.0, ["y"], []),
+        # Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+    ],
+)
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        np.int8,
+        np.int16,
+        np.int32,
+        np.int64,
+        np.float16,
+        np.float32,
+        np.float64,
+        np.longdouble,
+    ],
+)
+def test_numpy_dtypes(z, dtype):
+    np.array([1], dtype=dtype) + z
+    z + np.array([1], dtype=dtype)
+
+    z + dtype(2)
+    dtype(2) + z
+
