@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import math
 
 import context
 
@@ -176,3 +177,14 @@ def test_combined_vars_sorted(x_1):
     expected = ["a", "v0", "z", "v1"]
     assert result.vars == expected
 
+
+def test_exp(x_1):
+    result = x_1.__exp__()
+    expected = Dual(math.e, ["v0", "v1"], [math.e, 2*math.e])
+    assert result == expected
+
+
+def test_log(x_1):
+    result = x_1.__log__()
+    expected = Dual(0.0, ["v0", "v1"], [1.0, 2.0])
+    assert result == expected

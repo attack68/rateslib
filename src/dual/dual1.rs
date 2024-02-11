@@ -205,6 +205,22 @@ impl Dual {
         }
         self.clone().pow(power)
     }
+
+    fn __exp__(&self) -> Self {
+        self.exp()
+    }
+
+    fn __abs__(&self) -> f64 {
+        self.abs()
+    }
+
+    fn __log__(&self) -> Self {
+        self.log()
+    }
+
+    fn __float__(&self) -> f64 {
+        self.real
+    }
 }
 
 impl Dual {
@@ -268,10 +284,10 @@ impl Dual {
         Dual {vars: Arc::clone(new_vars), real: self.real, dual}
     }
 
-    fn is_same_vars(&self, other: &Dual) -> bool {
-        // test if the vars of a Dual have the same elements but possibly a different order
-        return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
-    }
+    // fn is_same_vars(&self, other: &Dual) -> bool {
+    //     // test if the vars of a Dual have the same elements but possibly a different order
+    //     return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
+    // }
 
     fn ggradient(&self, vars: Vec<String>) -> Array1<f64> {
         let mut dual = Array::zeros(vars.len());
@@ -286,6 +302,23 @@ impl Dual {
 
     pub fn abs(&self) -> f64 {
         self.real.abs()
+    }
+
+    pub fn exp(&self) -> Self {
+        let c = self.real.exp();
+        Dual {
+            real: c,
+            vars: Arc::clone(&self.vars),
+            dual: c * &self.dual,
+        }
+    }
+
+    pub fn log(&self) -> Self {
+        Dual {
+            real: self.real.ln(),
+            vars: Arc::clone(&self.vars),
+            dual: (1.0 / self.real) * &self.dual,
+        }
     }
 }
 
