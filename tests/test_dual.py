@@ -5,13 +5,15 @@ from packaging import version
 
 import context
 from rateslib.dual import (
+    Dual,
     Dual2,
     dual_exp,
     dual_log,
     dual_solve,
     set_order,
+    _plu_decomp,
+    _pivot_matrix,
 )
-from rateslib.dual.dual import _plu_decomp, _pivot_matrix, Dual
 
 
 @pytest.fixture()
