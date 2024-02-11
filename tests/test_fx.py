@@ -48,7 +48,7 @@ def test_fx_update_blank():
 
 def test_convert_and_base():
     fxr = FXRates({"usdnok": 8.0})
-    expected = Dual(125000, "fx_usdnok", [-15625])
+    expected = Dual(125000, ["fx_usdnok"], [-15625])
     result = fxr.convert(1e6, "nok", "usd")
     result2 = fxr.convert_positions([0, 1e6], "usd")
     assert result == expected
@@ -98,8 +98,8 @@ def test_restate():
     fxr2 = fxr.restate(["gbpusd", "usdnok"])
     assert fxr2.pairs == ["gbpusd", "usdnok"]
     assert fxr2.fx_rates == {
-        "gbpusd": Dual(1.25, "fx_gbpusd", [1.0]),
-        "usdnok": Dual(8.0, "fx_usdnok", [1.0]),
+        "gbpusd": Dual(1.25, ["fx_gbpusd"], [1.0]),
+        "usdnok": Dual(8.0, ["fx_usdnok"], [1.0]),
     }
 
 
@@ -269,7 +269,7 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     result = fxf.rate("usdeur", dt(2022, 3, 25))
-    expected = Dual(0.8991875219289739, "fx_usdeur", [0.99909725])
+    expected = Dual(0.8991875219289739, ["fx_usdeur"], [0.99909725])
     assert result == expected
 
     # test fx_swap price
@@ -278,7 +278,7 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur):
     assert result == expected
 
     result = fxf.rate("eurusd", dt(2022, 3, 25))
-    expected = Dual(1.1121150767915007, "fx_usdeur", [-1.23568342])
+    expected = Dual(1.1121150767915007, ["fx_usdeur"], [-1.23568342])
     assert result == expected
 
 
@@ -310,10 +310,10 @@ def test_fxforwards_immediate():
     assert fxf.rate("usdeur").real == F0_usdeur
 
     result = fxf.rate("usdeur", dt(2022, 1, 1))
-    assert result == Dual(1, "fx_usdeur", [1 / 0.95])
+    assert result == Dual(1, ["fx_usdeur"], [1 / 0.95])
 
     result = fxf.rate("usdeur", dt(2022, 1, 3))
-    assert result == Dual(0.95, "fx_usdeur", [1.0])
+    assert result == Dual(0.95, ["fx_usdeur"], [1.0])
 
 
 def test_fxforwards_immediate2():
@@ -372,7 +372,7 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         settlement=dt(2022, 1, 15),
         value_date=dt(2022, 1, 30)
     )
-    expected = Dual(90.12374519723947, "fx_usdeur", [100.13749466359941])
+    expected = Dual(90.12374519723947, ["fx_usdeur"], [100.13749466359941])
     assert result == expected
 
     result = fxf.convert(
@@ -382,7 +382,7 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         settlement=NoInput(0),  # should imply immediate settlement
         value_date=NoInput(0),  # should imply same as settlement
     )
-    expected = Dual(90.00200704713323, "fx_usdeur", [100.00223005237025])
+    expected = Dual(90.00200704713323, ["fx_usdeur"], [100.00223005237025])
     assert result == expected
 
 
@@ -538,7 +538,7 @@ def test_multiple_settlement_forwards():
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
     F0_usdeur_result = fxf.rate("usdeur", dt(2022, 1, 1))
     assert F0_usdeur_result.real == F0_usdeur
-    assert fxf.rate("usdeur", dt(2022, 1, 3)) == Dual(0.95, "fx_usdeur", [1.0])
+    assert fxf.rate("usdeur", dt(2022, 1, 3)) == Dual(0.95, ["fx_usdeur"], [1.0])
 
 
 def test_generate_proxy_curve():
