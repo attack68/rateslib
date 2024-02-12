@@ -31,16 +31,16 @@ fn argabsmax(a: ArrayView1<DualOrF64>) -> usize {
 pub fn pivot_matrix(A: &Array2<DualOrF64>) -> (Array2<i32>, Array2<DualOrF64>) {
     // pivot square matrix
     let n = A.len_of(Axis(0));
-    let P: Array2<i32> = Array::eye(n);
+    let mut P: Array2<i32> = Array::eye(n);
     let PA = A.clone();
     let O = A.clone();
     for j in 0..n {
         let i = argabsmax(O.slice(s![j.., j]));
         if j != i {
             // define row swaps i <-> j
-            let row_i = P.slice_mut(s![i, ..]);
-            let row_j = P.slice_mut(s![j, ..]);
-            Zip::from(row_i).and(row_j).apply(std::mem::swap);
+            let mut row_j = P.slice(s![j, ..]).clone();
+            let mut row_i = P.slice_mut(s![i, ..]);
+            Zip::from(row_i).and(row_j).apply(|x: &mut i32, y: &i32| std::mem::swap(x, &mut *y));
         }
     }
     (P, PA)
