@@ -21,27 +21,31 @@ enum Pivoting {
     OnUnderlying,
 }
 
-fn argabsmax(a: ArrayView1<DualOrF64>) -> usize {
-    let a: (usize, DualOrF64) = a.iter().enumerate().fold((0, DualOrF64::F64(0.0)), |acc, (i, elem)| {
+fn argabsmax(a: ArrayView1<i32>) -> usize {
+    let a: (usize, i32) = a.iter().enumerate().fold((0, 0), |acc, (i, elem)| {
         if elem.abs() > acc.1 { (i, elem.clone()) } else { acc }
     });
     a.0
 }
 
-pub fn pivot_matrix(A: &Array2<DualOrF64>) -> (Array2<i32>, Array2<DualOrF64>) {
+pub fn pivot_matrix(A: &Array2<T>) -> (Array2<i32>, Array2<T>) {
     // pivot square matrix
     let n = A.len_of(Axis(0));
     let mut P: Array2<i32> = Array::eye(n);
-    let PA = A.clone();
-    let O = A.clone();
+    let mut Pa = A.to_owned();  // initialise PA and Original (or)
+    // let Or = A.to_owned();
     for j in 0..n {
-        let i = argabsmax(O.slice(s![j.., j]));
-        if j != i {
-            // define row swaps i <-> j
-            let mut row_j = P.slice(s![j, ..]).clone();
-            let mut row_i = P.slice_mut(s![i, ..]);
-            Zip::from(row_i).and(row_j).apply(|x: &mut i32, y: &i32| std::mem::swap(x, &mut *y));
+        let k = argabsmax(Pa.slice(s![j.., j])) + j;
+        if j != k {
+            // define row swaps j <-> k  (note that k > j by definition)
+            let (mut Pt, mut Pb) = P.slice_mut(s![.., ..]).split_at(Axis(0), k);
+            let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
+            Zip::from(r1).and(r2).apply(std::mem::swap);
+
+            let (mut Pt, mut Pb) = Pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
+            let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
+            Zip::from(r1).and(r2).apply(std::mem::swap);
         }
     }
-    (P, PA)
+    (P, Pa)
 }

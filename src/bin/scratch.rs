@@ -9,46 +9,23 @@
 //     pub b: f64,
 // }
 //
-// #[derive(Debug, Clone)]
-// enum TestE {
-//     A(f64),
-//     B(Test),
-// }
-//
-// impl Add for TestE {
-//     type Output = Self;
-//     fn add(self, other: Self) -> Self {
-//         use TestE::*;
-//         match self {
-//             A(MT) => match other {
-//                 A(MTO) => A(MT + MTO),
-//                 B(MTO) => B(Test {a: 10.0, b: 0.0})
-//             },
-//             B(MT) => match other {
-//                 A(MTO) => B(Test{a: 10.0, b: 20.0}),
-//                 B(MTO) => B(Test{a: 12.0, b: 30.0})
-//             }
-//         }
-//     }
-// }
-//
-// fn add(a: TestE, b: TestE) -> TestE {
-//     a + b
-// }
+#[derive(Debug, Clone)]
+enum Fs {
+    F64(f64),
+    F32(f32),
+}
 
-// fn main() {
-//     let x = Duals::Float(2.0);
-//     let y = Duals::Float(3.0);
-//     let z = x + y;
-//     println!("{:?}", z);
-    // let x_1 = NaiveDate::from_ymd_opt(2003, 12, 2).unwrap();
-    // let x_2 = NaiveDate::from_ymd_opt(2003, 12, 22).unwrap();
-    // let x = NaiveDate::from_ymd_opt(2003, 12, 18).unwrap();
-    //
-    // let y_1 = Duals::Float(100.0);
-    // let y_2 = Duals::Float(200.0);
-    //
-    // let z = interpolate_with_method(&x, &x_1, y_1, &x_2, y_2, "linear", None);
-    // println!("{:?}", z);
-    // println!("{}", x_1)
-// }
+fn add_one(x: Fs) -> Fs {
+    match x {
+        Fs::F64(v) => v + 1.0_f64,
+        Fs::F32(v) => v + 1.0_f32
+    }
+}
+
+fn main() {
+//     let x_1 = NaiveDate::from_ymd_opt(2003, 12, 2).unwrap();
+
+    let x = 32.5;
+    let y = add_one(Fs(x));
+    println!("{:?}", y)
+}
