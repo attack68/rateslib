@@ -1,5 +1,7 @@
 use crate::dual::dual1::DualOrF64;
 use ndarray::{Array, Array2, Array1, Zip, Axis, s, ArrayView1};
+use num_traits::Signed;
+usd std::cmp::PartialOrd
 
 // pub fn dual_tensordot(a: &Array<Duals>, b:&Array<Duals>) {
 //     let a_shape = a.shape();
@@ -21,14 +23,14 @@ enum Pivoting {
     OnUnderlying,
 }
 
-fn argabsmax(a: ArrayView1<i32>) -> usize {
+fn argabsmax<T: Signed + PartialOrd>(a: ArrayView1<T>) -> usize {
     let a: (usize, i32) = a.iter().enumerate().fold((0, 0), |acc, (i, elem)| {
         if elem.abs() > acc.1 { (i, elem.clone()) } else { acc }
     });
     a.0
 }
 
-pub fn pivot_matrix(A: &Array2<T>) -> (Array2<i32>, Array2<T>) {
+pub fn pivot_matrix(A: &Array2<i32>) -> (Array2<i32>, Array2<i32>) {
     // pivot square matrix
     let n = A.len_of(Axis(0));
     let mut P: Array2<i32> = Array::eye(n);

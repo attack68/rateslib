@@ -13,13 +13,13 @@ crate-type = ["cdylib"]  # for pyO3
 
 [dependencies]
 pyo3 = { version = "0.20.2", features = ["extension-module"] }
-chrono = "0.4.26"
+# chrono = "0.4.26"
 ndarray = "0.15.6"
 indexmap = "1.9.3"
-ndarray_einsum_beta = "0.7.0"
+# ndarray_einsum_beta = "0.7.0"
 num-traits = "0.2.15"
 auto_ops = "0.3.0"
-nalgebra = "*"
+# nalgebra = "*"
 numpy = "0.20.0"
 
 [dev-dependencies]

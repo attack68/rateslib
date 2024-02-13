@@ -221,7 +221,7 @@ impl Dual {
     }
 
     fn __abs__(&self) -> f64 {
-        self.abs()
+        self.abs().real
     }
 
     fn __log__(&self) -> Self {
@@ -310,10 +310,6 @@ impl Dual {
         dual
     }
 
-    pub fn abs(&self) -> f64 {
-        self.real.abs()
-    }
-
     pub fn exp(&self) -> Self {
         let c = self.real.exp();
         Dual {
@@ -359,27 +355,25 @@ impl num_traits::Pow<f64> for Dual {
     }
 }
 
-impl std::ops::AddAssign for Dual {
-    fn add_assign(&mut self, other: Self) {
-        let z = self.clone() + other;
-        self.vars = z.vars.clone();
-        self.dual = z.dual.clone();
-        self.real = z.real;
+impl num_traits::Num for Dual {
+    type num_traits::Num::FromStrRadixErr;
+
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+         num_traits::Num::FromStrRadixErr("No implementation of Dual from str.")
     }
 }
 
-impl std::ops::MulAssign for Dual {
-    fn mul_assign(&mut self, other: Self) {
-        let z = self.clone() * other;
-        self.vars = z.vars.clone();
-        self.dual = z.dual.clone();
-        self.real = z.real;
-    }
-}
+// impl num_traits::Num::FromStrRadixErr for Dual {
+//     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+//         Err("No implementation of Dual from str.")
+//     }
+// }
 
+// Negation
 impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}});
 impl_op!(- |a: &Dual| -> Dual { Dual {vars: a.vars.clone(), real: -a.real, dual: -(a.dual.clone())}});
 
+// Addition
 impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
 impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
@@ -390,7 +384,17 @@ impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
         x + y
     }
 });
+impl std::ops::AddAssign for Dual {
+    fn add_assign(&mut self, other: Self) {
+        let z = self.clone() + other;
+        self.vars = z.vars.clone();
+        self.dual = z.dual.clone();
+        self.real = z.real;
+    }
+}
 
+
+// Subtraction
 impl_op_ex!(- |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real - b, dual: a.dual.clone()} });
 impl_op_ex!(- |a: &f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a - b.real, dual: -(b.dual.clone())} });
 impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
@@ -403,6 +407,7 @@ impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
     }
 });
 
+// multiplication
 impl_op_ex_commutative!(* |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real * b, dual: b * &a.dual} });
 impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
@@ -413,10 +418,62 @@ impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
         x * y
     }
 });
+impl std::ops::MulAssign for Dual {
+    fn mul_assign(&mut self, other: Self) {
+        let z = self.clone() * other;
+        self.vars = z.vars.clone();
+        self.dual = z.dual.clone();
+        self.real = z.real;
+    }
+}
 
+// division
 impl_op_ex!(/ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: &a.dual / b} });
 impl_op_ex!(/ |a: f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
+
+// remainder
+impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
+impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new(), Vec::new()) % b });
+impl_op_ex!(% |a: &Dual, b: &Dual| -> Dual {
+    let d = ((a.real / b.real) as i64) as f64;  // truncates towards zero.
+    a - d * b
+});
+
+// sign and abs
+impl num_traits::sign::Signed for Dual {
+    fn abs(&self) -> Self {
+        if self.real > 0.0 { Dual{self.rea} }
+        else {}
+    }
+
+    fn abs_sub(&self, other: &Self) -> Self {
+        if self <= other {
+            Dual::new(0.0, Vec::new(), Vec::new())
+        } else {
+            other - self
+        }
+    }
+
+    fn signum(&self) -> Self {
+       if self.real == 0.0 {
+           Dual::new(1.0, Vec::new(), Vec::new())
+       } else if self.real > 0.0 {
+           Dual::new(0.0, Vec::new(), Vec::new())
+       } else {
+           Dual::new(-1.0, Vec::new(), Vec::new())
+       }
+    }
+
+    fn is_positive(&self) -> bool {
+        self.real > 0.0_f64
+    }
+
+    fn is_negative(&self) -> bool {
+        self.real < 0.0_f64
+    }
+}
+
 
 impl PartialEq<f64> for Dual {
     fn eq(&self, other: &f64) -> bool {
