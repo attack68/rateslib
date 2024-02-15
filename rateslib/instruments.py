@@ -59,7 +59,7 @@ from rateslib.legs import (
     ZeroIndexLeg,
     IndexFixedLeg,
 )
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import Dual, Dual2, DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates, forward_fx
 
 
@@ -836,10 +836,12 @@ class Value(BaseMixin):
     def __init__(
         self,
         effective: datetime,
+        convention: Union[str, NoInput] = NoInput(0),
         curves: Optional[Union[list, str, Curve]] = None,
     ):
         self.effective = effective
         self.curves = curves
+        self.convention = defaults.convention if convention is NoInput.blank else convention
 
     def rate(
         self,
@@ -847,6 +849,7 @@ class Value(BaseMixin):
         solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
+        metric: str = "curve_value",
     ):
         """
         Return the forecasting :class:`~rateslib.curves.Curve` or
@@ -856,7 +859,15 @@ class Value(BaseMixin):
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, NoInput(0), NoInput(0), "_"
         )
-        return curves[0][self.effective]
+        if metric.lower() == "curve_value":
+            return curves[0][self.effective]
+        elif metric.lower() == "cc_zero_rate":
+            if curves[0]._base_type != "dfs":
+                raise TypeError("`curve` used with `metric`='cc_zero_rate' must be discount factor based.")
+            dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
+            _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
+            return _
+        raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate'}.")
 
     def npv(self, *args, **kwargs):
         raise NotImplementedError("`Value` instrument has no concept of NPV.")
