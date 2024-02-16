@@ -23,11 +23,11 @@ use std::cmp::PartialOrd;
 //     OnUnderlying,
 // }
 //
-// fn argabsmax<i32: Signed + PartialOrd>(a: ArrayView1<i32>) -> usize {
-//     let a: (usize, i32) = a.iter().enumerate().fold((0, 0), |acc, (i, elem)| {
-//         if elem.abs() > acc.1 { (i, *elem.clone()) } else { acc }
-//     });
-//     a.0
+// fn argabsmax<T: Signed + PartialOrd>(a: ArrayView1<T>) -> usize {
+//     let a: (&T, usize) = a.iter().zip(0..).max_by(
+//         |x,y| x.0.abs().partial_cmp(&y.0.abs()).unwrap()
+//     ).unwrap();
+//     a.1
 // }
 //
 // pub fn pivot_matrix(A: &Array2<i32>) -> (Array2<i32>, Array2<i32>) {

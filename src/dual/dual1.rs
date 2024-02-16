@@ -68,7 +68,7 @@ impl Dual {
     }
 
     /// Return a Dual with recast vars if required.
-    pub fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
+    fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
         if self.vars.len() == new_vars.len() && self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
             Dual {vars: Arc::clone(new_vars), real: self.real, dual: self.dual.clone()}
         } else {
@@ -564,12 +564,9 @@ impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&
 //     }
 // });
 
-
-
 // Subtraction
 impl_op_ex!(- |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real - b, dual: a.dual.clone()} });
 impl_op_ex!(- |a: &f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a - b.real, dual: -(b.dual.clone())} });
-
 
 // multiplication
 impl_op_ex_commutative!(* |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real * b, dual: b * &a.dual} });
@@ -578,11 +575,9 @@ impl_op_ex_commutative!(* |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a
 impl_op_ex!(/ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: &a.dual / b} });
 impl_op_ex!(/ |a: f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 
-
 // remainder
 impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
 impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new(), Vec::new()) % b });
-
 
 impl PartialEq<f64> for Dual {
     fn eq(&self, other: &f64) -> bool {
@@ -595,8 +590,6 @@ impl PartialEq<Dual> for f64 {
         return Dual::new(*self, [].to_vec(), [].to_vec()) == *other;
     }
 }
-
-
 
 impl PartialOrd<f64> for Dual {
     fn partial_cmp(&self, other: &f64) -> Option<Ordering>{
@@ -768,7 +761,6 @@ fn abs() {
     let expected = Dual::new(2.0, vec!["v0".to_string(), "v1".to_string()], vec![-1.0, -2.0]);
     assert_eq!(result, expected)
 }
-
 
 #[test]
 fn div_f64() {
