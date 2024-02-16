@@ -1,7 +1,7 @@
 use crate::dual::dual1::DualOrF64;
 use ndarray::{Array, Array2, Array1, Zip, Axis, s, ArrayView1};
 use num_traits::Signed;
-usd std::cmp::PartialOrd
+use std::cmp::PartialOrd;
 
 // pub fn dual_tensordot(a: &Array<Duals>, b:&Array<Duals>) {
 //     let a_shape = a.shape();
@@ -18,36 +18,36 @@ usd std::cmp::PartialOrd
 //     }
 // }
 
-enum Pivoting {
-    OnCopy,
-    OnUnderlying,
-}
-
-fn argabsmax<T: Signed + PartialOrd>(a: ArrayView1<T>) -> usize {
-    let a: (usize, i32) = a.iter().enumerate().fold((0, 0), |acc, (i, elem)| {
-        if elem.abs() > acc.1 { (i, elem.clone()) } else { acc }
-    });
-    a.0
-}
-
-pub fn pivot_matrix(A: &Array2<i32>) -> (Array2<i32>, Array2<i32>) {
-    // pivot square matrix
-    let n = A.len_of(Axis(0));
-    let mut P: Array2<i32> = Array::eye(n);
-    let mut Pa = A.to_owned();  // initialise PA and Original (or)
-    // let Or = A.to_owned();
-    for j in 0..n {
-        let k = argabsmax(Pa.slice(s![j.., j])) + j;
-        if j != k {
-            // define row swaps j <-> k  (note that k > j by definition)
-            let (mut Pt, mut Pb) = P.slice_mut(s![.., ..]).split_at(Axis(0), k);
-            let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
-            Zip::from(r1).and(r2).apply(std::mem::swap);
-
-            let (mut Pt, mut Pb) = Pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
-            let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
-            Zip::from(r1).and(r2).apply(std::mem::swap);
-        }
-    }
-    (P, Pa)
-}
+// enum Pivoting {
+//     OnCopy,
+//     OnUnderlying,
+// }
+//
+// fn argabsmax<i32: Signed + PartialOrd>(a: ArrayView1<i32>) -> usize {
+//     let a: (usize, i32) = a.iter().enumerate().fold((0, 0), |acc, (i, elem)| {
+//         if elem.abs() > acc.1 { (i, *elem.clone()) } else { acc }
+//     });
+//     a.0
+// }
+//
+// pub fn pivot_matrix(A: &Array2<i32>) -> (Array2<i32>, Array2<i32>) {
+//     // pivot square matrix
+//     let n = A.len_of(Axis(0));
+//     let mut P: Array2<i32> = Array::eye(n);
+//     let mut Pa = A.to_owned();  // initialise PA and Original (or)
+//     // let Or = A.to_owned();
+//     for j in 0..n {
+//         let k = argabsmax(Pa.slice(s![j.., j])) + j;
+//         if j != k {
+//             // define row swaps j <-> k  (note that k > j by definition)
+//             let (mut Pt, mut Pb) = P.slice_mut(s![.., ..]).split_at(Axis(0), k);
+//             let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
+//             Zip::from(r1).and(r2).apply(std::mem::swap);
+//
+//             let (mut Pt, mut Pb) = Pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
+//             let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
+//             Zip::from(r1).and(r2).apply(std::mem::swap);
+//         }
+//     }
+//     (P, Pa)
+// }
