@@ -15,10 +15,10 @@ use pyo3::types::PyFloat;
 use pyo3::prelude::*;
 use pyo3::conversion::FromPyObject;
 
-fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
-    // used rather than equality for float numbers
-    return (a-b).abs() < abs_tol.unwrap_or(1e-8)
-}
+// fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
+//     // used rather than equality for float numbers
+//     return (a-b).abs() < abs_tol.unwrap_or(1e-8)
+// }
 
 #[pyclass]
 #[derive(Clone, Debug)]

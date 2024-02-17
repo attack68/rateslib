@@ -1,5 +1,5 @@
 from rateslib.dual.dual import (
-    # Dual,
+    Dual,
     Dual2,
     dual_solve,
     set_order,
@@ -9,7 +9,7 @@ from rateslib.dual.dual import (
     FLOATS,
     INTS,
 )
-from rateslibrs import Dual
+# from rateslibrs import Dual
 import math
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
