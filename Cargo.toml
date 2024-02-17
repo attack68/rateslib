@@ -15,6 +15,7 @@ crate-type = ["cdylib"]  # for pyO3
 pyo3 = { version = "0.20.2", features = ["extension-module"] }
 # chrono = "0.4.26"
 ndarray = "0.15.6"
+# ndarray-linalg = { version = "0.16.0", features = ["intel-mkl-static"] }
 indexmap = "1.9.3"
 # ndarray_einsum_beta = "0.7.0"
 num-traits = "0.2.15"
