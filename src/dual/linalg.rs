@@ -7,6 +7,7 @@ use num_traits::{Signed, Num};
 use std::cmp::PartialOrd;
 use std::ops::Mul;
 use std::iter::Sum;
+use std::sync::Arc;
 
 fn argabsmax<T>(a: ArrayView1<T>) -> usize
 where T: Signed + PartialOrd
@@ -76,7 +77,7 @@ where T: Signed + Num + PartialOrd + Clone
     Zip::from(c1).and(c2).for_each(std::mem::swap);
 }
 
-fn complete_pivot_matrix<T>(A: &Array2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
+fn complete_pivot_matrix<T>(A: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
 where T: Signed + Num + PartialOrd + Clone
 {
     // pivot square matrix
@@ -106,36 +107,82 @@ where T: Signed + Num + PartialOrd + Clone
     (p, q, at)
 }
 
-fn ddot_base(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
+fn dmul11_(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
     if a.len() != b.len() {
         panic!("Lengths of LHS and RHS do not match.")
     }
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
-fn ddot(a: &Array1<Dual>, b: &Array1<Dual>) -> Dual
-{
-    ddot_base(&a.view(), &b.view())
+fn fdmul11_(a: &ArrayView1<f64>, b: &ArrayView1<Dual>) -> Dual {
+    if a.len() != b.len() {
+        panic!("Lengths of LHS and RHS do not match.")
+    }
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
-fn dmul_base(a: &ArrayView2<Dual>, b: &ArrayView2<Dual>) -> Array2<Dual> {
+fn dmul22_(a: &ArrayView2<Dual>, b: &ArrayView2<Dual>) -> Array2<Dual> {
     if a.len_of(Axis(1)) != b.len_of(Axis(0)){
         panic!("Columns of LHS do not match rows of RHS.")
     }
     let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
     for r in 0..a.len_of(Axis(0)) {
         for c in 0..b.len_of(Axis(1)) {
-            out[[r, c]] = ddot_base(&a.row(r), &b.column(c))
+            out[[r, c]] = dmul11_(&a.row(r), &b.column(c))
         }
     }
     out
 }
 
-fn dmul(a: &Array2<Dual>, b: &Array2<Dual>) -> Array2<Dual> {
-    dmul_base(&a.view(), &b.view())
+fn fdmul22_(a: &ArrayView2<f64>, b: &ArrayView2<Dual>) -> Array2<Dual> {
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)){
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
+    for r in 0..a.len_of(Axis(0)) {
+        for c in 0..b.len_of(Axis(1)) {
+            out[[r, c]] = fdmul11_(&a.row(r), &b.column(c))
+        }
+    }
+    out
 }
 
-fn pluq_decomp(a: &Array2<Dual>) -> (Array2<f64>, Array2<Dual>, Array2<Dual>, Array2<f64>) {
+fn dmul21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)){
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out = Array1::zeros(b.len_of(Axis(0)));
+    for r in 0..a.len_of(Axis(0)) {
+        out[[r]] = dmul11_(&a.row(r), &b)
+    }
+    out
+}
+
+fn fdmul21_(a: &ArrayView2<f64>, b: &ArrayView1<Dual>) -> Array1<Dual> {
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)){
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out = Array1::zeros(b.len_of(Axis(0)));
+    for r in 0..a.len_of(Axis(0)) {
+        out[[r]] = fdmul11_(&a.row(r), &b)
+    }
+    out
+}
+
+
+fn ddot(a: &Array1<Dual>, b: &Array1<Dual>) -> Dual {
+    dmul11_(&a.view(), &b.view())
+}
+
+fn fdot(a: &Array1<f64>, b: &Array1<Dual>) -> Dual {
+    fdmul11_(&a.view(), &b.view())
+}
+
+fn dmul(a: &Array2<Dual>, b: &Array2<Dual>) -> Array2<Dual> {
+    dmul22_(&a.view(), &b.view())
+}
+
+fn pluq_decomp(a: &ArrayView2<Dual>) -> (Array2<f64>, Array2<Dual>, Array2<Dual>, Array2<f64>) {
     let n: usize = a.len_of(Axis(0));
     let mut l: Array2<Dual> = Array2::zeros((n, n));
     let mut u: Array2<Dual> = Array2::zeros((n, n));
@@ -146,12 +193,12 @@ fn pluq_decomp(a: &Array2<Dual>) -> (Array2<f64>, Array2<Dual>, Array2<Dual>, Ar
         l[[j,j]] = one.clone();  // all diagonal entries of L are set to unity
 
         for i in 0..j+1 {  // LaTeX: u_{ij} = a_{ij} - \sum_{k=1}^{i-1} u_{kj} l_{ik}
-            let sx = dmul_base(&l.slice(s![i, ..i]).insert_axis(Axis(0)), &u.slice(s![..i, j]).insert_axis(Axis(1))).sum();
+            let sx = dmul11_(&l.slice(s![i, ..i]), &u.slice(s![..i, j]));
             u[[i, j]] = &paq[[i, j]] - sx;
         }
 
         for i in j..n {  // LaTeX: l_{ij} = \frac{1}{u_{jj}} (a_{ij} - \sum_{k=1}^{j-1} u_{kj} l_{ik})
-            let sy = dmul_base(&l.slice(s![i, ..j]).insert_axis(Axis(0)), &u.slice(s![..j, j]).insert_axis(Axis(1))).sum();
+            let sy = dmul11_(&l.slice(s![i, ..j]), &u.slice(s![..j, j]));
             l[[i, j]] = (&paq[[i, j]] - sy) / &u[[j, j]];
         }
     }
@@ -162,7 +209,7 @@ fn solve_lower_1d(l: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     let n: usize = l.len_of(Axis(0));
     let mut x: Array1<Dual> = Array::zeros(n);
     for i in 0..n {
-        let v = &b[i] - ddot_base(&l.slice(s![i, ..i]), &x.slice(s![..i]));
+        let v = &b[i] - dmul11_(&l.slice(s![i, ..i]), &x.slice(s![..i]));
         x[i] = v / &l[[i,i]]
     }
     x
@@ -170,6 +217,25 @@ fn solve_lower_1d(l: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
 
 fn solve_upper_1d(u: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     solve_lower_1d(&u.t(), &b.slice(s![..;-1])).slice(s![..;-1]).to_owned()
+}
+
+fn dsolve21_(a: &ArrayView2<Dual>, b:&ArrayView1<Dual>) -> Array1<Dual> {
+    let (p,l,u,q) = pluq_decomp(&a.view());
+    let pb = fdmul21_(&p.view(), &b.view());
+    let z = solve_lower_1d(&l.view(), &pb.view());
+    let y = solve_upper_1d(&u.view(), &z.view());
+    let x = fdmul21_(&q.view(), &y.view());
+    x
+}
+
+fn dsolve(a: &Array2<Dual>, b:&Array1<Dual>, allow_lsq: bool) -> Array1<Dual> {
+    if allow_lsq {
+        let a_ = dmul22_(&a.t(), &a.view());
+        let b_ = dmul21_(&a.t(), &b.view());
+        dsolve21_(&a_.view(), &b_.view())
+    } else {
+        dsolve21_(&a.view(), &b.view())
+    }
 }
 
 
@@ -255,13 +321,13 @@ fn pivot_i32_original() {
 
 #[test]
 fn pivot_i32_complete() {
-    let P: Array2<i32> = arr2(
+    let i: Array2<i32> = arr2(
         &[[1, 2, 3, 4],
           [10, 2, 5, 6],
           [7, 8, 1, 1],
           [2, 2, 2, 9]]
     );
-    let (p, q, at) = complete_pivot_matrix(&P);
+    let (p, q, at) = complete_pivot_matrix(&i.view());
     let expected2: Array2<i32> = arr2(
         &[[10, 6, 2, 5],
           [2, 9, 2, 2],
@@ -307,7 +373,7 @@ fn pluq_decomp_dual() {
         [Dual::new(7.0, Vec::new(), Vec::new()), Dual::new(8.0, Vec::new(), Vec::new()), Dual::new(1.0, Vec::new(), Vec::new()), Dual::new(1.0, Vec::new(), Vec::new())],
         [Dual::new(2.0, Vec::new(), Vec::new()), Dual::new(2.0, Vec::new(), Vec::new()), Dual::new(2.0, Vec::new(), Vec::new()), Dual::new(9.0, Vec::new(), Vec::new())],
     ]);
-    let (p,l,u,q) = pluq_decomp(&a);
+    let (p,l,u,q) = pluq_decomp(&a.view());
 
     let expected_p = arr2(&[
         [0., 1., 0., 0.],
@@ -364,6 +430,23 @@ fn upper_tri_dual() {
     let x = solve_upper_1d(&a.view(), &b.view());
     let expected_x = arr1(&[Dual::new(-8.0, Vec::new(), Vec::new()), Dual::new(5.0, Vec::new(), Vec::new())]);
     assert_eq!(x,expected_x);
+}
+
+#[test]
+fn dsolve_dual() {
+    let a: Array2<Dual> = Array2::eye(2);
+    let b: Array1<Dual> = arr1(&[
+        Dual::new(2.0, vec!["x".to_string()], vec![1.0]),
+        Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0])
+    ]);
+    let result = dsolve(&a, &b, false);
+    println!("{:?}", result);
+    let expected = arr1(&[
+        Dual::new(2.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]),
+        Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0])
+    ]);
+    assert_eq!(result, expected);
+    assert!(Arc::ptr_eq(&result[0].vars, &result[1].vars));
 }
 
 
