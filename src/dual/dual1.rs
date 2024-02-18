@@ -1,4 +1,4 @@
-use numpy::{PyArray, ToPyArray, PyArray1};
+use numpy::{Element, PyArray, ToPyArray, PyArray1, PyArrayDescr};
 use ndarray::{Array1, Array, arr1};
 use num_traits;
 use num_traits::{Pow, Num, Signed};
@@ -273,56 +273,6 @@ impl Signed for Dual {
 }
 
 
-
-// impl Add<Dual> for Dual {
-//     type Output = Dual;
-//     fn add(self, other: Dual) -> Dual {
-//         if Arc::ptr_eq(&self.vars, &other.vars) {
-//             Dual {real: self.real + other.real, dual: self.dual + other.dual, vars: self.vars}
-//         } else {
-//             let (x, y) = self.to_combined_vars(other);
-//             x + y
-//         }
-//     }
-// }
-//
-// impl Add<&Dual> for Dual {
-//     type Output = Dual;
-//     fn add(self, other: &Dual) -> Dual {
-//         if Arc::ptr_eq(&self.vars, &other.vars) {
-//             Dual {real: self.real + other.real, dual: self.dual + other.dual, vars: self.vars}
-//         } else {
-//             let (x, y) = self.to_combined_vars(other);
-//             x + y
-//         }
-//     }
-// }
-//
-// impl Add<Dual> for &Dual {
-//     type Output = Dual;
-//     fn add(self, other: Dual) -> Dual {
-//         if Arc::ptr_eq(&self.vars, &other.vars) {
-//             Dual {real: self.real + other.real, dual: self.dual + other.dual, vars: other.vars}
-//         } else {
-//             let (x, y) = self.to_combined_vars(other);
-//             x + y
-//         }
-//     }
-// }
-//
-// impl Add<&Dual> for &Dual {
-//     type Output = Dual;
-//     fn add(self, other: &Dual) -> Dual {
-//         if Arc::ptr_eq(&self.vars, &other.vars) {
-//             Dual {real: self.real + other.real, dual: self.dual + other.dual, vars: self.vars.clone()}
-//         } else {
-//             let (x, y) = self.to_combined_vars(other);
-//             x + y
-//         }
-//     }
-// }
-
-
 #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
 pub enum DualOrF64 {
     Dual(Dual),
@@ -338,6 +288,12 @@ pub enum DualOrF64 {
 //     }
 // }
 
+unsafe impl Element for Dual {
+    const IS_COPY: bool = true;
+    fn get_dtype<'py>(py: Python<'py>) -> &'py PyArrayDescr {
+        PyArrayDescr::object(py)
+    }
+}
 
 #[pymethods]
 impl Dual {
@@ -530,13 +486,6 @@ impl Dual {
         self.real
     }
 }
-
-
-
-
-
-
-
 
 
 // impl num_traits::Num for Dual {
