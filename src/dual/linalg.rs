@@ -5,7 +5,7 @@ use ndarray::{ArrayBase, Zip};
 // use ndarray_linalg::Solve;
 use num_traits::{Num, Signed};
 use std::cmp::PartialOrd;
-use std::iter::Sum;
+// use std::iter::Sum;
 use std::ops::Mul;
 use std::sync::Arc;
 
@@ -517,14 +517,14 @@ fn dsolve_dual() {
     assert!(Arc::ptr_eq(&result[0].vars, &result[1].vars));
 }
 
-#[test]
-fn ndarray_broadcast_dual() {
-    let a = arr1(&[
-        Dual::new(1.0, Vec::new(), Vec::new()),
-        Dual::new(2.0, Vec::new(), Vec::new()),
-    ]);
-    let b = Dual::new(2.5, Vec::new(), Vec::new());
-    let c = b * a;
-    println!("{:?}", c);
-    assert_eq!(1, 2);
-}
+// #[test]
+// fn ndarray_broadcast_dual() {
+//     let a = arr1(&[
+//         Dual::new(1.0, Vec::new(), Vec::new()),
+//         Dual::new(2.0, Vec::new(), Vec::new()),
+//     ]);
+//     let b = Dual::new(2.5, Vec::new(), Vec::new());
+//     let c = b * a;
+//     println!("{:?}", c);
+//     assert_eq!(1, 2);
+// }

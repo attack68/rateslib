@@ -28,11 +28,8 @@ fn dsolve_py<'py>(
     println!("reading b as array");
     let b = b.as_array();
     println!("constructing c as array");
-    let c = vec![
-        Dual::new(2.0, Vec::new(), Vec::new()),
-        Dual::new(3.5, vec!["x".to_string()], vec![2.5]),
-    ]
-    .into_pyarray(py);
+    let c = arr1(&[Dual::new(2.0, Vec::new(), Vec::new())])
+            .to_pyarray(py);
     println!("returning c");
     c
     // let z = dsolve(&a, &b, allow_lsq);

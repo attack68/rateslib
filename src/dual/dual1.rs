@@ -20,7 +20,7 @@ use pyo3::types::PyFloat;
 // }
 
 #[pyclass]
-#[derive(Clone, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct Dual {
     pub real: f64,
     pub vars: Arc<IndexSet<String>>,
@@ -344,7 +344,7 @@ pub enum DualOrF64 {
 // }
 
 unsafe impl Element for Dual {
-    const IS_COPY: bool = true;
+    const IS_COPY: bool = false;
     fn get_dtype<'py>(py: Python<'py>) -> &'py PyArrayDescr {
         PyArrayDescr::object(py)
     }
@@ -655,6 +655,13 @@ fn clone_arc() {
     let d1 = Dual::new(20.0, vec!["a".to_string()], vec![]);
     let d2 = d1.clone();
     assert!(Arc::ptr_eq(&d1.vars, &d2.vars))
+}
+
+#[test]
+fn default_dual() {
+    let result = Dual::default();
+    let expected = Dual::new(0.0, Vec::new(), Vec::new());
+    assert_eq!(result, expected);
 }
 
 #[test]
