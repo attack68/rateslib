@@ -867,6 +867,11 @@ class Value(BaseMixin):
             dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
             _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
             return _
+        elif metric.lower() == "index_value":
+            if not isinstance(curves[0], IndexCurve):
+                raise TypeError("`curve` used with `metric`='index_value' must be type IndexCurve.")
+            _ = curves[0].index_value(self.effective)
+            return _
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate'}.")
 
     def npv(self, *args, **kwargs):
