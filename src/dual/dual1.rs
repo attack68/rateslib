@@ -1,19 +1,18 @@
-use numpy::{Element, PyArray, ToPyArray, PyArray1, PyArrayDescr};
-use ndarray::{Array1, Array, arr1};
-use num_traits;
-use num_traits::{Pow, Num, Signed};
-use std::sync::Arc;
-use std::ops::{Neg, Rem};
-use std::num::ParseFloatError;
-use indexmap::set::IndexSet;
-use std::cmp::Ordering;
 use auto_ops::{impl_op, impl_op_commutative, impl_op_ex, impl_op_ex_commutative};
+use indexmap::set::IndexSet;
+use ndarray::{arr1, Array, Array1};
+use num_traits;
+use num_traits::{Num, Pow, Signed};
+use numpy::{Element, PyArray, PyArray1, PyArrayDescr, ToPyArray};
+use std::cmp::Ordering;
+use std::num::ParseFloatError;
+use std::ops::{Neg, Rem};
+use std::sync::Arc;
 
-
-use pyo3::exceptions::PyIndexError;
-use pyo3::types::PyFloat;
-use pyo3::prelude::*;
 use pyo3::conversion::FromPyObject;
+use pyo3::exceptions::PyIndexError;
+use pyo3::prelude::*;
+use pyo3::types::PyFloat;
 
 // fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
 //     // used rather than equality for float numbers
@@ -23,9 +22,9 @@ use pyo3::conversion::FromPyObject;
 #[pyclass]
 #[derive(Clone, Debug)]
 pub struct Dual {
-    pub real : f64,
-    pub vars : Arc<IndexSet<String>>,
-    pub dual : Array1<f64>,
+    pub real: f64,
+    pub vars: Arc<IndexSet<String>>,
+    pub dual: Array1<f64>,
 }
 
 impl Dual {
@@ -41,10 +40,14 @@ impl Dual {
     fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
         if Arc::ptr_eq(&self.vars, &other.vars) {
             (self.clone(), other.clone())
-        } else if self.vars.len() >= other.vars.len() && other.vars.iter().all(|var| self.vars.contains(var)) {
+        } else if self.vars.len() >= other.vars.len()
+            && other.vars.iter().all(|var| self.vars.contains(var))
+        {
             // vars in other are contained within self
             (self.clone(), other.to_new_ordered_vars(&self.vars))
-        } else if self.vars.len() < other.vars.len() && self.vars.iter().all(|var| other.vars.contains(var)) {
+        } else if self.vars.len() < other.vars.len()
+            && self.vars.iter().all(|var| other.vars.contains(var))
+        {
             // vars in self are contained within other
             (self.to_new_ordered_vars(&other.vars), other.clone())
         } else {
@@ -63,14 +66,22 @@ impl Dual {
     ///
     ///
     fn to_combined_vars_explicit(&self, other: &Dual) -> (Dual, Dual) {
-        let comb_vars = Arc::new(IndexSet::from_iter(self.vars.union(&other.vars).map(|x| x.clone())));
+        let comb_vars = Arc::new(IndexSet::from_iter(
+            self.vars.union(&other.vars).map(|x| x.clone()),
+        ));
         (self.to_new_vars(&comb_vars), other.to_new_vars(&comb_vars))
     }
 
     /// Return a Dual with recast vars if required.
     fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
-        if self.vars.len() == new_vars.len() && self.vars.iter().zip(new_vars.iter()).all(|(a,b)| a==b) {
-            Dual {vars: Arc::clone(new_vars), real: self.real, dual: self.dual.clone()}
+        if self.vars.len() == new_vars.len()
+            && self.vars.iter().zip(new_vars.iter()).all(|(a, b)| a == b)
+        {
+            Dual {
+                vars: Arc::clone(new_vars),
+                real: self.real,
+                dual: self.dual.clone(),
+            }
         } else {
             self.to_new_vars(new_vars)
         }
@@ -80,13 +91,21 @@ impl Dual {
         // Return a Dual with a new set of vars.
 
         let mut dual = Array::zeros(new_vars.len());
-        for (i, index) in new_vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
+        for (i, index) in new_vars
+            .iter()
+            .map(|x| self.vars.get_index_of(x))
+            .enumerate()
+        {
             match index {
-                Some(value) => { dual[[i]] = self.dual[[value]] }
+                Some(value) => dual[[i]] = self.dual[[value]],
                 None => {}
             }
         }
-        Dual {vars: Arc::clone(new_vars), real: self.real, dual}
+        Dual {
+            vars: Arc::clone(new_vars),
+            real: self.real,
+            dual,
+        }
     }
 
     // fn is_same_vars(&self, other: &Dual) -> bool {
@@ -98,8 +117,8 @@ impl Dual {
         let mut dual = Array::zeros(vars.len());
         for (i, index) in vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
             match index {
-                Some(value) => { dual[[i]] = self.dual[[value]] }
-                None => { dual[[i]] = 0.0 }
+                Some(value) => dual[[i]] = self.dual[[value]],
+                None => dual[[i]] = 0.0,
             }
         }
         dual
@@ -130,8 +149,20 @@ impl Num for Dual {
     }
 }
 
-impl_op!(- |a: Dual| -> Dual { Dual {vars: a.vars, real: -a.real, dual: -a.dual}});
-impl_op!(- |a: &Dual| -> Dual { Dual {vars: Arc::clone(&a.vars), real: -a.real, dual: &a.dual * -1.0}});
+impl_op!(-|a: Dual| -> Dual {
+    Dual {
+        vars: a.vars,
+        real: -a.real,
+        dual: -a.dual,
+    }
+});
+impl_op!(-|a: &Dual| -> Dual {
+    Dual {
+        vars: Arc::clone(&a.vars),
+        real: -a.real,
+        dual: &a.dual * -1.0,
+    }
+});
 
 impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
@@ -149,18 +180,30 @@ impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
 //     }
 // }
 
-impl_op_ex!(- |a: &Dual, b: &Dual| -> Dual {
+impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual {real: a.real - b.real, dual: &a.dual - &b.dual, vars: Arc::clone(&a.vars)}
+        Dual {
+            real: a.real - b.real,
+            dual: &a.dual - &b.dual,
+            vars: Arc::clone(&a.vars),
+        }
+    } else {
+        let (x, y) = a.to_combined_vars(b);
+        x - y
     }
-    else { let (x, y) = a.to_combined_vars(b); x - y }
 });
 
-impl_op_ex!(* |a: &Dual, b: &Dual| -> Dual {
+impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
     if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual {real: a.real * b.real, dual: &a.dual * b.real + &b.dual * a.real, vars: Arc::clone(&a.vars)}
+        Dual {
+            real: a.real * b.real,
+            dual: &a.dual * b.real + &b.dual * a.real,
+            vars: Arc::clone(&a.vars),
+        }
+    } else {
+        let (x, y) = a.to_combined_vars(b);
+        x * y
     }
-    else { let (x, y) = a.to_combined_vars(b); x * y }
 });
 //
 // impl std::ops::MulAssign<DUal> for Dual {
@@ -179,7 +222,7 @@ impl num_traits::Pow<f64> for Dual {
             real: self.real.pow(power),
             vars: self.vars,
             dual: self.dual * power * self.real.pow(power - 1.0),
-        }
+        };
     }
 }
 
@@ -187,17 +230,17 @@ impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 
 impl num_traits::identities::One for Dual {
     fn one() -> Dual {
-        return Dual::new(1.0, Vec::new(), Vec::new())
+        return Dual::new(1.0, Vec::new(), Vec::new());
     }
 }
 
 impl num_traits::identities::Zero for Dual {
     fn zero() -> Dual {
-        return Dual::new(0.0, Vec::new(), Vec::new())
+        return Dual::new(0.0, Vec::new(), Vec::new());
     }
 
     fn is_zero(&self) -> bool {
-        return *self == Dual::new(0.0, Vec::new(), Vec::new())
+        return *self == Dual::new(0.0, Vec::new(), Vec::new());
     }
 }
 
@@ -216,7 +259,7 @@ impl PartialEq<Dual> for Dual {
 }
 
 impl PartialOrd<Dual> for Dual {
-    fn partial_cmp(&self, other: &Dual) -> Option<Ordering>{
+    fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
         if self.real == other.real {
             Some(Ordering::Equal)
         } else if self.real < other.real {
@@ -229,8 +272,10 @@ impl PartialOrd<Dual> for Dual {
 
 impl std::iter::Sum for Dual {
     fn sum<I>(iter: I) -> Self
-    where I: Iterator<Item = Dual> {
-        return iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
+    where
+        I: Iterator<Item = Dual>,
+    {
+        return iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x);
     }
 }
 
@@ -241,8 +286,19 @@ impl_op_ex!(% |a: &Dual, b: & Dual| -> Dual {
 
 impl Signed for Dual {
     fn abs(&self) -> Self {
-        if self.real > 0.0 { Dual{real: self.real, vars: Arc::clone(&self.vars), dual: -1.0 * &self.dual} }
-        else {Dual{real: -self.real, vars: Arc::clone(&self.vars), dual: -1.0 * &self.dual }}
+        if self.real > 0.0 {
+            Dual {
+                real: self.real,
+                vars: Arc::clone(&self.vars),
+                dual: -1.0 * &self.dual,
+            }
+        } else {
+            Dual {
+                real: -self.real,
+                vars: Arc::clone(&self.vars),
+                dual: -1.0 * &self.dual,
+            }
+        }
     }
 
     fn abs_sub(&self, other: &Self) -> Self {
@@ -254,13 +310,13 @@ impl Signed for Dual {
     }
 
     fn signum(&self) -> Self {
-       if self.real == 0.0 {
-           Dual::new(1.0, Vec::new(), Vec::new())
-       } else if self.real > 0.0 {
-           Dual::new(0.0, Vec::new(), Vec::new())
-       } else {
-           Dual::new(-1.0, Vec::new(), Vec::new())
-       }
+        if self.real == 0.0 {
+            Dual::new(1.0, Vec::new(), Vec::new())
+        } else if self.real > 0.0 {
+            Dual::new(0.0, Vec::new(), Vec::new())
+        } else {
+            Dual::new(-1.0, Vec::new(), Vec::new())
+        }
     }
 
     fn is_positive(&self) -> bool {
@@ -271,7 +327,6 @@ impl Signed for Dual {
         self.real < 0.0_f64
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
 pub enum DualOrF64 {
@@ -370,96 +425,98 @@ impl Dual {
         Ok(fs)
     }
 
-    fn __eq__(&self, other:DualOrF64) -> PyResult<bool> {
+    fn __eq__(&self, other: DualOrF64) -> PyResult<bool> {
         match other {
             DualOrF64::Dual(d) => Ok(d.eq(self)),
-            DualOrF64::F64(f) => Ok(Dual::new(f, Vec::new(), Vec::new()).eq(self))
+            DualOrF64::F64(f) => Ok(Dual::new(f, Vec::new(), Vec::new()).eq(self)),
         }
     }
 
-    fn __lt__(&self, other:DualOrF64) -> PyResult<bool> {
+    fn __lt__(&self, other: DualOrF64) -> PyResult<bool> {
         match other {
             DualOrF64::Dual(d) => Ok(self < &d),
-            DualOrF64::F64(f) => Ok(self < &f)
+            DualOrF64::F64(f) => Ok(self < &f),
         }
     }
 
-    fn __le__(&self, other:DualOrF64) -> PyResult<bool> {
+    fn __le__(&self, other: DualOrF64) -> PyResult<bool> {
         match other {
             DualOrF64::Dual(d) => Ok(self <= &d),
-            DualOrF64::F64(f) => Ok(self <= &f)
+            DualOrF64::F64(f) => Ok(self <= &f),
         }
     }
 
-    fn __gt__(&self, other:DualOrF64) -> PyResult<bool> {
+    fn __gt__(&self, other: DualOrF64) -> PyResult<bool> {
         match other {
             DualOrF64::Dual(d) => Ok(self > &d),
-            DualOrF64::F64(f) => Ok(self > &f)
+            DualOrF64::F64(f) => Ok(self > &f),
         }
     }
 
-    fn __ge__(&self, other:DualOrF64) -> PyResult<bool> {
+    fn __ge__(&self, other: DualOrF64) -> PyResult<bool> {
         match other {
             DualOrF64::Dual(d) => Ok(self >= &d),
-            DualOrF64::F64(f) => Ok(self >= &f)
+            DualOrF64::F64(f) => Ok(self >= &f),
         }
     }
 
-    fn __neg__(&self) -> Self {-self}
+    fn __neg__(&self) -> Self {
+        -self
+    }
 
     fn __add__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => self + d,
-            DualOrF64::F64(f) => self + f
+            DualOrF64::F64(f) => self + f,
         }
     }
 
     fn __radd__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => self + d,
-            DualOrF64::F64(f) => self + f
+            DualOrF64::F64(f) => self + f,
         }
     }
 
     fn __sub__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => self - d,
-            DualOrF64::F64(f) => self - f
+            DualOrF64::F64(f) => self - f,
         }
     }
 
     fn __rsub__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => d - self,
-            DualOrF64::F64(f) => f - self
+            DualOrF64::F64(f) => f - self,
         }
     }
 
     fn __mul__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => self * d,
-            DualOrF64::F64(f) => self * f
+            DualOrF64::F64(f) => self * f,
         }
     }
 
     fn __rmul__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => d * self,
-            DualOrF64::F64(f) => f * self
+            DualOrF64::F64(f) => f * self,
         }
     }
 
     fn __truediv__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => self / d,
-            DualOrF64::F64(f) => self / f
+            DualOrF64::F64(f) => self / f,
         }
     }
 
     fn __rtruediv__(&self, other: DualOrF64) -> Self {
         match other {
             DualOrF64::Dual(d) => d / self,
-            DualOrF64::F64(f) => f / self
+            DualOrF64::F64(f) => f / self,
         }
     }
 
@@ -487,7 +544,6 @@ impl Dual {
     }
 }
 
-
 // impl num_traits::Num for Dual {
 //
 //     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
@@ -514,11 +570,29 @@ impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&
 // });
 
 // Subtraction
-impl_op_ex!(- |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real - b, dual: a.dual.clone()} });
-impl_op_ex!(- |a: &f64, b: &Dual| -> Dual { Dual {vars: Arc::clone(&b.vars), real: a - b.real, dual: -(b.dual.clone())} });
+impl_op_ex!(-|a: &Dual, b: &f64| -> Dual {
+    Dual {
+        vars: Arc::clone(&a.vars),
+        real: a.real - b,
+        dual: a.dual.clone(),
+    }
+});
+impl_op_ex!(-|a: &f64, b: &Dual| -> Dual {
+    Dual {
+        vars: Arc::clone(&b.vars),
+        real: a - b.real,
+        dual: -(b.dual.clone()),
+    }
+});
 
 // multiplication
-impl_op_ex_commutative!(* |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real * b, dual: *b * &a.dual} });
+impl_op_ex_commutative!(*|a: &Dual, b: &f64| -> Dual {
+    Dual {
+        vars: Arc::clone(&a.vars),
+        real: a.real * b,
+        dual: *b * &a.dual,
+    }
+});
 
 // division
 impl_op_ex!(/ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: &a.dual / b} });
@@ -541,7 +615,7 @@ impl PartialEq<Dual> for f64 {
 }
 
 impl PartialOrd<f64> for Dual {
-    fn partial_cmp(&self, other: &f64) -> Option<Ordering>{
+    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
         if self.real == *other {
             Some(Ordering::Equal)
         } else if self.real < *other {
@@ -553,7 +627,7 @@ impl PartialOrd<f64> for Dual {
 }
 
 impl PartialOrd<Dual> for f64 {
-    fn partial_cmp(&self, other: &Dual) -> Option<Ordering>{
+    fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
         if *self == other.real {
             Some(Ordering::Equal)
         } else if *self < other.real {
@@ -564,20 +638,17 @@ impl PartialOrd<Dual> for f64 {
     }
 }
 
-
-
-
-
 pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
     // Consumes two one dimensional arrays and produces a scalar value of their dot product.
-    let z = a1.into_iter().zip(a2.into_iter()).map(|(x, y)| x * y).collect::<Vec<Dual>>();
-    return z.into_iter().sum::<Dual>()
+    let z = a1
+        .into_iter()
+        .zip(a2.into_iter())
+        .map(|(x, y)| x * y)
+        .collect::<Vec<Dual>>();
+    return z.into_iter().sum::<Dual>();
 }
 
-
-
 // UNIT TESTS
-
 
 #[test]
 fn clone_arc() {
@@ -606,12 +677,20 @@ fn new_dual() {
 #[test]
 #[should_panic]
 fn new_dual_panic() {
-    Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]), Vec::from([1.0]));
+    Dual::new(
+        2.3,
+        Vec::from([String::from("a"), String::from("b")]),
+        Vec::from([1.0]),
+    );
 }
 
 #[test]
 fn zero_init() {
-    let d = Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]), Vec::new());
+    let d = Dual::new(
+        2.3,
+        Vec::from([String::from("a"), String::from("b")]),
+        Vec::new(),
+    );
     for (_, val) in d.dual.indexed_iter() {
         assert!(*val == 1.0)
     }
@@ -619,7 +698,11 @@ fn zero_init() {
 
 #[test]
 fn negate() {
-    let d = Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]), Vec::from([2., -1.4]));
+    let d = Dual::new(
+        2.3,
+        Vec::from([String::from("a"), String::from("b")]),
+        Vec::from([2., -1.4]),
+    );
     let d2 = -d.clone();
     assert!(d2.real == -2.3);
     assert!(Arc::ptr_eq(&d.vars, &d2.vars));
@@ -641,63 +724,133 @@ fn eq_ne() {
     assert!(d != Dual::new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])));
     assert!(d != Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])));
     // Dual - Dual (missing Vars are zero and upcasted)
-    assert!(d == Dual::new(2.0, Vec::from([String::from("a"), String::from("b")]), Vec::from([2.3, 0.0])));
+    assert!(
+        d == Dual::new(
+            2.0,
+            Vec::from([String::from("a"), String::from("b")]),
+            Vec::from([2.3, 0.0])
+        )
+    );
 }
 
 #[test]
 fn add_f64() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = 10.0 + d1 + 15.0;
-    let expected = Dual::new(26.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let expected = Dual::new(
+        26.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     assert_eq!(result, expected)
 }
 
 #[test]
 fn add() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
-    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
-    let expected = Dual::new(3.0, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![1.0, 2.0, 3.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
+    let d2 = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v2".to_string()],
+        vec![0.0, 3.0],
+    );
+    let expected = Dual::new(
+        3.0,
+        vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
+        vec![1.0, 2.0, 3.0],
+    );
     let result = d1 + d2;
     assert_eq!(result, expected)
 }
 
 #[test]
 fn sub_f64() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
-    let result = (10.0 - d1) -15.0;
-    let expected = Dual::new(-6.0, vec!["v0".to_string(), "v1".to_string()], vec![-1.0, -2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
+    let result = (10.0 - d1) - 15.0;
+    let expected = Dual::new(
+        -6.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![-1.0, -2.0],
+    );
     assert_eq!(result, expected)
 }
 
 #[test]
 fn sub() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
-    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
-    let expected = Dual::new(-1.0, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![1.0, 2.0, -3.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
+    let d2 = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v2".to_string()],
+        vec![0.0, 3.0],
+    );
+    let expected = Dual::new(
+        -1.0,
+        vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
+        vec![1.0, 2.0, -3.0],
+    );
     let result = d1 - d2;
     assert_eq!(result, expected)
 }
 
 #[test]
 fn mul_f64() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = 10.0 * d1 * 2.0;
-    let expected = Dual::new(20.0, vec!["v0".to_string(), "v1".to_string()], vec![20.0, 40.0]);
+    let expected = Dual::new(
+        20.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![20.0, 40.0],
+    );
     assert_eq!(result, expected)
 }
 
 #[test]
 fn mul() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
-    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
-    let expected = Dual::new(2.0, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![2.0, 4.0, 3.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
+    let d2 = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v2".to_string()],
+        vec![0.0, 3.0],
+    );
+    let expected = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
+        vec![2.0, 4.0, 3.0],
+    );
     let result = d1 * d2;
     assert_eq!(result, expected)
 }
 
 #[test]
 fn inv() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = d1.clone() * d1.pow(-1.0);
     let expected = Dual::new(1.0, vec![], vec![]);
     assert_eq!(result, expected)
@@ -705,23 +858,43 @@ fn inv() {
 
 #[test]
 fn abs() {
-    let d1 = Dual::new(-2.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        -2.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = d1.abs();
-    let expected = Dual::new(2.0, vec!["v0".to_string(), "v1".to_string()], vec![-1.0, -2.0]);
+    let expected = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![-1.0, -2.0],
+    );
     assert_eq!(result, expected)
 }
 
 #[test]
 fn div_f64() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = d1 / 2.0;
-    let expected = Dual::new(0.5, vec!["v0".to_string(), "v1".to_string()], vec![0.5, 1.0]);
+    let expected = Dual::new(
+        0.5,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![0.5, 1.0],
+    );
     assert_eq!(result, expected)
 }
 
 #[test]
 fn f64_div() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = 2.0 / d1.clone();
     let expected = Dual::new(2.0, vec![], vec![]) / d1;
     assert_eq!(result, expected)
@@ -729,16 +902,32 @@ fn f64_div() {
 
 #[test]
 fn div() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
-    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![0.0, 3.0]);
-    let expected = Dual::new(0.5, vec!["v0".to_string(), "v1".to_string(), "v2".to_string()], vec![0.5, 1.0, -0.75]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
+    let d2 = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v2".to_string()],
+        vec![0.0, 3.0],
+    );
+    let expected = Dual::new(
+        0.5,
+        vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
+        vec![0.5, 1.0, -0.75],
+    );
     let result = d1 / d2;
     assert_eq!(result, expected)
 }
 
 #[test]
 fn ord() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     assert!(d1 < 2.0);
     assert!(d1 > 0.5);
     assert!(d1 <= 1.0);
@@ -747,7 +936,11 @@ fn ord() {
     assert!(1.0 >= d1);
     assert!(2.0 > d1);
     assert!(0.5 < d1);
-    let d2 = Dual::new(2.0, vec!["v0".to_string(), "v2".to_string()], vec![1.0, 2.0]);
+    let d2 = Dual::new(
+        2.0,
+        vec!["v0".to_string(), "v2".to_string()],
+        vec![1.0, 2.0],
+    );
     assert!(d2 > d1);
     assert!(d1 < d2);
     let d3 = Dual::new(1.0, vec!["v3".to_string()], vec![10.0]);
@@ -757,17 +950,29 @@ fn ord() {
 
 #[test]
 fn exp() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = d1.exp();
     assert!(Arc::ptr_eq(&d1.vars, &result.vars));
     let c = 1.0_f64.exp();
-    let expected = Dual::new(c, vec!["v0".to_string(), "v1".to_string()], vec![1.0 * c, 2.0* c]);
+    let expected = Dual::new(
+        c,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0 * c, 2.0 * c],
+    );
     assert_eq!(result, expected);
 }
 
 #[test]
 fn log() {
-    let d1 = Dual::new(1.0, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+    let d1 = Dual::new(
+        1.0,
+        vec!["v0".to_string(), "v1".to_string()],
+        vec![1.0, 2.0],
+    );
     let result = d1.log();
     assert!(Arc::ptr_eq(&d1.vars, &result.vars));
     let c = 1.0_f64.ln();

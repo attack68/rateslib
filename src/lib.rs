@@ -4,15 +4,16 @@ mod tests;
 pub mod dual;
 // pub mod interpolate;
 // pub mod point;
-use dual::dual1::{Dual};
+use dual::dual1::Dual;
 use dual::linalg::dsolve;
-use numpy::{PyArray, ToPyArray, PyArray1, PyArray2, PyReadonlyArray2, PyReadonlyArray1, IntoPyArray};
-use ndarray::{Array1, Array, arr1};
+use ndarray::{arr1, Array, Array1};
+use numpy::{
+    IntoPyArray, PyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, ToPyArray,
+};
 // use point::{PointVec, Dual};
 
 // use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
-
 
 // wrapper of `axpy`
 #[pyfunction]
@@ -22,9 +23,18 @@ fn dsolve_py<'py>(
     a: PyReadonlyArray2<'py, Dual>,
     b: PyReadonlyArray1<'py, Dual>,
 ) -> &'py PyArray1<Dual> {
+    println!("reading a as array");
     let a = a.as_array();
+    println!("reading b as array");
     let b = b.as_array();
-    b.into_pyarray(py)
+    println!("constructing c as array");
+    let c = vec![
+        Dual::new(2.0, Vec::new(), Vec::new()),
+        Dual::new(3.5, vec!["x".to_string()], vec![2.5]),
+    ]
+    .into_pyarray(py);
+    println!("returning c");
+    c
     // let z = dsolve(&a, &b, allow_lsq);
     // z.to_pyarray(py)
 }
