@@ -244,18 +244,10 @@ fn solve_upper_1d(u: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
 
 fn dsolve21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     let (p, l, u, q) = pluq_decomp(&a.view());
-    println!("P:\n {:?}", p);
-    println!("L: {:?}", l);
-    println!("U: {:?}", u);
-    println!("Q: {:?}", q);
     let pb = fdmul21_(&p.view(), &b.view());
-    println!("Pb: {:?}", pb);
     let z = solve_lower_1d(&l.view(), &pb.view());
-    println!("z: {:?}", z);
     let y = solve_upper_1d(&u.view(), &z.view());
-    println!("y: {:?}", y);
     let x = fdmul21_(&q.view(), &y.view());
-    println!("x: {:?}", x);
     x
 }
 
