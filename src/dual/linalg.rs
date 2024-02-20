@@ -1,13 +1,11 @@
 use crate::dual::dual1::Dual;
 use ndarray::linalg::Dot;
 use ndarray::prelude::*;
-use ndarray::{ArrayBase, Zip};
+use ndarray::{Zip};
 // use ndarray_linalg::Solve;
 use num_traits::{Num, Signed};
 use std::cmp::PartialOrd;
 // use std::iter::Sum;
-use std::ops::Mul;
-use std::sync::Arc;
 
 pub fn dmul11_(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
     if a.len() != b.len() {
@@ -68,7 +66,7 @@ fn dmul21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     }
     let mut out = Array1::zeros(b.len_of(Axis(0)));
     for r in 0..a.len_of(Axis(0)) {
-        out[[r]] = dmul11_(&a.row(r), &b)
+        out[[r]] = dmul11_(&a.row(r), b)
     }
     out
 }
@@ -79,7 +77,7 @@ fn fdmul21_(a: &ArrayView2<f64>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     }
     let mut out = Array1::zeros(b.len_of(Axis(0)));
     for r in 0..a.len_of(Axis(0)) {
-        out[[r]] = fdmul11_(&a.row(r), &b)
+        out[[r]] = fdmul11_(&a.row(r), b)
     }
     out
 }
@@ -123,29 +121,29 @@ where
     (vi.1 / n, vi.1 % n)
 }
 
-fn partial_pivot_matrix<T>(A: &Array2<T>) -> (Array2<i32>, Array2<T>)
+fn partial_pivot_matrix<T>(a: &Array2<T>) -> (Array2<i32>, Array2<T>)
 where
     T: Signed + Num + PartialOrd + Clone,
 {
     // pivot square matrix
-    let n = A.len_of(Axis(0));
-    let mut P: Array2<i32> = Array::eye(n);
-    let mut Pa = A.to_owned(); // initialise PA and Original (or)
+    let n = a.len_of(Axis(0));
+    let mut p: Array2<i32> = Array::eye(n);
+    let mut pa = a.to_owned(); // initialise PA and Original (or)
                                // let Or = A.to_owned();
     for j in 0..n {
-        let k = argabsmax(Pa.slice(s![j.., j])) + j;
+        let k = argabsmax(pa.slice(s![j.., j])) + j;
         if j != k {
             // define row swaps j <-> k  (note that k > j by definition)
-            let (mut Pt, mut Pb) = P.slice_mut(s![.., ..]).split_at(Axis(0), k);
-            let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
+            let (mut pt, mut pb) = p.slice_mut(s![.., ..]).split_at(Axis(0), k);
+            let (r1, r2) = (pt.row_mut(j), pb.row_mut(0));
             Zip::from(r1).and(r2).for_each(std::mem::swap);
 
-            let (mut Pt, mut Pb) = Pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
-            let (r1, r2) = (Pt.row_mut(j), Pb.row_mut(0));
+            let (mut pt, mut pb) = pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
+            let (r1, r2) = (pt.row_mut(j), pb.row_mut(0));
             Zip::from(r1).and(r2).for_each(std::mem::swap);
         }
     }
-    (P, Pa)
+    (p, pa)
 }
 
 fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
@@ -166,15 +164,15 @@ where
     Zip::from(c1).and(c2).for_each(std::mem::swap);
 }
 
-fn complete_pivot_matrix<T>(A: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
+fn complete_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
 where
     T: Signed + Num + PartialOrd + Clone,
 {
     // pivot square matrix
-    let n = A.len_of(Axis(0));
+    let n = a.len_of(Axis(0));
     let mut p: Array2<f64> = Array::eye(n);
     let mut q: Array2<f64> = Array::eye(n);
-    let mut at = A.to_owned();
+    let mut at = a.to_owned();
 
     for j in 0..n {
         // iterate diagonally through
@@ -207,7 +205,7 @@ fn pluq_decomp(a: &ArrayView2<Dual>) -> (Array2<f64>, Array2<Dual>, Array2<Dual>
     let n: usize = a.len_of(Axis(0));
     let mut l: Array2<Dual> = Array2::zeros((n, n));
     let mut u: Array2<Dual> = Array2::zeros((n, n));
-    let (p, q, paq) = complete_pivot_matrix(&a);
+    let (p, q, paq) = complete_pivot_matrix(a);
 
     let one = Dual::new(1.0, Vec::new(), Vec::new());
     for j in 0..n {
@@ -262,11 +260,11 @@ fn dsolve21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
 
 pub fn dsolve(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>, allow_lsq: bool) -> Array1<Dual> {
     if allow_lsq {
-        let a_ = dmul22_(&a.t(), &a);
-        let b_ = dmul21_(&a.t(), &b);
+        let a_ = dmul22_(&a.t(), a);
+        let b_ = dmul21_(&a.t(), b);
         dsolve21_(&a_.view(), &b_.view())
     } else {
-        dsolve21_(&a, &b)
+        dsolve21_(a, b)
     }
 }
 
@@ -278,7 +276,7 @@ pub fn dsolve(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>, allow_lsq: bool) -> Ar
 
 fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
     // used rather than equality for float numbers
-    return (a-b).abs() < abs_tol.unwrap_or(1e-8)
+    (a-b).abs() < abs_tol.unwrap_or(1e-8)
 }
 
 

@@ -5,11 +5,8 @@ pub mod dual;
 // pub mod interpolate;
 // pub mod point;
 use dual::dual1::Dual;
-use dual::linalg::{dmul11_, dsolve};
-use ndarray::{arr1, Array, Array1};
-use numpy::{
-    IntoPyArray, PyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, ToPyArray,
-};
+use dual::linalg::{dsolve};
+use ndarray::{Array1};
 // use point::{PointVec, Dual};
 
 // use pyo3::exceptions::PyIndexError;
@@ -18,7 +15,7 @@ use pyo3::prelude::*;
 // wrapper of `axpy`
 #[pyfunction]
 #[pyo3(name = "dsolve")]
-fn dsolve_py<'py>(py: Python<'py>, a: Vec<Dual>, b: Vec<Dual>, allow_lsq: bool) -> Vec<Dual> {
+fn dsolve_py(py: Python<'_>, a: Vec<Dual>, b: Vec<Dual>, allow_lsq: bool) -> Vec<Dual> {
     // &'py PyArray1<Dual>
     let a1 = Array1::from_vec(a);
     let b_ = Array1::from_vec(b);

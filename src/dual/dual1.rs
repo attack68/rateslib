@@ -1,20 +1,14 @@
-use auto_ops::{impl_op, impl_op_commutative, impl_op_ex, impl_op_ex_commutative};
+use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
-use ndarray::{arr1, Array, Array1};
+use ndarray::{Array, Array1};
 use num_traits;
 use num_traits::{Num, Pow, Signed};
-use numpy::{Element, PyArray, PyArray1, PyArrayDescr, ToPyArray};
+use numpy::{Element, PyArray1, PyArrayDescr, ToPyArray};
 use std::cmp::Ordering;
-use std::num::ParseFloatError;
-use std::ops::{Neg, Rem};
 use std::sync::Arc;
 use std::fmt;
 
-use pyo3::conversion::FromPyObject;
-use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
-use pyo3::types::PyFloat;
-
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -147,7 +141,7 @@ impl fmt::Debug for Dual {
 
 impl Num for Dual {
     type FromStrRadixErr = String;
-    fn from_str_radix(src: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+    fn from_str_radix(_src: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         Err("No implementation for sting radix for Dual".to_string())
     }
 }
@@ -221,11 +215,11 @@ impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
 impl num_traits::Pow<f64> for Dual {
     type Output = Dual;
     fn pow(self, power: f64) -> Dual {
-        return Dual {
+        Dual {
             real: self.real.pow(power),
             vars: self.vars,
             dual: self.dual * power * self.real.pow(power - 1.0),
-        };
+        }
     }
 }
 
@@ -233,17 +227,17 @@ impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 
 impl num_traits::identities::One for Dual {
     fn one() -> Dual {
-        return Dual::new(1.0, Vec::new(), Vec::new());
+        Dual::new(1.0, Vec::new(), Vec::new())
     }
 }
 
 impl num_traits::identities::Zero for Dual {
     fn zero() -> Dual {
-        return Dual::new(0.0, Vec::new(), Vec::new());
+        Dual::new(0.0, Vec::new(), Vec::new())
     }
 
     fn is_zero(&self) -> bool {
-        return *self == Dual::new(0.0, Vec::new(), Vec::new());
+        *self == Dual::new(0.0, Vec::new(), Vec::new())
     }
 }
 
@@ -278,7 +272,7 @@ impl std::iter::Sum for Dual {
     where
         I: Iterator<Item = Dual>,
     {
-        return iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x);
+        iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
     }
 }
 
@@ -348,7 +342,7 @@ pub enum DualOrF64 {
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
-    fn get_dtype<'py>(py: Python<'py>) -> &'py PyArrayDescr {
+    fn get_dtype(py: Python<'_>) -> &PyArrayDescr {
         PyArrayDescr::object(py)
     }
 }
@@ -380,15 +374,15 @@ impl Dual {
     #[new]
     pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         let new_dual;
-        if dual.len() != 0 && vars.len() != dual.len() {
+        if !dual.is_empty() && vars.len() != dual.len() {
             panic!("`dual` must have same length as `vars` or have zero length.")
-        } else if dual.len() == 0 && vars.len() > 0 {
+        } else if dual.is_empty() && !vars.is_empty() {
             new_dual = Array::ones(vars.len());
         } else {
             new_dual = Array::from_vec(dual);
         }
         Self {
-            real: real,
+            real,
             vars: Arc::new(IndexSet::from_iter(vars)),
             dual: new_dual,
         }
@@ -607,13 +601,13 @@ impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new(), Vec::new()
 
 impl PartialEq<f64> for Dual {
     fn eq(&self, other: &f64) -> bool {
-        return Dual::new(*other, [].to_vec(), [].to_vec()) == *self;
+        Dual::new(*other, [].to_vec(), [].to_vec()) == *self
     }
 }
 
 impl PartialEq<Dual> for f64 {
     fn eq(&self, other: &Dual) -> bool {
-        return Dual::new(*self, [].to_vec(), [].to_vec()) == *other;
+        Dual::new(*self, [].to_vec(), [].to_vec()) == *other
     }
 }
 
@@ -645,10 +639,10 @@ pub fn arr1_dot(a1: Array1<Dual>, a2: Array1<Dual>) -> Dual {
     // Consumes two one dimensional arrays and produces a scalar value of their dot product.
     let z = a1
         .into_iter()
-        .zip(a2.into_iter())
+        .zip(a2)
         .map(|(x, y)| x * y)
         .collect::<Vec<Dual>>();
-    return z.into_iter().sum::<Dual>();
+    z.into_iter().sum::<Dual>()
 }
 
 // UNIT TESTS

@@ -1,14 +1,14 @@
 pub mod dual;
-use dual::dual1::{Dual, DualOrF64};
+use dual::dual1::{Dual};
 // use dual::linalg::pivot_matrix;
-use ndarray::{arr2, s, Array2, Axis, Zip};
-use ndarray::{Array, Array1, Dimension};
+// use ndarray::{arr2, s, Array2, Axis, Zip};
+// use ndarray::{Array, Array1, Dimension};
 
 fn main() {
     let d1 = Dual::new(
         1.1,
         Vec::from_iter((0..1000).map(|x| x.to_string())),
-        Vec::from_iter((0..1000).map(|x| f64::from(x))),
+        Vec::from_iter((0..1000).map(f64::from)),
     );
 
     use std::time::Instant;
@@ -16,9 +16,8 @@ fn main() {
 
     // Code block to measure.
     {
-        for i in 0..100000 {
-            let y;
-            y = &d1 + &d1;
+        for _i in 0..100000 {
+            let _y = &d1 + &d1;
         }
     }
 
