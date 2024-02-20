@@ -8,19 +8,16 @@ use std::cmp::Ordering;
 use std::num::ParseFloatError;
 use std::ops::{Neg, Rem};
 use std::sync::Arc;
+use std::fmt;
 
 use pyo3::conversion::FromPyObject;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::types::PyFloat;
 
-// fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
-//     // used rather than equality for float numbers
-//     return (a-b).abs() < abs_tol.unwrap_or(1e-8)
-// }
 
 #[pyclass]
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 pub struct Dual {
     pub real: f64,
     pub vars: Arc<IndexSet<String>>,
@@ -139,6 +136,12 @@ impl Dual {
             vars: Arc::clone(&self.vars),
             dual: (1.0 / self.real) * &self.dual,
         }
+    }
+}
+
+impl fmt::Debug for Dual {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.real)
     }
 }
 

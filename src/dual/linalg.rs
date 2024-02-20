@@ -49,6 +49,19 @@ fn fdmul22_(a: &ArrayView2<f64>, b: &ArrayView2<Dual>) -> Array2<Dual> {
     out
 }
 
+fn dfmul22_(a: &ArrayView2<Dual>, b: &ArrayView2<f64>) -> Array2<Dual> {
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
+    for r in 0..a.len_of(Axis(0)) {
+        for c in 0..b.len_of(Axis(1)) {
+            out[[r, c]] = fdmul11_(&b.column(c), &a.row(r))
+        }
+    }
+    out
+}
+
 fn dmul21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
         panic!("Columns of LHS do not match rows of RHS.")
@@ -226,17 +239,24 @@ fn solve_lower_1d(l: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
 }
 
 fn solve_upper_1d(u: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
-    solve_lower_1d(&u.t(), &b.slice(s![..;-1]))
-        .slice(s![..;-1])
-        .to_owned()
+    // reverse all dimensions and solve as lower triangular
+    solve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1])).slice(s![..;-1]).to_owned()
 }
 
 fn dsolve21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     let (p, l, u, q) = pluq_decomp(&a.view());
+    println!("P:\n {:?}", p);
+    println!("L: {:?}", l);
+    println!("U: {:?}", u);
+    println!("Q: {:?}", q);
     let pb = fdmul21_(&p.view(), &b.view());
+    println!("Pb: {:?}", pb);
     let z = solve_lower_1d(&l.view(), &pb.view());
+    println!("z: {:?}", z);
     let y = solve_upper_1d(&u.view(), &z.view());
+    println!("y: {:?}", y);
     let x = fdmul21_(&q.view(), &y.view());
+    println!("x: {:?}", x);
     x
 }
 
@@ -251,6 +271,17 @@ pub fn dsolve(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>, allow_lsq: bool) -> Ar
 }
 
 // UNIT TESTS
+
+//
+
+//
+
+fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
+    // used rather than equality for float numbers
+    return (a-b).abs() < abs_tol.unwrap_or(1e-8)
+}
+
+
 
 #[test]
 fn argabsmx_i32() {
@@ -503,20 +534,67 @@ fn upper_tri_dual() {
 #[test]
 fn dsolve_dual() {
     let a: Array2<Dual> = Array2::eye(2);
-    println!("{:?}", a);
-    assert_eq!(1, 2);
     let b: Array1<Dual> = arr1(&[
         Dual::new(2.0, vec!["x".to_string()], vec![1.0]),
         Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
     ]);
     let result = dsolve(&a.view(), &b.view(), false);
-    println!("{:?}", result);
     let expected = arr1(&[
         Dual::new(2.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]),
         Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
     ]);
     assert_eq!(result, expected);
     assert!(Arc::ptr_eq(&result[0].vars, &result[1].vars));
+}
+
+#[test]
+fn pluq_dual_sparse() {
+    fn d (f: f64) -> Dual {
+        Dual::new(f, Vec::new(), Vec::new())
+    }
+
+    let a = arr2(&[
+        [d(24.), d(-36.), d(12.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.)],
+        [d(1.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.)],
+        [d(0.), d(0.25), d(0.583333333333), d(0.16666666666), d(0.), d(0.), d(0.), d(0.), d(0.)],
+        [d(0.), d(0.), d(0.16666666666), d(0.66666666666), d(0.16666666666), d(0.), d(0.), d(0.), d(0.)],
+        [d(0.), d(0.), d(0.), d(0.16666666666), d(0.66666666666), d(0.16666666666), d(0.), d(0.), d(0.)],
+        [d(0.), d(0.), d(0.), d(0.), d(0.16666666666), d(0.66666666666), d(0.16666666666), d(0.), d(0.)],
+        [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.16666666666), d(0.583333333333), d(0.25), d(0.)],
+        [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(1.)],
+        [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(12.), d(-36.), d(24.)],
+
+    ]);
+    let (p, l , u, q) = pluq_decomp(&a.view());
+
+    let pa = fdmul22_(&p.view(), &a.view());
+    let paq = dfmul22_(&pa.view(), &q.view());
+
+    let lu = dmul22_(&l.view(), &u.view());
+
+    let v: Vec<bool> = paq.into_raw_vec().iter()
+                          .zip(lu.into_raw_vec().iter())
+                          .map(|(x,y)| is_close(&x.real, &y.real, None))
+                          .collect();
+    assert!(v.iter().all(|x| *x));
+}
+
+#[test]
+fn pluq_dual_sparse_3x3() {
+    fn d (f: f64) -> Dual {
+        Dual::new(f, Vec::new(), Vec::new())
+    }
+
+    let a = arr2(&[
+        [d(0.), d(2.), d(1.)],
+        [d(1.), d(2.), d(4.)],
+        [d(5.), d(3.0), d(0.)],
+    ]);
+
+    let b = arr1(&[d(1.), d(2.), d(3.)]);
+    let expected= arr1(&[d(0.36363636363636365), d(0.393939393939394), d(0.2121212121212121)]);
+    let result = dsolve(&a.view(), &b.view(), false);
+    assert_eq!(expected, result)
 }
 
 // #[test]
