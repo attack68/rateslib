@@ -783,8 +783,8 @@ def test_sparse_solve(A_sparse):
 
 
 def test_multi_dim_solve():
-    A = np.array([[Dual(0.5), Dual(2, "y")], [Dual(2.5, "y"), Dual(4)]])
-    b = np.array([[Dual(6.5), Dual(9, "z")], [Dual(14.5, "y"), Dual(21, "z")]])
+    A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
+    b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])
 
     result = dual_solve(A, b)
     assert np.all(b == np.matmul(A, result))

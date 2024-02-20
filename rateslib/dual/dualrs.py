@@ -1,4 +1,4 @@
-from rateslibrs import dsolve
+from rateslibrs import Dual, dsolve
 import numpy as np
 
 

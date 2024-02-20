@@ -5,6 +5,7 @@ use ndarray::{Zip};
 // use ndarray_linalg::Solve;
 use num_traits::{Num, Signed};
 use std::cmp::PartialOrd;
+use std::sync::Arc;
 // use std::iter::Sum;
 
 pub fn dmul11_(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
