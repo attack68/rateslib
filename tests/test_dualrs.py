@@ -5,7 +5,7 @@ from packaging import version
 
 import context
 
-from rateslibrs import Dual, dsolve
+from rateslibrs import Dual, dsolve, dual_list
 
 
 @pytest.fixture()
@@ -324,6 +324,20 @@ def test_dsolve():
         [Dual(0.0, [], []), Dual(1.0, [], [])]
     ])
     b = np.array([Dual(2.0, ["x"], [1.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
-    result = np.array(dsolve(a, b))
-    expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
-    assert result == expected
+
+    result = dsolve(a, b)
+    expected = np.array([Dual(2.0, [], []), Dual(5.0, [], [])])
+    assert np.all(result == expected)
+
+
+def test_dual_list():
+    from rateslib.dual.dualrs import dual_solve
+    a = np.array([
+        [Dual(1.0, [], []), Dual(0.0, [], [])],
+        [Dual(0.0, [], []), Dual(1.0, [], [])]
+    ])  # 1D array of
+    b = np.array([Dual(2.0, ["x"], [1.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
+
+    result = dual_solve(a, b)
+
+    assert np.all(result == 1.0)

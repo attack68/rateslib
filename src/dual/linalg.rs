@@ -9,7 +9,7 @@ use std::cmp::PartialOrd;
 use std::ops::Mul;
 use std::sync::Arc;
 
-fn dmul11_(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
+pub fn dmul11_(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
     if a.len() != b.len() {
         panic!("Lengths of LHS and RHS do not match.")
     }
@@ -240,13 +240,13 @@ fn dsolve21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
     x
 }
 
-pub fn dsolve(a: &Array2<Dual>, b: &Array1<Dual>, allow_lsq: bool) -> Array1<Dual> {
+pub fn dsolve(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>, allow_lsq: bool) -> Array1<Dual> {
     if allow_lsq {
-        let a_ = dmul22_(&a.t(), &a.view());
-        let b_ = dmul21_(&a.t(), &b.view());
+        let a_ = dmul22_(&a.t(), &a);
+        let b_ = dmul21_(&a.t(), &b);
         dsolve21_(&a_.view(), &b_.view())
     } else {
-        dsolve21_(&a.view(), &b.view())
+        dsolve21_(&a, &b)
     }
 }
 
@@ -503,11 +503,13 @@ fn upper_tri_dual() {
 #[test]
 fn dsolve_dual() {
     let a: Array2<Dual> = Array2::eye(2);
+    println!("{:?}", a);
+    assert_eq!(1, 2);
     let b: Array1<Dual> = arr1(&[
         Dual::new(2.0, vec!["x".to_string()], vec![1.0]),
         Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
     ]);
-    let result = dsolve(&a, &b, false);
+    let result = dsolve(&a.view(), &b.view(), false);
     println!("{:?}", result);
     let expected = arr1(&[
         Dual::new(2.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]),

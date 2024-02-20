@@ -5,7 +5,7 @@ pub mod dual;
 // pub mod interpolate;
 // pub mod point;
 use dual::dual1::Dual;
-use dual::linalg::dsolve;
+use dual::linalg::{dmul11_, dsolve};
 use ndarray::{arr1, Array, Array1};
 use numpy::{
     IntoPyArray, PyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, ToPyArray,
@@ -18,27 +18,16 @@ use pyo3::prelude::*;
 // wrapper of `axpy`
 #[pyfunction]
 #[pyo3(name = "dsolve")]
-fn dsolve_py<'py>(
-    py: Python<'py>,
-    a: PyReadonlyArray2<'py, Dual>,
-    b: PyReadonlyArray1<'py, Dual>,
-) -> Vec<Dual> {  // &'py PyArray1<Dual>
-    println!("reading a as array");
-    //let a = a.as_array();
-    println!("reading b as array");
-    //let b = b.as_array();
-    println!("constructing c as array");
-    let c = arr1(&[
-        Dual::new(2.0, Vec::new(), Vec::new()),
-        Dual::new(5.0, Vec::new(), Vec::new()),
-    ]);
-            //.into_pyarray(py);
-    println!("returning c");
-    c.into_raw_vec()
-//     let parray = PyArray::from_array(py, &c);
-//     parray
-    // let z = dsolve(&a, &b, allow_lsq);
-    // z.to_pyarray(py)
+fn dsolve_py<'py>(py: Python<'py>, a: Vec<Dual>, b: Vec<Dual>, allow_lsq: bool) -> Vec<Dual> {
+    // &'py PyArray1<Dual>
+    let a1 = Array1::from_vec(a);
+    let b_ = Array1::from_vec(b);
+    let (r, c) = (a1.len() / b_.len(), b_.len());
+    let a2 = a1
+        .into_shape((r, c))
+        .expect("Inputs `a` and `b` for dual solve were incorrect shapes");
+    let out = dsolve(&a2.view(), &b_.view(), allow_lsq);
+    out.into_raw_vec()
 }
 
 #[pymodule]
