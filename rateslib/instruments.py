@@ -798,8 +798,8 @@ class BaseMixin:
 
 class Value(BaseMixin):
     """
-    A null instrument which can be used within a :class:`~rateslib.solver.Solver`
-    to directly parametrise a node.
+    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    to directly parametrise a *Curve* node, via some calculated value.
 
     Parameters
     ----------
@@ -809,14 +809,11 @@ class Value(BaseMixin):
     curves : Curve, LineCurve, str or list of such, optional
         A single :class:`~rateslib.curves.Curve`,
         :class:`~rateslib.curves.LineCurve` or id or a
-        list of such. A list defines the following curves in the order:
-
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg1``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg2``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+        list of such. Only uses the first *Curve* in a list.
+    convention : str, optional,
+        Day count convention used with certain ``metric``.
+    metric : str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+        Configures which value to extract from the *Curve*.
 
     Examples
     --------
@@ -837,11 +834,13 @@ class Value(BaseMixin):
         self,
         effective: datetime,
         convention: Union[str, NoInput] = NoInput(0),
+        metric: str = "curve_value",
         curves: Optional[Union[list, str, Curve]] = None,
     ):
         self.effective = effective
         self.curves = curves
         self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.metric = metric.lower()
 
     def rate(
         self,
@@ -849,30 +848,48 @@ class Value(BaseMixin):
         solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
-        metric: str = "curve_value",
+        metric: Union[str, NoInput] = NoInput(0),
     ):
         """
-        Return the forecasting :class:`~rateslib.curves.Curve` or
-        :class:`~rateslib.curves.LineCurve` value on the ``effective`` date of the
-        instrument.
+        Return a value derived from a *Curve*.
+
+        Parameters
+        ----------
+        curves : Curve, LineCurve, str or list of such
+            Uses only one *Curve*, the one given or the first in the list.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            Not used.
+        base : str, optional
+            Not used.
+        metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+            Configures which type of value to return from the applicable *Curve*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, NoInput(0), NoInput(0), "_"
         )
-        if metric.lower() == "curve_value":
+        metric = self.metric if metric is NoInput.blank else metric.lower()
+        if metric == "curve_value":
             return curves[0][self.effective]
-        elif metric.lower() == "cc_zero_rate":
+        elif metric == "cc_zero_rate":
             if curves[0]._base_type != "dfs":
                 raise TypeError("`curve` used with `metric`='cc_zero_rate' must be discount factor based.")
             dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
             _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
             return _
-        elif metric.lower() == "index_value":
+        elif metric == "index_value":
             if not isinstance(curves[0], IndexCurve):
                 raise TypeError("`curve` used with `metric`='index_value' must be type IndexCurve.")
             _ = curves[0].index_value(self.effective)
             return _
-        raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate'}.")
+        raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
 
     def npv(self, *args, **kwargs):
         raise NotImplementedError("`Value` instrument has no concept of NPV.")
