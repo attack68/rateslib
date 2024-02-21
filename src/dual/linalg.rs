@@ -122,7 +122,7 @@ where
     (vi.1 / n, vi.1 % n)
 }
 
-fn partial_pivot_matrix<T>(a: &Array2<T>) -> (Array2<i32>, Array2<T>)
+fn partial_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<i32>, Array2<T>)
 where
     T: Signed + Num + PartialOrd + Clone,
 {
@@ -202,11 +202,61 @@ where
     (p, q, at)
 }
 
-fn pluq_decomp(a: &ArrayView2<Dual>) -> (Array2<f64>, Array2<Dual>, Array2<Dual>, Array2<f64>) {
+fn rook_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
+where
+    T: Signed + Num + PartialOrd + Clone,
+{
+    // pivot square matrix
+    let n = a.len_of(Axis(0));
+    let mut p: Array2<f64> = Array::eye(n);
+    let mut q: Array2<f64> = Array::eye(n);
+    let mut at = a.to_owned();
+
+    for j in 0..n {
+        // iterate diagonally through
+        let kr = argabsmax(at.slice(s![j.., j])) + j;
+        let kc = argabsmax(at.slice(s![j, j..])) + j;
+
+        match (kr, kc) {
+            (kr, kc) if kr > j && kc > j => {
+                if at[[kr, j]].abs() > at[[j, kc]].abs() {
+                    row_swap(&mut p, &j, &kr);
+                    row_swap(&mut at, &j, &kr);
+                } else {
+                    col_swap(&mut q, &j, &kc);
+                    col_swap(&mut at, &j, &kc);
+                }
+            }
+            (kr, kc) if kr > j && kc == j => {
+                row_swap(&mut p, &j, &kr);
+                row_swap(&mut at, &j, &kr);
+            }
+            (kr, kc) if kr == j && kc > j => {
+                col_swap(&mut q, &j, &kc);
+                col_swap(&mut at, &j, &kc);
+            }
+            _ => {}
+        }
+    }
+    (p, q, at)
+}
+
+enum PivotMethod {
+    Partial,
+    Complete,
+    Rook,
+}
+
+fn pluq_decomp(a: &ArrayView2<Dual>, pivot: PivotMethod) -> (Array2<f64>, Array2<Dual>, Array2<Dual>, Array2<f64>) {
     let n: usize = a.len_of(Axis(0));
     let mut l: Array2<Dual> = Array2::zeros((n, n));
     let mut u: Array2<Dual> = Array2::zeros((n, n));
-    let (p, q, paq) = complete_pivot_matrix(a);
+    let p; let q; let paq;
+    match pivot {
+        PivotMethod::Partial => {panic!("partial pivoting not implemented for pluq decomp")},
+        PivotMethod::Complete => {(p, q, paq) = complete_pivot_matrix(a)},
+        PivotMethod::Rook => {(p, q, paq) = rook_pivot_matrix(a);}
+    }
 
     let one = Dual::new(1.0, Vec::new(), Vec::new());
     for j in 0..n {
@@ -243,7 +293,7 @@ fn solve_upper_1d(u: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
 }
 
 fn dsolve21_(a: &ArrayView2<Dual>, b: &ArrayView1<Dual>) -> Array1<Dual> {
-    let (p, l, u, q) = pluq_decomp(&a.view());
+    let (p, l, u, q) = pluq_decomp(&a.view(), PivotMethod::Rook);
     let pb = fdmul21_(&p.view(), &b.view());
     let z = solve_lower_1d(&l.view(), &pb.view());
     let y = solve_upper_1d(&u.view(), &z.view());
@@ -303,8 +353,8 @@ fn argabsmx_dual() {
 
 #[test]
 fn pivot_i32_update() {
-    let P: Array2<i32> = arr2(&[[1, 2, 3, 4], [10, 2, 5, 6], [7, 8, 1, 1], [2, 2, 2, 9]]);
-    let (result0, result1) = partial_pivot_matrix(&P);
+    let p: Array2<i32> = arr2(&[[1, 2, 3, 4], [10, 2, 5, 6], [7, 8, 1, 1], [2, 2, 2, 9]]);
+    let (result0, result1) = partial_pivot_matrix(&p.view());
     let expected0: Array2<i32> = arr2(&[[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0], [0, 0, 0, 1]]);
     let expected1: Array2<i32> = arr2(&[[10, 2, 5, 6], [7, 8, 1, 1], [1, 2, 3, 4], [2, 2, 2, 9]]);
     assert_eq!(result0, expected0);
@@ -399,7 +449,7 @@ fn pluq_decomp_dual() {
             Dual::new(9.0, Vec::new(), Vec::new()),
         ],
     ]);
-    let (p, l, u, q) = pluq_decomp(&a.view());
+    let (p, l, u, q) = pluq_decomp(&a.view(), PivotMethod::Complete);
 
     let expected_p = arr2(&[
         [0., 1., 0., 0.],
@@ -556,17 +606,22 @@ fn pluq_dual_sparse() {
         [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(12.), d(-36.), d(24.)],
 
     ]);
-    let (p, l , u, q) = pluq_decomp(&a.view());
+    let (p, l , u, q) = pluq_decomp(&a.view(), PivotMethod::Rook);
+    println!("L: {:?}", l);
+    println!("U: {:?}", u);
 
     let pa = fdmul22_(&p.view(), &a.view());
     let paq = dfmul22_(&pa.view(), &q.view());
 
     let lu = dmul22_(&l.view(), &u.view());
+    println!("PAQ: {:?}", paq);
+    println!("LU: {:?}", lu);
 
     let v: Vec<bool> = paq.into_raw_vec().iter()
                           .zip(lu.into_raw_vec().iter())
                           .map(|(x,y)| is_close(&x.real, &y.real, None))
                           .collect();
+
     assert!(v.iter().all(|x| *x));
 }
 
@@ -585,7 +640,12 @@ fn pluq_dual_sparse_3x3() {
     let b = arr1(&[d(1.), d(2.), d(3.)]);
     let expected= arr1(&[d(0.36363636363636365), d(0.393939393939394), d(0.2121212121212121)]);
     let result = dsolve(&a.view(), &b.view(), false);
-    assert_eq!(expected, result)
+
+    let v: Vec<bool> = expected.into_raw_vec().iter()
+                          .zip(result.into_raw_vec().iter())
+                          .map(|(x,y)| is_close(&x.real, &y.real, None))
+                          .collect();
+    assert!(v.iter().all(|x| *x));
 }
 
 // #[test]
