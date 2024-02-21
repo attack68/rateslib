@@ -166,9 +166,9 @@ Does *rateslib* ``solve`` curves relative to market prices?
 
 **Yes**, when a :class:`~rateslib.solver.Solver` is configured along with all the intended
 *Instruments* and their relevant *prices*.
-Multiple algorithms (*gradient descent, Gauss-Newton, Leveberg-Marquardt*) and stopping criteria
+Multiple algorithms (*gradient descent, Gauss-Newton, Levenberg-Marquardt*) and stopping criteria
 can be used within the optimization routine
-to simultaneously solve multiple *Curve* parameter.
+to simultaneously solve multiple *Curve* parameters.
 
 The *Solver* can even construct dependency chains, like sequentially building curves
 with dependencies to other desks on an investment bank trading floor, and internally manage all of

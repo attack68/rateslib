@@ -22,14 +22,6 @@ email contact through **rateslib@gmail.com**.
      - Description
      - Consideration
      - Timeframe
-   * - Coding Interest Rates
-     - Officially document this library's algorithms and release the book.
-     - Planned
-     - End 2023
-   * - Version 1.0
-     - Release the official first non-beta version of this library.
-     - Planned
-     - End 2023
    * - Vanilla FX options and volatility products
      - Adding option instruments and benchmark trades such as risk-reversals.
      - Highly likely (v2.0?)
@@ -53,7 +45,21 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-1.0.0 (Not released)
+1.1.0 (Not released)
+**********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Instruments
+     - Added argument ``metric`` to :class:`~rateslib.instruments.Value` so that specific *Curve* values derived
+       as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
+
+
+1.0.0 (1st Feb 2024)
 **********************
 
 .. list-table::

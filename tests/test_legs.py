@@ -238,7 +238,7 @@ class TestFloatLeg:
             id="estr",
         )
         from rateslib import Solver
-        solver = Solver(
+        Solver(
             curves=[curve],
             instruments=instruments,
             s=[
@@ -293,7 +293,6 @@ class TestFloatLeg:
             fixed_rate=3.922,
         )
         result = swap.leg2.fixings_table(curve)
-        expected = 1.0
         assert result.loc[dt(2024, 1, 10), "notional"] == 0.0
         assert abs(result.loc[dt(2024, 1, 11), "notional"] - 3006829846) < 1.0
         assert abs(result.loc[dt(2023, 12, 20), "rates"] - 3.901) < 0.001

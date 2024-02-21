@@ -17,22 +17,35 @@ The History and Context of Rateslib
 The foundations of *rateslib* is really the code library
 `Book IRDS3 <https://github.com/attack68/book_irds3>`_, which laid down
 basic principles and was a sandbox code environment for the
-publication *Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps
-(2022, 3rd Edition)*. Some of the code and algorithms also date back to the author's
-time trading IRSs as a market-maker between 2006 and 2017.
+publication `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_.
+Some of the code and algorithms also date back to the author's
+time trading IRSs as a market-maker between 2006 and 2017. The algorithms and mathematical
+code developments of *rateslib*
+are all characterised and explained in
+`Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455554>`_.
 
-.. image:: _static/thumb_ptirds3.png
-  :alt: Pricing and Trading Interest Rate Derivatives
-  :target: https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538
-  :width: 92
+.. container:: twocol
 
-The algorithms and mathematical work of *rateslib* is expected to be released in
-early 2024 under the working title of *Coding Interest Rates: FX, Swaps and Bonds*
+   .. container:: leftside40
 
-.. image:: _static/thumb_coding_2.png
-  :alt: Coding Interest Rates: FX, Swaps and Bonds
-  :target: https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538
-  :width: 92
+      .. image:: _static/thumb_coding_3.png
+         :alt: Coding Interest Rates: FX, Swaps and Bonds
+         :target: https://www.amazon.com/dp/0995455554
+         :width: 145
+         :align: center
+
+   .. container:: rightside60
+
+      .. image:: _static/thumb_ptirds3.png
+         :alt: Pricing and Trading Interest Rate Derivatives
+         :target: https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538
+         :width: 145
+         :align: center
+
+.. raw:: html
+
+   <div class="clear"></div>
+
 
 .. _pillars-doc:
 

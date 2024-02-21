@@ -28,7 +28,7 @@ class TestGradients:
 
         class SolverProxy(Gradients):
             variables = ["v1", "v2", "v3"]
-            r = [Dual(1.0, "v1"), Dual(3.0, ["v1", "v2", "v3"], [2.0, 1.0, -2.0])]
+            r = [Dual(1.0, ["v1"], []), Dual(3.0, ["v1", "v2", "v3"], [2.0, 1.0, -2.0])]
             _J = None
             instruments = [
                 [Inst(Dual2(1.0, "v1", [1.0], [[4.0]])), tuple(), {}],
@@ -127,7 +127,7 @@ def test_basic_solver(algo):
         algorithm=algo,
     )
     assert float(solver.g) < 1e-9
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
@@ -163,7 +163,7 @@ def test_solver_reiterate(algo):
     solver.iterate()
 
     # now check that a reiteration has resolved the curve
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
@@ -231,7 +231,7 @@ def test_basic_spline_solver():
         algorithm="gauss_newton",
     )
     assert float(solver.g) < 1e-12
-    assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.98992503575307, 0.9680377261843034, 0.9407048036486593]
     for i, key in enumerate(spline_curve.nodes.keys()):
         assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
@@ -287,7 +287,7 @@ def test_basic_solver_weights():
             func_tol=0.00085,
         )
     assert float(solver.g) < 0.00085
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
