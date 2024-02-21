@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod splines;
 pub mod dual;
 // pub mod interpolate;
 // pub mod point;
