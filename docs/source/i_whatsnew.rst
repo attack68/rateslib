@@ -64,6 +64,9 @@ email contact through **rateslib@gmail.com**.
        provide a more intuitive way to initialise.
    * - Instruments
      - Relabel the specification `sek_iirs` as `sek_iirs3`. :red:`Breaking change!`
+   * - Instruments
+     - Added argument ``metric`` to :class:`~rateslib.instruments.Value` so that specific *Curve* values derived
+       as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
 
 
 1.0.0 (1st Feb 2024)

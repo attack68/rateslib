@@ -78,7 +78,7 @@ def test_linear_interp(curve_style, expected, curve, line_curve):
         obj = curve
     else:
         obj = line_curve
-    assert obj[dt(2022, 3, 16)] == Dual(expected, ["v0", "v1"], np.array([0.5, 0.5]))
+    assert obj[dt(2022, 3, 16)] == Dual(expected, ["v0", "v1"], [0.5, 0.5])
 
 
 def test_log_linear_interp():
@@ -93,7 +93,7 @@ def test_log_linear_interp():
         ad=1,
     )
     val = exp((log(1.00) + log(0.99)) / 2)
-    assert curve[dt(2022, 3, 16)] == Dual(val, ["v0", "v1"], np.array([0.49749372, 0.50251891]))
+    assert curve[dt(2022, 3, 16)] == Dual(val, ["v0", "v1"], [0.49749372, 0.50251891])
 
 
 def test_linear_zero_rate_interp():
@@ -102,7 +102,7 @@ def test_linear_zero_rate_interp():
 
 
 def test_line_curve_rate(line_curve):
-    expected = Dual(2.005, ["v0", "v1"], np.array([0.5, 0.5]))
+    expected = Dual(2.005, ["v0", "v1"], [0.5, 0.5])
     assert line_curve.rate(effective=dt(2022, 3, 16)) == expected
 
 
@@ -513,7 +513,7 @@ def test_set_ad_order_no_spline():
     assert curve.ad == 0
 
     curve._set_ad_order(1)
-    assert curve[dt(2022, 1, 1)] == Dual(1.0, "v0")
+    assert curve[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [])
     assert curve.ad == 1
 
     old_id = id(curve.nodes)
@@ -641,7 +641,7 @@ def test_curve_shift_dual_input():
             dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(Dual(25, "z"))
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -719,7 +719,7 @@ def test_linecurve_shift_dual_input():
             dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(Dual(25, "z"))
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve[_] - curve[_] - 0.25
@@ -793,7 +793,7 @@ def test_indexcurve_shift_dual_input():
         index_base=110.0,
         interpolation="log_linear",
     )
-    result_curve = curve.shift(Dual(25, "z"))
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25

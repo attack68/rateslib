@@ -1181,6 +1181,23 @@ class TestValue:
         with pytest.raises(NotImplementedError):
             value.analytic_delta()
 
+    def test_cc_zero_rate(self, curve):
+        v = Value(effective=dt(2022, 7, 1), convention="act365f", metric="cc_zero_rate")
+        result = v.rate(curve)
+        expected = 4.074026613753926
+        assert result == expected
+
+    def test_index_value(self):
+        curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        v =  Value(effective=dt(2022, 7, 1), metric="index_value")
+        result = v.rate(curve)
+        expected = 100.24919116128588
+        assert result == expected
+
+    def test_value_raise(self, curve):
+        with pytest.raises(ValueError):
+            Value(effective=dt(2022, 7, 1), metric="bad").rate(curve)
+
 
 class TestFXExchange:
     def test_cashflows(self):
@@ -2179,11 +2196,11 @@ class TestFXSwap:
             assert fxs._is_split is True
 
     @pytest.mark.parametrize("fx_fixings, points, split_notional, expected", [
-        (NoInput(0), NoInput(0), NoInput(0), Dual(0, "fx_usdnok", [-1712.833785])),
-        (11.0, 1800.0, NoInput(0), Dual(-3734.617680, "fx_usdnok", [3027.88203904])),
-        (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, "fx_usdnok", [3071.05755945])),
-        (10.032766762996951, 1754.5623360395632, NoInput(0), Dual(0, "fx_usdnok", [2654.42027107])),
-        (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, "fx_usdnok", [0.0]))
+        (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [-1712.833785])),
+        (11.0, 1800.0, NoInput(0), Dual(-3734.617680, ["fx_usdnok"], [3027.88203904])),
+        (11.0, 1754.5623360395632, NoInput(0), Dual(-4166.37288388, ["fx_usdnok"], [3071.05755945])),
+        (10.032766762996951, 1754.5623360395632, NoInput(0), Dual(0, ["fx_usdnok"], [2654.42027107])),
+        (10.032766762996951, 1754.5623360395632, 1027365.1574336714, Dual(0, ["fx_usdnok"], [0.0]))
     ])
     def test_fxswap_parameter_combinations_off_mids_given(
             self, curve, curve2, fx_fixings, points, split_notional, expected
