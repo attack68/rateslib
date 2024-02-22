@@ -101,3 +101,49 @@ fn bsplev_single_f64_(){
     let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
     assert_eq!(result, expected)
 }
+
+#[test]
+fn bsplev_single_f64_right(){
+    let x: f64 = 4.0_f64;
+    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    let k: usize = 4;
+    let result: Vec<f64> = (0..8).map(|i| bsplev_single_f64(&x, i as usize, k, &t, None)).collect();
+    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 1.0]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn bspldnev_single_f64_() {
+    let x: f64 = 1.5_f64;
+    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    let k: usize = 4;
+    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 1_usize, None)).collect();
+    let expected: Vec<f64> = Vec::from(&[-0.75, -0.75, 0.75, 0.75, 0., 0., 0., 0.]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn bspldnev_single_f64_right() {
+    let x: f64 = 4.0_f64;
+    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    let k: usize = 4;
+    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 1_usize, None)).collect();
+    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., -3., 3.]);
+    assert_eq!(result, expected)
+}
+
+fn bspldnev_single_shortcut() {
+    let x: f64 = 1.5_f64;
+    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    let k: usize = 4;
+    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 6_usize, None)).collect();
+    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 0.]);
+}
+
+fn bspldnev_single_m() {
+    let x: f64 = 4.0_f64;
+    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    let k: usize = 4;
+    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 2_usize, None)).collect();
+    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 3., -9., 0.]);
+}
