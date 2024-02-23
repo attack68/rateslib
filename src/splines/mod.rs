@@ -132,18 +132,37 @@ fn bspldnev_single_f64_right() {
     assert_eq!(result, expected)
 }
 
+#[test]
 fn bspldnev_single_shortcut() {
     let x: f64 = 1.5_f64;
     let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
     let k: usize = 4;
     let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 6_usize, None)).collect();
     let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 0.]);
+    assert_eq!(result, expected)
 }
 
+#[test]
 fn bspldnev_single_m() {
     let x: f64 = 4.0_f64;
     let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
     let k: usize = 4;
     let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 2_usize, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 3., -9., 0.]);
+    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 3., -9., 6.]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn bspldnev_single_m_zero() {
+    let x: f64 = 1.5_f64;
+    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    let k: usize = 4;
+    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 0_usize, None)).collect();
+    let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
+    assert_eq!(result, expected)
+}
+
+#[test]
+fn ppspline_new() {
+    let pps = PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
 }

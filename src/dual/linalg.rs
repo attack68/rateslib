@@ -6,16 +6,22 @@ use ndarray::{Zip};
 use num_traits::{Num, Signed};
 use std::cmp::PartialOrd;
 use std::sync::Arc;
+use std::ops::Mul;
+use std::iter::Sum;
 // use std::iter::Sum;
 
-pub fn dmul11_(a: &ArrayView1<Dual>, b: &ArrayView1<Dual>) -> Dual {
+pub fn dmul11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> T
+where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum
+{
     if a.len() != b.len() {
         panic!("Lengths of LHS and RHS do not match.")
     }
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
-fn fdmul11_(a: &ArrayView1<f64>, b: &ArrayView1<Dual>) -> Dual {
+fn fdmul11_<T>(a: &ArrayView1<f64>, b: &ArrayView1<T>) -> T
+where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum
+{
     if a.len() != b.len() {
         panic!("Lengths of LHS and RHS do not match.")
     }
