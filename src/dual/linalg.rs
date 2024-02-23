@@ -137,31 +137,6 @@ where
     (vi.1 / n, vi.1 % n)
 }
 
-fn partial_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
-where
-    T: Signed + Num + PartialOrd + Clone,
-{
-    // pivot square matrix
-    let n = a.len_of(Axis(0));
-    let mut p: Array2<f64> = Array::eye(n);
-    let mut q: Array2<f64> = Array::eye(n);
-    let mut pa = a.to_owned();
-    for j in 0..n {
-        let k = argabsmax(pa.slice(s![j.., j])) + j;
-        if j != k {
-            // define row swaps j <-> k  (note that k > j by definition)
-            let (mut pt, mut pb) = p.slice_mut(s![.., ..]).split_at(Axis(0), k);
-            let (r1, r2) = (pt.row_mut(j), pb.row_mut(0));
-            Zip::from(r1).and(r2).for_each(std::mem::swap);
-
-            let (mut pt, mut pb) = pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
-            let (r1, r2) = (pt.row_mut(j), pb.row_mut(0));
-            Zip::from(r1).and(r2).for_each(std::mem::swap);
-        }
-    }
-    (p, q, pa)
-}
-
 fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
 where
     T: Signed + Num + PartialOrd + Clone,
@@ -178,6 +153,31 @@ where
     let (mut pl, mut pr) = p.slice_mut(s![.., ..]).split_at(Axis(1), *kc);
     let (c1, c2) = (pl.column_mut(*j), pr.column_mut(0));
     Zip::from(c1).and(c2).for_each(std::mem::swap);
+}
+
+fn partial_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
+where
+    T: Signed + Num + PartialOrd + Clone,
+{
+    // pivot square matrix
+    let n = a.len_of(Axis(0));
+    let mut p: Array2<f64> = Array::eye(n);
+    let q: Array2<f64> = Array::eye(n);
+    let mut pa = a.to_owned();
+    for j in 0..n {
+        let k = argabsmax(pa.slice(s![j.., j])) + j;
+        if j != k {
+            // define row swaps j <-> k  (note that k > j by definition)
+            let (mut pt, mut pb) = p.slice_mut(s![.., ..]).split_at(Axis(0), k);
+            let (r1, r2) = (pt.row_mut(j), pb.row_mut(0));
+            Zip::from(r1).and(r2).for_each(std::mem::swap);
+
+            let (mut pt, mut pb) = pa.slice_mut(s![.., ..]).split_at(Axis(0), k);
+            let (r1, r2) = (pt.row_mut(j), pb.row_mut(0));
+            Zip::from(r1).and(r2).for_each(std::mem::swap);
+        }
+    }
+    (p, q, pa)
 }
 
 fn complete_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<T>)
@@ -361,27 +361,27 @@ mod tests {
 
     #[test]
     fn argabsmx_i32() {
-        let A: Array1<i32> = arr1(&[1, 4, 2, -5, 2]);
-        let result = argabsmax(A.view());
+        let a: Array1<i32> = arr1(&[1, 4, 2, -5, 2]);
+        let result = argabsmax(a.view());
         let expected: usize = 3;
         assert_eq!(result, expected);
     }
 
     #[test]
     fn argabsmx2_i32() {
-        let A: Array2<i32> = arr2(&[[-1, 2, 100], [-5, -2000, 0], [0, 0, 0]]);
-        let result = argabsmax2(A.view());
+        let a: Array2<i32> = arr2(&[[-1, 2, 100], [-5, -2000, 0], [0, 0, 0]]);
+        let result = argabsmax2(a.view());
         let expected: (usize, usize) = (1, 1);
         assert_eq!(result, expected);
     }
 
     #[test]
     fn argabsmx_dual() {
-        let A: Array1<Dual> = arr1(&[
+        let a: Array1<Dual> = arr1(&[
             Dual::new(1.0, Vec::new(), Vec::new()),
             Dual::new(-2.5, Vec::from(["a".to_string()]), Vec::from([2.0])),
         ]);
-        let result = argabsmax(A.view());
+        let result = argabsmax(a.view());
         let expected: usize = 1;
         assert_eq!(result, expected);
     }
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn pivot_i32_complete() {
         let i: Array2<i32> = arr2(&[[1, 2, 3, 4], [10, 2, 5, 6], [7, 8, 1, 1], [2, 2, 2, 9]]);
-        let (p, q, at) = complete_pivot_matrix(&i.view());
+        let (_p, _q, at) = complete_pivot_matrix(&i.view());
         let expected2: Array2<i32> = arr2(&[[10, 6, 2, 5], [2, 9, 2, 2], [7, 1, 8, 1], [1, 4, 2, 3]]);
         assert_eq!(at, expected2);
     }

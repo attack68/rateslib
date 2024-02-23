@@ -80,7 +80,7 @@ impl PPSpline {
          if self.c.len() != b.len() {
              panic!("Must call csolve before attempting to evaluate spline.")
          }
-         return b.dot(&self.c)
+         b.dot(&self.c)
      }
 }
 
