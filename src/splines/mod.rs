@@ -1,4 +1,4 @@
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 
 fn bsplev_single_f64(x: &f64, i: usize, k: usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(k);
@@ -82,8 +82,28 @@ impl PPSpline {
          }
          b.dot(&self.c)
      }
-}
 
+    fn csolve(&mut self, tau: &Vec<f64>, y: &Vec<f64>, left_n: usize, right_n: usize, allow_lsq: bool) {
+        if tau.len() != self.n && !(allow_lsq && tau.len() > self.n){
+            panic!("`csolve` cannot complete if length of `tau` < n or `allow_lsq` is false.")
+        }
+        if tau.len() != y.len() {
+            panic!("`tau` and `y` must have the same length.")
+        }
+    }
+
+    fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
+        let mut b = Array2::zeros((tau.len(), self.n));
+        for i in 0..self.n {
+            b[[0, i]] = bspldnev_single_f64(&tau[0], i, self.k, &self.t, left_n, None);
+            b[[tau.len()-1, i]] = bspldnev_single_f64(&tau[tau.len()-1], i, self.k, &self.t, right_n, None);
+            for j in 1..(tau.len()-1) {
+                b[[j, i]] = bsplev_single_f64(&tau[j], i, self.k, &self.t,  None )
+            }
+        }
+        b
+    }
+}
 
 
 // UNIT TESTS
@@ -92,77 +112,97 @@ impl PPSpline {
 
 //
 
-#[test]
-fn bsplev_single_f64_(){
-    let x: f64 = 1.5_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bsplev_single_f64(&x, i as usize, k, &t, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
-    assert_eq!(result, expected)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::arr2;
 
-#[test]
-fn bsplev_single_f64_right(){
-    let x: f64 = 4.0_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bsplev_single_f64(&x, i as usize, k, &t, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 1.0]);
-    assert_eq!(result, expected)
-}
+    #[test]
+    fn bsplev_single_f64_() {
+        let x: f64 = 1.5_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bsplev_single_f64(&x, i as usize, k, &t, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
+        assert_eq!(result, expected)
+    }
 
-#[test]
-fn bspldnev_single_f64_() {
-    let x: f64 = 1.5_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 1_usize, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[-0.75, -0.75, 0.75, 0.75, 0., 0., 0., 0.]);
-    assert_eq!(result, expected)
-}
+    #[test]
+    fn bsplev_single_f64_right() {
+        let x: f64 = 4.0_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bsplev_single_f64(&x, i as usize, k, &t, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 1.0]);
+        assert_eq!(result, expected)
+    }
 
-#[test]
-fn bspldnev_single_f64_right() {
-    let x: f64 = 4.0_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 1_usize, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., -3., 3.]);
-    assert_eq!(result, expected)
-}
+    #[test]
+    fn bspldnev_single_f64_() {
+        let x: f64 = 1.5_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 1_usize, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[-0.75, -0.75, 0.75, 0.75, 0., 0., 0., 0.]);
+        assert_eq!(result, expected)
+    }
 
-#[test]
-fn bspldnev_single_shortcut() {
-    let x: f64 = 1.5_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 6_usize, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 0.]);
-    assert_eq!(result, expected)
-}
+    #[test]
+    fn bspldnev_single_f64_right() {
+        let x: f64 = 4.0_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 1_usize, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., -3., 3.]);
+        assert_eq!(result, expected)
+    }
 
-#[test]
-fn bspldnev_single_m() {
-    let x: f64 = 4.0_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 2_usize, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 3., -9., 6.]);
-    assert_eq!(result, expected)
-}
+    #[test]
+    fn bspldnev_single_shortcut() {
+        let x: f64 = 1.5_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 6_usize, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 0., 0., 0.]);
+        assert_eq!(result, expected)
+    }
 
-#[test]
-fn bspldnev_single_m_zero() {
-    let x: f64 = 1.5_f64;
-    let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
-    let k: usize = 4;
-    let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 0_usize, None)).collect();
-    let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
-    assert_eq!(result, expected)
-}
+    #[test]
+    fn bspldnev_single_m() {
+        let x: f64 = 4.0_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 2_usize, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[0., 0., 0., 0., 0., 3., -9., 6.]);
+        assert_eq!(result, expected)
+    }
 
-#[test]
-fn ppspline_new() {
-    let pps = PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    #[test]
+    fn bspldnev_single_m_zero() {
+        let x: f64 = 1.5_f64;
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<f64> = (0..8).map(|i| bspldnev_single_f64(&x, i as usize, k, &t, 0_usize, None)).collect();
+        let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn ppspline_new() {
+        let pps = PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+    }
+
+    #[test]
+    fn ppspline_bsplmatrix() {
+        let pps = PPSpline::new(4, vec![1., 1., 1., 1., 2., 3., 3., 3., 3.]);
+        let result = pps.bsplmatrix(&vec![1., 1., 2., 3., 3.], 2_usize, 2_usize);
+        let expected: Array2<f64> = arr2(&[
+            [6., -9., 3., 0., 0.],
+            [1., 0., 0., 0., 0.],
+            [0., 0.25, 0.5, 0.25, 0.],
+            [0., 0., 0., 0., 1.],
+            [0., 0., 3., -9., 6.]
+        ]);
+        assert_eq!(result, expected)
+    }
 }
