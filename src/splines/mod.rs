@@ -130,7 +130,7 @@ impl PPSpline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use ndarray::{arr1, arr2};
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
@@ -241,4 +241,18 @@ mod tests {
 
         assert!(v.iter().all(|x| *x));
     }
+
+    #[test]
+    fn ppev_single_(){
+        let t = vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.];
+        let mut pps = PPSpline::new(4, t);
+        pps.c = arr1(&[1., 2., -1., 2., 1., 1., 2., 2.]);
+        let r1 = pps.ppev_single(&1.1);
+        assert!(is_close(&r1, &1.19, None));
+        let r2 = pps.ppev_single(&1.8);
+        assert!(is_close(&r2, &0.84, None));
+        let r3 = pps.ppev_single(&2.8);
+        assert!(is_close(&r3, &1.136, None));
+    }
+
 }
