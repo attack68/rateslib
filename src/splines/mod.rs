@@ -1,4 +1,5 @@
 use ndarray::{Array1, Array2};
+use crate::dual::linalg::dsolve;
 
 fn bsplev_single_f64(x: &f64, i: usize, k: usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(k);
@@ -90,6 +91,10 @@ impl PPSpline {
         if tau.len() != y.len() {
             panic!("`tau` and `y` must have the same length.")
         }
+        let b = self.bsplmatrix(&tau, left_n, right_n);
+        let ya = Array1::from_vec(y.clone());
+        let c: Array1<f64> = dsolve(&b.view(), &ya.view(), allow_lsq);
+        self.c = c;
     }
 
     fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
@@ -116,6 +121,11 @@ impl PPSpline {
 mod tests {
     use super::*;
     use ndarray::arr2;
+
+    fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
+        // used rather than equality for float numbers
+        (a-b).abs() < abs_tol.unwrap_or(1e-8)
+    }
 
     #[test]
     fn bsplev_single_f64_() {
@@ -204,5 +214,21 @@ mod tests {
             [0., 0., 3., -9., 6.]
         ]);
         assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn csolve_() {
+        let t = vec![0., 0., 0., 0., 4., 4., 4., 4.];
+        let tau = vec![0., 1., 3., 4.,];
+        let val = vec![0., 0., 2., 2.];
+        let mut pps = PPSpline::new(4, t);
+        pps.csolve(&tau, &val, 0, 0, false);
+        let expected = vec![0., -1.11111111, 3.111111111111, 2.0];
+        let v: Vec<bool> = pps.c.into_raw_vec().iter()
+                                .zip(expected.iter())
+                                .map(|(x,y)| is_close(&x, &y, None))
+                                .collect();
+
+        assert!(v.iter().all(|x| *x));
     }
 }

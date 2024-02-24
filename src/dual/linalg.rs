@@ -352,6 +352,7 @@ where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>
 
 #[cfg(test)]
 mod tests {
+    use crate::splines::PPSpline;
     use super::*;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
@@ -730,4 +731,5 @@ mod tests {
     fn dfmul22_p() {
         dfmul22_(&arr2(&[[1.0, 2.0], [2.0, 3.0]]).view(), &arr2(&[[1.0, 2.0]]).view());
     }
+
 }
