@@ -74,7 +74,7 @@ impl PPSpline {
         PPSpline {k, t, n, c: Array1::zeros(0)}
      }
 
-     pub fn ppev_single(&self, x: &f64) -> f64 {
+    pub fn ppev_single(&self, x: &f64) -> f64 {
          let b: Array1<f64> = Array1::from_vec(
              (0..self.n).map(|i| bsplev_single_f64(x, i, self.k, &self.t, None)).collect()
          );
@@ -84,7 +84,17 @@ impl PPSpline {
          b.dot(&self.c)
      }
 
-    fn csolve(&mut self, tau: &Vec<f64>, y: &Vec<f64>, left_n: usize, right_n: usize, allow_lsq: bool) {
+    pub fn ppdnev_single(&self, x: &f64, m: usize) -> f64 {
+        let b: Array1<f64> = Array1::from_vec(
+             (0..self.n).map(|i| bspldnev_single_f64(x, i, self.k, &self.t, m, None)).collect()
+         );
+         if self.c.len() != b.len() {
+             panic!("Must call csolve before attempting to evaluate spline.")
+         }
+         b.dot(&self.c)
+    }
+
+    pub fn csolve(&mut self, tau: &Vec<f64>, y: &Vec<f64>, left_n: usize, right_n: usize, allow_lsq: bool) {
         if tau.len() != self.n && !(allow_lsq && tau.len() > self.n){
             panic!("`csolve` cannot complete if length of `tau` < n or `allow_lsq` is false.")
         }
@@ -97,7 +107,7 @@ impl PPSpline {
         self.c = c;
     }
 
-    fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
+    pub fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
         let mut b = Array2::zeros((tau.len(), self.n));
         for i in 0..self.n {
             b[[0, i]] = bspldnev_single_f64(&tau[0], i, self.k, &self.t, left_n, None);
