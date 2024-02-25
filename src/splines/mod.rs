@@ -1,5 +1,8 @@
 use ndarray::{Array1, Array2};
-use crate::dual::linalg::dsolve;
+use crate::dual::linalg::{fdsolve, fdmul11_};
+use std::ops::{Mul, Div, Sub};
+use num_traits::{Signed, Zero};
+use std::iter::Sum;
 
 fn bsplev_single_f64(x: &f64, i: usize, k: usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(k);
@@ -61,49 +64,59 @@ fn bspldnev_single_f64(x: &f64, i: usize, k: usize, t: &Vec<f64>, m: usize, org_
     r
 }
 
-pub struct PPSpline {
+pub struct PPSpline<T>
+{
     k: usize,
     t: Vec<f64>,
-    c: Array1<f64>,
+    c: Array1<T>,
     n: usize
 }
 
-impl PPSpline {
+impl<T> PPSpline<T>
+where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
+  for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a T, Output=T>,
+  for<'a> &'a f64: Mul<&'a T, Output=T>
+{
      pub fn new(k: usize, t: Vec<f64>) -> Self {
         let n = t.len() - k;
-        PPSpline {k, t, n, c: Array1::zeros(0)}
+        let c: Array1<T> = Array1::zeros(0);
+        PPSpline {k, t, n, c}
      }
 
-    pub fn ppev_single(&self, x: &f64) -> f64 {
+    pub fn ppev_single(&self, x: &f64) -> T {
          let b: Array1<f64> = Array1::from_vec(
              (0..self.n).map(|i| bsplev_single_f64(x, i, self.k, &self.t, None)).collect()
          );
          if self.c.len() != b.len() {
              panic!("Must call csolve before attempting to evaluate spline.")
          }
-         b.dot(&self.c)
+         fdmul11_(&b.view(), &self.c.view())
      }
 
-    pub fn ppdnev_single(&self, x: &f64, m: usize) -> f64 {
+    pub fn ppdnev_single(&self, x: &f64, m: usize) -> T {
         let b: Array1<f64> = Array1::from_vec(
              (0..self.n).map(|i| bspldnev_single_f64(x, i, self.k, &self.t, m, None)).collect()
          );
          if self.c.len() != b.len() {
              panic!("Must call csolve before attempting to evaluate spline.")
          }
-         b.dot(&self.c)
+         fdmul11_(&b.view(), &self.c.view())
     }
 
-    pub fn csolve(&mut self, tau: &Vec<f64>, y: &Vec<f64>, left_n: usize, right_n: usize, allow_lsq: bool) {
+    pub fn csolve(&mut self, tau: &Vec<f64>, y: &Vec<T>, left_n: usize, right_n: usize, allow_lsq: bool)
+    where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output=T>,
+       for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a f64, Output=T>,
+       for<'a> &'a f64: Mul<&'a T, Output=T>
+    {
         if tau.len() != self.n && !(allow_lsq && tau.len() > self.n){
             panic!("`csolve` cannot complete if length of `tau` < n or `allow_lsq` is false.")
         }
         if tau.len() != y.len() {
             panic!("`tau` and `y` must have the same length.")
         }
-        let b = self.bsplmatrix(&tau, left_n, right_n);
-        let ya = Array1::from_vec(y.clone());
-        let c: Array1<f64> = dsolve(&b.view(), &ya.view(), allow_lsq);
+        let b: Array2<f64> = self.bsplmatrix(&tau, left_n, right_n);
+        let ya: Array1<T> = Array1::from_vec(y.clone());
+        let c: Array1<T> = fdsolve(&b.view(), &ya.view(), allow_lsq);
         self.c = c;
     }
 
@@ -209,12 +222,12 @@ mod tests {
 
     #[test]
     fn ppspline_new() {
-        let pps = PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let pps: PPSpline<f64> = PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
     }
 
     #[test]
     fn ppspline_bsplmatrix() {
-        let pps = PPSpline::new(4, vec![1., 1., 1., 1., 2., 3., 3., 3., 3.]);
+        let pps: PPSpline<f64> = PPSpline::new(4, vec![1., 1., 1., 1., 2., 3., 3., 3., 3.]);
         let result = pps.bsplmatrix(&vec![1., 1., 2., 3., 3.], 2_usize, 2_usize);
         let expected: Array2<f64> = arr2(&[
             [6., -9., 3., 0., 0.],

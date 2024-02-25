@@ -1,5 +1,4 @@
 use crate::dual::dual1::Dual;
-use ndarray::linalg::Dot;
 use ndarray::prelude::*;
 use ndarray::{Zip};
 use num_traits::{Num, Signed};
@@ -9,17 +8,10 @@ use std::ops::{Mul, Sub, Div};
 use std::iter::Sum;
 use num_traits::identities::{Zero, One};
 
+// Tensor ops
+
 pub fn dmul11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> T
 where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum
-{
-    if a.len() != b.len() {
-        panic!("Lengths of LHS and RHS do not match.")
-    }
-    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-}
-
-fn fdmul11_<T>(a: &ArrayView1<f64>, b: &ArrayView1<T>) -> T
-where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum
 {
     if a.len() != b.len() {
         panic!("Lengths of LHS and RHS do not match.")
@@ -42,36 +34,6 @@ where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
     out
 }
 
-fn fdmul22_<T>(a: &ArrayView2<f64>, b: &ArrayView2<T>) -> Array2<T>
-where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
-{
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
-    for r in 0..a.len_of(Axis(0)) {
-        for c in 0..b.len_of(Axis(1)) {
-            out[[r, c]] = fdmul11_(&a.row(r), &b.column(c))
-        }
-    }
-    out
-}
-
-fn dfmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<f64>) -> Array2<T>
-where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
-{
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
-    for r in 0..a.len_of(Axis(0)) {
-        for c in 0..b.len_of(Axis(1)) {
-            out[[r, c]] = fdmul11_(&b.column(c), &a.row(r))
-        }
-    }
-    out
-}
-
 fn dmul21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
 {
@@ -84,31 +46,6 @@ where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
     }
     out
 }
-
-fn fdmul21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
-where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
-{
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out = Array1::zeros(b.len_of(Axis(0)));
-    for r in 0..a.len_of(Axis(0)) {
-        out[[r]] = fdmul11_(&a.row(r), b)
-    }
-    out
-}
-
-// fn ddot(a: &Array1<Dual>, b: &Array1<Dual>) -> Dual {
-//     dmul11_(&a.view(), &b.view())
-// }
-//
-// fn fdot(a: &Array1<f64>, b: &Array1<Dual>) -> Dual {
-//     fdmul11_(&a.view(), &b.view())
-// }
-//
-// fn dmul(a: &Array2<Dual>, b: &Array2<Dual>) -> Array2<Dual> {
-//     dmul22_(&a.view(), &b.view())
-// }
 
 // Linalg solver
 
@@ -296,7 +233,7 @@ where
     (p, l, u, q)
 }
 
-fn solve_lower_1d<T>(l: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
+fn dsolve_lower_1d<T>(l: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 where T: Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
   for<'a> &'a T: Sub<T, Output=T> + Mul<&'a T, Output=T>
 {
@@ -309,12 +246,12 @@ where T: Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
     x
 }
 
-fn solve_upper_1d<T>(u: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
+fn dsolve_upper_1d<T>(u: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 where T: Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
   for<'a> &'a T: Sub<T, Output=T> + Mul<&'a T, Output=T>
 {
     // reverse all dimensions and solve as lower triangular
-    solve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1])).slice(s![..;-1]).to_owned()
+    dsolve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1])).slice(s![..;-1]).to_owned()
 }
 
 fn dsolve21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
@@ -322,13 +259,14 @@ where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>
   for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a T, Output=T>,
   for<'a> &'a f64: Mul<&'a T, Output=T>
 {
-    let (p, l, u, q) = pluq_decomp(&a.view(), PivotMethod::Rook);
-    let pb = fdmul21_(&p.view(), &b.view());
-    let z = solve_lower_1d(&l.view(), &pb.view());
-    let y = solve_upper_1d(&u.view(), &z.view());
-    let x = fdmul21_(&q.view(), &y.view());
+    let (p, l, u, q) = pluq_decomp::<T>(&a.view(), PivotMethod::Rook);
+    let pb: Array1<T> = fdmul21_(&p.view(), &b.view());
+    let z: Array1<T> = dsolve_lower_1d(&l.view(), &pb.view());
+    let y: Array1<T> = dsolve_upper_1d(&u.view(), &z.view());
+    let x: Array1<T> = fdmul21_(&q.view(), &y.view());
     x
 }
+
 
 pub fn dsolve<T>(a: &ArrayView2<T>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
 where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
@@ -344,6 +282,115 @@ where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>
     }
 }
 
+// F64 Crossover
+
+fn fsolve_lower_1d<T>(l: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+where T: Clone + Sum + Zero + for<'a> Div<&'a f64, Output=T>,
+  for<'a> &'a T: Sub<T, Output=T> + Mul<&'a f64, Output=T>,
+  for<'a> &'a f64: Mul<&'a T, Output=T>,
+{
+    let n: usize = l.len_of(Axis(0));
+    let mut x: Array1<T> = Array::zeros(n);
+    for i in 0..n {
+        let s = fdmul11_(&l.slice(s![i, ..i]), &x.slice(s![..i]));
+        let v = &b[i] - s;
+        x[i] = v / &l[[i, i]]
+    }
+    x
+}
+
+fn fsolve_upper_1d<T>(u: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+where T: Clone + Sum + Zero + for<'a> Div<&'a f64, Output=T>,
+  for<'a> &'a T: Sub<T, Output=T> + Mul<&'a f64, Output=T>,
+  for<'a> &'a f64: Mul<&'a T, Output=T>,
+{
+    // reverse all dimensions and solve as lower triangular
+    fsolve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1])).slice(s![..;-1]).to_owned()
+}
+
+
+pub fn fdmul11_<T>(a: &ArrayView1<f64>, b: &ArrayView1<T>) -> T
+where for<'a> &'a T: Mul<&'a f64, Output=T>,
+      for<'a> &'a f64: Mul<&'a T, Output=T>,
+      T: Sum
+{
+    if a.len() != b.len() {
+        panic!("Lengths of LHS and RHS do not match.")
+    }
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+}
+
+fn fdmul22_<T>(a: &ArrayView2<f64>, b: &ArrayView2<T>) -> Array2<T>
+where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
+{
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out: Array2<T> = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
+    for r in 0..a.len_of(Axis(0)) {
+        for c in 0..b.len_of(Axis(1)) {
+            out[[r, c]] = fdmul11_(&a.row(r), &b.column(c))
+        }
+    }
+    out
+}
+
+fn dfmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<f64>) -> Array2<T>
+where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
+{
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out: Array2<T> = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
+    for r in 0..a.len_of(Axis(0)) {
+        for c in 0..b.len_of(Axis(1)) {
+            out[[r, c]] = fdmul11_(&b.column(c), &a.row(r))
+        }
+    }
+    out
+}
+
+fn fdmul21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+where for<'a> &'a T: Mul<&'a f64, Output=T>, for<'a> &'a f64: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
+{
+    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
+        panic!("Columns of LHS do not match rows of RHS.")
+    }
+    let mut out = Array1::zeros(b.len_of(Axis(0)));
+    for r in 0..a.len_of(Axis(0)) {
+        out[[r]] = fdmul11_(&a.row(r), b)
+    }
+    out
+}
+
+
+fn fdsolve21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output=T>,
+  for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a f64, Output=T>,
+  for<'a> &'a f64: Mul<&'a T, Output=T>
+{
+    let (p, l, u, q) = pluq_decomp::<f64>(&a.view(), PivotMethod::Rook);
+    let pb = fdmul21_(&p.view(), &b.view());
+    let z = fsolve_lower_1d(&l.view(), &pb.view());
+    let y = fsolve_upper_1d(&u.view(), &z.view());
+    let x = fdmul21_(&q.view(), &y.view());
+    x
+}
+
+pub fn fdsolve<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
+where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output=T>,
+  for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a f64, Output=T>,
+  for<'a> &'a f64: Mul<&'a T, Output=T>
+{
+    if allow_lsq {
+        let a_: Array2<f64>= dmul22_(&a.t(), a);
+        let b_: Array1<T> = fdmul21_(&a.t(), b);
+        fdsolve21_(&a_.view(), &b_.view())
+    } else {
+        fdsolve21_(a, b)
+    }
+}
+
 // UNIT TESTS
 
 //
@@ -352,7 +399,6 @@ where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>
 
 #[cfg(test)]
 mod tests {
-    use crate::splines::PPSpline;
     use super::*;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
@@ -576,7 +622,7 @@ mod tests {
             Dual::new(2.0, Vec::new(), Vec::new()),
             Dual::new(5.0, Vec::new(), Vec::new()),
         ]);
-        let x = solve_lower_1d(&a.view(), &b.view());
+        let x = dsolve_lower_1d(&a.view(), &b.view());
         let expected_x = arr1(&[
             Dual::new(2.0, Vec::new(), Vec::new()),
             Dual::new(1.0, Vec::new(), Vec::new()),
@@ -600,7 +646,7 @@ mod tests {
             Dual::new(2.0, Vec::new(), Vec::new()),
             Dual::new(5.0, Vec::new(), Vec::new()),
         ]);
-        let x = solve_upper_1d(&a.view(), &b.view());
+        let x = dsolve_upper_1d(&a.view(), &b.view());
         let expected_x = arr1(&[
             Dual::new(-8.0, Vec::new(), Vec::new()),
             Dual::new(5.0, Vec::new(), Vec::new()),
