@@ -1,5 +1,5 @@
 use ndarray::{Array1, Array2};
-use crate::dual::linalg::{fdsolve, fdmul11_};
+use crate::dual::linalg_f64::{fdsolve, fdmul11_};
 use std::ops::{Mul, Div, Sub};
 use num_traits::{Signed, Zero};
 use std::iter::Sum;

@@ -408,23 +408,22 @@ impl PartialOrd<Dual> for f64 {
     }
 }
 
-
-pub trait LinAlgOps<T>
-where T: PartialOrd + Signed + Clone + Sum + Zero + Add + Mul + Sub + Div + One,
-  for<'a> &'a T: Add<&'a T, Output=T> + Sub<&'a T, Output=T> + Mul<&'a T, Output=T> + Div<&'a T, Output=T>,
-{
-}
-
-pub trait LinAlgOpsF64<T>
-where
-  for<'a> &'a T: Add<&'a f64, Output=T> + Sub<&'a f64, Output=T> + Mul<&'a f64, Output=T> + Div<&'a f64, Output=T>,
-  for<'a> &'a f64: Add<&'a T, Output=T> + Sub<&'a T, Output=T> + Mul<&'a T, Output=T> + Div<&'a T, Output=T>
-{
-}
-
-impl LinAlgOps<Dual> for Dual {}
-
-impl LinAlgOpsF64<Dual> for Dual {}
+// pub trait LinAlgOps<T>
+// where T: PartialOrd + Signed + Clone + Sum + Zero + Add + Mul + Sub + Div + One,
+//   for<'a> &'a T: Add<&'a T, Output=T> + Sub<&'a T, Output=T> + Mul<&'a T, Output=T> + Div<&'a T, Output=T>,
+// {
+// }
+//
+// pub trait LinAlgOpsF64<T>
+// where
+//   for<'a> &'a T: Add<&'a f64, Output=T> + Sub<&'a f64, Output=T> + Mul<&'a f64, Output=T> + Div<&'a f64, Output=T>,
+//   for<'a> &'a f64: Add<&'a T, Output=T> + Sub<&'a T, Output=T> + Mul<&'a T, Output=T> + Div<&'a T, Output=T>
+// {
+// }
+//
+// impl LinAlgOps<Dual> for Dual {}
+//
+// impl LinAlgOpsF64<Dual> for Dual {}
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
