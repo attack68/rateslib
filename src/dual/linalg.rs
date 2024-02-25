@@ -1,4 +1,4 @@
-use crate::dual::dual1::Dual;
+use crate::dual::dual1::{Dual, LinAlgOps};
 use ndarray::prelude::*;
 use ndarray::{Zip};
 use num_traits::{Num, Signed};

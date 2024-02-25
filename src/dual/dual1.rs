@@ -7,6 +7,10 @@ use numpy::{Element, PyArray1, PyArrayDescr, ToPyArray};
 use std::cmp::Ordering;
 use std::sync::Arc;
 use std::fmt;
+use std::cmp::PartialOrd;
+use std::ops::{Add, Mul, Sub, Div};
+use std::iter::Sum;
+use num_traits::identities::{Zero, One};
 
 use pyo3::prelude::*;
 
@@ -362,8 +366,8 @@ impl_op_ex_commutative!(*|a: &Dual, b: &f64| -> Dual {
     }
 });
 
-impl_op_ex!(/ |a: &Dual, b: f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: &a.dual / b} });
-impl_op_ex!(/ |a: f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
+impl_op_ex!(/ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual} });
+impl_op_ex!(/ |a: &f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 
 impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
 impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new(), Vec::new()) % b });
@@ -405,8 +409,22 @@ impl PartialOrd<Dual> for f64 {
 }
 
 
+pub trait LinAlgOps<T>
+where T: PartialOrd + Signed + Clone + Sum + Zero + Add + Mul + Sub + Div + One,
+  for<'a> &'a T: Add<&'a T, Output=T> + Sub<&'a T, Output=T> + Mul<&'a T, Output=T> + Div<&'a T, Output=T>,
+{
+}
 
+pub trait LinAlgOpsF64<T>
+where
+  for<'a> &'a T: Add<&'a f64, Output=T> + Sub<&'a f64, Output=T> + Mul<&'a f64, Output=T> + Div<&'a f64, Output=T>,
+  for<'a> &'a f64: Add<&'a T, Output=T> + Sub<&'a T, Output=T> + Mul<&'a T, Output=T> + Div<&'a T, Output=T>
+{
+}
 
+impl LinAlgOps<Dual> for Dual {}
+
+impl LinAlgOpsF64<Dual> for Dual {}
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
