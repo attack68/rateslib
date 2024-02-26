@@ -5,7 +5,7 @@ from packaging import version
 
 import context
 
-from rateslibrs import Dual, dsolve, dual_list
+from rateslib.dual.dualrs import dual_solve, Dual
 
 
 @pytest.fixture()
@@ -36,7 +36,7 @@ def test_dual_repr_4vars():
 
 def test_dual_str(x_1):
     result = x_1.__str__()
-    assert result == " val = 1.00000000\n  dv0 = 1.000000\n  dv1 = 2.000000\n"
+    assert result == "<Dual: 1.000000, (v0, v1), [1, 2]>"
 
 
 @pytest.mark.parametrize(
@@ -318,26 +318,13 @@ def test_numpy_dtypes(z, dtype):
     dtype(2) + z
 
 
-def test_dsolve():
+def test_dual_solve():
     a = np.array([
         [Dual(1.0, [], []), Dual(0.0, [], [])],
         [Dual(0.0, [], []), Dual(1.0, [], [])]
     ])
     b = np.array([Dual(2.0, ["x"], [1.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
 
-    result = dsolve(a, b)
-    expected = np.array([Dual(2.0, [], []), Dual(5.0, [], [])])
+    result = dual_solve(a, b, False)
+    expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
     assert np.all(result == expected)
-
-
-def test_dual_list():
-    from rateslib.dual.dualrs import dual_solve
-    a = np.array([
-        [Dual(1.0, [], []), Dual(0.0, [], [])],
-        [Dual(0.0, [], []), Dual(1.0, [], [])]
-    ])  # 1D array of
-    b = np.array([Dual(2.0, ["x"], [1.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
-
-    result = dual_solve(a, b)
-
-    assert np.all(result == 1.0)

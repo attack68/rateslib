@@ -1,19 +1,24 @@
 #[cfg(test)]
 mod tests;
 
-pub mod splines;
+
 pub mod dual;
-// pub mod interpolate;
-// pub mod point;
 use dual::dual1::Dual;
 use dual::linalg::{dsolve};
+
+pub mod splines;
+use splines::PPSpline;
+
+// pub mod interpolate;
+// pub mod point;
+
 use ndarray::{Array1};
 // use point::{PointVec, Dual};
 
 // use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 
-// wrapper of `axpy`
+
 #[pyfunction]
 #[pyo3(name = "dsolve")]
 fn dsolve_py(py: Python<'_>, a: Vec<Dual>, b: Vec<Dual>, allow_lsq: bool) -> Vec<Dual> {
@@ -32,6 +37,7 @@ fn dsolve_py(py: Python<'_>, a: Vec<Dual>, b: Vec<Dual>, allow_lsq: bool) -> Vec
 fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {
     // m.add_class::<PointVec>()?;
     m.add_class::<Dual>()?;
+    // m.add_class::<PPSpline<f64>>()?;
     m.add_function(wrap_pyfunction!(dsolve_py, m)?)?;
     Ok(())
 }
