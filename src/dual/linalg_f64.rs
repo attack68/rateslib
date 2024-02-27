@@ -9,6 +9,18 @@ use std::ops::{Mul, Sub, Div};
 use std::iter::Sum;
 use num_traits::identities::{Zero, One};
 
+
+pub fn outer11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
+    // TODO make this more efficient without looping
+    let mut c: Array2<f64> = Array::zeros((a.len(), b.len()));
+    for i in 0..a.len() {
+        for j in 0..b.len() {
+            c[[i, j]] = &a[i] * &b[j];
+        }
+    }
+    c
+}
+
 // F64 Crossover
 
 pub fn fdmul11_<T>(a: &ArrayView1<f64>, b: &ArrayView1<T>) -> T
@@ -131,6 +143,18 @@ mod tests {
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
         (a-b).abs() < abs_tol.unwrap_or(1e-8)
+    }
+
+    #[test]
+    fn outer_prod(){
+        let a = arr1(&[1.0, 2.0]);
+        let b = arr1(&[2.0, 1.0, 3.0]);
+        let mut c = outer11_(&a.view(), &b.view());
+        let result = arr2(&[
+            [2., 1., 3.],
+            [4., 2., 6.],
+        ]);
+        assert_eq!(result, c)
     }
 
     #[test]
