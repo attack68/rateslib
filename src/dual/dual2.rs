@@ -11,18 +11,20 @@ use std::cmp::PartialOrd;
 use std::ops::{Add, Mul, Sub, Div};
 use std::iter::Sum;
 use num_traits::identities::{Zero, One};
+use crate::dual::linalg_f64::outer11_;
 
 use pyo3::prelude::*;
 
 #[pyclass]
 #[derive(Clone, Default)]
-pub struct Dual {
+pub struct Dual2 {
     pub real: f64,
     pub vars: Arc<IndexSet<String>>,
     pub dual: Array1<f64>,
+    pub dual2: Array2<f64>,
 }
 
-impl Dual {
+impl Dual2 {
     /// Return two equivalent Dual with same vars.
     ///
     /// # Arguments
@@ -32,7 +34,7 @@ impl Dual {
     /// # Notes
     ///
     ///
-    fn to_combined_vars(&self, other: &Dual) -> (Dual, Dual) {
+    fn to_combined_vars(&self, other: &Dual2) -> (Dual2, Dual2) {
         if Arc::ptr_eq(&self.vars, &other.vars) {
             (self.clone(), other.clone())
         } else if self.vars.len() >= other.vars.len()
@@ -60,7 +62,7 @@ impl Dual {
     /// # Notes
     ///
     ///
-    fn to_combined_vars_explicit(&self, other: &Dual) -> (Dual, Dual) {
+    fn to_combined_vars_explicit(&self, other: &Dual2) -> (Dual2, Dual2) {
         let comb_vars = Arc::new(IndexSet::from_iter(
             self.vars.union(&other.vars).map(|x| x.clone()),
         ));
@@ -68,47 +70,57 @@ impl Dual {
     }
 
     /// Return a Dual with recast vars if required.
-    fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
+    fn to_new_ordered_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual2 {
         if self.vars.len() == new_vars.len()
             && self.vars.iter().zip(new_vars.iter()).all(|(a, b)| a == b)
         {
-            Dual {
+            Dual2 {
                 vars: Arc::clone(new_vars),
                 real: self.real,
                 dual: self.dual.clone(),
+                dual2: self.dual2.clone(),
             }
         } else {
             self.to_new_vars(new_vars)
         }
     }
 
-    fn to_new_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
+    fn to_new_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual2 {
         // Return a Dual with a new set of vars.
-
+        let indices: Vec<Option<usize>> = new_vars.iter().map(|x| self.vars.get_index_of(x)).collect();
         let mut dual = Array::zeros(new_vars.len());
-        for (i, index) in new_vars
-            .iter()
-            .map(|x| self.vars.get_index_of(x))
-            .enumerate()
-        {
+
+        for (i, index) in indices.enumerate() {
             match index {
                 Some(value) => dual[[i]] = self.dual[[value]],
                 None => {}
             }
         }
-        Dual {
+
+        let mut dual2 = Array::zeros((new_vars.len(), new_vars.len()));
+        for (i, row_index) in indices.enumerate() {
+            for (j , col_index) in indices.enumerate() {
+                match row_index {
+                    Some(row_value) => {
+                        match col_index {
+                            Some(col_value) => dual2[[i, j]] = self.dual2[[row_value, col_value]],
+                            None => {}
+                        }
+                    }
+                    None => {}
+                }
+            }
+        }
+
+        Dual2 {
             vars: Arc::clone(new_vars),
             real: self.real,
             dual,
+            dual2,
         }
     }
 
-    // fn is_same_vars(&self, other: &Dual) -> bool {
-    //     // test if the vars of a Dual have the same elements but possibly a different order
-    //     return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
-    // }
-
-    fn ggradient(&self, vars: Vec<String>) -> Array1<f64> {
+    fn gradient1(&self, vars: Vec<String>) -> Array1<f64> {
         let mut dual = Array::zeros(vars.len());
         for (i, index) in vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
             match index {
@@ -117,6 +129,26 @@ impl Dual {
             }
         }
         dual
+    }
+
+    fn gradient2(&self, vars: Vec<String>) -> Array2<f64> {
+        let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars.get_index_of(x)).collect();
+
+        let mut dual2 = Array::zeros((new_vars.len(), new_vars.len()));
+        for (i, row_index) in indices.enumerate() {
+            for (j , col_index) in indices.enumerate() {
+                match row_index {
+                    Some(row_value) => {
+                        match col_index {
+                            Some(col_value) => dual2[[i, j]] = self.dual2[[row_value, col_value]],
+                            None => {}
+                        }
+                    }
+                    None => {}
+                }
+            }
+        }
+        2_f64 * dual2
     }
 
     pub fn exp(&self) -> Self {
@@ -137,47 +169,55 @@ impl Dual {
     }
 }
 
-impl fmt::Debug for Dual {
+impl fmt::Debug for Dual2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", &self.real)
     }
 }
 
-impl Num for Dual {
+impl Num for Dual2 {
     type FromStrRadixErr = String;
     fn from_str_radix(_src: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        Err("No implementation for sting radix for Dual".to_string())
+        Err("No implementation for sting radix for Dual2".to_string())
     }
 }
 
-impl_op!(-|a: Dual| -> Dual {
-    Dual {
+impl_op!(-|a: Dual2| -> Dual2 {
+    Dual2 {
         vars: a.vars,
         real: -a.real,
         dual: -a.dual,
+        dual2: -a.dual2,
     }
 });
-impl_op!(-|a: &Dual| -> Dual {
-    Dual {
+impl_op!(-|a: &Dual2| -> Dual2 {
+    Dual2 {
         vars: Arc::clone(&a.vars),
         real: -a.real,
         dual: &a.dual * -1.0,
+        dual2: &a.dual2 * -1.0,
     }
 });
 
-impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
+impl_op_ex!(+ |a: &Dual2, b: &Dual2| -> Dual2 {
     if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual {real: a.real + b.real, dual: &a.dual + &b.dual, vars: Arc::clone(&a.vars)}
+        Dual2 {
+            real: a.real + b.real,
+            dual: &a.dual + &b.dual,
+            vars: Arc::clone(&a.vars)
+            dual2: &a.dual2 + &b.dual2,
+        }
     }
     else { let (x, y) = a.to_combined_vars(b); x + y }
 });
 
-impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
+impl_op_ex!(-|a: &Dual2, b: &Dual2| -> Dual2 {
     if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual {
+        Dual2 {
             real: a.real - b.real,
             dual: &a.dual - &b.dual,
             vars: Arc::clone(&a.vars),
+            dual2: &a.dual2 - &b.dual2,
         }
     } else {
         let (x, y) = a.to_combined_vars(b);
@@ -185,12 +225,16 @@ impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
     }
 });
 
-impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
+impl_op_ex!(*|a: &Dual2, b: &Dual2| -> Dual2 {
     if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual {
+        let mut dual2: Array2<f64> = &a.dual2 * b.real + &b.dual2 * a.real;
+        let cross_beta = outer11_(&a.dual.view(), &b.dual.view());
+        dual2 += 0.5_f64 * (cross_beta + cross_beta.t());
+        Dual2 {
             real: a.real * b.real,
             dual: &a.dual * b.real + &b.dual * a.real,
             vars: Arc::clone(&a.vars),
+            dual2,
         }
     } else {
         let (x, y) = a.to_combined_vars(b);
@@ -219,40 +263,45 @@ impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
 //     }
 // }
 
-impl num_traits::Pow<f64> for Dual {
-    type Output = Dual;
-    fn pow(self, power: f64) -> Dual {
-        Dual {
-            real: self.real.pow(power),
+impl num_traits::Pow<f64> for Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: f64) -> Dual2 {
+        let coeff = power * self.real.powf(power - 1.);
+        let coeff2 = 0.5 * power * (power -1.) * self.real.powf(power - 2.);
+        let beta_cross = outer11_(&self.dual.view(), &self.dual.view());
+        Dual2 {
+            real: self.real.powf(power),
             vars: self.vars,
-            dual: self.dual * power * self.real.pow(power - 1.0),
+            dual: self.dual * coeff,
+            dual2: self.dual2 * coeff + beta_cross * coeff2
         }
     }
 }
 
-impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
+impl_op_ex!(/ |a: &Dual2, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
 
-impl num_traits::identities::One for Dual {
-    fn one() -> Dual {
-        Dual::new(1.0, Vec::new(), Vec::new())
+impl num_traits::identities::One for Dual2 {
+    fn one() -> Dual2 {
+        Dual2::new(1.0, Vec::new(), Vec::new())
     }
 }
 
-impl num_traits::identities::Zero for Dual {
-    fn zero() -> Dual {
-        Dual::new(0.0, Vec::new(), Vec::new())
+impl num_traits::identities::Zero for Dual2 {
+    fn zero() -> Dual2 {
+        Dual2::new(0.0, Vec::new(), Vec::new())
     }
 
     fn is_zero(&self) -> bool {
-        *self == Dual::new(0.0, Vec::new(), Vec::new())
+        *self == Dual2::new(0.0, Vec::new(), Vec::new())
     }
 }
 
-impl PartialEq<Dual> for Dual {
-    fn eq(&self, other: &Dual) -> bool {
+impl PartialEq<Dual2> for Dual2 {
+    fn eq(&self, other: &Dual2) -> bool {
         if self.real != other.real {
             false
         } else if Arc::ptr_eq(&self.vars, &other.vars) {
+            // TODO need to compare dual2
             let boo = self.dual.iter().eq(other.dual.iter());
             boo
         } else {
@@ -262,8 +311,8 @@ impl PartialEq<Dual> for Dual {
     }
 }
 
-impl PartialOrd<Dual> for Dual {
-    fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
+impl PartialOrd<Dual2> for Dual2 {
+    fn partial_cmp(&self, other: &Dual2) -> Option<Ordering> {
         if self.real == other.real {
             Some(Ordering::Equal)
         } else if self.real < other.real {
@@ -274,40 +323,42 @@ impl PartialOrd<Dual> for Dual {
     }
 }
 
-impl std::iter::Sum for Dual {
+impl std::iter::Sum for Dual2 {
     fn sum<I>(iter: I) -> Self
     where
-        I: Iterator<Item = Dual>,
+        I: Iterator<Item = Dual2>,
     {
-        iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
+        iter.fold(Dual2::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
     }
 }
 
-impl_op_ex!(% |a: &Dual, b: & Dual| -> Dual {
+impl_op_ex!(% |a: &Dual2, b: & Dual2| -> Dual2 {
     let d = f64::trunc(a.real / b.real);
     a - d * b
 });
 
-impl Signed for Dual {
+impl Signed for Dual2 {
     fn abs(&self) -> Self {
         if self.real > 0.0 {
-            Dual {
+            Dual2 {
                 real: self.real,
                 vars: Arc::clone(&self.vars),
                 dual: self.dual.clone(),
+                dual2: self.dual2.clone()
             }
         } else {
-            Dual {
+            Dual2 {
                 real: -self.real,
                 vars: Arc::clone(&self.vars),
                 dual: -1.0 * &self.dual,
+                dual2: -1.0 * &self.dual2,
             }
         }
     }
 
     fn abs_sub(&self, other: &Self) -> Self {
         if self <= other {
-            Dual::new(0.0, Vec::new(), Vec::new())
+            Dual2::new(0.0, Vec::new(), Vec::new())
         } else {
             other - self
         }
@@ -315,11 +366,11 @@ impl Signed for Dual {
 
     fn signum(&self) -> Self {
         if self.real == 0.0 {
-            Dual::new(1.0, Vec::new(), Vec::new())
+            Dual2::new(1.0, Vec::new(), Vec::new())
         } else if self.real > 0.0 {
-            Dual::new(0.0, Vec::new(), Vec::new())
+            Dual2::new(0.0, Vec::new(), Vec::new())
         } else {
-            Dual::new(-1.0, Vec::new(), Vec::new())
+            Dual2::new(-1.0, Vec::new(), Vec::new())
         }
     }
 
@@ -333,58 +384,69 @@ impl Signed for Dual {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
-pub enum DualOrF64 {
-    Dual(Dual),
+pub enum Dual2OrF64 {
+    Dual2(Dual2),
     F64(f64),
 }
 
 
 // NumOps with f64
 
-impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
+impl_op_ex_commutative!(+ |a: &Dual2, b: &f64| -> Dual2 {
+    Dual2 {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone(), dual2: a.dual2.clone()}
+});
 
-impl_op_ex!(-|a: &Dual, b: &f64| -> Dual {
-    Dual {
+impl_op_ex!(-|a: &Dual2, b: &f64| -> Dual2 {
+    Dual2 {
         vars: Arc::clone(&a.vars),
         real: a.real - b,
         dual: a.dual.clone(),
+        dual2: a.dual2.clone(),
     }
 });
-impl_op_ex!(-|a: &f64, b: &Dual| -> Dual {
-    Dual {
+impl_op_ex!(-|a: &f64, b: &Dual2| -> Dual2 {
+    Dual2 {
         vars: Arc::clone(&b.vars),
         real: a - b.real,
         dual: -(b.dual.clone()),
+        dual2: -(b.dual2.clone()),
     }
 });
 
-impl_op_ex_commutative!(*|a: &Dual, b: &f64| -> Dual {
-    Dual {
+impl_op_ex_commutative!(*|a: &Dual2, b: &f64| -> Dual2 {
+    Dual2 {
         vars: Arc::clone(&a.vars),
         real: a.real * b,
         dual: *b * &a.dual,
+        dual2: *b * &a.dual2,
     }
 });
 
-impl_op_ex!(/ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual} });
-impl_op_ex!(/ |a: &f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
+impl_op_ex!(/ |a: &Dual2, b: &f64| -> Dual2 {
+    Dual2 {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual, dual2: (1_f64/b) * &a.dual2}
+});
+impl_op_ex!(/ |a: &f64, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
 
-impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
-impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new(), Vec::new()) % b });
+impl_op_ex!(% |a: &Dual2, b: &f64| -> Dual2 {
+    Dual2 {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone(), dual2: a.dual2.clone()}
+});
+impl_op_ex!(% |a: &f64, b: &Dual2| -> Dual2 {
+    Dual2::new(*a, Vec::new(), Vec::new()) % b }
+);
 
-impl PartialEq<f64> for Dual {
+impl PartialEq<f64> for Dual2 {
     fn eq(&self, other: &f64) -> bool {
-        Dual::new(*other, [].to_vec(), [].to_vec()) == *self
+        Dual2::new(*other, [].to_vec(), [].to_vec()) == *self
     }
 }
 
-impl PartialEq<Dual> for f64 {
-    fn eq(&self, other: &Dual) -> bool {
-        Dual::new(*self, [].to_vec(), [].to_vec()) == *other
+impl PartialEq<Dual2> for f64 {
+    fn eq(&self, other: &Dual2) -> bool {
+        Dual2::new(*self, [].to_vec(), [].to_vec()) == *other
     }
 }
 
-impl PartialOrd<f64> for Dual {
+impl PartialOrd<f64> for Dual2 {
     fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
         if self.real == *other {
             Some(Ordering::Equal)
@@ -396,7 +458,7 @@ impl PartialOrd<f64> for Dual {
     }
 }
 
-impl PartialOrd<Dual> for f64 {
+impl PartialOrd<Dual2> for f64 {
     fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
         if *self == other.real {
             Some(Ordering::Equal)
@@ -425,7 +487,7 @@ impl PartialOrd<Dual> for f64 {
 //
 // impl LinAlgOpsF64<Dual> for Dual {}
 
-unsafe impl Element for Dual {
+unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
     fn get_dtype(py: Python<'_>) -> &PyArrayDescr {
         PyArrayDescr::object(py)
@@ -433,7 +495,7 @@ unsafe impl Element for Dual {
 }
 
 #[pymethods]
-impl Dual {
+impl Dual2 {
     /// Return a Dual with associated metrics.
     ///
     /// # Arguments
