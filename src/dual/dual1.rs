@@ -2,15 +2,15 @@ use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1};
 use num_traits;
+use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
 use numpy::{Element, PyArray1, PyArrayDescr, ToPyArray};
 use std::cmp::Ordering;
-use std::sync::Arc;
-use std::fmt;
 use std::cmp::PartialOrd;
-use std::ops::{Add, Mul, Sub, Div};
+use std::fmt;
 use std::iter::Sum;
-use num_traits::identities::{Zero, One};
+use std::ops::{Add, Div, Mul, Sub};
+use std::sync::Arc;
 
 use pyo3::prelude::*;
 
@@ -198,7 +198,6 @@ impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
     }
 });
 
-
 // Assignment operators might be slower due to clones
 
 // impl std::ops::AddAssign for Dual {
@@ -337,7 +336,6 @@ pub enum DualOrF64 {
     Dual(Dual),
     F64(f64),
 }
-
 
 // NumOps with f64
 
@@ -967,5 +965,4 @@ mod tests {
         let expected = Dual::new(c, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
         assert_eq!(result, expected);
     }
-
 }

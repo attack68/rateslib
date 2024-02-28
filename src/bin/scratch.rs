@@ -1,20 +1,8 @@
-
-struct A<T>
-{
-    x: Vec<T>,
-}
-
-impl<T> A<T>
-where T: std::fmt::Debug
-{
-    fn print(&self, y: Vec<T>) {
-        for (a, b) in self.x.iter().zip(y) {
-            println!("{:?},{:?}", a, b);
-        }
-    }
-}
+use ndarray::arr2;
 
 fn main() {
-    let a = A { x: vec![1.0, 2.0]};
-    a.print(vec![4.2, 5.2]);
+    let a = arr2(&[[1.2, 1.3], [2.3, 2.4]]);
+    for v in a.iter() {
+        println!("{}", v);
+    }
 }

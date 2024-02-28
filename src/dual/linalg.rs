@@ -1,19 +1,20 @@
-use crate::dual::dual1::{Dual};
-use crate::dual::linalg_f64::{fdmul22_, dfmul22_, fdmul21_};
+use crate::dual::dual1::Dual;
+use crate::dual::linalg_f64::{dfmul22_, fdmul21_, fdmul22_};
 use ndarray::prelude::*;
-use ndarray::{Zip};
+use ndarray::Zip;
+use num_traits::identities::{One, Zero};
 use num_traits::{Num, Signed};
 use std::cmp::PartialOrd;
-use std::sync::Arc;
-use std::ops::{Mul, Sub, Div};
 use std::iter::Sum;
-use num_traits::identities::{Zero, One};
-
+use std::ops::{Div, Mul, Sub};
+use std::sync::Arc;
 
 // Tensor ops
 
 pub fn dmul11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> T
-where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+    T: Sum,
 {
     if a.len() != b.len() {
         panic!("Lengths of LHS and RHS do not match.")
@@ -22,7 +23,9 @@ where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum
 }
 
 pub fn dmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<T>) -> Array2<T>
-where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+    T: Sum + Zero + Clone,
 {
     if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
         panic!("Columns of LHS do not match rows of RHS.")
@@ -37,7 +40,9 @@ where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
 }
 
 pub fn dmul21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
-where for<'a> &'a T: Mul<&'a T, Output=T>, T: Sum + Zero + Clone
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+    T: Sum + Zero + Clone,
 {
     if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
         panic!("Columns of LHS do not match rows of RHS.")
@@ -201,19 +206,26 @@ pub enum PivotMethod {
     Rook,
 }
 
-pub fn pluq_decomp<T>(a: &ArrayView2<T>, pivot: PivotMethod) -> (Array2<f64>, Array2<T>, Array2<T>, Array2<f64>)
+pub fn pluq_decomp<T>(
+    a: &ArrayView2<T>,
+    pivot: PivotMethod,
+) -> (Array2<f64>, Array2<T>, Array2<T>, Array2<f64>)
 where
-    T: Signed + Num + PartialOrd + Clone + One + Zero + Sum + for<'a> Div<&'a T, Output=T>,
-    for<'a> &'a T: Mul<&'a T, Output=T> + Sub<T, Output=T>,
+    T: Signed + Num + PartialOrd + Clone + One + Zero + Sum + for<'a> Div<&'a T, Output = T>,
+    for<'a> &'a T: Mul<&'a T, Output = T> + Sub<T, Output = T>,
 {
     let n: usize = a.len_of(Axis(0));
     let mut l: Array2<T> = Array2::zeros((n, n));
     let mut u: Array2<T> = Array2::zeros((n, n));
-    let p; let q; let paq;
+    let p;
+    let q;
+    let paq;
     match pivot {
-        PivotMethod::Partial => {(p, q, paq) = partial_pivot_matrix(a)},
-        PivotMethod::Complete => {(p, q, paq) = complete_pivot_matrix(a)},
-        PivotMethod::Rook => {(p, q, paq) = rook_pivot_matrix(a);}
+        PivotMethod::Partial => (p, q, paq) = partial_pivot_matrix(a),
+        PivotMethod::Complete => (p, q, paq) = complete_pivot_matrix(a),
+        PivotMethod::Rook => {
+            (p, q, paq) = rook_pivot_matrix(a);
+        }
     }
 
     let one = T::one();
@@ -236,8 +248,9 @@ where
 }
 
 fn dsolve_lower_1d<T>(l: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
-where T: Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
-  for<'a> &'a T: Sub<T, Output=T> + Mul<&'a T, Output=T>
+where
+    T: Clone + Sum + Zero + for<'a> Div<&'a T, Output = T>,
+    for<'a> &'a T: Sub<T, Output = T> + Mul<&'a T, Output = T>,
 {
     let n: usize = l.len_of(Axis(0));
     let mut x: Array1<T> = Array::zeros(n);
@@ -249,17 +262,21 @@ where T: Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
 }
 
 fn dsolve_upper_1d<T>(u: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
-where T: Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
-  for<'a> &'a T: Sub<T, Output=T> + Mul<&'a T, Output=T>
+where
+    T: Clone + Sum + Zero + for<'a> Div<&'a T, Output = T>,
+    for<'a> &'a T: Sub<T, Output = T> + Mul<&'a T, Output = T>,
 {
     // reverse all dimensions and solve as lower triangular
-    dsolve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1])).slice(s![..;-1]).to_owned()
+    dsolve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1]))
+        .slice(s![..;-1])
+        .to_owned()
 }
 
 fn dsolve21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
-where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
-  for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a T, Output=T>,
-  for<'a> &'a f64: Mul<&'a T, Output=T>
+where
+    T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output = T>,
+    for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T> + Mul<&'a T, Output = T>,
+    for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     let (p, l, u, q) = pluq_decomp::<T>(&a.view(), PivotMethod::Rook);
     let pb: Array1<T> = fdmul21_(&p.view(), &b.view());
@@ -269,11 +286,11 @@ where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>
     x
 }
 
-
 pub fn dsolve<T>(a: &ArrayView2<T>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
-where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output=T>,
-  for<'a> &'a T: Mul<&'a f64, Output=T> + Sub<T, Output=T> + Mul<&'a T, Output=T>,
-  for<'a> &'a f64: Mul<&'a T, Output=T>
+where
+    T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output = T>,
+    for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T> + Mul<&'a T, Output = T>,
+    for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     if allow_lsq {
         let a_ = dmul22_(&a.t(), a);
@@ -296,7 +313,7 @@ mod tests {
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
-        (a-b).abs() < abs_tol.unwrap_or(1e-8)
+        (a - b).abs() < abs_tol.unwrap_or(1e-8)
     }
 
     #[test]
@@ -328,10 +345,25 @@ mod tests {
 
     #[test]
     fn pivot_f64_update() {
-        let p: Array2<f64> = arr2(&[[1., 2., 3., 4.], [10., 2., 5., 6.], [7., 8., 1., 1.], [2., 2., 2., 9.]]);
+        let p: Array2<f64> = arr2(&[
+            [1., 2., 3., 4.],
+            [10., 2., 5., 6.],
+            [7., 8., 1., 1.],
+            [2., 2., 2., 9.],
+        ]);
         let (result0, _, result1) = partial_pivot_matrix(&p.view());
-        let expected0: Array2<f64> = arr2(&[[0., 1., 0., 0.], [0., 0., 1., 0.], [1., 0., 0., 0.], [0., 0., 0., 1.]]);
-        let expected1: Array2<f64> = arr2(&[[10., 2., 5., 6.], [7., 8., 1., 1.], [1., 2., 3., 4.], [2., 2., 2., 9.]]);
+        let expected0: Array2<f64> = arr2(&[
+            [0., 1., 0., 0.],
+            [0., 0., 1., 0.],
+            [1., 0., 0., 0.],
+            [0., 0., 0., 1.],
+        ]);
+        let expected1: Array2<f64> = arr2(&[
+            [10., 2., 5., 6.],
+            [7., 8., 1., 1.],
+            [1., 2., 3., 4.],
+            [2., 2., 2., 9.],
+        ]);
         assert_eq!(result0, expected0);
         assert_eq!(result1, expected1);
     }
@@ -340,7 +372,8 @@ mod tests {
     fn pivot_i32_complete() {
         let i: Array2<i32> = arr2(&[[1, 2, 3, 4], [10, 2, 5, 6], [7, 8, 1, 1], [2, 2, 2, 9]]);
         let (_p, _q, at) = complete_pivot_matrix(&i.view());
-        let expected2: Array2<i32> = arr2(&[[10, 6, 2, 5], [2, 9, 2, 2], [7, 1, 8, 1], [1, 4, 2, 3]]);
+        let expected2: Array2<i32> =
+            arr2(&[[10, 6, 2, 5], [2, 9, 2, 2], [7, 1, 8, 1], [1, 4, 2, 3]]);
         assert_eq!(at, expected2);
     }
 
@@ -513,23 +546,112 @@ mod tests {
 
     #[test]
     fn pluq_dual_sparse() {
-        fn d (f: f64) -> Dual {
+        fn d(f: f64) -> Dual {
             Dual::new(f, Vec::new(), Vec::new())
         }
 
         let a = arr2(&[
-            [d(24.), d(-36.), d(12.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.)],
-            [d(1.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.)],
-            [d(0.), d(0.25), d(0.583333333333), d(0.16666666666), d(0.), d(0.), d(0.), d(0.), d(0.)],
-            [d(0.), d(0.), d(0.16666666666), d(0.66666666666), d(0.16666666666), d(0.), d(0.), d(0.), d(0.)],
-            [d(0.), d(0.), d(0.), d(0.16666666666), d(0.66666666666), d(0.16666666666), d(0.), d(0.), d(0.)],
-            [d(0.), d(0.), d(0.), d(0.), d(0.16666666666), d(0.66666666666), d(0.16666666666), d(0.), d(0.)],
-            [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.16666666666), d(0.583333333333), d(0.25), d(0.)],
-            [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(1.)],
-            [d(0.), d(0.), d(0.), d(0.), d(0.), d(0.), d(12.), d(-36.), d(24.)],
-
+            [
+                d(24.),
+                d(-36.),
+                d(12.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+            ],
+            [
+                d(1.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+            ],
+            [
+                d(0.),
+                d(0.25),
+                d(0.583333333333),
+                d(0.16666666666),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+            ],
+            [
+                d(0.),
+                d(0.),
+                d(0.16666666666),
+                d(0.66666666666),
+                d(0.16666666666),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+            ],
+            [
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.16666666666),
+                d(0.66666666666),
+                d(0.16666666666),
+                d(0.),
+                d(0.),
+                d(0.),
+            ],
+            [
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.16666666666),
+                d(0.66666666666),
+                d(0.16666666666),
+                d(0.),
+                d(0.),
+            ],
+            [
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.16666666666),
+                d(0.583333333333),
+                d(0.25),
+                d(0.),
+            ],
+            [
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(1.),
+            ],
+            [
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(0.),
+                d(12.),
+                d(-36.),
+                d(24.),
+            ],
         ]);
-        let (p, l , u, q) = pluq_decomp(&a.view(), PivotMethod::Rook);
+        let (p, l, u, q) = pluq_decomp(&a.view(), PivotMethod::Rook);
         println!("L: {:?}", l);
         println!("U: {:?}", u);
 
@@ -540,17 +662,19 @@ mod tests {
         println!("PAQ: {:?}", paq);
         println!("LU: {:?}", lu);
 
-        let v: Vec<bool> = paq.into_raw_vec().iter()
-                              .zip(lu.into_raw_vec().iter())
-                              .map(|(x,y)| is_close(&x.real, &y.real, None))
-                              .collect();
+        let v: Vec<bool> = paq
+            .into_raw_vec()
+            .iter()
+            .zip(lu.into_raw_vec().iter())
+            .map(|(x, y)| is_close(&x.real, &y.real, None))
+            .collect();
 
         assert!(v.iter().all(|x| *x));
     }
 
     #[test]
     fn pluq_dual_sparse_3x3() {
-        fn d (f: f64) -> Dual {
+        fn d(f: f64) -> Dual {
             Dual::new(f, Vec::new(), Vec::new())
         }
 
@@ -561,13 +685,19 @@ mod tests {
         ]);
 
         let b = arr1(&[d(1.), d(2.), d(3.)]);
-        let expected= arr1(&[d(0.36363636363636365), d(0.393939393939394), d(0.2121212121212121)]);
+        let expected = arr1(&[
+            d(0.36363636363636365),
+            d(0.393939393939394),
+            d(0.2121212121212121),
+        ]);
         let result = dsolve(&a.view(), &b.view(), false);
 
-        let v: Vec<bool> = expected.into_raw_vec().iter()
-                              .zip(result.into_raw_vec().iter())
-                              .map(|(x,y)| is_close(&x.real, &y.real, None))
-                              .collect();
+        let v: Vec<bool> = expected
+            .into_raw_vec()
+            .iter()
+            .zip(result.into_raw_vec().iter())
+            .map(|(x, y)| is_close(&x.real, &y.real, None))
+            .collect();
         assert!(v.iter().all(|x| *x));
     }
 
@@ -580,13 +710,18 @@ mod tests {
     #[test]
     #[should_panic]
     fn dmul22_p() {
-        dmul22_(&arr2(&[[1.0, 2.0], [2.0, 3.0]]).view(), &arr2(&[[1.0, 2.0]]).view());
+        dmul22_(
+            &arr2(&[[1.0, 2.0], [2.0, 3.0]]).view(),
+            &arr2(&[[1.0, 2.0]]).view(),
+        );
     }
 
     #[test]
     #[should_panic]
     fn dmul21_p() {
-        dmul21_(&arr2(&[[1.0, 2.0], [2.0, 3.0]]).view(), &arr1(&[1.0]).view());
+        dmul21_(
+            &arr2(&[[1.0, 2.0], [2.0, 3.0]]).view(),
+            &arr1(&[1.0]).view(),
+        );
     }
-
 }
