@@ -6,13 +6,14 @@ from packaging import version
 import context
 
 from rateslib.dual import (
+    Dual,
     Dual2,
     dual_exp,
     dual_log,
     dual_solve,
     set_order,
 )
-from rateslib.dual.dual import _plu_decomp, _pivot_matrix, Dual
+from rateslib.dual.dual import _plu_decomp, _pivot_matrix
 
 
 @pytest.fixture()
@@ -27,17 +28,17 @@ def x_2():
 
 @pytest.fixture()
 def y_1():
-    return Dual2(1, vars=["v0", "v1"], dual=[1, 2])
+    return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=[])
 
 
 @pytest.fixture()
 def y_2():
-    return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=np.ones((2, 2)))
+    return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=[1.0, 1.0, 1.0, 1.0])
 
 
 @pytest.fixture()
 def y_3():
-    return Dual2(2, vars=["v0", "v2"], dual=[0, 3], dual2=np.ones((2, 2)))
+    return Dual2(2, vars=["v0", "v2"], dual=[0, 3], dual2=[1.0, 1.0, 1.0, 1.0])
 
 
 @pytest.fixture()
@@ -68,10 +69,10 @@ def b():
 
 
 def test_zero_init():
-    x = Dual(1, vars=["x"])
+    x = Dual(1, ["x"], [])
     assert np.all(x.dual == np.ones(1))
 
-    y = Dual2(1, vars=["x"])
+    y = Dual2(1, ["x"], [], [])
     assert np.all(y.dual == np.ones(1))
     assert np.all(y.dual2 == np.zeros((1, 1)))
 
@@ -87,6 +88,7 @@ def test_zero_init():
     ],
 )
 def test_no_type_crossing_on_ops(x_1, y_1, op):
+    # getattr(x_1, op)(y_1)
     with pytest.raises(TypeError):
         getattr(x_1, op)(y_1)
 
@@ -153,37 +155,37 @@ def test_rdiv_raises(x_1, y_1):
 
 
 def test_neg(x_1, y_2):
-    assert -x_1 == Dual(-1, vars=["v0", "v1"], dual=-np.array([1, 2]))
-    assert -y_2 == Dual2(-1, vars=["v0", "v1"], dual=-np.array([1, 2]), dual2=-np.ones((2, 2)))
+    assert -x_1 == Dual(-1, ["v0", "v1"], [-1.0, -2.0])
+    assert -y_2 == Dual2(-1, ["v0", "v1"], [-1.0, -2.0], [-1.0, -1.0, -1.0, -1.0])
 
 
 def test_eq_ne(x_1, y_1, y_2):
     # non-matching types
-    assert 0 != Dual(0, "single_var")
-    assert 0 != Dual2(0, "single_var")
+    assert 0 != Dual(0, ["single_var"], [])
+    assert 0 != Dual2(0, ["single_var"], [], [])
     # ints
-    assert 2 == Dual(2)
-    assert 2 == Dual2(2)
+    assert 2 == Dual(2, [], [])
+    assert 2 == Dual2(2, [], [], [])
     # floats
-    assert 3.3 == Dual(3.3)
-    assert 3.3 == Dual2(3.3)
+    assert 3.3 == Dual(3.3, [], [])
+    assert 3.3 == Dual2(3.3, [], [], [])
     # no type crossing
     with pytest.raises(TypeError):
         assert x_1 != y_1
     # equality
-    assert x_1 == Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
+    assert x_1 == Dual(1, ["v0", "v1"], [1, 2])
+    assert y_1 == Dual2(1, ["v0", "v1"], [1, 2])
+    assert y_2 == Dual2(1, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])
     # non-matching elements
-    assert x_1 != Dual(2, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert x_1 != Dual(1, vars=["v0", "v1"], dual=np.array([2, 2]))
-    assert x_1 != Dual(1, vars=["v2", "v1"], dual=np.array([1, 2]))
+    assert x_1 != Dual(2, ["v0", "v1"], [1, 2])
+    assert x_1 != Dual(1, ["v0", "v1"], [2, 2])
+    assert x_1 != Dual(1, ["v2", "v1"], [1, 2])
     # non-matching elements
-    assert y_1 != Dual2(2, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_1 != Dual2(1, vars=["v0", "v1"], dual=np.array([2, 2]))
-    assert y_1 != Dual2(1, vars=["v2", "v1"], dual=np.array([1, 2]))
+    assert y_1 != Dual2(2, ["v0", "v1"], [1, 2], [])
+    assert y_1 != Dual2(1, ["v0", "v1"], [2, 2], [])
+    assert y_1 != Dual2(1, ["v2", "v1"], [1, 2], [])
     # non-matching dual2
-    assert y_2 != Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)) * 2)
+    assert y_2 != Dual2(1, ["v0", "v1"], [1, 2], [2.0, 2.0, 2.0, 2.0])
 
 
 def test_lt():
@@ -261,39 +263,19 @@ def test_op_inversions(x_1, x_2):
     [
         (
             "__add__",
-            Dual2(
-                3,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([1, 2, 3]),
-                dual2=np.array([[2, 1, 1], [1, 1, 0], [1, 0, 1]]),
-            ),
+            Dual2(3, ["v0", "v1", "v2"], [1, 2, 3], [2, 1, 1, 1, 1, 0, 1, 0, 1])
         ),
         (
             "__sub__",
-            Dual2(
-                -1,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([1, 2, -3]),
-                dual2=np.array([[0, 1, -1], [1, 1, 0], [-1, 0, -1]]),
-            ),
+            Dual2(-1, ["v0", "v1", "v2"], [1, 2, -3], [0, 1, -1, 1, 1, 0, -1, 0, -1])
         ),
         (
             "__mul__",
-            Dual2(
-                2,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([2, 4, 3]),
-                dual2=np.array([[3, 2, 2.5], [2, 2, 3], [2.5, 3, 1]]),
-            ),
+            Dual2(2, ["v0", "v1", "v2"], [2, 4, 3], [3, 2, 2.5, 2, 2, 3, 2.5, 3, 1])
         ),
         (
             "__truediv__",
-            Dual2(
-                0.5,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([0.5, 1.0, -0.75]),
-                dual2=np.array([[0.25, 0.5, -0.625], [0.5, 0.5, -0.75], [-0.625, -0.75, 0.875]]),
-            ),
+            Dual2(0.5, ["v0", "v1", "v2"], [0.5, 1.0, -0.75], [0.25, 0.5, -0.625, 0.5, 0.5, -0.75, -0.625, -0.75, 0.875])
         ),
     ],
 )
@@ -339,23 +321,19 @@ def test_left_op_with_float(x_1, op, expected):
     [
         (
             "__add__",
-            Dual2(1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))),
+            Dual2(1 + 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])
         ),
         (
             "__sub__",
-            Dual2(1 - 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))),
+            Dual2(1 - 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0]),
         ),
         (
             "__mul__",
-            Dual2(
-                1 * 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) * 2.5, dual2=np.ones((2, 2)) * 2.5
-            ),
+            Dual2(1 * 2.5, ["v0", "v1"], [2.5, 5.0], [2.5, 2.5, 2.5, 2.5])
         ),
         (
             "__truediv__",
-            Dual2(
-                1 / 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) / 2.5, dual2=np.ones((2, 2)) / 2.5
-            ),
+            Dual2(1 / 2.5, ["v0", "v1"], [1/2.5, 2/2.5], [1/2.5, 1/2.5, 1/2.5, 1/2.5])
         ),
     ],
 )
@@ -564,7 +542,7 @@ def test_combined_vars_sorted(y_3):
     [
         2,
         Dual(2, [], []),
-        Dual2(2, [], []),
+        Dual2(2, [], [], []),
     ],
 )
 def test_log(x):
@@ -586,7 +564,7 @@ def test_dual_log_base():
     [
         2,
         Dual(2, [], []),
-        Dual2(2),
+        Dual2(2, [], [], []),
     ],
 )
 def test_exp(x):
@@ -813,7 +791,7 @@ def test_numpy_equality(y_2):
     "z",
     [
         Dual(2.0, ["y"], []),
-        Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+        Dual2(3.0, ["x"], [1], [2]),
     ],
 )
 @pytest.mark.parametrize(
@@ -821,7 +799,7 @@ def test_numpy_equality(y_2):
     [
         2.2,
         Dual(3, ["x"], []),
-        Dual2(3, "x", np.array([2]), np.array([[3]])),
+        Dual2(3, ["x"], [2], [3]),
     ],
 )
 @pytest.mark.parametrize(
@@ -855,7 +833,7 @@ def test_numpy_broadcast_ops_types(z, arg, op_str):
     "z",
     [
         Dual(2.0, ["y"], []),
-        Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+        Dual2(3.0, ["x"], [1], [2]),
     ],
 )
 def test_numpy_broadcast_pow_types(z):
@@ -901,7 +879,7 @@ def test_numpy_einsum_works(y_2, y_1):
     "z",
     [
         Dual(2.0, ["y"], []),
-        Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+        Dual2(3.0, ["x"], [1], [2]),
     ],
 )
 @pytest.mark.parametrize(
