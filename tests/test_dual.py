@@ -11,8 +11,9 @@ from rateslib.dual import (
     dual_log,
     dual_solve,
     set_order,
+    _plu_decomp,
+    _pivot_matrix,
 )
-from rateslib.dual.dual import _plu_decomp, _pivot_matrix
 
 
 @pytest.fixture()
