@@ -1,4 +1,5 @@
 use crate::dual::linalg_f64::outer11_;
+use crate::dual::dual1::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2};
@@ -14,6 +15,7 @@ use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 
 use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -366,12 +368,6 @@ impl Signed for Dual2 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
-pub enum Dual2OrF64 {
-    Dual2(Dual2),
-    F64(f64),
-}
-
 // NumOps with f64
 
 impl_op_ex_commutative!(+ |a: &Dual2, b: &f64| -> Dual2 {
@@ -555,38 +551,43 @@ impl Dual2 {
         Ok(fs)
     }
 
-    fn __eq__(&self, other: Dual2OrF64) -> PyResult<bool> {
+    fn __eq__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
-            Dual2OrF64::Dual2(d) => Ok(d.eq(self)),
-            Dual2OrF64::F64(f) => Ok(Dual2::new(f, Vec::new(), Vec::new(), Vec::new()).eq(self)),
+            DualsOrF64::Dual2(d) => Ok(d.eq(self)),
+            DualsOrF64::F64(f) => Ok(Dual2::new(f, Vec::new(), Vec::new(), Vec::new()).eq(self)),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
-    fn __lt__(&self, other: Dual2OrF64) -> PyResult<bool> {
+    fn __lt__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
-            Dual2OrF64::Dual2(d) => Ok(self < &d),
-            Dual2OrF64::F64(f) => Ok(self < &f),
+            DualsOrF64::Dual2(d) => Ok(self < &d),
+            DualsOrF64::F64(f) => Ok(self < &f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
-    fn __le__(&self, other: Dual2OrF64) -> PyResult<bool> {
+    fn __le__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
-            Dual2OrF64::Dual2(d) => Ok(self <= &d),
-            Dual2OrF64::F64(f) => Ok(self <= &f),
+            DualsOrF64::Dual2(d) => Ok(self <= &d),
+            DualsOrF64::F64(f) => Ok(self <= &f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
-    fn __gt__(&self, other: Dual2OrF64) -> PyResult<bool> {
+    fn __gt__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
-            Dual2OrF64::Dual2(d) => Ok(self > &d),
-            Dual2OrF64::F64(f) => Ok(self > &f),
+            DualsOrF64::Dual2(d) => Ok(self > &d),
+            DualsOrF64::F64(f) => Ok(self > &f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
-    fn __ge__(&self, other: Dual2OrF64) -> PyResult<bool> {
+    fn __ge__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
-            Dual2OrF64::Dual2(d) => Ok(self >= &d),
-            Dual2OrF64::F64(f) => Ok(self >= &f),
+            DualsOrF64::Dual2(d) => Ok(self >= &d),
+            DualsOrF64::F64(f) => Ok(self >= &f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
@@ -594,59 +595,67 @@ impl Dual2 {
         -self
     }
 
-    fn __add__(&self, other: Dual2OrF64) -> Self {
+    fn __add__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => self + d,
-            Dual2OrF64::F64(f) => self + f,
+            DualsOrF64::Dual2(d) => Ok(self + d),
+            DualsOrF64::F64(f) => Ok(self + f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __radd__(&self, other: Dual2OrF64) -> Self {
+    fn __radd__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => self + d,
-            Dual2OrF64::F64(f) => self + f,
+            DualsOrF64::Dual2(d) => Ok(self + d),
+            DualsOrF64::F64(f) => Ok(self + f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __sub__(&self, other: Dual2OrF64) -> Self {
+    fn __sub__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => self - d,
-            Dual2OrF64::F64(f) => self - f,
+            DualsOrF64::Dual2(d) => Ok(self - d),
+            DualsOrF64::F64(f) => Ok(self - f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __rsub__(&self, other: Dual2OrF64) -> Self {
+    fn __rsub__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => d - self,
-            Dual2OrF64::F64(f) => f - self,
+            DualsOrF64::Dual2(d) => Ok(d - self),
+            DualsOrF64::F64(f) => Ok(f - self),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __mul__(&self, other: Dual2OrF64) -> Self {
+    fn __mul__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => self * d,
-            Dual2OrF64::F64(f) => self * f,
+            DualsOrF64::Dual2(d) => Ok(self * d),
+            DualsOrF64::F64(f) => Ok(self * f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __rmul__(&self, other: Dual2OrF64) -> Self {
+    fn __rmul__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => d * self,
-            Dual2OrF64::F64(f) => f * self,
+            DualsOrF64::Dual2(d) => Ok(d * self),
+            DualsOrF64::F64(f) => Ok(f * self),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __truediv__(&self, other: Dual2OrF64) -> Self {
+    fn __truediv__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => self / d,
-            Dual2OrF64::F64(f) => self / f,
+            DualsOrF64::Dual2(d) => Ok(self / d),
+            DualsOrF64::F64(f) => Ok(self / f),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
-    fn __rtruediv__(&self, other: Dual2OrF64) -> Self {
+    fn __rtruediv__(&self, other: DualsOrF64) -> PyResult<Self> {
         match other {
-            Dual2OrF64::Dual2(d) => d / self,
-            Dual2OrF64::F64(f) => f / self,
+            DualsOrF64::Dual2(d) => Ok(d / self),
+            DualsOrF64::F64(f) => Ok(f / self),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -678,6 +687,7 @@ impl Dual2 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dual::dual1::Dual;
 
     #[test]
     fn clone_arc() {
@@ -1096,4 +1106,12 @@ mod tests {
         println!("{:?}", result.dual2);
         assert_eq!(result, expected);
     }
+
+    // #[test]
+    // #[should_panic]
+    // fn no_dual_cross(){
+    //     let a = Dual::new(2.0, Vec::new(), Vec::new());
+    //     let b = Dual2::new(3.0, Vec::new(), Vec::new(), Vec::new());
+    //     a + b
+    // }
 }

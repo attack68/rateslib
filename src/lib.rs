@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests;
 
+pub mod example;
+use crate::example::{D1, D2};
+
 pub mod dual;
 use dual::dual1::Dual;
 use dual::dual2::Dual2;
@@ -38,6 +41,9 @@ fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {
     // m.add_class::<PointVec>()?;
     m.add_class::<Dual>()?;
     m.add_class::<Dual2>()?;
+
+    m.add_class::<D1>()?;
+    m.add_class::<D2>()?;
     // m.add_class::<PPSpline<f64>>()?;
     m.add_function(wrap_pyfunction!(dsolve_py, m)?)?;
     Ok(())
