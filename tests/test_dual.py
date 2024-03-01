@@ -374,9 +374,9 @@ def test_dual2_second_derivatives():
 
     x_, y_, z_ = 3, 2, 1
 
-    x = Dual2(x_, vars=["x"], dual=np.array([1]))
-    y = Dual2(y_, vars=["y"], dual=np.array([1]))
-    z = Dual2(z_, vars=["z"], dual=np.array([1]))
+    x = Dual2(x_, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(y_, vars=["y"], dual=[1], dual2=[])
+    z = Dual2(z_, vars=["z"], dual=[1], dual2=[])
 
     result = f(x, y, z)
     assert result.dual[0] == 4 * x_**3 * y_**2  # 432
@@ -402,9 +402,9 @@ def test_dual2_second_derivatives2():
 
     x_, y_, z_ = 3, 2, 1
 
-    x = Dual2(x_, vars=["x"], dual=np.array([1]))
-    y = Dual2(y_, vars=["y"], dual=np.array([1]))
-    z = Dual2(z_, vars=["z"], dual=np.array([1]))
+    x = Dual2(x_, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(y_, vars=["y"], dual=[1], dual2=[])
+    z = Dual2(z_, vars=["z"], dual=[1], dual2=[])
 
     result = f(x, y, z)
     assert result.dual[0] == math.exp(x_ / z_) / z_ + 1 / x_
@@ -430,8 +430,8 @@ def test_dual2_second_derivatives3():
     f_yy = -1/f^2 (x^3+1)^2 +1/f (0)
     """
     x_, y_ = 2, 1
-    x = Dual2(x_, vars=["x"], dual=np.array([1]))
-    y = Dual2(y_, vars=["y"], dual=np.array([1]))
+    x = Dual2(x_, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(y_, vars=["y"], dual=[1], dual2=[])
 
     f = y * x**3 + y
     f_, fx_, fy_ = f.real, 3 * y_ * x_**2, x_**3 + 1
@@ -556,8 +556,8 @@ def test_dual_log_base():
     result = dual_log(16, 2)
     assert result == 4
 
-    result = dual_log(Dual(16), 2)
-    assert result == Dual(4)
+    result = dual_log(Dual(16, [], []), 2)
+    assert result == Dual(4, [], [])
 
 
 @pytest.mark.parametrize(
@@ -575,35 +575,16 @@ def test_exp(x):
 
 
 def test_downcast_vars():
-    w = Dual(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 1, 1]),
-    )
+    w = Dual(2, ["x", "y", "z"], [0, 1, 1])
     assert w.__downcast_vars__().vars == ("y", "z")
 
-    x = Dual2(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 1, 1]),
-        dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
-    )
+    x = Dual2(2, ["x", "y", "z"], [0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1])
     assert x.__downcast_vars__().vars == ("y", "z")
 
-    y = Dual2(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 0, 1]),
-        dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
-    )
+    y = Dual2(2, ["x", "y", "z"], [0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 1])
     assert y.__downcast_vars__().vars == ("z",)
 
-    z = Dual2(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 0, 1]),
-        dual2=np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1]]),
-    )
+    z = Dual2(2, ["x", "y", "z"], [0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 1, 1])
     assert z.__downcast_vars__().vars == ("y", "z")
 
 
