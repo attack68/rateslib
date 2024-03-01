@@ -5,7 +5,7 @@ use ndarray::{Array, Array1};
 use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
-use numpy::{Element, PyArray1, PyArrayDescr, ToPyArray};
+use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
 use std::fmt;
@@ -14,7 +14,7 @@ use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 
 use pyo3::prelude::*;
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -493,6 +493,11 @@ impl Dual {
     #[getter]
     fn dual<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
         Ok(self.dual.to_pyarray(py))
+    }
+
+    #[getter]
+    fn dual2<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
+        Err(PyValueError::new_err("`Dual` variable cannot possess `dual2` attribute."))
     }
 
     fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
