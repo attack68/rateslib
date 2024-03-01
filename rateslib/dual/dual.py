@@ -335,7 +335,8 @@ class Dual2(DualBase):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
         ix_ = list(map(lambda x: new_vars.index(x), self.vars))
-        dual[ix_], dual2[np.ix_(ix_, ix_)] = self.dual, self.dual2
+        dual[ix_] = self.dual,
+        dual2[np.ix_(ix_, ix_)] = self.dual2
         return Dual2(self.real, new_vars, dual, dual2)
 
     def __downcast_vars__(self):
