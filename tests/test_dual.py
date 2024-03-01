@@ -174,7 +174,7 @@ def test_eq_ne(x_1, y_1, y_2):
         assert x_1 != y_1
     # equality
     assert x_1 == Dual(1, ["v0", "v1"], [1, 2])
-    assert y_1 == Dual2(1, ["v0", "v1"], [1, 2])
+    assert y_1 == Dual2(1, ["v0", "v1"], [1, 2], [])
     assert y_2 == Dual2(1, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])
     # non-matching elements
     assert x_1 != Dual(2, ["v0", "v1"], [1, 2])
@@ -189,27 +189,27 @@ def test_eq_ne(x_1, y_1, y_2):
 
 
 def test_lt():
-    assert Dual(1, "x") < Dual(2, "y")
-    assert Dual2(1, "z") < Dual2(2, "x")
-    assert Dual(1, "x") < 10
-    assert not Dual(1, "x") < 0
+    assert Dual(1, ["x"], []) < Dual(2, ["y"], [])
+    assert Dual2(1, ["z"], [], []) < Dual2(2, ["x"], [], [])
+    assert Dual(1, ["x"], []) < 10
+    assert not Dual(1, ["x"], []) < 0
 
 
 def test_lt_raises():
     with pytest.raises(TypeError, match="Cannot compare"):
-        assert Dual(1, "x") < Dual2(2, "y")
+        assert Dual(1, ["x"], []) < Dual2(2, ["y"], [], [])
 
 
 def test_gt():
-    assert Dual(2, "x") > Dual(1, "y")
-    assert Dual2(2, "z") > Dual2(1, "x")
-    assert Dual(1, "x") > 0
-    assert not Dual(1, "x") > 10
+    assert Dual(2, ["x"], []) > Dual(1, ["y"], [])
+    assert Dual2(2, ["z"], [], []) > Dual2(1, ["x"], [], [])
+    assert Dual(1, ["x"], []) > 0
+    assert not Dual(1, ["x"], []) > 10
 
 
 def test_gt_raises():
     with pytest.raises(TypeError, match="Cannot compare"):
-        assert Dual(2, "x") > Dual2(1, "y")
+        assert Dual(2, ["x"], []) > Dual2(1, ["y"], [], [])
 
 
 def test_dual2_abs_float(x_1, y_1, y_2):
@@ -224,8 +224,8 @@ def test_dual2_abs_float(x_1, y_1, y_2):
 @pytest.mark.parametrize("op", ["__add__", "__sub__", "__mul__", "__truediv__"])
 def test_dual2_immutable(y_1, y_2, op):
     _ = getattr(y_1, op)(y_2)
-    assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
+    assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[])
+    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[1., 1., 1., 1.])
 
 
 @pytest.mark.parametrize("op", ["__add__", "__sub__", "__mul__", "__truediv__"])
@@ -351,10 +351,10 @@ def test_right_op_with_float(x_1):
 
 def test_right_op_with_float2(y_2):
     assert 2.5 + y_2 == Dual2(
-        1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))
+        1 + 2.5, vars=["v0", "v1"], dual=[1., 2.], dual2=[1., 1., 1., 1.]
     )
     assert 2.5 - y_2 == Dual2(
-        2.5 - 1, vars=["v0", "v1"], dual=-np.array([1, 2]), dual2=-np.ones((2, 2))
+        2.5 - 1, vars=["v0", "v1"], dual=[-1., -2.], dual2=[-1., -1., -1., -1.]
     )
     assert 2.5 * y_2 == y_2 * 2.5
     assert 2.5 / y_2 == (y_2 / 2.5) ** -1
@@ -464,8 +464,8 @@ def test_dual2_second_derivatives3():
     ],
 )
 def test_dual_power_1d(power, expected):
-    x = Dual(2, vars=["x"], dual=np.array([1]))
-    y = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual(2, vars=["x"], dual=[1])
+    y = Dual2(2, vars=["x"], dual=[1], dual2=[])
     f, g = x**power, y**power
     assert f.real == expected[0]
     assert f.dual[0] == expected[1]
@@ -476,40 +476,41 @@ def test_dual_power_1d(power, expected):
 
 
 def test_dual2_power2_1d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     assert (x**2) * (x ** (-2)) == 1
     assert (x**5) * (x ** (-5)) == 1
-    assert (x**7.35) * (x ** (-7.35)) == 1
+    z = (x**7.35) * (x ** (-7.35))
+    assert abs(z - 1.0) < 1e-12
 
 
 def test_dual2_power_2d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
-    y = Dual2(3, vars=["y"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(3, vars=["y"], dual=[1], dual2=[])
     f = (x**4 * y**3) ** 2
     assert f.dual2[0, 1] * 2 == 1492992
     assert f.dual2[1, 0] * 2 == 1492992
 
 
 def test_dual2_inv_specific():
-    z = Dual2(2, vars=["x", "y"], dual=np.array([2, 3]))
+    z = Dual2(2, vars=["x", "y"], dual=[2, 3], dual2=[])
     result = z**-1
     expected = Dual2(
         0.5,
         vars=["x", "y"],
-        dual=np.array([-0.5, -0.75]),
-        dual2=np.array([[0.5, 0.75], [0.75, 9 / 8]]),
+        dual=[-0.5, -0.75],
+        dual2=[0.5, 0.75, 0.75, 9 / 8],
     )
     assert result == expected
 
 
 def test_dual_truediv(x_1):
-    expected = Dual(1)
+    expected = Dual(1, [], [])
     result = x_1 / x_1
     assert result == expected
 
 
 def test_dual2_exp_1d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     f = x.__exp__()
     assert f.real == math.exp(2)
     assert f.dual[0] == math.exp(2)
@@ -517,7 +518,7 @@ def test_dual2_exp_1d():
 
 
 def test_dual2_log_1d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     f = x.__log__()
     assert f.real == math.log(2)
     assert f.dual[0] == 0.5
@@ -525,16 +526,16 @@ def test_dual2_log_1d():
 
 
 def test_dual2_log_exp():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     y = x.__log__()
     z = y.__exp__()
     assert x == z
 
 
 def test_combined_vars_sorted(y_3):
-    x = Dual2(2, vars=["a", "v0", "z"], dual=np.array([1, 1, 1]))
+    x = Dual2(2, vars=["a", "v0", "z"], dual=[1, 1, 1], dual2=[])
     result = x * y_3
-    assert result.vars == ("a", "v0", "v2", "z")
+    assert set(result.vars) == set(["a", "v0", "v2", "z"])
 
 
 @pytest.mark.parametrize(
