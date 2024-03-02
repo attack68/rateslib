@@ -17,7 +17,7 @@ from rateslib.curves import (
 from rateslib.default import NoInput
 from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.calendars import get_calendar
 from rateslib.solver import Solver
 from rateslib.instruments import IRS
@@ -93,7 +93,10 @@ def test_log_linear_interp():
         ad=1,
     )
     val = exp((log(1.00) + log(0.99)) / 2)
-    assert curve[dt(2022, 3, 16)] == Dual(val, ["v0", "v1"], [0.49749372, 0.50251891])
+    result = curve[dt(2022, 3, 16)]
+    expected = Dual(val, ["v0", "v1"], [0.49749372, 0.50251891])
+    assert abs(result - expected) < 1e-15
+    assert all(np.isclose(gradient(result, ["v0", "v1"]), expected.dual))
 
 
 def test_linear_zero_rate_interp():
