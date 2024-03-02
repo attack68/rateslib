@@ -500,11 +500,13 @@ impl Dual {
         Err(PyValueError::new_err("`Dual` variable cannot possess `dual2` attribute."))
     }
 
-    fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
+    #[pyo3(name = "grad1")]
+    fn grad1<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
         Ok(self.gradient1(vars).to_pyarray(py))
     }
 
-    fn gradient2<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
+    #[pyo3(name = "grad2")]
+    fn grad2<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
         Err(PyValueError::new_err("Cannot evaluate second order derivative on a Dual."))
     }
 

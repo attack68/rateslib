@@ -529,11 +529,13 @@ impl Dual2 {
         Ok(self.dual2.to_pyarray(py))
     }
 
-    fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
+    #[pyo3(name = "grad1")]
+    fn grad1_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
         Ok(self.grad1(vars).to_pyarray(py))
     }
 
-    fn gradient2<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
+    #[pyo3(name = "grad2")]
+    fn grad2_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
         Ok(self.grad2(vars).to_pyarray(py))
     }
 

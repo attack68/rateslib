@@ -13,35 +13,6 @@ INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifold: bool = False):
-    """
-    Return derivatives of a dual number.
-
-    Parameters
-    ----------
-    dual : Dual or Dual2
-        The dual variable from which to derive derivatives.
-    vars : str, tuple, list optional
-        Name of the variables which to return gradients for. If not given
-        defaults to all vars attributed to the instance.
-    order : {1, 2}
-        Whether to return the first or second derivative of the dual number.
-        Second order will raise if applied to a ``Dual`` and not ``Dual2`` instance.
-    keep_manifold : bool
-        If ``order`` is 1 and the type is ``Dual2`` one can return a ``Dual2``
-        where the ``dual2`` values are converted to ``dual`` values to represent
-        a first order manifold of the first derivative (and the ``dual2`` values
-        set to zero). Useful for propagation in iterations.
-
-    Returns
-    -------
-    float, ndarray, Dual2
-    """
-    if not isinstance(dual, (Dual, Dual2)):
-        raise TypeError("Must call `gradient` on dual-type variables")
-    return dual.grad(vars, order, keep_manifold)
-
-
 class DualBase(metaclass=ABCMeta):
     """
     Base class for dual number implementation.
@@ -161,6 +132,12 @@ class DualBase(metaclass=ABCMeta):
             for ix, du in zip(ix_, ret):
                 du.dual = 2 * _.dual2[ix, ix_]
             return ret
+
+    def grad1(self, vars=None):
+        return self.grad(vars, order=1, keep_manifold=False)
+
+    def grad2(self, vars=None, keep_mainfold=False):
+        return self.grad(vars, order=2, keep_manifold=keep_mainfold)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
