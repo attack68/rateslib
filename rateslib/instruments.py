@@ -1907,7 +1907,7 @@ class BondMixin:
 
         # shift the curve to the first order approximation and fine tune with 2nd order approxim.
         curves[1]._set_ad_order(2)
-        disc_curve = curves[1].shift(Dual2(z_hat, "z_spread"), composite=False)
+        disc_curve = curves[1].shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         a, b = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
