@@ -6,7 +6,7 @@ use ndarray::{Array, Array1, Array2};
 use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
-use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use numpy::{Element, PyArray, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
 use std::fmt;
@@ -15,7 +15,7 @@ use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 
 use pyo3::prelude::*;
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 
 #[pyclass]
 #[derive(Clone, Default)]
@@ -121,18 +121,18 @@ impl Dual2 {
         }
     }
 
-    fn gradient1(&self, vars: Vec<String>) -> Array1<f64> {
+    fn grad1(&self, vars: Vec<String>) -> Array1<f64> {
         let mut dual = Array::zeros(vars.len());
         for (i, index) in vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
             match index {
-                Some(value) => dual[[i]] = self.dual[[value]],
-                None => dual[[i]] = 0.0,
+                Some(value) => dual[i] = self.dual[value],
+                None => dual[i] = 0.0,
             }
         }
         dual
     }
 
-    fn gradient2(&self, vars: Vec<String>) -> Array2<f64> {
+    fn grad2(&self, vars: Vec<String>) -> Array2<f64> {
         let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars.get_index_of(x)).collect();
 
         let mut dual2 = Array::zeros((vars.len(), vars.len()));
@@ -530,7 +530,11 @@ impl Dual2 {
     }
 
     fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.gradient1(vars).to_pyarray(py))
+        Ok(self.grad1(vars).to_pyarray(py))
+    }
+
+    fn gradient2<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
+        Ok(self.grad2(vars).to_pyarray(py))
     }
 
     fn arc_check(&self, other: &Dual2) -> PyResult<bool> {

@@ -110,12 +110,12 @@ impl Dual {
     //     return self.vars.len() == other.vars.len() && self.vars.intersection(&other.vars).count() == self.vars.len()
     // }
 
-    fn ggradient(&self, vars: Vec<String>) -> Array1<f64> {
+    fn gradient1(&self, vars: Vec<String>) -> Array1<f64> {
         let mut dual = Array::zeros(vars.len());
         for (i, index) in vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
             match index {
-                Some(value) => dual[[i]] = self.dual[[value]],
-                None => dual[[i]] = 0.0,
+                Some(value) => dual[i] = self.dual[value],
+                None => dual[i] = 0.0,
             }
         }
         dual
@@ -501,7 +501,11 @@ impl Dual {
     }
 
     fn gradient<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.ggradient(vars).to_pyarray(py))
+        Ok(self.gradient1(vars).to_pyarray(py))
+    }
+
+    fn gradient2<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
+        Err(PyValueError::new_err("Cannot evaluate second order derivative on a Dual."))
     }
 
     fn arc_check(&self, other: &Dual) -> PyResult<bool> {
