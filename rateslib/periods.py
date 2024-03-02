@@ -40,7 +40,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import Dual, Dual2, DualTypes, gradient
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -861,7 +861,7 @@ class FloatPeriod(BasePeriod):
             DualType = Dual if curve.ad in [0, 1] else Dual2
             self.float_spread = DualType(float(_), "z_float_spread")
             rate = self.rate(curve)
-            dr_dz = rate.gradient("z_float_spread")[0] * 100
+            dr_dz = gradient(rate, "z_float_spread")[0] * 100
             self.float_spread = _
         else:
             raise TypeError("`curve` must be supplied for given `spread_compound_method`")
@@ -1464,7 +1464,7 @@ class FloatPeriod(BasePeriod):
             else:
                 rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
             notional_exposure = Series(
-                [rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
+                [gradient(rate, f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
             ).astype(float)
             v = disc_curve[self.payment]
             mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
