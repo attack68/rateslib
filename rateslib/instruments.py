@@ -2528,7 +2528,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             p = self._price_from_ytm(Dual2(x, ["y"], [], []), settlement, self.calc_mode, dirty)
             dydP = 1 / gradient(p, ["y"])[0]
             d2ydP2 = -gradient(p, ["y"], order=2)[0][0] * gradient(p, ["y"])[0] ** -3
-            dual = dydP * price.dual,
+            dual = dydP * price.dual
             dual2 = 0.5 * (
                 dydP * gradient(price, price.vars, order=2)
                 + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
@@ -2607,7 +2607,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             _ = -gradient(self.price(Dual(float(ytm), ["y"], []), settlement), ["y"])[0]
         elif metric == "modified":
             price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
-            _ = -gradient(price, "y")[0] / float(price) * 100
+            _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
             price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
             f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
