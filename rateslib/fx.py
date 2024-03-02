@@ -1214,7 +1214,7 @@ class FXForwards:
                 dom_, for_ = pair[3:6], pair[6:9]
                 for fxr in fx_rates:
                     if dom_ in fxr.currencies_list and for_ in fxr.currencies_list:
-                        delta = gradient(value, pair)[0]
+                        delta = gradient(value, [pair])[0]
                         _ = fxr._get_positions_from_delta(delta, pair[3:], base)
                         _ = Series(_, index=fxr.currencies_list, name=fxr.settlement)
                         df = df.add(_.to_frame(), fill_value=0.0)

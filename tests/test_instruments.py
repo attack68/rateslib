@@ -1510,8 +1510,8 @@ class TestNonMtmXCS:
             "fxr": fxr,
             "fxf": fxf,
             "float": 10.0,
-            "dual": Dual(10.0, "x"),
-            "dual2": Dual2(10.0, "x"),
+            "dual": Dual(10.0, ["x"], []),
+            "dual2": Dual2(10.0, ["x"], [], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -1710,8 +1710,8 @@ class TestNonMtmFixedFloatXCS:
             "fxr": fxr,
             "fxf": fxf,
             "float": 10.0,
-            "dual": Dual(10.0, "x"),
-            "dual2": Dual2(10.0, "x"),
+            "dual": Dual(10.0, ["x"], []),
+            "dual2": Dual2(10.0, ["x"], [], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -1831,8 +1831,8 @@ class TestNonMtmFixedFixedXCS:
             "fxr": fxr,
             "fxf": fxf,
             "float": 10.0,
-            "dual": Dual(10.0, "x"),
-            "dual2": Dual2(10.0, "x"),
+            "dual": Dual(10.0, ["x"], []),
+            "dual2": Dual2(10.0, ["x"], [], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
