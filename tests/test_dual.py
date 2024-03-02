@@ -407,19 +407,22 @@ def test_dual2_second_derivatives2():
     z = Dual2(z_, vars=["z"], dual=[1], dual2=[])
 
     result = f(x, y, z)
-    assert result.dual[0] == math.exp(x_ / z_) / z_ + 1 / x_
-    assert result.dual[1] == 1 / y_
-    assert result.dual[2] == -x_ * math.exp(x_ / z_) / z_**2
+    xi = result.vars.index("x")
+    yi = result.vars.index("y")
+    zi = result.vars.index("z")
+    assert result.dual[xi] == math.exp(x_ / z_) / z_ + 1 / x_
+    assert result.dual[yi] == 1 / y_
+    assert result.dual[zi] == -x_ * math.exp(x_ / z_) / z_**2
 
-    assert result.dual2[0, 0] * 2 == math.exp(x_ / z_) / z_**2 - 1 / x_**2
-    assert result.dual2[0, 1] * 2 == 0
-    assert result.dual2[0, 2] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
-    assert result.dual2[1, 0] * 2 == 0
-    assert result.dual2[1, 1] * 2 == -1 / y_**2
-    assert result.dual2[1, 2] * 2 == 0
-    assert result.dual2[2, 0] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
-    assert result.dual2[2, 1] * 2 == 0
-    assert result.dual2[2, 2] * 2 == math.exp(x_ / z_) * (x_**2 / z_**4 + 2 * x_ / z_**3)
+    assert result.dual2[xi, xi] * 2 == math.exp(x_ / z_) / z_**2 - 1 / x_**2
+    assert result.dual2[xi, yi] * 2 == 0
+    assert result.dual2[xi, zi] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
+    assert result.dual2[yi, xi] * 2 == 0
+    assert result.dual2[yi, yi] * 2 == -1 / y_**2
+    assert result.dual2[yi, zi] * 2 == 0
+    assert result.dual2[zi, xi] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
+    assert result.dual2[zi, yi] * 2 == 0
+    assert result.dual2[zi, zi] * 2 == math.exp(x_ / z_) * (x_**2 / z_**4 + 2 * x_ / z_**3)
 
 
 def test_dual2_second_derivatives3():
@@ -436,20 +439,24 @@ def test_dual2_second_derivatives3():
     f = y * x**3 + y
     f_, fx_, fy_ = f.real, 3 * y_ * x_**2, x_**3 + 1
     fxx_, fxy_, fyy_ = 6 * x_ * y_, 3 * x_**2, 0
-    assert f.dual[0] == fx_
-    assert f.dual[1] == fy_
-    assert f.dual2[0, 0] * 2 == fxx_
-    assert f.dual2[0, 1] * 2 == fxy_
-    assert f.dual2[1, 1] * 2 == 0
+
+    xi = f.vars.index("x")
+    yi = f.vars.index("y")
+
+    assert f.dual[xi] == fx_
+    assert f.dual[yi] == fy_
+    assert f.dual2[xi, xi] * 2 == fxx_
+    assert f.dual2[xi, yi] * 2 == fxy_
+    assert f.dual2[yi, yi] * 2 == 0
 
     h = f.__log__()
     assert h.real == math.log(y_ * x_**3 + y_)
-    assert h.dual[0] == 1 / f_ * fx_
-    assert h.dual[1] == 1 / f_ * fy_
-    assert h.dual2[0, 0] * 2 == -1 / f_**2 * fx_**2 + 1 / f_ * fxx_
-    assert h.dual2[0, 1] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
-    assert h.dual2[1, 0] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
-    assert h.dual2[1, 1] * 2 == -1 / f_**2 * fy_**2 + 1 / f_ * fyy_
+    assert h.dual[xi] == 1 / f_ * fx_
+    assert h.dual[yi] == 1 / f_ * fy_
+    assert h.dual2[xi, xi] * 2 == -1 / f_**2 * fx_**2 + 1 / f_ * fxx_
+    assert h.dual2[xi, yi] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
+    assert h.dual2[yi, xi] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
+    assert h.dual2[yi, yi] * 2 == -1 / f_**2 * fy_**2 + 1 / f_ * fyy_
 
 
 @pytest.mark.parametrize(
@@ -721,8 +728,11 @@ def test_solve_dual():
 
 
 def test_solve_dual2():
-    A = np.array([[Dual2(1), Dual2(0)], [Dual2(0), Dual2(1)]], dtype="object")
-    b = np.array([Dual2(2, ["x"], np.array([1])), Dual2(5, ["x", "y"], np.array([1, 1]))])[
+    A = np.array([
+        [Dual2(1, [], [], []), Dual2(0, [], [], [])],
+        [Dual2(0, [], [], []), Dual2(1, [], [], [])]
+    ], dtype="object")
+    b = np.array([Dual2(2, ["x"], [1], []), Dual2(5, ["x", "y"], [1, 1], [])])[
         :, np.newaxis
     ]
     x = dual_solve(A, b)
