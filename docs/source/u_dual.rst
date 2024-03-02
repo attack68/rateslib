@@ -29,6 +29,7 @@ Classes
 Methods
 -------
 .. autosummary::
+   rateslib.dual.gradient
    rateslib.dual.dual_exp
    rateslib.dual.dual_log
    rateslib.dual.dual_solve
@@ -65,7 +66,7 @@ to use :class:`~rateslib.dual.Dual`:
 
    x, y, z = Dual(2, "x"), Dual(1, "y"), Dual(2, "z")
    func(x, y, z)
-   func(x, y, z).gradient(["x", "y", "z"])
+   gradient(func(x, y, z), ["x", "y", "z"])
 
 Second Derivatives
 ------------------
@@ -76,8 +77,8 @@ For extracting second derivatives we must use :class:`~rateslib.dual.Dual2`:
 
     x, y, z = Dual2(2, "x"), Dual2(1, "y"), Dual2(2, "z")
     func(x, y, z)
-    func(x, y, z).gradient(["x", "y", "z"])
-    func(x, y, z).gradient(["x", "y"], order=2)
+    gradient(func(x, y, z), ["x", "y", "z"])
+    gradient(func(x, y, z), ["x", "y"], order=2)
 
 The ``keep_manifold`` argument is also exclusively available
 for :class:`~rateslib.dual.Dual2`. When
@@ -100,7 +101,7 @@ at (2, 4) we can simply do,
 
 .. ipython:: python
 
-    (g*h).gradient(order=2)
+    gradient(g*h, order=2)
 
 And observe that, say, :math:`\frac{\partial (gh)}{\partial x \partial y} = 4xy|_{(2, 4)} = 32`,
 as shown in the above array.
@@ -116,26 +117,26 @@ which we express in our dual language as,
 
 .. ipython:: python
 
-    g.gradient(["x", "y"], keep_manifold=True) * h + g * h.gradient(["x", "y"], keep_manifold=True)
+    gradient(g, ["x", "y"], keep_manifold=True) * h + g * gradient(h, ["x", "y"], keep_manifold=True)
 
 If the manifold is not maintained the product rule fails because information that is
 required to ultimately determine that desired second derivative is discarded.
 
 .. ipython:: python
 
-    g.gradient(["x", "y"]) * h + g * h.gradient(["x", "y"])
+    gradient(g, ["x", "y"]) * h + g * gradient(h, ["x", "y"])
 
 More specifically,
 
 .. ipython:: python
 
-    g.gradient(["x", "y"], keep_manifold=True)
+    gradient(g, ["x", "y"], keep_manifold=True)
 
 while,
 
 .. ipython:: python
 
-    g.gradient(["x", "y"])
+    gradient(g, ["x", "y"])
 
 
 Implementation

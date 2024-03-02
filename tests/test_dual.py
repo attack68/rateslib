@@ -12,8 +12,10 @@ from rateslib.dual import (
     dual_log,
     dual_solve,
     set_order,
+    _plu_decomp,
+    _pivot_matrix,
+    gradient,
 )
-from rateslib.dual.dual import _plu_decomp, _pivot_matrix
 
 
 @pytest.fixture()
@@ -127,10 +129,10 @@ def test_dual_str(x_1, y_2):
     ],
 )
 def test_gradient_method(vars, expected, x_1, y_2):
-    result = x_1.gradient(vars)
+    result = gradient(x_1, vars)
     assert np.all(result == expected)
 
-    result = y_2.gradient(vars)
+    result = gradient(y_2, vars)
     assert np.all(result == expected)
 
 
@@ -142,7 +144,7 @@ def test_gradient_method(vars, expected, x_1, y_2):
     ],
 )
 def test_gradient_method2(vars, expected, y_2):
-    result = y_2.gradient(vars, 2)
+    result = gradient(y_2, vars, 2)
     assert np.all(result == expected)
 
 
@@ -596,7 +598,7 @@ def test_downcast_vars():
 
 
 def test_gradient_of_non_present_vars(x_1):
-    result = x_1.gradient()
+    result = gradient(x_1)
     assert np.all(np.isclose(result, np.array([1, 2])))
 
 
@@ -615,7 +617,7 @@ def test_keep_manifold_gradient():
         dual=np.array([1, 2, 3]),
         dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]),
     )
-    result = du2.gradient(["x", "z"], 1, keep_manifold=True)
+    result = gradient(du2, ["x", "z"], 1, keep_manifold=True)
     expected = np.array(
         [Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))]
     )
