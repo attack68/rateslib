@@ -180,7 +180,16 @@ class Dual2(DualBase):
             self.dual: np.ndarray = np.ones(n)
         else:
             self.dual = np.asarray(dual.copy())
-        self.dual2 = np.asarray(dual2.copy()) if dual2 is not None else np.zeros((n, n))
+
+        if isinstance(dual2, list):
+            if len(dual2) == 0:
+                self.dual2 = np.zeros((n, n))
+            elif len(dual2) == n**2:
+                self.dual2 = np.asarray(dual2).reshape((n, n))
+        elif dual2 is not None:
+            self.dual2 = np.asarray(dual2.copy())
+        else:
+            self.dual2 = np.zeros((n, n))
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
@@ -326,7 +335,8 @@ class Dual2(DualBase):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
         ix_ = list(map(lambda x: new_vars.index(x), self.vars))
-        dual[ix_], dual2[np.ix_(ix_, ix_)] = self.dual, self.dual2
+        dual[ix_] = self.dual,
+        dual2[np.ix_(ix_, ix_)] = self.dual2
         return Dual2(self.real, new_vars, dual, dual2)
 
     def __downcast_vars__(self):
