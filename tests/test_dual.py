@@ -123,7 +123,7 @@ def test_dual_str(x_1, y_2):
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 1.00),
+        (["v0"], 1.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
@@ -138,7 +138,7 @@ def test_gradient_method(vars, expected, x_1, y_2):
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 2.00),
+        (["v0"], 2.00),
         (["v1", "v0"], np.array([[2.0, 2.0], [2.0, 2.0]])),
     ],
 )
