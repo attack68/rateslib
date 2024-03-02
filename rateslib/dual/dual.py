@@ -672,30 +672,6 @@ def dual_solve(A, b, allow_lsq=False):
     return x
 
 
-def set_order(val, order):
-    """
-    Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
-    unchanged.
-
-    Parameters
-    ----------
-    val : float, int, Dual or Dual2
-        The value to convert the order of.
-    order : int in [0, 1, 2]
-        The AD order to convert to. If ``val`` is float or int 0 will be used.
-
-    Returns
-    -------
-    float, int, Dual or Dual2
-    """
-    if isinstance(val, (*FLOATS, *INTS)):
-        return val
-    elif isinstance(val, (Dual, Dual2)):
-        return val._set_order(order)
-
-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-DualTypes = Union[float, Dual, Dual2]

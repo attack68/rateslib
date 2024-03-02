@@ -1,11 +1,9 @@
-from typing import Optional
+from typing import Optional, Union
 
 from rateslib.dual.dual import (
     # Dual,
     # Dual2,
     dual_solve,
-    set_order,
-    DualTypes,
     # private methods use
     _plu_decomp,
     _pivot_matrix,
@@ -18,9 +16,40 @@ from rateslib.dual.dualrs import (
 )
 import math
 
+
+DualTypes = Union[float, Dual, Dual2]
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def set_order(val, order):
+    """
+    Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
+    unchanged.
+
+    Parameters
+    ----------
+    val : float, int, Dual or Dual2
+        The value to convert the order of.
+    order : int in [0, 1, 2]
+        The AD order to convert to. If ``val`` is float or int 0 will be used.
+
+    Returns
+    -------
+    float, int, Dual or Dual2
+    """
+    if order == 2 and isinstance(val, Dual):
+        return Dual2(val.real, val.vars, val.dual.tolist(), [])
+    elif order == 1 and isinstance(val, Dual2):
+        return Dual(val.real, val.vars, val.dual.tolist())
+    elif order == 0:
+        return float(val)
+    # otherwise:
+    #  - val is a Float or an Int
+    #  - val is a Dual and order == 1 OR val is Dual2 and order == 2
+    return val
 
 
 def set_order_convert(val, order, tag):
@@ -47,13 +76,8 @@ def set_order_convert(val, order, tag):
             return Dual(val, [tag], [])
         elif order == 2:
             return Dual2(val, [tag], [], [])
-    elif isinstance(val, (Dual, Dual2)):
-        if order == 0:
-            return float(val)
-        elif (order == 1 and isinstance(val, Dual)) or (order == 2 and isinstance(val, Dual2)):
-            return val
-        else:
-            return val._set_order(order)
+    # else val is Dual or Dual2 so convert directly
+    return set_order(val, order)
 
 
 def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifold: bool = False):
@@ -83,9 +107,18 @@ def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifo
     if not isinstance(dual, (Dual, Dual2)):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
-        return dual.grad1(vars)
+        if vars is None:
+            return dual.dual
+        else:
+            return dual.grad1(vars)
     elif order == 2:
-        dual.grad2(vars, keep_manifold)
+        if not keep_manifold:
+            if vars is None:
+                return 2.0 * dual.dual2
+            else:
+                return dual.grad2(vars)
+        else:
+            return dual.grad2_manifold(vars)
     else:
         raise ValueError("`order` must be in {1, 2} for gradient calculation.")
 

@@ -633,11 +633,15 @@ impl Dual {
         }
     }
 
-    fn __pow__(&self, power: f64, modulo: Option<i32>) -> Self {
+    fn __pow__(&self, power: DualsOrF64, modulo: Option<i32>) -> PyResult<Self> {
         if modulo.unwrap_or(0) != 0 {
             panic!("Power function with mod not available for Dual.")
         }
-        self.clone().pow(power)
+        match power {
+            DualsOrF64::F64(f) => Ok(self.clone().pow(f)),
+            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent.")),
+            DualsOrF64::Dual2(d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent."))
+        }
     }
 
     fn __exp__(&self) -> Self {
