@@ -2525,19 +2525,16 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             return Dual(x, price.vars, 1 / gradient(p, ["y"])[0] * price.dual)
         elif isinstance(price, Dual2):
             # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(Dual2(x, "y"), settlement, self.calc_mode, dirty)
+            p = self._price_from_ytm(Dual2(x, ["y"], [], []), settlement, self.calc_mode, dirty)
             dydP = 1 / gradient(p, ["y"])[0]
             d2ydP2 = -gradient(p, ["y"], order=2)[0][0] * gradient(p, ["y"])[0] ** -3
-            return Dual2(
-                x,
-                price.vars,
-                dydP * price.dual,
-                0.5
-                * (
-                    dydP * gradient(price, price.vars, order=2)
-                    + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
-                ),
+            dual = dydP * price.dual,
+            dual2 = 0.5 * (
+                dydP * gradient(price, price.vars, order=2)
+                + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
             )
+
+            return Dual2(x, price.vars, dual.tolist(), list(dual2.flat))
         else:
             return x
 
@@ -2657,7 +2654,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.duration(4.445, dt(1999, 5, 27))
            gilt.duration(4.455, dt(1999, 5, 27))
         """
-        _ = self.price(Dual2(float(ytm), "y"), settlement)
+        _ = self.price(Dual2(float(ytm), ["y"], [], []), settlement)
         return gradient(_, ["y"], 2)[0][0]
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
