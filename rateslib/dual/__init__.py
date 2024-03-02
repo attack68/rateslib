@@ -1,3 +1,5 @@
+from typing import Optional
+
 from rateslib.dual.dual import (
     # Dual,
     # Dual2,
@@ -6,6 +8,7 @@ from rateslib.dual.dual import (
     DualTypes,
     # private methods use
     _plu_decomp,
+    _pivot_matrix,
     FLOATS,
     INTS,
 )
@@ -43,7 +46,7 @@ def set_order_convert(val, order, tag):
         elif order == 1:
             return Dual(val, [tag], [])
         elif order == 2:
-            return Dual2(val, tag)
+            return Dual2(val, [tag], [], [])
     elif isinstance(val, (Dual, Dual2)):
         if order == 0:
             return float(val)
@@ -51,6 +54,40 @@ def set_order_convert(val, order, tag):
             return val
         else:
             return val._set_order(order)
+
+
+def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifold: bool = False):
+    """
+    Return derivatives of a dual number.
+
+    Parameters
+    ----------
+    dual : Dual or Dual2
+        The dual variable from which to derive derivatives.
+    vars : str, tuple, list optional
+        Name of the variables which to return gradients for. If not given
+        defaults to all vars attributed to the instance.
+    order : {1, 2}
+        Whether to return the first or second derivative of the dual number.
+        Second order will raise if applied to a ``Dual`` and not ``Dual2`` instance.
+    keep_manifold : bool
+        If ``order`` is 1 and the type is ``Dual2`` one can return a ``Dual2``
+        where the ``dual2`` values are converted to ``dual`` values to represent
+        a first order manifold of the first derivative (and the ``dual2`` values
+        set to zero). Useful for propagation in iterations.
+
+    Returns
+    -------
+    float, ndarray, Dual2
+    """
+    if not isinstance(dual, (Dual, Dual2)):
+        raise TypeError("Can call `gradient` only on dual-type variables.")
+    if order == 1:
+        return dual.grad1(vars)
+    elif order == 2:
+        dual.grad2(vars, keep_manifold)
+    else:
+        raise ValueError("`order` must be in {1, 2} for gradient calculation.")
 
 
 def dual_exp(x):
