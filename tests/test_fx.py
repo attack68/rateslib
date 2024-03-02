@@ -11,7 +11,7 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
 from rateslib.default import NoInput
 
@@ -270,16 +270,19 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur):
     )
     result = fxf.rate("usdeur", dt(2022, 3, 25))
     expected = Dual(0.8991875219289739, ["fx_usdeur"], [0.99909725])
-    assert result == expected
+    assert abs(result-expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
     # test fx_swap price
     result = fxf.swap("usdeur", [dt(2022, 1, 3), dt(2022, 3, 25)])
     expected = (expected - fxf.rate("usdeur", dt(2022, 1, 3))) * 10000
-    assert result == expected
+    assert abs(result-expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
     result = fxf.rate("eurusd", dt(2022, 3, 25))
     expected = Dual(1.1121150767915007, ["fx_usdeur"], [-1.23568342])
-    assert result == expected
+    assert abs(result - expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
 
 def test_fxforwards2():
@@ -294,7 +297,8 @@ def test_fxforwards2():
     fxf = FXForwards(fx_rates, fx_curves)
     result = fxf.rate("usdnok", dt(2022, 8, 16))
     expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
-    assert result == expected
+    assert abs(result-expected) < 1e-15
+    assert all(np.isclose(gradient(result, ["fx_eurnok", "fx_usdeur"]), expected.dual))
 
 
 def test_fxforwards_immediate():
@@ -306,14 +310,18 @@ def test_fxforwards_immediate():
     }
     fxf = FXForwards(fx_rates, fx_curves)
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
-    assert fxf.fx_rates_immediate.fx_array[0, 1].real == F0_usdeur
-    assert fxf.rate("usdeur").real == F0_usdeur
+    assert abs(fxf.fx_rates_immediate.fx_array[0, 1].real - F0_usdeur) < 1e-15
+    assert abs(fxf.rate("usdeur").real - F0_usdeur) < 1e-15
 
     result = fxf.rate("usdeur", dt(2022, 1, 1))
-    assert result == Dual(1, ["fx_usdeur"], [1 / 0.95])
+    expected = Dual(1, ["fx_usdeur"], [1 / 0.95])
+    assert abs(result - expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
     result = fxf.rate("usdeur", dt(2022, 1, 3))
-    assert result == Dual(0.95, ["fx_usdeur"], [1.0])
+    expected = Dual(0.95, ["fx_usdeur"], [1.0])
+    assert abs(result - expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
 
 def test_fxforwards_immediate2():
