@@ -518,7 +518,7 @@ def test_set_ad_order_no_spline():
 
     old_id = id(curve.nodes)
     curve._set_ad_order(2)
-    assert curve[dt(2022, 1, 1)] == Dual2(1.0, "v0")
+    assert curve[dt(2022, 1, 1)] == Dual2(1.0, ["v0"], [], [])
     assert curve.ad == 2
     assert id(curve.nodes) != old_id  # new nodes object thus a new id
 
