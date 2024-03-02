@@ -15,8 +15,10 @@ from rateslib.periods import (
     IndexFixedPeriod,
     IndexCashflow,
     IndexMixin,
+    FXCallPeriod,
+    FXPutPeriod,
 )
-from rateslib.fx import FXRates
+from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
 from rateslib import defaults
@@ -1885,3 +1887,305 @@ class TestIndexCashflow:
 def test_base_period_dates_raise():
     with pytest.raises(ValueError):
         _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), "Q")
+
+
+@pytest.fixture()
+def fxfo():
+    # FXForwards for FX Options tests
+    eureur = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+    )
+    usdusd = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+    )
+    eurusd = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd"
+    )
+    fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
+    fxf = FXForwards(
+        fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
+        fx_rates=fxr
+    )
+    # fxf.swap("eurusd", [dt(2023, 3, 20), dt(2023, 6, 20)]) = 60.10
+    return fxf
+
+
+class TestFXOption:
+
+    def test_npv(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        result /= fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
+        expected = 140525.690893 # 140500 USD premium according to Tullets calcs (may be rounded)
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_in_past(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2022, 6, 16),
+            delivery=dt(2022, 6, 20),
+            payment=dt(2022, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        assert result == 0.0
+
+    def test_npv_option_fixing(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 3, 15),
+            delivery=dt(2023, 3, 17),
+            payment=dt(2023, 3, 17),
+            strike=1.101,
+            notional=20e6,
+            option_fixing=1.102,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = (1.102-1.101) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
+        assert abs(result - expected) < 1e-9
+
+        # worthless option
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 3, 15),
+            delivery=dt(2023, 3, 17),
+            payment=dt(2023, 3, 17),
+            strike=1.101,
+            notional=20e6,
+            option_fixing=1.100,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = 0.0
+        assert abs(result - expected) < 1e-9
+
+    def test_premium_points(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.rate(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = 70.262845  # 70.25 premium according to Tullets calcs (may be rounded)
+        assert abs(result - expected) < 1e-6
+
+    def test_implied_vol(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.implied_vol(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            premium=70.25,
+        )
+        expected = 0.08899248930016586  # Tullets have trade confo at 8.9%
+        assert abs(expected - result) < 1e-9
+
+    def test_premium_put(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+        )
+        result = fxo.rate(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.1015
+        )
+        expected = 83.881228  # Tullets trade confo has 83.75
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_put(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.1015
+        ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
+        expected = 167762.455137  # Tullets trade confo has 167 500
+        assert abs(result - expected) < 1e-6
+
+    def test_strike_from_forward_delta(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+            delta_type="forward",
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            0.25,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+        )
+        expected = 1.101271021340
+        assert abs(result - expected) < 1e-9
+
+        # https://quant.stackexchange.com/a/77802/29443
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            0.251754,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+        )
+        expected = 1.101
+        assert abs(result - expected) < 1e-7
+
+    def test_strike_from_forward_delta_put(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+            delta_type="forward",
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            -0.25,
+            0.1015,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0])
+        )
+        expected = 1.0327823385682198
+        assert abs(result - expected) < 1e-9
+
+    def test_strike_from_spot_delta(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+            delta_type="spot",
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            0.25,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            v1=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        )
+        expected = 1.1010192011340847
+        assert abs(result - expected) < 1e-9
+
+        # https://quant.stackexchange.com/a/77802/29443
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            0.250124,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            v1=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        )
+        expected = 1.101
+        assert abs(result - expected) < 1e-6
+
+    def test_strike_from_spot_delta_put(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+            delta_type="spot",
+        )
+        result = fxo._strike_from_delta(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            -0.25,
+            0.1015,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            v1=fxfo.curve("eur","usd")[dt(2023, 6, 20)],
+            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        )
+        expected = 1.0330517323059478
+        assert abs(result - expected) < 1e-9
+
+    def test_payoff_at_expiry(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        assert result[0][0] == 1.07
+        assert result[0][-1] == 1.13
+        assert result[1][0] == 0.0
+        assert result[1][-1] == (1.13 - 1.101) * 20e6
+
+    def test_payoff_at_expiry_put(self, fxfo):
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        assert result[0][0] == 1.07
+        assert result[0][-1] == 1.13
+        assert result[1][0] == (1.101 - 1.07) * 20e6
+        assert result[1][-1] == 0.0

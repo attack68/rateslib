@@ -114,6 +114,9 @@ from rateslib.instruments import (
     Spread,
     Fly,
     Portfolio,
+    FXCall,
+    FXPut,
+    FXRiskReversal,
 )
 
 # module level doc-string
@@ -201,4 +204,7 @@ __all__ = [
     "Spread",
     "Fly",
     "Portfolio",
+    "FXCall",
+    "FXPut",
+    "FXRiskReversal",
 ]

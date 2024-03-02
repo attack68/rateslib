@@ -19,10 +19,11 @@
 """
 
 from abc import abstractmethod, ABCMeta
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Union
+from statistics import NormalDist
 import warnings
-from math import comb, log
+from math import comb, log, exp
 
 import numpy as np
 
@@ -40,7 +41,15 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    DualTypes,
+    dual_norm_cdf,
+    dual_exp,
+    dual_log,
+    dual_inv_norm_cdf,
+)
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -54,10 +63,11 @@ def _get_fx_and_base(
     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
     base: Union[str, NoInput] = NoInput(0),
 ):
+    # TODO these can be removed when no traces of None remain.
     if fx is None:
-        raise NotImplementedError("TraceBack for NoInput")
+        raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
     if base is None:
-        raise NotImplementedError("TraceBack for NoInput")
+        raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
     if isinstance(fx, (FXRates, FXForwards)):
         base = fx.base if base is NoInput.blank else base.lower()
@@ -94,7 +104,7 @@ def _get_fx_and_base(
         if fx is NoInput.blank:
             fx = 1.0
         else:
-            if abs(fx - 1.0) < 1e-10:
+            if abs(fx - 1.0) < 1e-12:
                 pass  # no warning when fx == 1.0
             else:
                 warnings.warn(
@@ -464,11 +474,7 @@ class FixedPeriod(BasePeriod):
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,
@@ -910,7 +916,7 @@ class FloatPeriod(BasePeriod):
         local: bool = False,
     ):
         """
-        Return the cashflows of the *FloatPeriod*.
+        Return the NPV of the *FloatPeriod*.
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
@@ -920,11 +926,7 @@ class FloatPeriod(BasePeriod):
         if self.payment < disc_curve_.node_dates[0]:
             return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Union[Curve, LineCurve, dict]) -> Union[None, DualTypes]:
         if curve is None:
@@ -1803,11 +1805,7 @@ class Cashflow:
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,
@@ -2036,11 +2034,7 @@ class IndexMixin(metaclass=ABCMeta):
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow(curve) * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     @property
     @abstractmethod
@@ -2361,6 +2355,195 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         return 0.0
 
 
+class FXOptionPeriod(metaclass=ABCMeta):
+    # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
+
+    style = "european"
+    kind = None
+    phi = 0.0
+
+    @abstractmethod
+    def __init__(
+        self,
+        pair: str,
+        expiry: datetime,
+        delivery: datetime,
+        payment: datetime,
+        strike: Union[DualTypes, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
+    ):
+        self.pair = pair.lower()
+        self.currency = self.pair[3:]
+        self.domestic = self.pair[:3]
+        self.notional = defaults.notional if notional is NoInput.blank else notional
+        self.strike = strike
+        self.payment = payment
+        self.delivery = delivery
+        self.expiry = expiry
+        self.option_fixing = option_fixing
+        self.delta_type = defaults.delta_type if delta_type is NoInput.blank else delta_type.lower()
+
+    @staticmethod
+    def _black76(F, K, t, v1, v2, vol, phi):
+        """
+        Option price in points terms for immediate premium settlement.
+
+        (forward, strike, time to expiry, df ccy1, df ccy 2, volatility in %, phi for put/call)
+        """
+        vs = vol * t ** 0.5
+        d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t) / vs
+        d2 = d1 - vs
+        Nd1, Nd2 = dual_norm_cdf(phi*d1), dual_norm_cdf(phi*d2)
+        _ = phi * v2 * (F * Nd1 - K * Nd2)
+
+        # Spot formulation instead of F (Garman Kohlhagen formulation)
+        # https://quant.stackexchange.com/a/63661/29443
+        # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
+        # S_imm = F * df2 / df1
+        # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
+        # d2 = d1 - vs
+        # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+        # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
+        return _
+
+    def npv(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+    ):
+        """
+        Return the NPV of the *FXOption*.
+
+        TODO
+        """
+        if self.payment < disc_curve_ccy2.node_dates[0]:
+            # payment date is in the past avoid issues with fixings or rates
+            return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
+
+        if self.option_fixing is not NoInput.blank:
+            if self.kind == "call" and self.strike < self.option_fixing:
+                value = (self.option_fixing - self.strike) * self.notional
+            elif self.kind == "put" and self.strike > self.option_fixing:
+                value = (self.strike - self.option_fixing) * self.notional
+            else:
+                return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
+            value *= disc_curve_ccy2[self.payment]
+
+        else:
+            # value is expressed in currency (i.e. pair[3:])
+            f = fx.rate(self.pair, self.delivery)
+            v2 = disc_curve_ccy2[self.expiry]
+            value = self._black76(
+                F=f,
+                K=self.strike,
+                t=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+                v1=None,   # not required: disc_curve[self.expiry],
+                v2=v2,
+                vol=vol,
+                phi=self.phi,  # controls calls or put price
+            )
+            value *= self.notional
+
+        return _maybe_local(value, local, self.currency, fx, base)
+
+    def rate(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+    ):
+        npv = self.npv(
+            disc_curve,
+            disc_curve_ccy2,
+            fx,
+            self.currency,
+            False,
+            vol,
+        )
+        points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
+        return points_premium * 10000.0
+
+    def implied_vol(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        premium: Union[float, NoInput] = NoInput(0),
+    ):
+        vol_ = Dual(0.25, "vol")
+        for i in range(20):
+            f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_) - premium
+            if abs(f_) < 1e-10:
+                break
+            vol_ = Dual(float(vol_ - f_ / f_.gradient("vol")[0]), "vol")
+
+        return float(vol_)  # return a float TODO check whether Dual can be returned.
+
+    def _strike_from_delta(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: DualTypes,
+        t: DualTypes,
+        v1: DualTypes = NoInput(0),
+        vspot: DualTypes = NoInput(0),
+    ):
+        if self.delta_type == "forward":
+            _ = dual_inv_norm_cdf(self.phi*delta)
+            _ = f * dual_exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
+        elif self.delta_type == "spot":
+            v1 = float(v1/vspot)
+            _ = dual_inv_norm_cdf(self.phi*delta/v1)
+            _ = f * dual_exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
+        return _
+
+    def _t_to_expiry(self, now: datetime):
+        # TODO make this a dual, associated with theta
+        return (self.expiry - now) / timedelta(days=365)
+
+    def _payoff_at_expiry(self, range: Union[list[float], NoInput] = NoInput(0)):
+        if self.strike is NoInput.blank:
+            raise ValueError("Cannot return payoff for option without a specified `strike`.")
+        if range is NoInput.blank:
+            x = np.linspace(0, 20, 1001)
+        else:
+            x = np.linspace(range[0], range[1], 1001)
+        _ = (x - self.strike) * self.phi
+        __ = np.zeros(1001)
+        if self.phi > 0:  # call
+            y = np.where(x < self.strike, __, _) * self.notional
+        else:  # put
+            y = np.where(x > self.strike, __, _) * self.notional
+        return x, y
+
+
+class FXCallPeriod(FXOptionPeriod):
+    kind = "call"
+    phi = 1.0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class FXPutPeriod(FXOptionPeriod):
+    kind = "put"
+    phi = -1.0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 def _float_or_none(val):
     if val is None:
         return None
@@ -2386,3 +2569,14 @@ def _disc_maybe_from_curve(
     else:
         _ = disc_curve
     return _
+
+
+def _maybe_local(value, local, currency, fx, base):
+    """
+    Return NPVs in scalar form or dict form.
+    """
+    if local:
+        return {currency: value}
+    else:
+        fx, _ = _get_fx_and_base(currency, fx, base)
+        return value * fx

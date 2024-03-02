@@ -1,8 +1,10 @@
 from math import isclose
 from abc import abstractmethod, ABCMeta
 from typing import Union, Optional
+from statistics import NormalDist
 import math
 import numpy as np
+from rateslib.default import NoInput
 
 PRECISION = 1e-14
 FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
@@ -55,7 +57,9 @@ class DualBase(metaclass=ABCMeta):
     def __eq__(self, argument):
         """Compare an argument with a Dual number for equality."""
         if not isinstance(argument, type(self)):
-            if not isinstance(argument, (*FLOATS, *INTS)):
+            if isinstance(argument, NoInput):
+                return False
+            elif not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
             argument = type(self)(float(argument))
         if self.vars == argument.vars:
@@ -580,6 +584,64 @@ def dual_log(x, base=None):
         return math.log(x)
     else:
         return math.log(x, base)
+
+
+def dual_norm_cdf(x):
+    """
+    Return the cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    base = NormalDist().cdf(float(x))
+    if isinstance(x, Dual):
+        scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * float(x)**2)
+        return Dual(base, x.vars, scalar * x.dual)
+    elif isinstance(x, Dual2):
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * float(x) ** 2)
+        scalar2 = scalar * -float(x)
+        return Dual2(
+            base,
+            x.vars,
+            scalar * x.dual,
+            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
+        )
+    else:
+        return base
+
+
+def dual_inv_norm_cdf(x):
+    """
+    Return the inverse cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    base = NormalDist().inv_cdf(float(x))
+    if isinstance(x, Dual):
+        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
+        return Dual(base, x.vars, scalar * x.dual)
+    elif isinstance(x, Dual2):
+        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
+        scalar2 = base * scalar**2
+        return Dual2(
+            base,
+            x.vars,
+            scalar * x.dual,
+            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
+        )
+    else:
+        return base
 
 
 def _pivot_matrix(A, method=1):
