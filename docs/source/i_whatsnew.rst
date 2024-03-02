@@ -54,6 +54,10 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Automatic Differentiation
+     - :red:`Breaking Change!` Dual number `gradient` method is no longer calculable on the object.
+       Instead of `dual.gradient(vars)` use the following call `gradient(dual, vars)`, using the
+       provided function :meth:`rateslib.dual.gradient`.
    * - Instruments
      - Added argument ``metric`` to :class:`~rateslib.instruments.Value` so that specific *Curve* values derived
        as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
