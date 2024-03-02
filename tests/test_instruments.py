@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal
 import numpy as np
 
 import context
-from rateslib import defaults, default_context
+from rateslib import defaults, default_context, Instruments
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
@@ -508,7 +508,7 @@ class TestNullPricing:
                 currency="eur",
                 leg2_currency="usd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
-                notional=1e6 * 25 / 74.27,
+                notional=-1e6 * 25 / 74.27,
             ),
         ],
     )
@@ -1215,9 +1215,9 @@ class TestFXExchange:
                 "Period": ["Exchange", "Exchange"],
                 "Ccy": ["EUR", "USD"],
                 "Payment": [dt(2022, 10, 1), dt(2022, 10, 1)],
-                "Notional": [1e6, -2050000.0],
+                "Notional": [-1e6, 2050000.0],
                 "Rate": [None, 2.05],
-                "Cashflow": [-1e6, 2050000.0],
+                "Cashflow": [1e6, -2050000.0],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 0)])
         )
@@ -1269,7 +1269,7 @@ class TestFXExchange:
         # result_ = fxe.npv([curve] * 4, fx=2.0, local=True)
         with pytest.warns(UserWarning):
             result = fxe.npv([curve] * 4, fx=2.0)
-            expected = -993433.103425 * 2.0 + 1200080.27069
+            expected = 993433.103425 * 2.0 - 1200080.27069
             assert abs(result - expected) < 1e-5
 
         # with pytest.raises(ValueError, match="Cannot calculate `npv`"):
@@ -2866,8 +2866,23 @@ class TestSpec:
         assert xcs.kwargs["currency"] == "eur"
         assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
         assert xcs.kwargs["payment_lag"] == 5
-        assert xcs.kwargs["leg2_payment_lag"] == 2
-        assert xcs.kwargs["leg2_calendar"] == "tgt,nyc"
+        assert xcs.kwargs["leg2_payment_lag"] == 5
+        assert xcs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
+
+    def test_fxs(self):
+        fxs = FXSwap(
+            effective=dt(2022, 1, 1),
+            termination="3m",
+            spec="eurusd_fxs",
+            payment_lag=5,
+            calendar="ldn,tgt,nyc",
+        )
+        assert fxs.kwargs["convention"] == "act360"
+        assert fxs.kwargs["currency"] == "eur"
+        assert fxs.kwargs["calendar"] == "ldn,tgt,nyc"
+        assert fxs.kwargs["payment_lag"] == 5
+        assert fxs.kwargs["leg2_payment_lag"] == 5
+        assert fxs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
 
 
 @pytest.mark.parametrize("inst, expected", [
@@ -2893,7 +2908,7 @@ class TestSpec:
     ),
     (
     FXExchange(dt(2022, 1, 15), currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
-    DataFrame([[-1000000.0, 1101072.93429]],
+    DataFrame([[1000000.0, -1101072.93429]],
               index=Index([dt(2022, 1, 15)], name="payment"),
               columns=MultiIndex.from_tuples([("EUR", "eur"), ("USD", "eur")],
                                              names=["local_ccy", "collateral_ccy"])
@@ -2976,3 +2991,12 @@ def test_fx_settlements_table_no_fxf():
     result = irs_mkt.cashflows_table(solver=solver)
     assert abs(result.iloc[0, 0] - 69.49810) < 1e-5
     assert abs(result.iloc[3, 0] - 69.49810) < 1e-5
+
+
+@pytest.mark.parametrize("Inst", [Inst for Inst in Instruments])
+def test_examples(Inst):
+    # test an example function is written for the Instrument class
+    try:
+        getattr(Inst, "example", None)()
+    except TypeError:  # NoneType is not callable
+        assert False

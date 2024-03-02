@@ -107,11 +107,13 @@ if DEVELOPMENT:
         "eurusd_xcs": _get_kwargs("eurusd_xcs"),  # XCS
         "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
         "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),
+        "eurusd_fxs": _get_kwargs("eurusd_fxs"), # FXS
+        "gbpusd_fxs": _get_kwargs("gbpusd_fxs"),
         "eur_zcis": _get_kwargs("eur_zcis"),  # ZCIS
         "gbp_zcis": _get_kwargs("gbp_zcis"),
         "usd_zcis": _get_kwargs("usd_zcis"),
         "gbp_zcs": _get_kwargs("gbp_zcs"),  # ZCS
-        "sek_iirs": _get_kwargs("sek_iirs"),  # IIRS
+        "sek_iirs3": _get_kwargs("sek_iirs3"),  # IIRS
         "usd_gb": _get_kwargs("usd_gb"),  # FRB
         "usd_gbb": _get_kwargs("usd_gbb"),
         "gbp_gb": _get_kwargs("gbp_gb"),

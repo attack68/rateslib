@@ -1,5 +1,7 @@
 .. _whatsnew-doc:
 
+.. role:: red
+
 **************
 Release Notes
 **************
@@ -45,8 +47,8 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-1.1.0 (Not released)
-**********************
+1.1.0 (not released)
+*********************
 
 .. list-table::
    :widths: 25 75
@@ -54,6 +56,14 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Instruments
+     - Reverse the notional direction of :class:`~rateslib.instruments.FXExchange` to be more
+       intuitive. :red:`Breaking change!`
+   * - Instruments
+     - Add a class method: :meth:`~rateslib.instruments.IRS.example` to each *Instrument* to
+       provide a more intuitive way to initialise.
+   * - Instruments
+     - Relabel the specification `sek_iirs` as `sek_iirs3`. :red:`Breaking change!`
    * - Instruments
      - Added argument ``metric`` to :class:`~rateslib.instruments.Value` so that specific *Curve* values derived
        as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
@@ -69,7 +79,7 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Bug
-     - :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+     - FRA :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
        settled payment date.
    * - Bug
      - :meth:`~rateslib.legs.FloatLeg.fixings_table` now generates exact results (not in approximate mode) when RFR

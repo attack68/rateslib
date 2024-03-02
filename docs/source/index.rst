@@ -109,8 +109,42 @@ to fully capture the nuances of these products across sectors and geographic reg
 capturing aspects like trading calendars, day count conventions, payment delays, etc. New
 specifications and calendars are continually being added as users enquire.
 
+.. list-table:: Instrument classes available
+   :widths: 30 23 27 20
+   :header-rows: 1
+
+   * - **Derivatives**
+     - **Multi-currency**
+     - **Index-linked**
+     - **Securities**
+   * - :class:`Interest rate swap (IRS) <rateslib.instruments.IRS>`
+     - :class:`Cross-ccy swap (XCS) <rateslib.instruments.XCS>`
+     - :class:`ZC inflation swap (ZCIS) <rateslib.instruments.ZCIS>`
+     - :class:`Fixed rate bond <rateslib.instruments.FixedRateBond>`
+   * - :class:`Forward rate agreement (FRA) <rateslib.instruments.FRA>`
+     - :class:`FX swap <rateslib.instruments.FXSwap>`
+     - :class:`Inflation swap (IIRS) <rateslib.instruments.IIRS>`
+     - :class:`Floating rate note <rateslib.instruments.FloatRateNote>`
+   * - :class:`Single-ccy basis swap (SBS) <rateslib.instruments.SBS>`
+     - :class:`FX exchange <rateslib.instruments.FXExchange>`
+     - :class:`Index-linked bond <rateslib.instruments.IndexFixedRateBond>`
+     - :class:`Bill <rateslib.instruments.Bill>`
+   * - :class:`Zero coupon swap (ZCS) <rateslib.instruments.ZCS>`
+     -
+     -
+     - :class:`Bond future <rateslib.instruments.BondFuture>`
+   * - :class:`STIR future <rateslib.instruments.STIRFuture>`
+     -
+     -
+     -
+
 A good example is a **US Treasury Bond**, replicated here with *rateslib* and the equivalent
 ticket in Bloomberg for reference point.
+
+.. ipython:: python
+   :suppress:
+
+   from rateslib import *
 
 .. ipython:: python
 

@@ -26,6 +26,7 @@ from typing import Optional, Union
 import abc
 import warnings
 from functools import partial
+from textwrap import dedent
 
 # from math import sqrt
 
@@ -842,6 +843,19 @@ class Value(BaseMixin):
         self.convention = defaults.convention if convention is NoInput.blank else convention
         self.metric = metric.lower()
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Description:
+        'A pseudo-instrument to return a curve value.'
+
+        Rateslib configuration:
+        Value(
+            effective=dt(2023, 12, 20),
+            #  curves=usdusd,     # curve for extracting the value
+        )    
+        """))
+
     def rate(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -943,7 +957,7 @@ class FXExchange(Sensitivities, BaseMixin):
         self.settlement = settlement
         self.pair = f"{currency.lower()}{leg2_currency.lower()}"
         self.leg1 = Cashflow(
-            notional=defaults.notional if notional is NoInput.blank else notional,
+            notional=-defaults.notional if notional is NoInput.blank else -notional,
             currency=currency.lower(),
             payment=settlement,
             stub_type="Exchange",
@@ -957,6 +971,23 @@ class FXExchange(Sensitivities, BaseMixin):
             rate=fx_rate,
         )
         self.fx_rate = fx_rate
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Bought $100mm Selling €105mm (USDEUR 1.05) for settlement 16th March 2023.'
+
+        Rateslib configuration:
+        FXExchange(
+            settlement=dt(2023, 3, 16),
+            currency="usd",
+            leg2_currency="eur",
+            fx_rate=1.05,
+            notional=100e6,
+            #  curves=[None, usdusd, None, eurusd],  # curves for discounting each currency.
+        )    
+        """))
 
     @property
     def fx_rate(self):
@@ -1089,6 +1120,9 @@ class FXExchange(Sensitivities, BaseMixin):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def analytic_delta(self, *args, **kwargs):
+        return 0.0
 
 
 # Securities
@@ -2342,6 +2376,34 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FixedRateBond must be zero.")
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Bought $100mm 3.875% Aug-33 US Treasury Bond.'
+
+        Rateslib configuration:
+        FixedRateBond(
+            effective=dt(2022, 8, 15)
+            termination=dt(2033, 8, 15),   # effective and termination dates required.   
+            frequency="s",
+            calendar="nyc",
+            modifier="none",     
+            payment_lag=0,
+            payment_lag_exchange=0,   
+            roll=15,              # schedule configuration
+            currency="usd",
+            notional=-100e6,      # currency and notional
+            convention="ActActICMA",
+            settle=1,
+            ex_div=1,
+            calc_mode="ust",
+            fixed_rate=3.875      # pricing parameters
+            #  spec=NoInput(0),   # possible auto-defined US Treasury exist in defaults.
+            #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+        )    
+        """))
+
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -3172,6 +3234,29 @@ class Bill(FixedRateBond):
             spec=spec,
         )
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Bought $20mm 19-Feb-2004 US T-Bill.'
+
+        Rateslib configuration:
+        bill = Bill(
+           effective=dt(2004, 1, 22),
+           termination=dt(2004, 2, 19),  # effective and termination dates required. 
+           calendar="nyc",
+           modifier="none",     
+           payment_lag=0,        # schedule control
+           currency="usd",
+           notional=-20e6,       # negative notional receives fixed, i.e. buys a bill
+           convention="Act360",
+           settle=1,
+           calc_mode="ustb",     # pricing parameters
+           #  spec=NoInput(0),   # possible auto-defined US T Bill exist in defaults.
+           #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+        )   
+        """))
+
     @property
     def dcf(self):
         # bills will typically have 1 period since they are configured with frequency "z".
@@ -3568,6 +3653,37 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+            Broker confirmation:
+            'You Bought $10mm 25-Aug-27 Quarterly FRN at SOFR (5d shift) + 100bps.'
+
+            Rateslib configuration:
+            FloatRateNote(
+                effective=dt(2022, 8, 25)
+                termination=dt(2027, 8, 25),   # effective and termination dates required.   
+                frequency="q",
+                calendar="nyc",
+                modifier="none",     
+                payment_lag=0,
+                payment_lag_exchange=0,   
+                roll=25,             # schedule configuration
+                currency="usd",
+                notional=-10e6,      # currency and notional
+                convention="ActActICMA",
+                settle=1,
+                ex_div=1,
+                spread_compound_method="none_simple",
+                fixing_method="rfr_observation_shift",
+                method_param=5,
+                # fixings=NoInput(0),
+                float_spread=100.0    # pricing parameters
+                #  spec=NoInput(0),   # possible auto-defined FRN types exist in defaults.
+                #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+            )    
+            """))
 
     def _accrual_rate(self, pseudo_period, curve, method_param):
         """
@@ -5129,6 +5245,32 @@ class IRS(BaseDerivative):
     _fixed_rate_mixin = True
     _leg2_float_spread_mixin = True
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid $100mm 5Y USD SOFR IRS at 2.5% with 5d observation shift and normal conventions.'
+
+        Rateslib configuration:
+        IRS(
+            effective=dt(2023, 12, 20),
+            termination="5y",     # effective and termination dates required.
+            frequency="a",
+            calendar="nyc",
+            modifier="mf",        
+            roll=20,              # schedule configuration
+            currency="usd",
+            notional=100e6,       # currency and notional
+            convention="act360",
+            leg2_fixing_method="rfr_observation_shift",
+            leg2_method_param=5,
+            # leg2_fixings=NoInput(0),
+            fixed_rate=2.50       # pricing parameters
+            #  spec=NoInput(0),   # possible auto-defined IRS exist in defaults.
+            #  curves=usdusd,     # curves for forecasting and discounting each leg optional.
+        )    
+        """))
+
     def __init__(
         self,
         *args,
@@ -5765,6 +5907,39 @@ class IIRS(BaseDerivative):
         self.leg1 = IndexFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid £100mm 5Y IIRS effective 1st Jan 2022 at 1.15% indexed at GBP-CPI with a
+        3 month lag, versus SONIA paid semi-annually -50bps.'
+
+        Rateslib configuration:
+        IIRS(
+            effective=dt(2022, 1, 1),
+            termination="5Y",
+            frequency="S",
+            calendar="ldn",
+            modifier="none",
+            leg2_modifier="mf",
+            currency="gbp",
+            fixed_rate=1.15,
+            payment_lag=0,
+            convention="ActActICMA",
+            leg2_convention="act365f",
+            notional=100e6,
+            index_base=100.0,
+            index_method="monthly",
+            index_lag=3,
+            index_fixings=NoInput(0), 
+            leg2_fixing_method="rfr_payment_delay",
+            leg2_fixings=NoInput(0),
+            leg2_float_spread=-50.0,
+            curves=["gbp_cpi", "sonia", "sonia", "sonia"],
+            spec=NoInput(0), 
+        )  
+        """))
+
     def _set_pricing_mid(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -6086,6 +6261,33 @@ class ZCS(BaseDerivative):
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroFloatLeg(**_get(self.kwargs, leg=2))
 
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Received £100mm 15Y ZCS effective 16th March 2023 at IRR of 2.15% (under Act365F), 
+        compounding annually.'
+
+        Rateslib configuration:
+        ZCS(
+            effective=dt(2023, 3, 16),  
+            termination="15Y",            # effective and termination dates required.
+            frequency="A",
+            modifier="mf",
+            eom=True,
+            calendar="ldn",               # schedule configuration
+            currency="gbp",
+            notional=-100e6,              # currency and notional
+            convention="act365f",
+            fixed_rate=2.15,
+            leg2_fixing_method="rfr_payment_delay",
+            # leg2_fixings=NoInput(0),
+            leg2_method_param=0,          # pricing parameters
+            # curves=gbpgbp,              # curves for forecasting and discounting each leg.
+            # spec=NoInput(0),            # possible auto-defined IRS exist in defaults.
+        )    
+        """))
+
     def analytic_delta(self, *args, **kwargs):
         """
         Return the analytic delta of a leg of the derivative object.
@@ -6334,6 +6536,33 @@ class ZCIS(BaseDerivative):
         self._leg2_index_base = leg2_index_base
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroIndexLeg(**_get(self.kwargs, leg=2))
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Received €100mm 5Y ZCIS effective 1st Jan 2022 at IRR of 1.15% vs EUR-CPI with a
+        3 month lag, compounding fixed annually.'
+
+        Rateslib configuration:
+        ZCIS(
+            effective=dt(2022, 1, 1),
+            termination="5Y",
+            frequency="A",
+            calendar="tgt",
+            modifier="mf", 
+            currency="eur",
+            fixed_rate=1.15,
+            convention="1+",
+            notional=-100e6,
+            leg2_index_base=100.0,
+            leg2_index_method="monthly",
+            leg2_index_lag=3,
+            leg2_index_fixings=NoInput(0), 
+            curves=[None, "estr", "eur_cpi", "estr"],
+            spec=NoInput(0), 
+        )  
+        """))
 
     def _set_pricing_mid(self, curves, solver):
         if self.fixed_rate is NoInput.blank:
@@ -6601,6 +6830,36 @@ class SBS(BaseDerivative):
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid €100mm 5Y EUR 3s6s single-swap basis at 3m + 6.5bps.'
+
+        Rateslib configuration:
+        SBS(
+            effective=dt(2023, 12, 20),
+            termination="5y",     
+            frequency="q",
+            leg2_frequency="s",          # effective, termination and frequency dates required.               
+            calendar="tgt",
+            modifier="mf",        
+            roll=20,                     # schedule configuration
+            currency="eur",
+            notional=100e6,              # currency and notional
+            convention="act360",
+            fixing_method="ibor",
+            method_param=2,
+            leg2_fixing_method="ibor",
+            leg2_method_param=2,
+            # fixings=NoInput(0),
+            # leg2_fixings=NoInput(0),
+            float_spread=6.50            # pricing parameters
+            # spec=NoInput(0),           # possible auto-defined IRS exist in defaults.
+            # curves=["euribor3m", "estr", "euribor6m", "estr"], # curves optional.
+        )    
+        """))
 
     def _set_pricing_mid(self, curves, solver):
         if self.float_spread is NoInput.blank and self.leg2_float_spread is NoInput.blank:
@@ -6884,6 +7143,33 @@ class FRA(Sensitivities, BaseMixin):
 
         if self.leg1.schedule.n_periods != 1 or self.leg2.schedule.n_periods != 1:
             raise ValueError("FRA scheduling inputs did not define a single period.")
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+            Broker confirmation:
+            'You Paid 500m 1x4 28th FRA in EUR at 2.5%.'
+
+            Rateslib configuration:
+            FRA(
+                effective=dt(2022, 2, 28),
+                termination="3m",
+                frequency="q",        # effective, termination and frequency required.
+                roll=28,
+                eom=False,
+                modifier="mf",
+                calendar="tgt",       # calendar and modifier to determine termination.
+                payment_lag=0,
+                notional=500e6,
+                currency="eur",       # notional and currency
+                convention="act360",
+                method_param=2,       # IBOR lag
+                fixed_rate=2.50,
+                #  fixings=NoInput(0),
+                #  curves=["euribor3m", "estr"],  # curves for forecasting and discounting optional.
+                #  spec=NoInput(0),   # possible auto-defined FRAs exist in defaults.
+            )  
+            """))
 
     def _set_pricing_mid(
         self,
@@ -7251,6 +7537,43 @@ class XCS(BaseDerivative):
         self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=["fixed"]))
         self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
         self._initialise_fx_fixings(fx_fixings)
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid €100mm 5Y EUR/USD MTM Cross currency swap -15bp under normal RFR conventions,
+        with initial FX fixing agreed at EURUSD 1.08.'
+
+        Rateslib configuration:
+        XCS(
+            effective=dt(2023, 12, 20),
+            termination="5y",            # effective and termination dates required.
+            frequency="q",
+            calendar="tgt,nyc",
+            modifier="mf",
+            payment_lag=2,
+            payment_lag_exchange=0,        
+            roll=20,                     # schedule configuration
+            currency="eur",
+            leg2_currency="usd",
+            fx_fixings=1.08,
+            notional=100e6,              # currency and notional
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=True,
+            convention="act360",
+            fixing_method="rfr_payment_delay",
+            leg2_fixing_method="rfr_payment_delay",
+            method_param=NoInput(0),
+            leg2_method_param=NoInput(0),
+            fixings=NoInput(0),
+            leg2_fixings=NoInput(0),
+            float_spread=-15.0            # pricing parameters
+            spec=NoInput(0),              # possible auto-defined IRS exist in defaults.
+            curves=["eureur", "eurusd", "usdusd", "usdusd"],  # curves optional.
+        )    
+        """))
 
     @property
     def fx_fixings(self):
@@ -7714,6 +8037,29 @@ class FXSwap(XCS):
     """
 
     _unpriced = True
+
+    @classmethod
+    def example(cls):
+        print(dedent("""\
+        Broker confirmation:
+        'You Paid 3M USDEUR FX Swap in $100mm/€105mm (split notional $101.5mm) at -305.5 points.'
+        
+        Rateslib configuration:
+        FXSwap(
+            effective=dt(2023, 12, 20),
+            termination="3m",     # effective and termination dates required.
+            calendar="nyc,tgt",
+            modifier="mf",        # calendar and modifier to determine termination.
+            currency="usd",
+            leg2_currency="eur",  # currencies are specified directly in lowercase.
+            notional=-100e6,
+            split_notional=-101.5e6,
+            fx_fixings=1.05,
+            points=-305.5,        # all pricing parameters are defined
+            #  spec=NoInput(0),   # possible auto-defined FXSwaps exist in defaults.
+            #  curves=[None, usdusd, None, eurusd],  # curves for discounting each leg optional.
+        )    
+        """))
 
     def _parse_split_flag(self, fx_fixings, points, split_notional):
         """
