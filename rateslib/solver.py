@@ -120,7 +120,7 @@ class Gradients:
         self._set_ad_order(2)
         self._reset_properties_()
         _s = self.s
-        self.s = np.array([Dual2(v, f"s{i}") for i, v in enumerate(self.s)])
+        self.s = np.array([Dual2(v, [f"s{i}"], [], []) for i, v in enumerate(self.s)])
         s_vars = tuple(f"s{i}" for i in range(self.m))
         grad2 = self.g.gradient(self.variables + s_vars, order=2)
         grad_v_vT_f = grad2[: self.n, : self.n]
@@ -1316,6 +1316,7 @@ class Solver(Gradients):
         None
         """
         DualType = Dual if self._ad == 1 else Dual2
+        DualArgs = ([],) if self._ad == 1 else ([], [])
         self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
@@ -1359,7 +1360,7 @@ class Solver(Gradients):
             _ = 0
             for id, curve in self.curves.items():
                 for k in curve.node_dates[curve._ini_solve :]:
-                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars, [])
+                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars, *DualArgs)
                     _ += 1
                 curve.csolve()
             self._reset_properties_()
