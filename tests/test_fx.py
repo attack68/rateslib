@@ -381,7 +381,8 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         value_date=dt(2022, 1, 30)
     )
     expected = Dual(90.12374519723947, ["fx_usdeur"], [100.13749466359941])
-    assert result == expected
+    assert abs(result-expected) < 1e-13
+    assert np.isclose(expected.dual, result.dual)
 
     result = fxf.convert(
         100,
@@ -391,7 +392,8 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         value_date=NoInput(0),  # should imply same as settlement
     )
     expected = Dual(90.00200704713323, ["fx_usdeur"], [100.00223005237025])
-    assert result == expected
+    assert abs(result - expected) < 1e-13
+    assert np.isclose(expected.dual, result.dual)
 
 
 def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur):

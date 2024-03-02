@@ -6,6 +6,7 @@ from itertools import product
 import warnings
 from datetime import timedelta, datetime
 import json
+import math
 
 from rateslib import defaults
 from rateslib.default import NoInput
@@ -167,6 +168,9 @@ class FXRates:
             x = dual_solve(A, b[:, np.newaxis])[:, 0]
         except ArithmeticError:
             return self._solve_error()
+        if math.isnan(x[0].real):
+            return self._solve_error()
+
         self.fx_vector = x
 
         # solve fx_rates array
@@ -1193,7 +1197,7 @@ class FXForwards:
 
         """
         if isinstance(value, (float, int)):
-            value = Dual(value)
+            value = Dual(value, [], [])
         base = self.base if base is NoInput.blank else base.lower()
         _ = np.array(
             [0 if ccy != base else float(value) for ccy in self.currencies_list]
