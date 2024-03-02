@@ -351,7 +351,7 @@ class Dual2(DualBase):
         if order == 1:
             return Dual(self.real, self.vars, self.dual)
         if order == 2:
-            return Dual2(self.real, self.vars, self.dual, self.dual2)
+            return self
         if order == 0:
             return float(self)
 
@@ -519,7 +519,7 @@ class Dual(DualBase):
 
     def _set_order(self, order):
         if order == 1:
-            return Dual(self.real, self.vars, self.dual)
+            return self
         if order == 2:
             return Dual2(self.real, self.vars, self.dual)
         if order == 0:
@@ -727,10 +727,16 @@ def set_order(val, order):
     -------
     float, int, Dual or Dual2
     """
-    if isinstance(val, (*FLOATS, *INTS)):
-        return val
-    elif isinstance(val, (Dual, Dual2)):
-        return val._set_order(order)
+    if order == 2 and isinstance(val, Dual):
+        return Dual2(val.real, val.vars, val.dual.tolist(), [])
+    elif order == 1 and isinstance(val, Dual2):
+        return Dual(val.real, val.vars, val.dual.tolist())
+    elif order == 0:
+        return float(val)
+    # otherwise:
+    #  - val is a Float or an Int
+    #  - val is a Dual and order == 1 OR val is Dual2 and order == 2
+    return val
 
 
 def set_order_convert(val, order, tag):
@@ -756,14 +762,9 @@ def set_order_convert(val, order, tag):
         elif order == 1:
             return Dual(val, [tag], [])
         elif order == 2:
-            return Dual2(val, tag)
-    elif isinstance(val, (Dual, Dual2)):
-        if order == 0:
-            return float(val)
-        elif (order == 1 and isinstance(val, Dual)) or (order == 2 and isinstance(val, Dual2)):
-            return val
-        else:
-            return val._set_order(order)
+            return Dual2(val, [tag], [], [])
+    # else val is Dual or Dual2 so convert directly
+    return set_order(val, order)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
