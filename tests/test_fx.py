@@ -83,7 +83,7 @@ def test_positions_value():
 def test_fxrates_set_order():
     fxr = FXRates({"usdnok": 8.0})
     fxr._set_ad_order(order=2)
-    expected = np.array([Dual2(1.0, "fx_usdnok", [0.0]), Dual2(8.0, "fx_usdnok", [1.0])])
+    expected = np.array([Dual2(1.0, ["fx_usdnok"], [0.0], []), Dual2(8.0, ["fx_usdnok"], [1.0], [])])
     assert all(fxr.fx_vector == expected)
 
 
@@ -228,7 +228,7 @@ def test_fxforwards_set_order(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     fxf._set_ad_order(order=2)
-    expected = np.array([Dual2(1.0, "fx_usdeur", [0.0]), Dual2(2.0, "fx_usdeur", [1.0])])
+    expected = np.array([Dual2(1.0, ["fx_usdeur"], [0.0], []), Dual2(2.0, ["fx_usdeur"], [1.0], [])])
     assert all(fxf.fx_rates.fx_vector == expected)
     assert usdusd.ad == 2
     assert eureur.ad == 2
