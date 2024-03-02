@@ -729,8 +729,16 @@ def set_order(val, order):
     """
     if isinstance(val, (*FLOATS, *INTS)):
         return val
-    elif isinstance(val, (Dual, Dual2)):
-        return val._set_order(order)
+    elif order == 0:
+        return float(val)
+    elif order == 1 and isinstance(val, Dual) or order == 2 and isinstance(val, Dual2):
+        return val
+    elif order == 1 and isinstance(val, Dual2):
+        return Dual(val.real, val.vars, val.dual.tolist())
+    elif order == 2 and isinstance(val, Dual):
+        return Dual2(val.real, val.vars, val.dual.tolist(), [])
+    else:
+        raise TypeError("Must use `order` in {0, 1, 2} with `val` of type of float, Dual or Dual2.")
 
 
 def set_order_convert(val, order, tag):
