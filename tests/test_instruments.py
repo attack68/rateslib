@@ -2232,7 +2232,9 @@ class TestFXSwap:
         )
         assert fxs.points == points
         result = fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf, base="usd")
-        assert expected.__eq_coeffs__(result, 1e-4)
+
+        assert abs(result-expected) < 1e-6
+        assert np.isclose(result.dual, expected.dual)
 
     def test_rate_with_fixed_parameters(self, curve, curve2):
         fxf = FXForwards(
