@@ -754,8 +754,12 @@ def test_multi_dim_solve():
     A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
     b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])
 
-    result = dual_solve(A, b)
-    assert np.all(b == np.matmul(A, result))
+    x = dual_solve(A, b)
+    result = np.matmul(A, x).flatten()
+    expected = b.flatten()
+    for i in range(4):
+        assert abs(result[i]-expected[i]) < 1e-13
+        assert all(np.isclose(gradient(result[i], ["y", "z"]), gradient(expected[i], ["y", "z"])))
 
 
 # Test numpy compat
