@@ -2116,7 +2116,8 @@ class TestFXSwap:
         )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
         result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
-        assert result == expected
+        assert abs(result-expected) < 1e-10
+        assert np.isclose(result.dual, expected.dual)
 
     def test_fxswap_npv(self, curve, curve2):
         fxf = FXForwards(
