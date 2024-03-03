@@ -5,6 +5,7 @@ from packaging import version
 
 import context
 
+from rateslib.dual import gradient
 from rateslib.dual.dualrs import dual_solve, Dual
 
 
@@ -47,7 +48,7 @@ def test_dual_str(x_1):
     ],
 )
 def test_gradient_method(vars, expected, x_1):
-    result = x_1.gradient(vars)
+    result = gradient(x_1, vars)
     assert np.all(result == expected)
 
 
