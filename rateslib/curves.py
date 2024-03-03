@@ -306,11 +306,12 @@ class Curve(_Serialize):
         **kwargs,
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        if sorted(nodes.keys()) != list(nodes.keys()):
-            raise ValueError("Nodes keys are not sorted, to sort your Curve nodes use: dict(sorted(nodes.items()))")
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
+        for idx in range(1, self.n):
+            if self.node_dates[idx-1] > self.node_dates[idx]:
+                raise ValueError("Nodes keys are not sorted, to sort your Curve nodes use: dict(sorted(nodes.items()))")
         self.interpolation = (
             defaults.interpolation[type(self).__name__]
             if interpolation is NoInput.blank
