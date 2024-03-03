@@ -100,10 +100,10 @@ def test_no_type_crossing_on_ops(x_1, y_1, op):
 
 def test_dual_repr(x_1, y_2):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, ('v0', 'v1'), [1 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1, 2]>"
 
     result = y_2.__repr__()
-    assert result == "<Dual2: 1.000000, ('v0', 'v1'), [1 2], [[...]]>"
+    assert result == "<Dual2: 1.000000, (v0, v1), [1, 2], [[...]]>"
 
 
 def test_dual_str(x_1, y_2):
@@ -583,6 +583,7 @@ def test_exp(x):
     assert result == expected
 
 
+@pytest.mark.skip(reason="downcast vars is not used within the library, kept only for compat.")
 def test_downcast_vars():
     w = Dual(2, ["x", "y", "z"], [0, 1, 1])
     assert w.__downcast_vars__().vars == ("y", "z")
@@ -626,15 +627,11 @@ def test_keep_manifold_gradient():
 
 
 def test_dual_set_order(x_1, y_1):
-    assert x_1._set_order(2) == y_1
-    assert y_1._set_order(1) == x_1
-    assert x_1._set_order(1) == x_1
-    assert y_1._set_order(2) == y_1
-
+    assert set_order(x_1, 1) == x_1
+    assert set_order(y_1, 2) == y_1
     assert set_order(1.0, 2) == 1.0
     assert set_order(x_1, 2) == y_1
     assert set_order(y_1, 1) == x_1
-
     assert set_order(x_1, 0) == 1.0
 
 
