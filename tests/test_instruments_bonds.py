@@ -437,7 +437,6 @@ class TestFixedRateBond:
         assert all(np.isclose(result.dual, expected.dual))
         assert all(np.isclose(result.dual2, expected.dual2).flat)
 
-
     @pytest.mark.skip(reason="Bills have Z frequency, this no longer raises")
     def test_fixed_rate_bond_zero_frequency_raises(self):
         with pytest.raises(ValueError, match="FixedRateBond `frequency`"):

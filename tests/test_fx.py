@@ -547,8 +547,12 @@ def test_multiple_settlement_forwards():
     )
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
     F0_usdeur_result = fxf.rate("usdeur", dt(2022, 1, 1))
-    assert F0_usdeur_result.real == F0_usdeur
-    assert fxf.rate("usdeur", dt(2022, 1, 3)) == Dual(0.95, ["fx_usdeur"], [1.0])
+    assert abs(F0_usdeur_result.real-F0_usdeur) < 1e-13
+
+    expected = Dual(0.95, ["fx_usdeur"], [1.0])
+    result = fxf.rate("usdeur", dt(2022, 1, 3))
+    assert abs(result-expected) < 1e-13
+    assert np.isclose(gradient(result, ["fx_usdeur"]), expected.dual)
 
 
 def test_generate_proxy_curve():

@@ -222,7 +222,7 @@ class Dual2(DualBase):
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        return f"<{name}: {self.real:,.6f}, ({', '.join(self.vars)}), [{', '.join(self.dual)}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -440,7 +440,7 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        return f"<{name}: {self.real:,.6f}, ({', '.join(self.vars)}), [{', '.join(self.dual)}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -540,8 +540,9 @@ class Dual(DualBase):
         dual[ix_] = self.dual
         return Dual(self.real, new_vars, dual)
 
-    def __downcast_vars__(self):
+    def __downcast_vars__(self):  # pragma: no cover
         """removes variables where first order sensitivity is zero"""
+        # this function is not used within the library but left for backwards compat
         ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
         new_vars = tuple(self.vars[i] for i in ix_)
         return Dual(self.real, new_vars, self.dual[ix_])
