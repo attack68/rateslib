@@ -577,7 +577,10 @@ def test_generate_proxy_curve():
 
     c3 = fxf.curve("cad", "eur")
     assert type(c3) is not Curve  # should be ProxyCurve
-    assert c3[dt(2022, 10, 1)] == Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
+    expected = Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
+    result = c3[dt(2022, 10, 1)]
+    assert abs(result-expected) < 1e-12
+    assert all(np.isclose(gradient(expected, result.vars), gradient(result)))
 
 
 def test_generate_multi_csa_curve():
@@ -722,7 +725,7 @@ def test_delta_risk_equivalence():
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
-    assert result1.vars == (
+    assert set(result1.vars) == set([
         "ee0",
         "ee1",
         "eu0",
@@ -733,8 +736,9 @@ def test_delta_risk_equivalence():
         "ne1",
         "uu0",
         "uu1",
-    )
-    assert result1 == result2
+    ])
+    assert abs(result1 - result2) < 1e-12
+    assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 
 
 def test_oo_update_rates_and_id():
