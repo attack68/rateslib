@@ -311,7 +311,7 @@ class Curve(_Serialize):
         self.n = len(self.node_dates)
         for idx in range(1, self.n):
             if self.node_dates[idx-1] >= self.node_dates[idx]:
-                raise ValueError("Curve node dates are not sorted. To sort directly use: `dict(sorted(nodes.items()))`")
+                raise ValueError("Curve node dates are not sorted or contain duplicates. To sort directly use: `dict(sorted(nodes.items()))`")
         self.interpolation = (
             defaults.interpolation[type(self).__name__]
             if interpolation is NoInput.blank
