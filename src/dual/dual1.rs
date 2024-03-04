@@ -14,6 +14,7 @@ use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 
 use pyo3::prelude::*;
+use pyo3::types::PyType;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 
 #[pyclass]
@@ -490,20 +491,34 @@ impl Dual {
         }
     }
 
-    pub fn from_other(real: f64, other: &Dual, dual: Vec<f64>) -> Self {
-        let new_dual;
-        if !dual.is_empty() && other.vars.len() != dual.len() {
+    #[staticmethod]
+    pub fn vars_from(other: &Dual, real: f64, vars: Vec<String>, dual: Vec<f64>) -> PyResult<Self> {
+        if !dual.is_empty() && vars.len() != dual.len() {
             panic!("`dual` must have same length as `vars` or have zero length.")
-        } else if dual.is_empty() {
-            new_dual = Array::ones(other.vars.len());
+        }
+
+        if !vars.iter().all(|x| other.vars.contains(x)){
+            panic!("Cannot create a Dual from `other` if its vars do not contain those in `vars`.")
+        }
+
+        let mut dual_: Array1<f64> = Array::zeros(other.vars.len());
+        let indices: Vec<usize> = vars.iter().map(|x| other.vars.get_index_of(x).unwrap()).collect();
+
+        if dual.is_empty() {
+            for i in indices{
+                dual_[i] = 1_f64;
+            }
         } else {
-            new_dual = Array::from_vec(dual);
+            for (i_, i) in indices.iter().enumerate() {
+                dual_[*i] = dual[i_];
+            }
         }
-        Self {
+
+        Ok(Self {
             real,
-            vars: Arc::clone(&other),
-            dual: new_dual,
-        }
+            vars: Arc::clone(&other.vars),
+            dual: dual_,
+        })
     }
 
     #[getter]
