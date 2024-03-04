@@ -52,7 +52,7 @@ def set_order(val, order):
     return val
 
 
-def set_order_convert(val, order, tag):
+def set_order_convert(val, order, tag, vars_from=None):
     """
     Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
 
@@ -64,6 +64,9 @@ def set_order_convert(val, order, tag):
         The AD order to convert the value to if necessary.
     tag : str
         The variable name if upcasting a float to a Dual or Dual2
+    vars_from : optional, Dual or Dual2
+        A pre-existing Dual of correct order from which the Vars are extracted. Improves efficiency
+        when given.
 
     Returns
     -------
@@ -73,9 +76,15 @@ def set_order_convert(val, order, tag):
         if order == 0:
             return val
         elif order == 1:
-            return Dual(val, [tag], [])
+            if vars_from is None:
+                return Dual(val, [tag], [])
+            else:
+                return Dual.vars_from(vars_from, val, [tag], [])
         elif order == 2:
-            return Dual2(val, [tag], [], [])
+            if vars_from is None:
+                return Dual2(val, [tag], [], [])
+            else:
+                return Dual2.vars_from(vars_from, val, [tag], [], [])
     # else val is Dual or Dual2 so convert directly
     return set_order(val, order)
 
