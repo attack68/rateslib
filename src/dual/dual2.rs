@@ -91,8 +91,8 @@ impl Dual2 {
         // Return a Dual with a new set of vars.
         let indices: Vec<Option<usize>> =
             new_vars.iter().map(|x| self.vars.get_index_of(x)).collect();
-        let mut dual = Array::zeros(new_vars.len());
 
+        let mut dual = Array::zeros(new_vars.len());
         for (i, index) in indices.iter().enumerate() {
             match index {
                 Some(value) => dual[i] = self.dual[*value],
@@ -102,14 +102,16 @@ impl Dual2 {
 
         let mut dual2 = Array::zeros((new_vars.len(), new_vars.len()));
         for (i, row_index) in indices.iter().enumerate() {
-            for (j, col_index) in indices.iter().enumerate() {
-                match row_index {
-                    Some(row_value) => match col_index {
-                        Some(col_value) => dual2[[i, j]] = self.dual2[[*row_value, *col_value]],
-                        None => {}
-                    },
-                    None => {}
-                }
+            match row_index {
+                Some(row_value) => {
+                    for (j, col_index) in indices.iter().enumerate() {
+                        match col_index {
+                            Some(col_value) => {dual2[[i, j]] = self.dual2[[*row_value, *col_value]]},
+                            None => {}
+                        }
+                    }
+                },
+                None => {},
             }
         }
 

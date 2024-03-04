@@ -86,18 +86,28 @@ impl Dual {
 
     fn to_new_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual {
         // Return a Dual with a new set of vars.
+        let indices: Vec<Option<usize>> =
+            new_vars.iter().map(|x| self.vars.get_index_of(x)).collect();
 
         let mut dual = Array::zeros(new_vars.len());
-        for (i, index) in new_vars
-            .iter()
-            .map(|x| self.vars.get_index_of(x))
-            .enumerate()
-        {
+        for (i, index) in indices.iter().enumerate() {
             match index {
-                Some(value) => dual[[i]] = self.dual[[value]],
+                Some(value) => dual[i] = self.dual[*value],
                 None => {}
             }
         }
+
+//         let mut dual = Array::zeros(new_vars.len());
+//         for (i, index) in new_vars
+//             .iter()
+//             .map(|x| self.vars.get_index_of(x))
+//             .enumerate()
+//         {
+//             match index {
+//                 Some(value) => dual[[i]] = self.dual[[value]],
+//                 None => {}
+//             }
+//         }
         Dual {
             vars: Arc::clone(new_vars),
             real: self.real,
@@ -476,6 +486,22 @@ impl Dual {
         Self {
             real,
             vars: Arc::new(IndexSet::from_iter(vars)),
+            dual: new_dual,
+        }
+    }
+
+    pub fn from_other(real: f64, other: &Dual, dual: Vec<f64>) -> Self {
+        let new_dual;
+        if !dual.is_empty() && other.vars.len() != dual.len() {
+            panic!("`dual` must have same length as `vars` or have zero length.")
+        } else if dual.is_empty() {
+            new_dual = Array::ones(other.vars.len());
+        } else {
+            new_dual = Array::from_vec(dual);
+        }
+        Self {
+            real,
+            vars: Arc::clone(&other),
             dual: new_dual,
         }
     }
