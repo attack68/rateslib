@@ -891,8 +891,8 @@ def test_numpy_einsum_works(y_2, y_1):
     ],
 )
 def test_numpy_dtypes(z, dtype):
-    np.array([1], dtype=dtype) + z
-    z + np.array([1], dtype=dtype)
+    np.array([1, 2], dtype=dtype) + z
+    z + np.array([1, 2], dtype=dtype)
 
     z + dtype(2)
     dtype(2) + z
