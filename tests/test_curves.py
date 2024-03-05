@@ -354,7 +354,17 @@ def test_curve_interp_raises():
     with pytest.raises(ValueError, match=err):
         curve[dt(2022, 1, 15)]
 
-
+def test_curve_sorted_nodes_raises():
+    err = 'Curve node dates are not sorted or contain duplicates.'
+    with pytest.raises(ValueError, match=err):
+        Curve(
+            nodes={
+                dt(2022, 2, 1): 0.9,
+                dt(2022, 1, 1): 1.0,
+            },
+            id='curve',
+        )
+        
 def test_interp_raises():
     interp = 'linea'  # Wrongly spelled interpolation method
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
