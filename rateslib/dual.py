@@ -222,7 +222,12 @@ class Dual2(DualBase):
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        return f"<{name}: {self.real:,.6f}, ({', '.join(self.vars)}), [{', '.join(self.dual)}]{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -447,7 +452,12 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        return f"<{name}: {self.real:,.6f}, ({', '.join(self.vars)}), [{', '.join(self.dual)}]{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
