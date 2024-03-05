@@ -384,6 +384,13 @@ class Dual2(DualBase):
         if order == 0:
             return float(self)
 
+    @staticmethod
+    def vars_from(other, real, vars=(), dual=None, dual2=None):
+        if other.vars == vars:
+            return Dual2(real, vars, dual, dual2)
+        else:
+            return Dual2(real, vars, dual, dual2).__upcast_vars__(other.vars)
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -554,6 +561,13 @@ class Dual(DualBase):
             return Dual2(self.real, self.vars, self.dual)
         if order == 0:
             return float(self)
+
+    @staticmethod
+    def vars_from(other, real, vars=(), dual=None):
+        if other.vars == vars:
+            return Dual(real, vars, dual)
+        else:
+            return Dual(real, vars, dual).__upcast_vars__(other.vars)
 
     # def __str__(self):
     #     output = f"    f = {self.real:.8f}\n"

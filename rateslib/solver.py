@@ -1359,8 +1359,25 @@ class Solver(Gradients):
             v_1 = self._update_step_(self.algorithm)
             _ = 0
             for id, curve in self.curves.items():
-                for k in curve.node_dates[curve._ini_solve :]:
-                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars, *DualArgs)
+                # this was amended in PR126 as performance improvement to keep consistent `vars`
+                d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], *DualArgs)
+                ident = np.eye(curve.n)
+                if curve._ini_solve == 1:
+                    curve.nodes[curve.node_dates[0]] = DualType.vars_from(
+                        d_vars,
+                        curve.nodes[curve.node_dates[0]].real,
+                        d_vars.vars,
+                        ident[0, :].tolist(),
+                        *DualArgs[1:]
+                    )
+                for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
+                    curve.nodes[k] = DualType.vars_from(
+                        d_vars,
+                        v_1[_].real,
+                        d_vars.vars,
+                        ident[i + curve._ini_solve, :].tolist(),
+                        *DualArgs[1:]
+                    )
                     _ += 1
                 curve.csolve()
             self._reset_properties_()
@@ -1394,7 +1411,7 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=None):
+    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=NoInput(0)):
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
@@ -1527,7 +1544,7 @@ class Solver(Gradients):
             base = base.lower()
         return base, fx
 
-    def gamma(self, npv, base=None, fx=None):
+    def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
@@ -1752,7 +1769,7 @@ class Solver(Gradients):
 
         return df.astype("float64")
 
-    def _pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
+    def _pnl_explain(self, npv, ds, dfx=None, base=NoInput(0), fx=NoInput(0), order=1):
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
 
