@@ -1359,8 +1359,23 @@ class Solver(Gradients):
             v_1 = self._update_step_(self.algorithm)
             _ = 0
             for id, curve in self.curves.items():
-                for k in curve.node_dates[curve._ini_solve :]:
-                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars, *DualArgs)
+                d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], [])
+                ident = np.eye(curve.n)
+                if curve._ini_solve == 1:
+                    curve.nodes[curve.node_dates[0]] = DualType.vars_from(
+                        d_vars,
+                        curve.nodes[curve.node_dates[0]].real,
+                        d_vars.vars, # curve.nodes[k].vars,
+                        ident[0, :].tolist()
+                    )
+                for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
+                    curve.nodes[k] = DualType.vars_from(
+                        d_vars,
+                        v_1[_].real,
+                        d_vars.vars,  # curve.nodes[k].vars,
+                        ident[i + curve._ini_solve, :].tolist(),
+                        *DualArgs[1:]
+                    )
                     _ += 1
                 curve.csolve()
             self._reset_properties_()
