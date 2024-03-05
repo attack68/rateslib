@@ -357,7 +357,7 @@ class Dual2(DualBase):
         if order == 1:
             return Dual(self.real, self.vars, self.dual)
         if order == 2:
-            return Dual2(self.real, self.vars, self.dual, self.dual2)
+            return self
         if order == 0:
             return float(self)
 
@@ -530,7 +530,7 @@ class Dual(DualBase):
 
     def _set_order(self, order):
         if order == 1:
-            return Dual(self.real, self.vars, self.dual)
+            return self
         if order == 2:
             return Dual2(self.real, self.vars, self.dual, [])
         if order == 0:

@@ -1394,7 +1394,7 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=None):
+    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=NoInput(0)):
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
@@ -1527,7 +1527,7 @@ class Solver(Gradients):
             base = base.lower()
         return base, fx
 
-    def gamma(self, npv, base=None, fx=None):
+    def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
@@ -1752,7 +1752,7 @@ class Solver(Gradients):
 
         return df.astype("float64")
 
-    def _pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
+    def _pnl_explain(self, npv, ds, dfx=None, base=NoInput(0), fx=NoInput(0), order=1):
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
 

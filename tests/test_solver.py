@@ -588,6 +588,23 @@ def test_delta_gamma_calculation():
     assert -229 < float(eur_swap.gamma(NoInput(0), estr_solver).sum().sum()) < -228
 
 
+def test_solver_delta_fx_noinput():
+    estr_curve = Curve(
+        {dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="estr_curve"
+    )
+    estr_instruments = [
+        (IRS(dt(2022, 1, 1), "10Y", "A"), (estr_curve,), {}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
+    ]
+    estr_solver = Solver(
+        [estr_curve], estr_instruments, [2.0, 1.5], id="estr", instrument_labels=["10Y", "20Y"]
+    )
+    eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, fixed_rate=2)
+    npv = eur_swap.npv(curves=estr_curve, solver=estr_solver, local=True)
+    result = estr_solver.delta(npv)
+    assert type(result) is DataFrame
+
+
 def test_solver_pre_solver_dependency_generates_same_gamma():
     estr_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
     estr_instruments = [

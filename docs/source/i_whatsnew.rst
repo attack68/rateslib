@@ -61,6 +61,8 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - Added argument ``metric`` to :class:`~rateslib.instruments.Value` so that specific *Curve* values derived
        as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
+   * - Bug
+     - `Solver.delta` and `Solver.gamma` now work directly with given ``npv`` when ``fx`` is not provided.
 
 
 1.0.0 (1st Feb 2024)
