@@ -355,7 +355,7 @@ def test_curve_interp_raises():
         curve[dt(2022, 1, 15)]
 
 def test_curve_sorted_nodes_raises():
-    err = 'Nodes keys are not sorted, to sort your Curve nodes use: dict\\(sorted\\(nodes.items\\(\\)\\)\\)'
+    err = 'Curve node dates are not sorted or contain duplicates.'
     with pytest.raises(ValueError, match=err):
         Curve(
             nodes={
