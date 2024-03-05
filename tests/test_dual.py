@@ -100,10 +100,10 @@ def test_no_type_crossing_on_ops(x_1, y_1, op):
 
 def test_dual_repr(x_1, y_2):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, (v0, v1), [1, 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
 
     result = y_2.__repr__()
-    assert result == "<Dual2: 1.000000, (v0, v1), [1, 2], [[...]]>"
+    assert result == "<Dual2: 1.000000, (v0, v1), [1.0, 2.0], [[...]]>"
 
 
 def test_dual_str(x_1, y_2):

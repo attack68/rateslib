@@ -199,7 +199,12 @@ class Dual2(DualBase):
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        return f"<{name}: {self.real:,.6f}, ({', '.join(self.vars)}), [{', '.join(self.dual)}]{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -363,7 +368,10 @@ class Dual2(DualBase):
 
     @staticmethod
     def vars_from(other, real, vars=(), dual=None, dual2=None):
-        return Dual2(real, vars, dual, dual2).__upcast_vars__(other.vars)
+        if other.vars == vars:
+            return Dual2(real, vars, dual, dual2)
+        else:
+            return Dual2(real, vars, dual, dual2).__upcast_vars__(other.vars)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -421,7 +429,12 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        return f"<{name}: {self.real:,.6f}, ({', '.join(self.vars)}), [{', '.join(self.dual)}]{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -538,7 +551,10 @@ class Dual(DualBase):
 
     @staticmethod
     def vars_from(other, real, vars=(), dual=None):
-        return Dual2(real, vars, dual).__upcast_vars__(other.vars)
+        if other.vars == vars:
+            return Dual(real, vars, dual)
+        else:
+            return Dual(real, vars, dual).__upcast_vars__(other.vars)
 
     # def __str__(self):
     #     output = f"    f = {self.real:.8f}\n"
