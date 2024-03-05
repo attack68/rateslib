@@ -485,14 +485,15 @@ class Curve(_Serialize):
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
         try:
-            df_ratio = self[effective] / self[termination]
+            n_, d_ = self[effective], self[termination]
+            df_ratio = n_ / d_
         except ZeroDivisionError:
             return None
 
-        try:
-            _ = (df_ratio - 1) / dcf(effective, termination, self.convention) * 100
-        except ZeroDivisionError:
+        if termination == effective:
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
+        n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
+        _ =  n_ / d_ * 100
 
         if float_spread is not None and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":

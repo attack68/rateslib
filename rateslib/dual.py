@@ -13,6 +13,35 @@ INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifold: bool = False):
+    """
+    Return derivatives of a dual number.
+
+    Parameters
+    ----------
+    dual : Dual or Dual2
+        The dual variable from which to derive derivatives.
+    vars : str, tuple, list optional
+        Name of the variables which to return gradients for. If not given
+        defaults to all vars attributed to the instance.
+    order : {1, 2}
+        Whether to return the first or second derivative of the dual number.
+        Second order will raise if applied to a ``Dual`` and not ``Dual2`` instance.
+    keep_manifold : bool
+        If ``order`` is 1 and the type is ``Dual2`` one can return a ``Dual2``
+        where the ``dual2`` values are converted to ``dual`` values to represent
+        a first order manifold of the first derivative (and the ``dual2`` values
+        set to zero). Useful for propagation in iterations.
+
+    Returns
+    -------
+    float, ndarray, Dual2
+    """
+    if not isinstance(dual, (Dual, Dual2)):
+        raise TypeError("Must call `gradient` on dual-type variables")
+    return dual.grad(vars, order, keep_manifold)
+
+
 class DualBase(metaclass=ABCMeta):
     """
     Base class for dual number implementation.
@@ -90,7 +119,7 @@ class DualBase(metaclass=ABCMeta):
     def __upcast_vars__(self, new_vars: list[str]):
         pass  # pragma: no cover
 
-    def gradient(self, vars=None, order=1, keep_manifold=False):
+    def grad(self, vars=None, order=1, keep_manifold=False):
         """
         Return derivatives of a dual number.
 
@@ -193,7 +222,12 @@ class Dual2(DualBase):
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -418,7 +452,12 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -518,8 +557,9 @@ class Dual(DualBase):
         dual[ix_] = self.dual
         return Dual(self.real, new_vars, dual)
 
-    def __downcast_vars__(self):
+    def __downcast_vars__(self):  # pragma: no cover
         """removes variables where first order sensitivity is zero"""
+        # this function is not used within the library but left for backwards compat
         ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
         new_vars = tuple(self.vars[i] for i in ix_)
         return Dual(self.real, new_vars, self.dual[ix_])
