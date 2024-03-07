@@ -590,7 +590,7 @@ def _pivot_matrix(A, method=1):
         if j != row:
             P[[j, row]] = P[[row, j]]  # Define a row swap in P
             PA[[j, row]] = PA[[row, j]]
-            if method == 2:
+            if method == 1:
                 _[[j, row]] = _[[row, j]]  # alters the pivoting by updating underlying
     return P, PA
 
@@ -616,24 +616,23 @@ def _plu_decomp(A, method=1):
     P, PA = _pivot_matrix(A, method=method)
 
     # Perform the LU Decomposition
-    try:
-        for j in range(n):
-            # All diagonal entries of L are set to unity
-            L[j, j] = 1.0
+    for j in range(n):
+        # All diagonal entries of L are set to unity
+        L[j, j] = 1.0
 
-            # LaTeX: u_{ij} = a_{ij} - \sum_{k=1}^{i-1} u_{kj} l_{ik}
-            for i in range(j + 1):
-                sx = np.matmul(L[i, :i], U[:i, j])
-                # s1 = sum(U[k][j] * L[i][k] for k in range(i))
-                U[i, j] = PA[i, j] - sx
+        # LaTeX: u_{ij} = a_{ij} - \sum_{k=1}^{i-1} u_{kj} l_{ik}
+        for i in range(j + 1):
+            sx = np.matmul(L[i, :i], U[:i, j])
+            # s1 = sum(U[k][j] * L[i][k] for k in range(i))
+            U[i, j] = PA[i, j] - sx
 
-            # LaTeX: l_{ij} = \frac{1}{u_{jj}} (a_{ij} - \sum_{k=1}^{j-1} u_{kj} l_{ik})
-            for i in range(j, n):
-                sy = np.matmul(L[i, :j], U[:j, j])
-                # s2 = sum(U[k][j] * L[i][k] for k in range(j))
-                L[i, j] = (PA[i, j] - sy) / U[j, j]
-    except ZeroDivisionError:
-        return _plu_decomp(A, method + 1)  # retry with altered pivoting technique
+        # LaTeX: l_{ij} = \frac{1}{u_{jj}} (a_{ij} - \sum_{k=1}^{j-1} u_{kj} l_{ik})
+        for i in range(j, n):
+            sy = np.matmul(L[i, :j], U[:j, j])
+            # s2 = sum(U[k][j] * L[i][k] for k in range(j))
+            if abs(U[j, j]) < 1e-16:
+                return _plu_decomp(A, method + 1)  # retry with altered pivoting technique
+            L[i, j] = (PA[i, j] - sy) / U[j, j]
 
     return P, L, U
 
