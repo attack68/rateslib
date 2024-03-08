@@ -551,7 +551,7 @@ impl Dual {
         Err(PyValueError::new_err("Cannot evaluate second order derivative on a Dual."))
     }
 
-    fn arc_check(&self, other: &Dual) -> PyResult<bool> {
+    fn ptr_eq(&self, other: &Dual) -> PyResult<bool> {
         Ok(Arc::ptr_eq(&self.vars, &other.vars))
     }
 

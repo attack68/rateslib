@@ -587,7 +587,7 @@ impl Dual2 {
         Ok(self.grad2(vars).to_pyarray(py))
     }
 
-    fn arc_check(&self, other: &Dual2) -> PyResult<bool> {
+    fn ptr_eq(&self, other: &Dual2) -> PyResult<bool> {
         Ok(Arc::ptr_eq(&self.vars, &other.vars))
     }
 

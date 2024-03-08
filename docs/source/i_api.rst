@@ -100,7 +100,8 @@ Classes
 *******
 
 .. autosummary::
-   rateslib.dual.Dual
+   ~rateslib.dual.Dual
+   ~rateslib.dual.Dual2
 
 .. toctree::
     :maxdepth: 0
@@ -108,6 +109,7 @@ Classes
     :hidden:
 
     api/rateslib.dual.Dual.rst
+    api/rateslib.dual.Dual2.rst
 
 
 Curves
@@ -165,6 +167,7 @@ FX
    :skip: dual_solve
    :skip: plot
    :skip: set_order
+   :skip: gradient
 
 Periods
 -------
