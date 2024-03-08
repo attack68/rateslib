@@ -22,7 +22,6 @@ Summary
 Classes
 -------
 .. autosummary::
-   rateslib.dual.DualBase
    rateslib.dual.Dual
    rateslib.dual.Dual2
 
