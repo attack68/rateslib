@@ -99,15 +99,15 @@ Dual (for AD)
 Classes
 *******
 
+.. autosummary::
+   rateslib.dual.Dual
+
 .. toctree::
     :maxdepth: 0
     :titlesonly:
     :hidden:
 
-    api_manual/rateslib.dual.Dual.rst
-
-.. autosummary::
-   rateslib.dual.Dual
+    api_manual/dualrs/rateslib.dual.Dual.rst
 
 
 Curves
