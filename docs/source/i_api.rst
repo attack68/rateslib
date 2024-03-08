@@ -89,11 +89,26 @@ Piecewise Polynomial Splines
 
 Dual (for AD)
 --------------
+
 .. automodapi:: rateslib.dual
    :no-heading:
    :skip: isclose
    :skip: abstractmethod
    :skip: ABCMeta
+
+Classes
+*******
+
+.. toctree::
+    :maxdepth: 0
+    :titlesonly:
+    :hidden:
+
+    api_manual/rateslib.dual.Dual.rst
+
+.. autosummary::
+   rateslib.dual.Dual
+
 
 Curves
 ------
