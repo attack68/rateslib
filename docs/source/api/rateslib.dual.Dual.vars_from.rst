@@ -1,7 +1,7 @@
-vars_from
-==========
+.. vars_from
+   ==========
 
-.. currentmodule:: rateslib.dual
+.. .. currentmodule:: rateslib.dual
 
 .. py:method:: Dual.vars_from(other, real, vars, dual)
 

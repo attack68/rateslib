@@ -29,6 +29,4 @@ Dual
 
    .. rubric:: Methods Summary
 
-   .. autosummary::
-
-      ~Dual.vars_from
+   .. include:: rateslib.dual.Dual.vars_from.rst

@@ -107,7 +107,7 @@ Classes
     :titlesonly:
     :hidden:
 
-    api_manual/dualrs/rateslib.dual.Dual.rst
+    api/rateslib.dual.Dual.rst
 
 
 Curves
