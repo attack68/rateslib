@@ -1,5 +1,7 @@
 .. _whatsnew-doc:
 
+.. role:: red
+
 **************
 Release Notes
 **************

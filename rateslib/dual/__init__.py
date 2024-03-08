@@ -1,4 +1,5 @@
 from typing import Optional, Union
+import numpy as np
 
 from rateslib.dual.dual import (
     # Dual,
@@ -116,18 +117,19 @@ def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifo
     if not isinstance(dual, (Dual, Dual2)):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
-        if vars is None:
+        if vars is None and not keep_manifold:
             return dual.dual
-        else:
+        elif vars is not None and not keep_manifold:
             return dual.grad1(vars)
+
+        _ = dual.grad1_manifold(vars)
+        return np.asarray(_)
+
     elif order == 2:
-        if not keep_manifold:
-            if vars is None:
-                return 2.0 * dual.dual2
-            else:
-                return dual.grad2(vars)
+        if vars is None:
+            return 2.0 * dual.dual2
         else:
-            return dual.grad2_manifold(vars)
+            return dual.grad2(vars)
     else:
         raise ValueError("`order` must be in {1, 2} for gradient calculation.")
 

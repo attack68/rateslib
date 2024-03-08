@@ -26,18 +26,18 @@ def test_zero_init():
 
 def test_dual_repr(x_1):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, (v0, v1), [1, 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
 
 
 def test_dual_repr_4vars():
     x = Dual(1.23456789, ["a", "b", "c", "d"], [1.01, 2, 3.50001, 4])
     result = x.__repr__()
-    assert result == "<Dual: 1.234568, (a, b, c, ...), [1.01, 2, 3.50001, ...]>"
+    assert result == "<Dual: 1.234568, (a, b, c, ...), [1.0, 2.0, 3.5, ...]>"
 
 
 def test_dual_str(x_1):
     result = x_1.__str__()
-    assert result == "<Dual: 1.000000, (v0, v1), [1, 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
 
 
 @pytest.mark.parametrize(

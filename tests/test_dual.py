@@ -615,12 +615,12 @@ def test_keep_manifold_gradient():
     du2 = Dual2(
         10,
         ["x", "y", "z"],
-        dual=np.array([1, 2, 3]),
-        dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]),
+        dual=[1, 2, 3],
+        dual2=[2, 3, 4, 3, 4, 5, 4, 5, 6],
     )
     result = gradient(du2, ["x", "z"], 1, keep_manifold=True)
     expected = np.array(
-        [Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))]
+        [Dual2(1, ["x", "z"], [4, 8], []), Dual2(3, ["x", "z"], [8, 12], [])]
     )
     assertions = result == expected
     assert all(assertions)
@@ -648,8 +648,8 @@ def test_pivoting():
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 0, 0, 1],
-            [0, 0, 0, 1, 0],
             [0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 0],
         ]
     )
     assert np.all(result == expected)
@@ -659,8 +659,8 @@ def test_pivoting():
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 0, 0, 1],
-            [0, 0, 1, 0, 0],
             [0, 0, 0, 1, 0],
+            [0, 0, 1, 0, 0],
         ]
     )
     assert np.all(result == expected)

@@ -557,7 +557,7 @@ impl Dual {
 
     fn __repr__(&self) -> PyResult<String> {
         let mut _vars = Vec::from_iter(self.vars.iter().take(3).map(String::as_str)).join(", ");
-        let mut _dual = Vec::from_iter(self.dual.iter().take(3).map(|x| x.to_string())).join(", ");
+        let mut _dual = Vec::from_iter(self.dual.iter().take(3).map(|x| format!("{:.1}", x))).join(", ");
         if self.vars.len() > 3 {
             _vars.push_str(", ...");
             _dual.push_str(", ...");

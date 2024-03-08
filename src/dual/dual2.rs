@@ -152,6 +152,34 @@ impl Dual2 {
         2_f64 * dual2
     }
 
+    fn grad1_manifold(&self, vars: Vec<String>) -> Array1<Dual2> {
+        let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars.get_index_of(x)).collect();
+
+        let default_zero = Dual2::new(0., vars.clone(), Vec::new(), Vec::new());
+        let mut grad: Array1<Dual2> = Array::zeros(vars.len());
+        for (i, i_idx) in indices.iter().enumerate() {
+            match i_idx {
+                Some(i_val) => {
+                    let mut dual: Array1<f64> = Array1::zeros(vars.len());
+                    for (j, j_idx) in indices.iter().enumerate() {
+                        match j_idx {
+                            Some(j_val) => dual[j] = self.dual2[[*i_val, *j_val]] * 2.0,
+                            None => {}
+                        }
+                    }
+                    grad[i] = Dual2 {
+                        real: self.dual[*i_val],
+                        vars: Arc::clone(&default_zero.vars),
+                        dual: dual,
+                        dual2: Array2::zeros((vars.len(), vars.len()))
+                    };
+                },
+                None => { grad[i] = default_zero.clone() }
+            }
+        }
+        grad
+    }
+
     pub fn exp(&self) -> Self {
         let c = self.real.exp();
         Dual2 {
@@ -587,13 +615,19 @@ impl Dual2 {
         Ok(self.grad2(vars).to_pyarray(py))
     }
 
+    #[pyo3(name = "grad1_manifold")]
+    fn grad1_manifold_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<Vec<Dual2>> {
+        let out = self.grad1_manifold(vars);
+        Ok(out.into_raw_vec())
+    }
+
     fn ptr_eq(&self, other: &Dual2) -> PyResult<bool> {
         Ok(Arc::ptr_eq(&self.vars, &other.vars))
     }
 
     fn __repr__(&self) -> PyResult<String> {
         let mut _vars = Vec::from_iter(self.vars.iter().take(3).map(String::as_str)).join(", ");
-        let mut _dual = Vec::from_iter(self.dual.iter().take(3).map(|x| x.to_string())).join(", ");
+        let mut _dual = Vec::from_iter(self.dual.iter().take(3).map(|x| format!("{:.1}", x))).join(", ");
         if self.vars.len() > 3 {
             _vars.push_str(", ...");
             _dual.push_str(", ...");
@@ -1163,6 +1197,23 @@ mod tests {
         );
         println!("{:?}", result.dual2);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn grad_manifold() {
+        let d1 = Dual2::new(
+            2.0,
+            vec!["x".to_string(), "y".to_string(), "z".to_string()],
+            vec![1., 2., 3.],
+            vec![2., 3., 4., 3.,5., 6., 4., 6., 7.],
+        );
+        let result = d1.grad1_manifold(vec!["y".to_string(), "z".to_string()]);
+        assert_eq!(result[0].real, 2.);
+        assert_eq!(result[1].real, 3.);
+        assert_eq!(result[0].dual, Array1::from_vec(vec![10., 12.]));
+        assert_eq!(result[1].dual, Array1::from_vec(vec![12., 14.]));
+        assert_eq!(result[0].dual2, Array2::<f64>::zeros((2, 2)));
+        assert_eq!(result[1].dual2, Array2::<f64>::zeros((2, 2)));
     }
 
     // #[test]
