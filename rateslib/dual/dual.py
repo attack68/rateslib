@@ -136,6 +136,9 @@ class DualBase(metaclass=ABCMeta):
     def grad1(self, vars=None):
         return self.grad(vars, order=1, keep_manifold=False)
 
+    def grad1_manifold(self, vars=None):
+        return self.grad(vars, order=1, keep_manifold=True)
+
     def grad2(self, vars=None, keep_manifold=False):
         return self.grad(vars, order=2, keep_manifold=keep_manifold)
 

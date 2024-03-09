@@ -12,9 +12,14 @@ from rateslib.dual import (
     dual_log,
     dual_solve,
     set_order,
+    gradient,
+    DUAL_CORE_PY,
+)
+
+# Python Dual implementation
+from rateslib.dual.dual import (
     _plu_decomp,
     _pivot_matrix,
-    gradient,
 )
 
 
@@ -106,6 +111,7 @@ def test_dual_repr(x_1, y_2):
     assert result == "<Dual2: 1.000000, (v0, v1), [1.0, 2.0], [[...]]>"
 
 
+@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual does not format string in this way.")
 def test_dual_str(x_1, y_2):
     result = x_1.__str__()
     assert result == " val = 1.00000000\n  dv0 = 1.000000\n  dv1 = 2.000000\n"
@@ -751,6 +757,7 @@ def test_sparse_solve(A_sparse):
     assert all(assertions)
 
 
+@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual has not implemented Multi-Dim Solve")
 def test_multi_dim_solve():
     A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
     b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])

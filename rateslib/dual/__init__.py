@@ -1,28 +1,33 @@
 from typing import Optional, Union
 import numpy as np
 from functools import partial
+import math
+
+DUAL_CORE_PY = False
+
+if DUAL_CORE_PY:
+    from rateslib.dual.dual import (
+        Dual,
+        Dual2
+    )
+else:
+    from rateslib.dual.dualrs import (
+        Dual,
+        Dual2
+    )
 
 from rateslib.dual.dual import (
-    # Dual,
-    # Dual2,
     _dsolve,
-    # private methods use
-    _plu_decomp,
-    _pivot_matrix,
     FLOATS,
     INTS,
 )
 from rateslib.dual.dualrs import (
-    Dual,
-    Dual2,
     _dsolve1,
     _dsolve2,
     _fdsolve1,
     _fdsolve2,
 )
-import math
 
-DUAL_CORE_PY = False
 DualTypes = Union[float, Dual, Dual2]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -189,7 +194,7 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b)[0]
+            return np.linalg.lstsq(A, b, rcond=None)[0]
         else:
             return np.linalg.solve(A, b)
 

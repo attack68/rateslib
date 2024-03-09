@@ -5,7 +5,7 @@ from packaging import version
 
 import context
 
-from rateslib.dual import gradient
+from rateslib.dual import gradient, DUAL_CORE_PY, dual_solve
 from rateslib.dual.dualrs import Dual
 
 
@@ -40,6 +40,7 @@ def test_dual_str(x_1):
     assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
 
 
+@pytest.mark.skipif(DUAL_CORE_PY, reason="Gradient comparison cannot compare Py and Rs Duals.")
 @pytest.mark.parametrize(
     "vars, expected",
     [
@@ -325,9 +326,6 @@ def test_dual_solve():
         [Dual(0.0, [], []), Dual(1.0, [], [])]
     ])
     b = np.array([Dual(2.0, ["x"], [1.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
-
-    assert False
-    # dual solve restructrued
-    # result = dual_solve(a, b, False)
-    # expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
-    # assert np.all(result == expected)
+    result = dual_solve(a, b[:, None], types=(Dual, Dual))[:, 0]
+    expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
+    assert np.all(result == expected)
