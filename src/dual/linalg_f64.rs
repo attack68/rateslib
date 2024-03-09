@@ -131,7 +131,7 @@ where
 pub fn fdsolve<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
 where
     T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output = T>,
-    for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T> + Mul<&'a f64, Output = T>,
+    for<'a> &'a T: Sub<T, Output = T> + Mul<&'a f64, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     if allow_lsq {
