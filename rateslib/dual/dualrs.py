@@ -3,6 +3,8 @@ from rateslibrs import (
     Dual2,
     _dsolve1,
     _dsolve2,
+    _fdsolve1,
+    _fdsolve2,
 )
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."

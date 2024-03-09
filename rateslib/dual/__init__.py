@@ -17,6 +17,8 @@ from rateslib.dual.dualrs import (
     Dual2,
     _dsolve1,
     _dsolve2,
+    _fdsolve1,
+    _fdsolve2,
 )
 import math
 
@@ -79,7 +81,7 @@ def set_order_convert(val, order, tag, vars_from=None):
     if isinstance(val, (*FLOATS, *INTS)):
         _ = [] if tag is None else tag
         if order == 0:
-            return val
+            return float(val)
         elif order == 1:
             if vars_from is None:
                 return Dual(val, _, [])
@@ -196,8 +198,6 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
 
     # Move to Rust implementation
     if types in [
-        (float, Dual),
-        (float, Dual2),
         (Dual, float),
         (Dual2, float)
     ]:
@@ -218,5 +218,9 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
         out = _dsolve1(a, b, allow_lsq)
     elif types == (Dual2, Dual2):
         out = _dsolve2(a, b, allow_lsq)
+    elif types == (float, Dual):
+        out = _fdsolve1(A_, b, allow_lsq)
+    elif types == (float, Dual2):
+        out = _fdsolve2(A_, b, allow_lsq)
 
     return np.array(out)[:, None]

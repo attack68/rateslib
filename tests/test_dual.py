@@ -721,7 +721,7 @@ def test_solve_dual():
     b = np.array([Dual(2, ["x"], np.array([1])), Dual(5, ["x", "y"], np.array([1, 1]))])[
         :, np.newaxis
     ]
-    x = dual_solve(A, b)
+    x = dual_solve(A, b, types=(float, Dual))
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
@@ -734,7 +734,7 @@ def test_solve_dual2():
     b = np.array([Dual2(2, ["x"], [1], []), Dual2(5, ["x", "y"], [1, 1], [])])[
         :, np.newaxis
     ]
-    x = dual_solve(A, b)
+    x = dual_solve(A, b, types=(Dual2, Dual2))
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
