@@ -6,7 +6,7 @@ from packaging import version
 import context
 
 from rateslib.dual import gradient
-from rateslib.dual.dualrs import dual_solve, Dual
+from rateslib.dual.dualrs import Dual
 
 
 @pytest.fixture()
@@ -326,6 +326,8 @@ def test_dual_solve():
     ])
     b = np.array([Dual(2.0, ["x"], [1.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
 
-    result = dual_solve(a, b, False)
-    expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
-    assert np.all(result == expected)
+    assert False
+    # dual solve restructrued
+    # result = dual_solve(a, b, False)
+    # expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
+    # assert np.all(result == expected)

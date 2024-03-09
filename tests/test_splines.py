@@ -137,7 +137,7 @@ def test_csolve_lsq():
     tau = np.array([0, 1, 2, 3, 4])
     val = np.array([0, 0, 1.5, 2, 2])
     bs = PPSpline(k=4, t=t)
-    bs.csolve(tau, val, 0, 0, allow_lsq=True)  # values solve spline
+    bs.csolve(tau, val, 0, 0, allow_lsq=True, types=(float, float))  # values solve spline
     result = bs.c
     expected = np.array([-0.042857, -0.7730158, 3.44920634, 1.9571428], dtype=object)
     for i, res in enumerate(result):

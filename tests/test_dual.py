@@ -711,7 +711,7 @@ def test_solve(A, b):
 def test_solve_lsqrs():
     A = np.array([[0, 1], [1, 1], [2, 1], [3, 1]])
     b = np.array([[-1, 0.2, 0.9, 2.1]]).T
-    result = dual_solve(A, b, allow_lsq=True)
+    result = dual_solve(A, b, allow_lsq=True, types=(float, float))
     assert abs(result[0, 0] - 1.0) < 1e-9
     assert abs(result[1, 0] + 0.95) < 1e-9
 

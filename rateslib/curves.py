@@ -164,7 +164,7 @@ class _Serialize:
 
         self.ad = order
         self.nodes = {
-            k: set_order_convert(v, order, f"{self.id}{i}")
+            k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self.csolve()

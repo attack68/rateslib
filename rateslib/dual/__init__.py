@@ -15,6 +15,8 @@ from rateslib.dual.dual import (
 from rateslib.dual.dualrs import (
     Dual,
     Dual2,
+    _dsolve1,
+    _dsolve2,
 )
 import math
 
@@ -64,8 +66,8 @@ def set_order_convert(val, order, tag, vars_from=None):
         The value to convert.
     order : int
         The AD order to convert the value to if necessary.
-    tag : str
-        The variable name if upcasting a float to a Dual or Dual2
+    tag : list of str, optional
+        The variable name(s) if upcasting a float to a Dual or Dual2
     vars_from : optional, Dual or Dual2
         A pre-existing Dual of correct order from which the Vars are extracted. Improves efficiency
         when given.
@@ -75,18 +77,19 @@ def set_order_convert(val, order, tag, vars_from=None):
     float, Dual, Dual2
     """
     if isinstance(val, (*FLOATS, *INTS)):
+        _ = [] if tag is None else tag
         if order == 0:
             return val
         elif order == 1:
             if vars_from is None:
-                return Dual(val, [tag], [])
+                return Dual(val, _, [])
             else:
-                return Dual.vars_from(vars_from, val, [tag], [])
+                return Dual.vars_from(vars_from, val, _, [])
         elif order == 2:
             if vars_from is None:
-                return Dual2(val, [tag], [], [])
+                return Dual2(val, _, [], [])
             else:
-                return Dual2.vars_from(vars_from, val, [tag], [], [])
+                return Dual2.vars_from(vars_from, val, _, [], [])
     # else val is Dual or Dual2 so convert directly
     return set_order(val, order)
 
@@ -184,22 +187,36 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b)
+            return np.linalg.lstsq(A, b)[0]
         else:
             return np.linalg.solve(A, b)
 
     if DUAL_CORE_PY:
         return _dsolve(A, b, allow_lsq)
-    else: # is "RUST"
-        map = {float: 0, Dual: 1, Dual2: 2}
-        A_ = np.vectorize(
-            partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None)
-        )(A)
-        b_ = np.vectorize(
-            partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None)
-        )(A)
 
-        a = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
-        b = b_.tolist()
-        _ = np.array(dsolve(a, b, allow_lsq))
-        return _
+    # Move to Rust implementation
+    if types in [
+        (float, Dual),
+        (float, Dual2),
+        (Dual, float),
+        (Dual2, float)
+    ]:
+        raise TypeError("Not implemented for type crossing. Use (Dual, Dual) or (Dual2, Dual2).")
+
+    map = {float: 0, Dual: 1, Dual2: 2}
+    A_ = np.vectorize(
+        partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None)
+    )(A)
+    b_ = np.vectorize(
+        partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None)
+    )(b)
+
+    a = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
+    b = b_[:, 0].tolist()
+
+    if types == (Dual, Dual):
+        out = _dsolve1(a, b, allow_lsq)
+    elif types == (Dual2, Dual2):
+        out = _dsolve2(a, b, allow_lsq)
+
+    return np.array(out)[:, None]
