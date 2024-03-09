@@ -278,7 +278,7 @@ where
     for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T> + Mul<&'a T, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
-    let (p, l, u, q) = pluq_decomp::<T>(&a.view(), PivotMethod::Rook);
+    let (p, l, u, q) = pluq_decomp::<T>(&a.view(), PivotMethod::Complete);
     let pb: Array1<T> = fdmul21_(&p.view(), &b.view());
     let z: Array1<T> = dsolve_lower_1d(&l.view(), &pb.view());
     let y: Array1<T> = dsolve_upper_1d(&u.view(), &z.view());
