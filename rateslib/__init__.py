@@ -202,3 +202,5 @@ __all__ = [
     "Fly",
     "Portfolio",
 ]
+
+__version__ = "1.1.0"

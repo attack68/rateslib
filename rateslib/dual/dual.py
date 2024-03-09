@@ -661,7 +661,7 @@ def _solve_upper_triangular(U, b):
     return _solve_lower_triangular(U[::-1, ::-1], b[::-1, ::-1])[::-1, ::-1]
 
 
-def dual_solve(A, b, allow_lsq=False):
+def _dsolve(A, b, allow_lsq=False):
     """
     Solve the linear system Ax=b.
 

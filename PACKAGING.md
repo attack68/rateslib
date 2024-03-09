@@ -5,7 +5,7 @@ On "main":
 1) Update the whatsnew with the target release date.
 2) Add a new entry to the switcher.json in main:docs/source/static, pushing stable to next version.
 3) Change the badges.json file is there is anything to add, e.g. versions.
-4) Bump the "version" in pyproject.toml and check the dependencies.
+4) Bump the "version" in pyproject.toml, and __init__ __version__ and check the dependencies.
 5) Checks should be OK in github actions but perform a local double check.
 
 Checks:

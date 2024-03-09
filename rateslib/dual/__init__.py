@@ -1,10 +1,11 @@
 from typing import Optional, Union
 import numpy as np
+from functools import partial
 
 from rateslib.dual.dual import (
     # Dual,
     # Dual2,
-    dual_solve,
+    _dsolve,
     # private methods use
     _plu_decomp,
     _pivot_matrix,
@@ -17,7 +18,7 @@ from rateslib.dual.dualrs import (
 )
 import math
 
-
+DUAL_CORE_PY = False
 DualTypes = Union[float, Dual, Dual2]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -177,3 +178,28 @@ def dual_log(x, base=None):
         return math.log(x)
     else:
         return math.log(x, base)
+
+
+def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
+    if types == (float, float):
+        # Use basic Numpy LinAlg
+        if allow_lsq:
+            return np.linalg.lstsq(A, b)
+        else:
+            return np.linalg.solve(A, b)
+
+    if DUAL_CORE_PY:
+        return _dsolve(A, b, allow_lsq)
+    else: # is "RUST"
+        map = {float: 0, Dual: 1, Dual2: 2}
+        A_ = np.vectorize(
+            partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None)
+        )(A)
+        b_ = np.vectorize(
+            partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None)
+        )(A)
+
+        a = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
+        b = b_.tolist()
+        _ = np.array(dsolve(a, b, allow_lsq))
+        return _
