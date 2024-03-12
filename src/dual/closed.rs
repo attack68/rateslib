@@ -35,7 +35,7 @@ impl Dual {
         Arc::ptr_eq(&self.vars, &other.vars)
     }
 
-    fn vars_compare(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
+    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
         if Arc::ptr_eq(&self.vars, arc_vars) {
             VarsState::EquivByArc
         } else if self.vars.len() == arc_vars.len()
@@ -54,9 +54,9 @@ impl Dual {
 
     pub fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
         let dual_: Array1<f64>;
-        let match_val = state.unwrap_or_else(|| self.vars_compare(&arc_vars));
+        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
         match match_val {
-            VarsState::EquivByArc | VarsState :: EquivByVal => dual_ = self.dual.clone(),
+            VarsState::EquivByArc | VarsState::EquivByVal => dual_ = self.dual.clone(),
             _ => {
                 let lookup_or_zero = |v| {
                     match self.vars.get_index_of(v) {
@@ -71,7 +71,7 @@ impl Dual {
     }
 
     pub fn to_union_vars(&self, other: &Self) -> (Self, Self) {
-        let state = self.vars_compare(&other.vars);
+        let state = self.vars_cmp(&other.vars);
         match state {
             VarsState::EquivByArc => (self.clone(), other.clone()),
             VarsState::EquivByVal => (self.clone(), other.to_new_vars(&self.vars, Some(state))),
@@ -82,6 +82,7 @@ impl Dual {
     }
 
     fn to_combined_vars(&self, other: &Self, state: Option<VarsState>) -> (Self, Self) {
+    // TODO parse the vars states and reverse
         let comb_vars = Arc::new(IndexSet::from_iter(
             self.vars.union(&other.vars).map(|x| x.clone()),
         ));
