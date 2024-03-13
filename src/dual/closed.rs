@@ -4,6 +4,7 @@
 
 use indexmap::set::IndexSet;
 use std::sync::Arc;
+use std::cmp::PartialEq;
 use ndarray::Array1;
 
 /// Struct for defining a dual number data type supporting first order derivatives.
@@ -15,7 +16,7 @@ pub struct Dual {
 }
 
 /// Enum defining the `vars` state of two `Dual` objects, a LHS relative to a RHS.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum VarsState {
     EquivByArc,  // Duals share an Arc ptr to their Vars
     EquivByVal,  // Duals share the same vars in the same order but no Arc ptr
@@ -60,7 +61,7 @@ impl Dual {
     ///
     /// ```rust
     /// let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
-    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars());
+    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars(), None);
     /// ```
     pub fn new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         let new = Self::new(real, vars, dual);
@@ -109,7 +110,7 @@ impl Dual {
     /// ```rust
     /// let x = Dual::new(1.5, vec!["x".to_string()], vec![]);
     /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![]);
-    /// let x_y = x.to_new_vars(xy.vars());
+    /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
     pub fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
         let dual_: Array1<f64>;
@@ -129,13 +130,13 @@ impl Dual {
         Self {real: self.real, vars: Arc::clone(arc_vars), dual: dual_}
     }
 
-    pub fn to_union_vars(&self, other: &Self) -> (Self, Self) {
-        let state = self.vars_cmp(&other.vars);
-        match state {
+    pub fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> (Self, Self) {
+        let state_ = state.unwrap_or_else(|| self.vars_cmp(&other.vars));
+        match state_ {
             VarsState::EquivByArc => (self.clone(), other.clone()),
-            VarsState::EquivByVal => (self.clone(), other.to_new_vars(&self.vars, Some(state))),
+            VarsState::EquivByVal => (self.clone(), other.to_new_vars(&self.vars, Some(state_))),
             VarsState::Superset => (self.clone(), other.to_new_vars(&self.vars, Some(VarsState::Subset))),
-            VarsState::Subset => (self.to_new_vars(&other.vars, Some(state)), other.clone()),
+            VarsState::Subset => (self.to_new_vars(&other.vars, Some(state_)), other.clone()),
             VarsState::Difference => self.to_combined_vars(other),
         }
     }
@@ -193,6 +194,8 @@ mod tests {
         assert_eq!(z.real, 1.5_f64);
         assert!(y.ptr_eq(&z));
         assert_eq!(z.dual, Array1::from_vec(vec![1.0, 0.0]));
+        let u = x.to_new_vars(x.vars(), None);
+        assert!(u.ptr_eq(&x))
     }
 
     #[test]
@@ -205,154 +208,184 @@ mod tests {
     }
 
     #[test]
-    fn vars_cmp_profile() {
-        // Setup
-        let VARS = 1000_usize;
-        let x = Dual::new(
-            1.5,
-            (0..VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
-        );
-        let y = Dual::new(
-            1.5,
-            (0..VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
-        );
-        let z = Dual::new_from(&x, 1.0, Vec::new(), Vec::new());
-        let u = Dual::new(
-            1.5,
-            (1..VARS).map(|x| x.to_string()).collect(),
-            (1..VARS).map(|x| x as f64).collect(),
-        );
-        let s = Dual::new(
-            1.5,
-            (20..(VARS+20)).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
-        );
-
-        println!("\nProfiling vars_cmp (VarsState::EquivByArc):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..100000 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.vars_cmp(&z.vars);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 100000);
-
-        println!("\nProfiling vars_cmp (VarsState::EquivByVal):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..1000 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.vars_cmp(&y.vars);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 1000);
-
-        println!("\nProfiling vars_cmp (VarsState::Superset):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..1000 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.vars_cmp(&u.vars);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 1000);
-
-        println!("\nProfiling vars_cmp (VarsState::Different):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..1000 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.vars_cmp(&s.vars);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 1000);
+    fn vars() {
+        let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
+        let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars(), None);
+        assert!(x.ptr_eq(&y));
+        assert_eq!(y.dual, Array1::from_vec(vec![0.0, 1.0]));
     }
 
     #[test]
-    fn to_union_vars_profile() {
-        // Setup
-        let VARS = 1000_usize;
-        let x = Dual::new(
-            1.5,
-            (0..VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
-        );
-        let y = Dual::new(
-            1.5,
-            (0..VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
-        );
-        let z = Dual::new_from(&x, 1.0, Vec::new(), Vec::new());
-        let u = Dual::new(
-            1.5,
-            (1..VARS).map(|x| x.to_string()).collect(),
-            (1..VARS).map(|x| x as f64).collect(),
-        );
-        let s = Dual::new(
-            1.5,
-            (20..(VARS+20)).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
-        );
-
-        println!("\nProfiling to_union_vars (VarsState::EquivByArc):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..100000 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.to_union_vars(&z);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 100000);
-
-        println!("\nProfiling to_union_vars (VarsState::EquivByVal):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..1000 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.to_union_vars(&y);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 1000);
-
-        println!("\nProfiling to_union_vars (VarsState::Superset):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..100 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.to_union_vars(&u);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 100);
-
-        println!("\nProfiling to_union_vars (VarsState::Different):");
-        let now = Instant::now();
-        // Code block to measure.
-        {
-            for _i in 0..100 {
-                // Arc::ptr_eq(&x.vars, &y.vars);
-                x.to_union_vars(&s);
-            }
-        }
-        let elapsed = now.elapsed();
-        println!("\nElapsed: {:.2?}", elapsed / 100);
+    fn vars_cmp() {
+        let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
+        let y = Dual::new(1.5, vec!["y".to_string()], vec![]);
+        let y2 = Dual::new(1.5, vec!["y".to_string()], vec![]);
+        let z = x.to_new_vars(y.vars(), None);
+        let u = Dual::new(1.5, vec!["u".to_string()], vec![]);
+        assert_eq!(x.vars_cmp(y.vars()), VarsState::Superset);
+        assert_eq!(y.vars_cmp(z.vars()), VarsState::EquivByArc);
+        assert_eq!(y.vars_cmp(y2.vars()), VarsState::EquivByVal);
+        assert_eq!(y.vars_cmp(x.vars()), VarsState::Subset);
+        assert_eq!(y.vars_cmp(u.vars()), VarsState::Difference);
     }
+
+    #[test]
+    fn default() {
+        let x = Dual::default();
+        assert_eq!(x.real, 0.0_f64);
+        assert_eq!(x.vars.len(), 0_usize);
+        assert_eq!(x.dual, Array1::<f64>::from_vec(vec![]));
+    }
+
+//     #[test]
+//     fn vars_cmp_profile() {
+//         // Setup
+//         let VARS = 1000_usize;
+//         let x = Dual::new(
+//             1.5,
+//             (0..VARS).map(|x| x.to_string()).collect(),
+//             (0..VARS).map(|x| x as f64).collect(),
+//         );
+//         let y = Dual::new(
+//             1.5,
+//             (0..VARS).map(|x| x.to_string()).collect(),
+//             (0..VARS).map(|x| x as f64).collect(),
+//         );
+//         let z = Dual::new_from(&x, 1.0, Vec::new(), Vec::new());
+//         let u = Dual::new(
+//             1.5,
+//             (1..VARS).map(|x| x.to_string()).collect(),
+//             (1..VARS).map(|x| x as f64).collect(),
+//         );
+//         let s = Dual::new(
+//             1.5,
+//             (20..(VARS+20)).map(|x| x.to_string()).collect(),
+//             (0..VARS).map(|x| x as f64).collect(),
+//         );
+//
+//         println!("\nProfiling vars_cmp (VarsState::EquivByArc):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..100000 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.vars_cmp(&z.vars);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 100000);
+//
+//         println!("\nProfiling vars_cmp (VarsState::EquivByVal):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..1000 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.vars_cmp(&y.vars);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 1000);
+//
+//         println!("\nProfiling vars_cmp (VarsState::Superset):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..1000 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.vars_cmp(&u.vars);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 1000);
+//
+//         println!("\nProfiling vars_cmp (VarsState::Different):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..1000 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.vars_cmp(&s.vars);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 1000);
+//     }
+//
+//     #[test]
+//     fn to_union_vars_profile() {
+//         // Setup
+//         let VARS = 1000_usize;
+//         let x = Dual::new(
+//             1.5,
+//             (0..VARS).map(|x| x.to_string()).collect(),
+//             (0..VARS).map(|x| x as f64).collect(),
+//         );
+//         let y = Dual::new(
+//             1.5,
+//             (0..VARS).map(|x| x.to_string()).collect(),
+//             (0..VARS).map(|x| x as f64).collect(),
+//         );
+//         let z = Dual::new_from(&x, 1.0, Vec::new(), Vec::new());
+//         let u = Dual::new(
+//             1.5,
+//             (1..VARS).map(|x| x.to_string()).collect(),
+//             (1..VARS).map(|x| x as f64).collect(),
+//         );
+//         let s = Dual::new(
+//             1.5,
+//             (20..(VARS+20)).map(|x| x.to_string()).collect(),
+//             (0..VARS).map(|x| x as f64).collect(),
+//         );
+//
+//         println!("\nProfiling to_union_vars (VarsState::EquivByArc):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..100000 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.to_union_vars(&z, None);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 100000);
+//
+//         println!("\nProfiling to_union_vars (VarsState::EquivByVal):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..1000 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.to_union_vars(&y, None);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 1000);
+//
+//         println!("\nProfiling to_union_vars (VarsState::Superset):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..100 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.to_union_vars(&u, None);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 100);
+//
+//         println!("\nProfiling to_union_vars (VarsState::Different):");
+//         let now = Instant::now();
+//         // Code block to measure.
+//         {
+//             for _i in 0..100 {
+//                 // Arc::ptr_eq(&x.vars, &y.vars);
+//                 x.to_union_vars(&s, None);
+//             }
+//         }
+//         let elapsed = now.elapsed();
+//         println!("\nElapsed: {:.2?}", elapsed / 100);
+//     }
 
 }
 
