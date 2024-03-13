@@ -12,7 +12,7 @@ use num_traits::{Num, Pow, Signed};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 
 /// Struct for defining a dual number data type supporting first order derivatives.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Dual {
     real: f64,
     vars: Arc<IndexSet<String>>,
@@ -411,11 +411,51 @@ impl PartialOrd<Dual> for f64 {
 }
 
 
+// EXPERIMENT
+use std::ops::{Add, Sub};
+trait RefFieldOps<T>: Add<Output = T> + Sub<Output = T> + Sized + Clone {}
+impl<'a, T: 'a> RefFieldOps<T> for &'a T where &'a T: Add<Output = T> + Sub<Output = T> {}
+
+fn some_op<T>(a: &T, b: &T, c: &T) -> T
+where
+    for<'a> &'a T: RefFieldOps<T>,
+{
+    &(a + b) + c
+}
+
+impl RefFieldOps<Dual> for Dual {}
+impl RefFieldOps<f64> for f64 {}
+
+fn test_ops<T>(a: &T, b: &T) -> T
+where for <'a> &'a T: RefFieldOps<T>
+{
+    &(a + b) - a
+}
+
+fn test_ops2<T>(a: T, b: T) -> T
+where T: RefFieldOps<T>
+{
+    (a.clone() + b) - a
+}
+
+
 // UNIT TESTS
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Instant;
+
+    #[test]
+    fn test_ops_test() {
+         let x = 1.0;
+         let y = 2.0;
+         let z = test_ops(&x, &y);
+         println!("{:?}", z);
+
+         let z = test_ops2(x, y);
+         println!("{:?}", z);
+         assert!(false);
+    }
 
     #[test]
     fn new() {
