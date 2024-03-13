@@ -1,7 +1,12 @@
+//! Create and use data types for calculating first order derivatives using AD.
+//!
+//! Dual number
+
 use indexmap::set::IndexSet;
 use std::sync::Arc;
 use ndarray::Array1;
 
+/// Struct for defining a dual number data type supporting first order derivatives.
 #[derive(Clone, Default)]
 pub struct Dual {
     real: f64,
@@ -9,8 +14,9 @@ pub struct Dual {
     dual: Array1<f64>,
 }
 
+/// Enum defining the `vars` state of two `Dual` objects, a LHS relative to a RHS.
 #[derive(Clone)]
-enum VarsState {
+pub enum VarsState {
     EquivByArc,  // Duals share an Arc ptr to their Vars
     EquivByVal,  // Duals share the same vars in the same order but no Arc ptr
     Superset,    // The Dual vars contains all of the queried values and is larger set
@@ -19,6 +25,21 @@ enum VarsState {
 }
 
 impl Dual {
+    /// Constructs a new `Dual`.
+    ///
+    /// - `vars` should be **unique**; duplicates will be removed by the `IndexSet`.
+    /// - `dual` can be empty; if so each gradient with respect to each `vars` is set to 1.0_f64.
+    ///
+    /// # Panics
+    ///
+    /// If the length of `dual` and of `vars` are not the same after parsing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual::new(2.5, vec!["x".to_string()], vec![]);
+    /// // x: <Dual: 2.5, (x), [1.0]>
+    /// ```
     pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         let unique_vars_ = Arc::new(IndexSet::from_iter(vars));
         let dual_ = if dual.is_empty() {Array1::ones(unique_vars_.len())} else {Array1::from_vec(dual)};
@@ -26,11 +47,40 @@ impl Dual {
         Self {real, vars: unique_vars_, dual: dual_}
     }
 
+    /// Construct a new `Dual` cloning the `vars` Arc pointer from another.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
+    /// let y = Dual::new_from(&x, 1.5, vec["y".to_string()], vec![]);
+    /// ```
+    ///
+    /// This is semantically the same as:
+    ///
+    /// ```rust
+    /// let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
+    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars());
+    /// ```
     pub fn new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         let new = Self::new(real, vars, dual);
         new.to_new_vars(&other.vars, None)
     }
 
+    /// Get a reference to the Arc pointer for the `IndexSet` containing the object's variables.
+    pub fn vars(&self) -> &Arc<IndexSet<String>> {
+        &self.vars
+    }
+
+    /// Compare if two `Dual` objects share the same `vars`by Arc pointer equivalence.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x1 = Dual::new(1.5, vec!["x".to_string()], vec![]);
+    /// let x2 = Dual::new(2.5, vec!["x".to_string()], vec![]);
+    /// x1.ptr_eq(&x2); // false
+    /// ```
     pub fn ptr_eq(&self, other: &Dual) -> bool {
         Arc::ptr_eq(&self.vars, &other.vars)
     }
@@ -52,6 +102,15 @@ impl Dual {
         }
     }
 
+    /// Construct a new `Dual` with `vars` set as the given Arc pointer and gradients shuffled in memory.
+    ///
+    /// Examples
+    ///
+    /// ```rust
+    /// let x = Dual::new(1.5, vec!["x".to_string()], vec![]);
+    /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![]);
+    /// let x_y = x.to_new_vars(xy.vars());
+    /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
     pub fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
         let dual_: Array1<f64>;
         let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
@@ -171,7 +230,7 @@ mod tests {
             (0..VARS).map(|x| x as f64).collect(),
         );
 
-        println!("Profiling vars_cmp (VarsState::EquivByArc):");
+        println!("\nProfiling vars_cmp (VarsState::EquivByArc):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -181,9 +240,9 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 100000);
+        println!("\nElapsed: {:.2?}", elapsed / 100000);
 
-        println!("Profiling vars_cmp (VarsState::EquivByVal):");
+        println!("\nProfiling vars_cmp (VarsState::EquivByVal):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -193,9 +252,9 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 1000);
+        println!("\nElapsed: {:.2?}", elapsed / 1000);
 
-        println!("Profiling vars_cmp (VarsState::Superset):");
+        println!("\nProfiling vars_cmp (VarsState::Superset):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -205,9 +264,9 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 1000);
+        println!("\nElapsed: {:.2?}", elapsed / 1000);
 
-        println!("Profiling vars_cmp (VarsState::Different):");
+        println!("\nProfiling vars_cmp (VarsState::Different):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -217,7 +276,7 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 1000);
+        println!("\nElapsed: {:.2?}", elapsed / 1000);
     }
 
     #[test]
@@ -246,7 +305,7 @@ mod tests {
             (0..VARS).map(|x| x as f64).collect(),
         );
 
-        println!("Profiling to_union_vars (VarsState::EquivByArc):");
+        println!("\nProfiling to_union_vars (VarsState::EquivByArc):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -256,9 +315,9 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 100000);
+        println!("\nElapsed: {:.2?}", elapsed / 100000);
 
-        println!("Profiling to_union_vars (VarsState::EquivByVal):");
+        println!("\nProfiling to_union_vars (VarsState::EquivByVal):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -268,9 +327,9 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 1000);
+        println!("\nElapsed: {:.2?}", elapsed / 1000);
 
-        println!("Profiling to_union_vars (VarsState::Superset):");
+        println!("\nProfiling to_union_vars (VarsState::Superset):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -280,9 +339,9 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 100);
+        println!("\nElapsed: {:.2?}", elapsed / 100);
 
-        println!("Profiling to_union_vars (VarsState::Different):");
+        println!("\nProfiling to_union_vars (VarsState::Different):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -292,7 +351,7 @@ mod tests {
             }
         }
         let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed / 100);
+        println!("\nElapsed: {:.2?}", elapsed / 100);
     }
 
 }

@@ -1,3 +1,5 @@
+//! This is the documentation for rateslib-rs
+
 #[cfg(test)]
 mod tests;
 
