@@ -63,6 +63,9 @@ email contact through **rateslib@gmail.com**.
        as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
    * - Bug
      - `Solver.delta` and `Solver.gamma` now work directly with given ``npv`` when ``fx`` is not provided.
+   * - Bug
+     - `~rateslib.periods.FloatPeriod.npv` now returns 0.0 for historical payment dates correctly when
+       given the `local` argument.
    * - Performance
      - Curve iterations in the :class:`~rateslib.solver.Solver` were amended in the way they handle
        :class:`~rateslib.dual.Dual` variables in order to reduce upcasting and increase the speed of basic operations.

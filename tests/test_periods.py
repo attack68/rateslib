@@ -1353,6 +1353,11 @@ class TestFloatPeriod:
         )
         assert_frame_equal(result, expected)
 
+    def test_local_historical_pay_date_issue(self, curve):
+        period = FloatPeriod(dt(2021, 1, 1), dt(2021, 4, 1), dt(2021, 4, 1), "Q")
+        result = period.npv(curve, local=True)
+        assert result == {"usd": 0.0}
+
 
 class TestFixedPeriod:
     def test_fixed_period_analytic_delta(self, curve, fxr):
