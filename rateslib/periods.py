@@ -919,7 +919,10 @@ class FloatPeriod(BasePeriod):
         if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         if self.payment < disc_curve_.node_dates[0]:
-            return 0.0  # payment date is in the past avoid issues with fixings or rates
+            if local:
+                return {self.currency: 0.0}
+            else:
+                return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
         if local:
             return {self.currency: value}
