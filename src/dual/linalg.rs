@@ -1,4 +1,4 @@
-use crate::dual::dual1::Dual;
+use crate::dual::closed::{Dual, Gradient1};
 use crate::dual::linalg_f64::{dfmul22_, fdmul21_, fdmul22_};
 use ndarray::prelude::*;
 use ndarray::Zip;
@@ -549,7 +549,7 @@ mod tests {
             Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
         ]);
         assert_eq!(result, expected);
-        assert!(Arc::ptr_eq(&result[0].vars, &result[1].vars));
+        assert!(Arc::ptr_eq(&result[0].vars(), &result[1].vars()));
     }
 
     #[test]
@@ -674,7 +674,7 @@ mod tests {
             .into_raw_vec()
             .iter()
             .zip(lu.into_raw_vec().iter())
-            .map(|(x, y)| is_close(&x.real, &y.real, None))
+            .map(|(x, y)| is_close(&x.real(), &y.real(), None))
             .collect();
 
         assert!(v.iter().all(|x| *x));
@@ -704,7 +704,7 @@ mod tests {
             .into_raw_vec()
             .iter()
             .zip(result.into_raw_vec().iter())
-            .map(|(x, y)| is_close(&x.real, &y.real, None))
+            .map(|(x, y)| is_close(&x.real(), &y.real(), None))
             .collect();
         assert!(v.iter().all(|x| *x));
     }

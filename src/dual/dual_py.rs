@@ -1,5 +1,11 @@
-use crate::dual::closed::Dual;
+use crate::dual::closed::{Dual, Gradient1, CommonFuncs};
+use crate::dual::dual2::Dual2;
+use num_traits::{Num, Pow, Signed};
+use std::sync::Arc;
 use pyo3::prelude::*;
+use pyo3::types::PyType;
+use pyo3::exceptions::{PyTypeError, PyValueError};
+use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -8,10 +14,17 @@ unsafe impl Element for Dual {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
+pub enum DualsOrF64 {
+    Dual(Dual),
+    Dual2(Dual2),
+    F64(f64),
+}
+
 #[pymethods]
 impl Dual {
     #[new]
-    pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
+    pub fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         Dual::new(real, vars, dual)
     }
 
@@ -21,22 +34,26 @@ impl Dual {
     }
 
     #[getter]
-    fn real(&self) -> PyResult<f64> {
+    #[pyo3(name = "real")]
+    fn real_py(&self) -> PyResult<f64> {
         Ok(self.real())
     }
 
     #[getter]
-    fn vars(&self) -> PyResult<Vec<&String>> {
+    #[pyo3(name = "vars")]
+    fn vars_py(&self) -> PyResult<Vec<&String>> {
         Ok(Vec::from_iter(self.vars().iter()))
     }
 
     #[getter]
-    fn dual<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
+    #[pyo3(name = "dual")]
+    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
         Ok(self.dual().to_pyarray(py))
     }
 
     #[getter]
-    fn dual2<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
+    #[pyo3(name = "dual2")]
+    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
         Err(PyValueError::new_err("`Dual` variable cannot possess `dual2` attribute."))
     }
 
@@ -50,18 +67,19 @@ impl Dual {
         Err(PyValueError::new_err("Cannot evaluate second order derivative on a Dual."))
     }
 
-    fn ptr_eq(&self, other: &Dual) -> PyResult<bool> {
-        Ok(Arc::ptr_eq(&self.vars, &other.vars))
+    #[pyo3(name = "ptr_eq")]
+    fn ptr_eq_py(&self, other: &Dual) -> PyResult<bool> {
+        Ok(Arc::ptr_eq(self.vars(), other.vars()))
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        let mut _vars = Vec::from_iter(self.vars.iter().take(3).map(String::as_str)).join(", ");
-        let mut _dual = Vec::from_iter(self.dual.iter().take(3).map(|x| format!("{:.1}", x))).join(", ");
-        if self.vars.len() > 3 {
+        let mut _vars = Vec::from_iter(self.vars().iter().take(3).map(String::as_str)).join(", ");
+        let mut _dual = Vec::from_iter(self.dual().iter().take(3).map(|x| format!("{:.1}", x))).join(", ");
+        if self.vars().len() > 3 {
             _vars.push_str(", ...");
             _dual.push_str(", ...");
         }
-        let fs = format!("<Dual: {:.6}, ({}), [{}]>", self.real, _vars, _dual);
+        let fs = format!("<Dual: {:.6}, ({}), [{}]>", self.real(), _vars, _dual);
         Ok(fs)
     }
 
@@ -189,7 +207,7 @@ impl Dual {
     }
 
     fn __abs__(&self) -> f64 {
-        self.abs().real
+        self.abs().real()
     }
 
     fn __log__(&self) -> Self {
@@ -197,6 +215,6 @@ impl Dual {
     }
 
     fn __float__(&self) -> f64 {
-        self.real
+        self.real()
     }
 }

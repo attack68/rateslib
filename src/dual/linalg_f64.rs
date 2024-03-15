@@ -1,4 +1,4 @@
-use crate::dual::dual1::Dual;
+use crate::dual::closed::Dual;
 use crate::dual::linalg::{dmul22_, pluq_decomp, PivotMethod};
 use ndarray::prelude::*;
 use ndarray::Zip;
@@ -152,6 +152,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dual::closed::Gradient1;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
@@ -210,7 +211,7 @@ mod tests {
             Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
         ]);
         assert_eq!(result, expected);
-        assert!(Arc::ptr_eq(&result[0].vars, &result[1].vars));
+        assert!(Arc::ptr_eq(&result[0].vars(), &result[1].vars()));
     }
 
     #[test]

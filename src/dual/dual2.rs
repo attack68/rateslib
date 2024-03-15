@@ -1,5 +1,5 @@
 use crate::dual::linalg_f64::outer11_;
-use crate::dual::dual1::DualsOrF64;
+use crate::dual::dual_py::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2};
@@ -779,7 +779,7 @@ impl Dual2 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual1::Dual;
+    use crate::dual::closed::Dual;
 
     #[test]
     fn clone_arc() {
