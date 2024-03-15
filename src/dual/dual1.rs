@@ -9,6 +9,7 @@ use std::iter::Sum;
 use std::ops::{Add, Sub, Mul, Div};
 use ndarray::Array1;
 use num_traits;
+use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use pyo3::pyclass;
@@ -32,7 +33,7 @@ pub enum VarsState {
     Difference,  // The Dual vars and the queried set contain different values.
 }
 
-pub trait Vars {
+pub trait Vars where Self: Clone {
     fn vars(&self) -> &Arc<IndexSet<String>>;
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self;
 
@@ -73,10 +74,10 @@ pub trait Vars {
     fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> (Self, Self) where Self: Sized {
         let state_ = state.unwrap_or_else(|| self.vars_cmp(other.vars()));
         match state_ {
-            VarsState::EquivByArc => (*self.clone(), *other.clone()),
-            VarsState::EquivByVal => (*self.clone(), other.to_new_vars(self.vars(), Some(state_))),
-            VarsState::Superset => (*self.clone(), other.to_new_vars(self.vars(), Some(VarsState::Subset))),
-            VarsState::Subset => (self.to_new_vars(other.vars(), Some(state_)), *other.clone()),
+            VarsState::EquivByArc => (self.clone(), other.clone()),
+            VarsState::EquivByVal => (self.clone(), other.to_new_vars(self.vars(), Some(state_))),
+            VarsState::Superset => (self.clone(), other.to_new_vars(self.vars(), Some(VarsState::Subset))),
+            VarsState::Subset => (self.to_new_vars(other.vars(), Some(state_)), other.clone()),
             VarsState::Difference => self.to_combined_vars(other),
         }
     }
@@ -306,13 +307,13 @@ impl_op_ex!(% |a: &Dual, b: & Dual| -> Dual {
     a - d * b
 });
 
-impl  num_traits::identities::One for Dual {
+impl One for Dual {
     fn one() -> Dual {
         Dual::new(1.0, Vec::new(), Vec::new())
     }
 }
 
-impl  num_traits::identities::Zero for Dual {
+impl Zero for Dual {
     fn zero() -> Dual {
         Dual::new(0.0, Vec::new(), Vec::new())
     }
@@ -350,13 +351,7 @@ impl PartialEq<Dual> for Dual {
 /// Compares `Dual` by `real` component only.
 impl PartialOrd<Dual> for Dual {
     fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
-        if self.real == other.real {
-            Some(Ordering::Equal)
-        } else if self.real < other.real {
-            Some(Ordering::Less)
-        } else {
-            Some(Ordering::Greater)
-        }
+        self.real.partial_cmp(&other.real)
     }
 }
 
@@ -400,17 +395,17 @@ impl Signed for Dual {
 
     fn signum(&self) -> Self { Dual::new(self.real.signum(), Vec::new(), Vec::new()) }
 
-    fn is_positive(&self) -> bool { self.real.is_positive() }
+    fn is_positive(&self) -> bool { self.real.is_sign_positive() }
 
-    fn is_negative(&self) -> bool { self.real.is_negative() }
+    fn is_negative(&self) -> bool { self.real.is_sign_negative() }
 }
 
-pub trait CommonFuncs {
+pub trait MathFuncs {
     fn exp(&self) -> Self;
     fn log(&self) -> Self;
 }
 
-impl CommonFuncs for Dual {
+impl MathFuncs for Dual {
     fn exp(&self) -> Self {
         let c = self.real.exp();
         Dual {

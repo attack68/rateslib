@@ -1,4 +1,4 @@
-use crate::dual::dual1::{VarsState, Gradient1, Vars};
+use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs};
 use crate::dual::linalg_f64::outer11_;
 use crate::dual::dual_py::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
@@ -19,7 +19,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 
 #[pyclass]
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Dual2 {
     pub real: f64,
     pub vars: Arc<IndexSet<String>>,
@@ -99,8 +99,8 @@ pub trait Gradient2: Gradient1 {
         match state {
             VarsState::EquivByArc | VarsState::EquivByVal => self.dual2().clone(),
             _ => {
-                let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars().get_index_of(x)).collect();
-                let mut dual2_ = Array::zeros((vars.len(), vars.len()));
+                let indices: Vec<Option<usize>> = arc_vars.iter().map(|x| self.vars().get_index_of(x)).collect();
+                let mut dual2_ = Array::zeros((arc_vars.len(), arc_vars.len()));
                 for (i, row_index) in indices.iter().enumerate() {
                     for (j, col_index) in indices.iter().enumerate() {
                         match row_index {
@@ -115,6 +115,34 @@ pub trait Gradient2: Gradient1 {
                 2_f64 * dual2_
             }
         }
+    }
+
+    fn gradient1_manifold(&self, vars: Vec<String>) -> Array1<Dual2> {
+        let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars().get_index_of(x)).collect();
+
+        let default_zero = Dual2::new(0., vars.clone(), Vec::new(), Vec::new());
+        let mut grad: Array1<Dual2> = Array::zeros(vars.len());
+        for (i, i_idx) in indices.iter().enumerate() {
+            match i_idx {
+                Some(i_val) => {
+                    let mut dual: Array1<f64> = Array1::zeros(vars.len());
+                    for (j, j_idx) in indices.iter().enumerate() {
+                        match j_idx {
+                            Some(j_val) => dual[j] = self.dual2()[[*i_val, *j_val]] * 2.0,
+                            None => {}
+                        }
+                    }
+                    grad[i] = Dual2 {
+                        real: self.dual()[*i_val],
+                        vars: Arc::clone(&default_zero.vars),
+                        dual: dual,
+                        dual2: Array2::zeros((vars.len(), vars.len()))
+                    };
+                },
+                None => { grad[i] = default_zero.clone() }
+            }
+        }
+        grad
     }
 }
 
@@ -146,8 +174,8 @@ impl Dual2 {
         let dual2_ = if dual2.is_empty() {
             Array2::zeros((unique_vars_.len(), unique_vars_.len()))
         } else {
-            Array2::from_vec(dual2).into_shape((vars.len(), vars.len()))
-                                   .expect("`dual2` was not a vector of correct length")
+            Array::from_vec(dual2).into_shape((unique_vars_.len(), unique_vars_.len()))
+                                     .expect("`dual2` was not a vector of correct length")
         };
         assert_eq!(unique_vars_.len(), dual_.len());
         assert_eq!(unique_vars_.len(), dual2_.len_of(Axis(0)));
@@ -179,65 +207,10 @@ impl Dual2 {
     pub fn real(&self) -> f64 {
         self.real.clone()
     }
+}
 
-    // fn grad1(&self, vars: Vec<String>) -> Array1<f64> {
-    //     let mut dual = Array::zeros(vars.len());
-    //     for (i, index) in vars.iter().map(|x| self.vars.get_index_of(x)).enumerate() {
-    //         match index {
-    //             Some(value) => dual[i] = self.dual[value],
-    //             None => dual[i] = 0.0,
-    //         }
-    //     }
-    //     dual
-    // }
-    //
-    // fn grad2(&self, vars: Vec<String>) -> Array2<f64> {
-    //     let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars.get_index_of(x)).collect();
-    //
-    //     let mut dual2 = Array::zeros((vars.len(), vars.len()));
-    //     for (i, row_index) in indices.iter().enumerate() {
-    //         for (j, col_index) in indices.iter().enumerate() {
-    //             match row_index {
-    //                 Some(row_value) => match col_index {
-    //                     Some(col_value) => dual2[[i, j]] = self.dual2[[*row_value, *col_value]],
-    //                     None => {}
-    //                 },
-    //                 None => {}
-    //             }
-    //         }
-    //     }
-    //     2_f64 * dual2
-    // }
-
-    fn grad1_manifold(&self, vars: Vec<String>) -> Array1<Dual2> {
-        let indices: Vec<Option<usize>> = vars.iter().map(|x| self.vars.get_index_of(x)).collect();
-
-        let default_zero = Dual2::new(0., vars.clone(), Vec::new(), Vec::new());
-        let mut grad: Array1<Dual2> = Array::zeros(vars.len());
-        for (i, i_idx) in indices.iter().enumerate() {
-            match i_idx {
-                Some(i_val) => {
-                    let mut dual: Array1<f64> = Array1::zeros(vars.len());
-                    for (j, j_idx) in indices.iter().enumerate() {
-                        match j_idx {
-                            Some(j_val) => dual[j] = self.dual2[[*i_val, *j_val]] * 2.0,
-                            None => {}
-                        }
-                    }
-                    grad[i] = Dual2 {
-                        real: self.dual[*i_val],
-                        vars: Arc::clone(&default_zero.vars),
-                        dual: dual,
-                        dual2: Array2::zeros((vars.len(), vars.len()))
-                    };
-                },
-                None => { grad[i] = default_zero.clone() }
-            }
-        }
-        grad
-    }
-
-    pub fn exp(&self) -> Self {
+impl MathFuncs for Dual2 {
+    fn exp(&self) -> Self {
         let c = self.real.exp();
         Dual2 {
             real: c,
@@ -246,8 +219,7 @@ impl Dual2 {
             dual2: c * (&self.dual2 + 0.5 * outer11_(&self.dual.view(), &self.dual.view())),
         }
     }
-
-    pub fn log(&self) -> Self {
+    fn log(&self) -> Self {
         let scalar = 1.0 / self.real;
         Dual2 {
             real: self.real.ln(),
@@ -259,11 +231,11 @@ impl Dual2 {
     }
 }
 
-impl fmt::Debug for Dual2 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &self.real)
-    }
-}
+// impl fmt::Debug for Dual2 {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "{}", &self.real)
+//     }
+// }
 
 impl Num for Dual2 {
     type FromStrRadixErr = String;
@@ -272,6 +244,7 @@ impl Num for Dual2 {
     }
 }
 
+// impl Neg for Dual2
 impl_op!(-|a: Dual2| -> Dual2 {
     Dual2 {
         vars: a.vars,
@@ -289,50 +262,81 @@ impl_op!(-|a: &Dual2| -> Dual2 {
     }
 });
 
+// impl Add for Dual2
 impl_op_ex!(+ |a: &Dual2, b: &Dual2| -> Dual2 {
-    if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual2 {
-            real: a.real + b.real,
-            dual: &a.dual + &b.dual,
-            vars: Arc::clone(&a.vars),
-            dual2: &a.dual2 + &b.dual2,
+    let state = a.vars_cmp(b.vars());
+    match state {
+        VarsState::EquivByArc | VarsState::EquivByVal => {
+            Dual2 {
+                real: a.real + b.real,
+                dual: &a.dual + &b.dual,
+                dual2: &a.dual2 + &b.dual2,
+                vars: Arc::clone(&a.vars)}
+        }
+        _ => {
+            let (x, y) = a.to_union_vars(b, Some(state));
+            Dual2 {
+                real: x.real + y.real,
+                dual: &x.dual + &y.dual,
+                dual2: &x.dual2 + &y.dual2,
+                vars: Arc::clone(&x.vars)}
         }
     }
-    else { let (x, y) = a.to_combined_vars(b); x + y }
 });
 
+// impl Sub
 impl_op_ex!(-|a: &Dual2, b: &Dual2| -> Dual2 {
-    if Arc::ptr_eq(&a.vars, &b.vars) {
-        Dual2 {
-            real: a.real - b.real,
-            dual: &a.dual - &b.dual,
-            vars: Arc::clone(&a.vars),
-            dual2: &a.dual2 - &b.dual2,
+    let state = a.vars_cmp(b.vars());
+    match state {
+        VarsState::EquivByArc | VarsState::EquivByVal => {
+            Dual2 {
+                real: a.real - b.real,
+                dual: &a.dual - &b.dual,
+                dual2: &a.dual2 - &b.dual2,
+                vars: Arc::clone(&a.vars)}
         }
-    } else {
-        let (x, y) = a.to_combined_vars(b);
-        x - y
+        _ => {
+            let (x, y) = a.to_union_vars(b, Some(state));
+            Dual2 {
+                real: x.real - y.real,
+                dual: &x.dual - &y.dual,
+                dual2: &x.dual2 - &y.dual2,
+                vars: Arc::clone(&x.vars)}
+        }
     }
 });
 
+// impl Mul for Dual2
 impl_op_ex!(*|a: &Dual2, b: &Dual2| -> Dual2 {
-    if Arc::ptr_eq(&a.vars, &b.vars) {
-        let mut dual2: Array2<f64> = &a.dual2 * b.real + &b.dual2 * a.real;
-        let cross_beta = outer11_(&a.dual.view(), &b.dual.view());
-        dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
-        Dual2 {
-            real: a.real * b.real,
-            dual: &a.dual * b.real + &b.dual * a.real,
-            vars: Arc::clone(&a.vars),
-            dual2,
+    let state = a.vars_cmp(b.vars());
+    match state {
+        VarsState::EquivByArc | VarsState::EquivByVal => {
+            let mut dual2: Array2<f64> = &a.dual2 * b.real + &b.dual2 * a.real;
+            let cross_beta = outer11_(&a.dual.view(), &b.dual.view());
+            dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
+            Dual2 {
+                real: a.real * b.real,
+                dual: &a.dual * b.real + &b.dual * a.real,
+                vars: Arc::clone(&a.vars),
+                dual2,
+            }
         }
-    } else {
-        let (x, y) = a.to_combined_vars(b);
-        x * y
+        _ => {
+            let (x, y) = a.to_union_vars(b, Some(state));
+            let mut dual2: Array2<f64> = &x.dual2 * y.real + &y.dual2 * x.real;
+            let cross_beta = outer11_(&x.dual.view(), &y.dual.view());
+            dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
+            Dual2 {
+                real: x.real * y.real,
+                dual: &x.dual * y.real + &y.dual * x.real,
+                vars: Arc::clone(&x.vars),
+                dual2,
+            }
+        }
     }
 });
 
-impl num_traits::Pow<f64> for Dual2 {
+impl Pow<f64> for Dual2 {
     type Output = Dual2;
     fn pow(self, power: f64) -> Dual2 {
         let coeff = power * self.real.powf(power - 1.);
@@ -347,15 +351,22 @@ impl num_traits::Pow<f64> for Dual2 {
     }
 }
 
+// impl Div for Dual2
 impl_op_ex!(/ |a: &Dual2, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
 
-impl num_traits::identities::One for Dual2 {
+// impl Rem for Dual2
+impl_op_ex!(% |a: &Dual2, b: & Dual2| -> Dual2 {
+    let d = f64::trunc(a.real / b.real);
+    a - d * b
+});
+
+impl One for Dual2 {
     fn one() -> Dual2 {
         Dual2::new(1.0, Vec::new(), Vec::new(), Vec::new())
     }
 }
 
-impl num_traits::identities::Zero for Dual2 {
+impl Zero for Dual2 {
     fn zero() -> Dual2 {
         Dual2::new(0.0, Vec::new(), Vec::new(), Vec::new())
     }
@@ -369,30 +380,30 @@ impl PartialEq<Dual2> for Dual2 {
     fn eq(&self, other: &Dual2) -> bool {
         if self.real != other.real {
             false
-        } else if Arc::ptr_eq(&self.vars, &other.vars) {
-            let boo = self.dual.iter().eq(other.dual.iter());
-            let boo2 = self.dual2.iter().eq(other.dual2.iter());
-            boo && boo2
         } else {
-            let (x, y) = self.to_combined_vars(other);
-            x.eq(&y)
+            let state = self.vars_cmp(other.vars());
+            match state {
+                VarsState::EquivByArc | VarsState::EquivByVal => {
+                    self.dual.iter().eq(other.dual.iter()) &&
+                        self.dual2.iter().eq(other.dual2.iter())
+                }
+                _ => {
+                    let (x, y) = self.to_union_vars(other, Some(state));
+                    x.dual.iter().eq(y.dual.iter()) &&
+                        x.dual2.iter().eq(y.dual2.iter())
+                }
+            }
         }
     }
 }
 
 impl PartialOrd<Dual2> for Dual2 {
     fn partial_cmp(&self, other: &Dual2) -> Option<Ordering> {
-        if self.real == other.real {
-            Some(Ordering::Equal)
-        } else if self.real < other.real {
-            Some(Ordering::Less)
-        } else {
-            Some(Ordering::Greater)
-        }
+        self.real.partial_cmp(&other.real)
     }
 }
 
-impl std::iter::Sum for Dual2 {
+impl Sum for Dual2 {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Dual2>,
@@ -403,11 +414,6 @@ impl std::iter::Sum for Dual2 {
         )
     }
 }
-
-impl_op_ex!(% |a: &Dual2, b: & Dual2| -> Dual2 {
-    let d = f64::trunc(a.real / b.real);
-    a - d * b
-});
 
 impl Signed for Dual2 {
     fn abs(&self) -> Self {
@@ -436,31 +442,24 @@ impl Signed for Dual2 {
         }
     }
 
-    fn signum(&self) -> Self {
-        if self.real == 0.0 {
-            Dual2::new(1.0, Vec::new(), Vec::new(), Vec::new())
-        } else if self.real > 0.0 {
-            Dual2::new(0.0, Vec::new(), Vec::new(), Vec::new())
-        } else {
-            Dual2::new(-1.0, Vec::new(), Vec::new(), Vec::new())
-        }
-    }
+    fn signum(&self) -> Self { Dual2::new(self.real.signum(), Vec::new(), Vec::new(), Vec::new()) }
 
     fn is_positive(&self) -> bool {
-        self.real > 0.0_f64
+        self.real.is_sign_positive()
     }
 
     fn is_negative(&self) -> bool {
-        self.real < 0.0_f64
+        self.real.is_sign_negative()
     }
 }
 
-// NumOps with f64
+// f64 Crossover
 
+// Add
 impl_op_ex_commutative!(+ |a: &Dual2, b: &f64| -> Dual2 {
     Dual2 {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone(), dual2: a.dual2.clone()}
 });
-
+// Sub
 impl_op_ex!(-|a: &Dual2, b: &f64| -> Dual2 {
     Dual2 {
         vars: Arc::clone(&a.vars),
@@ -477,7 +476,7 @@ impl_op_ex!(-|a: &f64, b: &Dual2| -> Dual2 {
         dual2: -(b.dual2.clone()),
     }
 });
-
+// Mul
 impl_op_ex_commutative!(*|a: &Dual2, b: &f64| -> Dual2 {
     Dual2 {
         vars: Arc::clone(&a.vars),
@@ -486,12 +485,12 @@ impl_op_ex_commutative!(*|a: &Dual2, b: &f64| -> Dual2 {
         dual2: *b * &a.dual2,
     }
 });
-
+// Div
 impl_op_ex!(/ |a: &Dual2, b: &f64| -> Dual2 {
     Dual2 {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual, dual2: (1_f64/b) * &a.dual2}
 });
 impl_op_ex!(/ |a: &f64, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
-
+// Rem
 impl_op_ex!(% |a: &Dual2, b: &f64| -> Dual2 {
     Dual2 {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone(), dual2: a.dual2.clone()}
 });
@@ -512,27 +511,11 @@ impl PartialEq<Dual2> for f64 {
 }
 
 impl PartialOrd<f64> for Dual2 {
-    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
-        if self.real == *other {
-            Some(Ordering::Equal)
-        } else if self.real < *other {
-            Some(Ordering::Less)
-        } else {
-            Some(Ordering::Greater)
-        }
-    }
+    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {self.real.partial_cmp(other)}
 }
 
 impl PartialOrd<Dual2> for f64 {
-    fn partial_cmp(&self, other: &Dual2) -> Option<Ordering> {
-        if *self == other.real {
-            Some(Ordering::Equal)
-        } else if *self < other.real {
-            Some(Ordering::Less)
-        } else {
-            Some(Ordering::Greater)
-        }
-    }
+    fn partial_cmp(&self, other: &Dual2) -> Option<Ordering> {self.partial_cmp(&other.real)}
 }
 
 // UNIT TESTS
@@ -967,7 +950,7 @@ mod tests {
             vec![1., 2., 3.],
             vec![2., 3., 4., 3.,5., 6., 4., 6., 7.],
         );
-        let result = d1.grad1_manifold(vec!["y".to_string(), "z".to_string()]);
+        let result = d1.gradient1_manifold(vec!["y".to_string(), "z".to_string()]);
         assert_eq!(result[0].real, 2.);
         assert_eq!(result[1].real, 3.);
         assert_eq!(result[0].dual, Array1::from_vec(vec![10., 12.]));

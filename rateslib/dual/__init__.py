@@ -3,7 +3,7 @@ import numpy as np
 from functools import partial
 import math
 
-DUAL_CORE_PY = True
+DUAL_CORE_PY = False
 
 if DUAL_CORE_PY:
     from rateslib.dual.dual import (

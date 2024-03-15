@@ -1,5 +1,5 @@
-use crate::dual::dual1::{Dual, Gradient1, CommonFuncs, Vars};
-use crate::dual::dual2::Dual2;
+use crate::dual::dual1::{Dual, Gradient1, MathFuncs, Vars};
+use crate::dual::dual2::{Dual2, Gradient2};
 use num_traits::{Num, Pow, Signed};
 use std::sync::Arc;
 use pyo3::prelude::*;
@@ -305,17 +305,17 @@ impl Dual2 {
 
     #[pyo3(name = "grad1")]
     fn grad1_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.grad1(vars).to_pyarray(py))
+        Ok(self.gradient1(vars).to_pyarray(py))
     }
 
     #[pyo3(name = "grad2")]
     fn grad2_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
-        Ok(self.grad2(vars).to_pyarray(py))
+        Ok(self.gradient2(vars).to_pyarray(py))
     }
 
     #[pyo3(name = "grad1_manifold")]
     fn grad1_manifold_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<Vec<Dual2>> {
-        let out = self.grad1_manifold(vars);
+        let out = self.gradient1_manifold(vars);
         Ok(out.into_raw_vec())
     }
 
