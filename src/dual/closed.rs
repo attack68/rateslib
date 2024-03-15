@@ -11,13 +11,73 @@ use ndarray::Array1;
 use num_traits;
 use num_traits::{Num, Pow, Signed};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
+use pyo3::pyclass;
 
 /// Struct for defining a dual number data type supporting first order derivatives.
+#[pyclass]
 #[derive(Clone, Default, Debug)]
 pub struct Dual {
     real: f64,
     vars: Arc<IndexSet<String>>,
     dual: Array1<f64>,
+}
+
+pub trait Gradient1 {
+    fn vars(&self) -> &Arc<IndexSet<String>>;
+    fn dual(&self) -> &Array1<f64>;
+
+    /// Compare the `vars` on a `Dual` with a given Arc pointer.
+    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState;
+
+    /// Return a set of first order gradients ordered by the given vector.
+    ///
+    /// Duplicate `vars` are dropped before parsing.
+    fn gradient1(&self, vars: Vec<String>) -> Array1<f64> {
+        let arc_vars = Arc::new(IndexSet::from_iter(vars));
+        let state = self.vars_cmp(&arc_vars);
+        match state {
+            VarsState::EquivByArc | VarsState::EquivByVal => self.dual().clone(),
+            _ =>{
+                let mut dual = Array1::<f64>::zeros(arc_vars.len());
+                for (i, index) in arc_vars.iter().map(|x| self.vars().get_index_of(x)).enumerate() {
+                    match index {
+                        Some(value) => dual[i] = self.dual()[value],
+                        None => dual[i] = 0.0,
+                    }
+                }
+                dual
+            }
+        }
+    }
+}
+
+impl Gradient1 for Dual {
+    /// Get a reference to the Arc pointer for the `IndexSet` containing the struct's variables.
+    fn vars(&self) -> &Arc<IndexSet<String>> {
+        &self.vars
+    }
+
+    /// Get a reference to the Array containing the first order gradients.
+    fn dual(&self) -> &Array1<f64> {
+        &self.dual
+    }
+
+    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
+        if Arc::ptr_eq(&self.vars, arc_vars) {
+            VarsState::EquivByArc
+        } else if self.vars.len() == arc_vars.len()
+            && self.vars.iter().zip(arc_vars.iter()).all(|(a, b)| a == b) {
+            VarsState::EquivByVal
+        } else if self.vars.len() >= arc_vars.len()
+            && arc_vars.iter().all(|var| self.vars.contains(var)) {
+            VarsState::Superset
+        } else if self.vars.len() < arc_vars.len()
+            && self.vars.iter().all(|var| arc_vars.contains(var)) {
+            VarsState::Subset
+        } else {
+            VarsState::Difference
+        }
+    }
 }
 
 /// Enum defining the `vars` state of two `Dual` structs, a LHS relative to a RHS.
@@ -78,16 +138,6 @@ impl Dual {
         self.real.clone()
     }
 
-    /// Get a reference to the Arc pointer for the `IndexSet` containing the struct's variables.
-    pub fn vars(&self) -> &Arc<IndexSet<String>> {
-        &self.vars
-    }
-
-    /// Get a reference to the Array containing the first order gradients.
-    pub fn dual(&self) -> &Array1<f64> {
-        &self.dual
-    }
-
     /// Compare if two `Dual` structs share the same `vars`by Arc pointer equivalence.
     ///
     /// # Examples
@@ -99,23 +149,6 @@ impl Dual {
     /// ```
     pub fn ptr_eq(&self, other: &Dual) -> bool {
         Arc::ptr_eq(&self.vars, &other.vars)
-    }
-
-    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
-        if Arc::ptr_eq(&self.vars, arc_vars) {
-            VarsState::EquivByArc
-        } else if self.vars.len() == arc_vars.len()
-            && self.vars.iter().zip(arc_vars.iter()).all(|(a, b)| a == b) {
-            VarsState::EquivByVal
-        } else if self.vars.len() >= arc_vars.len()
-            && arc_vars.iter().all(|var| self.vars.contains(var)) {
-            VarsState::Superset
-        } else if self.vars.len() < arc_vars.len()
-            && self.vars.iter().all(|var| arc_vars.contains(var)) {
-            VarsState::Subset
-        } else {
-            VarsState::Difference
-        }
     }
 
     /// Construct a new `Dual` with `vars` set as the given Arc pointer and gradients shuffled in memory.
@@ -251,7 +284,7 @@ impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual {
     a * b_
 });
 
-impl num_traits::Pow<f64> for Dual {
+impl Pow<f64> for Dual {
     type Output = Dual;
     fn pow(self, power: f64) -> Dual {
         Dual {
@@ -322,7 +355,7 @@ impl PartialOrd<Dual> for Dual {
     }
 }
 
-impl std::iter::Sum for Dual {
+impl Sum for Dual {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Dual>,
@@ -367,12 +400,12 @@ impl Signed for Dual {
     fn is_negative(&self) -> bool { self.real.is_negative() }
 }
 
-pub trait CommonFuncs<T> {
+pub trait CommonFuncs {
     fn exp(&self) -> Self;
     fn log(&self) -> Self;
 }
 
-impl CommonFuncs<Dual> for Dual {
+impl CommonFuncs for Dual {
     fn exp(&self) -> Self {
         let c = self.real.exp();
         Dual {

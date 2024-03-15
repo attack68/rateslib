@@ -165,6 +165,11 @@ fn rook_pivot_matrix<T>(a: &ArrayView2<T>) -> (Array2<f64>, Array2<f64>, Array2<
 where
     T: Signed + Num + PartialOrd + Clone,
 {
+    // Implement a modified Rook Pivot.
+    // If Original is the largest Abs in the row, and it is greater than some
+    // tolerance then use that. This prevents row swapping where the rightmost columns
+    // are zero, which ultimately leads to failure in sparse matrices.
+
     // pivot square matrix
     let n = a.len_of(Axis(0));
     let mut p: Array2<f64> = Array::eye(n);
@@ -187,8 +192,11 @@ where
                 }
             }
             (kr, kc) if kr > j && kc == j => {
-                row_swap(&mut p, &j, &kr);
-                row_swap(&mut at, &j, &kr);
+                // MODIFIER as explained:
+                // if !(at[[j, j]].abs() > 1e-8) {
+                    row_swap(&mut p, &j, &kr);
+                    row_swap(&mut at, &j, &kr);
+                // }
             }
             (kr, kc) if kr == j && kc > j => {
                 col_swap(&mut q, &j, &kc);
