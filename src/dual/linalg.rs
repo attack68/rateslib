@@ -8,6 +8,7 @@ use std::cmp::PartialOrd;
 use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
 use std::sync::Arc;
+use itertools::Itertools;
 
 // Tensor ops
 
@@ -16,27 +17,8 @@ where
     for<'a> &'a T: Mul<&'a T, Output = T>,
     T: Sum,
 {
-    if a.len() != b.len() {
-        panic!("Lengths of LHS and RHS do not match.")
-    }
+    assert_eq!(a.len(), b.len());
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-}
-
-pub fn dmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<T>) -> Array2<T>
-where
-    for<'a> &'a T: Mul<&'a T, Output = T>,
-    T: Sum + Zero + Clone,
-{
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
-    for r in 0..a.len_of(Axis(0)) {
-        for c in 0..b.len_of(Axis(1)) {
-            out[[r, c]] = dmul11_(&a.row(r), &b.column(c))
-        }
-    }
-    out
 }
 
 pub fn dmul21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
@@ -44,15 +26,35 @@ where
     for<'a> &'a T: Mul<&'a T, Output = T>,
     T: Sum + Zero + Clone,
 {
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out = Array1::zeros(b.len_of(Axis(0)));
-    for r in 0..a.len_of(Axis(0)) {
-        out[[r]] = dmul11_(&a.row(r), b)
-    }
-    out
+    assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
+    Array1::from_vec(a.axis_iter(Axis(0)).map(|row| dmul11_(&row, b)).collect())
 }
+
+pub fn dmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<T>) -> Array2<T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+    T: Sum + Zero + Clone,
+{
+    assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
+    Array1::<T>::from_vec(
+        a.axis_iter(Axis(0))
+         .cartesian_product(b.axis_iter(Axis(1)))
+         .map(|row, col| dmul11_(&row, &col)).collect())
+         .into_shape((a.len_of(Axis(0)), b.len_of(Axis(1))))
+         .expect("Dim are pre-checked")
+
+    //
+    // let mut out = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
+    // // TODO use zip might make this faster
+    // for r in 0..a.len_of(Axis(0)) {
+    //     for c in 0..b.len_of(Axis(1)) {
+    //         out[[r, c]] = dmul11_(&a.row(r), &b.column(c))
+    //     }
+    // }
+    // out
+}
+
+
 
 // Linalg solver
 

@@ -1,4 +1,4 @@
-use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs};
+use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs, FieldOps};
 use crate::dual::linalg_f64::outer11_;
 use crate::dual::dual_py::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
@@ -351,6 +351,21 @@ impl Pow<f64> for Dual2 {
     }
 }
 
+impl Pow<f64> for &Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: f64) -> Dual2 {
+        let coeff = power * self.real.powf(power - 1.);
+        let coeff2 = 0.5 * power * (power - 1.) * self.real.powf(power - 2.);
+        let beta_cross = outer11_(&self.dual().view(), &self.dual().view());
+        Dual2 {
+            real: self.real.powf(power),
+            vars: Arc::clone(self.vars()),
+            dual: self.dual() * coeff,
+            dual2: self.dual2() * coeff + beta_cross * coeff2,
+        }
+    }
+}
+
 // impl Div for Dual2
 impl_op_ex!(/ |a: &Dual2, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
 
@@ -452,6 +467,8 @@ impl Signed for Dual2 {
         self.real.is_sign_negative()
     }
 }
+
+impl FieldOps<Dual2> for Dual2 {}
 
 // f64 Crossover
 

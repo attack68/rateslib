@@ -31,12 +31,12 @@ pub enum DualsOrF64 {
 #[pymethods]
 impl Dual {
     #[new]
-    pub fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
+    fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
         Dual::new(real, vars, dual)
     }
 
     #[staticmethod]
-    pub fn vars_from(other: &Dual, real: f64, vars: Vec<String>, dual: Vec<f64>) -> PyResult<Self> {
+    fn vars_from(other: &Dual, real: f64, vars: Vec<String>, dual: Vec<f64>) -> PyResult<Self> {
         Ok(Dual::new_from(other, real, vars, dual))
     }
 

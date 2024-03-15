@@ -10,7 +10,7 @@ use std::ops::{Add, Sub, Mul, Div};
 use ndarray::Array1;
 use num_traits;
 use num_traits::identities::{One, Zero};
-use num_traits::{Num, Pow, Signed};
+use num_traits::{Num, Pow, Signed, NumOps};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use pyo3::pyclass;
 
@@ -23,7 +23,7 @@ pub struct Dual {
     dual: Array1<f64>,
 }
 
-/// Enum defining the `vars` state of two `Dual` structs, a LHS relative to a RHS.
+/// Enum defining the `vars` state of two dual number type structs, a LHS relative to a RHS.
 #[derive(Clone, Debug, PartialEq)]
 pub enum VarsState {
     EquivByArc,  // Duals share an Arc ptr to their Vars
@@ -301,6 +301,17 @@ impl Pow<f64> for Dual {
     }
 }
 
+impl Pow<f64> for &Dual {
+    type Output = Dual;
+    fn pow(self, power: f64) -> Dual {
+        Dual {
+            real: self.real.pow(power),
+            vars: Arc::clone(self.vars()),
+            dual: self.dual() * power * self.real.pow(power - 1.0),
+        }
+    }
+}
+
 // impl REM for Dual
 impl_op_ex!(% |a: &Dual, b: & Dual| -> Dual {
     let d = f64::trunc(a.real / b.real);
@@ -478,35 +489,11 @@ impl PartialOrd<Dual> for f64 {
 }
 
 
-// EXPERIMENT
-trait RefFieldOps<T>: Add<Output = T> + Sub<Output = T> + Sized + Clone {}
-// trait RefFieldOpsF64<T>: Add<f64, Output = T> + Sub<f64, Output = T> + Sized + Clone {}
-
-impl<'a, T: 'a> RefFieldOps<T> for &'a T where &'a T: Add<Output = T> + Sub<Output = T> {}
-// impl<'a, T: 'a> RefFieldOpsF64<T> for &'a T where &'a T: Add<&f64, Output = T> + Sub<&f64, Output = T> {}
-
-fn some_op<T>(a: &T, b: &T, c: &T) -> T
-where
-    for<'a> &'a T: RefFieldOps<T>,
-{
-    &(a + b) + c
-}
-
-impl RefFieldOps<Dual> for Dual {}
-impl RefFieldOps<f64> for f64 {}
-// impl RefFieldOps<f64> for Dual {}
-
-fn test_ops<T>(a: &T, b: &T) -> T
-where for <'a> &'a T: RefFieldOps<T>
-{
-    &(a + b) - a
-}
-
-fn test_ops2<T>(a: T, b: T) -> T
-where T: RefFieldOps<T>
-{
-    (a.clone() + b) - a
-}
+pub trait FieldOps<T>: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>+ Sized + Clone {}
+impl<'a, T: 'a> FieldOps<T> for &'a T
+    where &'a T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> {}
+impl FieldOps<Dual> for Dual {}
+impl FieldOps<f64> for f64 {}
 
 
 // UNIT TESTS
@@ -515,17 +502,28 @@ mod tests {
     use super::*;
     use std::time::Instant;
 
-    // #[test]
-    // fn test_ops_test() {
-    //      let x = 1.0;
-    //      let y = 2.0;
-    //      let z = test_ops(&x, &y);
-    //      println!("{:?}", z);
-    //
-    //      let z = test_ops2(x, y);
-    //      println!("{:?}", z);
-    //      assert!(false);
-    // }
+    #[test]
+    fn test_fieldops() {
+        fn test_ops<T>(a: &T, b: &T) -> T
+        where for <'a> &'a T: FieldOps<T>
+        {
+            &(a + b) - a
+        }
+
+        fn test_ops2<T>(a: T, b: T) -> T
+        where T: FieldOps<T>
+        {
+            (a.clone() + b) - a
+        }
+
+         let x = 1.0;
+         let y = 2.0;
+         let z = test_ops(&x, &y);
+         println!("{:?}", z);
+
+         let z = test_ops2(x, y);
+         println!("{:?}", z);
+    }
 
     #[test]
     fn new() {
