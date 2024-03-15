@@ -1,4 +1,4 @@
-use crate::dual::dual1::{Dual, Gradient1, CommonFuncs};
+use crate::dual::dual1::{Dual, Gradient1, CommonFuncs, Vars};
 use crate::dual::dual2::Dual2;
 use num_traits::{Num, Pow, Signed};
 use std::sync::Arc;
@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyType;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use ndarray::{Array1, Array2, Array};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;

@@ -1,4 +1,4 @@
-use crate::dual::dual1::{Dual, Gradient1};
+use crate::dual::dual1::{Dual, Gradient1, Vars};
 use crate::dual::linalg_f64::{dfmul22_, fdmul21_, fdmul22_};
 use ndarray::prelude::*;
 use ndarray::Zip;

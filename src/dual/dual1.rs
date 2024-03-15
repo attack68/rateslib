@@ -22,64 +22,6 @@ pub struct Dual {
     dual: Array1<f64>,
 }
 
-pub trait Gradient1 {
-    fn vars(&self) -> &Arc<IndexSet<String>>;
-    fn dual(&self) -> &Array1<f64>;
-
-    /// Compare the `vars` on a `Dual` with a given Arc pointer.
-    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState;
-
-    /// Return a set of first order gradients ordered by the given vector.
-    ///
-    /// Duplicate `vars` are dropped before parsing.
-    fn gradient1(&self, vars: Vec<String>) -> Array1<f64> {
-        let arc_vars = Arc::new(IndexSet::from_iter(vars));
-        let state = self.vars_cmp(&arc_vars);
-        match state {
-            VarsState::EquivByArc | VarsState::EquivByVal => self.dual().clone(),
-            _ =>{
-                let mut dual = Array1::<f64>::zeros(arc_vars.len());
-                for (i, index) in arc_vars.iter().map(|x| self.vars().get_index_of(x)).enumerate() {
-                    match index {
-                        Some(value) => dual[i] = self.dual()[value],
-                        None => dual[i] = 0.0,
-                    }
-                }
-                dual
-            }
-        }
-    }
-}
-
-impl Gradient1 for Dual {
-    /// Get a reference to the Arc pointer for the `IndexSet` containing the struct's variables.
-    fn vars(&self) -> &Arc<IndexSet<String>> {
-        &self.vars
-    }
-
-    /// Get a reference to the Array containing the first order gradients.
-    fn dual(&self) -> &Array1<f64> {
-        &self.dual
-    }
-
-    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
-        if Arc::ptr_eq(&self.vars, arc_vars) {
-            VarsState::EquivByArc
-        } else if self.vars.len() == arc_vars.len()
-            && self.vars.iter().zip(arc_vars.iter()).all(|(a, b)| a == b) {
-            VarsState::EquivByVal
-        } else if self.vars.len() >= arc_vars.len()
-            && arc_vars.iter().all(|var| self.vars.contains(var)) {
-            VarsState::Superset
-        } else if self.vars.len() < arc_vars.len()
-            && self.vars.iter().all(|var| arc_vars.contains(var)) {
-            VarsState::Subset
-        } else {
-            VarsState::Difference
-        }
-    }
-}
-
 /// Enum defining the `vars` state of two `Dual` structs, a LHS relative to a RHS.
 #[derive(Clone, Debug, PartialEq)]
 pub enum VarsState {
@@ -91,7 +33,27 @@ pub enum VarsState {
 }
 
 pub trait Vars {
+    fn vars(&self) -> &Arc<IndexSet<String>>;
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self;
+
+    /// Compare the `vars` on a `Dual` with a given Arc pointer.
+    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
+        if Arc::ptr_eq(self.vars(), arc_vars) {
+            VarsState::EquivByArc
+        } else if self.vars().len() == arc_vars.len()
+            && self.vars().iter().zip(arc_vars.iter()).all(|(a, b)| a == b) {
+            VarsState::EquivByVal
+        } else if self.vars().len() >= arc_vars.len()
+            && arc_vars.iter().all(|var| self.vars().contains(var)) {
+            VarsState::Superset
+        } else if self.vars().len() < arc_vars.len()
+            && self.vars().iter().all(|var| arc_vars.contains(var)) {
+            VarsState::Subset
+        } else {
+            VarsState::Difference
+        }
+    }
+    // fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState;
 
     /// Construct a tuple of 2 `Self` types whose `vars` are linked by an Arc pointer.
     ///
@@ -108,27 +70,45 @@ pub trait Vars {
     /// // a: <Dual: 1.0, (x, y), [1.0, 0.0]>
     /// // b: <Dual: 1.5, (x, y), [0.0, 1.0]>
     /// ```
-    fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> Box<(Self, Self)> {
-        let state_ = state.unwrap_or_else(|| self.vars_cmp(&other.vars));
+    fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> (Self, Self) where Self: Sized {
+        let state_ = state.unwrap_or_else(|| self.vars_cmp(other.vars()));
         match state_ {
-            VarsState::EquivByArc => Box::new((self.clone(), other.clone())),
-            VarsState::EquivByVal => Box::new((self.clone(), other.to_new_vars(&self.vars, Some(state_)))),
-            VarsState::Superset => Box::new((self.clone(), other.to_new_vars(&self.vars, Some(VarsState::Subset)))),
-            VarsState::Subset => Box::new((self.to_new_vars(&other.vars, Some(state_)), Box::new(other.clone()))),
+            VarsState::EquivByArc => (*self.clone(), *other.clone()),
+            VarsState::EquivByVal => (*self.clone(), other.to_new_vars(self.vars(), Some(state_))),
+            VarsState::Superset => (*self.clone(), other.to_new_vars(self.vars(), Some(VarsState::Subset))),
+            VarsState::Subset => (self.to_new_vars(other.vars(), Some(state_)), *other.clone()),
             VarsState::Difference => self.to_combined_vars(other),
         }
     }
 
-    fn to_combined_vars(&self, other: &Self) -> Box<(Self, Self)> {
+    fn to_combined_vars(&self, other: &Self) -> (Self, Self) where Self: Sized {
         let comb_vars = Arc::new(IndexSet::from_iter(
-            self.vars.union(&other.vars).map(|x| x.clone()),
+            self.vars().union(&other.vars()).map(|x| x.clone()),
         ));
-        Box::new((self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
-         other.to_new_vars(&comb_vars, Some(VarsState::Difference))))
+        (self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
+         other.to_new_vars(&comb_vars, Some(VarsState::Difference)))
+    }
+
+    /// Compare if two `Dual` structs share the same `vars`by Arc pointer equivalence.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x1 = Dual::new(1.5, vec!["x".to_string()], vec![]);
+    /// let x2 = Dual::new(2.5, vec!["x".to_string()], vec![]);
+    /// x1.ptr_eq(&x2); // false
+    /// ```
+    fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(self.vars(), other.vars())
     }
 }
 
 impl Vars for Dual {
+    /// Get a reference to the Arc pointer for the `IndexSet` containing the struct's variables.
+    fn vars(&self) -> &Arc<IndexSet<String>> {
+        &self.vars
+    }
+
     /// Construct a new `Dual` with `vars` set as the given Arc pointer and gradients shuffled in memory.
     ///
     /// Examples
@@ -154,6 +134,38 @@ impl Vars for Dual {
             }
         }
         Self {real: self.real, vars: Arc::clone(arc_vars), dual: dual_}
+    }
+}
+
+pub trait Gradient1: Vars {
+    /// Get a reference to the Array containing the first order gradients.
+    fn dual(&self) -> &Array1<f64>;
+
+    /// Return a set of first order gradients ordered by the given vector.
+    ///
+    /// Duplicate `vars` are dropped before parsing.
+    fn gradient1(&self, vars: Vec<String>) -> Array1<f64> {
+        let arc_vars = Arc::new(IndexSet::from_iter(vars));
+        let state = self.vars_cmp(&arc_vars);
+        match state {
+            VarsState::EquivByArc | VarsState::EquivByVal => self.dual().clone(),
+            _ =>{
+                let mut dual_ = Array1::<f64>::zeros(arc_vars.len());
+                for (i, index) in arc_vars.iter().map(|x| self.vars().get_index_of(x)).enumerate() {
+                    match index {
+                        Some(value) => dual_[i] = self.dual()[value],
+                        None => dual_[i] = 0.0,
+                    }
+                }
+                dual_
+            }
+        }
+    }
+}
+
+impl Gradient1 for Dual {
+    fn dual(&self) -> &Array1<f64> {
+        &self.dual
     }
 }
 
@@ -204,20 +216,6 @@ impl Dual {
     pub fn real(&self) -> f64 {
         self.real.clone()
     }
-
-    /// Compare if two `Dual` structs share the same `vars`by Arc pointer equivalence.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let x1 = Dual::new(1.5, vec!["x".to_string()], vec![]);
-    /// let x2 = Dual::new(2.5, vec!["x".to_string()], vec![]);
-    /// x1.ptr_eq(&x2); // false
-    /// ```
-    pub fn ptr_eq(&self, other: &Dual) -> bool {
-        Arc::ptr_eq(&self.vars, &other.vars)
-    }
-
 }
 
 impl Num for Dual {  // PartialEq + Zero + One + NumOps (Add + Sub + Mul + Div + Rem)

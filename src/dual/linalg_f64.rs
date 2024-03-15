@@ -1,4 +1,4 @@
-use crate::dual::dual1::Dual;
+use crate::dual::dual1::{Dual, Vars};
 use crate::dual::linalg::{dmul22_, pluq_decomp, PivotMethod};
 use ndarray::prelude::*;
 use ndarray::Zip;
