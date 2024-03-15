@@ -90,6 +90,73 @@ pub enum VarsState {
     Difference,  // The Dual vars and the queried set contain different values.
 }
 
+pub trait Vars {
+    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self;
+
+    /// Construct a tuple of 2 `Self` types whose `vars` are linked by an Arc pointer.
+    ///
+    /// Gradient values contained in fields may be shuffled in memory if necessary
+    /// according to the calculated `VarsState`. Do not use `state` directly unless you have
+    /// performed a pre-check.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual::new(1.0, vec!["x".to_string()], vec![]);
+    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]);
+    /// let (a, b) = x.to_union_vars(&y, Some(VarsState::Difference));
+    /// // a: <Dual: 1.0, (x, y), [1.0, 0.0]>
+    /// // b: <Dual: 1.5, (x, y), [0.0, 1.0]>
+    /// ```
+    fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> Box<(Self, Self)> {
+        let state_ = state.unwrap_or_else(|| self.vars_cmp(&other.vars));
+        match state_ {
+            VarsState::EquivByArc => Box::new((self.clone(), other.clone())),
+            VarsState::EquivByVal => Box::new((self.clone(), other.to_new_vars(&self.vars, Some(state_)))),
+            VarsState::Superset => Box::new((self.clone(), other.to_new_vars(&self.vars, Some(VarsState::Subset)))),
+            VarsState::Subset => Box::new((self.to_new_vars(&other.vars, Some(state_)), Box::new(other.clone()))),
+            VarsState::Difference => self.to_combined_vars(other),
+        }
+    }
+
+    fn to_combined_vars(&self, other: &Self) -> Box<(Self, Self)> {
+        let comb_vars = Arc::new(IndexSet::from_iter(
+            self.vars.union(&other.vars).map(|x| x.clone()),
+        ));
+        Box::new((self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
+         other.to_new_vars(&comb_vars, Some(VarsState::Difference))))
+    }
+}
+
+impl Vars for Dual {
+    /// Construct a new `Dual` with `vars` set as the given Arc pointer and gradients shuffled in memory.
+    ///
+    /// Examples
+    ///
+    /// ```rust
+    /// let x = Dual::new(1.5, vec!["x".to_string()], vec![]);
+    /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![]);
+    /// let x_y = x.to_new_vars(xy.vars(), None);
+    /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
+    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
+        let dual_: Array1<f64>;
+        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
+        match match_val {
+            VarsState::EquivByArc | VarsState::EquivByVal => dual_ = self.dual.clone(),
+            _ => {
+                let lookup_or_zero = |v| {
+                    match self.vars.get_index_of(v) {
+                        Some(idx) => self.dual[idx],
+                        None => 0.0_f64,
+                    }
+                };
+                dual_ = Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect());
+            }
+        }
+        Self {real: self.real, vars: Arc::clone(arc_vars), dual: dual_}
+    }
+}
+
 impl Dual {
     /// Constructs a new `Dual`.
     ///
@@ -151,66 +218,6 @@ impl Dual {
         Arc::ptr_eq(&self.vars, &other.vars)
     }
 
-    /// Construct a new `Dual` with `vars` set as the given Arc pointer and gradients shuffled in memory.
-    ///
-    /// Examples
-    ///
-    /// ```rust
-    /// let x = Dual::new(1.5, vec!["x".to_string()], vec![]);
-    /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![]);
-    /// let x_y = x.to_new_vars(xy.vars(), None);
-    /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
-    pub fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
-        let dual_: Array1<f64>;
-        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
-        match match_val {
-            VarsState::EquivByArc | VarsState::EquivByVal => dual_ = self.dual.clone(),
-            _ => {
-                let lookup_or_zero = |v| {
-                    match self.vars.get_index_of(v) {
-                        Some(idx) => self.dual[idx],
-                        None => 0.0_f64,
-                    }
-                };
-                dual_ = Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect());
-            }
-        }
-        Self {real: self.real, vars: Arc::clone(arc_vars), dual: dual_}
-    }
-
-    /// Construct a tuple of 2 `Dual` whose `vars` are linked by an Arc pointer.
-    ///
-    /// Gradient values contained in either `dual` field may be shuffled in memory if necessary
-    /// according to the calculated `VarsState`. Do not use `state` directly unless you have
-    /// performed a pre-check.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let x = Dual::new(1.0, vec!["x".to_string()], vec![]);
-    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]);
-    /// let (a, b) = x.to_union_vars(&y, Some(VarsState::Difference));
-    /// // a: <Dual: 1.0, (x, y), [1.0, 0.0]>
-    /// // b: <Dual: 1.5, (x, y), [0.0, 1.0]>
-    /// ```
-    pub fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> (Self, Self) {
-        let state_ = state.unwrap_or_else(|| self.vars_cmp(&other.vars));
-        match state_ {
-            VarsState::EquivByArc => (self.clone(), other.clone()),
-            VarsState::EquivByVal => (self.clone(), other.to_new_vars(&self.vars, Some(state_))),
-            VarsState::Superset => (self.clone(), other.to_new_vars(&self.vars, Some(VarsState::Subset))),
-            VarsState::Subset => (self.to_new_vars(&other.vars, Some(state_)), other.clone()),
-            VarsState::Difference => self.to_combined_vars(other),
-        }
-    }
-
-    fn to_combined_vars(&self, other: &Self) -> (Self, Self) {
-        let comb_vars = Arc::new(IndexSet::from_iter(
-            self.vars.union(&other.vars).map(|x| x.clone()),
-        ));
-        (self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
-         other.to_new_vars(&comb_vars, Some(VarsState::Difference)))
-    }
 }
 
 impl Num for Dual {  // PartialEq + Zero + One + NumOps (Add + Sub + Mul + Div + Rem)

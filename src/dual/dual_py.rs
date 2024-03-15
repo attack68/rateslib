@@ -1,4 +1,4 @@
-use crate::dual::closed::{Dual, Gradient1, CommonFuncs};
+use crate::dual::dual1::{Dual, Gradient1, CommonFuncs};
 use crate::dual::dual2::Dual2;
 use num_traits::{Num, Pow, Signed};
 use std::sync::Arc;
@@ -227,56 +227,9 @@ impl Dual {
 
 #[pymethods]
 impl Dual2 {
-    /// Return a Dual with associated metrics.
-    ///
-    /// # Arguments
-    ///
-    /// * `real` - An f64 holding the representative value of the function.
-    /// * `vars` - A Vec of String that labels the variables of the function. Must contain unique
-    ///            values.
-    /// * `dual` - A Vec of f64 that contains the first derivative information of the function.
-    ///            Must be same length as `vars` or empty.
-    ///
-    /// # Notes
-    ///
-    /// If `dual` is an empty vector it will be automatically set to vector of 1.0's with the same
-    /// length as `vars`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use crate::dual::dual2::Dual2;
-    /// let f = Dual2(2.5, Vec::from([String::from("x")]), Vec::new(), Vec::new(), Vec::new());
-    /// ```
-
     #[new]
-    pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> Self {
-        let new_dual;
-        if !dual.is_empty() && vars.len() != dual.len() {
-            panic!("`dual` must have same length as `vars` or have zero length.")
-        } else if dual.is_empty() && !vars.is_empty() {
-            new_dual = Array::ones(vars.len());
-        } else {
-            new_dual = Array::from_vec(dual);
-        }
-
-        let new_dual2;
-        if !dual2.is_empty() && (vars.len() * vars.len()) != dual2.len() {
-            panic!("`dual2` must have same length as `vars` squared or have zero length.")
-        } else if dual2.is_empty() && !vars.is_empty() {
-            new_dual2 = Array::zeros((vars.len(), vars.len()));
-        } else {
-            new_dual2 = Array::from_vec(dual2)
-                .into_shape((vars.len(), vars.len()))
-                .expect("`dual2` was not a vector of correct length");
-        }
-
-        Self {
-            real,
-            vars: Arc::new(IndexSet::from_iter(vars)),
-            dual: new_dual,
-            dual2: new_dual2,
-        }
+    pub fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> Self {
+        Dual2::new(real, vars, dual, dual2)
     }
 
     #[staticmethod]
@@ -326,22 +279,26 @@ impl Dual2 {
     }
 
     #[getter]
-    fn real(&self) -> PyResult<f64> {
+    #[pyo3(name = "real")]
+    fn real_py(&self) -> PyResult<f64> {
         Ok(self.real)
     }
 
     #[getter]
-    fn vars(&self) -> PyResult<Vec<&String>> {
+    #[pyo3(name = "vars")]
+    fn vars_py(&self) -> PyResult<Vec<&String>> {
         Ok(Vec::from_iter(self.vars.iter()))
     }
 
     #[getter]
-    fn dual<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
+    #[pyo3(name = "dual")]
+    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
         Ok(self.dual.to_pyarray(py))
     }
 
     #[getter]
-    fn dual2<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
+    #[pyo3(name = "dual2")]
+    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
         Ok(self.dual2.to_pyarray(py))
     }
 
@@ -361,8 +318,9 @@ impl Dual2 {
         Ok(out.into_raw_vec())
     }
 
-    fn ptr_eq(&self, other: &Dual2) -> PyResult<bool> {
-        Ok(Arc::ptr_eq(&self.vars, &other.vars))
+    #[pyo3(name = "ptr_eq")]
+    fn ptr_eq_py(&self, other: &Dual2) -> PyResult<bool> {
+        Ok(self.ptr_eq(&other))
     }
 
     fn __repr__(&self) -> PyResult<String> {

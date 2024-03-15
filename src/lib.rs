@@ -7,7 +7,7 @@ use ndarray::Array1;
 use pyo3::prelude::*;
 
 pub mod dual;
-use dual::closed::Dual;
+use dual::dual1::Dual;
 use dual::dual2::Dual2;
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 

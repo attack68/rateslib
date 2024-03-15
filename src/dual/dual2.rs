@@ -1,8 +1,9 @@
+use crate::dual::dual1::VarsState;
 use crate::dual::linalg_f64::outer11_;
 use crate::dual::dual_py::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
-use ndarray::{Array, Array1, Array2};
+use ndarray::{Array, Array1, Array2, Axis};
 use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
@@ -27,6 +28,124 @@ pub struct Dual2 {
 }
 
 impl Dual2 {
+    /// Constructs a new `Dual2`.
+    ///
+    /// - `vars` should be **unique**; duplicates will be removed by the `IndexSet`.
+    /// - `dual` can be empty; if so each gradient with respect to each `vars` is set to 1.0_f64.
+    /// - `dual2` can be empty; if so each gradient with respect to each `vars` is set to 0.0_f64.
+    ///
+    /// # Panics
+    ///
+    /// If the length of `dual` and of `vars` are not the same after parsing.
+    /// If the shape of two dimension `dual2` does not match `vars` after parsing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual2::new(2.5, vec!["x".to_string()], vec![], vec![]);
+    /// // x: <Dual2: 2.5, (x), [1.0], [[0.0]]>
+    /// ```
+    pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>,  dual2: Vec<f64>) -> Self {
+        let unique_vars_ = Arc::new(IndexSet::from_iter(vars));
+        let dual_ = if dual.is_empty() {Array1::ones(unique_vars_.len())} else {Array1::from_vec(dual)};
+        let dual2_ = if dual2.is_empty() {
+            Array2::zeros((unique_vars_.len(), unique_vars_.len()))
+        } else {
+            Array2::from_vec(dual2).into_shape((vars.len(), vars.len()))
+                                   .expect("`dual2` was not a vector of correct length")
+        };
+        assert_eq!(unique_vars_.len(), dual_.len());
+        assert_eq!(unique_vars_.len(), dual2_.len_of(Axis(0)));
+        assert_eq!(unique_vars_.len(), dual2_.len_of(Axis(1)));
+        Self {real, vars: unique_vars_, dual: dual_, dual2: dual2_}
+    }
+
+    /// Construct a new `Dual2` cloning the `vars` Arc pointer from another.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]);
+    /// let y = Dual2::new_from(&x, 1.5, vec["y".to_string()], vec![], vec![]);
+    /// ```
+    ///
+    /// This is semantically the same as:
+    ///
+    /// ```rust
+    /// let x = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]);
+    /// let y = Dual2::new(1.5, vec!["y".to_string()], vec![], vec![]).to_new_vars(x.vars(), None);
+    /// ```
+    pub fn new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> Self {
+        let new = Self::new(real, vars, dual, dual2);
+        new.to_new_vars(&other.vars, None)
+    }
+
+    /// Get the real component value of the struct.
+    pub fn real(&self) -> f64 {
+        self.real.clone()
+    }
+
+    /// Compare if two `Dual` structs share the same `vars`by Arc pointer equivalence.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x1 = Dual2::new(1.5, vec!["x".to_string()], vec![], vec![]);
+    /// let x2 = Dual2::new(2.5, vec!["x".to_string()], vec![], vec![]);
+    /// x1.ptr_eq(&x2); // false
+    /// ```
+    pub fn ptr_eq(&self, other: &Dual) -> bool {
+        Arc::ptr_eq(&self.vars, &other.vars)
+    }
+
+    /// Construct a new `Dual2` with `vars` set as the given Arc pointer and gradients shuffled in memory.
+    ///
+    /// Examples
+    ///
+    /// ```rust
+    /// let x = Dual2::new(1.5, vec!["x".to_string()], vec![], vec![]);
+    /// let xy = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()], vec![], vec![]);
+    /// let x_y = x.to_new_vars(xy.vars(), None);
+    /// // x_y: <Dual2: 1.5, (x, y), [1.0, 0.0], [[0.0, 0.0], [0.0, 0.0]]>
+    pub fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
+        let dual_: Array1<f64>;
+        let mut dual2_: Array2<f64> = Array2::zeros((arc_vars.len(), arc_vars.len()));
+        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
+        match match_val {
+            VarsState::EquivByArc | VarsState::EquivByVal => {
+                dual_ = self.dual.clone();
+                dual2_ = self.dual2.clone();
+            },
+            _ => {
+                let lookup_or_zero = |v| {
+                    match self.vars.get_index_of(v) {
+                        Some(idx) => self.dual[idx],
+                        None => 0.0_f64,
+                    }
+                };
+                dual_ = Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect());
+
+                let indices: Vec<Option<usize>> = arc_vars.iter().map(|x| self.vars.get_index_of(x)).collect();
+                for (i, row_index) in indices.iter().enumerate() {
+                    match row_index {
+                        Some(row_value) => {
+                            for (j, col_index) in indices.iter().enumerate() {
+                                match col_index {
+                                    Some(col_value) => { dual2_[[i, j]] = self.dual2[[*row_value, *col_value]] },
+                                    None => {}
+                                }
+                            }
+                        },
+                        None => {},
+                    }
+                }
+            }
+        }
+        Self {real: self.real, vars: Arc::clone(arc_vars), dual: dual_, dual2: dual2_}
+    }
+
+
+
     /// Return two equivalent Dual with same vars.
     ///
     /// # Arguments
@@ -84,42 +203,6 @@ impl Dual2 {
             }
         } else {
             self.to_new_vars(new_vars)
-        }
-    }
-
-    fn to_new_vars(&self, new_vars: &Arc<IndexSet<String>>) -> Dual2 {
-        // Return a Dual with a new set of vars.
-        let indices: Vec<Option<usize>> =
-            new_vars.iter().map(|x| self.vars.get_index_of(x)).collect();
-
-        let mut dual = Array::zeros(new_vars.len());
-        for (i, index) in indices.iter().enumerate() {
-            match index {
-                Some(value) => dual[i] = self.dual[*value],
-                None => {}
-            }
-        }
-
-        let mut dual2 = Array::zeros((new_vars.len(), new_vars.len()));
-        for (i, row_index) in indices.iter().enumerate() {
-            match row_index {
-                Some(row_value) => {
-                    for (j, col_index) in indices.iter().enumerate() {
-                        match col_index {
-                            Some(col_value) => {dual2[[i, j]] = self.dual2[[*row_value, *col_value]]},
-                            None => {}
-                        }
-                    }
-                },
-                None => {},
-            }
-        }
-
-        Dual2 {
-            vars: Arc::clone(new_vars),
-            real: self.real,
-            dual,
-            dual2,
         }
     }
 
@@ -482,7 +565,7 @@ impl PartialOrd<Dual2> for f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::closed::Dual;
+    use crate::dual::dual1::Dual;
 
     #[test]
     fn clone_arc() {
