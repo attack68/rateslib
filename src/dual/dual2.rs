@@ -97,7 +97,7 @@ pub trait Gradient2: Gradient1 {
         let arc_vars = Arc::new(IndexSet::from_iter(vars));
         let state = self.vars_cmp(&arc_vars);
         match state {
-            VarsState::EquivByArc | VarsState::EquivByVal => self.dual2().clone(),
+            VarsState::EquivByArc | VarsState::EquivByVal => 2.0_f64 * self.dual2(),
             _ => {
                 let indices: Vec<Option<usize>> = arc_vars.iter().map(|x| self.vars().get_index_of(x)).collect();
                 let mut dual2_ = Array::zeros((arc_vars.len(), arc_vars.len()));

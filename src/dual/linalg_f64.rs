@@ -124,7 +124,6 @@ where
             let scl: f64 = &a_[[l, j]] / &a_[[j,j]];
             a_[[l, j]] = 0.0_f64;
             for m in (j+1)..n {
-                let sub: f64 = &scl * &a_[[j, m]];
                 a_[[l, m]] = &a_[[l, m]] - &(&scl * &a_[[j, m]]);
             }
             b_[l] = &b_[l] - &(&scl * &b_[j]);
