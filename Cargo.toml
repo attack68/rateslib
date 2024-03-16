@@ -14,8 +14,8 @@ crate-type = ["lib"]
 
 [dependencies]
 #pyo3 = { version = "0.20.2", features = ["extension-module"] }
-pyo3 = { version = "0.20.2", features = ["abi3-py39", "extension-module"] }
-# chrono = "0.4.26"
+pyo3 = { version = "0.20.2", features = ["abi3-py39", "extension-module", "chrono"] }
+chrono = "0.4.0"
 ndarray = "0.15.6"
 # ndarray-linalg = { version = "0.16.0", features = ["intel-mkl-static"] }
 indexmap = "1.9.3"
