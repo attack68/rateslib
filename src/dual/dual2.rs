@@ -1,5 +1,5 @@
 use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs, FieldOps};
-use crate::dual::linalg_f64::outer11_;
+use crate::dual::linalg_f64::fouter11_;
 use crate::dual::dual_py::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
@@ -216,7 +216,7 @@ impl MathFuncs for Dual2 {
             real: c,
             vars: Arc::clone(&self.vars),
             dual: c * &self.dual,
-            dual2: c * (&self.dual2 + 0.5 * outer11_(&self.dual.view(), &self.dual.view())),
+            dual2: c * (&self.dual2 + 0.5 * fouter11_(&self.dual.view(), &self.dual.view())),
         }
     }
     fn log(&self) -> Self {
@@ -226,7 +226,7 @@ impl MathFuncs for Dual2 {
             vars: Arc::clone(&self.vars),
             dual: scalar * &self.dual,
             dual2: scalar * &self.dual2
-                - outer11_(&self.dual.view(), &self.dual.view()) * 0.5 * (scalar * scalar),
+                - fouter11_(&self.dual.view(), &self.dual.view()) * 0.5 * (scalar * scalar),
         }
     }
 }
@@ -312,7 +312,7 @@ impl_op_ex!(*|a: &Dual2, b: &Dual2| -> Dual2 {
     match state {
         VarsState::EquivByArc | VarsState::EquivByVal => {
             let mut dual2: Array2<f64> = &a.dual2 * b.real + &b.dual2 * a.real;
-            let cross_beta = outer11_(&a.dual.view(), &b.dual.view());
+            let cross_beta = fouter11_(&a.dual.view(), &b.dual.view());
             dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
             Dual2 {
                 real: a.real * b.real,
@@ -324,7 +324,7 @@ impl_op_ex!(*|a: &Dual2, b: &Dual2| -> Dual2 {
         _ => {
             let (x, y) = a.to_union_vars(b, Some(state));
             let mut dual2: Array2<f64> = &x.dual2 * y.real + &y.dual2 * x.real;
-            let cross_beta = outer11_(&x.dual.view(), &y.dual.view());
+            let cross_beta = fouter11_(&x.dual.view(), &y.dual.view());
             dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
             Dual2 {
                 real: x.real * y.real,
@@ -341,7 +341,7 @@ impl Pow<f64> for Dual2 {
     fn pow(self, power: f64) -> Dual2 {
         let coeff = power * self.real.powf(power - 1.);
         let coeff2 = 0.5 * power * (power - 1.) * self.real.powf(power - 2.);
-        let beta_cross = outer11_(&self.dual.view(), &self.dual.view());
+        let beta_cross = fouter11_(&self.dual.view(), &self.dual.view());
         Dual2 {
             real: self.real.powf(power),
             vars: self.vars,
@@ -356,7 +356,7 @@ impl Pow<f64> for &Dual2 {
     fn pow(self, power: f64) -> Dual2 {
         let coeff = power * self.real.powf(power - 1.);
         let coeff2 = 0.5 * power * (power - 1.) * self.real.powf(power - 2.);
-        let beta_cross = outer11_(&self.dual().view(), &self.dual().view());
+        let beta_cross = fouter11_(&self.dual().view(), &self.dual().view());
         Dual2 {
             real: self.real.powf(power),
             vars: Arc::clone(self.vars()),

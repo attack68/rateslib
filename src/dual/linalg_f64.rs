@@ -10,19 +10,11 @@ use std::ops::{Div, Mul, Sub};
 use std::sync::Arc;
 use itertools::Itertools;
 
-pub fn outer11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
-    // TODO make this more efficient without looping
-    let mut c: Array2<f64> = Array::zeros((a.len(), b.len()));
-    for i in 0..a.len() {
-        for j in 0..b.len() {
-            c[[i, j]] = &a[i] * &b[j];
-        }
-    }
-    c
+pub fn fouter11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
+    Array1::from_vec(
+    a.iter().cartesian_product(b.iter()).map(|(x, y)| x*y).collect()
+    ).into_shape((a.len(), b.len())).expect("Pre checked dimensions")
 }
-
-
-
 
 // F64 Crossover
 
@@ -147,6 +139,7 @@ where
     }
 }
 
+
 // UNIT TESTS
 
 //
@@ -167,7 +160,7 @@ mod tests {
     fn outer_prod() {
         let a = arr1(&[1.0, 2.0]);
         let b = arr1(&[2.0, 1.0, 3.0]);
-        let mut c = outer11_(&a.view(), &b.view());
+        let mut c = fouter11_(&a.view(), &b.view());
         let result = arr2(&[[2., 1., 3.], [4., 2., 6.]]);
         assert_eq!(result, c)
     }
