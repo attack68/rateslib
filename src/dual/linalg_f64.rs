@@ -1,5 +1,5 @@
 use crate::dual::dual1::{Dual, Vars};
-use crate::dual::linalg::{dmul22_, pluq_decomp, PivotMethod};
+use crate::dual::linalg::{dmul22_};
 use ndarray::prelude::*;
 use ndarray::Zip;
 use num_traits::identities::{One, Zero};
@@ -127,6 +127,41 @@ where
     let x = fdmul21_(&q.view(), &y.view());
     x
 }
+
+
+fn fdsolve21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+where
+  T: PartialOrd + Signed + Clone + Zero + Sum,
+ for <'a> &'a T: Mul<&'a f64, Output = T> + Sub<&'a T, Output = T>
+{
+    assert!(a.is_square());
+    let n = a.len_of(Axis(0));
+    assert_eq!(b.len_of(Axis(0)), n);
+
+    // a_ and b_ will be pivoted and amended throughout the solution
+    let mut a_ = a.to_owned();
+    let mut b_ = b.to_owned();
+
+    for j in 0..n {
+        let k = argabsmax(a_.slice(s![j.., j])) + j;
+        if j != k {
+            // define row swaps j <-> k  (note that k > j by definition)
+            row_swap(&mut a_, &j, &k);
+            el_swap(&mut b_, &j, &k);
+        }
+        // perform reduction on subsequent rows below j
+        for l in (j+1)..n {
+            let scl = &a_[[l, j]] / &a_[[j,j]];
+            a_[[l, j]] = T::zero();
+            for m in (j+1)..n {
+                a_[[l, m]] = &a_[[l, m]] - &(&scl * &a_[[j, m]]);
+            }
+            b_[l] = &b_[l] - &(&scl * &b_[j]);
+        }
+    }
+    dsolve_upper21_(&a_.view(), &b_.view())
+}
+
 
 pub fn fdsolve<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
 where

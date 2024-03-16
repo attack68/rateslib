@@ -13,9 +13,8 @@ use numpy::PyArray2;
 
 
 fn dsolve_py<T>(a: Vec<T>, b: Vec<T>, allow_lsq: bool) -> Vec<T>
-where T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a T, Output = T>,
-    for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T> + Mul<&'a T, Output = T>,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
+where T: PartialOrd + Signed + Clone + Sum + Zero,
+    for<'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>
 {
     // requires row major order of numpy.
     // &'py PyArray1<Dual>
