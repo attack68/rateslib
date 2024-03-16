@@ -1,5 +1,5 @@
 use crate::dual::dual1::{Dual, Vars};
-use crate::dual::linalg::{dmul22_};
+use crate::dual::linalg::{dmul22_, row_swap, col_swap, el_swap, argabsmax};
 use ndarray::prelude::*;
 use ndarray::Zip;
 use num_traits::identities::{One, Zero};
@@ -8,6 +8,7 @@ use std::cmp::PartialOrd;
 use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
 use std::sync::Arc;
+use itertools::Itertools;
 
 pub fn outer11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
     // TODO make this more efficient without looping
@@ -20,119 +21,88 @@ pub fn outer11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
     c
 }
 
+
+
+
 // F64 Crossover
 
 pub fn fdmul11_<T>(a: &ArrayView1<f64>, b: &ArrayView1<T>) -> T
 where
-    for<'a> &'a T: Mul<&'a f64, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
     T: Sum,
 {
-    if a.len() != b.len() {
-        panic!("Lengths of LHS and RHS do not match.")
-    }
+    assert_eq!(a.len(), b.len());
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-}
-
-pub fn fdmul22_<T>(a: &ArrayView2<f64>, b: &ArrayView2<T>) -> Array2<T>
-where
-    for<'a> &'a T: Mul<&'a f64, Output = T>,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
-    T: Sum + Zero + Clone,
-{
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out: Array2<T> = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
-    for r in 0..a.len_of(Axis(0)) {
-        for c in 0..b.len_of(Axis(1)) {
-            out[[r, c]] = fdmul11_(&a.row(r), &b.column(c))
-        }
-    }
-    out
-}
-
-pub fn dfmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<f64>) -> Array2<T>
-where
-    for<'a> &'a T: Mul<&'a f64, Output = T>,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
-    T: Sum + Zero + Clone,
-{
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out: Array2<T> = Array2::zeros((a.len_of(Axis(0)), b.len_of(Axis(1))));
-    for r in 0..a.len_of(Axis(0)) {
-        for c in 0..b.len_of(Axis(1)) {
-            out[[r, c]] = fdmul11_(&b.column(c), &a.row(r))
-        }
-    }
-    out
 }
 
 pub fn fdmul21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
 where
-    for<'a> &'a T: Mul<&'a f64, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
-    T: Sum + Zero + Clone,
+    T: Sum
 {
-    if a.len_of(Axis(1)) != b.len_of(Axis(0)) {
-        panic!("Columns of LHS do not match rows of RHS.")
-    }
-    let mut out = Array1::zeros(b.len_of(Axis(0)));
-    for r in 0..a.len_of(Axis(0)) {
-        out[[r]] = fdmul11_(&a.row(r), b)
-    }
-    out
+    assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
+    Array1::from_vec(a.axis_iter(Axis(0)).map(|row| fdmul11_(&row, b)).collect())
 }
 
-fn fdsolve_lower_1d<T>(l: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+pub fn dfmul21_<T>(a: &ArrayView2<T>, b: &ArrayView1<f64>) -> Array1<T>
 where
-    T: Clone + Sum + Zero + for<'a> Div<&'a f64, Output = T>,
-    for<'a> &'a T: Sub<T, Output = T> + Mul<&'a f64, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
+    T: Sum
 {
-    let n: usize = l.len_of(Axis(0));
+    assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
+    Array1::from_vec(a.axis_iter(Axis(0)).map(|row| fdmul11_(b, &row)).collect())
+}
+
+pub fn fdmul22_<T>(a: &ArrayView2<f64>, b: &ArrayView2<T>) -> Array2<T>
+where
+    for<'a> &'a f64: Mul<&'a T, Output = T>,
+    T: Sum,
+{
+    assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
+    Array1::<T>::from_vec(
+        a.axis_iter(Axis(0))
+         .cartesian_product(b.axis_iter(Axis(1)))
+         .map(|(row, col)| fdmul11_(&row, &col)).collect())
+         .into_shape((a.len_of(Axis(0)), b.len_of(Axis(1))))
+         .expect("Dim are pre-checked")
+}
+
+pub fn dfmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<f64>) -> Array2<T>
+where
+    for<'a> &'a f64: Mul<&'a T, Output = T>,
+    T: Sum,
+{
+    assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
+    Array1::<T>::from_vec(
+        a.axis_iter(Axis(0))
+         .cartesian_product(b.axis_iter(Axis(1)))
+         .map(|(row, col)| fdmul11_(&col, &row)).collect())
+         .into_shape((a.len_of(Axis(0)), b.len_of(Axis(1))))
+         .expect("Dim are pre-checked")
+}
+
+
+fn fdsolve_upper21_<T>(u: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
+where
+                  T: Sum + Zero + Clone,
+    for<'a> &'a f64: Mul<&'a T, Output = T>,
+    for<'a> &'a T: Sub<&'a T, Output = T>,
+{
+    let n: usize = u.len_of(Axis(0));
     let mut x: Array1<T> = Array::zeros(n);
-    for i in 0..n {
-        let s = fdmul11_(&l.slice(s![i, ..i]), &x.slice(s![..i]));
-        let v = &b[i] - s;
-        x[i] = v / &l[[i, i]]
+    for i in (0..n).rev() {
+        let v = &b[i] - &fdmul11_(&u.slice(s![i, (i+1)..]), &x.slice(s![(i+1)..]));
+        x[i] = &(1.0_f64 / &u[[i, i]]) * &v
     }
     x
 }
 
-fn fdsolve_upper_1d<T>(u: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
-where
-    T: Clone + Sum + Zero + for<'a> Div<&'a f64, Output = T>,
-    for<'a> &'a T: Sub<T, Output = T> + Mul<&'a f64, Output = T>,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
-{
-    // reverse all dimensions and solve as lower triangular
-    fdsolve_lower_1d(&u.slice(s![..;-1, ..;-1]), &b.slice(s![..;-1]))
-        .slice(s![..;-1])
-        .to_owned()
-}
 
 fn fdsolve21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
 where
-    T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output = T>,
-    for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T> + Mul<&'a f64, Output = T>,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
-{
-    let (p, l, u, q) = pluq_decomp::<f64>(&a.view(), PivotMethod::Rook);
-    let pb = fdmul21_(&p.view(), &b.view());
-    let z = fdsolve_lower_1d(&l.view(), &pb.view());
-    let y = fdsolve_upper_1d(&u.view(), &z.view());
-    let x = fdmul21_(&q.view(), &y.view());
-    x
-}
-
-
-fn fdsolve21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
-where
-  T: PartialOrd + Signed + Clone + Zero + Sum,
- for <'a> &'a T: Mul<&'a f64, Output = T> + Sub<&'a T, Output = T>
+                T: PartialOrd + Signed + Clone + Zero + Sum,
+  for<'a> &'a f64: Mul<&'a T, Output = T> + Mul<&'a f64, Output = f64>,
+  for<'a>   &'a T: Sub<&'a T, Output = T>,
 {
     assert!(a.is_square());
     let n = a.len_of(Axis(0));
@@ -151,23 +121,23 @@ where
         }
         // perform reduction on subsequent rows below j
         for l in (j+1)..n {
-            let scl = &a_[[l, j]] / &a_[[j,j]];
-            a_[[l, j]] = T::zero();
+            let scl: f64 = &a_[[l, j]] / &a_[[j,j]];
+            a_[[l, j]] = 0.0_f64;
             for m in (j+1)..n {
+                let sub: f64 = &scl * &a_[[j, m]];
                 a_[[l, m]] = &a_[[l, m]] - &(&scl * &a_[[j, m]]);
             }
             b_[l] = &b_[l] - &(&scl * &b_[j]);
         }
     }
-    dsolve_upper21_(&a_.view(), &b_.view())
+    fdsolve_upper21_(&a_.view(), &b_.view())
 }
-
 
 pub fn fdsolve<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
 where
-    T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output = T>,
-    for<'a> &'a T: Sub<T, Output = T> + Mul<&'a f64, Output = T>,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
+                T: PartialOrd + Signed + Clone + Zero + Sum,
+  for<'a> &'a f64: Mul<&'a T, Output = T>,
+  for<'a>   &'a T: Sub<&'a T, Output = T>,
 {
     if allow_lsq {
         let a_: Array2<f64> = dmul22_(&a.t(), a);
@@ -204,28 +174,13 @@ mod tests {
     }
 
     #[test]
-    fn lower_tri_dual() {
-        let a = arr2(&[[1., 0.], [2., 1.]]);
-        let b = arr1(&[
-            Dual::new(2.0, Vec::new(), Vec::new()),
-            Dual::new(5.0, Vec::new(), Vec::new()),
-        ]);
-        let x = fdsolve_lower_1d(&a.view(), &b.view());
-        let expected_x = arr1(&[
-            Dual::new(2.0, Vec::new(), Vec::new()),
-            Dual::new(1.0, Vec::new(), Vec::new()),
-        ]);
-        assert_eq!(x, expected_x);
-    }
-
-    #[test]
     fn fdupper_tri_dual() {
         let a = arr2(&[[1., 2.], [0., 1.]]);
         let b = arr1(&[
             Dual::new(2.0, Vec::new(), Vec::new()),
             Dual::new(5.0, Vec::new(), Vec::new()),
         ]);
-        let x = fdsolve_upper_1d(&a.view(), &b.view());
+        let x = fdsolve_upper21_(&a.view(), &b.view());
         let expected_x = arr1(&[
             Dual::new(-8.0, Vec::new(), Vec::new()),
             Dual::new(5.0, Vec::new(), Vec::new()),

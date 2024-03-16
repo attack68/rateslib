@@ -11,8 +11,8 @@ use dual::dual1::Dual;
 use dual::dual2::Dual2;
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 
-pub mod splines;
-use splines::PPSpline;
+//pub mod splines;
+// use splines::PPSpline;
 
 #[pymodule]
 fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {

@@ -48,7 +48,7 @@ where
 
 // Linalg solver
 
-fn argabsmax<T>(a: ArrayView1<T>) -> usize
+pub fn argabsmax<T>(a: ArrayView1<T>) -> usize
 where
     T: Signed + PartialOrd,
 {
@@ -60,7 +60,7 @@ where
     vi.1
 }
 
-fn argabsmax2<T>(a: ArrayView2<T>) -> (usize, usize)
+pub fn argabsmax2<T>(a: ArrayView2<T>) -> (usize, usize)
 where
     T: Signed + PartialOrd,
 {
@@ -73,21 +73,21 @@ where
     (vi.1 / n, vi.1 % n)
 }
 
-fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
+pub fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
 {
     let (mut pt, mut pb) = p.slice_mut(s![.., ..]).split_at(Axis(0), *kr);
     let (r1, r2) = (pt.row_mut(*j), pb.row_mut(0));
     Zip::from(r1).and(r2).for_each(std::mem::swap);
 }
 
-fn col_swap<T>(p: &mut Array2<T>, j: &usize, kc: &usize)
+pub fn col_swap<T>(p: &mut Array2<T>, j: &usize, kc: &usize)
 {
     let (mut pl, mut pr) = p.slice_mut(s![.., ..]).split_at(Axis(1), *kc);
     let (c1, c2) = (pl.column_mut(*j), pr.column_mut(0));
     Zip::from(c1).and(c2).for_each(std::mem::swap);
 }
 
-fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize)
+pub fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize)
 {
     let (mut pl, mut pr) = p.slice_mut(s![..]).split_at(Axis(0), *k);
     std::mem::swap(&mut pl[*j], &mut pr[0]);

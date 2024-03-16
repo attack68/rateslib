@@ -43,8 +43,8 @@ pub fn dsolve2_py(py: Python<'_>, a: Vec<Dual2>, b: Vec<Dual2>, allow_lsq: bool)
 
 fn fdsolve_py<T>(a: ArrayView2<f64>, b: Vec<T>, allow_lsq: bool) -> Vec<T>
 where
-    T: PartialOrd + Signed + Clone + Sum + Zero + for<'a> Div<&'a f64, Output = T>,
-    for<'a> &'a T: Mul<&'a f64, Output = T> + Sub<T, Output = T>,
+    T: PartialOrd + Signed + Clone + Sum + Zero,
+    for<'a> &'a T: Sub<&'a T, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     let b_ = Array1::from_vec(b);
