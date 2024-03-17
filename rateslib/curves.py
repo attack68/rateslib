@@ -20,6 +20,7 @@ from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
 from rateslib.splines import PPSpline
+from rateslibrs import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from rateslib.calendars import (
     create_calendar,
@@ -542,18 +543,24 @@ class Curve(_Serialize):
             return None
 
         remap_t_f64 = [_.timestamp() for _ in self.t]
-        self.spline = PPSpline(4, remap_t_f64, None)
+        if self.ad == 0:
+            Spline = PPSplineF64
+        elif self.ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
         tau = [k.timestamp() for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
             tau.insert(0, self.t[0].timestamp())
-            y.insert(0, 0)
+            y.insert(0, set_order_convert(0., self.ad, []))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
-            self.spline.t.pop(4)
-            self.spline.n -= 1
+            remap_t_f64.pop(4)
+            # self.spline.n -= 1
             left_n = 0
         else:
             raise NotImplementedError(
@@ -563,18 +570,19 @@ class Curve(_Serialize):
         # Right side constraint
         if self.spline_endpoints[1].lower() == "natural":
             tau.append(self.t[-1].timestamp())
-            y.append(0)
+            y.append(set_order_convert(0., self.ad, []))
             right_n = 2
         elif self.spline_endpoints[1].lower() == "not_a_knot":
-            self.spline.t.pop(-5)
-            self.spline.n -= 1
+            remap_t_f64.pop(-5)
+            # self.spline.n -= 1
             right_n = 0
         else:
             raise NotImplementedError(
                 f"Endpoint method '{self.spline_endpoints[0]}' not implemented."
             )
 
-        self.spline.csolve(np.array(tau), np.array(y), left_n, right_n)
+        self.spline = Spline(4, remap_t_f64)
+        self.spline.csolve(tau, y, left_n, right_n, False)
         return None
 
     def shift(
