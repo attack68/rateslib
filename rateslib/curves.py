@@ -338,7 +338,8 @@ class Curve(_Serialize):
         self.t = t
         self.c_init = False if c is NoInput.blank else True
         if t is not NoInput.blank:
-            self.spline = PPSpline(4, t, c)
+            remap_t_f64 = [_.timestamp() for _ in t]
+            self.spline = PPSpline(4, remap_t_f64, c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
@@ -361,7 +362,7 @@ class Curve(_Serialize):
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            return self._op_exp(self.spline.ppev_single(date))
+            return self._op_exp(self.spline.ppev_single(date.timestamp()))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -540,13 +541,14 @@ class Curve(_Serialize):
         if self.spline is None or self.c_init:
             return None
 
-        self.spline = PPSpline(4, self.t, None)
-        tau = [k for k in self.nodes.keys() if k >= self.t[0]]
+        remap_t_f64 = [_.timestamp() for _ in self.t]
+        self.spline = PPSpline(4, remap_t_f64, None)
+        tau = [k.timestamp() for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
-            tau.insert(0, self.t[0])
+            tau.insert(0, self.t[0].timestamp())
             y.insert(0, 0)
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
@@ -560,7 +562,7 @@ class Curve(_Serialize):
 
         # Right side constraint
         if self.spline_endpoints[1].lower() == "natural":
-            tau.append(self.t[-1])
+            tau.append(self.t[-1].timestamp())
             y.append(0)
             right_n = 2
         elif self.spline_endpoints[1].lower() == "not_a_knot":
