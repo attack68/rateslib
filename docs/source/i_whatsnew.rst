@@ -70,7 +70,7 @@ email contact through **rateslib@gmail.com**.
      - Curve iterations in the :class:`~rateslib.solver.Solver` were amended in the way they handle
        :class:`~rateslib.dual.Dual` variables in order to reduce upcasting and increase the speed of basic operations.
    * - Performance
-     - :class:`_rateslib.splines.bsplev_single` introduced a short circuit based on the positivity and support
+     - :class:`~rateslib.splines.bsplev_single` introduced a short circuit based on the positivity and support
        property to greatly improve time needed to solve curves with splines.
 
 
