@@ -53,7 +53,7 @@ from rateslib.dual import Dual, Dual2, dual_log, dual_exp, dual_solve
 
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 
-from rateslib.splines import bsplev_single, bspldnev_single, PPSpline
+from rateslib.splines import bsplev_single, bspldnev_single, PPSplineF64 as PPSpline
 
 from rateslib.scheduling import Schedule
 
