@@ -6,6 +6,7 @@ DUAL_CORE_PY = True
 if DUAL_CORE_PY:
     from rateslib.dual.dual import (
         DualTypes,
+        DualBase,
         Dual,
         Dual2,
         dual_log,
