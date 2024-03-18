@@ -6,7 +6,7 @@ use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
 use pyo3::pyclass;
 
-fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
+pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
 
     // Short circuit (positivity and support property)
@@ -40,7 +40,7 @@ fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<u
     }
 }
 
-fn bspldnev_single_f64(
+pub fn bspldnev_single_f64(
     x: &f64,
     i: usize,
     k: &usize,
@@ -129,9 +129,15 @@ where
     for<'a> &'a T: Sub<&'a T, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
-    pub fn new(k: usize, t: Vec<f64>) -> Self {
+    pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<T>>) -> Self {
         let n = t.len() - k;
-        PPSpline { k, t, n, c: None }
+        let c_;
+        match c {
+            Some(v) => {c_ = Some(Array1::from_vec(v))},
+            None => {c_ = None}
+        }
+
+        PPSpline { k, t, n, c: c_}
     }
 
     pub fn ppev_single(&self, x: &f64) -> T {
@@ -171,6 +177,14 @@ where
         let ya: Array1<T> = Array1::from_vec(y.clone());
         let c: Array1<T> = fdsolve(&b.view(), &ya.view(), allow_lsq);
         self.c = Some(c);
+    }
+
+    pub fn bsplev(&self, x: &Vec<f64>, i: &usize) -> Vec<f64> {
+        x.iter().map(|v| bsplev_single_f64(v, *i, self.k(), self.t(), None)).collect()
+    }
+
+    pub fn bspldnev(&self, x: &Vec<f64>, i: &usize, m: &usize) -> Vec<f64> {
+        x.iter().map(|v| bspldnev_single_f64(v, *i, self.k(), self.t(), *m, None)).collect()
     }
 
     pub fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
@@ -291,12 +305,12 @@ mod tests {
     #[test]
     fn ppspline_new() {
         let pps: PPSpline<f64> =
-            PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+            PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.], None);
     }
 
     #[test]
     fn ppspline_bsplmatrix() {
-        let pps: PPSpline<f64> = PPSpline::new(4, vec![1., 1., 1., 1., 2., 3., 3., 3., 3.]);
+        let pps: PPSpline<f64> = PPSpline::new(4, vec![1., 1., 1., 1., 2., 3., 3., 3., 3.], None);
         let result = pps.bsplmatrix(&vec![1., 1., 2., 3., 3.], 2_usize, 2_usize);
         let expected: Array2<f64> = arr2(&[
             [6., -9., 3., 0., 0.],
@@ -313,7 +327,7 @@ mod tests {
         let t = vec![0., 0., 0., 0., 4., 4., 4., 4.];
         let tau = vec![0., 1., 3., 4.];
         let val = vec![0., 0., 2., 2.];
-        let mut pps: PPSpline<f64> = PPSpline::new(4, t);
+        let mut pps: PPSpline<f64> = PPSpline::new(4, t, None);
         pps.csolve(&tau, &val, 0, 0, false);
         let expected = vec![0., -1.11111111, 3.111111111111, 2.0];
         let v: Vec<bool> = pps
@@ -334,7 +348,7 @@ mod tests {
         let tau = vec![0., 1., 3., 4.];
         let d1 = Dual::one();
         let val = vec![0. * &d1, 0. * &d1, 2. * &d1, 2. * &d1];
-        let mut pps = PPSpline::new(4, t);
+        let mut pps = PPSpline::new(4, t, None);
         pps.csolve(&tau, &val, 0, 0, false);
         let expected = vec![0. * &d1, -1.11111111 * &d1, 3.111111111111 * &d1, 2.0 * &d1];
         let v: Vec<bool> = pps
@@ -352,7 +366,7 @@ mod tests {
     #[test]
     fn ppev_single_() {
         let t = vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.];
-        let mut pps = PPSpline::new(4, t);
+        let mut pps = PPSpline::new(4, t, None);
         pps.c = Some(arr1(&[1., 2., -1., 2., 1., 1., 2., 2.]));
         let r1 = pps.ppev_single(&1.1);
         assert!(is_close(&r1, &1.19, None));
