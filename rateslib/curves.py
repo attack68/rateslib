@@ -19,7 +19,11 @@ import json
 from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
-from rateslib.splines import PPSpline
+from rateslib.splines import (
+    PPSplineF64,
+    PPSplineDual,
+    PPSplineDual2
+)
 from rateslib.default import plot, NoInput
 from rateslib.calendars import (
     create_calendar,
@@ -338,7 +342,7 @@ class Curve(_Serialize):
         self.t = t
         self.c_init = False if c is NoInput.blank else True
         if t is not NoInput.blank:
-            self.spline = PPSpline(4, t, c)
+            self.spline = PPSplineF64(4, t, c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
@@ -540,7 +544,7 @@ class Curve(_Serialize):
         if self.spline is None or self.c_init:
             return None
 
-        self.spline = PPSpline(4, self.t, None)
+        self.spline = PPSplineF64(4, self.t, None)
         tau = [k for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
