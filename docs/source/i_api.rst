@@ -84,16 +84,11 @@ Piecewise Polynomial Splines
 .. automodapi:: rateslib.splines
    :no-heading:
    :no-inheritance-diagram:
-   :skip: dual_solve
-   :skip: timedelta
 
 Dual (for AD)
 --------------
 .. automodapi:: rateslib.dual
    :no-heading:
-   :skip: isclose
-   :skip: abstractmethod
-   :skip: ABCMeta
 
 Curves
 ------
@@ -134,6 +129,7 @@ FX
 .. automodapi:: rateslib.fx
    :no-heading:
    :no-inheritance-diagram:
+   :skip: gradient
    :skip: NoInput
    :skip: Curve
    :skip: LineCurve
