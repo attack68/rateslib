@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from itertools import combinations
 from uuid import uuid4
 from time import time
@@ -873,6 +873,8 @@ class Solver(Gradients):
         Parameters to control the Levenberg-Marquardt algorithm, defined as the
         initial lambda value, the scaling factor for a successful iteration and the
         scaling factor for an unsuccessful iteration. Defaults to (1000, 0.25, 2).
+    callback : callable, optional
+        Is called after each iteration. Used for debugging or optimisation.
 
     Notes
     -----
@@ -941,7 +943,9 @@ class Solver(Gradients):
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
         ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0),
+        callback: Union[Callable, NoInput] = NoInput(0),
     ) -> None:
+        self.callback = callback
         self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
         if ini_lambda is NoInput.blank:
             self.ini_lambda = defaults.ini_lambda
@@ -1382,6 +1386,8 @@ class Solver(Gradients):
                 curve.csolve()
             self._reset_properties_()
             self._update_fx()
+            if self.callback is not NoInput.blank:
+                self.callback(self)
         print(
             f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
             f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"
