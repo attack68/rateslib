@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pytz import UTC
 from typing import Optional, Union, Callable, Any
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import Holiday
@@ -340,18 +341,16 @@ class Curve(_Serialize):
             self.spline_endpoints = [_.lower() for _ in endpoints]
 
         self.t = t
-
-        # TODO RUST SPLINE find a better way to construct a curve with an initialised c value
-        self.c_init = False  # if c is NoInput.blank else True
+        self.c_init = False if c is NoInput.blank else True
         if t is not NoInput.blank:
-            remap_t_f64 = [_.timestamp() for _ in t]
-            self.spline = PPSplineF64(4, remap_t_f64) # c)
-            # TODO RUST SPLINE create a setter for c values or create a better init method.
+            self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+            self.spline = PPSplineF64(4, self.t_posix, c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
                 )
         else:
+            self.t_posix = None
             self.spline = None
 
         self._set_ad_order(order=ad)
@@ -369,7 +368,8 @@ class Curve(_Serialize):
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            return self._op_exp(self.spline.ppev_single(date.timestamp()))
+            date_posix = date.replace(tzinfo=UTC).timestamp()
+            return self._op_exp(self.spline.ppev_single(date_posix))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -548,7 +548,7 @@ class Curve(_Serialize):
         if self.spline is None or self.c_init:
             return None
 
-        remap_t_f64 = [_.timestamp() for _ in self.t]
+        # Get the Spline classs by data types
         if self.ad == 0:
             Spline = PPSplineF64
         elif self.ad == 1:
@@ -556,17 +556,17 @@ class Curve(_Serialize):
         else:
             Spline = PPSplineDual2
 
-        tau = [k.timestamp() for k in self.nodes.keys() if k >= self.t[0]]
+        t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
-            tau.insert(0, self.t[0].timestamp())
-            y.insert(0, set_order_convert(0., self.ad, []))
+            tau_posix.insert(0, self.t_posix[0])
+            y.insert(0, set_order_convert(0., self.ad, None))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
-            remap_t_f64.pop(4)
-            # self.spline.n -= 1
+            t_posix.pop(4)
             left_n = 0
         else:
             raise NotImplementedError(
@@ -575,20 +575,19 @@ class Curve(_Serialize):
 
         # Right side constraint
         if self.spline_endpoints[1].lower() == "natural":
-            tau.append(self.t[-1].timestamp())
-            y.append(set_order_convert(0., self.ad, []))
+            tau_posix.append(self.t_posix[-1])
+            y.append(set_order_convert(0, self.ad, None))
             right_n = 2
         elif self.spline_endpoints[1].lower() == "not_a_knot":
-            remap_t_f64.pop(-5)
-            # self.spline.n -= 1
+            t_posix.pop(-5)
             right_n = 0
         else:
             raise NotImplementedError(
                 f"Endpoint method '{self.spline_endpoints[0]}' not implemented."
             )
 
-        self.spline = Spline(4, remap_t_f64)
-        self.spline.csolve(tau, y, left_n, right_n, False)
+        self.spline = Spline(4, t_posix, None)
+        self.spline.csolve(np.array(tau_posix), np.array(y), left_n, right_n)
         return None
 
     def shift(

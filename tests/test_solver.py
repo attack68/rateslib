@@ -237,6 +237,44 @@ def test_basic_spline_solver():
         assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
 
 
+
+def test_large_spline_solver():
+    dates = [
+        dt(2000, 1, 3),
+        dt(2001, 1, 3),
+        dt(2002, 1, 3),
+        dt(2003, 1, 3),
+        dt(2004, 1, 3),
+        dt(2005, 1, 3),
+        dt(2006, 1, 3),
+        dt(2007, 1, 3),
+        dt(2008, 1, 3),
+        dt(2009, 1, 3),
+        dt(2010, 1, 3),
+        dt(2012, 1, 3),
+        dt(2015, 1, 3),
+        dt(2020, 1, 3),
+        dt(2025, 1, 3),
+        dt(2030, 1, 3),
+        dt(2035, 1, 3),
+        dt(2040, 1, 3),
+        dt(2050, 1, 3),
+    ]
+    curve = Curve(
+        nodes={_: 1.0 for _ in dates},
+        t=[dt(2000, 1, 3)] * 3 + dates[:-1] + [dt(2050, 1, 5)] * 4,
+        calendar="nyc",
+    )
+    solver = Solver(
+        curves=[curve],
+        instruments=[
+            IRS(dt(2000, 1, 3), _, spec="usd_irs", curves=curve) for _ in dates[1:]
+        ],
+        s=[1.0 + _ / 25 for _ in range(18)],
+    )
+    assert solver.result["status"] == "SUCCESS"
+
+
 def test_solver_raises_len():
     with pytest.raises(ValueError, match="`instrument_rates` must be same length"):
         Solver(
