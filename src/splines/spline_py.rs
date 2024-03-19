@@ -61,6 +61,10 @@ macro_rules! create_interface {
                 self.inner.ppev_single(&x)
             }
 
+            pub fn ppdnev_single(&self, x: f64, m: usize) -> $type {
+                self.inner.ppdnev_single(&x, m)
+            }
+
             pub fn bsplev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, i: usize) -> PyResult<&PyArray1<f64>> {
                 Ok(Array1::from_vec(self.inner.bsplev(&x.to_vec().expect(""), &i)).to_pyarray(py))
             }

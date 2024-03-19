@@ -344,7 +344,7 @@ class Curve(_Serialize):
         self.c_init = False if c is NoInput.blank else True
         if t is not NoInput.blank:
             self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
-            self.spline = PPSplineF64(4, self.t_posix, c)
+            self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
@@ -587,7 +587,7 @@ class Curve(_Serialize):
             )
 
         self.spline = Spline(4, t_posix, None)
-        self.spline.csolve(np.array(tau_posix), np.array(y), left_n, right_n)
+        self.spline.csolve(np.array(tau_posix), np.array(y), left_n, right_n, False)
         return None
 
     def shift(

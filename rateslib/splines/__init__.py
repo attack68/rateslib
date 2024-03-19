@@ -15,7 +15,3 @@ else:
         bsplev_single,
         bspldnev_single,
     )
-
-    PPSplineF64 = PPSpline
-    PPSplineDual = PPSpline
-    PPSplineDual2 = PPSpline
