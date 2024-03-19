@@ -75,6 +75,9 @@ email contact through **rateslib@gmail.com**.
    * - Performance
      - :class:`~rateslib.splines.bsplev_single` introduced a short circuit based on the positivity and support
        property to greatly improve time needed to solve curves with splines.
+   * - Performance
+       :class:`~rateslib.curves.Curve` with splines are remapped to use float posix timestamps rather than datetimes
+       for building splines. Operations with floats are much faster than their equivalents using timedeltas.
 
 
 1.0.0 (1st Feb 2024)
