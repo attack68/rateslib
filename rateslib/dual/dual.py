@@ -803,20 +803,21 @@ def set_order_convert(val, order, tag):
         The value to convert.
     order : int
         The AD order to convert the value to if necessary.
-    tag : str
-        The variable name if upcasting a float to a Dual or Dual2
+    tag : list of str, optional
+        The variable name(s) if upcasting a float to a Dual or Dual2
 
     Returns
     -------
     float, Dual, Dual2
     """
     if isinstance(val, (*FLOATS, *INTS)):
+        _ = [] if tag is None else tag
         if order == 0:
             return val
         elif order == 1:
-            return Dual(val, [tag], [])
+            return Dual(val, _, [])
         elif order == 2:
-            return Dual2(val, [tag], [], [])
+            return Dual2(val, _, [], [])
     # else val is Dual or Dual2 so convert directly
     return set_order(val, order)
 
