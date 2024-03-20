@@ -40,6 +40,7 @@ $ pip install -i https://test.pypi.org/simple rateslib
 In Read-the-Docs admin console:
 
 1) Add a new branch for auto built docs.
+2) Checkout the "stable" tagging branch and update to the new version and force push. 
 
 In GITHUB:
 
