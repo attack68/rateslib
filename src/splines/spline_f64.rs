@@ -97,6 +97,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct PPSpline<T>
 {
     k: usize,
@@ -198,6 +199,27 @@ where
             }
         }
         b
+    }
+}
+
+use std::cmp::PartialEq;
+
+impl<T> PartialEq for PPSpline<T>
+where T: PartialEq,
+{
+    /// Equality of `PPSpline` if
+
+    fn eq(&self, other: &Self) -> bool {
+        if self.k != other.k || self.n != other.n {
+            return false
+        }
+        if !self.t.eq(&other.t) {
+            return false
+        }
+        match (&self.c, &other.c) {
+            (Some(c1), Some(c2)) => c1.eq(&c2),
+            _ => false // if any c is None then false
+        }
     }
 }
 
@@ -375,4 +397,15 @@ mod tests {
         let r3 = pps.ppev_single(&2.8);
         assert!(is_close(&r3, &1.136, None));
     }
+
+    #[test]
+    fn partialeq_() {
+        let pp1 = PPSpline::<f64>::new(2, vec![1.,1., 2., 2.], None);
+        let pp2 = PPSpline::<f64>::new(2, vec![1.,1., 2., 2.], None);
+        assert!(pp1 != pp2);
+        let pp1 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
+        let pp2 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
+        assert!(pp1 == pp2);
+    }
+
 }

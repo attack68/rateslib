@@ -110,8 +110,7 @@ def test_ppdnev(t):
 
 
 def test_ppev(t):
-    bs = PPSplineF64(k=4, t=t)
-    bs.c = np.array([1, 2, -1, 2, 1, 1, 2, 2.0])
+    bs = PPSplineF64(k=4, t=t, c=[1, 2, -1, 2, 1, 1, 2, 2.0])
     r1 = bs.ppev_single(1.1)
     r2 = bs.ppev_single(1.8)
     r3 = bs.ppev_single(2.8)
@@ -123,8 +122,8 @@ def test_csolve():
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array([0, 1, 3, 4])
     val = np.array([0, 0, 2, 2])
-    bs = PPSplineF64(k=4, t=t)
-    bs.csolve(tau, val, 0, 0)  # values solve spline
+    bs = PPSplineF64(k=4, t=t, c=None)
+    bs.csolve(tau, val, 0, 0, False)  # values solve spline
     result = bs.c
     expected = np.array([0.0, -1.11111111111111, 3.11111111111, 2.0], dtype=object)
     for i, res in enumerate(result):
@@ -180,7 +179,8 @@ def test_spline_equality_type():
     assert not spline3 == spline4
 
     spline5 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert spline4 == spline5
+    assert not spline4 == spline5
 
-    spline5.c = np.array([1, 2])
-    assert not spline5 == spline4
+    spline6 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
+    spline7 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
+    assert spline6 == spline7

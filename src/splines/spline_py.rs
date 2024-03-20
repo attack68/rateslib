@@ -1,6 +1,7 @@
 use crate::splines::spline_f64::{PPSpline, bsplev_single_f64, bspldnev_single_f64};
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
+use std::cmp::PartialEq;
 
 use pyo3::prelude::*;
 use pyo3::types::PyType;
@@ -61,8 +62,20 @@ macro_rules! create_interface {
                 self.inner.ppev_single(&x)
             }
 
+            pub fn ppev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>) -> PyResult<&PyArray1<$type>> {
+                unsafe {
+                    Ok(x.as_array().map(|v| self.inner.ppev_single(&v)).to_pyarray(py))
+                }
+            }
+
             pub fn ppdnev_single(&self, x: f64, m: usize) -> $type {
                 self.inner.ppdnev_single(&x, m)
+            }
+
+            pub fn ppdnev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, m: usize) -> PyResult<&PyArray1<$type>> {
+                unsafe {
+                    Ok(x.as_array().map(|v| self.inner.ppdnev_single(&v, m)).to_pyarray(py))
+                }
             }
 
             pub fn bsplev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, i: usize) -> PyResult<&PyArray1<f64>> {
@@ -71,6 +84,14 @@ macro_rules! create_interface {
 
             pub fn bspldnev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, i: usize, m: usize) -> PyResult<&PyArray1<f64>> {
                 Ok(Array1::from_vec(self.inner.bspldnev(&x.to_vec().expect(""), &i, &m)).to_pyarray(py))
+            }
+
+            pub fn __eq__(&self, other: &Self) -> PyResult<bool> {
+                Ok(self.inner.eq(&other.inner))
+            }
+
+            pub fn __copy__(&self) -> Self {
+                $name { inner: self.inner.clone() }
             }
         }
     };
