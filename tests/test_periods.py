@@ -1886,6 +1886,22 @@ class TestIndexCashflow:
         )
         assert abs(cf.npv(curve) + 1e6) < 1e-6
 
+    def test_index_cashflow_floats(self, curve):
+        icurve = IndexCurve(
+            nodes = {
+                dt(2022, 1, 1): 1.00,
+                dt(2022, 4, 1): 0.99,
+                dt(2022, 7, 1): 0.98,
+                dt(2022, 10, 1): 0.97,
+            },
+            index_base=100.0,
+        )
+        icurve._set_ad_order(1)
+        curve._set_ad_order(1)
+        cf = IndexCashflow(notional=1e6, payment=dt(2022, 7, 1), index_base=100)
+        result = cf.cashflows(icurve, curve)
+        assert isinstance(result["Cashflow"], float)
+
 
 def test_base_period_dates_raise():
     with pytest.raises(ValueError):
