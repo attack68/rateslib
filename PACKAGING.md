@@ -32,7 +32,7 @@ $ pip install build twine
 $ python -m build
 $ twine check dist/*
 $ twine upload -r testpypi dist/*
-$ twine upload dist/*
+$ twine upload dist/*  [use __token__ as username and token is in env file]
 
 check:
 $ pip install -i https://test.pypi.org/simple rateslib
