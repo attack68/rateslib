@@ -69,6 +69,8 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.npv` now returns 0.0 for historical payment dates correctly when
        given the ``local`` argument.
+   * - Bug
+     - :meth:`~rateslib.periods.IndexCashflow.cashflows` no longer prints dual numbers to tables.
    * - Performance
      - Curve iterations in the :class:`~rateslib.solver.Solver` were amended in the way they handle
        :class:`~rateslib.dual.Dual` variables in order to reduce upcasting and increase the speed of basic operations.
