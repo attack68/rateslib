@@ -2346,7 +2346,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
-            defaults.headers["cashflow"]: self.cashflow(curve),
+            defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
         }
 
     def npv(self, *args, **kwargs):
