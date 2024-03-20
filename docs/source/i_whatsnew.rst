@@ -69,6 +69,8 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.npv` now returns 0.0 for historical payment dates correctly when
        given the ``local`` argument.
+   * - Bug
+     - :meth:`~rateslib.periods.IndexCashflow.cashflows` no longer prints dual numbers to tables.
    * - Performance
      - Curve iterations in the :class:`~rateslib.solver.Solver` were amended in the way they handle
        :class:`~rateslib.dual.Dual` variables in order to reduce upcasting and increase the speed of basic operations.
@@ -76,7 +78,7 @@ email contact through **rateslib@gmail.com**.
      - :class:`~rateslib.splines.bsplev_single` introduced a short circuit based on the positivity and support
        property to greatly improve time needed to solve curves with splines.
    * - Performance
-       :class:`~rateslib.curves.Curve` with splines are remapped to use float posix timestamps rather than datetimes
+     - :class:`~rateslib.curves.Curve` with splines are remapped to use float posix timestamps rather than datetimes
        for building splines. Operations with floats are much faster than their equivalents using timedeltas.
 
 
