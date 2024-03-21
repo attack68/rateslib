@@ -34,6 +34,7 @@ from rateslib.calendars import (
     CalInput,
     _DCF1d,
 )
+from rateslibrs import index_left_f64
 
 from typing import TYPE_CHECKING
 
@@ -313,6 +314,7 @@ class Curve(_Serialize):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
+        self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
         self.n = len(self.node_dates)
         for idx in range(1, self.n):
             if self.node_dates[idx-1] >= self.node_dates[idx]:
@@ -356,10 +358,11 @@ class Curve(_Serialize):
         self._set_ad_order(order=ad)
 
     def __getitem__(self, date: datetime):
+        date_posix = date.replace(tzinfo=UTC).timestamp()
         if self.spline is None or date <= self.t[0]:
             if isinstance(self.interpolation, Callable):
                 return self.interpolation(date, self.nodes.copy())
-            return self._local_interp_(date)
+            return self._local_interp_(date_posix)
         else:
             if date > self.t[-1]:
                 warnings.warn(
@@ -368,26 +371,26 @@ class Curve(_Serialize):
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            date_posix = date.replace(tzinfo=UTC).timestamp()
             return self._op_exp(self.spline.ppev_single(date_posix))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _local_interp_(self, date: datetime):
-        if date < self.node_dates[0]:
+    def _local_interp_(self, date_posix: float):
+        if date_posix < self.node_dates_posix[0]:
             return 0  # then date is in the past and DF is zero
-        l_index = index_left(self.node_dates, self.n, date)
+        l_index = index_left_f64(self.node_dates_posix, date_posix, None)
+        node_left_posix, node_right_posix = self.node_dates_posix[l_index], self.node_dates_posix[l_index + 1]
         node_left, node_right = self.node_dates[l_index], self.node_dates[l_index + 1]
         return interpolate(
-            date,
-            node_left,
+            date_posix,
+            node_left_posix,
             self.nodes[node_left],
-            node_right,
+            node_right_posix,
             self.nodes[node_right],
             self.interpolation,
-            self.node_dates[0],
+            self.node_dates_posix[0],
         )
 
     # def plot(self, *args, **kwargs):
