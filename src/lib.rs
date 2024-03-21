@@ -14,6 +14,9 @@ use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 pub mod splines;
 use splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2, bsplev_single, bspldnev_single};
 
+pub mod curves;
+use curves::interpolation_py::{index_left_f64};
+
 #[pymodule]
 fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Dual>()?;
@@ -29,5 +32,6 @@ fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bsplev_single, m)?)?;
     m.add_function(wrap_pyfunction!(bspldnev_single, m)?)?;
 
+    m.add_function(wrap_pyfunction!(index_left_f64, m)?)?;
     Ok(())
 }
