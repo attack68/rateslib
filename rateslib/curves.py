@@ -2710,14 +2710,15 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
         op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)
     elif interpolation == "linear_zero_rate":
         # convention not used here since we just determine linear rate interpolation
-        y_2 = dual_log(y_2) / ((start - x_2) / timedelta(days=365))
+        # 86400. scalar relates to using posix timestamp conversion
+        y_2 = dual_log(y_2) / ((start - x_2) / (365. * 86400.))
         if start == x_1:
             y_1 = y_2
         else:
-            y_1 = dual_log(y_1) / ((start - x_1) / timedelta(days=365))
+            y_1 = dual_log(y_1) / ((start - x_1) / (365. * 86400.))
 
         def op(z):
-            return dual_exp((start - x) / timedelta(days=365) * z)
+            return dual_exp((start - x) / (365. * 86400.) * z)
 
     elif interpolation == "flat_forward":
         if x >= x_2:
