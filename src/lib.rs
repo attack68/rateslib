@@ -17,6 +17,8 @@ use splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2, bsplev_single
 pub mod curves;
 use curves::interpolation_py::{index_left_f64};
 
+// pub mod fx;
+
 #[pymodule]
 fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Dual>()?;
