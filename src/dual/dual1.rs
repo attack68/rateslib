@@ -170,27 +170,50 @@ impl Gradient1 for Dual {
     }
 }
 
-impl Dual {
+impl<E> Dual {
+    /// Constructs a new `Dual`.
+    ///
+    /// - `vars` should be **unique**; duplicates will be removed by the `IndexSet`.
+    ///
+    /// Gradient values for each of the provided `vars` is set to 1.0_f64.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual::new(2.5, vec!["x".to_string()]);
+    /// // x: <Dual: 2.5, (x), [1.0]>
+    /// ```
+    pub fn new(real: f64, vars: Vec<String>) -> Self {
+        let unique_vars_ = Arc::new(IndexSet::from_iter(vars));
+        Self {real, vars: unique_vars_, dual: Array1::ones(unique_vars_.len())}
+    }
+
     /// Constructs a new `Dual`.
     ///
     /// - `vars` should be **unique**; duplicates will be removed by the `IndexSet`.
     /// - `dual` can be empty; if so each gradient with respect to each `vars` is set to 1.0_f64.
     ///
-    /// # Panics
+    /// `try_new` should be used instead of `new` when gradient values other than 1.0_f64 are to
+    /// be initialised.
+    ///
+    /// # Errors
     ///
     /// If the length of `dual` and of `vars` are not the same after parsing.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::new(2.5, vec!["x".to_string()], vec![]);
-    /// // x: <Dual: 2.5, (x), [1.0]>
+    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2]);
+    /// // x: <Dual: 2.5, (x), [4.2]>
     /// ```
-    pub fn new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
+    pub fn try_new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, E> {
         let unique_vars_ = Arc::new(IndexSet::from_iter(vars));
         let dual_ = if dual.is_empty() {Array1::ones(unique_vars_.len())} else {Array1::from_vec(dual)};
-        assert_eq!(unique_vars_.len(), dual_.len());
-        Self {real, vars: unique_vars_, dual: dual_}
+        if unique_vars_.len() != dual_.len() {
+            Err("`vars` and `dual` must have the same length.")
+        } else {
+            Ok(Self {real, vars: unique_vars_, dual: dual_})
+        }
     }
 
     /// Construct a new `Dual` cloning the `vars` Arc pointer from another.
@@ -198,19 +221,39 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
-    /// let y = Dual::new_from(&x, 1.5, vec["y".to_string()], vec![]);
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
+    /// let y = Dual::new_from(&x, 1.5, vec["y".to_string()]);
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
-    /// let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
+    /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// ```
+    pub fn new_from(other: &Self, real: f64, vars: Vec<String>) -> Self {
+        let new = Self::new(real, vars);
+        new.to_new_vars(&other.vars, None)
+    }
+
+    /// Construct a new `Dual` cloning the `vars` Arc pointer from another.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
+    /// let y = Dual::new_from(&x, 1.5, vec["y".to_string()]);
+    /// ```
+    ///
+    /// This is semantically the same as:
+    ///
+    /// ```rust
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
     /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
-        let new = Self::new(real, vars, dual);
-        new.to_new_vars(&other.vars, None)
+    pub fn try_new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, E> {
+        let new = Self::try_new(real, vars, dual)?;
+        Ok(new.to_new_vars(&other.vars, None))
     }
 
     /// Get the real component value of the struct.
