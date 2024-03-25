@@ -3,7 +3,7 @@ use crate::dual::linalg_f64::fdsolve;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual1::Dual;
 use pyo3::prelude::*;
-use ndarray::{Array1, Array2, ArrayView2};
+use ndarray::{Array1, ArrayView2};
 use num_traits::identities::{Zero};
 use num_traits::{Signed};
 use std::cmp::PartialOrd;

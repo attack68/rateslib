@@ -1,13 +1,10 @@
-use crate::dual::dual1::{Dual, Gradient1, Vars, FieldOps};
-use crate::dual::linalg_f64::{dfmul22_, fdmul21_, fdmul22_};
 use ndarray::prelude::*;
 use ndarray::Zip;
-use num_traits::identities::{One, Zero};
-use num_traits::{Num, Signed};
+use num_traits::identities::{Zero};
+use num_traits::{Signed};
 use std::cmp::PartialOrd;
 use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
-use std::sync::Arc;
 use itertools::Itertools;
 
 // Tensor ops

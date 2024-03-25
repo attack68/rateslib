@@ -13,7 +13,7 @@ use std::ops::{Add, Sub, Mul, Div};
 use ndarray::Array1;
 use num_traits;
 use num_traits::identities::{One, Zero};
-use num_traits::{Num, Pow, Signed, NumOps};
+use num_traits::{Num, Pow, Signed};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use pyo3::{pyclass, PyErr};
 use pyo3::exceptions::{PyValueError};

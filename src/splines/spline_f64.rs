@@ -1,7 +1,6 @@
 use crate::dual::linalg_f64::{fdmul11_, fdsolve};
-use crate::dual::dual1::FieldOps;
 use ndarray::{Array1, Array2};
-use num_traits::{Signed, Zero, One};
+use num_traits::{Signed, Zero};
 use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
 use pyo3::pyclass;

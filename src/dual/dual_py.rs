@@ -1,9 +1,8 @@
 use crate::dual::dual1::{Dual, Gradient1, MathFuncs, Vars};
 use crate::dual::dual2::{Dual2, Gradient2};
-use num_traits::{Num, Pow, Signed};
+use num_traits::{Pow, Signed};
 use std::sync::Arc;
 use pyo3::prelude::*;
-use pyo3::types::PyType;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 use ndarray::{Array1, Array2, Array};

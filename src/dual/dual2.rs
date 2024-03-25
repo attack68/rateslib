@@ -1,22 +1,25 @@
+//! Create and use data types for calculating derivatives up to second order using automatic
+//! differentiation (AD).
+//!
+//! A second order dual number represents a function value and a quadratic manifold of the
+//! gradient at that point. Mathematical operations are defined to give dual numbers
+//! the ability to combine.
+
 use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs, FieldOps};
 use crate::dual::linalg_f64::fouter11_;
-use crate::dual::dual_py::DualsOrF64;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
-use numpy::{Element, PyArray, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
-use std::fmt;
+// use std::fmt;
 use std::iter::Sum;
-use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 
 use pyo3::prelude::*;
-use pyo3::exceptions::{PyTypeError, PyValueError};
 
 #[pyclass]
 #[derive(Clone, Default, Debug)]
@@ -135,8 +138,8 @@ pub trait Gradient2: Gradient1 {
                     grad[i] = Dual2 {
                         real: self.dual()[*i_val],
                         vars: Arc::clone(&default_zero.vars),
-                        dual: dual,
-                        dual2: Array2::zeros((vars.len(), vars.len()))
+                        dual2: Array2::zeros((vars.len(), vars.len())),
+                        dual
                     };
                 },
                 None => { grad[i] = default_zero.clone() }

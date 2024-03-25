@@ -1,13 +1,10 @@
-use crate::dual::dual1::{Dual, Vars};
-use crate::dual::linalg::{dmul22_, row_swap, col_swap, el_swap, argabsmax};
+use crate::dual::linalg::{dmul22_, row_swap, el_swap, argabsmax};
 use ndarray::prelude::*;
-use ndarray::Zip;
-use num_traits::identities::{One, Zero};
-use num_traits::{Num, Signed};
+use num_traits::identities::{Zero};
+use num_traits::{Signed};
 use std::cmp::PartialOrd;
 use std::iter::Sum;
-use std::ops::{Div, Mul, Sub};
-use std::sync::Arc;
+use std::ops::{Mul, Sub};
 use itertools::Itertools;
 
 pub fn fouter11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
