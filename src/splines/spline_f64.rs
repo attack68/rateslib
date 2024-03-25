@@ -195,7 +195,8 @@ where
 mod tests {
     use super::*;
     use ndarray::{arr1, arr2};
-    use crate::dual::dual1::Dual;
+    use crate::dual::dual1::{Dual, Vars};
+    use num_traits::One;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers

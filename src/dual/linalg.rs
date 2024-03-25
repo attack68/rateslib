@@ -356,6 +356,8 @@ where T: PartialOrd + Signed + Clone + Sum + Zero,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dual::dual1::{Dual, Vars};
+    use std::sync::Arc;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
