@@ -1,6 +1,9 @@
-//! Create and use data types for calculating first order derivatives using AD.
+//! Create and use data types for calculating derivatives up to first order using automatic
+//! differentiation (AD).
 //!
-//! Dual number
+//! A first order dual number represents a function value and a linear manifold of the
+//! gradient at that point. Mathematical operations are defined to give dual numbers
+//! the ability to combine.
 
 use indexmap::set::IndexSet;
 use std::sync::Arc;
@@ -12,7 +15,8 @@ use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed, NumOps};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
-use pyo3::pyclass;
+use pyo3::{pyclass, PyErr};
+use pyo3::exceptions::{PyValueError};
 
 /// Struct for defining a dual number data type supporting first order derivatives.
 #[pyclass]
@@ -33,8 +37,16 @@ pub enum VarsState {
     Difference,  // The Dual vars and the queried set contain different values.
 }
 
+/// A trait to order and manage the `variables` of the manifold associated with a dual number.
 pub trait Vars where Self: Clone {
+    /// Get a reference to the Arc pointer for the `IndexSet` containing the struct's variables.
     fn vars(&self) -> &Arc<IndexSet<String>>;
+
+    /// Create a new dual number with `vars` aligned with given new Arc pointer.
+    ///
+    /// This method compares the existing `vars` with the new and reshuffles manifold gradient
+    /// values in memory. For large numbers of variables this is one of the least efficient
+    /// operations relating different dual numbers and should be avoided where possible.
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self;
 
     /// Compare the `vars` on a `Dual` with a given Arc pointer.
@@ -65,8 +77,8 @@ pub trait Vars where Self: Clone {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::new(1.0, vec!["x".to_string()], vec![]);
-    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]);
+    /// let x = Dual::new(1.0, vec!["x".to_string()]);
+    /// let y = Dual::new(1.5, vec!["y".to_string()]);
     /// let (a, b) = x.to_union_vars(&y, Some(VarsState::Difference));
     /// // a: <Dual: 1.0, (x, y), [1.0, 0.0]>
     /// // b: <Dual: 1.5, (x, y), [0.0, 1.0]>
@@ -95,8 +107,8 @@ pub trait Vars where Self: Clone {
     /// # Examples
     ///
     /// ```rust
-    /// let x1 = Dual::new(1.5, vec!["x".to_string()], vec![]);
-    /// let x2 = Dual::new(2.5, vec!["x".to_string()], vec![]);
+    /// let x1 = Dual::new(1.5, vec!["x".to_string()]);
+    /// let x2 = Dual::new(2.5, vec!["x".to_string()]);
     /// x1.ptr_eq(&x2); // false
     /// ```
     fn ptr_eq(&self, other: &Self) -> bool {
@@ -115,8 +127,8 @@ impl Vars for Dual {
     /// Examples
     ///
     /// ```rust
-    /// let x = Dual::new(1.5, vec!["x".to_string()], vec![]);
-    /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![]);
+    /// let x = Dual::new(1.5, vec!["x".to_string()]);
+    /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
@@ -138,6 +150,7 @@ impl Vars for Dual {
     }
 }
 
+/// A trait to allow calculation of first order gradients to all, or a set of provided, variables.
 pub trait Gradient1: Vars {
     /// Get a reference to the Array containing the first order gradients.
     fn dual(&self) -> &Array1<f64>;
@@ -150,12 +163,12 @@ pub trait Gradient1: Vars {
         let state = self.vars_cmp(&arc_vars);
         match state {
             VarsState::EquivByArc | VarsState::EquivByVal => self.dual().clone(),
-            _ =>{
+            _ => {
                 let mut dual_ = Array1::<f64>::zeros(arc_vars.len());
                 for (i, index) in arc_vars.iter().map(|x| self.vars().get_index_of(x)).enumerate() {
                     match index {
                         Some(value) => dual_[i] = self.dual()[value],
-                        None => dual_[i] = 0.0,
+                        None => {},
                     }
                 }
                 dual_
@@ -170,7 +183,7 @@ impl Gradient1 for Dual {
     }
 }
 
-impl<E> Dual {
+impl Dual {
     /// Constructs a new `Dual`.
     ///
     /// - `vars` should be **unique**; duplicates will be removed by the `IndexSet`.
@@ -185,7 +198,7 @@ impl<E> Dual {
     /// ```
     pub fn new(real: f64, vars: Vec<String>) -> Self {
         let unique_vars_ = Arc::new(IndexSet::from_iter(vars));
-        Self {real, vars: unique_vars_, dual: Array1::ones(unique_vars_.len())}
+        Self {real, dual: Array1::ones(unique_vars_.len()), vars: unique_vars_}
     }
 
     /// Constructs a new `Dual`.
@@ -203,14 +216,14 @@ impl<E> Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2]);
+    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2])?;
     /// // x: <Dual: 2.5, (x), [4.2]>
     /// ```
-    pub fn try_new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, E> {
+    pub fn try_new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, PyErr> {
         let unique_vars_ = Arc::new(IndexSet::from_iter(vars));
         let dual_ = if dual.is_empty() {Array1::ones(unique_vars_.len())} else {Array1::from_vec(dual)};
         if unique_vars_.len() != dual_.len() {
-            Err("`vars` and `dual` must have the same length.")
+            Err(PyValueError::new_err("`vars` and `dual` must have the same length."))
         } else {
             Ok(Self {real, vars: unique_vars_, dual: dual_})
         }
@@ -242,16 +255,16 @@ impl<E> Dual {
     ///
     /// ```rust
     /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new_from(&x, 1.5, vec["y".to_string()]);
+    /// let y = Dual::try_new_from(&x, 1.5, vec["y".to_string()], vec![3.2])?;
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
     /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars(), None);
+    /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn try_new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, E> {
+    pub fn try_new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, PyErr> {
         let new = Self::try_new(real, vars, dual)?;
         Ok(new.to_new_vars(&other.vars, None))
     }
@@ -356,24 +369,24 @@ impl Pow<f64> for &Dual {
 }
 
 // impl REM for Dual
-impl_op_ex!(% |a: &Dual, b: & Dual| -> Dual {
+impl_op_ex!(% |a: &Dual, b: &Dual| -> Dual {
     let d = f64::trunc(a.real / b.real);
     a - d * b
 });
 
 impl One for Dual {
     fn one() -> Dual {
-        Dual::new(1.0, Vec::new(), Vec::new())
+        Dual::new(1.0, Vec::new())
     }
 }
 
 impl Zero for Dual {
     fn zero() -> Dual {
-        Dual::new(0.0, Vec::new(), Vec::new())
+        Dual::new(0.0, Vec::new())
     }
 
     fn is_zero(&self) -> bool {
-        *self == Dual::new(0.0, Vec::new(), Vec::new())
+        *self == Dual::new(0.0, Vec::new())
     }
 }
 
@@ -414,7 +427,7 @@ impl Sum for Dual {
     where
         I: Iterator<Item = Dual>,
     {
-        iter.fold(Dual::new(0.0, [].to_vec(), [].to_vec()), |acc, x| acc + x)
+        iter.fold(Dual::new(0.0, [].to_vec()), |acc, x| acc + x)
     }
 }
 
@@ -441,13 +454,13 @@ impl Signed for Dual {
 
     fn abs_sub(&self, other: &Self) -> Self {
         if self <= other {
-            Dual::new(0.0, Vec::new(), Vec::new())
+            Dual::new(0.0, Vec::new())
         } else {
-            other - self
+            self - other
         }
     }
 
-    fn signum(&self) -> Self { Dual::new(self.real.signum(), Vec::new(), Vec::new()) }
+    fn signum(&self) -> Self { Dual::new(self.real.signum(), Vec::new()) }
 
     fn is_positive(&self) -> bool { self.real.is_sign_positive() }
 
@@ -509,17 +522,17 @@ impl_op_ex!(/ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), rea
 impl_op_ex!(/ |a: &f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
 // Rem
 impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
-impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new(), Vec::new()) % b });
+impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new()) % b });
 
 impl PartialEq<f64> for Dual {
     fn eq(&self, other: &f64) -> bool {
-        Dual::new(*other, [].to_vec(), [].to_vec()) == *self
+        Dual::new(*other, [].to_vec()) == *self
     }
 }
 
 impl PartialEq<Dual> for f64 {
     fn eq(&self, other: &Dual) -> bool {
-        Dual::new(*self, [].to_vec(), [].to_vec()) == *other
+        Dual::new(*self, [].to_vec()) == *other
     }
 }
 
@@ -570,7 +583,7 @@ mod tests {
 
     #[test]
     fn new() {
-        let x = Dual::new(1.0, vec!["a".to_string(), "a".to_string()], Vec::new());
+        let x = Dual::new(1.0, vec!["a".to_string(), "a".to_string()]);
         assert_eq!(x.real, 1.0_f64);
         assert_eq!(*x.vars, IndexSet::<String>::from_iter(vec!["a".to_string()]));
         assert_eq!(x.dual, Array1::from_vec(vec![1.0_f64]));
@@ -578,29 +591,29 @@ mod tests {
 
     #[test]
     fn new_with_dual() {
-        let x = Dual::new(1.0, vec!["a".to_string(), "a".to_string()], vec![2.5]);
+        let x = Dual::try_new(1.0, vec!["a".to_string(), "a".to_string()], vec![2.5]).unwrap();
         assert_eq!(x.real, 1.0_f64);
         assert_eq!(*x.vars, IndexSet::<String>::from_iter(vec!["a".to_string()]));
         assert_eq!(x.dual, Array1::from_vec(vec![2.5_f64]));
     }
 
     #[test]
-    #[should_panic]
     fn new_len_mismatch() {
-        Dual::new(1.0, vec!["a".to_string(), "a".to_string()], vec![1.0, 2.0]);
+        let result = Dual::try_new(1.0, vec!["a".to_string(), "a".to_string()], vec![1.0, 2.0]).is_err();
+        assert!(result);
     }
 
     #[test]
     fn ptr_eq() {
-        let x = Dual::new(1.0, vec!["a".to_string()], vec![]);
-        let y = Dual::new(1.0, vec!["a".to_string()], vec![]);
+        let x = Dual::new(1.0, vec!["a".to_string()]);
+        let y = Dual::new(1.0, vec!["a".to_string()]);
         assert!(x.ptr_eq(&y)==false);
     }
 
     #[test]
     fn to_new_vars() {
-        let x = Dual::new(1.5, vec!["a".to_string(), "b".to_string()], vec![1., 2.]);
-        let y = Dual::new(2.0, vec!["a".to_string(), "c".to_string()], vec![3., 3.]);
+        let x = Dual::try_new(1.5, vec!["a".to_string(), "b".to_string()], vec![1., 2.]).unwrap();
+        let y = Dual::try_new(2.0, vec!["a".to_string(), "c".to_string()], vec![3., 3.]).unwrap();
         let z = x.to_new_vars(&y.vars, None);
         assert_eq!(z.real, 1.5_f64);
         assert!(y.ptr_eq(&z));
@@ -611,8 +624,8 @@ mod tests {
 
     #[test]
     fn new_from() {
-        let x = Dual::new(2.0, vec!["a".to_string(), "b".to_string()], vec![3., 3.]);
-        let y = Dual::new_from(&x, 2.0, vec!["a".to_string(), "c".to_string()], vec![3., 3.]);
+        let x = Dual::try_new(2.0, vec!["a".to_string(), "b".to_string()], vec![3., 3.]).unwrap();
+        let y = Dual::try_new_from(&x, 2.0, vec!["a".to_string(), "c".to_string()], vec![3., 3.]).unwrap();
         assert_eq!(y.real, 2.0_f64);
         assert!(y.ptr_eq(&x));
         assert_eq!(y.dual, Array1::from_vec(vec![3.0, 0.0]));
@@ -620,19 +633,19 @@ mod tests {
 
     #[test]
     fn vars() {
-        let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
-        let y = Dual::new(1.5, vec!["y".to_string()], vec![]).to_new_vars(x.vars(), None);
+        let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+        let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
         assert!(x.ptr_eq(&y));
         assert_eq!(y.dual, Array1::from_vec(vec![0.0, 1.0]));
     }
 
     #[test]
     fn vars_cmp() {
-        let x = Dual::new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]);
-        let y = Dual::new(1.5, vec!["y".to_string()], vec![]);
-        let y2 = Dual::new(1.5, vec!["y".to_string()], vec![]);
+        let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+        let y = Dual::new(1.5, vec!["y".to_string()]);
+        let y2 = Dual::new(1.5, vec!["y".to_string()]);
         let z = x.to_new_vars(y.vars(), None);
-        let u = Dual::new(1.5, vec!["u".to_string()], vec![]);
+        let u = Dual::new(1.5, vec!["u".to_string()]);
         assert_eq!(x.vars_cmp(y.vars()), VarsState::Superset);
         assert_eq!(y.vars_cmp(z.vars()), VarsState::EquivByArc);
         assert_eq!(y.vars_cmp(y2.vars()), VarsState::EquivByVal);
@@ -652,11 +665,7 @@ mod tests {
 
     #[test]
     fn zero_init() {
-        let d = Dual::new(
-            2.3,
-            Vec::from([String::from("a"), String::from("b")]),
-            Vec::new(),
-        );
+        let d = Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]));
         for (_, val) in d.dual.indexed_iter() {
             assert!(*val == 1.0)
         }
@@ -664,11 +673,11 @@ mod tests {
 
     #[test]
     fn negate() {
-        let d = Dual::new(
+        let d = Dual::try_new(
             2.3,
             Vec::from([String::from("a"), String::from("b")]),
             Vec::from([2., -1.4]),
-        );
+        ).unwrap();
         let d2 = -d.clone();
         assert!(d2.real == -2.3);
         assert!(Arc::ptr_eq(&d.vars, &d2.vars));
@@ -679,221 +688,221 @@ mod tests {
     #[test]
     fn eq_ne() {
         // Dual with vars - f64
-        assert!(Dual::new(0.0, Vec::from([String::from("a")]), Vec::new()) != 0.0);
+        assert!(Dual::new(0.0, Vec::from([String::from("a")])) != 0.0);
         // Dual with no vars - f64 (+reverse)
-        assert!(Dual::new(2.0, Vec::new(), Vec::new()) == 2.0);
-        assert!(2.0 == Dual::new(2.0, Vec::new(), Vec::new()));
+        assert!(Dual::new(2.0, Vec::new()) == 2.0);
+        assert!(2.0 == Dual::new(2.0, Vec::new()));
         // Dual - Dual (various real, vars, gradient mismatch)
-        let d = Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([2.3]));
-        assert!(d == Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])));
-        assert!(d != Dual::new(2.0, Vec::from([String::from("b")]), Vec::from([2.3])));
-        assert!(d != Dual::new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])));
-        assert!(d != Dual::new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])));
+        let d = Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap();
+        assert!(d == Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap());
+        assert!(d != Dual::try_new(2.0, Vec::from([String::from("b")]), Vec::from([2.3])).unwrap());
+        assert!(d != Dual::try_new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap());
+        assert!(d != Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])).unwrap());
         // Dual - Dual (missing Vars are zero and upcasted)
         assert!(
-            d == Dual::new(
+            d == Dual::try_new(
                 2.0,
                 Vec::from([String::from("a"), String::from("b")]),
                 Vec::from([2.3, 0.0])
-            )
+            ).unwrap()
         );
     }
 
     #[test]
     fn add_f64() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = 10.0 + d1 + 15.0;
-        let expected = Dual::new(
+        let expected = Dual::try_new(
             26.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         assert_eq!(result, expected)
     }
 
     #[test]
     fn add() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
-        let d2 = Dual::new(
+        ).unwrap();
+        let d2 = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![0.0, 3.0],
-        );
-        let expected = Dual::new(
+        ).unwrap();
+        let expected = Dual::try_new(
             3.0,
             vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
             vec![1.0, 2.0, 3.0],
-        );
+        ).unwrap();
         let result = d1 + d2;
         assert_eq!(result, expected)
     }
 
     #[test]
     fn sub_f64() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = (10.0 - d1) - 15.0;
-        let expected = Dual::new(
+        let expected = Dual::try_new(
             -6.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![-1.0, -2.0],
-        );
+        ).unwrap();
         assert_eq!(result, expected)
     }
 
     #[test]
     fn sub() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
-        let d2 = Dual::new(
+        ).unwrap();
+        let d2 = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![0.0, 3.0],
-        );
-        let expected = Dual::new(
+        ).unwrap();
+        let expected = Dual::try_new(
             -1.0,
             vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
             vec![1.0, 2.0, -3.0],
-        );
+        ).unwrap();
         let result = d1 - d2;
         assert_eq!(result, expected)
     }
 
     #[test]
     fn mul_f64() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = 10.0 * d1 * 2.0;
-        let expected = Dual::new(
+        let expected = Dual::try_new(
             20.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![20.0, 40.0],
-        );
+        ).unwrap();
         assert_eq!(result, expected)
     }
 
     #[test]
     fn mul() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
-        let d2 = Dual::new(
+        ).unwrap();
+        let d2 = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![0.0, 3.0],
-        );
-        let expected = Dual::new(
+        ).unwrap();
+        let expected = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
             vec![2.0, 4.0, 3.0],
-        );
+        ).unwrap();
         let result = d1 * d2;
         assert_eq!(result, expected)
     }
 
     #[test]
     fn inv() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = d1.clone() * d1.pow(-1.0);
-        let expected = Dual::new(1.0, vec![], vec![]);
+        let expected = Dual::new(1.0, vec![]);
         assert!(result == expected)
     }
 
     #[test]
     fn abs() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             -2.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = d1.abs();
-        let expected = Dual::new(
+        let expected = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![-1.0, -2.0],
-        );
+        ).unwrap();
         assert_eq!(result, expected)
     }
 
     #[test]
     fn div_f64() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = d1 / 2.0;
-        let expected = Dual::new(
+        let expected = Dual::try_new(
             0.5,
             vec!["v0".to_string(), "v1".to_string()],
             vec![0.5, 1.0],
-        );
+        ).unwrap();
         assert_eq!(result, expected)
     }
 
     #[test]
     fn f64_div() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = 2.0 / d1.clone();
-        let expected = Dual::new(2.0, vec![], vec![]) / d1;
+        let expected = Dual::new(2.0, vec![]) / d1;
         assert_eq!(result, expected)
     }
 
     #[test]
     fn div() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
-        let d2 = Dual::new(
+        ).unwrap();
+        let d2 = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![0.0, 3.0],
-        );
-        let expected = Dual::new(
+        ).unwrap();
+        let expected = Dual::try_new(
             0.5,
             vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
             vec![0.5, 1.0, -0.75],
-        );
+        ).unwrap();
         let result = d1 / d2;
         assert_eq!(result, expected)
     }
 
     #[test]
     fn ord() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         assert!(d1 < 2.0);
         assert!(d1 > 0.5);
         assert!(d1 <= 1.0);
@@ -902,50 +911,118 @@ mod tests {
         assert!(1.0 >= d1);
         assert!(2.0 > d1);
         assert!(0.5 < d1);
-        let d2 = Dual::new(
+        let d2 = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         assert!(d2 > d1);
         assert!(d1 < d2);
-        let d3 = Dual::new(1.0, vec!["v3".to_string()], vec![10.0]);
+        let d3 = Dual::try_new(1.0, vec!["v3".to_string()], vec![10.0]).unwrap();
         assert!(d1 >= d3);
         assert!(d1 <= d3);
     }
 
     #[test]
     fn exp() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = d1.exp();
         assert!(Arc::ptr_eq(&d1.vars, &result.vars));
         let c = 1.0_f64.exp();
-        let expected = Dual::new(
+        let expected = Dual::try_new(
             c,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0 * c, 2.0 * c],
-        );
+        ).unwrap();
         assert_eq!(result, expected);
     }
 
     #[test]
     fn log() {
-        let d1 = Dual::new(
+        let d1 = Dual::try_new(
             1.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
-        );
+        ).unwrap();
         let result = d1.log();
         assert!(Arc::ptr_eq(&d1.vars, &result.vars));
         let c = 1.0_f64.ln();
-        let expected = Dual::new(c, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]);
+        let expected = Dual::try_new(c, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]).unwrap();
         assert_eq!(result, expected);
     }
 
+    #[test]
+    fn gradient1_no_equiv() {
+        let d1 = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.1, 2.2]).unwrap();
+        let result = d1.gradient1(vec!["y".to_string(), "z".to_string(), "x".to_string()]);
+        let expected = Array1::from_vec(vec![2.2, 0.0, 1.1]);
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn gradient1_equiv() {
+        let d1 = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.1, 2.2]).unwrap();
+        let result = d1.gradient1(vec!["x".to_string(), "y".to_string()]);
+        let expected = Array1::from_vec(vec![1.1, 2.2]);
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn neg_ref() {
+        let d1 = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.1, 2.2]).unwrap();
+        let d2 = -&d1;
+        assert_eq!(d2.real, -2.5);
+        assert_eq!(d2.dual, Array1::from_vec(vec![-1.1, -2.2]));
+    }
+
+    #[test]
+    fn pow_ref() {
+        let d1 = Dual::new(3.0, vec!["x".to_string()]);
+        let d2 = (&d1).pow(2.0);
+        assert_eq!(d2.real, 9.0);
+        assert_eq!(d2.dual, Array1::from_vec(vec![6.0]));
+    }
+
+    #[test]
+    fn signed_() {
+        let d1 = Dual::new(3.0, vec!["x".to_string()]);
+        let d2 = Dual::new(-2.0, vec!["x".to_string()]);
+
+        assert!(d2.is_negative());
+        assert!(d1.is_positive());
+        assert_eq!(d2.signum(), -1.0 * Dual::one());
+        assert_eq!(d1.signum(), Dual::one());
+        assert_eq!(d1.abs_sub(&d2), Dual::new(5.0, Vec::new()));
+        assert_eq!(d2.abs_sub(&d1), Dual::zero());
+    }
+
+    #[test]
+    fn rem_() {
+        let d1 = Dual::try_new(10.0, vec!["x".to_string()], vec![2.0]).unwrap();
+        let d2 = Dual::new(3.0, vec!["x".to_string()]);
+        let result = d1 % d2;
+        let expected = Dual::try_new(1.0, vec!["x".to_string()], vec![-1.0]).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn rem_f64_() {
+        let d1 = Dual::try_new(10.0, vec!["x".to_string()], vec![2.0]).unwrap();
+        let result = &d1 % 3.0_f64;
+        assert_eq!(result, Dual::try_new(1.0, vec!["x".to_string()], vec![2.0]).unwrap());
+
+        let result = 11.0_f64 % d1;
+        assert_eq!(result, Dual::try_new(1.0, vec!["x".to_string()], vec![-2.0]).unwrap());
+    }
+
+    #[test]
+    fn is_zero_() {
+        assert!(Dual::zero().is_zero())
+    }
 
     // PROFILING
 
@@ -953,27 +1030,27 @@ mod tests {
     fn vars_cmp_profile() {
         // Setup
         let VARS = 500_usize;
-        let x = Dual::new(
+        let x = Dual::try_new(
             1.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (1..=VARS).map(|x| x as f64).collect(),
-        );
-        let y = Dual::new(
+        ).unwrap();
+        let y = Dual::try_new(
             1.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (1..=VARS).map(|x| x as f64).collect(),
-        );
-        let z = Dual::new_from(&x, 1.0, Vec::new(), Vec::new());
-        let u = Dual::new(
+        ).unwrap();
+        let z = Dual::new_from(&x, 1.0, Vec::new());
+        let u = Dual::try_new(
             1.5,
             (1..VARS).map(|x| x.to_string()).collect(),
             (1..VARS).map(|x| x as f64).collect(),
-        );
-        let s = Dual::new(
+        ).unwrap();
+        let s = Dual::try_new(
             1.5,
             (0..(VARS-1)).map(|x| x.to_string()).collect(),  // 2..Vars+1 13us  0..Vars-1  48ns
             (1..VARS).map(|x| x as f64).collect(),
-        );
+        ).unwrap();
 
         println!("\nProfiling vars_cmp (VarsState::EquivByArc):");
         let now = Instant::now();
@@ -1028,27 +1105,27 @@ mod tests {
     fn to_union_vars_profile() {
         // Setup
         let VARS = 500_usize;
-        let x = Dual::new(
+        let x = Dual::try_new(
             1.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (0..VARS).map(|x| x as f64).collect(),
-        );
-        let y = Dual::new(
+        ).unwrap();
+        let y = Dual::try_new(
             1.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (0..VARS).map(|x| x as f64).collect(),
-        );
-        let z = Dual::new_from(&x, 1.0, Vec::new(), Vec::new());
-        let u = Dual::new(
+        ).unwrap();
+        let z = Dual::new_from(&x, 1.0, Vec::new());
+        let u = Dual::try_new(
             1.5,
             (1..VARS).map(|x| x.to_string()).collect(),
             (1..VARS).map(|x| x as f64).collect(),
-        );
-        let s = Dual::new(
+        ).unwrap();
+        let s = Dual::try_new(
             1.5,
             (0..(VARS-1)).map(|x| x.to_string()).collect(),
             (0..(VARS-1)).map(|x| x as f64).collect(),
-        );
+        ).unwrap();
 
         println!("\nProfiling to_union_vars (VarsState::EquivByArc):");
         let now = Instant::now();
@@ -1111,11 +1188,11 @@ mod tests {
         }
 
         let VARS = 500_usize;
-        let a = Dual::new(
+        let a = Dual::try_new(
             1.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (0..VARS).map(|x| x as f64).collect(),
-        );
+        ).unwrap();
         // let b = Dual::new(
         //     3.5,
         //     (2..=(VARS+1)).map(|x| x.to_string()).collect(),
@@ -1131,24 +1208,24 @@ mod tests {
         //     (4..=(VARS+3)).map(|x| x.to_string()).collect(),
         //     (0..VARS).map(|x| x as f64).collect(),
         // );
-        let b = Dual::new_from(
+        let b = Dual::try_new_from(
             &a,
             3.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (0..VARS).map(|x| x as f64).collect(),
-        );
-        let c = Dual::new_from(
+        ).unwrap();
+        let c = Dual::try_new_from(
             &a,
             5.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (0..VARS).map(|x| x as f64).collect(),
-        );
-        let d = Dual::new_from(
+        ).unwrap();
+        let d = Dual::try_new_from(
             &a,
             6.5,
             (1..=VARS).map(|x| x.to_string()).collect(),
             (0..VARS).map(|x| x as f64).collect(),
-        );
+        ).unwrap();
 
         println!("\nProfiling f64 std ops:");
         let now = Instant::now();

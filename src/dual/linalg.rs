@@ -384,8 +384,8 @@ mod tests {
     #[test]
     fn argabsmx_dual() {
         let a: Array1<Dual> = arr1(&[
-            Dual::new(1.0, Vec::new(), Vec::new()),
-            Dual::new(-2.5, Vec::from(["a".to_string()]), Vec::from([2.0])),
+            Dual::new(1.0, Vec::new()),
+            Dual::try_new(-2.5, Vec::from(["a".to_string()]), Vec::from([2.0])).unwrap(),
         ]);
         let result = argabsmax(a.view());
         let expected: usize = 1;
@@ -396,22 +396,22 @@ mod tests {
     fn lower_tri_dual() {
         let a = arr2(&[
             [
-                Dual::new(1.0, Vec::new(), Vec::new()),
-                Dual::new(0.0, Vec::new(), Vec::new()),
+                Dual::new(1.0, Vec::new()),
+                Dual::new(0.0, Vec::new()),
             ],
             [
-                Dual::new(2.0, Vec::new(), Vec::new()),
-                Dual::new(1.0, Vec::new(), Vec::new()),
+                Dual::new(2.0, Vec::new()),
+                Dual::new(1.0, Vec::new()),
             ],
         ]);
         let b = arr1(&[
-            Dual::new(2.0, Vec::new(), Vec::new()),
-            Dual::new(5.0, Vec::new(), Vec::new()),
+            Dual::new(2.0, Vec::new()),
+            Dual::new(5.0, Vec::new()),
         ]);
         let x = dsolve_lower21_(&a.view(), &b.view());
         let expected_x = arr1(&[
-            Dual::new(2.0, Vec::new(), Vec::new()),
-            Dual::new(1.0, Vec::new(), Vec::new()),
+            Dual::new(2.0, Vec::new()),
+            Dual::new(1.0, Vec::new()),
         ]);
         assert_eq!(x, expected_x);
     }
@@ -420,22 +420,22 @@ mod tests {
     fn upper_tri_dual() {
         let a = arr2(&[
             [
-                Dual::new(1.0, Vec::new(), Vec::new()),
-                Dual::new(2.0, Vec::new(), Vec::new()),
+                Dual::new(1.0, Vec::new()),
+                Dual::new(2.0, Vec::new()),
             ],
             [
-                Dual::new(0.0, Vec::new(), Vec::new()),
-                Dual::new(1.0, Vec::new(), Vec::new()),
+                Dual::new(0.0, Vec::new()),
+                Dual::new(1.0, Vec::new()),
             ],
         ]);
         let b = arr1(&[
-            Dual::new(2.0, Vec::new(), Vec::new()),
-            Dual::new(5.0, Vec::new(), Vec::new()),
+            Dual::new(2.0, Vec::new()),
+            Dual::new(5.0, Vec::new()),
         ]);
         let x = dsolve_upper21_(&a.view(), &b.view());
         let expected_x = arr1(&[
-            Dual::new(-8.0, Vec::new(), Vec::new()),
-            Dual::new(5.0, Vec::new(), Vec::new()),
+            Dual::new(-8.0, Vec::new()),
+            Dual::new(5.0, Vec::new()),
         ]);
         assert_eq!(x, expected_x);
     }
@@ -444,13 +444,13 @@ mod tests {
     fn dsolve_dual() {
         let a: Array2<Dual> = Array2::eye(2);
         let b: Array1<Dual> = arr1(&[
-            Dual::new(2.0, vec!["x".to_string()], vec![1.0]),
-            Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
+            Dual::new(2.0, vec!["x".to_string()]),
+            Dual::new(5.0, vec!["x".to_string(), "y".to_string()]),
         ]);
         let result = dsolve(&a.view(), &b.view(), false);
         let expected = arr1(&[
-            Dual::new(2.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]),
-            Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
+            Dual::new(2.0, vec!["x".to_string()]),
+            Dual::new(5.0, vec!["x".to_string(), "y".to_string()]),
         ]);
         assert_eq!(result, expected);
         assert!(Arc::ptr_eq(&result[0].vars(), &result[1].vars()));

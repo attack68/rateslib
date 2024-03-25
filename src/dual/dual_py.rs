@@ -31,13 +31,13 @@ pub enum DualsOrF64 {
 #[pymethods]
 impl Dual {
     #[new]
-    fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Self {
-        Dual::new(real, vars, dual)
+    fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>) -> PyResult<Self> {
+        Dual::try_new(real, vars, dual)
     }
 
     #[staticmethod]
     fn vars_from(other: &Dual, real: f64, vars: Vec<String>, dual: Vec<f64>) -> PyResult<Self> {
-        Ok(Dual::new_from(other, real, vars, dual))
+        Dual::try_new_from(other, real, vars, dual)
     }
 
     #[getter]
@@ -93,7 +93,7 @@ impl Dual {
     fn __eq__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
             DualsOrF64::Dual(d) => Ok(d.eq(self)),
-            DualsOrF64::F64(f) => Ok(Dual::new(f, Vec::new(), Vec::new()).eq(self)),
+            DualsOrF64::F64(f) => Ok(Dual::new(f, Vec::new()).eq(self)),
             DualsOrF64::Dual2(d) => Err(PyTypeError::new_err("Cannot compare Dual with incompatible type (Dual2)."))
         }
     }

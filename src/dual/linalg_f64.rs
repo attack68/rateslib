@@ -169,13 +169,13 @@ mod tests {
     fn fdupper_tri_dual() {
         let a = arr2(&[[1., 2.], [0., 1.]]);
         let b = arr1(&[
-            Dual::new(2.0, Vec::new(), Vec::new()),
-            Dual::new(5.0, Vec::new(), Vec::new()),
+            Dual::new(2.0, Vec::new()),
+            Dual::new(5.0, Vec::new()),
         ]);
         let x = fdsolve_upper21_(&a.view(), &b.view());
         let expected_x = arr1(&[
-            Dual::new(-8.0, Vec::new(), Vec::new()),
-            Dual::new(5.0, Vec::new(), Vec::new()),
+            Dual::new(-8.0, Vec::new()),
+            Dual::new(5.0, Vec::new()),
         ]);
         assert_eq!(x, expected_x);
     }
@@ -184,13 +184,13 @@ mod tests {
     fn fdsolve_dual() {
         let a: Array2<f64> = Array2::eye(2);
         let b: Array1<Dual> = arr1(&[
-            Dual::new(2.0, vec!["x".to_string()], vec![1.0]),
-            Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
+            Dual::new(2.0, vec!["x".to_string()]),
+            Dual::new(5.0, vec!["x".to_string(), "y".to_string()]),
         ]);
         let result: Array1<Dual> = fdsolve(&a.view(), &b.view(), false);
         let expected = arr1(&[
-            Dual::new(2.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]),
-            Dual::new(5.0, vec!["x".to_string(), "y".to_string()], vec![1.0, 1.0]),
+            Dual::new(2.0, vec!["x".to_string()]),
+            Dual::new(5.0, vec!["x".to_string(), "y".to_string()]),
         ]);
         assert_eq!(result, expected);
         assert!(Arc::ptr_eq(&result[0].vars(), &result[1].vars()));
