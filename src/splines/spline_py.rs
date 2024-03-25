@@ -3,8 +3,6 @@ use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 
 use pyo3::prelude::*;
-use pyo3::types::PyType;
-use pyo3::exceptions::{PyTypeError, PyValueError};
 
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {
