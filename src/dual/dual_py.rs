@@ -1,3 +1,5 @@
+//! Wrapper module to export Rust dual data types to Python using pyo3 bindings.
+
 use crate::dual::dual1::{Dual, Gradient1, MathFuncs, Vars};
 use crate::dual::dual2::{Dual2, Gradient2};
 use num_traits::{Pow, Signed};
@@ -227,11 +229,13 @@ impl Dual {
 
 #[pymethods]
 impl Dual2 {
+    /// Python wrapper to construct a new `Dual2`.
     #[new]
     pub fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> PyResult<Self> {
         Dual2::try_new(real, vars, dual, dual2)
     }
 
+    /// Python wrapper to construct a new `Dual2` using the Arc pointer of another.
     #[staticmethod]
     pub fn vars_from(other: &Dual2, real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> PyResult<Self> {
         Dual2::try_new_from(other, real, vars, dual, dual2)

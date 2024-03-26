@@ -1,3 +1,5 @@
+//! Perform linear algebraic operations between arrays of generic type and arrays of f64.
+
 use crate::dual::linalg::{dmul22_, row_swap, el_swap, argabsmax};
 use ndarray::prelude::*;
 use num_traits::identities::{Zero};
@@ -7,6 +9,7 @@ use std::iter::Sum;
 use std::ops::{Mul, Sub};
 use itertools::Itertools;
 
+/// Outer product of two 1d-arrays containing f64s.
 pub fn fouter11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
     Array1::from_vec(
     a.iter().cartesian_product(b.iter()).map(|(x, y)| x*y).collect()
@@ -15,6 +18,9 @@ pub fn fouter11_(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array2<f64> {
 
 // F64 Crossover
 
+/// Inner product of two 1d-arrays.
+///
+/// The LHS contains f64s and the RHS is generic.
 pub fn fdmul11_<T>(a: &ArrayView1<f64>, b: &ArrayView1<T>) -> T
 where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
@@ -24,6 +30,9 @@ where
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
+/// Matrix multiplication of a 2d-array with a 1d-array.
+///
+/// The LHS contains f64s and the RHS is generic.
 pub fn fdmul21_<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>) -> Array1<T>
 where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
@@ -33,6 +42,9 @@ where
     Array1::from_vec(a.axis_iter(Axis(0)).map(|row| fdmul11_(&row, b)).collect())
 }
 
+/// Matrix multiplication of a 2d-array with a 1d-array.
+///
+/// The LHS is generic and the RHS contains f64s.
 pub fn dfmul21_<T>(a: &ArrayView2<T>, b: &ArrayView1<f64>) -> Array1<T>
 where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
@@ -42,6 +54,9 @@ where
     Array1::from_vec(a.axis_iter(Axis(0)).map(|row| fdmul11_(b, &row)).collect())
 }
 
+/// Matrix multiplication of two 2d-arrays.
+///
+/// The LHS contains f64s and the RHS is generic.
 pub fn fdmul22_<T>(a: &ArrayView2<f64>, b: &ArrayView2<T>) -> Array2<T>
 where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
@@ -56,6 +71,9 @@ where
          .expect("Dim are pre-checked")
 }
 
+/// Matrix multiplication of two 2d-arrays.
+///
+/// The LHS is generic and the RHS contains f64s.
 pub fn dfmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<f64>) -> Array2<T>
 where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
@@ -121,6 +139,10 @@ where
     fdsolve_upper21_(&a_.view(), &b_.view())
 }
 
+/// Solve a linear system, ax = b, using Gaussian elimination and partial pivoting.
+///
+/// The LHS contains f64s and the RHS is generic. `allow_lsq` can be `true` is the number of
+/// rows in `a` is greater than the number of columns.
 pub fn fdsolve<T>(a: &ArrayView2<f64>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
 where
                 T: PartialOrd + Signed + Clone + Zero + Sum,

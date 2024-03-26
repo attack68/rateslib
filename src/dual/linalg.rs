@@ -1,3 +1,5 @@
+//! Perform linear algebra operations on arrays containing generic data types.
+
 use ndarray::prelude::*;
 use ndarray::Zip;
 use num_traits::identities::{Zero};
@@ -9,6 +11,7 @@ use itertools::Itertools;
 
 // Tensor ops
 
+/// Inner product between two 1d-arrays.
 pub fn dmul11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> T
 where
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -18,6 +21,7 @@ where
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
+/// Matrix multiplication between a 2d-array and a 1d-array.
 pub fn dmul21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 where
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -27,6 +31,7 @@ where
     Array1::from_vec(a.axis_iter(Axis(0)).map(|row| dmul11_(&row, b)).collect())
 }
 
+/// Matrix multiplication between two 2d-arrays.
 pub fn dmul22_<T>(a: &ArrayView2<T>, b: &ArrayView2<T>) -> Array2<T>
 where
     for<'a> &'a T: Mul<&'a T, Output = T>,
@@ -45,7 +50,7 @@ where
 
 // Linalg solver
 
-pub fn argabsmax<T>(a: ArrayView1<T>) -> usize
+pub(crate) fn argabsmax<T>(a: ArrayView1<T>) -> usize
 where
     T: Signed + PartialOrd,
 {
@@ -57,7 +62,7 @@ where
     vi.1
 }
 
-pub fn argabsmax2<T>(a: ArrayView2<T>) -> (usize, usize)
+pub(crate) fn argabsmax2<T>(a: ArrayView2<T>) -> (usize, usize)
 where
     T: Signed + PartialOrd,
 {
@@ -70,21 +75,21 @@ where
     (vi.1 / n, vi.1 % n)
 }
 
-pub fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
+pub(crate) fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
 {
     let (mut pt, mut pb) = p.slice_mut(s![.., ..]).split_at(Axis(0), *kr);
     let (r1, r2) = (pt.row_mut(*j), pb.row_mut(0));
     Zip::from(r1).and(r2).for_each(std::mem::swap);
 }
 
-pub fn col_swap<T>(p: &mut Array2<T>, j: &usize, kc: &usize)
+pub(crate) fn col_swap<T>(p: &mut Array2<T>, j: &usize, kc: &usize)
 {
     let (mut pl, mut pr) = p.slice_mut(s![.., ..]).split_at(Axis(1), *kc);
     let (c1, c2) = (pl.column_mut(*j), pr.column_mut(0));
     Zip::from(c1).and(c2).for_each(std::mem::swap);
 }
 
-pub fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize)
+pub(crate) fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize)
 {
     let (mut pl, mut pr) = p.slice_mut(s![..]).split_at(Axis(0), *k);
     std::mem::swap(&mut pl[*j], &mut pr[0]);
@@ -334,6 +339,11 @@ where
 //     x
 // }
 
+/// Solve a linear system of equations, ax = b, using Gaussian elimination and partial pivoting.
+///
+/// - `a` is a 2d-array.
+/// - `b` is a 1d-array.
+/// - `allow_lsq` can be set to `true` if the number of rows in `a` is greater than its number of columns.
 pub fn dsolve<T>(a: &ArrayView2<T>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
 where T: PartialOrd + Signed + Clone + Sum + Zero,
  for <'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>
