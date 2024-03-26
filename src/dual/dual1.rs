@@ -94,6 +94,10 @@ pub trait Vars where Self: Clone {
         }
     }
 
+    /// Construct a tuple of 2 `Self` types whose `vars` are linked by the explicit union
+    /// of their own variables.
+    ///
+    /// Gradient values contained in fields will be shuffled in memory.
     fn to_combined_vars(&self, other: &Self) -> (Self, Self) where Self: Sized {
         let comb_vars = Arc::new(IndexSet::from_iter(
             self.vars().union(&other.vars()).map(|x| x.clone()),
