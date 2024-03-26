@@ -1,10 +1,8 @@
 use crate::dual::linalg_f64::{fdmul11_, fdsolve};
-use crate::dual::dual1::FieldOps;
 use ndarray::{Array1, Array2};
-use num_traits::{Signed, Zero, One};
+use num_traits::{Signed, Zero};
 use std::iter::Sum;
-use std::ops::{Div, Mul, Sub};
-use pyo3::pyclass;
+use std::ops::{Mul, Sub};
 
 pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
@@ -174,7 +172,7 @@ where
         if tau.len() != y.len() {
             panic!("`tau` and `y` must have the same length.")
         }
-        let b: Array2<f64> = self.bsplmatrix(&tau, left_n, right_n);
+        let b: Array2<f64> = self.bsplmatrix(tau, left_n, right_n);
         let ya: Array1<T> = Array1::from_vec(y.clone());
         let c: Array1<T> = fdsolve(&b.view(), &ya.view(), allow_lsq);
         self.c = Some(c);
@@ -233,7 +231,8 @@ where T: PartialEq,
 mod tests {
     use super::*;
     use ndarray::{arr1, arr2};
-    use crate::dual::dual1::Dual;
+    use crate::dual::dual1::{Dual, Vars};
+    use num_traits::One;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers

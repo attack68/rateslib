@@ -3,7 +3,9 @@
 #[cfg(test)]
 mod tests;
 
-use ndarray::Array1;
+// type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
+// type GenericResult<T> = Result<T, GenericError>;
+
 use pyo3::prelude::*;
 
 pub mod dual;
