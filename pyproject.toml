@@ -38,7 +38,7 @@ classifiers = [
 dev = [
     "pytest>=7.0.1",
     "jupyterlab>=3.3.1",
-    "sphinx>=5.1.1",
+    "sphinx>=7.1.0",
     "coverage>=7.1.0",
 ]
 
