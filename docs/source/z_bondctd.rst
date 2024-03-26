@@ -241,20 +241,20 @@ At this stage, calculating the option adjusted DV01 is a probabilistic problem. 
 depends upon volatility, time to delivery and the correlation between all of the different
 bonds.
 
-As a rather egregious approximation we can use a :class:`~rateslib.splines.PPSpline` to interpolate
+As a rather egregious approximation we can use a :class:`~rateslib.splines.PPSplineF64` to interpolate
 (in a least squares sense) over these data points. The knot points of this splines and which
 bonds are included (and what weights they could be potentially be assigned in a weighted least
 squares calculation) proxies the above mentioned probabilistic variables.
 
 .. ipython:: python
 
-   pps = PPSpline(
+   pps = PPSplineF64(
        k=4,
        t=[-50, -50, -50, -50, -35, -20, 0, 20, 35, 50, 65, 80, 100, 100, 100, 100]
    );
    pps.csolve(x + x + x, y1 + y2 + y3, 0, 0, allow_lsq=True);
-   x2 = [_ for _ in range(-50, 101, 1)];
-   axs.plot(x2, pps.ppev(x2));
+   x2 = [float(_) for _ in range(-50, 101, 1)];
+   axs.plot(x2, pps.ppev(np.array(x2)));
 
 
 .. plot::
@@ -262,7 +262,7 @@ squares calculation) proxies the above mentioned probabilistic variables.
    from rateslib.curves import Curve
    from rateslib.solver import Solver
    from rateslib.instruments import IRS, FixedRateBond, BondFuture
-   from rateslib.splines import PPSpline
+   from rateslib.splines import PPSplineF64
    from rateslib import dt
    from pandas import DataFrame
 
@@ -332,13 +332,13 @@ squares calculation) proxies the above mentioned probabilistic variables.
    axs.legend()
    axs.set_xlabel("Parallel shift (bps)")
    axs.set_ylabel("Future DV01")
-   pps = PPSpline(
+   pps = PPSplineF64(
        k=4,
        t=[-50, -50, -50, -50, -35, -20, 0, 20, 35, 50, 65, 80, 100, 100, 100, 100]
    )
    pps.csolve(x + x + x, y1 + y2 + y3, 0, 0, allow_lsq=True)
    x2 = [_ for _ in range(-50, 101, 1)]
-   axs.plot(x2, pps.ppev(x2))
+   axs.plot(x2, pps.ppev(np.array(x2)))
    plt.show()
    plt.close()
 

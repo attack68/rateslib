@@ -10,6 +10,7 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.11"
+    rust: "1.76"
     # You can also specify other tool versions:
     # nodejs: "19"
     # rust: "1.64"
@@ -28,4 +29,5 @@ sphinx:
 # Optionally declare the Python requirements required to build your docs
 python:
    install:
-   - requirements: requirements.txt
+   - method: pip
+     path: .

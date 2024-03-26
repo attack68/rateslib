@@ -16,7 +16,7 @@ Th ``rateslib.splines`` module implements the library's own piecewise polynomial
 splines of generic order
 such that we can include it within our :class:`~rateslib.curves.Curve` class
 for log-cubic discount
-factor interpolation. It does this using b-splines, and is compatible
+factor interpolation. It does this using b-splines, and various named splines are compatible
 with :class:`~rateslib.dual.Dual`
 and :class:`~rateslib.dual.Dual2` data types for automatic differentiation.
 
@@ -25,7 +25,11 @@ The calculations are based on the material provided in
 <https://www.amazon.com/Practical-Splines-Applied-Mathematical-Sciences/dp/0387953663>`_.
 
 .. autosummary::
-   rateslib.splines.PPSpline
+   rateslib.splines.PPSplineF64
+   rateslib.splines.PPSplineDual
+   rateslib.splines.PPSplineDual2
+
+For legacy reasons `PPSpline` is now an alias for `PPSplineF64` which allows only float-64 (x,y) values.
 
 Introduction
 ************
@@ -48,7 +52,7 @@ Below we plot the 8 b-splines associated with the example knot sequence,
 .. ipython:: python
 
    t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    fig, ax = plt.subplots(1,1)
    for i in range(spline.n):
@@ -61,7 +65,7 @@ Below we plot the 8 b-splines associated with the example knot sequence,
    from datetime import datetime as dt
    import numpy as np
    t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    fig, ax = plt.subplots(1,1)
    for i in range(spline.n):
@@ -87,7 +91,7 @@ sample 8 data sites, :math:`\mathbf{\tau}`, within the domain for the function v
    from datetime import datetime as dt
    import numpy as np
    t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
    fig, ax = plt.subplots(1,1)
@@ -109,7 +113,7 @@ solve the linear system, involving the spline collocation matrix,
 
 .. ipython:: python
 
-   spline.csolve(tau, np.sin(3*tau), 0, 0)
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
    fig, ax = plt.subplots(1,1)
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
@@ -122,10 +126,10 @@ solve the linear system, involving the spline collocation matrix,
    from datetime import datetime as dt
    import numpy as np
    t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
-   spline.csolve(tau, np.sin(3*tau), 0, 0)
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
    fig, ax = plt.subplots(1,1)
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
@@ -144,9 +148,9 @@ this function.
 
 .. ipython:: python
 
-   spline = PPSpline(k=4, t=[1,1,1,1,2,3,4,4,4,4])
+   spline = PPSplineF64(k=4, t=[1,1,1,1,2,3,4,4,4,4])
    tau = np.array([1.0, 1.7, 2.3, 2.9, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0)
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
    fig, ax = plt.subplots(1,1)
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
@@ -159,10 +163,10 @@ this function.
    from datetime import datetime as dt
    import numpy as np
    t = [1,1,1,1,2,3,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    tau = np.array([1.0, 1.7, 2.3, 2.9, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0)
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
    fig, ax = plt.subplots(1,1)
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
@@ -182,9 +186,9 @@ The below demonstrates increasing the spline dimension to 7 and adding a data si
 
 .. ipython:: python
 
-   spline = PPSpline(k=4, t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4])
+   spline = PPSplineF64(k=4, t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4])
    tau = np.array([1.0, 1.5, 2.0, 2.5, 3, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0)
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
    fig, ax = plt.subplots(1,1)
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
@@ -197,10 +201,10 @@ The below demonstrates increasing the spline dimension to 7 and adding a data si
    from datetime import datetime as dt
    import numpy as np
    t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    tau = np.array([1.0, 1.5, 2.0, 2.5, 3, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0)
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
    fig, ax = plt.subplots(1,1)
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
@@ -213,7 +217,7 @@ spline is somewhat constrained by its limiting degrees of freedom.
 
 .. ipython:: python
 
-   spline = PPSpline(k=4, t=[1,1,1,1,2,3,4,4,4,4])
+   spline = PPSplineF64(k=4, t=[1,1,1,1,2,3,4,4,4,4])
    tau = np.array([1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4.0])
    spline.csolve(tau, np.sin(3*tau), 0, 0, allow_lsq=True)
    fig, ax = plt.subplots(1,1)
@@ -228,7 +232,7 @@ spline is somewhat constrained by its limiting degrees of freedom.
    from datetime import datetime as dt
    import numpy as np
    t=[1,1,1,1,2,3,4,4,4,4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    x = np.linspace(1, 4, 76)
    tau = np.array([1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4.0])
    spline.csolve(tau, np.sin(3*tau), 0, 0, allow_lsq=True)
@@ -265,10 +269,10 @@ Natural Spline
 .. ipython:: python
 
    t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 0, 1, 3, 4, 4])
    val = np.array([0, 0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 2, 2)
+   spline.csolve(tau, val, 2, 2, False)
 
 Second derivative values of zero have been added to the data sites, :math:`\tau`.
 The :meth:`csolve` function is set to use second derivatives.
@@ -278,10 +282,10 @@ Prescribed Second Derivatives
 .. ipython:: python
 
    t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 0, 1, 3, 4, 4])
    val = np.array([1, 0, 0, 2, 2, -1])
-   spline.csolve(tau, val, 2, 2)
+   spline.csolve(tau, val, 2, 2, False)
 
 Here, second derivative values of specific values 1 and -1 have been set.
 
@@ -290,10 +294,10 @@ Clamped Spline
 .. ipython:: python
 
    t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 0, 1, 3, 4, 4])
    val = np.array([0, 0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 1, 1)
+   spline.csolve(tau, val, 1, 1, False)
 
 In this case first derivative values of zero have been set and the :meth:`csolve`
 function updated.
@@ -303,10 +307,10 @@ Not-a-Knot Spline
 .. ipython:: python
 
    t = [0, 0, 0, 0, 4, 4, 4, 4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 1, 3, 4])
    val = np.array([0, 0, 2, 2])
-   spline.csolve(tau, val, 0, 0)
+   spline.csolve(tau, val, 0, 0, False)
 
 Note that the removal of the interior breakpoints (as implied by the name) has
 been required here in the knot sequence, *t*.
@@ -319,10 +323,10 @@ Mixed Spline
 .. ipython:: python
 
    t = [0, 0, 0, 0, 3, 4, 4, 4, 4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 1, 3, 4, 4])
    val = np.array([0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 0, 1)
+   spline.csolve(tau, val, 0, 1, False)
 
 **Mixed splines** can be generated by combining, e.g. the above combines not-a-knot left
 side with a clamped right side.
@@ -335,30 +339,30 @@ side with a clamped right side.
    import numpy as np
    x = np.linspace(0, 4, 76)
    t = [0, 0, 0, 0, 3, 4, 4, 4, 4]
-   spline = PPSpline(k=4, t=t)
+   spline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 1, 3, 4, 4])
    val = np.array([0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 0, 1)
+   spline.csolve(tau, val, 0, 1, False)
    t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   nspline = PPSpline(k=4, t=t)
+   nspline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 0, 1, 3, 4, 4])
    val = np.array([0, 0, 0, 2, 2, 0])
-   nspline.csolve(tau, val, 2, 2)
+   nspline.csolve(tau, val, 2, 2, False)
    t = [0, 0, 0, 0, 4, 4, 4, 4]
-   nkspline = PPSpline(k=4, t=t)
+   nkspline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 1, 3, 4])
    val = np.array([0, 0, 2, 2])
-   nkspline.csolve(tau, val, 0, 0)
+   nkspline.csolve(tau, val, 0, 0, False)
    t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   cspline = PPSpline(k=4, t=t)
+   cspline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 0, 1, 3, 4, 4])
    val = np.array([0, 0, 0, 2, 2, 0])
-   cspline.csolve(tau, val, 1, 1)
+   cspline.csolve(tau, val, 1, 1, False)
    t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   pspline = PPSpline(k=4, t=t)
+   pspline = PPSplineF64(k=4, t=t)
    tau = np.array([0, 0, 1, 3, 4, 4])
    val = np.array([1.0, 0, 0, 2, 2, -1.0])
-   pspline.csolve(tau, val, 2, 2)
+   pspline.csolve(tau, val, 2, 2, False)
    fig, ax = plt.subplots(1,1)
    ax.scatter([0,1,3,4], [0,0,2,2], label="Values")
    ax.plot(x, spline.ppev(x), label="Mixed")
@@ -385,7 +389,7 @@ at those points:
 - 2028-1-1: 0.911
 
 We seek a spline interpolator for these points. The basic concept is to construct
-a :class:`PPSpline` and then solve for the b-spline coefficients using the logarithm
+a :class:`PPSplineF64` and then solve for the b-spline coefficients using the logarithm
 of the discount factors at the given dates. In fact, we add two conditions for a
 **natural spline** which is to suggest that curvature at the endpoint is minimised to
 zero, i.e. we set the second derivative of the spline to zero at the endpoints. This
@@ -396,25 +400,30 @@ in the below manual example.
 
 .. ipython:: python
 
+   from pytz import UTC
    tau = [dt(2022,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2026,1,1), dt(2027,1,1), dt(2028,1,1)]
+   tau_posix = [_.replace(tzinfo=UTC).timestamp() for _ in tau]
    df = np.array([1.0, 0.99, 0.978, 0.963, 0.951, 0.937, 0.911])
    y = np.log(df)
-   spline = PPSpline(k=4, t=[dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2026,1,1), dt(2027,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1)])
+   t = [dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2026,1,1), dt(2027,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1)]
+   t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+   spline = PPSplineF64(k=4, t=t_posix)
    # we create a natural spline by setting the second derivative at endpoints to zero
    # so we artificially add two endpoint data sites
-   tau_augmented = tau.copy()
-   tau_augmented.insert(0, dt(2022,1,1))
-   tau_augmented.append(dt(2028,1,1))
+   tau_augmented = tau_posix.copy()
+   tau_augmented.insert(0, dt(2022,1,1).replace(tzinfo=UTC).timestamp())
+   tau_augmented.append(dt(2028,1,1).replace(tzinfo=UTC).timestamp())
    y_augmented = np.zeros(len(y)+2)
    y_augmented[1:-1] = y
-   spline.csolve(tau_augmented, y_augmented, 2, 2)
+   spline.csolve(tau_augmented, y_augmented, 2, 2, False)
 
 .. ipython:: python
 
    fig, ax = plt.subplots(1,1)
    ax.scatter(tau, df)
    x = [dt(2022,1,1) + timedelta(days=2*i) for i in range(365*3)]
-   ax.plot(x, np.exp(spline.ppev(x)), color="g")
+   x_posix = [_.replace(tzinfo=UTC).timestamp() for _ in x]
+   ax.plot(x, np.exp(spline.ppev(np.array(x_posix))), color="g")
 
 .. plot::
 
@@ -423,18 +432,23 @@ in the below manual example.
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
+   from pytz import UTC
    tau = [dt(2022,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2026,1,1), dt(2027,1,1), dt(2028,1,1)]
+   tau_posix = [_.replace(tzinfo=UTC).timestamp() for _ in tau]
    df = np.array([1.0, 0.99, 0.978, 0.963, 0.951, 0.937, 0.911])
    y = np.log(df)
-   spline = PPSpline(k=4, t=[dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2026,1,1), dt(2027,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1)])
-   tau_augmented = tau.copy()
-   tau_augmented.insert(0, dt(2022,1,1))
-   tau_augmented.append(dt(2028,1,1))
+   t=[dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2022,1,1), dt(2023,1,1), dt(2024,1,1), dt(2025,1,1), dt(2026,1,1), dt(2027,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1), dt(2028,1,1)]
+   t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+   spline = PPSplineF64(k=4, t=t_posix)
+   tau_augmented = tau_posix.copy()
+   tau_augmented.insert(0, dt(2022,1,1).replace(tzinfo=UTC).timestamp())
+   tau_augmented.append(dt(2028,1,1).replace(tzinfo=UTC).timestamp())
    y_augmented = np.zeros(len(y)+2)
    y_augmented[1:-1] = y
-   spline.csolve(tau_augmented, y_augmented, 2, 2)
+   spline.csolve(tau_augmented, y_augmented, 2, 2, False)
    fig, ax = plt.subplots(1,1)
    ax.scatter(tau, df)
    x = [dt(2022,1,1) + timedelta(days=2*i) for i in range(365*3)]
-   ax.plot(x, np.exp(spline.ppev(x)), color="g")
+   x_posix = [_.replace(tzinfo=UTC).timestamp() for _ in x]
+   ax.plot(x, np.exp(spline.ppev(np.array(x_posix))), color="g")
    plt.show()

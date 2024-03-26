@@ -15,3 +15,5 @@ else:
         bsplev_single,
         bspldnev_single,
     )
+    # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
+    from rateslibrs import PPSplineF64 as PPSpline
