@@ -28,6 +28,19 @@ PPSplineF64
 
       :class:`~rateslib.splines.PPSplineDual2`: Spline where the y-axis contains :class:`~rateslib.dual.Dual2` data types.
 
+   .. rubric:: Notes
+
+   This class implements a piecewise polynomial spline curve defined by:
+
+   .. math::
+
+      $_{k, \mathbf{t}}(x) = \sum_{i=1}^n c_i B_{i,k,\mathbf{t}}(x)
+
+   where :math:`B_{i,k,\mathbf{t}}(x)` is one of the *n* b-splines, of order *k* over
+   knot sequence :math:`\mathbf{t}`, evaluated at *x*,
+   and :math:`c_i` is the coefficient of the *i*'th b-spline for this specific
+   piecewise polynomial.
+
    .. rubric:: Examples
 
    See LINK.
