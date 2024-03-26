@@ -228,54 +228,13 @@ impl Dual {
 #[pymethods]
 impl Dual2 {
     #[new]
-    pub fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> Self {
-        Dual2::new(real, vars, dual, dual2)
+    pub fn new_py(real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> PyResult<Self> {
+        Dual2::try_new(real, vars, dual, dual2)
     }
 
     #[staticmethod]
     pub fn vars_from(other: &Dual2, real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> PyResult<Self> {
-        if !dual.is_empty() && vars.len() != dual.len() {
-            panic!("`dual` must have same length as `vars` or have zero length.")
-        }
-        if !dual2.is_empty() && (vars.len() * vars.len()) != dual2.len() {
-            panic!("`dual2` must have same length as `vars` squared or have zero length.")
-        }
-
-        if !vars.iter().all(|x| other.vars.contains(x)){
-            panic!("Cannot create a Dual from `other` if its vars do not contain those in `vars`.")
-        }
-
-        let indices: Vec<usize> = vars.iter().map(|x| other.vars.get_index_of(x).unwrap()).collect();
-
-        let mut dual_: Array1<f64> = Array::zeros(other.vars.len());
-        if dual.is_empty() {
-            for i in indices.iter(){
-                dual_[*i] = 1_f64;
-            }
-        } else {
-            for (i_, i) in indices.iter().enumerate() {
-                dual_[*i] = dual[i_];
-            }
-        }
-
-        let mut dual2_: Array2<f64> = Array::zeros((other.vars.len(), other.vars.len()));
-        if !dual2.is_empty() {
-            let temp_: Array2<f64> = Array::from_vec(dual2)
-                                       .into_shape((vars.len(), vars.len()))
-                                       .expect("`dual2` was not a vector of correct length");
-            for (i_, i) in indices.iter().enumerate() {
-                for (j_, j) in indices.iter().enumerate(){
-                    dual2_[[*i,*j]] = temp_[[i_, j_]];
-                }
-            }
-        }
-
-        Ok(Self {
-            real,
-            vars: Arc::clone(&other.vars),
-            dual: dual_,
-            dual2: dual2_
-        })
+        Dual2::try_new_from(other, real, vars, dual, dual2)
     }
 
     #[getter]
@@ -340,7 +299,7 @@ impl Dual2 {
     fn __eq__(&self, other: DualsOrF64) -> PyResult<bool> {
         match other {
             DualsOrF64::Dual2(d) => Ok(d.eq(self)),
-            DualsOrF64::F64(f) => Ok(Dual2::new(f, Vec::new(), Vec::new(), Vec::new()).eq(self)),
+            DualsOrF64::F64(f) => Ok(Dual2::new(f, Vec::new()).eq(self)),
             DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
