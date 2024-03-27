@@ -26,6 +26,8 @@ On "release branch":
    DEVELOPMENT to False.
 
 4) Commit and Push the branch.
+5) Run `cargo test --lib --no-default-features`
+6) Change the Cargo.toml file for abi3-py39 features.
 
 Build:
 $ pip install build twine

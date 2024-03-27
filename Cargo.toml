@@ -22,12 +22,14 @@ auto_ops = "0.3.0"
 numpy = "0.20.0"
 itertools = "0.12.1"
 
+# --- This section should be live in development to use `cargo test --lib --no-default-features`
 #[dependencies.pyo3]
 #version = "0.20.3"
 #
 #[features]
 #extension-module = ["pyo3/extension-module"]
 #default = ["extension-module"]
+# -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
