@@ -47,4 +47,7 @@ PPSplineF64
 
    .. rubric:: Methods Summary
 
+   .. include:: rateslib.splines.PPSplineF64.bsplev.rst
+   .. include:: rateslib.splines.PPSplineF64.bspldnev.rst
+   .. include:: rateslib.splines.PPSplineF64.bsplmatrix.rst
    .. include:: rateslib.splines.PPSplineF64.csolve.rst
