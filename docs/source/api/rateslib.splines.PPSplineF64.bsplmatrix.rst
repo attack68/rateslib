@@ -20,7 +20,7 @@
 
    :rtype: ndarray
 
-   .. rubic:: Notes
+   .. rubric:: Notes
 
    The spline collocation matrix is defined as,
 

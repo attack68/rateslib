@@ -51,3 +51,7 @@ PPSplineF64
    .. include:: rateslib.splines.PPSplineF64.bspldnev.rst
    .. include:: rateslib.splines.PPSplineF64.bsplmatrix.rst
    .. include:: rateslib.splines.PPSplineF64.csolve.rst
+   .. include:: rateslib.splines.PPSplineF64.ppev.rst
+   .. include:: rateslib.splines.PPSplineF64.ppev_single.rst
+   .. include:: rateslib.splines.PPSplineF64.ppdnev.rst
+   .. include:: rateslib.splines.PPSplineF64.ppdnev_single.rst

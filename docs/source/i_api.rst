@@ -81,9 +81,28 @@ Highlighted private functions
 
 Piecewise Polynomial Splines
 ----------------------------
+
 .. automodapi:: rateslib.splines
    :no-heading:
    :no-inheritance-diagram:
+
+Classes
+*******
+
+.. autosummary::
+   ~rateslib.splines.PPSplineF64
+   ~rateslib.splines.PPSplineDual
+   ~rateslib.splines.PPSplineDual2
+
+.. toctree::
+    :maxdepth: 0
+    :titlesonly:
+    :hidden:
+
+    api/rateslib.splines.PPSplineF64.rst
+    api/rateslib.splines.PPSplineDual.rst
+    api/rateslib.splines.PPSplineDual2.rst
+
 
 Dual (for AD)
 --------------
@@ -128,11 +147,14 @@ Curves
    :skip: Any
    :skip: CustomBusinessDay
    :skip: Dual
-   :skip: PPSpline
+   :skip: PPSplineF64
+   :skip: PPSplineDual
+   :skip: PPSplineDual2
    :skip: datetime
    :skip: timedelta
    :skip: Holiday
    :skip: comb
+   :skip: index_left_f64
 
 Class Inheritance Diagram
 **************************
