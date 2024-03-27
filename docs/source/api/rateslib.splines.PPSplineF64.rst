@@ -43,7 +43,7 @@ PPSplineF64
 
    .. rubric:: Examples
 
-   See LINK.
+   See :ref:`splines in user guide <splines-doc>`.
 
    .. rubric:: Methods Summary
 
