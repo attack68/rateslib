@@ -333,7 +333,7 @@ class PPSpline:
             B_ji[-1, i] = bspldnev_single(tau[-1], i, self.k, self.t, right_n)
         return B_ji
 
-    def csolve(self, tau, y, left_n, right_n, allow_lsq=False):
+    def csolve(self, tau, y, left_n, right_n, allow_lsq=False, **kwargs):
         """
         Evaluates and sets the b-spline coefficients, `c`, that parametrise the pp.
 
@@ -356,6 +356,8 @@ class PPSpline:
             If the number of data sites is greater than the dimension of the pp spline
             this setting allows the coefficients to be solved as a least squares
             problem rather than raising dimensionality exceptions.
+        kwargs : dict
+            Additional keyword args passed to the `dual_solve` linear algebra function.
 
         Returns
         -------
@@ -387,7 +389,7 @@ class PPSpline:
             )
         y = np.asarray(y)
         B_ji = self.bsplmatrix(tau, left_n, right_n)
-        c = dual_solve(B_ji, y[:, np.newaxis], allow_lsq=allow_lsq)
+        c = dual_solve(B_ji, y[:, np.newaxis], allow_lsq=allow_lsq, **kwargs)
         self.c = c[:, 0]
         return None
 

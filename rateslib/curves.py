@@ -34,6 +34,7 @@ from rateslib.calendars import (
     CalInput,
     _DCF1d,
 )
+from rateslibrs import index_left_f64
 
 from typing import TYPE_CHECKING
 
@@ -169,7 +170,7 @@ class _Serialize:
 
         self.ad = order
         self.nodes = {
-            k: set_order_convert(v, order, f"{self.id}{i}")
+            k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self.csolve()
@@ -313,6 +314,7 @@ class Curve(_Serialize):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
+        self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
         self.n = len(self.node_dates)
         for idx in range(1, self.n):
             if self.node_dates[idx-1] >= self.node_dates[idx]:
@@ -344,7 +346,7 @@ class Curve(_Serialize):
         self.c_init = False if c is NoInput.blank else True
         if t is not NoInput.blank:
             self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
-            self.spline = PPSplineF64(4, self.t_posix, c)
+            self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
@@ -356,10 +358,11 @@ class Curve(_Serialize):
         self._set_ad_order(order=ad)
 
     def __getitem__(self, date: datetime):
+        date_posix = date.replace(tzinfo=UTC).timestamp()
         if self.spline is None or date <= self.t[0]:
             if isinstance(self.interpolation, Callable):
                 return self.interpolation(date, self.nodes.copy())
-            return self._local_interp_(date)
+            return self._local_interp_(date_posix)
         else:
             if date > self.t[-1]:
                 warnings.warn(
@@ -368,26 +371,26 @@ class Curve(_Serialize):
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            date_posix = date.replace(tzinfo=UTC).timestamp()
             return self._op_exp(self.spline.ppev_single(date_posix))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _local_interp_(self, date: datetime):
-        if date < self.node_dates[0]:
+    def _local_interp_(self, date_posix: float):
+        if date_posix < self.node_dates_posix[0]:
             return 0  # then date is in the past and DF is zero
-        l_index = index_left(self.node_dates, self.n, date)
+        l_index = index_left_f64(self.node_dates_posix, date_posix, None)
+        node_left_posix, node_right_posix = self.node_dates_posix[l_index], self.node_dates_posix[l_index + 1]
         node_left, node_right = self.node_dates[l_index], self.node_dates[l_index + 1]
         return interpolate(
-            date,
-            node_left,
+            date_posix,
+            node_left_posix,
             self.nodes[node_left],
-            node_right,
+            node_right_posix,
             self.nodes[node_right],
             self.interpolation,
-            self.node_dates[0],
+            self.node_dates_posix[0],
         )
 
     # def plot(self, *args, **kwargs):
@@ -556,7 +559,7 @@ class Curve(_Serialize):
         else:
             Spline = PPSplineDual2
 
-        t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        t_posix = self.t_posix.copy()
         tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
@@ -587,7 +590,7 @@ class Curve(_Serialize):
             )
 
         self.spline = Spline(4, t_posix, None)
-        self.spline.csolve(np.array(tau_posix), np.array(y), left_n, right_n)
+        self.spline.csolve(tau_posix, y, left_n, right_n, False)
         return None
 
     def shift(
@@ -2707,14 +2710,15 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
         op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)
     elif interpolation == "linear_zero_rate":
         # convention not used here since we just determine linear rate interpolation
-        y_2 = dual_log(y_2) / ((start - x_2) / timedelta(days=365))
+        # 86400. scalar relates to using posix timestamp conversion
+        y_2 = dual_log(y_2) / ((start - x_2) / (365. * 86400.))
         if start == x_1:
             y_1 = y_2
         else:
-            y_1 = dual_log(y_1) / ((start - x_1) / timedelta(days=365))
+            y_1 = dual_log(y_1) / ((start - x_1) / (365. * 86400.))
 
         def op(z):
-            return dual_exp((start - x) / timedelta(days=365) * z)
+            return dual_exp((start - x) / (365. * 86400.) * z)
 
     elif interpolation == "flat_forward":
         if x >= x_2:

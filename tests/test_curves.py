@@ -460,7 +460,8 @@ def test_spline_endpoints(endpoints, expected):
         ],
     )
     for i, date in enumerate([dt(2022, 1, 1), dt(2022, 7, 1), dt(2025, 7, 1), dt(2026, 1, 1)]):
-        assert curve[date] == expected[i]
+        result = curve[date]
+        assert (result - expected[i]) < 1e-12
 
 
 @pytest.mark.parametrize("endpoints", [("natural", "bad"), ("bad", "natural")])

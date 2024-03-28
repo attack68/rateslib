@@ -22,7 +22,6 @@ Summary
 Classes
 -------
 .. autosummary::
-   rateslib.dual.DualBase
    rateslib.dual.Dual
    rateslib.dual.Dual2
 
@@ -64,7 +63,7 @@ to use :class:`~rateslib.dual.Dual`:
 
 .. ipython:: python
 
-   x, y, z = Dual(2, "x"), Dual(1, "y"), Dual(2, "z")
+   x, y, z = Dual(2, ["x"], []), Dual(1, ["y"], []), Dual(2, ["z"], [])
    func(x, y, z)
    gradient(func(x, y, z), ["x", "y", "z"])
 
@@ -75,7 +74,7 @@ For extracting second derivatives we must use :class:`~rateslib.dual.Dual2`:
 
 .. ipython:: python
 
-    x, y, z = Dual2(2, "x"), Dual2(1, "y"), Dual2(2, "z")
+    x, y, z = Dual2(2, ["x"], [], []), Dual2(1, ["y"], [], []), Dual2(2, ["z"], [], [])
     func(x, y, z)
     gradient(func(x, y, z), ["x", "y", "z"])
     gradient(func(x, y, z), ["x", "y"], order=2)
@@ -93,8 +92,8 @@ at those points expressed in the following :class:`~rateslib.dual.Dual2` numbers
 
 .. ipython:: python
 
-    g = Dual2(4, "x", [4], [[1]])  # g(x=2)
-    h = Dual2(16, "y", [8], [[1]])  # h(y=4)
+    g = Dual2(4, ["x"], [4], [1])  # g(x=2)
+    h = Dual2(16, ["y"], [8], [1])  # h(y=4)
 
 If we wish to multiply these two functions and evaluate the second order derivatives
 at (2, 4) we can simply do,
@@ -184,9 +183,9 @@ operations work as expected.
 .. ipython:: python
 
     np_arr = np.array([1, 2])
-    Dual(3, "x") * np_arr
-    np_arr / Dual(4, "y")
-    Dual(4, "x") ** np_arr
+    Dual(3, ["x"], []) * np_arr
+    np_arr / Dual(4, ["y"], [])
+    Dual(4, ["x"], []) ** np_arr
 
 Elementwise Operations
 ----------------------
@@ -195,8 +194,8 @@ Simple operations on tensors also work as expected.
 
 .. ipython:: python
 
-    x = np.array([Dual(1, "x"), Dual(2, "y")])
-    y = np.array([Dual(3, "x"), Dual(4, "y")])
+    x = np.array([Dual(1, ["x"], []), Dual(2, ["y"], [])])
+    y = np.array([Dual(3, ["x"], []), Dual(4, ["y"], [])])
     x + y
     x * y
     x / y
@@ -226,9 +225,9 @@ using the Doolittle algorithm with partial pivoting.
 
    A = np.array([
        [1, 0],
-       [Dual(2, "z"), 1]
+       [Dual(2, ["z"], []), 1]
    ], dtype="object")
-   b = np.array([Dual(2, "y"), Dual(5, ["x", "y"])])[:, np.newaxis]
+   b = np.array([Dual(2, ["y"], []), Dual(5, ["x", "y"], [])])[:, np.newaxis]
    x = dual_solve(A, b)
    x
    np.matmul(A, x)

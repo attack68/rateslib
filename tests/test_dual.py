@@ -4,6 +4,7 @@ import numpy as np
 from packaging import version
 
 import context
+
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -11,9 +12,14 @@ from rateslib.dual import (
     dual_log,
     dual_solve,
     set_order,
+    gradient,
+    DUAL_CORE_PY,
+)
+
+# Python Dual implementation
+from rateslib.dual.dual import (
     _plu_decomp,
     _pivot_matrix,
-    gradient,
 )
 
 
@@ -105,6 +111,7 @@ def test_dual_repr(x_1, y_2):
     assert result == "<Dual2: 1.000000, (v0, v1), [1.0, 2.0], [[...]]>"
 
 
+@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual does not format string in this way.")
 def test_dual_str(x_1, y_2):
     result = x_1.__str__()
     assert result == " val = 1.00000000\n  dv0 = 1.000000\n  dv1 = 2.000000\n"
@@ -614,12 +621,12 @@ def test_keep_manifold_gradient():
     du2 = Dual2(
         10,
         ["x", "y", "z"],
-        dual=np.array([1, 2, 3]),
-        dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]),
+        dual=[1, 2, 3],
+        dual2=[2, 3, 4, 3, 4, 5, 4, 5, 6],
     )
     result = gradient(du2, ["x", "z"], 1, keep_manifold=True)
     expected = np.array(
-        [Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))]
+        [Dual2(1, ["x", "z"], [4, 8], []), Dual2(3, ["x", "z"], [8, 12], [])]
     )
     assertions = result == expected
     assert all(assertions)
@@ -647,8 +654,8 @@ def test_pivoting():
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 0, 0, 1],
-            [0, 0, 0, 1, 0],
             [0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 0],
         ]
     )
     assert np.all(result == expected)
@@ -658,8 +665,8 @@ def test_pivoting():
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 0, 0, 1],
-            [0, 0, 1, 0, 0],
             [0, 0, 0, 1, 0],
+            [0, 0, 1, 0, 0],
         ]
     )
     assert np.all(result == expected)
@@ -710,7 +717,7 @@ def test_solve(A, b):
 def test_solve_lsqrs():
     A = np.array([[0, 1], [1, 1], [2, 1], [3, 1]])
     b = np.array([[-1, 0.2, 0.9, 2.1]]).T
-    result = dual_solve(A, b, allow_lsq=True)
+    result = dual_solve(A, b, allow_lsq=True, types=(float, float))
     assert abs(result[0, 0] - 1.0) < 1e-9
     assert abs(result[1, 0] + 0.95) < 1e-9
 
@@ -720,7 +727,7 @@ def test_solve_dual():
     b = np.array([Dual(2, ["x"], np.array([1])), Dual(5, ["x", "y"], np.array([1, 1]))])[
         :, np.newaxis
     ]
-    x = dual_solve(A, b)
+    x = dual_solve(A, b, types=(float, Dual))
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
@@ -733,7 +740,7 @@ def test_solve_dual2():
     b = np.array([Dual2(2, ["x"], [1], []), Dual2(5, ["x", "y"], [1, 1], [])])[
         :, np.newaxis
     ]
-    x = dual_solve(A, b)
+    x = dual_solve(A, b, types=(Dual2, Dual2))
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
@@ -750,6 +757,7 @@ def test_sparse_solve(A_sparse):
     assert all(assertions)
 
 
+@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual has not implemented Multi-Dim Solve")
 def test_multi_dim_solve():
     A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
     b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])
@@ -890,8 +898,8 @@ def test_numpy_einsum_works(y_2, y_1):
     ],
 )
 def test_numpy_dtypes(z, dtype):
-    np.array([1], dtype=dtype) + z
-    z + np.array([1], dtype=dtype)
+    np.array([1, 2], dtype=dtype) + z
+    z + np.array([1, 2], dtype=dtype)
 
     z + dtype(2)
     dtype(2) + z

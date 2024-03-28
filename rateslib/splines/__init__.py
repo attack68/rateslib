@@ -1,15 +1,19 @@
+SPLINE_CORE_PY = False
 
-# These imports will be used to transition in case of using Rust pyo3 bindings.
-
-SPLINES_CORE_PY = True
-
-if SPLINES_CORE_PY:
+if SPLINE_CORE_PY:
     from rateslib.splines.splines import (
-        PPSpline,
-        bsplev_single,
-        bspldnev_single,
+        bsplev_single, bspldnev_single, PPSpline
     )
-
     PPSplineF64 = PPSpline
     PPSplineDual = PPSpline
     PPSplineDual2 = PPSpline
+else:
+    from rateslib.splines.splinesrs import (
+        PPSplineF64,
+        PPSplineDual,
+        PPSplineDual2,
+        bsplev_single,
+        bspldnev_single,
+    )
+    # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
+    from rateslib.splines.splinesrs import PPSplineF64 as PPSpline
