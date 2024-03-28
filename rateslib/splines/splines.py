@@ -239,12 +239,12 @@ class PPSpline:
         for attr in ["k", "n"]:
             if getattr(self, attr, None) != getattr(other, attr, None):
                 return False
-        if self.c is None and other.c is None:
-            return True
-        elif (self.c is None and other.c is not None) or (self.c is not None and other.c is None):
+        if self.c is None or other.c is None:
             return False
-        elif not all(self.c == other.c):
-            return False
+        else:
+            for i in range(len(self.c)):
+                if self.c[i] != other.c[i]:
+                    return False
         return True
 
     def bsplev(self, x, i, otypes=["float64"]):
