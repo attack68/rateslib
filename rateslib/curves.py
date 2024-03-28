@@ -559,7 +559,7 @@ class Curve(_Serialize):
         else:
             Spline = PPSplineDual2
 
-        t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        t_posix = self.t_posix.copy()
         tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
@@ -590,7 +590,7 @@ class Curve(_Serialize):
             )
 
         self.spline = Spline(4, t_posix, None)
-        self.spline.csolve(np.array(tau_posix), np.array(y), left_n, right_n, False)
+        self.spline.csolve(tau_posix, y, left_n, right_n, False)
         return None
 
     def shift(

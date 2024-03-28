@@ -8,10 +8,12 @@ if SPLINE_CORE_PY:
     PPSplineDual = PPSpline
     PPSplineDual2 = PPSpline
 else:
-    from rateslibrs import (
+    from rateslib.splines.splinesrs import (
         PPSplineF64,
         PPSplineDual,
         PPSplineDual2,
         bsplev_single,
         bspldnev_single,
     )
+    # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
+    from rateslib.splines.splinesrs import PPSplineF64 as PPSpline

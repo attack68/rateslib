@@ -8,14 +8,14 @@ API Reference
    first function indexed alphabetically by automodapi.
 
 Indices and tables
-------------------
+===================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
 
 Notation
---------
+=========
 
 .. math::
 
@@ -31,7 +31,7 @@ Notation
    I(m) =& \text{Index ratio applicable at maturity,} \; m \\
 
 Defaults
----------
+=========
 
 .. automodapi:: rateslib.default
    :no-heading:
@@ -41,7 +41,7 @@ Defaults
    :skip: Enum
 
 Calendars
----------
+==========
 
 .. automodapi:: rateslib.calendars
    :no-heading:
@@ -52,7 +52,7 @@ Calendars
    :skip: sunday_to_monday
 
 Scheduling
-----------
+===========
 
 .. automodapi:: rateslib.scheduling
    :no-heading:
@@ -67,7 +67,7 @@ Scheduling
    :skip: NoInput
 
 Highlighted private functions
-*****************************
+-----------------------------
 
 .. autosummary::
    rateslib.scheduling._check_regular_swap
@@ -80,19 +80,49 @@ Highlighted private functions
     api/rateslib.scheduling._infer_stub_date.rst
 
 Piecewise Polynomial Splines
-----------------------------
+=============================
+
 .. automodapi:: rateslib.splines
    :no-heading:
    :no-inheritance-diagram:
 
+Functions
+^^^^^^^^^^
+
+.. autosummary::
+   ~rateslib.splines.bsplev_single
+   ~rateslib.splines.bspldnev_single
+
+
+Classes
+^^^^^^^^
+
+.. autosummary::
+   ~rateslib.splines.PPSplineF64
+   ~rateslib.splines.PPSplineDual
+   ~rateslib.splines.PPSplineDual2
+
+
+.. toctree::
+    :maxdepth: 0
+    :titlesonly:
+    :hidden:
+
+    api/rateslib.splines.PPSplineF64.rst
+    api/rateslib.splines.PPSplineDual.rst
+    api/rateslib.splines.PPSplineDual2.rst
+    api/rateslib.splines.bspldnev_single.rst
+    api/rateslib.splines.bsplev_single.rst
+
+
 Dual (for AD)
---------------
+==============
 
 .. automodapi:: rateslib.dual
    :no-heading:
 
 Classes
-*******
+^^^^^^^^
 
 .. autosummary::
    ~rateslib.dual.Dual
@@ -108,7 +138,7 @@ Classes
 
 
 Curves
-------
+=======
 
 .. automodapi:: rateslib.curves
    :no-heading:
@@ -128,20 +158,23 @@ Curves
    :skip: Any
    :skip: CustomBusinessDay
    :skip: Dual
-   :skip: PPSpline
+   :skip: PPSplineF64
+   :skip: PPSplineDual
+   :skip: PPSplineDual2
    :skip: datetime
    :skip: timedelta
    :skip: Holiday
    :skip: comb
+   :skip: index_left_f64
 
 Class Inheritance Diagram
-**************************
+--------------------------
 
 .. automod-diagram:: rateslib.curves
    :parts: 1
 
 FX
----
+===
 
 .. automodapi:: rateslib.fx
    :no-heading:
@@ -166,7 +199,7 @@ FX
    :skip: gradient
 
 Periods
--------
+========
 
 Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
@@ -188,7 +221,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: comb
 
 Legs
-----
+=====
 
 Link to the :ref:`Legs<legs-doc>` section in the user guide.
 
@@ -215,7 +248,7 @@ Link to the :ref:`Legs<legs-doc>` section in the user guide.
    :skip: IndexMixin
 
 Instruments
------------
+============
 
 .. automodapi:: rateslib.instruments
    :no-heading:
@@ -259,7 +292,7 @@ Instruments
    :skip: timedelta
 
 Solver
-------
+=======
 
 .. automodapi:: rateslib.solver
    :no-heading:
@@ -277,7 +310,7 @@ Solver
    :skip: ProxyCurve
 
 Cookbook
---------
+=========
 
 .. toctree::
     :titlesonly:

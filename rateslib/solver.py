@@ -1387,7 +1387,7 @@ class Solver(Gradients):
             self._reset_properties_()
             self._update_fx()
             if self.callback is not NoInput.blank:
-                self.callback(self)
+                self.callback(self, i, v_1)
         print(
             f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
             f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"

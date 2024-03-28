@@ -1,6 +1,6 @@
 [package]
 name = "rateslibrs"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 
 [lib]
@@ -13,18 +13,23 @@ crate-type = ["lib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#pyo3 = { version = "0.20.2", features = ["extension-module"] }
-pyo3 = { version = "0.20.2", features = ["abi3-py39", "extension-module", "chrono"] }
-chrono = "0.4.0"
+#pyo3 = { version = "0.20.3", features = ["abi3-py39", "extension-module"] }
+#chrono = "0.4.0"
 ndarray = "0.15.6"
-# ndarray-linalg = { version = "0.16.0", features = ["intel-mkl-static"] }
 indexmap = "1.9.3"
-# ndarray_einsum_beta = "0.7.0"
 num-traits = "0.2.15"
 auto_ops = "0.3.0"
-# nalgebra = "*"
 numpy = "0.20.0"
 itertools = "0.12.1"
+
+# --- This section should be live in development to use `cargo test --lib --no-default-features`
+[dependencies.pyo3]
+version = "0.20.3"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+# -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
 [dev-dependencies]
 criterion = { version = "0.4", features = ["html_reports"] }
