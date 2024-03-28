@@ -54,7 +54,7 @@ macro_rules! create_interface {
                 left_n: usize,
                 right_n: usize,
                 allow_lsq: bool
-            ) {
+            ) -> PyResult<()> {
                 self.inner.csolve(&tau, &y, left_n, right_n, allow_lsq)
             }
 
