@@ -7,7 +7,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
-use ndarray::{Array1, Array2, Array};
+
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -61,7 +61,7 @@ impl Dual {
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
+    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<&PyArray2<f64>> {
         Err(PyValueError::new_err("`Dual` variable cannot possess `dual2` attribute."))
     }
 
@@ -71,7 +71,7 @@ impl Dual {
     }
 
     #[pyo3(name = "grad2")]
-    fn grad2<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
+    fn grad2<'py>(&'py self, _py: Python<'py>, _vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
         Err(PyValueError::new_err("Cannot evaluate second order derivative on a Dual."))
     }
 
@@ -205,7 +205,7 @@ impl Dual {
         }
         match power {
             DualsOrF64::F64(f) => Ok(self.clone().pow(f)),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent.")),
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent.")),
             DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent."))
         }
     }
@@ -276,7 +276,7 @@ impl Dual2 {
     }
 
     #[pyo3(name = "grad1_manifold")]
-    fn grad1_manifold_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<Vec<Dual2>> {
+    fn grad1_manifold_py<'py>(&'py self, _py: Python<'py>, vars: Vec<String>) -> PyResult<Vec<Dual2>> {
         let out = self.gradient1_manifold(vars);
         Ok(out.into_raw_vec())
     }
@@ -304,7 +304,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(d.eq(self)),
             DualsOrF64::F64(f) => Ok(Dual2::new(f, Vec::new()).eq(self)),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
@@ -312,7 +312,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self < &d),
             DualsOrF64::F64(f) => Ok(self < &f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
@@ -320,7 +320,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self <= &d),
             DualsOrF64::F64(f) => Ok(self <= &f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
@@ -328,7 +328,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self > &d),
             DualsOrF64::F64(f) => Ok(self > &f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
@@ -336,7 +336,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self >= &d),
             DualsOrF64::F64(f) => Ok(self >= &f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Cannot compare Dual2 with incompatible type (Dual)."))
         }
     }
 
@@ -348,7 +348,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self + d),
             DualsOrF64::F64(f) => Ok(self + f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -356,7 +356,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self + d),
             DualsOrF64::F64(f) => Ok(self + f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -364,7 +364,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self - d),
             DualsOrF64::F64(f) => Ok(self - f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -372,7 +372,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(d - self),
             DualsOrF64::F64(f) => Ok(f - self),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -380,7 +380,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self * d),
             DualsOrF64::F64(f) => Ok(self * f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -388,7 +388,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(d * self),
             DualsOrF64::F64(f) => Ok(f * self),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -396,7 +396,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(self / d),
             DualsOrF64::F64(f) => Ok(self / f),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -404,7 +404,7 @@ impl Dual2 {
         match other {
             DualsOrF64::Dual2(d) => Ok(d / self),
             DualsOrF64::F64(f) => Ok(f / self),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Dual2 operation with incompatible type (Dual)."))
         }
     }
 
@@ -414,8 +414,8 @@ impl Dual2 {
         }
         match power {
             DualsOrF64::F64(f) => Ok(self.clone().pow(f)),
-            DualsOrF64::Dual(d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent.")),
-            DualsOrF64::Dual2(d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent."))
+            DualsOrF64::Dual(_d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent.")),
+            DualsOrF64::Dual2(_d) => Err(PyTypeError::new_err("Power operation not defined with Dual type exponent."))
         }
     }
 

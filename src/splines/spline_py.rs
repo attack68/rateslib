@@ -4,8 +4,8 @@ use crate::dual::dual2::Dual2;
 use std::cmp::PartialEq;
 
 use pyo3::prelude::*;
-use pyo3::types::PyType;
-use pyo3::exceptions::{PyTypeError, PyValueError};
+
+
 use numpy::{PyArray1, ToPyArray};
 use ndarray::Array1;
 

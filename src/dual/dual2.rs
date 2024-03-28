@@ -9,7 +9,7 @@ use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs, FieldOps};
 use crate::dual::linalg_f64::fouter11_;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
-use ndarray::{Array, Array1, Array2, Axis};
+use ndarray::{Array, Array1, Array2};
 use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
@@ -590,7 +590,6 @@ impl PartialOrd<Dual2> for f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual1::Dual;
     use ndarray::arr2;
 
     #[test]

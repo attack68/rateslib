@@ -1,7 +1,4 @@
 //! This is the documentation for rateslib-rs
-#[allow(dead_code)]
-#[allow(unused_imports)]
-#[allow(unused_variables)]
 
 
 #[cfg(test)]
