@@ -1,5 +1,7 @@
 .. _whatsnew-doc:
 
+.. role:: red
+
 **************
 Release Notes
 **************
@@ -45,7 +47,7 @@ email contact through **rateslib@gmail.com**.
      - no ETA
 
 
-1.1.0 (Not released)
+1.1.0 (20th Mar 2024)
 **********************
 
 .. list-table::
@@ -54,9 +56,30 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Automatic Differentiation
+     - :red:`Breaking Change!` Dual number `gradient` method is no longer calculable on the object.
+       Instead of `dual.gradient(vars)` use the following call `gradient(dual, vars)`, using the
+       provided function :meth:`rateslib.dual.gradient`.
    * - Instruments
      - Added argument ``metric`` to :class:`~rateslib.instruments.Value` so that specific *Curve* values derived
        as calculated figures (e.g. continuously compounded zero rate, or index value) can be calibrated by *Solvers*.
+   * - Bug
+     - :meth:`~rateslib.solver.Solver.delta` and :meth:`~rateslib.solver.Solver.gamma` now work directly with
+       given ``npv`` when ``fx`` is not provided.
+   * - Bug
+     - :meth:`~rateslib.periods.FloatPeriod.npv` now returns 0.0 for historical payment dates correctly when
+       given the ``local`` argument.
+   * - Bug
+     - :meth:`~rateslib.periods.IndexCashflow.cashflows` no longer prints dual numbers to tables.
+   * - Performance
+     - Curve iterations in the :class:`~rateslib.solver.Solver` were amended in the way they handle
+       :class:`~rateslib.dual.Dual` variables in order to reduce upcasting and increase the speed of basic operations.
+   * - Performance
+     - :class:`~rateslib.splines.bsplev_single` introduced a short circuit based on the positivity and support
+       property to greatly improve time needed to solve curves with splines.
+   * - Performance
+     - :class:`~rateslib.curves.Curve` with splines are remapped to use float posix timestamps rather than datetimes
+       for building splines. Operations with floats are much faster than their equivalents using timedeltas.
 
 
 1.0.0 (1st Feb 2024)

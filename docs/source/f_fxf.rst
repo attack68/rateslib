@@ -243,7 +243,7 @@ immediate cash position.
 
 .. ipython:: python
 
-   positions = fxf.positions(Dual(1000, "fx_eurusd", [1000]), base="usd")
+   positions = fxf.positions(Dual(1000, ["fx_eurusd"], [1000]), base="usd")
    positions
 
 Provided a one-to-one correspondence exists, the positions can be accurately converted

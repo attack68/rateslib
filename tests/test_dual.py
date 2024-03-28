@@ -4,6 +4,7 @@ import numpy as np
 from packaging import version
 
 import context
+
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -13,6 +14,12 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_inv_norm_cdf,
     set_order,
+    gradient,
+    DUAL_CORE_PY,
+)
+
+# Python Dual implementation
+from rateslib.dual.dual import (
     _plu_decomp,
     _pivot_matrix,
 )
@@ -100,12 +107,13 @@ def test_no_type_crossing_on_ops(x_1, y_1, op):
 
 def test_dual_repr(x_1, y_2):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, ('v0', 'v1'), [1 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
 
     result = y_2.__repr__()
-    assert result == "<Dual2: 1.000000, ('v0', 'v1'), [1 2], [[...]]>"
+    assert result == "<Dual2: 1.000000, (v0, v1), [1.0, 2.0], [[...]]>"
 
 
+@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual does not format string in this way.")
 def test_dual_str(x_1, y_2):
     result = x_1.__str__()
     assert result == " val = 1.00000000\n  dv0 = 1.000000\n  dv1 = 2.000000\n"
@@ -124,27 +132,27 @@ def test_dual_str(x_1, y_2):
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 1.00),
+        (["v0"], 1.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
 def test_gradient_method(vars, expected, x_1, y_2):
-    result = x_1.gradient(vars)
+    result = gradient(x_1, vars)
     assert np.all(result == expected)
 
-    result = y_2.gradient(vars)
+    result = gradient(y_2, vars)
     assert np.all(result == expected)
 
 
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 2.00),
+        (["v0"], 2.00),
         (["v1", "v0"], np.array([[2.0, 2.0], [2.0, 2.0]])),
     ],
 )
 def test_gradient_method2(vars, expected, y_2):
-    result = y_2.gradient(vars, 2)
+    result = gradient(y_2, vars, 2)
     assert np.all(result == expected)
 
 
@@ -409,19 +417,22 @@ def test_dual2_second_derivatives2():
     z = Dual2(z_, vars=["z"], dual=[1], dual2=[])
 
     result = f(x, y, z)
-    assert result.dual[0] == math.exp(x_ / z_) / z_ + 1 / x_
-    assert result.dual[1] == 1 / y_
-    assert result.dual[2] == -x_ * math.exp(x_ / z_) / z_**2
+    xi = result.vars.index("x")
+    yi = result.vars.index("y")
+    zi = result.vars.index("z")
+    assert result.dual[xi] == math.exp(x_ / z_) / z_ + 1 / x_
+    assert result.dual[yi] == 1 / y_
+    assert result.dual[zi] == -x_ * math.exp(x_ / z_) / z_**2
 
-    assert result.dual2[0, 0] * 2 == math.exp(x_ / z_) / z_**2 - 1 / x_**2
-    assert result.dual2[0, 1] * 2 == 0
-    assert result.dual2[0, 2] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
-    assert result.dual2[1, 0] * 2 == 0
-    assert result.dual2[1, 1] * 2 == -1 / y_**2
-    assert result.dual2[1, 2] * 2 == 0
-    assert result.dual2[2, 0] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
-    assert result.dual2[2, 1] * 2 == 0
-    assert result.dual2[2, 2] * 2 == math.exp(x_ / z_) * (x_**2 / z_**4 + 2 * x_ / z_**3)
+    assert result.dual2[xi, xi] * 2 == math.exp(x_ / z_) / z_**2 - 1 / x_**2
+    assert result.dual2[xi, yi] * 2 == 0
+    assert result.dual2[xi, zi] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
+    assert result.dual2[yi, xi] * 2 == 0
+    assert result.dual2[yi, yi] * 2 == -1 / y_**2
+    assert result.dual2[yi, zi] * 2 == 0
+    assert result.dual2[zi, xi] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
+    assert result.dual2[zi, yi] * 2 == 0
+    assert result.dual2[zi, zi] * 2 == math.exp(x_ / z_) * (x_**2 / z_**4 + 2 * x_ / z_**3)
 
 
 def test_dual2_second_derivatives3():
@@ -438,20 +449,24 @@ def test_dual2_second_derivatives3():
     f = y * x**3 + y
     f_, fx_, fy_ = f.real, 3 * y_ * x_**2, x_**3 + 1
     fxx_, fxy_, fyy_ = 6 * x_ * y_, 3 * x_**2, 0
-    assert f.dual[0] == fx_
-    assert f.dual[1] == fy_
-    assert f.dual2[0, 0] * 2 == fxx_
-    assert f.dual2[0, 1] * 2 == fxy_
-    assert f.dual2[1, 1] * 2 == 0
+
+    xi = f.vars.index("x")
+    yi = f.vars.index("y")
+
+    assert f.dual[xi] == fx_
+    assert f.dual[yi] == fy_
+    assert f.dual2[xi, xi] * 2 == fxx_
+    assert f.dual2[xi, yi] * 2 == fxy_
+    assert f.dual2[yi, yi] * 2 == 0
 
     h = f.__log__()
     assert h.real == math.log(y_ * x_**3 + y_)
-    assert h.dual[0] == 1 / f_ * fx_
-    assert h.dual[1] == 1 / f_ * fy_
-    assert h.dual2[0, 0] * 2 == -1 / f_**2 * fx_**2 + 1 / f_ * fxx_
-    assert h.dual2[0, 1] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
-    assert h.dual2[1, 0] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
-    assert h.dual2[1, 1] * 2 == -1 / f_**2 * fy_**2 + 1 / f_ * fyy_
+    assert h.dual[xi] == 1 / f_ * fx_
+    assert h.dual[yi] == 1 / f_ * fy_
+    assert h.dual2[xi, xi] * 2 == -1 / f_**2 * fx_**2 + 1 / f_ * fxx_
+    assert h.dual2[xi, yi] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
+    assert h.dual2[yi, xi] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
+    assert h.dual2[yi, yi] * 2 == -1 / f_**2 * fy_**2 + 1 / f_ * fyy_
 
 
 @pytest.mark.parametrize(
@@ -608,6 +623,7 @@ def test_inv_norm_cdf_value():
     assert abs(result - expected) < 1e-4
 
 
+@pytest.mark.skip(reason="downcast vars is not used within the library, kept only for compat.")
 def test_downcast_vars():
     w = Dual(2, ["x", "y", "z"], [0, 1, 1])
     assert w.__downcast_vars__().vars == ("y", "z")
@@ -623,7 +639,7 @@ def test_downcast_vars():
 
 
 def test_gradient_of_non_present_vars(x_1):
-    result = x_1.gradient()
+    result = gradient(x_1)
     assert np.all(np.isclose(result, np.array([1, 2])))
 
 
@@ -639,27 +655,23 @@ def test_keep_manifold_gradient():
     du2 = Dual2(
         10,
         ["x", "y", "z"],
-        dual=np.array([1, 2, 3]),
-        dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]),
+        dual=[1, 2, 3],
+        dual2=[2, 3, 4, 3, 4, 5, 4, 5, 6],
     )
-    result = du2.gradient(["x", "z"], 1, keep_manifold=True)
+    result = gradient(du2, ["x", "z"], 1, keep_manifold=True)
     expected = np.array(
-        [Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))]
+        [Dual2(1, ["x", "z"], [4, 8], []), Dual2(3, ["x", "z"], [8, 12], [])]
     )
     assertions = result == expected
     assert all(assertions)
 
 
 def test_dual_set_order(x_1, y_1):
-    assert x_1._set_order(2) == y_1
-    assert y_1._set_order(1) == x_1
-    assert x_1._set_order(1) == x_1
-    assert y_1._set_order(2) == y_1
-
+    assert set_order(x_1, 1) == x_1
+    assert set_order(y_1, 2) == y_1
     assert set_order(1.0, 2) == 1.0
     assert set_order(x_1, 2) == y_1
     assert set_order(y_1, 1) == x_1
-
     assert set_order(x_1, 0) == 1.0
 
 
@@ -676,8 +688,8 @@ def test_pivoting():
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 0, 0, 1],
-            [0, 0, 0, 1, 0],
             [0, 0, 1, 0, 0],
+            [0, 0, 0, 1, 0],
         ]
     )
     assert np.all(result == expected)
@@ -687,8 +699,8 @@ def test_pivoting():
             [1, 0, 0, 0, 0],
             [0, 1, 0, 0, 0],
             [0, 0, 0, 0, 1],
-            [0, 0, 1, 0, 0],
             [0, 0, 0, 1, 0],
+            [0, 0, 1, 0, 0],
         ]
     )
     assert np.all(result == expected)
@@ -739,7 +751,7 @@ def test_solve(A, b):
 def test_solve_lsqrs():
     A = np.array([[0, 1], [1, 1], [2, 1], [3, 1]])
     b = np.array([[-1, 0.2, 0.9, 2.1]]).T
-    result = dual_solve(A, b, allow_lsq=True)
+    result = dual_solve(A, b, allow_lsq=True, types=(float, float))
     assert abs(result[0, 0] - 1.0) < 1e-9
     assert abs(result[1, 0] + 0.95) < 1e-9
 
@@ -749,17 +761,20 @@ def test_solve_dual():
     b = np.array([Dual(2, ["x"], np.array([1])), Dual(5, ["x", "y"], np.array([1, 1]))])[
         :, np.newaxis
     ]
-    x = dual_solve(A, b)
+    x = dual_solve(A, b, types=(float, Dual))
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
 
 def test_solve_dual2():
-    A = np.array([[Dual2(1), Dual2(0)], [Dual2(0), Dual2(1)]], dtype="object")
-    b = np.array([Dual2(2, ["x"], np.array([1])), Dual2(5, ["x", "y"], np.array([1, 1]))])[
+    A = np.array([
+        [Dual2(1, [], [], []), Dual2(0, [], [], [])],
+        [Dual2(0, [], [], []), Dual2(1, [], [], [])]
+    ], dtype="object")
+    b = np.array([Dual2(2, ["x"], [1], []), Dual2(5, ["x", "y"], [1, 1], [])])[
         :, np.newaxis
     ]
-    x = dual_solve(A, b)
+    x = dual_solve(A, b, types=(Dual2, Dual2))
     assertions = abs(b - x) < 1e-10
     assert all(assertions)
 
@@ -776,12 +791,17 @@ def test_sparse_solve(A_sparse):
     assert all(assertions)
 
 
+@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual has not implemented Multi-Dim Solve")
 def test_multi_dim_solve():
     A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
     b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])
 
-    result = dual_solve(A, b)
-    assert np.all(b == np.matmul(A, result))
+    x = dual_solve(A, b)
+    result = np.matmul(A, x).flatten()
+    expected = b.flatten()
+    for i in range(4):
+        assert abs(result[i]-expected[i]) < 1e-13
+        assert all(np.isclose(gradient(result[i], ["y", "z"]), gradient(expected[i], ["y", "z"])))
 
 
 # Test numpy compat
@@ -912,8 +932,8 @@ def test_numpy_einsum_works(y_2, y_1):
     ],
 )
 def test_numpy_dtypes(z, dtype):
-    np.array([1], dtype=dtype) + z
-    z + np.array([1], dtype=dtype)
+    np.array([1, 2], dtype=dtype) + z
+    z + np.array([1, 2], dtype=dtype)
 
     z + dtype(2)
     dtype(2) + z

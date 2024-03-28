@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 import context
-from rateslib.splines import PPSpline
+from rateslib.splines import PPSplineF64
 
 
 @pytest.fixture()
@@ -30,7 +30,7 @@ def x():
     ],
 )
 def test_individual_bsplines(t, x, i, expected):
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     result = bs.bsplev(x, i=i)
     assert (result == expected).all()
 
@@ -49,7 +49,7 @@ def test_individual_bsplines(t, x, i, expected):
     ],
 )
 def test_first_derivative_endpoint_support(t, x, i, expected):
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=1)
     assert (result == expected).all()
 
@@ -68,7 +68,7 @@ def test_first_derivative_endpoint_support(t, x, i, expected):
     ],
 )
 def test_second_derivative_endpoint_support(t, x, i, expected):
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=2)
     assert (result == expected).all()
 
@@ -87,13 +87,13 @@ def test_second_derivative_endpoint_support(t, x, i, expected):
     ],
 )
 def test_third_derivative_endpoint_support(t, x, i, expected):
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=3)
     assert (result == expected).all()
 
 
 def test_fourth_derivative_endpoint_support(t, x):
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     expected = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     for i in range(8):
         test = bs.bspldnev(x, i=i, m=4) == expected
@@ -101,8 +101,7 @@ def test_fourth_derivative_endpoint_support(t, x):
 
 
 def test_ppdnev(t):
-    bs = PPSpline(k=4, t=t)
-    bs.c = np.array([1, 2, -1, 2, 1, 1, 2, 2.0])
+    bs = PPSplineF64(k=4, t=t, c=[1, 2, -1, 2, 1, 1, 2, 2.0])
     r1 = bs.ppdnev_single(1.1, 2)
     r2 = bs.ppdnev_single(1.8, 2)
     r3 = bs.ppdnev_single(2.8, 2)
@@ -111,8 +110,7 @@ def test_ppdnev(t):
 
 
 def test_ppev(t):
-    bs = PPSpline(k=4, t=t)
-    bs.c = np.array([1, 2, -1, 2, 1, 1, 2, 2.0])
+    bs = PPSplineF64(k=4, t=t, c=[1, 2, -1, 2, 1, 1, 2, 2.0])
     r1 = bs.ppev_single(1.1)
     r2 = bs.ppev_single(1.8)
     r3 = bs.ppev_single(2.8)
@@ -124,8 +122,8 @@ def test_csolve():
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array([0, 1, 3, 4])
     val = np.array([0, 0, 2, 2])
-    bs = PPSpline(k=4, t=t)
-    bs.csolve(tau, val, 0, 0)  # values solve spline
+    bs = PPSplineF64(k=4, t=t, c=None)
+    bs.csolve(tau, val, 0, 0, False)  # values solve spline
     result = bs.c
     expected = np.array([0.0, -1.11111111111111, 3.11111111111, 2.0], dtype=object)
     for i, res in enumerate(result):
@@ -136,7 +134,7 @@ def test_csolve_lsq():
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array([0, 1, 2, 3, 4])
     val = np.array([0, 0, 1.5, 2, 2])
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     bs.csolve(tau, val, 0, 0, allow_lsq=True)  # values solve spline
     result = bs.c
     expected = np.array([-0.042857, -0.7730158, 3.44920634, 1.9571428], dtype=object)
@@ -156,32 +154,33 @@ def test_csolve_raises(tau, val, allow):
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array(tau)
     val = np.array(val)
-    bs = PPSpline(k=4, t=t)
+    bs = PPSplineF64(k=4, t=t)
     with pytest.raises(ValueError):
         bs.csolve(tau, val, 0, 0, allow_lsq=allow)
 
 
 def test_copy():
-    bs = PPSpline(k=2, t=[1, 1, 2, 3, 3], c=[1, 2, 3])
+    bs = PPSplineF64(k=2, t=[1, 1, 2, 3, 3], c=[1, 2, 3])
     bsc = copy.copy(bs)
     assert id(bs) != id(bsc)
 
 
 def test_spline_equality_type():
-    spline = PPSpline(k=1, t=[1, 2])
+    spline = PPSplineF64(k=1, t=[1, 2])
     assert not "bad" == spline
 
-    spline2 = PPSpline(k=1, t=[1, 2, 3])
+    spline2 = PPSplineF64(k=1, t=[1, 2, 3])
     assert not spline == spline2
 
-    spline3 = PPSpline(k=1, t=[1, 3, 5])
+    spline3 = PPSplineF64(k=1, t=[1, 3, 5])
     assert not spline2 == spline3
 
-    spline4 = PPSpline(k=2, t=[1, 3, 5])
+    spline4 = PPSplineF64(k=2, t=[1, 3, 5])
     assert not spline3 == spline4
 
-    spline5 = PPSpline(k=2, t=[1, 3, 5])
-    assert spline4 == spline5
+    spline5 = PPSplineF64(k=2, t=[1, 3, 5])
+    assert not spline4 == spline5
 
-    spline5.c = np.array([1, 2])
-    assert not spline5 == spline4
+    spline6 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
+    spline7 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
+    assert spline6 == spline7

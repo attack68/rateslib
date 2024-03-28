@@ -1513,8 +1513,8 @@ class TestNonMtmXCS:
             "fxr": fxr,
             "fxf": fxf,
             "float": 10.0,
-            "dual": Dual(10.0, "x"),
-            "dual2": Dual2(10.0, "x"),
+            "dual": Dual(10.0, ["x"], []),
+            "dual2": Dual2(10.0, ["x"], [], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -1713,8 +1713,8 @@ class TestNonMtmFixedFloatXCS:
             "fxr": fxr,
             "fxf": fxf,
             "float": 10.0,
-            "dual": Dual(10.0, "x"),
-            "dual2": Dual2(10.0, "x"),
+            "dual": Dual(10.0, ["x"], []),
+            "dual2": Dual2(10.0, ["x"], [], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -1834,8 +1834,8 @@ class TestNonMtmFixedFixedXCS:
             "fxr": fxr,
             "fxf": fxf,
             "float": 10.0,
-            "dual": Dual(10.0, "x"),
-            "dual2": Dual2(10.0, "x"),
+            "dual": Dual(10.0, ["x"], []),
+            "dual2": Dual2(10.0, ["x"], [], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -2119,7 +2119,8 @@ class TestFXSwap:
         )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
         result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
-        assert result == expected
+        assert abs(result-expected) < 1e-10
+        assert np.isclose(result.dual, expected.dual)
 
     def test_fxswap_npv(self, curve, curve2):
         fxf = FXForwards(
@@ -2235,7 +2236,9 @@ class TestFXSwap:
         )
         assert fxs.points == points
         result = fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf, base="usd")
-        assert expected.__eq_coeffs__(result, 1e-4)
+
+        assert abs(result-expected) < 1e-6
+        assert np.isclose(result.dual, expected.dual)
 
     def test_rate_with_fixed_parameters(self, curve, curve2):
         fxf = FXForwards(

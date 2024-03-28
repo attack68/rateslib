@@ -6,10 +6,11 @@ from itertools import product
 import warnings
 from datetime import timedelta, datetime
 import json
+import math
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.dual import Dual, dual_solve, set_order, DualTypes
+from rateslib.dual import Dual, dual_solve, set_order, DualTypes, gradient
 from rateslib.default import plot
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, ProxyCurve, MultiCsaCurve
@@ -155,18 +156,21 @@ class FXRates:
 
         # solve FX vector in linear system
         A = np.zeros((self.q, self.q), dtype="object")
-        b = np.ones(self.q, dtype="object")
         A[0, 0] = 1.0
+        b = np.zeros(self.q, dtype="object")
+        b[0] = 1.0
         for i, pair in enumerate(self.pairs):
             domestic_idx = self.currencies[pair[:3]]
             foreign_idx = self.currencies[pair[3:]]
             A[i + 1, domestic_idx] = -1.0
             A[i + 1, foreign_idx] = 1 / self.fx_rates[pair]
-            b[i + 1] = 0
         try:
-            x = dual_solve(A, b[:, np.newaxis])[:, 0]
+            x = dual_solve(A, b[:, np.newaxis], types=(Dual, Dual))[:, 0]  # TODO: (Dual, float)
         except ArithmeticError:
             return self._solve_error()
+        if math.isnan(x[0].real):
+            return self._solve_error()
+
         self.fx_vector = x
 
         # solve fx_rates array
@@ -366,7 +370,7 @@ class FXRates:
         .. ipython:: python
 
            fxr = FXRates({"usdnok": 8.0})
-           fxr.positions(Dual(125000, "fx_usdnok", np.array([-15625])), "usd")
+           fxr.positions(Dual(125000, ["fx_usdnok"], [-15625]), "usd")
            fxr.positions(100, base="nok")
 
         """
@@ -376,7 +380,7 @@ class FXRates:
         _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
-                delta = value.gradient([pair])[0]
+                delta = gradient(value, [pair])[0]
                 _ += self._get_positions_from_delta(delta, pair[3:], base)
         return Series(_, index=self.currencies_list)
 
@@ -1193,7 +1197,7 @@ class FXForwards:
 
         """
         if isinstance(value, (float, int)):
-            value = Dual(value)
+            value = Dual(value, [], [])
         base = self.base if base is NoInput.blank else base.lower()
         _ = np.array(
             [0 if ccy != base else float(value) for ccy in self.currencies_list]
@@ -1214,7 +1218,7 @@ class FXForwards:
                 dom_, for_ = pair[3:6], pair[6:9]
                 for fxr in fx_rates:
                     if dom_ in fxr.currencies_list and for_ in fxr.currencies_list:
-                        delta = value.gradient(pair)[0]
+                        delta = gradient(value, [pair])[0]
                         _ = fxr._get_positions_from_delta(delta, pair[3:], base)
                         _ = Series(_, index=fxr.currencies_list, name=fxr.settlement)
                         df = df.add(_.to_frame(), fill_value=0.0)
