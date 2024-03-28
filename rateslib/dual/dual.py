@@ -349,6 +349,17 @@ class Dual2(DualBase):
             self.dual2 / self.real - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2,
         )
 
+    def __norm_cdf__(self):
+        base = NormalDist().cdf(self.real)
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real ** 2)
+        scalar2 = scalar * -self.real
+        return Dual2(
+            base,
+            self.vars,
+            scalar * self.dual,
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
+        )
+
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
@@ -534,6 +545,11 @@ class Dual(DualBase):
     def __log__(self):
         return Dual(math.log(self.real), self.vars, self.dual / self.real)
 
+    def __norm_cdf__(self):
+        base = NormalDist().cdf(self.real)
+        scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * self.real**2)
+        return Dual(base, self.vars, scalar * self.dual)
+
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual = np.zeros(n)
@@ -573,91 +589,6 @@ class Dual(DualBase):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-def dual_log(x, base=None):
-    """
-    Calculate the logarithm of a regular int or float or a dual number.
-
-    Parameters
-    ----------
-    x : int, float, Dual, Dual2
-        Value to calculate exponent of.
-    base : int, float, optional
-        Base of the logarithm. Defaults to e to compute natural logarithm
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    if isinstance(x, (Dual, Dual2)):
-        val = x.__log__()
-        if base is None:
-            return val
-        else:
-            return val * (1 / math.log(base))
-    elif base is None:
-        return math.log(x)
-    else:
-        return math.log(x, base)
-
-
-def dual_norm_cdf(x):
-    """
-    Return the cumulative standard normal distribution for given value.
-
-    Parameters
-    ----------
-    x : float, Dual, Dual2
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    base = NormalDist().cdf(float(x))
-    if isinstance(x, Dual):
-        scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * float(x)**2)
-        return Dual(base, x.vars, scalar * x.dual)
-    elif isinstance(x, Dual2):
-        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * float(x) ** 2)
-        scalar2 = scalar * -float(x)
-        return Dual2(
-            base,
-            x.vars,
-            scalar * x.dual,
-            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
-        )
-    else:
-        return base
-
-
-def dual_inv_norm_cdf(x):
-    """
-    Return the inverse cumulative standard normal distribution for given value.
-
-    Parameters
-    ----------
-    x : float, Dual, Dual2
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    base = NormalDist().inv_cdf(float(x))
-    if isinstance(x, Dual):
-        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
-        return Dual(base, x.vars, scalar * x.dual)
-    elif isinstance(x, Dual2):
-        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
-        scalar2 = base * scalar**2
-        return Dual2(
-            base,
-            x.vars,
-            scalar * x.dual,
-            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
-        )
-    else:
-        return base
 
 
 def _pivot_matrix(A, method=1):

@@ -2491,7 +2491,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_) - premium
             if abs(f_) < 1e-10:
                 break
-            vol_ = Dual(float(vol_ - f_ / f_.gradient("vol")[0]), "vol")
+            vol_ = Dual(float(vol_ - f_ / gradient(f_, "vol")[0]), "vol")
 
         return float(vol_)  # return a float TODO check whether Dual can be returned.
 

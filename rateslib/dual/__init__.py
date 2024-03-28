@@ -2,8 +2,9 @@ from typing import Optional, Union
 import numpy as np
 from functools import partial
 import math
+from statistics import NormalDist
 
-DUAL_CORE_PY = False
+DUAL_CORE_PY = True
 
 if DUAL_CORE_PY:
     from rateslib.dual.dual import (
@@ -188,6 +189,53 @@ def dual_log(x, base=None):
         return math.log(x)
     else:
         return math.log(x, base)
+
+
+def dual_norm_cdf(x):
+    """
+    Return the cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(x, (Dual, Dual2)):
+        return x.__norm_cdf__()
+    else:
+        return NormalDist().cdf(x)
+
+
+def dual_inv_norm_cdf(x):
+    """
+    Return the inverse cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    base = NormalDist().inv_cdf(float(x))
+    if isinstance(x, Dual):
+        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
+        return Dual(base, x.vars, scalar * x.dual)
+    elif isinstance(x, Dual2):
+        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
+        scalar2 = base * scalar**2
+        return Dual2(
+            base,
+            x.vars,
+            scalar * x.dual,
+            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
+        )
+    else:
+        return base
 
 
 def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):

@@ -595,20 +595,20 @@ def test_norm_cdf():
     x = Dual2(1.25, "x")
     value = dual_norm_cdf(x)
     value2 = dual_norm_cdf(x + 0.00001)
-    assert abs(value.gradient("x")[0] - (value2 - value) * 100000) < 1e-5
+    assert abs(gradient(value, "x")[0] - (value2 - value) * 100000) < 1e-5
 
-    second = (value2.gradient("x")[0] - value.gradient("x")[0])*100000
-    assert abs(value.gradient("x", order=2)[0] - second) < 1e-5
+    second = (gradient(value2, "x")[0] - gradient(value, "x")[0])*100000
+    assert abs(gradient(value2, "x", order=2)[0] - second) < 1e-5
 
 
 def test_inv_norm_cdf():
     x = Dual2(0.75, "x")
     value = dual_inv_norm_cdf(x)
     value2 = dual_inv_norm_cdf(x + 0.0000001)
-    assert abs(value.gradient("x")[0] - (value2 - value) * 10000000) < 1e-5
+    assert abs(gradient(value, "x")[0] - (value2 - value) * 10000000) < 1e-5
 
-    second = (value2.gradient("x")[0] - value.gradient("x")[0])*10000000
-    assert abs(value.gradient("x", order=2)[0] - second) < 1e-5
+    second = (gradient(value2, "x")[0] - gradient(value, "x")[0])*10000000
+    assert abs(gradient(value2, "x", order=2)[0] - second) < 1e-5
 
 
 def test_norm_cdf_value():
