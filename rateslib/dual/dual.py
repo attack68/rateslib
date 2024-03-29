@@ -360,6 +360,17 @@ class Dual2(DualBase):
             scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
         )
 
+    def __norm_inv_cdf__(self):
+        base = NormalDist().inv_cdf(self.real)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base ** 2)
+        scalar2 = base * scalar ** 2
+        return Dual2(
+            base,
+            self.vars,
+            scalar * self.dual,
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
+        )
+
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
@@ -548,6 +559,11 @@ class Dual(DualBase):
     def __norm_cdf__(self):
         base = NormalDist().cdf(self.real)
         scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * self.real**2)
+        return Dual(base, self.vars, scalar * self.dual)
+
+    def __norm_inv_cdf__(self):
+        base = NormalDist().inv_cdf(self.real)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base ** 2)
         return Dual(base, self.vars, scalar * self.dual)
 
     def __upcast_vars__(self, new_vars):

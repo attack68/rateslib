@@ -221,21 +221,10 @@ def dual_inv_norm_cdf(x):
     -------
     float, Dual, Dual2
     """
-    base = NormalDist().inv_cdf(float(x))
-    if isinstance(x, Dual):
-        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
-        return Dual(base, x.vars, scalar * x.dual)
-    elif isinstance(x, Dual2):
-        scalar = math.sqrt(2*math.pi) * math.exp(0.5 * base**2)
-        scalar2 = base * scalar**2
-        return Dual2(
-            base,
-            x.vars,
-            scalar * x.dual,
-            scalar * x.dual2 + 0.5 * scalar2 * np.einsum("i,j", x.dual, x.dual)
-        )
+    if isinstance(x, (Dual, Dual2)):
+        return x.__norm_inv_cdf__()
     else:
-        return base
+        return NormalDist().inv_cdf(x)
 
 
 def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):

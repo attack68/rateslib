@@ -623,6 +623,30 @@ def test_inv_norm_cdf_value():
     assert abs(result - expected) < 1e-4
 
 
+def test_inv_norm_cdf_dual():
+    d = Dual(0.8425, ["x"], [])
+    result = dual_inv_norm_cdf(d)
+    expected = 1.00
+    assert abs(result-expected) < 1e-2
+
+    approx_grad = 100000 * (dual_inv_norm_cdf(0.84251) - dual_inv_norm_cdf(0.8425))
+    assert abs(gradient(result) - approx_grad) < 1e-4
+
+
+def test_inv_norm_cdf_dual2():
+    d = Dual2(0.8425, ["x"], [], [])
+    result = dual_inv_norm_cdf(d)
+    expected = 1.00
+    assert abs(result-expected) < 1e-2
+
+    approx_grad = 100000 * (dual_inv_norm_cdf(0.84251) - dual_inv_norm_cdf(0.8425))
+    assert abs(gradient(result) - approx_grad) < 1e-4
+
+    approx_grad2 = approx_grad - (100000 * (dual_inv_norm_cdf(0.8425) - dual_inv_norm_cdf(0.84249)))
+    result2 = gradient(result, order=2)
+    assert abs(result2-100000*approx_grad2) < 1e-4
+
+
 @pytest.mark.skip(reason="downcast vars is not used within the library, kept only for compat.")
 def test_downcast_vars():
     w = Dual(2, ["x", "y", "z"], [0, 1, 1])
