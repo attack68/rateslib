@@ -15,6 +15,8 @@ use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
+use statrs::distribution::{Normal, ContinuousCDF};
+use std::f64::consts::PI;
 use pyo3::{pyclass, PyErr};
 use pyo3::exceptions::{PyValueError};
 
@@ -474,6 +476,8 @@ impl Signed for Dual {
 pub trait MathFuncs {
     fn exp(&self) -> Self;
     fn log(&self) -> Self;
+    fn norm_cdf(&self) -> Self;
+    fn inv_norm_cdf(&self) -> Self;
 }
 
 impl MathFuncs for Dual {
@@ -491,6 +495,19 @@ impl MathFuncs for Dual {
             vars: Arc::clone(&self.vars),
             dual: (1.0 / self.real) * &self.dual,
         }
+    }
+    fn norm_cdf(&self) -> Self {
+        let n = Normal::new(0.0, 1.0).unwrap();
+        let base = n.cdf(self.real);
+        let scalar = 1.0 / (2.0 * PI).sqrt() * (-0.5_f64 * self.real.pow(2.0_f64)).exp();
+        Dual {
+            real: base,
+            vars: Arc::clone(&self.vars),
+            dual: scalar * &self.dual,
+        }
+    }
+    fn inv_norm_cdf(&self) -> Self {
+        Dual::one()
     }
 }
 

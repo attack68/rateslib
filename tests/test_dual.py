@@ -2,6 +2,7 @@ import pytest
 import math
 import numpy as np
 from packaging import version
+from statistics import NormalDist
 
 import context
 
@@ -590,25 +591,45 @@ def test_exp(x):
     expected = math.exp(2)
     assert result == expected
 
+@pytest.mark.parametrize(
+    "x",
+    [
+        Dual(1.25, ["x"], []),
+        Dual2(1.25, ["x"], [], []),
+    ],
+)
+def test_norm_cdf(x):
+    result = dual_norm_cdf(x)
+    expected = NormalDist().cdf(1.250)
+    assert abs(result - expected) < 1e-10
 
-def test_norm_cdf():
-    x = Dual2(1.25, "x")
-    value = dual_norm_cdf(x)
-    value2 = dual_norm_cdf(x + 0.00001)
-    assert abs(gradient(value, "x")[0] - (value2 - value) * 100000) < 1e-5
+    approx_grad = (NormalDist().cdf(1.25001) - NormalDist().cdf(1.25)) * 100000
+    assert abs(gradient(result, ["x"])[0] - approx_grad) < 1e-5
 
-    second = (gradient(value2, "x")[0] - gradient(value, "x")[0])*100000
-    assert abs(gradient(value2, "x", order=2)[0] - second) < 1e-5
+    if isinstance(x, Dual2):
+        approx_grad2 = (NormalDist().cdf(1.25) - NormalDist().cdf(1.24999)) * 100000
+        approx_grad2 = (approx_grad - approx_grad2) * 100000
+        assert abs(gradient(result, ["x"], order=2)[0] - approx_grad2) < 1e-5
 
 
 def test_inv_norm_cdf():
-    x = Dual2(0.75, "x")
+    x = Dual2(0.75, ["x"], [], [])
     value = dual_inv_norm_cdf(x)
     value2 = dual_inv_norm_cdf(x + 0.0000001)
-    assert abs(gradient(value, "x")[0] - (value2 - value) * 10000000) < 1e-5
+    assert abs(gradient(value, ["x"])[0] - (value2 - value) * 10000000) < 1e-5
 
-    second = (gradient(value2, "x")[0] - gradient(value, "x")[0])*10000000
-    assert abs(gradient(value2, "x", order=2)[0] - second) < 1e-5
+    second = (gradient(value2, ["x"])[0] - gradient(value, ["x"])[0])*10000000
+    assert abs(gradient(value2, ["x"], order=2)[0] - second) < 1e-5
+
+
+def test_inv_norm_cdf_dual():
+    d = Dual(0.8425, ["x"], [])
+    result = dual_inv_norm_cdf(d)
+    expected = 1.00
+    assert abs(result-expected) < 1e-2
+
+    approx_grad = 100000 * (dual_inv_norm_cdf(0.84251) - dual_inv_norm_cdf(0.8425))
+    assert abs(gradient(result, ["x"])[0] - approx_grad) < 1e-4
 
 
 def test_norm_cdf_value():
@@ -621,30 +642,6 @@ def test_inv_norm_cdf_value():
     result = dual_inv_norm_cdf(0.50)
     expected = 0.0
     assert abs(result - expected) < 1e-4
-
-
-def test_inv_norm_cdf_dual():
-    d = Dual(0.8425, ["x"], [])
-    result = dual_inv_norm_cdf(d)
-    expected = 1.00
-    assert abs(result-expected) < 1e-2
-
-    approx_grad = 100000 * (dual_inv_norm_cdf(0.84251) - dual_inv_norm_cdf(0.8425))
-    assert abs(gradient(result) - approx_grad) < 1e-4
-
-
-def test_inv_norm_cdf_dual2():
-    d = Dual2(0.8425, ["x"], [], [])
-    result = dual_inv_norm_cdf(d)
-    expected = 1.00
-    assert abs(result-expected) < 1e-2
-
-    approx_grad = 100000 * (dual_inv_norm_cdf(0.84251) - dual_inv_norm_cdf(0.8425))
-    assert abs(gradient(result) - approx_grad) < 1e-4
-
-    approx_grad2 = approx_grad - (100000 * (dual_inv_norm_cdf(0.8425) - dual_inv_norm_cdf(0.84249)))
-    result2 = gradient(result, order=2)
-    assert abs(result2-100000*approx_grad2) < 1e-4
 
 
 @pytest.mark.skip(reason="downcast vars is not used within the library, kept only for compat.")

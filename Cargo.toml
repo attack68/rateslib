@@ -21,6 +21,7 @@ num-traits = "0.2.15"
 auto_ops = "0.3.0"
 numpy = "0.20.0"
 itertools = "0.12.1"
+statrs = "0.16"
 
 # --- This section should be live in development to use `cargo test --lib --no-default-features`
 [dependencies.pyo3]

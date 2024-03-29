@@ -283,6 +283,12 @@ impl MathFuncs for Dual2 {
                 - fouter11_(&self.dual.view(), &self.dual.view()) * 0.5 * (scalar * scalar),
         }
     }
+    fn norm_cdf(&self) -> Self {
+        Dual2::one()
+    }
+    fn inv_norm_cdf(&self) -> Self {
+        Dual2::one()
+    }
 }
 
 // impl fmt::Debug for Dual2 {

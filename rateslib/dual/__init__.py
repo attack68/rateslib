@@ -4,7 +4,7 @@ from functools import partial
 import math
 from statistics import NormalDist
 
-DUAL_CORE_PY = True
+DUAL_CORE_PY = False
 
 if DUAL_CORE_PY:
     from rateslib.dual.dual import (
