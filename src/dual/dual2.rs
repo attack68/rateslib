@@ -299,7 +299,17 @@ impl MathFuncs for Dual2 {
         }
     }
     fn inv_norm_cdf(&self) -> Self {
-        Dual2::one()
+        let n = Normal::new(0.0, 1.0).unwrap();
+        let base = n.inverse_cdf(self.real);
+        let scalar = (2.0 * PI).sqrt() * (0.5_f64 * base.pow(2.0_f64)).exp();
+        let scalar2 = scalar.pow(2.0_f64) * base;
+        let cross_beta = fouter11_(&self.dual.view(), &self.dual.view());
+        Dual2 {
+            real: base,
+            vars: Arc::clone(&self.vars),
+            dual: scalar * &self.dual,
+            dual2: scalar * &self.dual2 + 0.5_f64 * scalar2 * cross_beta
+        }
     }
 }
 

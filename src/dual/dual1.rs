@@ -507,7 +507,14 @@ impl MathFuncs for Dual {
         }
     }
     fn inv_norm_cdf(&self) -> Self {
-        Dual::one()
+        let n = Normal::new(0.0, 1.0).unwrap();
+        let base = n.inverse_cdf(self.real);
+        let scalar = (2.0 * PI).sqrt() * (0.5_f64 * base.pow(2.0_f64)).exp();
+        Dual {
+            real: base,
+            vars: Arc::clone(&self.vars),
+            dual: scalar * &self.dual,
+        }
     }
 }
 

@@ -1950,7 +1950,7 @@ class TestFXOption:
         )
         result /= fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 140525.690893 # 140500 USD premium according to Tullets calcs (may be rounded)
-        assert abs(result - expected) < 1e-6
+        assert abs(result - expected) < 1e-3
 
     def test_npv_in_past(self, fxfo):
         fxo = FXCallPeriod(

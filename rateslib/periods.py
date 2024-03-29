@@ -2486,12 +2486,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool = False,
         premium: Union[float, NoInput] = NoInput(0),
     ):
-        vol_ = Dual(0.25, "vol")
+        vol_ = Dual(0.25, ["vol"], [])
         for i in range(20):
             f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_) - premium
             if abs(f_) < 1e-10:
                 break
-            vol_ = Dual(float(vol_ - f_ / gradient(f_, "vol")[0]), "vol")
+            vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
 
         return float(vol_)  # return a float TODO check whether Dual can be returned.
 
