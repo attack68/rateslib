@@ -15,6 +15,8 @@ use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
+use statrs::distribution::{Normal, ContinuousCDF};
+use std::f64::consts::PI;
 // use std::fmt;
 use std::iter::Sum;
 use std::sync::Arc;
@@ -284,7 +286,17 @@ impl MathFuncs for Dual2 {
         }
     }
     fn norm_cdf(&self) -> Self {
-        Dual2::one()
+        let n = Normal::new(0.0, 1.0).unwrap();
+        let base = n.cdf(self.real);
+        let scalar = 1.0 / (2.0 * PI).sqrt() * (-0.5_f64 * self.real.pow(2.0_f64)).exp();
+        let scalar2 = scalar * -self.real;
+        let cross_beta = fouter11_(&self.dual.view(), &self.dual.view());
+        Dual2 {
+            real: base,
+            vars: Arc::clone(&self.vars),
+            dual: scalar * &self.dual,
+            dual2: scalar * &self.dual2 + 0.5_f64 * scalar2 * cross_beta
+        }
     }
     fn inv_norm_cdf(&self) -> Self {
         Dual2::one()
