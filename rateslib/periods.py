@@ -2361,8 +2361,35 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
 
 class FXOptionPeriod(metaclass=ABCMeta):
-    # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
+    """
+    Abstract base class for constructing volatility components of FXOptions.
 
+    Pricing model uses Black 76 log-normal volatility calculations.
+
+    Parameters
+    -----------
+    pair: str
+        The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
+    expiry: datetime
+        The expiry of the option: when the fixing and moneyness is determined.
+    delivery: datetime
+        The delivery date of the underlying FX pair. E.g. typically this would be **spot** as
+        measured from the expiry date.
+    payment: datetime
+        The payment date of the premium associated with the option.
+    strike: float, Dual, Dual2
+        The strike value of the option.
+    notional: float
+        The amount in ccy1 (left side of pair) on which the option is based.
+    option_fixing: float, optional
+        If an option has already expired this argument is used to fix the price determined at
+        expiry.
+    delta_type: str in {"forward", "spot"}
+        When deriving strike from a delta percentage the method used to associate the sensitivity
+        to either a spot rate or a forward rate.
+    """
+
+    # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
     style = "european"
     kind = None
     phi = 0.0
@@ -2401,7 +2428,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t) / vs
         d2 = d1 - vs
         Nd1, Nd2 = dual_norm_cdf(phi*d1), dual_norm_cdf(phi*d2)
-        _ = phi * v2 * (F * Nd1 - K * Nd2)
+        _ = phi * (F * Nd1 - K * Nd2)
 
         # Spot formulation instead of F (Garman Kohlhagen formulation)
         # https://quant.stackexchange.com/a/63661/29443
@@ -2411,7 +2438,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # d2 = d1 - vs
         # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
-        return _
+        return _ * v2
 
     def npv(
         self,
@@ -2425,7 +2452,24 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         Return the NPV of the *FXOption*.
 
-        TODO
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        vol: float, Dual, Dual2
+            The percentage log-normal volatility to price the option.
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such.
         """
         if self.payment < disc_curve_ccy2.node_dates[0]:
             # payment date is in the past avoid issues with fixings or rates
@@ -2486,6 +2530,22 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool = False,
         premium: Union[float, NoInput] = NoInput(0),
     ):
+        """
+        Calculate the implied volatility of the
+
+        Parameters
+        ----------
+        disc_curve
+        disc_curve_ccy2
+        fx
+        base
+        local
+        premium
+
+        Returns
+        -------
+
+        """
         vol_ = Dual(0.25, ["vol"], [])
         for i in range(20):
             f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_) - premium
@@ -2534,6 +2594,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
 
 class FXCallPeriod(FXOptionPeriod):
+    """
+    Create an FXCallPeriod.
+
+    For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
+    """
     kind = "call"
     phi = 1.0
 
@@ -2542,6 +2607,11 @@ class FXCallPeriod(FXOptionPeriod):
 
 
 class FXPutPeriod(FXOptionPeriod):
+    """
+    Create an FXPutPeriod.
+
+    For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
+    """
     kind = "put"
     phi = -1.0
 

@@ -87,6 +87,8 @@ from rateslib.periods import (
     Cashflow,
     IndexFixedPeriod,
     IndexCashflow,
+    FXPutPeriod,
+    FXCallPeriod,
 )
 
 from rateslib.legs import (
@@ -184,6 +186,8 @@ __all__ = [
     "Cashflow",
     "IndexCashflow",
     "IndexFixedPeriod",
+    "FXCallPeriod",
+    "FXPutPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",

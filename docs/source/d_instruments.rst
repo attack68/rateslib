@@ -34,6 +34,11 @@ Multi-Currency Derivatives
 Link to the section on :ref:`multi-currency derivatives<multicurrency-doc>`. This allows
 *FXSwaps*, *Cross-Currency Swaps* and *FX Exchanges*.
 
+Volatility
+------------
+Link to the section on :ref:`FX volatility products<volatility-doc>`. This allows
+*FXCall*, *FXPut* and *FXRiskReversal* instruments.
+
 Utilities and Instrument Combinations
 -------------------------------------
 
@@ -49,4 +54,5 @@ allows things like *Spread trades*, *Butterflies*, *Portfolios* and a *Value* fo
     e_securities.rst
     e_singlecurrency.rst
     e_multicurrency.rst
+    e_volatility.rst
     e_combinations.rst

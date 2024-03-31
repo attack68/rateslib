@@ -7919,7 +7919,7 @@ class FXSwap(XCS):
 # FX Options
 
 
-class FXOption(Sensitivities):
+class FXOption(Sensitivities, metaclass=ABCMeta):
     """
     Create an *FX Option*.
 
@@ -7945,6 +7945,12 @@ class FXOption(Sensitivities):
     payment_lag: int or datetime, optional
         The number of business days after expiry to pay premium. If a *datetime* is given this will
         set the premium date explicitly.
+    premium: float
+        The amoungt paid for the option.
+    premium_ccy: str
+        The currency in which the premium is paid.
+    option_fixing: float
+        The value determined at expiry to set the moneyness of the option.
     delta_type: str in {"spot", "forward"}
         When deriving strike from delta use the equation associated with spot or forward delta.
     curves : Curve, LineCurve, str or list of such, optional
@@ -7978,6 +7984,7 @@ class FXOption(Sensitivities):
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
     ):
+        # TODO mandate some input for premium_ccy or overwrite the USD default.
         self.kwargs = dict(
             pair=pair,
             expiry=expiry,
