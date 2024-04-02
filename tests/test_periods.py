@@ -1933,6 +1933,97 @@ def fxfo():
 
 class TestFXOption:
 
+    # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
+    @pytest.mark.parametrize("pay, k, exp_pts, exp_prem, dlty, exp_dl", [
+        (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
+        (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
+        (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "spot", 0.250124),  # BBG 0.250126
+        (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),  # BBG 0.251756
+        (dt(2023, 6, 20), 1.10101922, 70.180, 140360.17, "spot", 0.250000),
+    ])
+    def test_premium_bbg_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=pay,
+            strike=k,
+            notional=20e6,
+            delta_type=dlty,
+        )
+        result = fxo.rate(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089
+        )
+        expected = exp_pts
+        assert abs(result - expected) < 1e-3
+
+        result = 20e6 * result / 10000
+        expected = exp_prem
+        assert abs(result - expected) < 1e-2
+
+        result = fxo.delta_percent(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = exp_dl
+        assert abs(result - expected) < 1e-6
+
+    @pytest.mark.parametrize("pay, k, exp_pts, exp_prem, dlty, exp_dl", [
+        (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "spot_pa", 0.243588),
+        (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "forward_pa", 0.245175),
+        (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, "spot_pa", 0.243548),
+        (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, "forward_pa", 0.245178),
+    ])
+    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=pay,
+            strike=k,
+            notional=20e6,
+            delta_type=dlty,
+            metric="percent",
+        )
+        result = fxo.rate(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+        )
+        expected = exp_pts
+        assert abs(result - expected) < 1e-3
+
+        result = 20e6 * result / 100
+        expected = exp_prem
+        assert abs(result - expected) < 1e-1
+
+        result = fxo.delta_percent(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=0.089,
+            premium=exp_prem
+        )
+        expected = exp_dl
+        assert abs(result - expected) < 5e-5
+
+    # def test_wystup_pips_premium(self):
+    #     # A Guide to FX Options Quoting Conventions
+    #     fxo = FXCallPeriod(
+    #         pair="eurusd",
+    #         expiry=dt(2023, 6, 16),
+    #         delivery=dt(2023, 6, 20),
+    #         payment=dt(2023, 6, 20),
+    #         strike=1.101,
+    #         notional=20e6,
+    #     )
+
     def test_npv(self, fxfo):
         fxo = FXCallPeriod(
             pair="eurusd",
@@ -1949,7 +2040,7 @@ class TestFXOption:
             vol=0.089,
         )
         result /= fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
-        expected = 140525.690893 # 140500 USD premium according to Tullets calcs (may be rounded)
+        expected = 140451.5273  # 140500 USD premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-3
 
     def test_npv_in_past(self, fxfo):
@@ -2022,7 +2113,7 @@ class TestFXOption:
             fx=fxfo,
             vol=0.089,
         )
-        expected = 70.262845  # 70.25 premium according to Tullets calcs (may be rounded)
+        expected = 70.225764  # 70.25 premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
 
     def test_implied_vol(self, fxfo):
@@ -2040,7 +2131,17 @@ class TestFXOption:
             fx=fxfo,
             premium=70.25,
         )
-        expected = 0.08899248930016586  # Tullets have trade confo at 8.9%
+        expected = 0.0890141775  # Tullets have trade confo at 8.9%
+        assert abs(expected - result) < 1e-9
+
+        premium_pc = 0.007025 / fxfo.rate("eurusd", fxo.delivery) * 100.0
+        result = fxo.implied_vol(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            premium=premium_pc,
+            metric="percent",
+        )
         assert abs(expected - result) < 1e-9
 
     def test_premium_put(self, fxfo):
@@ -2058,7 +2159,7 @@ class TestFXOption:
             fxfo,
             vol=0.1015
         )
-        expected = 83.881228  # Tullets trade confo has 83.75
+        expected = 83.836959  # Tullets trade confo has 83.75
         assert abs(result - expected) < 1e-6
 
     def test_npv_put(self, fxfo):
@@ -2076,7 +2177,7 @@ class TestFXOption:
             fxfo,
             vol=0.1015
         ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
-        expected = 167762.455137  # Tullets trade confo has 167 500
+        expected = 167673.917818  # Tullets trade confo has 167 500
         assert abs(result - expected) < 1e-6
 
     def test_strike_from_forward_delta(self, fxfo):
@@ -2094,6 +2195,7 @@ class TestFXOption:
             0.25,
             0.089,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxfo.curve("usd", "usd")[fxo.payment]
         )
         expected = 1.101271021340
         assert abs(result - expected) < 1e-9
@@ -2104,6 +2206,7 @@ class TestFXOption:
             0.251754,
             0.089,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxfo.curve("usd", "usd")[fxo.payment],
         )
         expected = 1.101
         assert abs(result - expected) < 1e-7

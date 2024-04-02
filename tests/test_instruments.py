@@ -3034,7 +3034,7 @@ class TestFXOptions:
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
-        expected = 70.262845
+        expected = 70.225764
         assert abs(result - expected) < 1e-6
 
     def test_fx_call_rate(self, fxfo):
@@ -3050,7 +3050,7 @@ class TestFXOptions:
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
-        expected = 70.217188
+        expected = 70.180131
         assert abs(result - expected) < 1e-6
 
     def test_fx_call_rate_expiry_tenor(self, fxfo):
@@ -3068,7 +3068,7 @@ class TestFXOptions:
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
-        expected = 70.217188
+        expected = 70.180131
         assert abs(result - expected) < 1e-6
 
     def test_fx_call_plot_payoff(self, fxfo):

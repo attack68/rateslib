@@ -147,6 +147,7 @@ class Defaults:
 
     delivery_lag = 2
     delta_type = "spot"
+    option_metric = "pips"
 
     # Curves
 

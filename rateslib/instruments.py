@@ -8057,7 +8057,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 delta=float(self.kwargs["strike"][:-1])/100,
                 vol=vol,
                 t=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
-                v1=curves[1][self.kwargs["payment"]],
+                v1=curves[1][self.kwargs["delivery"]],
                 vspot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
                 # TODO provide a mechanism for defining spot date with FX crosses
                 # which are only directly available in FXForwards for majors.
