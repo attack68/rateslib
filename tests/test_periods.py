@@ -2180,7 +2180,18 @@ class TestFXOption:
         expected = 167673.917818  # Tullets trade confo has 167 500
         assert abs(result - expected) < 1e-6
 
-    def test_strike_from_forward_delta(self, fxfo):
+    @pytest.mark.parametrize("dlty, delta, exp_k", [
+        ("forward", 0.25, 1.101271021340),
+        ("forward_pa", 0.25, 1.10023348001),
+        ("forward", 0.251754, 1.100999951),
+        ("forward_pa", 0.8929, 0.9748614298),  # close to peak of premium adjusted delta graph.
+        ("spot", 0.25, 1.10101920113408),
+        ("spot_pa", 0.25, 1.099976469786),
+        ("spot", 0.251754, 1.10074736155),
+        ("spot_pa", 0.8870, 0.97543175409),  # close to peak of premium adjusted delta graph.
+    ])
+    def test_strike_from_forward_delta(self, fxfo, dlty, delta, exp_k):
+        # https://quant.stackexchange.com/a/77802/29443
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2188,28 +2199,37 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
-            delta_type="forward",
+            delta_type=dlty,
         )
         result = fxo._strike_from_delta(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            0.25,
+            delta,
             0.089,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("usd", "usd")[fxo.payment]
+            fxfo.curve("eur", "usd")[fxo.delivery],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            fxfo.curve("usd", "usd")[fxo.delivery]
         )
-        expected = 1.101271021340
-        assert abs(result - expected) < 1e-9
+        expected = exp_k
+        assert abs(result - expected) < 1e-8
 
-        # https://quant.stackexchange.com/a/77802/29443
-        result = fxo._strike_from_delta(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            0.251754,
-            0.089,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("usd", "usd")[fxo.payment],
+        ## Round trip test
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=float(result),
+            notional=20e6,
+            delta_type=dlty,
         )
-        expected = 1.101
-        assert abs(result - expected) < 1e-7
+        result2 = fxo.delta_percent(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.089,
+        )
+        assert abs(result2 - delta) < 1e-8
 
     def test_strike_from_forward_delta_put(self, fxfo):
         fxo = FXPutPeriod(

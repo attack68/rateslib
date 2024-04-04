@@ -3037,7 +3037,11 @@ class TestFXOptions:
         expected = 70.225764
         assert abs(result - expected) < 1e-6
 
-    def test_fx_call_rate(self, fxfo):
+    @pytest.mark.parametrize("ccy, exp_rate", [
+        ("usd", 70.180131),
+        ("eur", 1.00),
+    ])
+    def test_fx_call_rate(self, fxfo, ccy, exp_rate):
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3047,10 +3051,11 @@ class TestFXOptions:
             calendar="tgt",
             strike="25d",
             delta_type="spot",
+            premium_ccy=ccy,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
-        expected = 70.180131
+        expected = exp_rate
         assert abs(result - expected) < 1e-6
 
     def test_fx_call_rate_expiry_tenor(self, fxfo):

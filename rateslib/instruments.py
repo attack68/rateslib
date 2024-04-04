@@ -7930,7 +7930,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     expiry: datetime, str
         The expiry of the option.
     notional: float
-        The amount in ccy1 (left side of pair) on which the option is based.
+        The amount in ccy1 (left side of `pair`) on which the option is based.
     strike: float, Dual, Dual2, str
         The strike value of the option. If str should be labelled with a 'd' for delta e.g. "25d".
     eval_date: datetime, optional
@@ -7946,13 +7946,16 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         The number of business days after expiry to pay premium. If a *datetime* is given this will
         set the premium date explicitly.
     premium: float
-        The amoungt paid for the option.
+        The amount paid for the option.
     premium_ccy: str
-        The currency in which the premium is paid.
+        The currency in which the premium is paid. Can *only* be one of the two currencies in `pair`.
     option_fixing: float
         The value determined at expiry to set the moneyness of the option.
     delta_type: str in {"spot", "forward"}
         When deriving strike from delta use the equation associated with spot or forward delta.
+        If premium currency is ccy1 (left side of `pair`) then this will produce **premium adjusted**
+        delta values. If the `premium_ccy` is ccy2 (right side of `pair`) then delta values are
+        **unadjusted**.
     curves : Curve, LineCurve, str or list of such, optional
         For *FXOptions* curves should be expressed as a list with the discount curves
         entered either as *Curve* or str for discounting cashflows in the appropriate currency
@@ -8034,6 +8037,19 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.kwargs["payment"] = add_tenor(
                 self.kwargs["expiry"], f"{self.kwargs['payment_lag']}b", "F", calendar, NoInput(0)
             )
+        if self.kwargs["premium_ccy"] is NoInput.blank:
+            self.kwargs["premium_ccy"] = self.kwargs["pair"][3:]
+            self.kwargs["metric"] = "pips"
+            self.kwargs["delta_adjustment"] = ""
+        else:
+            if self.kwargs["premium_ccy"] not in [self.kwargs["pair"][:3], self.kwargs["pair"][3:]]:
+                raise ValueError("`premium_ccy` must be one of option currency pair.")
+            elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
+                self.kwargs["metric"] = "pips"
+                self.kwargs["delta_adjustment"] = ""
+            else:
+                self.kwargs["metric"] = "percent"
+                self.kwargs["delta_adjustment"] = "_pa"
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
@@ -8168,7 +8184,8 @@ class FXCall(FXOption):
                 strike=self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"],
+                delta_type=self.kwargs["delta_type"]+self.kwargs["delta_adjustment"],
+                metric=self.kwargs["metric"],
             ),
             Cashflow(
                 notional=self.kwargs["premium"],
@@ -8199,7 +8216,7 @@ class FXPut(FXOption):
                 strike=self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"],
+                delta_type=self.kwargs["delta_type"]+self.kwargs["delta_adjustment"],
             ),
             Cashflow(
                 notional=self.kwargs["premium"],
@@ -8813,72 +8830,6 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         return _ytm_quadratic_converger2(
             f, y2 - pad, y, 2 * y - y2 + pad, None, f_, None, tol
         )  # pragma: no cover
-
-
-# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
-#     """
-#     Alternative yield converger as an alternative to ytm_converger
-#
-#     Unused currently within the library
-#     """
-#     fx0 = f(x0)
-#     fx1 = f(x1)
-#
-#     if float(fx0 * fx1) > 0:
-#         raise ValueError(
-#             "`brents` must initiate from function values with opposite signs."
-#         )
-#
-#     if abs(fx0) < abs(fx1):
-#         x0, x1 = x1, x0
-#         fx0, fx1 = fx1, fx0
-#
-#     x2, fx2 = x0, fx0
-#
-#     mflag = True
-#     steps_taken = 0
-#
-#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
-#         fx0 = f(x0)
-#         fx1 = f(x1)
-#         fx2 = f(x2)
-#
-#         if fx0 != fx2 and fx1 != fx2:
-#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
-#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
-#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
-#             new = L0 + L1 + L2
-#
-#         else:
-#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
-#
-#         if (
-#             (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
-#             or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
-#             or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
-#             or (mflag is True and (abs(x1 - x2)) < tolerance)
-#             or (mflag is False and (abs(x2 - d)) < tolerance)
-#         ):
-#             new = (x0 + x1) / 2
-#             mflag = True
-#
-#         else:
-#             mflag = False
-#
-#         fnew = f(new)
-#         d, x2 = x2, x1
-#
-#         if float(fx0 * fnew) < 0:
-#             x1 = new
-#         else:
-#             x0 = new
-#
-#         if abs(fx0) < abs(fx1):
-#             x0, x1 = x1, x0
-#
-#         steps_taken += 1
-#
-#     return x1, steps_taken
 
 
 def _quadratic_equation(a: float, b: float, c: float):

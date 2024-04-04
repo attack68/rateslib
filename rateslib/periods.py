@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Union
 from statistics import NormalDist
 import warnings
-from math import comb, log, exp
+from math import comb, log, exp, pi
 
 import numpy as np
 
@@ -2387,6 +2387,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
     delta_type: str in {"forward", "spot"}
         When deriving strike from a delta percentage the method used to associate the sensitivity
         to either a spot rate or a forward rate.
+    metric: str in {"pips", "percent"}, optional
+        The pricing metric for the rate of the options.
     """
 
     # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
@@ -2461,14 +2463,34 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
         return _ * v2
 
+    def _get_interval_for_premium_adjusted_delta(self, unadj_k, half_vol_sq_t, vol_sqrt_t, f):
+        """Returns the interval for use in Brent variety solver"""
+        # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
+        k_max = unadj_k  # a premium adjusted strike is always lower than an unadjusted one.
+        if self.phi > 0:
+            # call option requires more difficult k_min. k_min is set as the point which
+            # attains the maximum premium adjusted delta.
+            def root(k):
+                d_minus = (dual_log(f / k) - half_vol_sq_t) / vol_sqrt_t
+                _ = vol_sqrt_t * dual_norm_cdf(d_minus)
+                _ -= dual_exp(d_minus ** 2 / -2.0) / (2 * pi) ** 0.5
+                return _
+
+            root_solver = _brents(root, f / 2.0, f)
+            k_min = root_solver[0]
+        else:
+            k_min = unadj_k / 2.0
+        return (k_min, k_max)
+
     def _strike_from_delta(
         self,
         f: DualTypes,
         delta: float,
         vol: DualTypes,
-        t: DualTypes,
-        v1: DualTypes = NoInput(0),
-        vspot: DualTypes = NoInput(0),
+        t_e: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        v_deli: Union[DualTypes, NoInput] = NoInput(0)
     ):
         """
         Determine a strike given a delta percentage value.
@@ -2483,23 +2505,58 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The volatility (assumed constant) over the period to expiry
         t: float, Dual, Dual2
             The time to expiry.
-        v1: float, Dual, Dual2
+        w_deli: float, Dual, Dual2
             The domestic discount factor (LHS currency) in an appropriate collateral until delivery.
-        vspot: float, Dual, Dual2
+        w_spot: float, Dual, Dual2
             The domestic discount factor (LHS currency) in appropriate collateral until standard
             transaction settlement, e.g. spot.
+        v_deli: float, Dual, Dual2
+            The foreign discount factor (RHS currency) in an appropriate collateral until delivery.
 
         Returns
         -------
         float, Dual, Dual2
         """
-        if self.delta_type == "forward":
+        half_vol_sq_t = 0.5 * vol ** 2 * t_e
+        vol_sqrt_t = vol * t_e ** 0.5
+
+        if "forward" in self.delta_type:
             _ = dual_inv_norm_cdf(self.phi * delta)
-            _ = f * dual_exp(-self.phi * _ * vol * t**0.5 + 0.5 * vol**2 * t)
-        elif self.delta_type == "spot":
-            v1 = float(v1/vspot)
-            _ = dual_inv_norm_cdf(self.phi*delta/v1)
-            _ = f * dual_exp(-self.phi * _ * vol * t ** 0.5 + 0.5 * vol ** 2 * t)
+            _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
+
+            if self.delta_type == "forward_pa":
+                # make premium adjustment
+                k_min, k_max = self._get_interval_for_premium_adjusted_delta(
+                    _, half_vol_sq_t, vol_sqrt_t, f
+                )
+
+                def root(k):
+                    b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
+                    dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
+                    return delta + b76 / (v_deli * f) - self.phi * dual_norm_cdf(self.phi * dplus)
+
+                root_solver = _brents(root, x0=k_min, x1=k_max)
+                _ = root_solver[0]
+
+        elif "spot" in self.delta_type:
+            w1 = w_spot / w_deli
+            _ = dual_inv_norm_cdf(self.phi * delta * w1)
+            _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
+
+            if self.delta_type == "spot_pa":
+                # make premium adjustment
+                k_min, k_max = self._get_interval_for_premium_adjusted_delta(
+                    _, half_vol_sq_t, vol_sqrt_t, f
+                )
+
+                def root(k):
+                    b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
+                    dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
+                    return delta + b76 / (v_deli * f * w1) - self.phi * dual_norm_cdf(self.phi * dplus) / w1
+
+                root_solver = _brents(root, x0=k_min, x1=k_max)
+                _ = root_solver[0]
+
         return _
 
     def _delta_percent(
@@ -2550,14 +2607,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         elif delta_type == "spot":
             w_d = disc_curve[self.delivery]
             w_spot = disc_curve[spot]
-            w = w_d / w_spot
-            return _ * w
+            return _ * w_d / w_spot
         elif delta_type == "spot_pa":
             w_d = disc_curve[self.delivery]
             w_spot = disc_curve[spot]
-            w = w_d / w_spot
-            w1 = disc_curve[self.payment] / disc_curve[spot]
-            return _ * w - w1 * premium / self.notional
+            w_p = disc_curve[self.payment]
+            return _ * w_d / w_spot - w_p * premium / (w_spot * self.notional)
         else:  # == "forward"
             return _
 
@@ -2731,8 +2786,45 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
         vol: Union[float, NoInput] = NoInput(0),
-        premium: Union[DualTypes, NoInput] = NoInput(0) # expressed in the payment currency
+        premium: Union[DualTypes, NoInput] = NoInput(0)  # expressed in the payment currency
     ):
+        """
+        Return the percentage delta of the option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            Not used by `delta_percent`.
+        local: bool,
+            Not used by `delta_percent`.
+        premium: float, optional
+            The premium value of the option paid at the appropriate payment date.
+            If not given calculates and assumes a mid-market premium.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
+
+        If ``srtike`` is not set on the *FXOption* this method will **raise**.
+        """
+        if "_pa" in self.delta_type and premium is NoInput.blank:
+            premium = self.npv(
+                disc_curve,
+                disc_curve_ccy2,
+                fx,
+                base=self.pair[:3],
+                vol=vol,
+            ) / disc_curve[self.payment]
         return self._delta_percent(
             fx=fx,
             k=self.strike,
@@ -2825,3 +2917,67 @@ def _maybe_local(value, local, currency, fx, base):
     else:
         fx, _ = _get_fx_and_base(currency, fx, base)
         return value * fx
+
+
+def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
+    """
+    Alternative root solver. Used for solving premium adjutsed option strikes from delta values.
+    """
+    fx0 = f(x0)
+    fx1 = f(x1)
+
+    if float(fx0 * fx1) > 0:
+        raise ValueError(
+            "`brents` must initiate from function values with opposite signs."
+        )
+
+    if abs(fx0) < abs(fx1):
+        x0, x1 = x1, x0
+        fx0, fx1 = fx1, fx0
+
+    x2, fx2 = x0, fx0
+
+    mflag = True
+    steps_taken = 0
+
+    while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+        fx0 = f(x0)
+        fx1 = f(x1)
+        fx2 = f(x2)
+
+        if fx0 != fx2 and fx1 != fx2:
+            L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+            L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+            L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+            new = L0 + L1 + L2
+
+        else:
+            new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+
+        if (
+            (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+            or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+            or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+            or (mflag is True and (abs(x1 - x2)) < tolerance)
+            or (mflag is False and (abs(x2 - d)) < tolerance)
+        ):
+            new = (x0 + x1) / 2
+            mflag = True
+
+        else:
+            mflag = False
+
+        fnew = f(new)
+        d, x2 = x2, x1
+
+        if float(fx0 * fnew) < 0:
+            x1 = new
+        else:
+            x0 = new
+
+        if abs(fx0) < abs(fx1):
+            x0, x1 = x1, x0
+
+        steps_taken += 1
+
+    return x1, steps_taken
