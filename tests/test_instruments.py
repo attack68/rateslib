@@ -3007,6 +3007,34 @@ def fxfo():
 
 class TestFXOptions:
 
+    # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
+    @pytest.mark.parametrize("pay, k, exp_pts, exp_prem, dlty, exp_dl", [
+        (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
+        (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
+        (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "spot", 0.250124),  # BBG 0.250126
+        (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),  # BBG 0.251756
+        (dt(2023, 6, 20), 1.10101922, 70.180, 140360.17, "spot", 0.250000),
+    ])
+    def test_bbg_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl):
+        fxc = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            strike=k,
+            payment_lag=pay,
+            delivery_lag=2,
+            calendar="tgt",
+            modifier="mf",
+            premium_ccy="usd",
+            delta_type=dlty,
+        )
+        result = fxc.rate(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            fx=fxfo,
+            vol=0.089,
+        )
+        assert abs(result - exp_pts) <1e-3
+
     def test_fx_call_npv_unpriced(self, fxfo):
         fxo = FXCall(
             pair="eurusd",

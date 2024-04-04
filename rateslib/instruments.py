@@ -8072,9 +8072,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
                 delta=float(self.kwargs["strike"][:-1])/100,
                 vol=vol,
-                t=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
-                v1=curves[1][self.kwargs["delivery"]],
-                vspot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                w_deli=curves[1][self.kwargs["delivery"]],
+                w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                v_deli=curves[3][self.kwargs["delivery"]],
                 # TODO provide a mechanism for defining spot date with FX crosses
                 # which are only directly available in FXForwards for majors.
             )
@@ -8091,6 +8092,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     "If not required, initialise the "
                     "FXOption with a `premium` of 0.0, and this will be avoided."
                 )
+            # TODO: convert premium to correct premium currency
             premium = npv / curves[3][self.kwargs["payment"]]
             self.periods[1].notional = float(premium)
 
@@ -8129,6 +8131,29 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             }
         else:
             return opt_npv + prem_npv
+
+    def delta_percent(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        return self.periods[0].delta_percent(
+            curves[1],
+            curves[3],
+            fx,
+            base,
+            local,
+            vol,
+            self.kwargs["premium"],
+        )
 
     def _plot_payoff(
         self,
