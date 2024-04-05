@@ -87,6 +87,8 @@ from rateslib.periods import (
     Cashflow,
     IndexFixedPeriod,
     IndexCashflow,
+    FXPutPeriod,
+    FXCallPeriod,
 )
 
 from rateslib.legs import (
@@ -121,6 +123,9 @@ from rateslib.instruments import (
     Spread,
     Fly,
     Portfolio,
+    FXCall,
+    FXPut,
+    FXRiskReversal,
 )
 
 # module level doc-string
@@ -181,6 +186,8 @@ __all__ = [
     "Cashflow",
     "IndexCashflow",
     "IndexFixedPeriod",
+    "FXCallPeriod",
+    "FXPutPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",
@@ -211,6 +218,9 @@ __all__ = [
     "Spread",
     "Fly",
     "Portfolio",
+    "FXCall",
+    "FXPut",
+    "FXRiskReversal",
 ]
 
 __version__ = "1.2.0"

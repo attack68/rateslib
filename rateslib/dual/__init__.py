@@ -2,6 +2,7 @@ from typing import Optional, Union
 import numpy as np
 from functools import partial
 import math
+from statistics import NormalDist
 
 DUAL_CORE_PY = False
 
@@ -188,6 +189,42 @@ def dual_log(x, base=None):
         return math.log(x)
     else:
         return math.log(x, base)
+
+
+def dual_norm_cdf(x):
+    """
+    Return the cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(x, (Dual, Dual2)):
+        return x.__norm_cdf__()
+    else:
+        return NormalDist().cdf(x)
+
+
+def dual_inv_norm_cdf(x):
+    """
+    Return the inverse cumulative standard normal distribution for given value.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    if isinstance(x, (Dual, Dual2)):
+        return x.__norm_inv_cdf__()
+    else:
+        return NormalDist().inv_cdf(x)
 
 
 def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):

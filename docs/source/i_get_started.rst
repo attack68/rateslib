@@ -82,39 +82,47 @@ Which ``fixed income instruments`` does *rateslib* include?
 ===========================================================
 
 .. list-table::
-   :widths: 25 25 25 25
+   :widths: 20 20 20 20 20
    :header-rows: 1
 
 
    * - Single Ccy Derivatives
      - Multi-Ccy Derivatives
      - Securities
+     - Volatility
      - Combinations
    * - :class:`~rateslib.instruments.IRS`
      - :class:`~rateslib.instruments.FXExchange`
      - :class:`~rateslib.instruments.FixedRateBond`
+     - :class:`~rateslib.instruments.FXCall`
      - :class:`~rateslib.instruments.Spread`
    * - :class:`~rateslib.instruments.SBS`
      - :class:`~rateslib.instruments.FXSwap`
      - :class:`~rateslib.instruments.FloatRateNote`
+     - :class:`~rateslib.instruments.FXPut`
      - :class:`~rateslib.instruments.Fly`
    * - :class:`~rateslib.instruments.FRA`
      - :class:`~rateslib.instruments.XCS`
      - :class:`~rateslib.instruments.Bill`
+     - :class:`~rateslib.instruments.FXRiskReversal`
      - :class:`~rateslib.instruments.Portfolio`
    * - :class:`~rateslib.instruments.STIRFuture`
      -
      - :class:`~rateslib.instruments.BondFuture`
      -
+     -
    * - :class:`~rateslib.instruments.ZCS`
      -
      - :class:`~rateslib.instruments.IndexFixedRateBond`
+     -
      -
    * - :class:`~rateslib.instruments.ZCIS`
      -
      -
      -
+     -
    * - :class:`~rateslib.instruments.IIRS`
+     -
      -
      -
      -

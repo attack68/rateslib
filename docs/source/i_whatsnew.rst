@@ -46,6 +46,27 @@ email contact through **rateslib@gmail.com**.
        improvements must be sufficient to warrant such a large codebase change.
      - no ETA
 
+1.2.0 (not released)
+**********************
+
+This version uses **Rust** bindings. See :ref:`getting started <pricing-doc>`
+for notes about installation changes.
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Performance
+     - The modules ``rateslib.dual`` and ``rateslib.splines`` have been ported to **Rust**
+       instead of Python to improve calculation times.
+   * - Instruments
+     - Basic *FX Volatility Instruments* have been added, including
+       :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut` and
+       :class:`~rateslib.instruments.FXRiskReversal`. See :ref:`user guide section <volatility-doc>`
+       for more information.
+
 
 1.1.0 (20th Mar 2024)
 **********************
