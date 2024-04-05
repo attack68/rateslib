@@ -1,6 +1,6 @@
-SPLINE_CORE_PY = False
+from rateslib.dual import DUAL_CORE_PY
 
-if SPLINE_CORE_PY:
+if DUAL_CORE_PY:
     from rateslib.splines.splines import (
         bsplev_single, bspldnev_single, PPSpline
     )

@@ -222,6 +222,10 @@ impl Dual {
         self.log()
     }
 
+    fn __norm_cdf__(&self) -> Self { self.norm_cdf() }
+
+    fn __norm_inv_cdf__(&self) -> Self { self.inv_norm_cdf() }
+
     fn __float__(&self) -> f64 {
         self.real()
     }
@@ -430,6 +434,10 @@ impl Dual2 {
     fn __log__(&self) -> Self {
         self.log()
     }
+
+    fn __norm_cdf__(&self) -> Self { self.norm_cdf() }
+
+    fn __norm_inv_cdf__(&self) -> Self { self.inv_norm_cdf() }
 
     fn __float__(&self) -> f64 {
         self.real

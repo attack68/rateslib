@@ -1,8 +1,10 @@
 from math import isclose
 from abc import abstractmethod, ABCMeta
 from typing import Union, Optional
+from statistics import NormalDist
 import math
 import numpy as np
+from rateslib.default import NoInput
 
 PRECISION = 1e-14
 FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
@@ -55,7 +57,9 @@ class DualBase(metaclass=ABCMeta):
     def __eq__(self, argument):
         """Compare an argument with a Dual number for equality."""
         if not isinstance(argument, type(self)):
-            if not isinstance(argument, (*FLOATS, *INTS)):
+            if isinstance(argument, NoInput):
+                return False
+            elif not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
             argument = type(self)(float(argument))
         if self.vars == argument.vars:
@@ -345,6 +349,28 @@ class Dual2(DualBase):
             self.dual2 / self.real - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2,
         )
 
+    def __norm_cdf__(self):
+        base = NormalDist().cdf(self.real)
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real ** 2)
+        scalar2 = scalar * -self.real
+        return Dual2(
+            base,
+            self.vars,
+            scalar * self.dual,
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
+        )
+
+    def __norm_inv_cdf__(self):
+        base = NormalDist().inv_cdf(self.real)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base ** 2)
+        scalar2 = base * scalar ** 2
+        return Dual2(
+            base,
+            self.vars,
+            scalar * self.dual,
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
+        )
+
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
@@ -529,6 +555,16 @@ class Dual(DualBase):
 
     def __log__(self):
         return Dual(math.log(self.real), self.vars, self.dual / self.real)
+
+    def __norm_cdf__(self):
+        base = NormalDist().cdf(self.real)
+        scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * self.real**2)
+        return Dual(base, self.vars, scalar * self.dual)
+
+    def __norm_inv_cdf__(self):
+        base = NormalDist().inv_cdf(self.real)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base ** 2)
+        return Dual(base, self.vars, scalar * self.dual)
 
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
