@@ -62,11 +62,11 @@ from rateslib.legs import (
     IndexFixedLeg,
 )
 from rateslib.dual import (
-        Dual,
+    Dual,
     Dual2,
-DualTypes,
-        dual_log,
-        dual_exp,
+    DualTypes,
+    dual_log,
+    dual_exp,
     dual_norm_cdf,
     gradient,
 )
