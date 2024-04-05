@@ -3065,11 +3065,11 @@ class TestFXOptions:
         expected = 70.225764
         assert abs(result - expected) < 1e-6
 
-    @pytest.mark.parametrize("ccy, exp_rate", [
-        ("usd", 70.180131),
-        ("eur", 1.00),
+    @pytest.mark.parametrize("ccy, exp_rate, exp_strike", [
+        ("usd", 70.180131, 1.10101920113408469),
+        ("eur", 0.680949, 1.099976),
     ])
-    def test_fx_call_rate(self, fxfo, ccy, exp_rate):
+    def test_fx_call_rate(self, fxfo, ccy, exp_rate, exp_strike):
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3085,6 +3085,8 @@ class TestFXOptions:
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
         expected = exp_rate
         assert abs(result - expected) < 1e-6
+
+        assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
 
     def test_fx_call_rate_expiry_tenor(self, fxfo):
         fxo = FXCall(
@@ -3138,10 +3140,11 @@ class TestFXOptions:
             payment_lag=2,
             calendar="tgt",
             strike="-25d",
+            delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=0.101)
-        expected = 83.595312
+        result = fxo.rate(curves, fx=fxfo, vol=0.1015)
+        expected = 83.975596
         assert abs(result - expected) < 1e-6
 
     def test_risk_reversal_rate(self, fxfo):
@@ -3153,10 +3156,11 @@ class TestFXOptions:
             payment_lag=2,
             calendar="tgt",
             strike=["-25d", "25d"],
+            delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=[0.101, 0.089])
-        expected = -13.370327
+        result = fxo.rate(curves, fx=fxfo, vol=[0.1015, 0.089])
+        expected = -13.791068
         assert abs(result - expected) < 1e-6
 
     def test_risk_reversal_npv(self, fxfo):
@@ -3170,7 +3174,7 @@ class TestFXOptions:
             strike=["-25d", "25d"],
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=[0.101, 0.089])
+        result = fxo.npv(curves, fx=fxfo, vol=[0.1015, 0.089])
         expected = 0.0
         assert abs(result - expected) < 1e-6
 

@@ -2265,8 +2265,8 @@ class TestFXOption:
             0.25,
             0.089,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            v1=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
         expected = 1.1010192011340847
         assert abs(result - expected) < 1e-9
@@ -2277,8 +2277,8 @@ class TestFXOption:
             0.250124,
             0.089,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            v1=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
         expected = 1.101
         assert abs(result - expected) < 1e-6
@@ -2298,8 +2298,9 @@ class TestFXOption:
             -0.25,
             0.1015,
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            v1=fxfo.curve("eur","usd")[dt(2023, 6, 20)],
-            vspot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            v_deli=NoInput(0)
         )
         expected = 1.0330517323059478
         assert abs(result - expected) < 1e-9

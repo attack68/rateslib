@@ -17,13 +17,13 @@
        interpolation="log_linear",
    )
 """
-
+import math
 from abc import abstractmethod, ABCMeta
 from datetime import datetime, timedelta
 from typing import Optional, Union
 from statistics import NormalDist
 import warnings
-from math import comb, log, exp, pi
+from math import comb, log, exp, pi, sqrt
 
 import numpy as np
 
@@ -2470,14 +2470,23 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if self.phi > 0:
             # call option requires more difficult k_min. k_min is set as the point which
             # attains the maximum premium adjusted delta.
-            def root(k):
-                d_minus = (dual_log(f / k) - half_vol_sq_t) / vol_sqrt_t
-                _ = vol_sqrt_t * dual_norm_cdf(d_minus)
-                _ -= dual_exp(d_minus ** 2 / -2.0) / (2 * pi) ** 0.5
-                return _
 
-            root_solver = _brents(root, f / 2.0, f)
-            k_min = root_solver[0]
+            # def root(k):
+            #     d_minus = (dual_log(f / k) - half_vol_sq_t) / vol_sqrt_t
+            #     _ = vol_sqrt_t * dual_norm_cdf(d_minus)
+            #     _ -= dual_exp(d_minus ** 2 / -2.0) / (2 * pi) ** 0.5
+            #     return _
+            #
+            # root_solver = _brents(root, f / 2.0, f)
+            # k_min = root_solver[0]
+
+            def root(x):
+                return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2*pi)
+            def root_deriv(x):
+                return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2*pi)
+            root_solver = _newton(root, root_deriv, (0.1-half_vol_sq_t)/vol_sqrt_t)
+            k_min = f * dual_exp(-root_solver[0]*vol_sqrt_t - half_vol_sq_t)
+
         else:
             k_min = unadj_k / 2.0
         return (k_min, k_max)
@@ -2527,7 +2536,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             if self.delta_type == "forward_pa":
                 # make premium adjustment
                 k_min, k_max = self._get_interval_for_premium_adjusted_delta(
-                    _, half_vol_sq_t, vol_sqrt_t, f
+                    float(_), float(half_vol_sq_t), float(vol_sqrt_t), float(f)
                 )
 
                 def root(k):
@@ -2546,7 +2555,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             if self.delta_type == "spot_pa":
                 # make premium adjustment
                 k_min, k_max = self._get_interval_for_premium_adjusted_delta(
-                    _, half_vol_sq_t, vol_sqrt_t, f
+                    float(_), float(half_vol_sq_t), float(vol_sqrt_t), float(f)
                 )
 
                 def root(k):
@@ -2981,3 +2990,16 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
         steps_taken += 1
 
     return x1, steps_taken
+
+
+def _newton(f, f1, x0, max_iter=50, tolerance=1e-9):
+    steps_taken = 0
+
+    while steps_taken < max_iter:
+        steps_taken += 1
+        x1 = x0 - f(x0) / f1(x0)
+        if abs(x1 - x0) < tolerance:
+            return x1, steps_taken
+        x0 = x1
+
+    raise ValueError(f"`max_iter`: {max_iter} exceeded in Newton solver.")

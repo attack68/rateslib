@@ -251,3 +251,79 @@ If the pricing parameters change the *Option* strike will adapt accordingly to m
        vol=0.10
    )
    fxc.periods[0].strike
+
+
+Risk Reversals
+================
+
+:class:`~rateslib.instruments.FXRiskReversal` are included as a direct product
+because they are frequently traded products and *Instruments* often used
+in calibrating a volatility surface.
+
+*RiskReversals* need to be specified by two different ``strike`` values; a
+lower and a higher strike. These can be entered in delta terms. Pricing also allows
+two different ``vol`` inputs in the absense of a volatility surface.
+
+.. ipython:: python
+
+   fxrr = FXRiskReversal(
+       pair="eurusd",
+       expiry=dt(2023, 6, 16),
+       notional=20e6,
+       strike=("-25d", "25d"),
+       payment_lag=2,
+       delivery_lag=2,
+       calendar="tgt",
+       premium_ccy="usd",
+       delta_type="spot",
+   )
+   fxrr.rate(
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=[0.1015, 0.089]
+   )
+   fxrr.plot_payoff(
+       range=[1.025, 1.11],
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=[0.1015, 0.089]
+   )
+
+.. plot::
+
+   from rateslib.curves import Curve
+   from rateslib.instruments import FXRiskReversal
+   from rateslib import dt
+   from rateslib.fx import FXForwards, FXRates
+
+   eureur = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+   )
+   usdusd = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+   )
+   eurusd = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd"
+   )
+   fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
+   fxf = FXForwards(
+       fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
+       fx_rates=fxr
+   )
+   fxrr = FXRiskReversal(
+       pair="eurusd",
+       expiry=dt(2023, 6, 16),
+       notional=20e6,
+       strike=("-25d", "25d"),
+       payment_lag=2,
+       delivery_lag=2,
+       calendar="tgt",
+       premium_ccy="usd",
+       delta_type="spot",
+   )
+   fxrr.plot_payoff(
+       range=[1.025, 1.11],
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=[0.1015, 0.089],
+   )
