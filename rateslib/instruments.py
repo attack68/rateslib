@@ -8005,7 +8005,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.kwargs = _push(spec, self.kwargs)
         # set some defaults if missing
         self.kwargs["delta_type"] = (
-            defaults.delta_type
+            defaults.fx_delta_type
             if self.kwargs["delta_type"] is NoInput.blank
             else self.kwargs["delta_type"]
         )
@@ -8017,15 +8017,22 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
                 raise ValueError("`expiry` as string tenor requires `eval_date`.")
+            if modifier is NoInput.blank:
+                modifier = defaults.modifier
             self.kwargs["expiry"] = add_tenor(eval_date, expiry, modifier, calendar, NoInput(0))
+
         self.kwargs["delivery_lag"] = (
-            defaults.delivery_lag
+            defaults.fx_delivery_lag
             if self.kwargs["delivery_lag"] is NoInput.blank
             else self.kwargs["delivery_lag"]
         )
-        self.kwargs["delivery"] = add_tenor(
-            self.kwargs["expiry"], f"{self.kwargs['delivery_lag']}b", "F", calendar, NoInput(0)
-        )
+        if isinstance(self.kwargs["delivery_lag"], datetime):
+            self.kwargs["delivery"] = self.kwargs["delivery_lag"]
+        else:
+            self.kwargs["delivery"] = add_tenor(
+                self.kwargs["expiry"], f"{self.kwargs['delivery_lag']}b", "F", calendar, NoInput(0)
+            )
+
         self.kwargs["payment_lag"] = (
             defaults.payment_lag
             if self.kwargs["payment_lag"] is NoInput.blank
@@ -8124,7 +8131,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         )
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
         opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
-        prem_npv = self.periods[1].npv(NoInput(0), curves[3], fx, base, local)
+        if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
+            disc_curve = curves[1]
+        else:
+            disc_curve = curves[3]
+        prem_npv = self.periods[1].npv(NoInput(0), disc_curve, fx, base, local)
         if local:
             return {
                 k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)
@@ -8270,6 +8281,8 @@ class FXRiskReversal(FXOption):
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
     option_fixing: 2-element sequence, optional
         The option fixing is applied to the put and call in order.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the risk reversal.
     kwargs: tuple
         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
@@ -8287,25 +8300,35 @@ class FXRiskReversal(FXOption):
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
-                delivery_lag=self.kwargs["delivery_lag"],
-                payment_lag=self.kwargs["payment_lag"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
                 strike=self.kwargs["strike"][0],
                 notional=-self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][0],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0) if self.kwargs["premium"] is NoInput.blank else 0.0,
+                premium=
+                    NoInput(0)
+                    if self.kwargs["premium"] is NoInput.blank
+                    else self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
             FXCall(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
-                delivery_lag=self.kwargs["delivery_lag"],
-                payment_lag=self.kwargs["payment_lag"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
                 strike=self.kwargs["strike"][1],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][1],
                 delta_type=self.kwargs["delta_type"],
-                premium=self.kwargs["premium"],
+                premium=
+                    NoInput(0)
+                    if self.kwargs["premium"] is NoInput.blank
+                    else self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]

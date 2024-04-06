@@ -3163,7 +3163,13 @@ class TestFXOptions:
         expected = -13.791068
         assert abs(result - expected) < 1e-6
 
-    def test_risk_reversal_npv(self, fxfo):
+    @pytest.mark.parametrize("prem, prem_ccy, local, exp", [
+        (NoInput(0), NoInput(0), False, 0.0),
+        ((-167500.0, 140500.0), "usd", False, -219.590678),
+        ((-167500/1.06751, 140500/1.06751), "eur", False, -219.590678),
+        ((-167500/1.06751, 140500/1.06751), "eur", True, {"eur": 25121.646, "usd": -26879.673}),
+    ])
+    def test_risk_reversal_npv(self, fxfo, prem, prem_ccy, local, exp):
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3171,12 +3177,18 @@ class TestFXOptions:
             delivery_lag=2,
             payment_lag=2,
             calendar="tgt",
-            strike=["-25d", "25d"],
+            strike=[1.033, 1.101],
+            premium=prem,
+            premium_ccy=prem_ccy,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=[0.1015, 0.089])
-        expected = 0.0
-        assert abs(result - expected) < 1e-6
+        result = fxo.npv(curves, fx=fxfo, vol=[0.1015, 0.089], local=local)
+        expected = exp
+        if not local:
+            assert abs(result - expected) < 1e-6
+        else:
+            for k in expected:
+                assert abs(result[k]-expected[k]) < 1e-3
 
     def test_risk_reversal_plot(self, fxfo):
         fxo = FXRiskReversal(
@@ -3195,4 +3207,20 @@ class TestFXOptions:
         assert x[1000] == 1.12
         assert abs(y[0] + 61590.08836201352) < 1e-5
         assert abs(y[1000] - 382208.868402012) < 1e-5
+
+    def test_str_tenor_raises(self):
+        with pytest.raises(ValueError, match="`expiry` as string tenor requires `eval_date`"):
+            FXCall(
+                pair="eurusd",
+                expiry="3m",
+            )
+
+    def test_premium_ccy_raises(self):
+        with pytest.raises(ValueError, match="`premium_ccy` must be one of option currency pair"):
+            FXCall(
+                pair="eurusd",
+                expiry="3m",
+                eval_date=dt(2023, 3, 16),
+                premium_ccy="chf",
+            )
 

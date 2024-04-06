@@ -2581,19 +2581,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Parameters
         ----------
-        f: float, Dual, Dual2
-            The forward FX rate at delivery.
-        delta: float
-            The percentage delta to calculate strike for.
-        vol: float, Dual, Dual2
+        fx: FXForwards
+            The FXForwards object used for determining forwqrds.
+        k: float
+            The strike value of the option.
+        vol: float, Dual, Dual2,
             The volatility (assumed constant) over the period to expiry
         t_e: float, Dual, Dual2
             The time to expiry.
-        v1: float, Dual, Dual2
-            The domestic discount factor (LHS currency) in an appropriate collateral until delivery.
-        vspot: float, Dual, Dual2
-            The domestic discount factor (LHS currency) in appropriate collateral until standard
-            transaction settlement, e.g. spot.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type to determine delta for.
+        premium: float, Dual, Dual2, optional
+            The premium, optional, needed only for premium adjusted delta.
+            Must be expressed in domestic (LHS) currency.
+        disc_curve: Curve
+            The discount curve for the domestic (LHS) currency at appropriate collateral rate.
 
         Returns
         -------
