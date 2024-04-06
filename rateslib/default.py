@@ -17,6 +17,7 @@ class NoInput(Enum):
 
     See :ref:`default values <defaults-doc>`.
     """
+
     blank = 0
     inherit = 1
     negate = -1
@@ -145,9 +146,9 @@ class Defaults:
     spread_compound_method = "none_simple"
     base_currency = "usd"
 
-    delivery_lag = 2
-    delta_type = "spot"
-    option_metric = "pips"
+    fx_delivery_lag = 2
+    fx_delta_type = "spot"
+    fx_option_metric = "pips"
 
     # Curves
 

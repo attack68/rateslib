@@ -326,7 +326,7 @@ class Sensitivities:
         fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
@@ -379,7 +379,7 @@ class Sensitivities:
         fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
@@ -892,7 +892,9 @@ class Value(BaseMixin):
             return curves[0][self.effective]
         elif metric == "cc_zero_rate":
             if curves[0]._base_type != "dfs":
-                raise TypeError("`curve` used with `metric`='cc_zero_rate' must be discount factor based.")
+                raise TypeError(
+                    "`curve` used with `metric`='cc_zero_rate' must be discount factor based."
+                )
             dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
             _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
             return _
@@ -1469,7 +1471,7 @@ class BondMixin:
         repo_rate: Union[float, Dual, Dual2],
         convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
-        method: str = "proceeds"
+        method: str = "proceeds",
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1929,7 +1931,7 @@ class BondMixin:
 
         # perform one final approximation albeit the additional price calculation slows calc time
         curves[1]._set_ad_order(0)
-        disc_curve = curves[1].shift(z_hat+z_hat2, composite=False)
+        disc_curve = curves[1].shift(z_hat + z_hat2, composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         b = b + 2 * a * z_hat2  # forecast the new gradient
         c = float(npv_price) - float(price)
@@ -4316,13 +4318,10 @@ class BondFuture(Sensitivities):
             None,
             self.basket[0].leg1.schedule.calendar,
         )
-        unsorted_nodes = {
-            today: 1.0,
-            **{_.leg1.schedule.termination: 1.0 for _ in self.basket}
-        }
+        unsorted_nodes = {today: 1.0, **{_.leg1.schedule.termination: 1.0 for _ in self.basket}}
         bcurve = Curve(
             nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
-            convention="act365f"  # use the most natural DCF without scaling
+            convention="act365f",  # use the most natural DCF without scaling
         )
         if dirty:
             metric = "dirty_price"
@@ -4446,13 +4445,18 @@ class BondFuture(Sensitivities):
 
         if dirty:
             net_basis_ = tuple(
-                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
-                - self.cfs[i] * future_price - bond.accrued(f_settlement)
+                bond.fwd_from_repo(
+                    prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty
+                )
+                - self.cfs[i] * future_price
+                - bond.accrued(f_settlement)
                 for i, bond in enumerate(self.basket)
             )
         else:
             net_basis_ = tuple(
-                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                bond.fwd_from_repo(
+                    prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty
+                )
                 - self.cfs[i] * future_price
                 for i, bond in enumerate(self.basket)
             )
@@ -7987,7 +7991,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
     ):
-        # TODO mandate some input for premium_ccy or overwrite the USD default.
         self.kwargs = dict(
             pair=pair,
             expiry=expiry,
@@ -8005,7 +8008,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.kwargs = _push(spec, self.kwargs)
         # set some defaults if missing
         self.kwargs["delta_type"] = (
-            defaults.delta_type
+            defaults.fx_delta_type
             if self.kwargs["delta_type"] is NoInput.blank
             else self.kwargs["delta_type"]
         )
@@ -8017,15 +8020,22 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
                 raise ValueError("`expiry` as string tenor requires `eval_date`.")
+            if modifier is NoInput.blank:
+                modifier = defaults.modifier
             self.kwargs["expiry"] = add_tenor(eval_date, expiry, modifier, calendar, NoInput(0))
+
         self.kwargs["delivery_lag"] = (
-            defaults.delivery_lag
+            defaults.fx_delivery_lag
             if self.kwargs["delivery_lag"] is NoInput.blank
             else self.kwargs["delivery_lag"]
         )
-        self.kwargs["delivery"] = add_tenor(
-            self.kwargs["expiry"], f"{self.kwargs['delivery_lag']}b", "F", calendar, NoInput(0)
-        )
+        if isinstance(self.kwargs["delivery_lag"], datetime):
+            self.kwargs["delivery"] = self.kwargs["delivery_lag"]
+        else:
+            self.kwargs["delivery"] = add_tenor(
+                self.kwargs["expiry"], f"{self.kwargs['delivery_lag']}b", "F", calendar, NoInput(0)
+            )
+
         self.kwargs["payment_lag"] = (
             defaults.payment_lag
             if self.kwargs["payment_lag"] is NoInput.blank
@@ -8070,7 +8080,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # then strike is commanded by delta
             k = self.periods[0]._strike_from_delta(
                 f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-                delta=float(self.kwargs["strike"][:-1])/100,
+                delta=float(self.kwargs["strike"][:-1]) / 100,
                 vol=vol,
                 t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
                 w_deli=curves[1][self.kwargs["delivery"]],
@@ -8092,8 +8102,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     "If not required, initialise the "
                     "FXOption with a `premium` of 0.0, and this will be avoided."
                 )
-            # TODO: convert premium to correct premium currency
-            premium = npv / curves[3][self.kwargs["payment"]]
+            m_p = self.kwargs["payment"]
+            if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
+                premium = npv / (curves[3][m_p] * fx.rate("eurusd", m_p))
+            else:
+                premium = npv / curves[3][m_p]
+
             self.periods[1].notional = float(premium)
 
     def rate(
@@ -8102,7 +8116,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
-        vol: float = NoInput(0)
+        vol: float = NoInput(0),
     ):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
@@ -8117,18 +8131,20 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0)
+        vol: float = NoInput(0),
     ):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
         opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
-        prem_npv = self.periods[1].npv(NoInput(0), curves[3], fx, base, local)
+        if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
+            disc_curve = curves[1]
+        else:
+            disc_curve = curves[3]
+        prem_npv = self.periods[1].npv(NoInput(0), disc_curve, fx, base, local)
         if local:
-            return {
-                k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)
-            }
+            return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}
         else:
             return opt_npv + prem_npv
 
@@ -8209,7 +8225,7 @@ class FXCall(FXOption):
                 strike=self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"]+self.kwargs["delta_adjustment"],
+                delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                 metric=self.kwargs["metric"],
             ),
             Cashflow(
@@ -8217,7 +8233,7 @@ class FXCall(FXOption):
                 payment=self.kwargs["payment"],
                 currency=self.kwargs["premium_ccy"],
                 stub_type="Premium",
-            )
+            ),
         ]
 
 
@@ -8241,14 +8257,14 @@ class FXPut(FXOption):
                 strike=self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"]+self.kwargs["delta_adjustment"],
+                delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
             ),
             Cashflow(
                 notional=self.kwargs["premium"],
                 payment=self.kwargs["payment"],
                 currency=self.kwargs["premium_ccy"],
                 stub_type="Premium",
-            )
+            ),
         ]
 
 
@@ -8270,6 +8286,8 @@ class FXRiskReversal(FXOption):
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
     option_fixing: 2-element sequence, optional
         The option fixing is applied to the put and call in order.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the risk reversal.
     kwargs: tuple
         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
@@ -8287,25 +8305,33 @@ class FXRiskReversal(FXOption):
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
-                delivery_lag=self.kwargs["delivery_lag"],
-                payment_lag=self.kwargs["payment_lag"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
                 strike=self.kwargs["strike"][0],
                 notional=-self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][0],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0) if self.kwargs["premium"] is NoInput.blank else 0.0,
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
             FXCall(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
-                delivery_lag=self.kwargs["delivery_lag"],
-                payment_lag=self.kwargs["payment_lag"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
                 strike=self.kwargs["strike"][1],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"][1],
                 delta_type=self.kwargs["delta_type"],
-                premium=self.kwargs["premium"],
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
@@ -8340,10 +8366,7 @@ class FXRiskReversal(FXOption):
         _0 = self.periods[0].npv(curves, solver, fx, base, local, vol[0])
         _1 = self.periods[1].npv(curves, solver, fx, base, local, vol[1])
         if local:
-            return {
-                k: _0.get(k, 0) + _1.get(k, 0)
-                for k in set(_0) | set(_1)
-            }
+            return {k: _0.get(k, 0) + _1.get(k, 0) for k in set(_0) | set(_1)}
         else:
             return _0 + _1
 

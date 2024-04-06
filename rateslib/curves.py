@@ -20,11 +20,7 @@ import json
 from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
-from rateslib.splines import (
-    PPSplineF64,
-    PPSplineDual,
-    PPSplineDual2
-)
+from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from rateslib.calendars import (
     create_calendar,
@@ -317,8 +313,10 @@ class Curve(_Serialize):
         self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
         self.n = len(self.node_dates)
         for idx in range(1, self.n):
-            if self.node_dates[idx-1] >= self.node_dates[idx]:
-                raise ValueError("Curve node dates are not sorted or contain duplicates. To sort directly use: `dict(sorted(nodes.items()))`")
+            if self.node_dates[idx - 1] >= self.node_dates[idx]:
+                raise ValueError(
+                    "Curve node dates are not sorted or contain duplicates. To sort directly use: `dict(sorted(nodes.items()))`"
+                )
         self.interpolation = (
             defaults.interpolation[type(self).__name__]
             if interpolation is NoInput.blank
@@ -381,7 +379,10 @@ class Curve(_Serialize):
         if date_posix < self.node_dates_posix[0]:
             return 0  # then date is in the past and DF is zero
         l_index = index_left_f64(self.node_dates_posix, date_posix, None)
-        node_left_posix, node_right_posix = self.node_dates_posix[l_index], self.node_dates_posix[l_index + 1]
+        node_left_posix, node_right_posix = (
+            self.node_dates_posix[l_index],
+            self.node_dates_posix[l_index + 1],
+        )
         node_left, node_right = self.node_dates[l_index], self.node_dates[l_index + 1]
         return interpolate(
             date_posix,
@@ -504,7 +505,7 @@ class Curve(_Serialize):
         if termination == effective:
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
         n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
-        _ =  n_ / d_ * 100
+        _ = n_ / d_ * 100
 
         if float_spread is not None and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
@@ -566,7 +567,7 @@ class Curve(_Serialize):
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
             tau_posix.insert(0, self.t_posix[0])
-            y.insert(0, set_order_convert(0., self.ad, None))
+            y.insert(0, set_order_convert(0.0, self.ad, None))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
             t_posix.pop(4)
@@ -2711,14 +2712,14 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
     elif interpolation == "linear_zero_rate":
         # convention not used here since we just determine linear rate interpolation
         # 86400. scalar relates to using posix timestamp conversion
-        y_2 = dual_log(y_2) / ((start - x_2) / (365. * 86400.))
+        y_2 = dual_log(y_2) / ((start - x_2) / (365.0 * 86400.0))
         if start == x_1:
             y_1 = y_2
         else:
-            y_1 = dual_log(y_1) / ((start - x_1) / (365. * 86400.))
+            y_1 = dual_log(y_1) / ((start - x_1) / (365.0 * 86400.0))
 
         def op(z):
-            return dual_exp((start - x) / (365. * 86400.) * z)
+            return dual_exp((start - x) / (365.0 * 86400.0) * z)
 
     elif interpolation == "flat_forward":
         if x >= x_2:

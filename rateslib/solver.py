@@ -1372,15 +1372,15 @@ class Solver(Gradients):
                         curve.nodes[curve.node_dates[0]].real,
                         d_vars.vars,
                         ident[0, :].tolist(),
-                        *DualArgs[1:]
+                        *DualArgs[1:],
                     )
-                for ii, k in enumerate(curve.node_dates[curve._ini_solve:]):
+                for ii, k in enumerate(curve.node_dates[curve._ini_solve :]):
                     curve.nodes[k] = DualType.vars_from(
                         d_vars,
                         v_1[_].real,
                         d_vars.vars,
                         ident[ii + curve._ini_solve, :].tolist(),
-                        *DualArgs[1:]
+                        *DualArgs[1:],
                     )
                     _ += 1
                 curve.csolve()
@@ -1396,7 +1396,7 @@ class Solver(Gradients):
             "status": "FAILURE",
             "state": -1,
             "g": self.g.real,
-            "iterations": i+1,
+            "iterations": i + 1,
             "time": time() - t0,
         }
         return None

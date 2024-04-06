@@ -206,11 +206,11 @@ class Dual2(DualBase):
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        vars = ', '.join(self.vars[:3])
-        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        vars = ", ".join(self.vars[:3])
+        dual = ", ".join([f"{_:.1f}" for _ in self.dual[:3]])
         if len(self.vars) > 3:
-            vars += ',...'
-            dual += ',...'
+            vars += ",..."
+            dual += ",..."
         return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
@@ -351,31 +351,31 @@ class Dual2(DualBase):
 
     def __norm_cdf__(self):
         base = NormalDist().cdf(self.real)
-        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real ** 2)
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real**2)
         scalar2 = scalar * -self.real
         return Dual2(
             base,
             self.vars,
             scalar * self.dual,
-            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual),
         )
 
     def __norm_inv_cdf__(self):
         base = NormalDist().inv_cdf(self.real)
-        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base ** 2)
-        scalar2 = base * scalar ** 2
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base**2)
+        scalar2 = base * scalar**2
         return Dual2(
             base,
             self.vars,
             scalar * self.dual,
-            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual)
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual),
         )
 
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
         ix_ = list(map(lambda x: new_vars.index(x), self.vars))
-        dual[ix_] = self.dual,
+        dual[ix_] = (self.dual,)
         dual2[np.ix_(ix_, ix_)] = self.dual2
         return Dual2(self.real, new_vars, dual, dual2)
 
@@ -458,11 +458,11 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        vars = ', '.join(self.vars[:3])
-        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        vars = ", ".join(self.vars[:3])
+        dual = ", ".join([f"{_:.1f}" for _ in self.dual[:3]])
         if len(self.vars) > 3:
-            vars += ',...'
-            dual += ',...'
+            vars += ",..."
+            dual += ",..."
         return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
@@ -558,12 +558,12 @@ class Dual(DualBase):
 
     def __norm_cdf__(self):
         base = NormalDist().cdf(self.real)
-        scalar = 1 / math.sqrt(2*math.pi) * math.exp(-0.5 * self.real**2)
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real**2)
         return Dual(base, self.vars, scalar * self.dual)
 
     def __norm_inv_cdf__(self):
         base = NormalDist().inv_cdf(self.real)
-        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base ** 2)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base**2)
         return Dual(base, self.vars, scalar * self.dual)
 
     def __upcast_vars__(self, new_vars):

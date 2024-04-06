@@ -7,15 +7,9 @@ from statistics import NormalDist
 DUAL_CORE_PY = False
 
 if DUAL_CORE_PY:
-    from rateslib.dual.dual import (
-        Dual,
-        Dual2
-    )
+    from rateslib.dual.dual import Dual, Dual2
 else:
-    from rateslib.dual.dualrs import (
-        Dual,
-        Dual2
-    )
+    from rateslib.dual.dualrs import Dual, Dual2
 
 from rateslib.dual.dual import (
     _dsolve,
@@ -239,22 +233,15 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
         return _dsolve(A, b, allow_lsq)
 
     # Move to Rust implementation
-    if types in [
-        (Dual, float),
-        (Dual2, float)
-    ]:
+    if types in [(Dual, float), (Dual2, float)]:
         raise TypeError(
             "Not implemented for type crossing. Use (Dual, Dual) or (Dual2, Dual2). It is no less"
             "efficient to preconvert `b` to dual types and then solve."
         )
 
     map = {float: 0, Dual: 1, Dual2: 2}
-    A_ = np.vectorize(
-        partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None)
-    )(A)
-    b_ = np.vectorize(
-        partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None)
-    )(b)
+    A_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None))(A)
+    b_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None))(b)
 
     a = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
     b = b_[:, 0].tolist()
