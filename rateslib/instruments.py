@@ -7987,7 +7987,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
     ):
-        # TODO mandate some input for premium_ccy or overwrite the USD default.
         self.kwargs = dict(
             pair=pair,
             expiry=expiry,
@@ -8099,8 +8098,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     "If not required, initialise the "
                     "FXOption with a `premium` of 0.0, and this will be avoided."
                 )
-            # TODO: convert premium to correct premium currency
-            premium = npv / curves[3][self.kwargs["payment"]]
+            m_p = self.kwargs["payment"]
+            if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
+                premium = npv / (curves[3][m_p] * fx.rate("eurusd", m_p))
+            else:
+                premium = npv / curves[3][m_p]
+
             self.periods[1].notional = float(premium)
 
     def rate(

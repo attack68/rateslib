@@ -2416,7 +2416,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self.delivery = delivery
         self.expiry = expiry
         self.option_fixing = option_fixing
-        self.delta_type = defaults.delta_type if delta_type is NoInput.blank else delta_type.lower()
+        self.delta_type = defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
         self.metric = metric
 
     @staticmethod
@@ -2482,7 +2482,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2*pi)
             def root_deriv(x):
                 return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2*pi)
-            root_solver = _newton(root, root_deriv, (0.1-half_vol_sq_t)/vol_sqrt_t)
+            root_solver = _newton(root, root_deriv, (0.095-half_vol_sq_t)/vol_sqrt_t)
             k_min = f * dual_exp(-root_solver[0]*vol_sqrt_t - half_vol_sq_t)
 
         else:
@@ -2733,7 +2733,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         elif self.metric is not NoInput.blank:
             metric_ = self.metric.lower()
         else:
-            metric_ = defaults.option_metric
+            metric_ = defaults.fx_option_metric
 
         if metric_ == "pips":
             points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional

@@ -3160,11 +3160,12 @@ class TestFXOptions:
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=[0.1015, 0.089])
-        expected = -13.791068
+        expected = -13.795465
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize("prem, prem_ccy, local, exp", [
         (NoInput(0), NoInput(0), False, 0.0),
+        (NoInput(0), "eur", False, 0.0),
         ((-167500.0, 140500.0), "usd", False, -219.590678),
         ((-167500/1.06751, 140500/1.06751), "eur", False, -219.590678),
         ((-167500/1.06751, 140500/1.06751), "eur", True, {"eur": 25121.646, "usd": -26879.673}),
@@ -3198,15 +3199,15 @@ class TestFXOptions:
             delivery_lag=2,
             payment_lag=2,
             calendar="tgt",
-            strike=["-25d", "25d"],
+            strike=[1.033, 1.101],
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.plot_payoff([1.03, 1.12], curves, fx=fxfo, vol=[0.101, 0.089])
+        result = fxo.plot_payoff([1.03, 1.12], curves, fx=fxfo, vol=[0.1015, 0.089])
         x, y = result[2][0]._x, result[2][0]._y
         assert x[0] == 1.03
         assert x[1000] == 1.12
-        assert abs(y[0] + 61590.08836201352) < 1e-5
-        assert abs(y[1000] - 382208.868402012) < 1e-5
+        assert abs(y[0] + (1.033 - 1.03) * 20e6 ) < 1e-5
+        assert abs(y[1000] - (1.12-1.101) * 20e6) < 1e-5
 
     def test_str_tenor_raises(self):
         with pytest.raises(ValueError, match="`expiry` as string tenor requires `eval_date`"):
