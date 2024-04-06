@@ -17,6 +17,7 @@ class NoInput(Enum):
 
     See :ref:`default values <defaults-doc>`.
     """
+
     blank = 0
     inherit = 1
     negate = -1

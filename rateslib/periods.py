@@ -2405,7 +2405,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         notional: Union[float, NoInput] = NoInput(0),
         option_fixing: Union[float, NoInput] = NoInput(0),
         delta_type: Union[str, NoInput] = NoInput(0),
-        metric: Union[str, NoInput] = NoInput(0)
+        metric: Union[str, NoInput] = NoInput(0),
     ):
         self.pair = pair.lower()
         self.currency = self.pair[3:]
@@ -2416,7 +2416,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self.delivery = delivery
         self.expiry = expiry
         self.option_fixing = option_fixing
-        self.delta_type = defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
+        self.delta_type = (
+            defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
+        )
         self.metric = metric
 
     @staticmethod
@@ -2445,10 +2447,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         --------
         float, Dual, Dual2
         """
-        vs = vol * t_e ** 0.5
-        d1 = (dual_log(F / K) + 0.5 * vol ** 2 * t_e) / vs
+        vs = vol * t_e**0.5
+        d1 = (dual_log(F / K) + 0.5 * vol**2 * t_e) / vs
         d2 = d1 - vs
-        Nd1, Nd2 = dual_norm_cdf(phi*d1), dual_norm_cdf(phi*d2)
+        Nd1, Nd2 = dual_norm_cdf(phi * d1), dual_norm_cdf(phi * d2)
         _ = phi * (F * Nd1 - K * Nd2)
 
         # Spot formulation instead of F (Garman Kohlhagen formulation)
@@ -2479,11 +2481,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # k_min = root_solver[0]
 
             def root(x):
-                return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2*pi)
+                return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2 * pi)
+
             def root_deriv(x):
-                return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2*pi)
-            root_solver = _newton(root, root_deriv, (0.095-half_vol_sq_t)/vol_sqrt_t)
-            k_min = f * dual_exp(-root_solver[0]*vol_sqrt_t - half_vol_sq_t)
+                return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2 * pi)
+
+            root_solver = _newton(root, root_deriv, (0.095 - half_vol_sq_t) / vol_sqrt_t)
+            k_min = f * dual_exp(-root_solver[0] * vol_sqrt_t - half_vol_sq_t)
 
         else:
             k_min = unadj_k / 2.0
@@ -2497,7 +2501,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        v_deli: Union[DualTypes, NoInput] = NoInput(0)
+        v_deli: Union[DualTypes, NoInput] = NoInput(0),
     ):
         """
         Determine a strike given a delta percentage value.
@@ -2524,8 +2528,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        half_vol_sq_t = 0.5 * vol ** 2 * t_e
-        vol_sqrt_t = vol * t_e ** 0.5
+        half_vol_sq_t = 0.5 * vol**2 * t_e
+        vol_sqrt_t = vol * t_e**0.5
 
         if "forward" in self.delta_type:
             _ = dual_inv_norm_cdf(self.phi * delta)
@@ -2559,7 +2563,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 def root(k):
                     b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
                     dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
-                    return delta + b76 / (v_deli * f * w1) - self.phi * dual_norm_cdf(self.phi * dplus) / w1
+                    return (
+                        delta
+                        + b76 / (v_deli * f * w1)
+                        - self.phi * dual_norm_cdf(self.phi * dplus) / w1
+                    )
 
                 root_solver = _brents(root, x0=k_min, x1=k_max)
                 _ = root_solver[0]
@@ -2604,8 +2612,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         spot = fx.pairs_settlement[self.pair]
         f = fx.rate(self.pair, self.delivery)
 
-        vs = vol * t_e ** 0.5
-        d1 = (dual_log(f / k) + 0.5 * vol ** 2 * t_e) / vs
+        vs = vol * t_e**0.5
+        d1 = (dual_log(f / k) + 0.5 * vol**2 * t_e) / vs
         _ = self.phi * dual_norm_cdf(self.phi * d1)
         if delta_type == "forward_pa":
             if self.payment == self.delivery:
@@ -2675,7 +2683,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 F=fx.rate(self.pair, self.delivery),
                 K=self.strike,
                 t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
-                v1=None,   # not required: disc_curve[self.expiry],
+                v1=None,  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
                 vol=vol,
                 phi=self.phi,  # controls calls or put price
@@ -2739,7 +2747,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
             return points_premium * 10000.0
         elif metric_ == "percent":
-            currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(self.pair, self.payment)
+            currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(
+                self.pair, self.payment
+            )
             return currency_premium / self.notional * 100
         else:
             raise ValueError("`metric` must be in {'pips', 'percent'}")
@@ -2795,7 +2805,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
         vol: Union[float, NoInput] = NoInput(0),
-        premium: Union[DualTypes, NoInput] = NoInput(0)  # expressed in the payment currency
+        premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
     ):
         """
         Return the percentage delta of the option.
@@ -2827,13 +2837,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         If ``srtike`` is not set on the *FXOption* this method will **raise**.
         """
         if "_pa" in self.delta_type and premium is NoInput.blank:
-            premium = self.npv(
-                disc_curve,
-                disc_curve_ccy2,
-                fx,
-                base=self.pair[:3],
-                vol=vol,
-            ) / disc_curve[self.payment]
+            premium = (
+                self.npv(
+                    disc_curve,
+                    disc_curve_ccy2,
+                    fx,
+                    base=self.pair[:3],
+                    vol=vol,
+                )
+                / disc_curve[self.payment]
+            )
         return self._delta_percent(
             fx=fx,
             k=self.strike,
@@ -2870,6 +2883,7 @@ class FXCallPeriod(FXOptionPeriod):
 
     For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
     """
+
     kind = "call"
     phi = 1.0
 
@@ -2883,6 +2897,7 @@ class FXPutPeriod(FXOptionPeriod):
 
     For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
     """
+
     kind = "put"
     phi = -1.0
 
@@ -2936,9 +2951,7 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
     fx1 = f(x1)
 
     if float(fx0 * fx1) > 0:
-        raise ValueError(
-            "`brents` must initiate from function values with opposite signs."
-        )
+        raise ValueError("`brents` must initiate from function values with opposite signs.")
 
     if abs(fx0) < abs(fx1):
         x0, x1 = x1, x0
