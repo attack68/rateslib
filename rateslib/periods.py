@@ -2416,7 +2416,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self.delivery = delivery
         self.expiry = expiry
         self.option_fixing = option_fixing
-        self.delta_type = defaults.delta_type if delta_type is NoInput.blank else delta_type.lower()
+        self.delta_type = defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
         self.metric = metric
 
     @staticmethod
@@ -2482,7 +2482,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2*pi)
             def root_deriv(x):
                 return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2*pi)
-            root_solver = _newton(root, root_deriv, (0.1-half_vol_sq_t)/vol_sqrt_t)
+            root_solver = _newton(root, root_deriv, (0.095-half_vol_sq_t)/vol_sqrt_t)
             k_min = f * dual_exp(-root_solver[0]*vol_sqrt_t - half_vol_sq_t)
 
         else:
@@ -2581,19 +2581,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Parameters
         ----------
-        f: float, Dual, Dual2
-            The forward FX rate at delivery.
-        delta: float
-            The percentage delta to calculate strike for.
-        vol: float, Dual, Dual2
+        fx: FXForwards
+            The FXForwards object used for determining forwqrds.
+        k: float
+            The strike value of the option.
+        vol: float, Dual, Dual2,
             The volatility (assumed constant) over the period to expiry
         t_e: float, Dual, Dual2
             The time to expiry.
-        v1: float, Dual, Dual2
-            The domestic discount factor (LHS currency) in an appropriate collateral until delivery.
-        vspot: float, Dual, Dual2
-            The domestic discount factor (LHS currency) in appropriate collateral until standard
-            transaction settlement, e.g. spot.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type to determine delta for.
+        premium: float, Dual, Dual2, optional
+            The premium, optional, needed only for premium adjusted delta.
+            Must be expressed in domestic (LHS) currency.
+        disc_curve: Curve
+            The discount curve for the domestic (LHS) currency at appropriate collateral rate.
 
         Returns
         -------
@@ -2731,7 +2733,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         elif self.metric is not NoInput.blank:
             metric_ = self.metric.lower()
         else:
-            metric_ = defaults.option_metric
+            metric_ = defaults.fx_option_metric
 
         if metric_ == "pips":
             points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
