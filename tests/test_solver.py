@@ -514,7 +514,7 @@ def test_max_iterations():
             func_tol=1e-10,
             max_iter=30,
         )
-    assert len(solver.g_list) == 30
+    assert len(solver.g_list) == 31
 
 
 def test_solver_pre_solver_dependency_generates_same_delta():

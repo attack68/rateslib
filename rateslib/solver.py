@@ -1271,7 +1271,7 @@ class Solver(Gradients):
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            if self.g_prev < self.g.real:
+            if self.g_list[-2] < self.g.real:
                 # reject previous iteration and rescale lambda:
                 self.lambd *= self.ini_lambda[2]
                 # self._update_curves_with_parameters(self.v_prev)
@@ -1327,7 +1327,7 @@ class Solver(Gradients):
         """
 
         # Initialise data and clear and caches
-        self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
+        self.g_list, self.lambd = [1e10], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
         t0 = time()
@@ -1335,7 +1335,7 @@ class Solver(Gradients):
         # Begin iteration
         for i in range(self.max_iter):
             self.g_list.append(self.g.real)
-            if self.g.real < self.g_prev and (self.g_prev - self.g.real) < self.conv_tol:
+            if self.g.real < self.g_list[i] and (self.g_list[i] - self.g.real) < self.conv_tol:
                 # condition is set to less than to avoid the case where a null update
                 # results in the same solution and this is erroneously categorised
                 # as a converged solution.
@@ -1343,13 +1343,10 @@ class Solver(Gradients):
             elif self.g.real < self.func_tol:
                 return self._solver_result(2, i, time()-t0)
 
-            # if self.algorithm == "levenberg_marquardt" and self.g.real < self.g_prev:
-            #     self.v_prev = self.v.copy()
-            self.g_prev = self.g.real
+            # v_0 = self.v.copy()
             v_1 = self._update_step_(self.algorithm)
+            # self.v_prev = v_0
             self._update_curves_with_parameters(v_1)
-            self._reset_properties_()
-            self._update_fx()
 
             if self.callback is not NoInput.blank:
                 self.callback(self, i, v_1)
@@ -1404,6 +1401,9 @@ class Solver(Gradients):
                 )
                 var_counter += 1
             curve.csolve()
+
+        self._reset_properties_()
+        self._update_fx()
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
