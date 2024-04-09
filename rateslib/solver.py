@@ -1271,7 +1271,13 @@ class Solver(Gradients):
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
+            if self.g_list[-2] < self.g.real:
+                # reject previous iteration and rescale lambda:
+                self.lambd *= self.ini_lambda[2]
+                # self._update_curves_with_parameters(self.v_prev)
+            else:
+                self.lambd *= self.ini_lambda[1]
+            # self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
@@ -1319,88 +1325,85 @@ class Solver(Gradients):
         -------
         None
         """
-        DualType = Dual if self._ad == 1 else Dual2
-        DualArgs = ([],) if self._ad == 1 else ([], [])
-        self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
+
+        # Initialise data and clear and caches
+        self.g_list, self.lambd = [1e10], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
         t0 = time()
+
+        # Begin iteration
         for i in range(self.max_iter):
-            g_val = self.g.real
-            self.g_list.append(g_val)
-            # condition is set to less than to avoid the case where a null update
-            # results in the same solution and this is erroneously categorised
-            # as a converged solution.
-            if self.g.real < self.g_prev and (self.g_prev - self.g.real) < self.conv_tol:
-                print(
-                    f"SUCCESS: `conv_tol` reached after {i} iterations "
-                    f"({self.algorithm}), `f_val`: {self.g.real}, "
-                    f"`time`: {time() - t0:.4f}s"
-                )
-                self.result = {
-                    "status": "SUCCESS",
-                    "state": 1,
-                    "g": self.g.real,
-                    "iterations": i,
-                    "time": time() - t0,
-                }
-                return None
+            self.g_list.append(self.g.real)
+            if self.g.real < self.g_list[i] and (self.g_list[i] - self.g.real) < self.conv_tol:
+                # condition is set to less than to avoid the case where a null update
+                # results in the same solution and this is erroneously categorised
+                # as a converged solution.
+                return self._solver_result(1, i, time()-t0)
             elif self.g.real < self.func_tol:
-                print(
-                    f"SUCCESS: `func_tol` reached after {i} iterations "
-                    f"({self.algorithm}) , `f_val`: {self.g.real}, "
-                    f"`time`: {time() - t0:.4f}s"
-                )
-                self.result = {
-                    "status": "SUCCESS",
-                    "state": 2,
-                    "g": self.g.real,
-                    "iterations": i,
-                    "time": time() - t0,
-                }
-                return None
-            self.g_prev = self.g.real
+                return self._solver_result(2, i, time()-t0)
+
+            # v_0 = self.v.copy()
             v_1 = self._update_step_(self.algorithm)
-            _ = 0
-            for id, curve in self.curves.items():
-                # this was amended in PR126 as performance improvement to keep consistent `vars`
-                d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], *DualArgs)
-                ident = np.eye(curve.n)
-                if curve._ini_solve == 1:
-                    curve.nodes[curve.node_dates[0]] = DualType.vars_from(
-                        d_vars,
-                        curve.nodes[curve.node_dates[0]].real,
-                        d_vars.vars,
-                        ident[0, :].tolist(),
-                        *DualArgs[1:],
-                    )
-                for ii, k in enumerate(curve.node_dates[curve._ini_solve :]):
-                    curve.nodes[k] = DualType.vars_from(
-                        d_vars,
-                        v_1[_].real,
-                        d_vars.vars,
-                        ident[ii + curve._ini_solve, :].tolist(),
-                        *DualArgs[1:],
-                    )
-                    _ += 1
-                curve.csolve()
-            self._reset_properties_()
-            self._update_fx()
+            # self.v_prev = v_0
+            self._update_curves_with_parameters(v_1)
+
             if self.callback is not NoInput.blank:
                 self.callback(self, i, v_1)
+
+        return self._solver_result(-1, self.max_iter, time() - t0)
+
+    def _solver_result(self, state: int, i: int, time: float):
+        state_map = {
+            1: ["SUCCESS", "`conv_tol` reached"],
+            2: ["SUCCESS", "`func_tol` reached"],
+            -1: ["FAILURE", "`max_iter` breached"],
+        }
         print(
-            f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
-            f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"
+            f"{state_map[state][0]}: {state_map[state][1]} after {i} iterations "
+            f"({self.algorithm}), `f_val`: {self.g.real}, "
+            f"`time`: {time:.4f}s"
         )
         self.result = {
-            "status": "FAILURE",
-            "state": -1,
+            "status": state_map[state][0],
+            "state": state,
             "g": self.g.real,
-            "iterations": i + 1,
-            "time": time() - t0,
+            "iterations": i,
+            "time": time,
         }
         return None
-        # raise ValueError(f"Max iterations reached, func: {self.f.real}")
+
+    def _update_curves_with_parameters(self, v_new):
+        """Populate the variable curves with the new values"""
+        DualType = Dual if self._ad == 1 else Dual2
+        DualArgs = ([],) if self._ad == 1 else ([], [])
+        var_counter = 0
+        for id, curve in self.curves.items():
+            # this was amended in PR126 as performance improvement to keep consistent `vars`
+            d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], *DualArgs)
+            ident = np.eye(curve.n)
+            if curve._ini_solve == 1:
+                # then the first node on the Curve is not updated but set it as a Dual with consistent vars.
+                curve.nodes[curve.node_dates[0]] = DualType.vars_from(
+                    d_vars,
+                    curve.nodes[curve.node_dates[0]].real,
+                    d_vars.vars,
+                    ident[0, :].tolist(),
+                    *DualArgs[1:],
+                )
+            for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
+                curve.nodes[k] = DualType.vars_from(
+                    d_vars,
+                    v_new[var_counter].real,
+                    d_vars.vars,
+                    ident[i + curve._ini_solve, :].tolist(),
+                    *DualArgs[1:],
+                )
+                var_counter += 1
+            curve.csolve()
+
+        self._reset_properties_()
+        self._update_fx()
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
