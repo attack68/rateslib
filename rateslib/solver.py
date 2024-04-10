@@ -879,20 +879,23 @@ class Solver(Gradients):
     Notes
     -----
     Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant DF node values on each curve simultaneously by calling :meth:`iterate`.
+    relevant DF node values on each *Curve* simultaneously by calling :meth:`iterate`.
 
-    Each instrument provided to ``instruments`` must be a tuple with the following
-    items:
+    Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
+    preset at initialisation, and can then be used directly (as shown in some examples).
 
-      - An instrument which is a class endowed with a :meth:`rate` method which
-        will return a mid-market rate as a :class:`Dual` number so derivatives can
-        be automatically determined.
-      - Positional arguments to be supplied to the :meth:`rate` method when determining
-        the mid-market rate.
-      - Keyword arguments to be supplied to the :meth:`rate` method when determining
-        the mid-market rate.
+    If the *Curves* and/or *metric* are not preset then the *Solver* ``instruments`` can be
+    given as a tuple where the second and third items are a tuple and dict representing positional
+    and keyword arguments passed to the *instrument's*
+    :meth:`~rateslib.instruments.FixedRateBond.rate`` method. Usually using the keyword arguments
+    is more explicit. An example is:
 
-    An example is `(IRS, (curve, disc_curve), {})`.
+    - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+
+    Examples
+    --------
+
+    See the documentation user guide :ref:`here <c-solver-doc>`.
 
     Attributes
     ----------
