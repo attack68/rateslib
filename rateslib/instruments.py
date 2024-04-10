@@ -8304,7 +8304,7 @@ class FXOptionStrat:
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
-        results = [option.npv(curves, solver, fx, base, vol_) for (option, vol_) in zip(self.periods, vol)]
+        results = [option.npv(curves, solver, fx, base, local, vol_) for (option, vol_) in zip(self.periods, vol)]
 
         if local:
             _ = DataFrame(results).fillna(0.0)
@@ -8314,13 +8314,33 @@ class FXOptionStrat:
             _ = sum(results)
         return _
 
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        y = None
+        for option, vol_ in zip(self.periods, vol):
+            x, y_ = option._plot_payoff(range, curves, solver, fx, base, local, vol_)
+            if y is None:
+                y = y_
+            else:
+                y += y_
+
+        return x, y
+
 
 class FXRiskReversal(FXOptionStrat, FXOption):
     """
     Create an *FX Risk Reversal* option strategy.
-
-    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
-    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
 
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
@@ -8342,9 +8362,17 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     -----
     When supplying ``strike`` as a string delta the strike will be determined at price time from
     the provided volatility.
+
+    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
+
+    This class is essentially an alias constructor for an
+    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    of options and their definitions and nominals have been specifically set.
     """
 
     rate_w = [-1.0, 1.0]
+
     def __init__(self, *args, **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
         if self.kwargs["option_fixing"] is NoInput.blank:
@@ -8383,57 +8411,6 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
-
-    # def rate(
-    #     self,
-    #     curves: Union[Curve, str, list, NoInput] = NoInput(0),
-    #     solver: Union[Solver, NoInput] = NoInput(0),
-    #     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-    #     base: Union[str, NoInput] = NoInput(0),
-    #     vol: Union[list[float], float] = NoInput(0),
-    # ):
-    #     if not isinstance(vol, list):
-    #         vol = [vol, vol]
-    #
-    #     _1 = self.periods[1].rate(curves, solver, fx, base, vol[1])
-    #     _0 = self.periods[0].rate(curves, solver, fx, base, vol[0])
-    #     return _1 - _0
-    #
-    # def npv(
-    #     self,
-    #     curves: Union[Curve, str, list, NoInput] = NoInput(0),
-    #     solver: Union[Solver, NoInput] = NoInput(0),
-    #     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-    #     base: Union[str, NoInput] = NoInput(0),
-    #     local: bool = False,
-    #     vol: Union[list[float], float] = NoInput(0),
-    # ):
-    #     if not isinstance(vol, list):
-    #         vol = [vol, vol]
-    #
-    #     _0 = self.periods[0].npv(curves, solver, fx, base, local, vol[0])
-    #     _1 = self.periods[1].npv(curves, solver, fx, base, local, vol[1])
-    #     if local:
-    #         return {k: _0.get(k, 0) + _1.get(k, 0) for k in set(_0) | set(_1)}
-    #     else:
-    #         return _0 + _1
-
-    def _plot_payoff(
-        self,
-        range: Union[list[float], NoInput] = NoInput(0),
-        curves: Union[Curve, str, list, NoInput] = NoInput(0),
-        solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[list[float], float] = NoInput(0),
-    ):
-        if not isinstance(vol, list):
-            vol = [vol, vol]
-
-        x, _0 = self.periods[0]._plot_payoff(range, curves, solver, fx, base, local, vol[0])
-        x, _1 = self.periods[1]._plot_payoff(range, curves, solver, fx, base, local, vol[1])
-        return x, _0 + _1
 
 
 # Generic Instruments
