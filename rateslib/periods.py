@@ -2464,21 +2464,26 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return _ * v2
 
     def _get_interval_for_premium_adjusted_delta(self, unadj_k, half_vol_sq_t, vol_sqrt_t, f):
-        """Returns the interval for use in Brent variety solver"""
+        """
+        Returns the interval for use in Brent variety solver
+
+        Inputs should be float.
+        """
         # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
         k_max = unadj_k  # a premium adjusted strike is always lower than an unadjusted one.
         if self.phi > 0:
             # call option requires more difficult k_min. k_min is set as the point which
             # attains the maximum premium adjusted delta.
 
-            # def root(k):
-            #     d_minus = (dual_log(f / k) - half_vol_sq_t) / vol_sqrt_t
-            #     _ = vol_sqrt_t * dual_norm_cdf(d_minus)
-            #     _ -= dual_exp(d_minus ** 2 / -2.0) / (2 * pi) ** 0.5
-            #     return _
-            #
-            # root_solver = _brents(root, f / 2.0, f)
-            # k_min = root_solver[0]
+            # see https://math.stackexchange.com/questions/4892524
+
+            a_ = 3.38777577683324710
+            b_ = -0.0321538987860638
+            c_ = -0.6749937815114762
+            d_ = 1.08648555952878920
+            f_ = -3.0101764849574044
+            g_ = 0.198384242124144070
+            root_appx = a_ * vol_sqrt_t ** b_ + c_ * vol_sqrt_t ** d_ + f_ * vol_sqrt_t ** g_
 
             def root(x):
                 return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2 * pi)
@@ -2486,9 +2491,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             def root_deriv(x):
                 return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2 * pi)
 
-            root_solver = _newton(root, root_deriv, (0.095 - half_vol_sq_t) / vol_sqrt_t)
+            root_solver = _newton(root, root_deriv, root_appx)
+            # root_solver = _brents(root, root_appx - 0.25, root_appx + 0.25)  # Python Brents slower than Newton
             k_min = f * dual_exp(-root_solver[0] * vol_sqrt_t - half_vol_sq_t)
-
         else:
             k_min = unadj_k / 2.0
         return (k_min, k_max)
