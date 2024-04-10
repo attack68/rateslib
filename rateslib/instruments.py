@@ -8268,7 +8268,54 @@ class FXPut(FXOption):
         ]
 
 
-class FXRiskReversal(FXOption):
+class FXOptionStrat:
+
+    def __init__(self, options: list[FXOption], rate_w: list[float]):
+        self.periods = options
+        self.rate_w = rate_w
+        if len(self.periods) != len(self.periods):
+            raise ValueError("`rate_w` must have same length as `options`.")
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        _ = 0.0
+        for (option, vol_, weight) in zip(self.periods, vol, self.rate_w):
+            _ += option.rate(curves, solver, fx, base, vol_) * weight
+        return _
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        results = [option.npv(curves, solver, fx, base, vol_) for (option, vol_) in zip(self.periods, vol)]
+
+        if local:
+            _ = DataFrame(results).fillna(0.0)
+            _ = _.sum()
+            _ = _.to_dict()
+        else:
+            _ = sum(results)
+        return _
+
+
+class FXRiskReversal(FXOptionStrat, FXOption):
     """
     Create an *FX Risk Reversal* option strategy.
 
@@ -8297,8 +8344,9 @@ class FXRiskReversal(FXOption):
     the provided volatility.
     """
 
+    rate_w = [-1.0, 1.0]
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(FXOptionStrat, self).__init__(*args, **kwargs)
         if self.kwargs["option_fixing"] is NoInput.blank:
             self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
         self.periods = [
@@ -8336,39 +8384,39 @@ class FXRiskReversal(FXOption):
             ),
         ]
 
-    def rate(
-        self,
-        curves: Union[Curve, str, list, NoInput] = NoInput(0),
-        solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        vol: Union[list[float], float] = NoInput(0),
-    ):
-        if not isinstance(vol, list):
-            vol = [vol, vol]
-
-        _1 = self.periods[1].rate(curves, solver, fx, base, vol[1])
-        _0 = self.periods[0].rate(curves, solver, fx, base, vol[0])
-        return _1 - _0
-
-    def npv(
-        self,
-        curves: Union[Curve, str, list, NoInput] = NoInput(0),
-        solver: Union[Solver, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[list[float], float] = NoInput(0),
-    ):
-        if not isinstance(vol, list):
-            vol = [vol, vol]
-
-        _0 = self.periods[0].npv(curves, solver, fx, base, local, vol[0])
-        _1 = self.periods[1].npv(curves, solver, fx, base, local, vol[1])
-        if local:
-            return {k: _0.get(k, 0) + _1.get(k, 0) for k in set(_0) | set(_1)}
-        else:
-            return _0 + _1
+    # def rate(
+    #     self,
+    #     curves: Union[Curve, str, list, NoInput] = NoInput(0),
+    #     solver: Union[Solver, NoInput] = NoInput(0),
+    #     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+    #     base: Union[str, NoInput] = NoInput(0),
+    #     vol: Union[list[float], float] = NoInput(0),
+    # ):
+    #     if not isinstance(vol, list):
+    #         vol = [vol, vol]
+    #
+    #     _1 = self.periods[1].rate(curves, solver, fx, base, vol[1])
+    #     _0 = self.periods[0].rate(curves, solver, fx, base, vol[0])
+    #     return _1 - _0
+    #
+    # def npv(
+    #     self,
+    #     curves: Union[Curve, str, list, NoInput] = NoInput(0),
+    #     solver: Union[Solver, NoInput] = NoInput(0),
+    #     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+    #     base: Union[str, NoInput] = NoInput(0),
+    #     local: bool = False,
+    #     vol: Union[list[float], float] = NoInput(0),
+    # ):
+    #     if not isinstance(vol, list):
+    #         vol = [vol, vol]
+    #
+    #     _0 = self.periods[0].npv(curves, solver, fx, base, local, vol[0])
+    #     _1 = self.periods[1].npv(curves, solver, fx, base, local, vol[1])
+    #     if local:
+    #         return {k: _0.get(k, 0) + _1.get(k, 0) for k in set(_0) | set(_1)}
+    #     else:
+    #         return _0 + _1
 
     def _plot_payoff(
         self,
