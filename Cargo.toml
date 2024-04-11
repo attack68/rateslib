@@ -19,13 +19,13 @@ ndarray = "0.15.6"
 indexmap = "1.9.3"
 num-traits = "0.2.15"
 auto_ops = "0.3.0"
-numpy = "0.20.0"
+numpy = "0.21"
 itertools = "0.12.1"
 statrs = "0.16"
 
 # --- This section should be live in development to use `cargo test --lib --no-default-features`
 [dependencies.pyo3]
-version = "0.20.3"
+version = "0.21"
 
 [features]
 extension-module = ["pyo3/extension-module"]
