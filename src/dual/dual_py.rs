@@ -11,14 +11,14 @@ use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
-    fn get_dtype(py: Python<'_>) -> &PyArrayDescr {
-        PyArrayDescr::object(py)
+    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+        PyArrayDescr::object_bound(py)
     }
 }
 unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
-    fn get_dtype(py: Python<'_>) -> &PyArrayDescr {
-        PyArrayDescr::object(py)
+    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+        PyArrayDescr::object_bound(py)
     }
 }
 
