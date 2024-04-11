@@ -30,6 +30,7 @@ from rateslib.instruments import (
     FXCall,
     FXPut,
     FXRiskReversal,
+    FXStraddle,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
@@ -3225,3 +3226,60 @@ class TestFXOptions:
                 premium_ccy="chf",
             )
 
+    @pytest.mark.parametrize("dlty", [
+        ("forward"),
+        ("spot")
+    ])
+    def test_call_put_parity_50d(self, fxfo, dlty):
+        fxp = FXPut(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike="-50d",
+            premium_ccy="usd",
+            delta_type=dlty
+        )
+        fxc = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike="50d",
+            premium_ccy="usd",
+            delta_type=dlty
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        assert abs(fxc.delta_percent(curves, fx=fxfo, vol=0.10) - 0.5) < 1e-14
+        assert abs(fxc.periods[0].strike - 1.068856) < 1e-6
+        assert abs(fxp.delta_percent(curves, fx=fxfo, vol=0.10) + 0.5) < 1e-14
+        assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
+
+
+    @pytest.mark.parametrize("dlty, ccy, exp", [
+        ("forward", "usd", 1.0),
+        ("spot", "usd", 1.0),
+        # ("spot", "eur", 1.0),
+        # ("forward", "eur", 1.0),
+    ])
+    def test_straddle_strikes(self, fxfo, dlty, ccy, exp):
+        fxo = FXStraddle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["50d", "-50d"],
+            premium_ccy=ccy,
+            delta_type=dlty
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.npv(curves, fx=fxfo, vol=0.100)
+        call_k = fxo.periods[0].periods[0].strike
+        put_k = fxo.periods[1].periods[0].strike
+        assert abs(call_k - put_k) < 1e-16

@@ -8089,7 +8089,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 # TODO provide a mechanism for defining spot date with FX crosses
                 # which are only directly available in FXForwards for majors.
             )
-            self.periods[0].strike = k
+            # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
+            # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
+            self.periods[0].strike = float(k)
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
             try:
@@ -8411,6 +8413,82 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
+
+
+class FXStraddle(FXOptionStrat, FXOption):
+    """
+    Create an *FX Risk Reversal* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    strike: 2-element sequence
+        The first element is applied to the lower strike put and the
+        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
+    option_fixing: 2-element sequence, optional
+        The option fixing is applied to the put and call in order.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the risk reversal.
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+
+    Buying a *Straddle* equates to buying an :class:`~rateslib.instruments.FXCall`
+    and an :class:`~rateslib.instruments.FXPut` at the same strike.
+
+    This class is essentially an alias constructor for an
+    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    of options and their definitions and nominals have been specifically set.
+    """
+
+    rate_w = [1.0, 1.0]
+
+    def __init__(self, *args, **kwargs):
+        super(FXOptionStrat, self).__init__(*args, **kwargs)
+        if self.kwargs["option_fixing"] is NoInput.blank:
+            self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
+        self.periods = [
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][0],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"][0],
+                delta_type=self.kwargs["delta_type"],
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][0],
+                premium_ccy=self.kwargs["premium_ccy"],
+            ),
+            FXPut(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][1],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"][1],
+                delta_type=self.kwargs["delta_type"],
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][1],
+                premium_ccy=self.kwargs["premium_ccy"],
+            ),
+        ]
+
 
 
 # Generic Instruments
