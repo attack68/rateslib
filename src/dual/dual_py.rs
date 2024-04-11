@@ -55,8 +55,8 @@ impl Dual {
 
     #[getter]
     #[pyo3(name = "dual")]
-    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.dual().to_pyarray(py))
+    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'_, PyArray1<f64>>> {
+        Ok(self.dual().to_pyarray_bound(py))
     }
 
     #[getter]
@@ -66,8 +66,8 @@ impl Dual {
     }
 
     #[pyo3(name = "grad1")]
-    fn grad1<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.gradient1(vars).to_pyarray(py))
+    fn grad1<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<Bound<'_, PyArray1<f64>>> {
+        Ok(self.gradient1(vars).to_pyarray_bound(py))
     }
 
     #[pyo3(name = "grad2")]
@@ -259,24 +259,24 @@ impl Dual2 {
 
     #[getter]
     #[pyo3(name = "dual")]
-    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.dual.to_pyarray(py))
+    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'_, PyArray1<f64>>> {
+        Ok(self.dual.to_pyarray_bound(py))
     }
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<&PyArray2<f64>> {
-        Ok(self.dual2.to_pyarray(py))
+    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'_, PyArray2<f64>>> {
+        Ok(self.dual2.to_pyarray_bound(py))
     }
 
     #[pyo3(name = "grad1")]
-    fn grad1_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray1<f64>> {
-        Ok(self.gradient1(vars).to_pyarray(py))
+    fn grad1_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<Bound<'_, PyArray1<f64>>> {
+        Ok(self.gradient1(vars).to_pyarray_bound(py))
     }
 
     #[pyo3(name = "grad2")]
-    fn grad2_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
-        Ok(self.gradient2(vars).to_pyarray(py))
+    fn grad2_py<'py>(&'py self, py: Python<'py>, vars: Vec<String>) -> PyResult<Bound<'_, PyArray2<f64>>> {
+        Ok(self.gradient2(vars).to_pyarray_bound(py))
     }
 
     #[pyo3(name = "grad1_manifold")]
