@@ -6,7 +6,7 @@ use std::cmp::PartialEq;
 use pyo3::prelude::*;
 
 
-use numpy::{PyArray1, ToPyArray};
+use numpy::{PyArray1, ToPyArray, PyArrayMethods};
 use ndarray::Array1;
 
 macro_rules! create_interface {
@@ -62,9 +62,9 @@ macro_rules! create_interface {
                 self.inner.ppev_single(&x)
             }
 
-            pub fn ppev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>) -> PyResult<&PyArray1<$type>> {
+            pub fn ppev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>) -> PyResult<Bound<'_, PyArray1<$type>>> {
                 unsafe {
-                    Ok(x.as_array().map(|v| self.inner.ppev_single(&v)).to_pyarray(py))
+                    Ok(x.as_array().map(|v| self.inner.ppev_single(&v)).to_pyarray_bound(py))
                 }
             }
 
@@ -72,18 +72,18 @@ macro_rules! create_interface {
                 self.inner.ppdnev_single(&x, m)
             }
 
-            pub fn ppdnev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, m: usize) -> PyResult<&PyArray1<$type>> {
+            pub fn ppdnev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, m: usize) -> PyResult<Bound<'_, PyArray1<$type>>> {
                 unsafe {
-                    Ok(x.as_array().map(|v| self.inner.ppdnev_single(&v, m)).to_pyarray(py))
+                    Ok(x.as_array().map(|v| self.inner.ppdnev_single(&v, m)).to_pyarray_bound(py))
                 }
             }
 
-            pub fn bsplev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, i: usize) -> PyResult<&PyArray1<f64>> {
-                Ok(Array1::from_vec(self.inner.bsplev(&x.to_vec().expect(""), &i)).to_pyarray(py))
+            pub fn bsplev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, i: usize) -> PyResult<Bound<'_, PyArray1<f64>>> {
+                Ok(Array1::from_vec(self.inner.bsplev(&x.to_vec().expect(""), &i)).to_pyarray_bound(py))
             }
 
-            pub fn bspldnev<'py>(&'py self, py: Python<'py>, x: &PyArray1<f64>, i: usize, m: usize) -> PyResult<&PyArray1<f64>> {
-                Ok(Array1::from_vec(self.inner.bspldnev(&x.to_vec().expect(""), &i, &m)).to_pyarray(py))
+            pub fn bspldnev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, i: usize, m: usize) -> PyResult<Bound<'_, PyArray1<f64>>> {
+                Ok(Array1::from_vec(self.inner.bspldnev(&x.to_vec().expect(""), &i, &m)).to_pyarray_bound(py))
             }
 
             pub fn __eq__(&self, other: &Self) -> PyResult<bool> {
