@@ -3259,7 +3259,6 @@ class TestFXOptions:
         assert abs(fxp.delta_percent(curves, fx=fxfo, vol=0.10) + 0.5) < 1e-14
         assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
 
-
     @pytest.mark.parametrize("dlty, strike, ccy, exp", [
         ("forward", ["50d", "-50d"], "usd", [1.068856203, 1.068856203]),
         ("spot", ["50d", "-50d"], "usd", [1.06841799, 1.069294591]),
