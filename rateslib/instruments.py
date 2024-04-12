@@ -8076,19 +8076,32 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         """
         Sets parameters for the option at dynamic price time
         """
-        if isinstance(self.kwargs["strike"], str) and self.kwargs["strike"][-1].lower() == "d":
-            # then strike is commanded by delta
-            k = self.periods[0]._strike_from_delta(
-                f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-                delta=float(self.kwargs["strike"][:-1]) / 100,
-                vol=vol,
-                t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
-                w_deli=curves[1][self.kwargs["delivery"]],
-                w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
-                v_deli=curves[3][self.kwargs["delivery"]],
-                # TODO provide a mechanism for defining spot date with FX crosses
-                # which are only directly available in FXForwards for majors.
-            )
+        if isinstance(self.kwargs["strike"], str):
+            method = self.kwargs["strike"].lower()
+            if method == "atm_forward":
+                k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+            elif method == "atm_spot":
+                m_spot = fx.pairs_settlement[self.kwargs["pair"]]
+                k = fx.rate(self.kwargs["pair"], m_spot)
+            elif method == "atm_delta":
+                t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
+                k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+                k *= dual_exp(0.5 * vol**2 * t_e)
+            elif method[-1] == "d":  # representing delta
+                # then strike is commanded by delta
+                k = self.periods[0]._strike_from_delta(
+                    f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+                    delta=float(self.kwargs["strike"][:-1]) / 100,
+                    vol=vol,
+                    t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                    w_deli=curves[1][self.kwargs["delivery"]],
+                    w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                    v_deli=curves[3][self.kwargs["delivery"]],
+                    # TODO provide a mechanism for defining spot date with FX crosses
+                    # which are only directly available in FXForwards for majors.
+                )
+
+            # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
             # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
             self.periods[0].strike = float(k)
@@ -8454,6 +8467,8 @@ class FXStraddle(FXOptionStrat, FXOption):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
         if self.kwargs["option_fixing"] is NoInput.blank:
             self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
+        if not isinstance(self.kwargs["strike"], (list, tuple)):
+            self.kwargs["strike"] = [self.kwargs["strike"]] * 2
         self.periods = [
             FXCall(
                 pair=self.kwargs["pair"],

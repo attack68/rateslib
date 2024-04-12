@@ -3260,13 +3260,16 @@ class TestFXOptions:
         assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
 
 
-    @pytest.mark.parametrize("dlty, ccy, exp", [
-        ("forward", "usd", 1.0),
-        ("spot", "usd", 1.0),
-        # ("spot", "eur", 1.0),
+    @pytest.mark.parametrize("dlty, strike, ccy, exp", [
+        ("forward", ["50d", "-50d"], "usd", [1.068856203, 1.068856203]),
+        ("spot", ["50d", "-50d"], "usd", [1.06841799, 1.069294591]),
+        ("spot", "atm_forward", "usd", [1.06750999, 1.06750999]),
+        ("spot", "atm_spot", "usd", [1.061500, 1.061500]),
+        ("forward", "atm_delta", "usd", [1.068856203, 1.068856203]),
+        ("spot", "atm_delta", "usd", [1.068856203, 1.068856203]),
         # ("forward", "eur", 1.0),
     ])
-    def test_straddle_strikes(self, fxfo, dlty, ccy, exp):
+    def test_straddle_strikes(self, fxfo, dlty, strike, ccy, exp):
         fxo = FXStraddle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3274,7 +3277,7 @@ class TestFXOptions:
             delivery_lag=2,
             payment_lag=2,
             calendar="tgt",
-            strike=["50d", "-50d"],
+            strike=strike,
             premium_ccy=ccy,
             delta_type=dlty
         )
@@ -3282,4 +3285,5 @@ class TestFXOptions:
         result = fxo.npv(curves, fx=fxfo, vol=0.100)
         call_k = fxo.periods[0].periods[0].strike
         put_k = fxo.periods[1].periods[0].strike
-        assert abs(call_k - put_k) < 1e-16
+        assert abs(call_k - exp[0]) < 1e-7
+        assert abs(put_k - exp[1]) < 1e-7
