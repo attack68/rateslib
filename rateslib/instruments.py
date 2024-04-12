@@ -128,6 +128,101 @@ def _get_curve_from_solver(curve, solver):
                 raise ValueError("`curve` must be in `solver`.")
 
 
+def _get_base_maybe_from_fx(
+    fx: Union[float, FXRates, FXForwards, NoInput],
+    base: Union[str, NoInput],
+    local_ccy: Union[str, NoInput],
+) -> Union[str, NoInput]:
+    if fx is NoInput.blank and base is NoInput.blank:
+        # base will not be inherited from a 2nd level inherited object, i.e.
+        # from solver.fx, to preserve single currency instruments being defaulted
+        # to their local currency.
+        base_ = local_ccy
+    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
+        base_ = fx.base
+    else:
+        base_ = base
+    return base_
+
+
+def _get_fx_maybe_from_solver(
+    solver: Union[Solver, NoInput],
+    fx: Union[float, FXRates, FXForwards, NoInput],
+) -> Union[float, FXRates, FXForwards, NoInput]:
+    if fx is NoInput.blank:
+        if solver is NoInput.blank:
+            fx_ = NoInput(0)
+            # fx_ = 1.0
+        elif solver is not NoInput.blank:
+            if solver.fx is NoInput.blank:
+                fx_ = NoInput(0)
+                # fx_ = 1.0
+            else:
+                fx_ = solver.fx
+    else:
+        fx_ = fx
+        if (
+            solver is not NoInput.blank
+            and solver.fx is not NoInput.blank
+            and id(fx) != id(solver.fx)
+        ):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which will be used but is not the same. This can lead "
+                "to calculation inconsistencies, mathematically.",
+                UserWarning,
+            )
+
+    return fx_
+
+
+def _get_curves_maybe_from_solver(
+    curves_attr: Union[Curve, str, list, NoInput],
+    solver: Union[Solver, NoInput],
+    curves: Union[Curve, str, list, NoInput],
+) -> tuple:
+    if curves is NoInput.blank and curves_attr is NoInput.blank:
+        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
+    elif curves is NoInput.blank:
+        curves = curves_attr
+
+    # if isinstance(curves, (Curve, str, dict)):  # All Curve types are sub-classes of Curve
+    if not isinstance(curves, (list, tuple)):
+        curves = [curves]
+
+    if solver is NoInput.blank:
+
+        def check_curve(curve):
+            if isinstance(curve, str):
+                raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
+            elif curve is None or curve is NoInput(0):
+                return NoInput(0)
+            elif isinstance(curve, dict):
+                return {k: check_curve(v) for k, v in curve.items()}
+            return curve
+
+        curves_ = tuple(check_curve(curve) for curve in curves)
+    else:
+        try:
+            curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
+        except KeyError:
+            raise ValueError(
+                "`curves` must contain str curve `id` s existing in `solver` "
+                "(or its associated `pre_solvers`)"
+            )
+
+    if len(curves_) == 1:
+        curves_ *= 4
+    elif len(curves_) == 2:
+        curves_ *= 2
+    elif len(curves_) == 3:
+        curves_ += (curves_[1],)
+    elif len(curves_) > 4:
+        raise ValueError("Can only supply a maximum of 4 `curves`.")
+
+    return curves_
+
+
 def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Optional[Union[Curve, str, list]],
     solver: Optional[Solver],
@@ -165,152 +260,13 @@ def _get_curves_fx_and_base_maybe_from_solver(
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
     """
-
     # First process `base`.
-    if fx is NoInput.blank and base is NoInput.blank:
-        # base will not be inherited from a 2nd level inherited object, i.e.
-        # from solver.fx, to preserve single currency instruments being defaulted
-        # to their local currency.
-        base_ = local_ccy
-    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
-        base_ = fx.base
-    else:
-        base_ = base
-
+    base_ = _get_base_maybe_from_fx(fx, base, local_ccy)
     # Second process `fx`
-    if fx is NoInput.blank:
-        if solver is NoInput.blank:
-            fx_ = NoInput(0)
-            # fx_ = 1.0
-        elif solver is not NoInput.blank:
-            if solver.fx is NoInput.blank:
-                fx_ = NoInput(0)
-                # fx_ = 1.0
-            else:
-                fx_ = solver.fx
-    else:
-        fx_ = fx
-        if (
-            solver is not NoInput.blank
-            and solver.fx is not NoInput.blank
-            and id(fx) != id(solver.fx)
-        ):
-            warnings.warn(
-                "Solver contains an `fx` attribute but an `fx` argument has been "
-                "supplied which will be used but is not the same. This can lead "
-                "to calculation inconsistencies, mathematically.",
-                UserWarning,
-            )
-
-    if curves is NoInput.blank and curves_attr is NoInput.blank:
-        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0)), fx_, base_
-    elif curves is NoInput.blank:
-        curves = curves_attr
-
-    if isinstance(curves, (Curve, str, CompositeCurve, dict)):
-        curves = [curves]
-    if solver is NoInput.blank:
-
-        def check_curve(curve):
-            if isinstance(curve, str):
-                raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
-            elif curve is None or curve is NoInput(0):
-                return NoInput(0)
-            elif isinstance(curve, dict):
-                return {k: check_curve(v) for k, v in curve.items()}
-            return curve
-
-        curves_ = tuple(check_curve(curve) for curve in curves)
-    else:
-        try:
-            curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
-        except KeyError:
-            raise ValueError(
-                "`curves` must contain str curve `id` s existing in `solver` "
-                "(or its associated `pre_solvers`)"
-            )
-
-    if len(curves_) == 1:
-        curves_ *= 4
-    elif len(curves_) == 2:
-        curves_ *= 2
-    elif len(curves_) == 3:
-        curves_ += (curves_[1],)
-    elif len(curves_) > 4:
-        raise ValueError("Can only supply a maximum of 4 `curves`.")
-
+    fx_ = _get_fx_maybe_from_solver(solver, fx)
+    # Third process `curves`
+    curves_ = _get_curves_maybe_from_solver(curves_attr, solver, curves)
     return curves_, fx_, base_
-
-
-# def _get_curves_and_fx_maybe_from_solver(
-#     solver: Optional[Solver],
-#     curves: Union[Curve, str, list],
-#     fx: Optional[Union[float, FXRates, FXForwards]],
-# ):
-#     """
-#     Parses the ``solver``, ``curves`` and ``fx`` arguments in combination.
-#
-#     Returns
-#     -------
-#     tuple : (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting), fx
-#
-#     Notes
-#     -----
-#     If only one curve is given this is used as all four curves.
-#
-#     If two curves are given the forecasting curve is used as the forecasting
-#     curve on both legs and the discounting curve is used as the discounting
-#     curve for both legs.
-#
-#     If three curves are given the single discounting curve is used as the
-#     discounting curve for both legs.
-#     """
-#
-#     if fx is NoInput.blank:
-#         if solver is NoInput.blank:
-#             fx_ = None
-#             # fx_ = 1.0
-#         elif solver is not NoInput.blank:
-#             if solver.fx is NoInput.blank:
-#                 fx_ = None
-#                 # fx_ = 1.0
-#             else:
-#                 fx_ = solver.fx
-#     else:
-#         fx_ = fx
-#
-#     if curves is NoInput.blank:
-#         return (None, None, None, None), fx_
-#
-#     if isinstance(curves, (Curve, str)):
-#         curves = [curves]
-#     if solver is NoInput.blank:
-#         def check_curve(curve):
-#             if isinstance(curve, str):
-#                 raise ValueError(
-#                     "`curves` must contain Curve, not str, if `solver` not given."
-#                 )
-#             return curve
-#         curves_ = tuple(check_curve(curve) for curve in curves)
-#     else:
-#         try:
-#             curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
-#         except KeyError:
-#             raise ValueError(
-#                 "`curves` must contain str curve `id` s existing in `solver` "
-#                 "(or its associated `pre_solvers`)"
-#             )
-#
-#     if len(curves_) == 1:
-#         curves_ *= 4
-#     elif len(curves_) == 2:
-#         curves_ *= 2
-#     elif len(curves_) == 3:
-#         curves_ += (curves_[1],)
-#     elif len(curves_) > 4:
-#         raise ValueError("Can only supply a maximum of 4 `curves`.")
-#
-#     return curves_, fx_
 
 
 class Sensitivities:
