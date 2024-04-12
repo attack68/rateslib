@@ -237,7 +237,6 @@ def test_basic_spline_solver():
         assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
 
 
-
 def test_large_spline_solver():
     dates = [
         dt(2000, 1, 3),

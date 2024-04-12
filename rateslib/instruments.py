@@ -207,7 +207,8 @@ def _get_curves_fx_and_base_maybe_from_solver(
     elif curves is NoInput.blank:
         curves = curves_attr
 
-    if isinstance(curves, (Curve, str, CompositeCurve, dict)):
+    # if isinstance(curves, (Curve, str, dict)):  # All Curve types are sub-classes of Curve
+    if not isinstance(curves, (list, tuple)):
         curves = [curves]
     if solver is NoInput.blank:
 

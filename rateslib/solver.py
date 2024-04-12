@@ -1387,14 +1387,15 @@ class Solver(Gradients):
             ident = np.eye(curve.n)
             if curve._ini_solve == 1:
                 # then the first node on the Curve is not updated but set it as a Dual with consistent vars.
-                curve.nodes[curve.node_dates[0]] = DualType.vars_from(
+
+                curve.nodes[curve.node_keys[0]] = DualType.vars_from(
                     d_vars,
-                    curve.nodes[curve.node_dates[0]].real,
+                    curve.nodes[curve.node_keys[0]].real,
                     d_vars.vars,
                     ident[0, :].tolist(),
                     *DualArgs[1:],
                 )
-            for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
+            for i, k in enumerate(curve.node_keys[curve._ini_solve:]):
                 curve.nodes[k] = DualType.vars_from(
                     d_vars,
                     v_new[var_counter].real,

@@ -10,6 +10,8 @@ from typing import Union
 
 class FXVolSmile:
 
+    _ini_solve = 0  # All node values are solvable
+
     def __init__(
         self,
         nodes: dict,
@@ -18,18 +20,18 @@ class FXVolSmile:
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes
-        self.node_moneyness = list(self.nodes.keys())
-
-        if len(self.node_moneyness) != 5:
+        self.node_keys = list(self.nodes.keys())
+        self.n = 5
+        if len(self.node_keys) != 5:
             raise ValueError(
                 "`FXVolSmile` currently designed only for 5 `nodes` and degrees of freedom."
             )
 
-        l_bnd = 2 * self.node_moneyness[0] - self.node_moneyness[2]
-        r_bnd = 2 * self.node_moneyness[-1] - self.node_moneyness[2]
-        c = self.node_moneyness[2]
-        mid_l = 0.5 * (self.node_moneyness[0] + self.node_moneyness[1])
-        mid_r = 0.5 * (self.node_moneyness[3] + self.node_moneyness[4])
+        l_bnd = 2 * self.node_keys[0] - self.node_keys[2]
+        r_bnd = 2 * self.node_keys[-1] - self.node_keys[2]
+        c = self.node_keys[2]
+        mid_l = 0.5 * (self.node_keys[0] + self.node_keys[1])
+        mid_r = 0.5 * (self.node_keys[3] + self.node_keys[4])
         self.t = [l_bnd] * 4 + [mid_l, c, mid_r] + [r_bnd] * 4
 
         self._set_ad_order(ad)  # includes csolve
@@ -73,6 +75,9 @@ class FXVolSmile:
         self.spline = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)
         return None
+
+    def __iter__(self):
+        raise TypeError("`FXVolSmile` is not iterable.")
 
     def __getitem__(self, item):
         return self.spline.ppev_single(item)

@@ -309,7 +309,8 @@ class Curve(_Serialize):
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
-        self.node_dates = list(self.nodes.keys())
+        self.node_keys = list(self.nodes.keys())
+        self.node_dates = self.node_keys
         self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
         self.n = len(self.node_dates)
         for idx in range(1, self.n):

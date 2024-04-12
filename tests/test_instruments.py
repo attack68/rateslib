@@ -35,8 +35,9 @@ from rateslib.instruments import (
 )
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
-from rateslib.curves import Curve, IndexCurve, LineCurve
+from rateslib.curves import Curve, IndexCurve, LineCurve, MultiCsaCurve, CompositeCurve
 from rateslib.fx import FXRates, FXForwards
+from rateslib.volatility import FXVolSmile
 from rateslib.solver import Solver
 
 
@@ -166,6 +167,20 @@ class TestCurvesandSolver:
                 assert fx_result is NoInput(0)
 
         assert crv_result == (curve, curve, curve, curve)
+
+    @pytest.mark.parametrize("obj", [
+        (Curve({dt(2000, 1, 1): 1.0})),
+        (LineCurve({dt(2000, 1, 1): 1.0})),
+        (IndexCurve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
+        (CompositeCurve([Curve({dt(2000, 1, 1): 1.0})])),
+        (MultiCsaCurve([Curve({dt(2000, 1, 1): 1.0})])),
+        (FXVolSmile({1.:1., 2.:2., 3.:3., 4.:4., 5.:5.})),
+    ])
+    def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj):
+        crv_result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            obj, NoInput(0), NoInput(0), NoInput(0), NoInput(0), NoInput(0)
+        )
+        assert crv_result == (obj,) * 4
 
     def test_get_curves_and_fx_from_solver_raises(self):
         from rateslib.solver import Solver
