@@ -8090,7 +8090,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 k *= dual_exp(0.5 * vol**2 * t_e)
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                k = self.periods[0]._strike_from_delta(
+                k = self.periods[0]._strike_from_delta_fixed_vol(
                     f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
                     delta=float(self.kwargs["strike"][:-1]) / 100,
                     vol=vol,

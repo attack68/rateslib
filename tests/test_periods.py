@@ -21,6 +21,7 @@ from rateslib.periods import (
 from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
+from rateslib.volatility import FXVolSmile
 from rateslib import defaults
 
 
@@ -2190,7 +2191,7 @@ class TestFXOption:
         ("spot", 0.251754, 1.10074736155),
         ("spot_pa", 0.8870, 0.97543175409),  # close to peak of premium adjusted delta graph.
     ])
-    def test_strike_from_forward_delta(self, fxfo, dlty, delta, exp_k):
+    def test_strike_from_delta(self, fxfo, dlty, delta, exp_k):
         # https://quant.stackexchange.com/a/77802/29443
         fxo = FXCallPeriod(
             pair="eurusd",
@@ -2201,7 +2202,7 @@ class TestFXOption:
             notional=20e6,
             delta_type=dlty,
         )
-        result = fxo._strike_from_delta(
+        result = fxo._strike_from_delta_fixed_vol(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             delta,
             0.089,
@@ -2231,6 +2232,54 @@ class TestFXOption:
         )
         assert abs(result2 - delta) < 1e-8
 
+    @pytest.mark.parametrize("dlty, delta, exp_k", [
+        # ("forward", 0.25, 1.105206944),
+        # ("spot", 0.25, 1.10492668),
+        ("forward_pa", 0.25, 1.1039239905),
+    ])
+    def test_strike_from_forward_delta_smile(self, fxfo, dlty, delta, exp_k):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+            delta_type=dlty,
+        )
+        fxvs = FXVolSmile(
+            nodes={
+                0.8: 15.0,
+                0.9: 11.5,
+                1.0: 10.0,
+                1.1: 10.2,
+                1.2: 12.0,
+            }
+        )
+        result = fxo._strike_from_delta_with_smile(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            delta,
+            fxvs,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxfo.curve("eur", "usd")[fxo.delivery],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            fxfo.curve("usd", "usd")[fxo.delivery]
+        )
+        expected = exp_k
+        assert abs(result - expected) < 1e-8
+
+        vol_at_result = fxvs[float(result) / fxfo.rate("eurusd", dt(2023, 6, 20))]
+        std_result = fxo._strike_from_delta_fixed_vol(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            delta,
+            float(vol_at_result) / 100,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxfo.curve("eur", "usd")[fxo.delivery],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            fxfo.curve("usd", "usd")[fxo.delivery]
+        )
+        assert abs(std_result - result) < 1e-7
+
     def test_strike_from_forward_delta_put(self, fxfo):
         fxo = FXPutPeriod(
             pair="eurusd",
@@ -2241,7 +2290,7 @@ class TestFXOption:
             notional=20e6,
             delta_type="forward",
         )
-        result = fxo._strike_from_delta(
+        result = fxo._strike_from_delta_fixed_vol(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             -0.25,
             0.1015,
@@ -2260,7 +2309,7 @@ class TestFXOption:
             notional=20e6,
             delta_type="spot",
         )
-        result = fxo._strike_from_delta(
+        result = fxo._strike_from_delta_fixed_vol(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             0.25,
             0.089,
@@ -2272,7 +2321,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-9
 
         # https://quant.stackexchange.com/a/77802/29443
-        result = fxo._strike_from_delta(
+        result = fxo._strike_from_delta_fixed_vol(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             0.250124,
             0.089,
@@ -2293,7 +2342,7 @@ class TestFXOption:
             notional=20e6,
             delta_type="spot",
         )
-        result = fxo._strike_from_delta(
+        result = fxo._strike_from_delta_fixed_vol(
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             -0.25,
             0.1015,

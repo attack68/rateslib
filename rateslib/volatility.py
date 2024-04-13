@@ -33,6 +33,8 @@ class FXVolSmile:
         mid_l = 0.5 * (self.node_keys[0] + self.node_keys[1])
         mid_r = 0.5 * (self.node_keys[3] + self.node_keys[4])
         self.t = [l_bnd] * 4 + [mid_l, c, mid_r] + [r_bnd] * 4
+        self.u_max = r_bnd
+        self.u_min = l_bnd
 
         self._set_ad_order(ad)  # includes csolve
 
