@@ -2464,6 +2464,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
         return _ * v2
 
+    @staticmethod
+    def _initial_guess_newton_maximum_delta_pa(vol_sqrt_t):
+        a_ = 3.38777577683324710
+        b_ = -0.0321538987860638
+        c_ = -0.6749937815114762
+        d_ = 1.08648555952878920
+        f_ = -3.0101764849574044
+        g_ = 0.198384242124144070
+        return a_ * vol_sqrt_t ** b_ + c_ * vol_sqrt_t ** d_ + f_ * vol_sqrt_t ** g_
+
     def _get_interval_for_premium_adjusted_delta_fixed_vol(self, unadj_k, half_vol_sq_t, vol_sqrt_t, f):
         """
         Returns the interval for use in Brent variety solver
@@ -2477,20 +2487,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             # see https://math.stackexchange.com/questions/4892524
 
-            a_ = 3.38777577683324710
-            b_ = -0.0321538987860638
-            c_ = -0.6749937815114762
-            d_ = 1.08648555952878920
-            f_ = -3.0101764849574044
-            g_ = 0.198384242124144070
-            root_appx = a_ * vol_sqrt_t ** b_ + c_ * vol_sqrt_t ** d_ + f_ * vol_sqrt_t ** g_
-
             def root(x):
                 return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2 * pi)
 
             def root_deriv(x):
                 return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2 * pi)
 
+            root_appx = self._initial_guess_newton_maximum_delta_pa(vol_sqrt_t)
             root_solver = _newton(root, root_deriv, root_appx)
             # root_solver = _brents(root, root_appx - 0.25, root_appx + 0.25)  # Python Brents slower than Newton
             k_min = f * dual_exp(-root_solver[0] * vol_sqrt_t - half_vol_sq_t)
@@ -2498,6 +2501,58 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
             k_min = unadj_k / 2.0
         return (k_min, k_max)
+
+    def _get_interval_for_premium_adjusted_delta_vol_smile2(
+        self,
+        u_max,
+        vol: FXVolSmile,
+        t_e,
+        f,
+    ) -> tuple[float, float]:
+        """
+        Returns the interval for use in Brent variety solver
+        """
+        if self.phi > 0:
+            # call option requires more difficult k_min. k_min is set as the point which
+            # attains the maximum premium adjusted delta.
+            sqt_e = float(t_e) ** 0.5
+            one_over_sq2pi = 1 / sqrt(2*pi)
+
+            def root(u):
+                vol_ = float(vol[u]) / 100.0
+                vol_sqt_e = vol_ * sqt_e
+                d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+                _ = vol_sqt_e * dual_norm_cdf(d_min) - one_over_sq2pi * dual_exp(-0.5 * d_min**2)
+                return _
+
+            def root_deriv(u):
+                dvoldu = float(vol.spline.ppdnev_single(u, 1)) / 100.0
+                vol_ = float(vol[u]) / 100.0
+                vol_sqt_e = vol_ * sqt_e
+                d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+                e_half_dmin_sq = dual_exp(-0.5 * d_min ** 2)
+                dPhidmin = one_over_sq2pi * e_half_dmin_sq
+                dmindu = -dvoldu * (d_min + sqt_e) - 1.0 / (u * vol_ * sqt_e)
+                dndmin = -d_min * one_over_sq2pi * e_half_dmin_sq
+
+                _ = dvoldu * sqt_e * dual_norm_cdf(d_min)
+                _ += vol_ * sqt_e * dPhidmin * dmindu
+                _ -= dmindu * dndmin
+
+                return _
+
+            z = float(vol[f]) / 100.0 * sqt_e
+            root_appx = self._initial_guess_newton_maximum_delta_pa(z)
+            root_appx = dual_exp(-root_appx * z - 0.5 * z ** 2)
+
+            # root_solver = _brents(root, float(u_max) / 2.0, float(u_max))
+            root_solver = _newton(root, root_deriv, root_appx)
+            u_min = root_solver[0]
+
+        else:
+            # TODO: this formula contains some unproven approximations
+            u_min = 0.5
+        return (u_min, u_max)
 
     def _get_interval_for_premium_adjusted_delta_vol_smile(
         self,
@@ -2694,7 +2749,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
             return delta - scalar * u * self.phi * dual_norm_cdf(self.phi * d_min)
 
-        u_min, u_max = self._get_interval_for_premium_adjusted_delta_vol_smile(
+        u_min, u_max = self._get_interval_for_premium_adjusted_delta_vol_smile2(
             vol.u_max, vol, t_e, f
         )
 

@@ -2233,9 +2233,10 @@ class TestFXOption:
         assert abs(result2 - delta) < 1e-8
 
     @pytest.mark.parametrize("dlty, delta, exp_k", [
-        # ("forward", 0.25, 1.105206944),
-        # ("spot", 0.25, 1.10492668),
+        ("forward", 0.25, 1.105206944),
+        ("spot", 0.25, 1.10492668),
         ("forward_pa", 0.25, 1.1039239905),
+        ("spot_pa", 0.25, 1.10363748422),
     ])
     def test_strike_from_forward_delta_smile(self, fxfo, dlty, delta, exp_k):
         fxo = FXCallPeriod(
