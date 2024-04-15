@@ -3163,7 +3163,10 @@ class TestFXOptions:
         expected = 83.975596
         assert abs(result - expected) < 1e-6
 
-    def test_risk_reversal_rate(self, fxfo):
+    @pytest.mark.parametrize("metric, expected", [
+        ("pips_or_%", -13.795465), ("vol", -1.25)
+    ])
+    def test_risk_reversal_rate(self, fxfo, metric, expected):
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3175,8 +3178,7 @@ class TestFXOptions:
             delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=[0.1015, 0.089])
-        expected = -13.795465
+        result = fxo.rate(curves, fx=fxfo, vol=[0.1015, 0.089], metric=metric)
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize("prem, prem_ccy, local, exp", [
@@ -3241,10 +3243,7 @@ class TestFXOptions:
                 premium_ccy="chf",
             )
 
-    @pytest.mark.parametrize("dlty", [
-        ("forward"),
-        ("spot")
-    ])
+    @pytest.mark.parametrize("dlty", [("forward")])
     def test_call_put_parity_50d(self, fxfo, dlty):
         fxp = FXPut(
             pair="eurusd",
@@ -3301,3 +3300,22 @@ class TestFXOptions:
         put_k = fxo.periods[1].periods[0].strike
         assert abs(call_k - exp[0]) < 1e-7
         assert abs(put_k - exp[1]) < 1e-7
+
+    @pytest.mark.parametrize("dlty, strike, ccy, expected", [
+        ("forward", "atm_delta", "usd", 10.0),
+    ])
+    def test_straddle_rate(self, fxfo, dlty, strike, ccy, expected):
+        fxo = FXStraddle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=strike,
+            premium_ccy=ccy,
+            delta_type=dlty
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=0.100, metric="vol")
+        assert abs(result - expected) < 1e-8

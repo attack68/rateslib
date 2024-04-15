@@ -8088,12 +8088,16 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: float = NoInput(0),
+        metric: str = "pips_or_%"
     ):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
-        return self.periods[0].rate(curves[1], curves[3], fx, base, False, vol)
+        if metric == "vol":
+            return vol * 100.0
+        else:
+            return self.periods[0].rate(curves[1], curves[3], fx, base, False, vol)
 
     def npv(
         self,
@@ -8128,6 +8132,42 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local: bool = False,
         vol: float = NoInput(0),
     ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+        metric : str, optional
+            Metric returned by the method. Available options are {"pips_or_%", "vol"}
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        ------
+        If ``metric`` is *"vol"* then the volatility used to price the option is returned scaled to %. This is useful
+        for :class:`~rateslib.instruments.FXOptionStrat` when comparative volatilities define the price, i.e.
+        for :class:`~rateslib.instruments.FXRiskReversal`.
+
+        If ``metric`` is *"pips_or_%"*, which is the default, then the underlying price is determined from the
+        :class:`~rateslib.periods.FXOptionPeriod` in pips if the premium currency is foreign (RHS) or is in percent of
+        notional if the premium currency is domestic (LHS).
+        """
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
@@ -8241,11 +8281,12 @@ class FXPut(FXOption):
 
 class FXOptionStrat:
 
-    def __init__(self, options: list[FXOption], rate_w: list[float]):
+    def __init__(self, options: list[FXOption], rate_weight: list[float], rate_weight_vol: list[float]):
         self.periods = options
-        self.rate_w = rate_w
-        if len(self.periods) != len(self.periods):
-            raise ValueError("`rate_w` must have same length as `options`.")
+        self.rate_weight = rate_weight
+        self.rate_weight_vol = rate_weight_vol
+        if len(self.periods) != len(self.rate_weight) or len(self.periods) != len(self.rate_weight_vol):
+            raise ValueError("`rate_weight` and `rate_weight_vol` must have same length as `options`.")
 
     def rate(
         self,
@@ -8254,13 +8295,14 @@ class FXOptionStrat:
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: Union[list[float], float] = NoInput(0),
+        metric: str = "pips_or_%",
     ):
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
-        _ = 0.0
-        for (option, vol_, weight) in zip(self.periods, vol, self.rate_w):
-            _ += option.rate(curves, solver, fx, base, vol_) * weight
+        _, weights = 0.0, self.rate_weight if metric != "vol" else self.rate_weight_vol
+        for (option, vol_, weight) in zip(self.periods, vol, weights):
+            _ += option.rate(curves, solver, fx, base, vol_, metric) * weight
         return _
 
     def npv(
@@ -8342,7 +8384,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     of options and their definitions and nominals have been specifically set.
     """
 
-    rate_w = [-1.0, 1.0]
+    rate_weight = [-1.0, 1.0]
+    rate_weight_vol = [-1.0, 1.0]
 
     def __init__(self, *args, **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
@@ -8417,7 +8460,8 @@ class FXStraddle(FXOptionStrat, FXOption):
     of options and their definitions and nominals have been specifically set.
     """
 
-    rate_w = [1.0, 1.0]
+    rate_weight = [1.0, 1.0]
+    rate_weight_vol = [0.5, 0.5]
 
     def __init__(self, *args, **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
@@ -8459,7 +8503,6 @@ class FXStraddle(FXOptionStrat, FXOption):
                 premium_ccy=self.kwargs["premium_ccy"],
             ),
         ]
-
 
 
 # Generic Instruments
