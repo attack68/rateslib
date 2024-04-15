@@ -8040,6 +8040,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 m_spot = fx.pairs_settlement[self.kwargs["pair"]]
                 k = fx.rate(self.kwargs["pair"], m_spot)
             elif method == "atm_delta":
+                # TODO: this uses constant vol
                 t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
                 k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
                 k *= dual_exp(0.5 * vol**2 * t_e)

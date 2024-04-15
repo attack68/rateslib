@@ -37,7 +37,7 @@ from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, MultiCsaCurve, CompositeCurve
 from rateslib.fx import FXRates, FXForwards
-from rateslib.volatility import FXVolSmile
+from rateslib.volatility import FXDeltaVolSmile
 from rateslib.solver import Solver
 
 
@@ -174,7 +174,7 @@ class TestCurvesandSolver:
         (IndexCurve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
         (CompositeCurve([Curve({dt(2000, 1, 1): 1.0})])),
         (MultiCsaCurve([Curve({dt(2000, 1, 1): 1.0})])),
-        (FXVolSmile({1.:1., 2.:2., 3.:3., 4.:4., 5.:5.})),
+        (FXDeltaVolSmile({0.1:1., 0.2:2., 0.5:3., 0.7:4., 0.9:5.}, 0.25, "forward")),
     ])
     def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj):
         crv_result, _, _ = _get_curves_fx_and_base_maybe_from_solver(

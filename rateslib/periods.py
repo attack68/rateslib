@@ -39,7 +39,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.volatility import FXVolSmile
+from rateslib.volatility import FXDeltaVolSmile
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -2423,7 +2423,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self.metric = metric
 
     @staticmethod
-    def _black76(F, K, t_e, v1, v2, vol, phi):
+    def _black76(
+        F: DualTypes,
+        K: DualTypes,
+        t_e: float,
+        v1: NoInput,
+        v2: DualTypes,
+        vol: DualTypes,
+        phi: float
+    ):
         """
         Option price in points terms for immediate premium settlement.
 
@@ -2441,8 +2449,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The discounting rate to delivery on ccy2, at the appropriate collateral rate.
         vol: float, Dual, Dual2
             The volatility measured over the period until expiry.
-        phi: int
-            Whether to calculate for call or put.
+        phi: float
+            Whether to calculate for call (1.0) or put (-1.0).
 
         Returns
         --------
@@ -2463,6 +2471,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
         return _ * v2
+
+    def _d_min(self, K, f, vol_sqrt_t_e, vol_sqd_t_e):
+        # AD preserving calculation of d_min in Black-76 formula
+        return (dual_log(f / K) - 0.5 * vol_sqd_t_e) / vol_sqrt_t_e
+
+    ###
+    ###  The following functions used for Strike determination when given a fixed volatility.
+    ###
 
     @staticmethod
     def _initial_guess_newton_maximum_delta_pa(vol_sqrt_t):
@@ -2498,92 +2514,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # root_solver = _brents(root, root_appx - 0.25, root_appx + 0.25)  # Python Brents slower than Newton
             k_min = f * dual_exp(-root_solver[0] * vol_sqrt_t - half_vol_sq_t)
         else:
-            # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
+            # For put options the solution should be close to k_max. Certainly dividing by two provides
+            # enough flexibility to converge to the upper side.
             k_min = unadj_k / 2.0
         return (k_min, k_max)
-
-    def _get_interval_for_premium_adjusted_delta_vol_smile2(
-        self,
-        u_max,
-        vol: FXVolSmile,
-        t_e,
-        f,
-    ) -> tuple[float, float]:
-        """
-        Returns the interval for use in Brent variety solver
-        """
-        if self.phi > 0:
-            # call option requires more difficult k_min. k_min is set as the point which
-            # attains the maximum premium adjusted delta.
-            sqt_e = float(t_e) ** 0.5
-            one_over_sq2pi = 1 / sqrt(2*pi)
-
-            def root(u):
-                vol_ = float(vol[u]) / 100.0
-                vol_sqt_e = vol_ * sqt_e
-                d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
-                _ = vol_sqt_e * dual_norm_cdf(d_min) - one_over_sq2pi * dual_exp(-0.5 * d_min**2)
-                return _
-
-            def root_deriv(u):
-                dvoldu = float(vol.spline.ppdnev_single(u, 1)) / 100.0
-                vol_ = float(vol[u]) / 100.0
-                vol_sqt_e = vol_ * sqt_e
-                d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
-                e_half_dmin_sq = dual_exp(-0.5 * d_min ** 2)
-                dPhidmin = one_over_sq2pi * e_half_dmin_sq
-                dmindu = -dvoldu * (d_min + sqt_e) - 1.0 / (u * vol_ * sqt_e)
-                dndmin = -d_min * one_over_sq2pi * e_half_dmin_sq
-
-                _ = dvoldu * sqt_e * dual_norm_cdf(d_min)
-                _ += vol_ * sqt_e * dPhidmin * dmindu
-                _ -= dmindu * dndmin
-
-                return _
-
-            z = float(vol[f]) / 100.0 * sqt_e
-            root_appx = self._initial_guess_newton_maximum_delta_pa(z)
-            root_appx = dual_exp(-root_appx * z - 0.5 * z ** 2)
-
-            # root_solver = _brents(root, float(u_max) / 2.0, float(u_max))
-            root_solver = _newton(root, root_deriv, root_appx)
-            u_min = root_solver[0]
-
-        else:
-            # TODO: this formula contains some unproven approximations
-            u_min = 0.5
-        return (u_min, u_max)
-
-    def _get_interval_for_premium_adjusted_delta_vol_smile(
-        self,
-        u_max,
-        vol: FXVolSmile,
-        t_e,
-        f,
-    ) -> tuple[float, float]:
-        """
-        Returns the interval for use in Brent variety solver
-        """
-        if self.phi > 0:
-            # call option requires more difficult k_min. k_min is set as the point which
-            # attains the maximum premium adjusted delta.
-            sqt_e = float(t_e) ** 0.5
-            one_over_sq2pi = 1 / sqrt(2*pi)
-
-            def root(u):
-                vol_ = float(vol[u]) / 100.0
-                vol_sqt_e = vol_ * sqt_e
-                d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
-                _ = vol_sqt_e * dual_norm_cdf(d_min) - one_over_sq2pi * dual_exp(-0.5 * d_min**2)
-                return _
-
-            root_solver = _brents(root, float(u_max) / 2.0, float(u_max))
-            u_min = root_solver[0]
-
-        else:
-            # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
-            u_min = float(u_max) / 2.0
-        return (u_min, u_max)
 
     def _strike_from_delta_fixed_vol(
         self,
@@ -2596,7 +2530,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         v_deli: Union[DualTypes, NoInput] = NoInput(0),
     ):
         """
-        Determine a strike given a delta percentage value.
+        Determine a strike given a delta percentage value, if the vol is known and fixed.
 
         Parameters
         ----------
@@ -2620,142 +2554,375 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        half_vol_sq_t = 0.5 * vol**2 * t_e
-        vol_sqrt_t = vol * t_e**0.5
-
-        if "forward" in self.delta_type:
-            _ = dual_inv_norm_cdf(self.phi * delta)
-            _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
-
-            if self.delta_type == "forward_pa":
-                # make premium adjustment
-                k_min, k_max = self._get_interval_for_premium_adjusted_delta_fixed_vol(
-                    float(_), float(half_vol_sq_t), float(vol_sqrt_t), float(f)
-                )
-
-                def root(k):
-                    b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
-                    dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
-                    return delta + b76 / (v_deli * f) - self.phi * dual_norm_cdf(self.phi * dplus)
-
-                root_solver = _brents(root, x0=k_min, x1=k_max)
-                _ = root_solver[0]
-
-        elif "spot" in self.delta_type:
-            w1 = w_spot / w_deli
-            _ = dual_inv_norm_cdf(self.phi * delta * w1)
-            _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
-
-            if self.delta_type == "spot_pa":
-                # make premium adjustment
-                k_min, k_max = self._get_interval_for_premium_adjusted_delta_fixed_vol(
-                    float(_), float(half_vol_sq_t), float(vol_sqrt_t), float(f)
-                )
-
-                def root(k):
-                    b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
-                    dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
-                    return (
-                        delta
-                        + b76 / (v_deli * f * w1)
-                        - self.phi * dual_norm_cdf(self.phi * dplus) / w1
-                    )
-
-                root_solver = _brents(root, x0=k_min, x1=k_max)
-                _ = root_solver[0]
-
-        return _
-
-    def _strike_from_delta_with_smile(
-        self,
-        f: DualTypes,
-        delta: float,
-        vol: FXVolSmile,
-        t_e: DualTypes,
-        w_deli: Union[DualTypes, NoInput] = NoInput(0),
-        w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        v_deli: Union[DualTypes, NoInput] = NoInput(0),
-    ):
         if "_pa" in self.delta_type:
-            return self._strike_from_delta_with_smile_adjusted(
-                f, delta, vol, t_e, w_deli, w_spot, v_deli,
+            return self._strike_from_delta_fixed_vol_adjusted(
+                f, delta, vol, t_e, w_deli, w_spot, v_deli
             )
         else:
-            return self._strike_from_delta_with_smile_unadjusted(
-                f, delta, vol, t_e, w_deli, w_spot, v_deli,
+            return self._strike_from_delta_fixed_vol_unadjusted(
+                f, delta, vol, t_e, w_deli, w_spot, v_deli
             )
 
-    def _strike_from_delta_with_smile_unadjusted(
+    def _strike_from_delta_fixed_vol_unadjusted(
         self,
         f: DualTypes,
         delta: float,
-        vol: FXVolSmile,
+        vol: DualTypes,
         t_e: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
         v_deli: Union[DualTypes, NoInput] = NoInput(0),
     ):
         """
-        Use a Newton root solver for u (moneyness).
+        Get the strike from given delta if the vol is known and fixed and not premium adjusted
+
+        This method used a closed form solution.
+        This function preserves AD.
         """
-        if "forward" in self.delta_type:
-            delta_ = delta
-        elif "spot" in self.delta_type:
-            delta_ = delta * w_spot / w_deli
-
-        val = self.phi * dual_inv_norm_cdf(self.phi * delta_) * t_e ** 0.5
-
-        def root(u):
-            vol_ = vol[u] / 100.0
-            return dual_log(u) - vol_**2 * t_e * 0.5 + vol_ * val
-
-        def root_deriv(u):
-            vol_ = vol[u] / 100.0
-            vol_deriv_ = vol.spline.ppdnev_single(u, 1) / 100.0
-            return 1 / u + vol_deriv_ * (val - vol_ * t_e)
-
-        root_solver = _newton(root, root_deriv, 1.0)
-        _ = root_solver[0] * f
-        return _
-
-    def _strike_from_delta_with_smile_adjusted(
-        self,
-        f: DualTypes,
-        delta: float,
-        vol: FXVolSmile,
-        t_e: DualTypes,
-        w_deli: Union[DualTypes, NoInput] = NoInput(0),
-        w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        v_deli: Union[DualTypes, NoInput] = NoInput(0),
-    ) -> float:
-        """
-        Use a Brent root solver for u (moneyness)
-
-        Needs an interval.
-
-        Must return float because uses a root solving algorithm.
-        """
-
         if "forward" in self.delta_type:
             scalar = 1.0
         else:
-            scalar = float(w_deli / w_spot)
+            scalar = w_spot / w_deli
 
-        sqt_e = float(t_e) ** 0.5
+        half_vol_sq_t = 0.5 * vol**2 * t_e
+        vol_sqrt_t = vol * t_e**0.5
+        _ = dual_inv_norm_cdf(self.phi * delta * scalar)
+        _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
+        return _
 
-        def root(u):
-            vol_ = float(vol[u]) / 100.0
-            vol_sqt_e = vol_ * sqt_e
-            d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
-            return delta - scalar * u * self.phi * dual_norm_cdf(self.phi * d_min)
+    def _strike_from_delta_fixed_vol_adjusted(
+            self,
+            f: DualTypes,
+            delta: float,
+            vol: DualTypes,
+            t_e: DualTypes,
+            w_deli: Union[DualTypes, NoInput] = NoInput(0),
+            w_spot: Union[DualTypes, NoInput] = NoInput(0),
+            v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Get the strike from given delta if the vol is known/fixed and the delta is premium adjusted.
 
-        u_min, u_max = self._get_interval_for_premium_adjusted_delta_vol_smile2(
-            vol.u_max, vol, t_e, f
+        This method uses a Brent style root solver, with range determined by a secondary function.
+        This function is an algorithm. It loses AD currently.
+        """
+        if "forward" in self.delta_type:
+            scalar = 1.0
+        else:
+            scalar = w_deli / w_spot
+
+        vol_sqd_t_e = float(vol**2 * t_e)
+        vol_sqrt_t_e = float(vol * t_e**0.5)
+        def root(k):
+            d_min = self._d_min(k, float(f), vol_sqrt_t_e, vol_sqd_t_e)
+            return delta - scalar * k / float(f) *self.phi * dual_norm_cdf(self.phi * d_min)
+
+        unadjusted_k = self._strike_from_delta_fixed_vol_unadjusted(
+            float(f), delta, float(vol), float(t_e), float(w_deli), float(w_spot), float(v_deli)
+        )
+        k_min, k_max = self._get_interval_for_premium_adjusted_delta_fixed_vol(
+            unadjusted_k, 0.5 * vol_sqd_t_e, vol_sqrt_t_e, float(f)
+        )
+        root_solver = _brents(root, x0=k_min, x1=k_max)
+        return root_solver[0]
+
+    ###
+    ### The following functions used for strike determination when using an FXDeltaVolSmile
+    ###
+
+    def _strike_from_delta_with_delta_vol_smile(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Determine a strike given an FXDeltaVolSmile.
+
+        Parameters
+        ----------
+        f: float, Dual, Dual2
+            The forward FX rate at delivery.
+        delta: float
+            The percentage delta to calculate strike for.
+        vol: FXDeltaVolSmile
+            The volatility *Smile* used to determine the strike.
+        t: float, Dual, Dual2
+            The time to expiry.
+        w_deli: float, Dual, Dual2
+            The domestic discount factor (LHS currency) in an appropriate collateral until delivery.
+        w_spot: float, Dual, Dual2
+            The domestic discount factor (LHS currency) in appropriate collateral until standard
+            transaction settlement, e.g. spot.
+        v_deli: float, Dual, Dual2
+            The foreign discount factor (RHS currency) in an appropriate collateral until delivery.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        if "_pa" in self.delta_type:
+            return self._strike_from_delta_with_delta_vol_smile_adjusted(
+                f, delta, vol, t_e, w_deli, w_spot, v_deli
+            )
+        else:
+            return self._strike_from_delta_with_delta_vol_smile_unadjusted(
+                f, delta, vol, t_e, w_deli, w_spot, v_deli
+            )
+
+    def _strike_from_delta_with_delta_vol_smile_unadjusted(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Calculate a strike from a given delta.
+
+        This formula preserves AD and the strike's derivatives are accurately captured.
+
+        Note: Given delta must align with the delta_type on the Smile and not the option.
+        """
+        if self.delta_type != vol.delta_type:
+            warnings.warn(
+                f"FXOption `delta_type`: '{self.delta_type}' does not match "
+                f"FXDeltaVolSmile `delta_type`: '{vol.delta_type}'.\n"
+                f"Interpreting the given `delta` as '{vol.delta_type}'."
+            )
+
+        # Call / Put conversion parity
+        scalar, delta_vol = 1.0, delta
+        if "spot" in vol.delta_type:
+            scalar = w_deli / w_spot
+        if self.phi < 0:
+            delta_vol = scalar + delta
+
+        return self._strike_from_delta_fixed_vol_unadjusted(
+            f, delta, vol[delta_vol] / 100.0, t_e, w_deli, w_spot, v_deli
         )
 
-        root_solver = _brents(root, u_min, u_max)
+    # def _strike_from_delta_with_money_vol_smile_adjusted(
+    #     self,
+    #     f: DualTypes,
+    #     delta: float,
+    #     vol: FXMoneyVolSmile,
+    #     t_e: DualTypes,
+    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    # ) -> float:
+    #     """
+    #     Use a Brent root solver for u (moneyness)
+    #
+    #     Needs an interval.
+    #
+    #     Must return float because uses a root solving algorithm.
+    #     """
+    #
+    #     if "forward" in self.delta_type:
+    #         scalar = 1.0
+    #     else:
+    #         scalar = float(w_deli / w_spot)
+    #
+    #     sqt_e = float(t_e) ** 0.5
+    #
+    #     def root(u):
+    #         vol_ = float(vol[u]) / 100.0
+    #         vol_sqt_e = vol_ * sqt_e
+    #         d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+    #         return delta - scalar * u * self.phi * dual_norm_cdf(self.phi * d_min)
+    #
+    #     u_min, u_max = self._get_interval_for_premium_adjusted_delta_vol_smile2(
+    #         vol.u_max, vol, t_e, f
+    #     )
+    #
+    #     root_solver = _brents(root, u_min, u_max)
+    #
+    #     return float(root_solver[0] * f)
 
-        return float(root_solver[0] * f)
+    # def _strike_from_delta_with_money_vol_smile(
+    #     self,
+    #     f: DualTypes,
+    #     delta: float,
+    #     vol: FXMoneyVolSmile,
+    #     t_e: DualTypes,
+    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    # ):
+    #     if "_pa" in self.delta_type:
+    #         return self._strike_from_delta_with_money_vol_smile_adjusted(
+    #             f, delta, vol, t_e, w_deli, w_spot, v_deli,
+    #         )
+    #     else:
+    #         return self._strike_from_delta_with_money_vol_smile_unadjusted(
+    #             f, delta, vol, t_e, w_deli, w_spot, v_deli,
+    #         )
+
+    # def _get_interval_for_premium_adjusted_delta_with_money_vol_smile(
+    #     self,
+    #     u_max,
+    #     vol: FXMoneyVolSmile,
+    #     t_e,
+    #     f,
+    # ) -> tuple[float, float]:
+    #     """
+    #     Returns the interval for use in Brent variety solver
+    #     """
+    #     if self.phi > 0:
+    #         # call option requires more difficult k_min. k_min is set as the point which
+    #         # attains the maximum premium adjusted delta.
+    #         sqt_e = float(t_e) ** 0.5
+    #         one_over_sq2pi = 1 / sqrt(2*pi)
+    #
+    #         def root(u):
+    #             vol_ = float(vol[u]) / 100.0
+    #             vol_sqt_e = vol_ * sqt_e
+    #             d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+    #             _ = vol_sqt_e * dual_norm_cdf(d_min) - one_over_sq2pi * dual_exp(-0.5 * d_min**2)
+    #             return _
+    #
+    #         def root_deriv(u):
+    #             dvoldu = float(vol.spline.ppdnev_single(u, 1)) / 100.0
+    #             vol_ = float(vol[u]) / 100.0
+    #             vol_sqt_e = vol_ * sqt_e
+    #             d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+    #             e_half_dmin_sq = dual_exp(-0.5 * d_min ** 2)
+    #             dPhidmin = one_over_sq2pi * e_half_dmin_sq
+    #             dmindu = -dvoldu * (d_min + sqt_e) - 1.0 / (u * vol_ * sqt_e)
+    #             dndmin = -d_min * one_over_sq2pi * e_half_dmin_sq
+    #
+    #             _ = dvoldu * sqt_e * dual_norm_cdf(d_min)
+    #             _ += vol_ * sqt_e * dPhidmin * dmindu
+    #             _ -= dmindu * dndmin
+    #
+    #             return _
+    #
+    #         z = float(vol[f]) / 100.0 * sqt_e
+    #         root_appx = self._initial_guess_newton_maximum_delta_pa(z)
+    #         root_appx = dual_exp(-root_appx * z - 0.5 * z ** 2)
+    #
+    #         # root_solver = _brents(root, float(u_max) / 2.0, float(u_max))
+    #         root_solver = _newton(root, root_deriv, root_appx)
+    #         u_min = root_solver[0]
+    #
+    #     else:
+    #         # TODO: this formula contains some unproven approximations
+    #         u_min = 0.5
+    #     return (u_min, u_max)
+
+    # def _get_interval_for_premium_adjusted_delta_vol_smile(
+    #     self,
+    #     u_max,
+    #     vol: FXMoneyVolSmile,
+    #     t_e,
+    #     f,
+    # ) -> tuple[float, float]:
+    #     """
+    #     Returns the interval for use in Brent variety solver
+    #     """
+    #     if self.phi > 0:
+    #         # call option requires more difficult k_min. k_min is set as the point which
+    #         # attains the maximum premium adjusted delta.
+    #         sqt_e = float(t_e) ** 0.5
+    #         one_over_sq2pi = 1 / sqrt(2*pi)
+    #
+    #         def root(u):
+    #             vol_ = float(vol[u]) / 100.0
+    #             vol_sqt_e = vol_ * sqt_e
+    #             d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+    #             _ = vol_sqt_e * dual_norm_cdf(d_min) - one_over_sq2pi * dual_exp(-0.5 * d_min**2)
+    #             return _
+    #
+    #         root_solver = _brents(root, float(u_max) / 2.0, float(u_max))
+    #         u_min = root_solver[0]
+    #
+    #     else:
+    #         # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
+    #         u_min = float(u_max) / 2.0
+    #     return (u_min, u_max)
+
+
+    # def _strike_from_delta_with_money_vol_smile_unadjusted(
+    #     self,
+    #     f: DualTypes,
+    #     delta: float,
+    #     vol: FXMoneyVolSmile,
+    #     t_e: DualTypes,
+    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    # ):
+    #     """
+    #     Use a Newton root solver for u (moneyness).
+    #     """
+    #     if "forward" in self.delta_type:
+    #         delta_ = delta
+    #     elif "spot" in self.delta_type:
+    #         delta_ = delta * w_spot / w_deli
+    #
+    #     val = self.phi * dual_inv_norm_cdf(self.phi * delta_) * t_e ** 0.5
+    #
+    #     def root(u):
+    #         vol_ = vol[u] / 100.0
+    #         return dual_log(u) - vol_**2 * t_e * 0.5 + vol_ * val
+    #
+    #     def root_deriv(u):
+    #         vol_ = vol[u] / 100.0
+    #         vol_deriv_ = vol.spline.ppdnev_single(u, 1) / 100.0
+    #         return 1 / u + vol_deriv_ * (val - vol_ * t_e)
+    #
+    #     root_solver = _newton(root, root_deriv, 1.0)
+    #     _ = root_solver[0] * f
+    #     return _
+    #
+    #
+    # def _strike_from_delta_with_money_vol_smile_adjusted(
+    #     self,
+    #     f: DualTypes,
+    #     delta: float,
+    #     vol: FXMoneyVolSmile,
+    #     t_e: DualTypes,
+    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    # ) -> float:
+    #     """
+    #     Use a Brent root solver for u (moneyness)
+    #
+    #     Needs an interval.
+    #
+    #     Must return float because uses a root solving algorithm.
+    #     """
+    #
+    #     if "forward" in self.delta_type:
+    #         scalar = 1.0
+    #     else:
+    #         scalar = float(w_deli / w_spot)
+    #
+    #     sqt_e = float(t_e) ** 0.5
+    #
+    #     def root(u):
+    #         vol_ = float(vol[u]) / 100.0
+    #         vol_sqt_e = vol_ * sqt_e
+    #         d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
+    #         return delta - scalar * u * self.phi * dual_norm_cdf(self.phi * d_min)
+    #
+    #     u_min, u_max = self._get_interval_for_premium_adjusted_delta_vol_smile2(
+    #         vol.u_max, vol, t_e, f
+    #     )
+    #
+    #     root_solver = _brents(root, u_min, u_max)
+    #
+    #     return float(root_solver[0] * f)
 
     def _delta_percent(
         self,
@@ -2773,7 +2940,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Parameters
         ----------
         fx: FXForwards
-            The FXForwards object used for determining forwqrds.
+            The FXForwards object used for determining forwards.
         k: float
             The strike value of the option.
         vol: float, Dual, Dual2,
