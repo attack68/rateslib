@@ -6,6 +6,7 @@ from rateslib.default import plot, NoInput
 from uuid import uuid4
 import numpy as np
 from typing import Union
+from datetime import datetime
 
 
 # class FXMoneyVolSmile:
@@ -265,7 +266,7 @@ class FXDeltaVolSmile:
 
     def plot(
         self,
-        comparators: list[FXMoneyVolSmile] = [],
+        comparators: list[FXDeltaVolSmile] = [],
         difference: bool = False,
         labels: list[str] = [],
         x_axis: str = "delta",
@@ -301,7 +302,8 @@ class FXDeltaVolSmile:
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
-        x = np.linspace(self.t[0], self.t[-1], 101)
+        # reversed for intuitive strike direction
+        x = np.linspace(self.t[-1], self.t[0], 101)
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":
             x, vols = x[1:-1], vols[1:-1]
@@ -321,6 +323,7 @@ class FXDeltaVolSmile:
                 diff = [comparator.spline.ppev(x) - vols]
                 y.append(diff)
 
+        # reverse for intuitive strike direction
         if x_axis == "moneyness":
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)

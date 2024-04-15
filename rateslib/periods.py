@@ -2472,7 +2472,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
         return _ * v2
 
-    def _d_min(self, K, f, vol_sqrt_t_e, vol_sqd_t_e):
+    def _d_min(self, K, f, vol_sqrt_t_e, vol_sqd_t_e) -> DualTypes:
         # AD preserving calculation of d_min in Black-76 formula
         return (dual_log(f / K) - 0.5 * vol_sqd_t_e) / vol_sqrt_t_e
 
@@ -2708,6 +2708,63 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return self._strike_from_delta_fixed_vol_unadjusted(
             f, delta, vol[delta_vol] / 100.0, t_e, w_deli, w_spot, v_deli
         )
+
+    def _strike_from_delta_with_delta_vol_smile_adjusted(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    ) -> float:
+        """
+        Calculate a strike from a given delta.
+
+        This method uses a Newton style root solver.
+        This function is an algorithm. It loses AD currently.
+        """
+        if self.delta_type != vol.delta_type:
+            warnings.warn(
+                f"FXOption `delta_type`: '{self.delta_type}' does not match "
+                f"FXDeltaVolSmile `delta_type`: '{vol.delta_type}'.\n"
+                f"Interpreting the given `delta` as '{vol.delta_type}'."
+            )
+
+        # Call / Put conversion parity
+        scalar, delta_vol = 1.0, delta
+        if "spot" in vol.delta_type:
+            scalar = w_deli / w_spot
+        if self.phi < 0:
+            delta_vol = scalar + delta
+
+        vol_ = vol[delta_vol] / 100.0
+        k_approx = self._strike_from_delta_fixed_vol_unadjusted(
+            f, delta, vol_, t_e, w_deli, w_spot, v_deli
+        )
+
+        if "spot" in self.delta_type:
+            delta *= w_spot / w_deli
+
+        vol_sqrt_t_e = vol_ * t_e ** 0.5
+        vol_sqd_t_e = vol_ ** 2 * t_e
+        sqrt_2pi_inv = 1 / sqrt(2 * pi)
+
+        def root(k):
+            d_min = self._d_min(k, f, vol_sqrt_t_e, vol_sqd_t_e)
+            return delta - k * self.phi * dual_norm_cdf(self.phi * d_min) / f
+
+        def root_deriv(k):
+            d_min = self._d_min(k, f, vol_sqrt_t_e, vol_sqd_t_e)
+            _ = self.phi * sqrt_2pi_inv * dual_exp(-0.5 * d_min**2) / vol_sqrt_t_e
+            _ -= dual_norm_cdf(self.phi * d_min)
+            _ *= self.phi / f
+            return _
+
+        root_solver = _newton(root, root_deriv, k_approx)
+        return float(root_solver[0])
+
 
     # def _strike_from_delta_with_money_vol_smile_adjusted(
     #     self,

@@ -2281,13 +2281,13 @@ class TestFXOption:
         )
         assert abs(std_result - result) < 1e-7
 
-    @pytest.mark.parametrize("dlty, delta, exp_k", [
-        ("forward", 0.25, 1.1012710213),
-        ("spot", 0.25, 1.1010192011),
-        ("forward_pa", 0.25, 1.1039239905),
-        # ("spot_pa", 0.25, 1.10363748422),
+    @pytest.mark.parametrize("dlty, delta", [
+        ("forward", 0.25),
+        ("spot", 0.25),
+        ("forward_pa", 0.25),
+        ("spot_pa", 0.25),
     ])
-    def test_call_strike_from_delta_with_delta_vol_smile(self, fxfo, dlty, delta, exp_k):
+    def test_call_strike_from_delta_with_delta_vol_smile(self, fxfo, dlty, delta):
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2316,16 +2316,26 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.curve("usd", "usd")[fxo.delivery]
         )
-        expected = exp_k
+
+        expected = fxo._strike_from_delta_fixed_vol(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            delta,
+            0.089,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxfo.curve("eur", "usd")[fxo.delivery],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            fxfo.curve("usd", "usd")[fxo.delivery]
+        )
+        # expected = exp_k
         assert abs(result - expected) < 1e-8
 
-    @pytest.mark.parametrize("dlty, delta, exp_k", [
-        ("forward", -0.25, 1.0327823385),
-        ("spot", -0.25, 1.0332259815809),
-        # ("forward_pa", -0.25, 1.033),
-        # ("spot_pa", 0.25, 1.10363748422),
+    @pytest.mark.parametrize("dlty, delta, vol", [
+        ("forward", -0.25, 0.1015),
+        ("spot", -0.25, 0.10095688712860554),  # Puts have a different parity relationship
+        ("forward_pa", -0.25, 0.1015),
+        ("spot_pa", -0.25, 0.10095688712860554),  # Puts have a different partity relationship
     ])
-    def test_put_strike_from_delta_with_delta_vol_smile(self, fxfo, dlty, delta, exp_k):
+    def test_put_strike_from_delta_with_delta_vol_smile(self, fxfo, dlty, delta, vol):
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2354,7 +2364,16 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.curve("usd", "usd")[fxo.delivery]
         )
-        expected = exp_k
+        expected = fxo._strike_from_delta_fixed_vol(
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            delta,
+            vol,
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxfo.curve("eur", "usd")[fxo.delivery],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            fxfo.curve("usd", "usd")[fxo.delivery]
+        )
+        # expected = exp_k
         assert abs(result - expected) < 1e-8
 
     def test_strike_from_forward_delta_put(self, fxfo):
