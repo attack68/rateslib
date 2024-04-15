@@ -193,16 +193,41 @@ class FXDeltaVolSmile:
         self.t_expiry_sqrt = self.t_expiry ** 0.5
         self.delta_type = delta_type
 
-        if self.n == 3:
-            self.t = [0., 0., 0., 0., 0.5, 1., 1., 1., 1.]
-        elif self.n == 5:
-            self.t = [0., 0., 0., 0., 0.2, 0.5, 0.8, 1., 1., 1., 1.]
+        if self.n in [1, 2]:
+            self.t = [0.] * 4 + [1.] * 4
         else:
-            raise ValueError(
-                "`FXDeltaVolSmile` currently designed only for 3 or 5 `nodes` and degrees of freedom."
-            )
+            self.t = [0.] * 4 + self.node_keys[1:-1] + [1.0] * 4
 
         self._set_ad_order(ad)  # includes csolve
+
+    def _csolve_n1(self):
+        tau = list(self.nodes.keys())
+        y = list(self.nodes.values()) * 2
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+        tau.insert(1, self.t[0])
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = 2
+        return tau, y, left_n, right_n
+
+    def _csolve_n_other(self):
+        tau = list(self.nodes.keys())
+        y = list(self.nodes.values())
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = 2
+        return tau, y, left_n, right_n
 
     def csolve(self):
         """
@@ -228,17 +253,10 @@ class FXDeltaVolSmile:
         else:
             Spline = PPSplineDual2
 
-        tau = list(self.nodes.keys())
-        y = list(self.nodes.values())
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = 2
+        if self.n == 1:
+            tau, y, left_n, right_n = self._csolve_n1()
+        else:
+            tau, y, left_n, right_n = self._csolve_n_other()
 
         self.spline = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)
