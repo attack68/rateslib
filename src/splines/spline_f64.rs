@@ -1,4 +1,5 @@
 use crate::dual::linalg_f64::{fdmul11_, fdsolve};
+use std::iter::zip;
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use std::iter::Sum;
@@ -131,13 +132,15 @@ where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<T>>) -> Self {
+        assert!(t.len() > 1);
+        assert!(zip(&t[1..], &t[..(t.len()-1)]).all(|(a, b)| a >= b));  // t is non-decreasing
+
         let n = t.len() - k;
         let c_;
         match c {
             Some(v) => {c_ = Some(Array1::from_vec(v))},
             None => {c_ = None}
         }
-
         PPSpline { k, t, n, c: c_}
     }
 
@@ -412,6 +415,12 @@ mod tests {
         let pp1 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
         let pp2 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
         assert!(pp1 == pp2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn backwards_definition() {
+        let mut pp1 = PPSpline::<f64>::new(4, vec![3., 3., 3., 3., 2., 1., 1., 1., 1.], None);
     }
 
 }
