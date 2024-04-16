@@ -1,6 +1,6 @@
 from __future__ import annotations  # type hinting
 
-from rateslib.dual import set_order_convert, dual_exp, dual_inv_norm_cdf
+from rateslib.dual import set_order_convert, dual_exp, dual_inv_norm_cdf, DualTypes
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from uuid import uuid4
@@ -191,7 +191,7 @@ class FXDeltaVolSmile:
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt = self.t_expiry ** 0.5
-        self.delta_type = delta_type
+        self.delta_type = _validate_delta_type(delta_type)
 
         if self.n in [1, 2]:
             self.t = [0.] * 4 + [1.] * 4
@@ -260,6 +260,28 @@ class FXDeltaVolSmile:
 
         self.spline = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)
+
+        self._create_approx_spline_conversions(Spline)
+        return None
+
+    def _create_approx_spline_conversions(self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]):
+        """
+        Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the (Delta, Vol) spline.
+
+        U is moneyness i.e.: U = K / f
+        """
+        # TODO: this only works for forward unadjusted delta because no spot conversion takes place
+        ### Create approximate (K, Delta) curve via interpolation
+        delta = np.array(
+            [0.00001, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6,
+             0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99999]
+        )
+        vols = self.spline.ppev(delta).tolist()
+        u = [dual_exp(-dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100. + 0.0005 * _2 * _2 * self.t_expiry)
+             for (_1, _2) in zip(delta, vols)][::-1]
+
+        self.spline_u_delta_approx = spline_class(t=[u[0]] * 4 + u[2:-2] + [u[-1]] * 4, k=4)
+        self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
         return None
 
     def __iter__(self):
@@ -267,6 +289,87 @@ class FXDeltaVolSmile:
 
     def __getitem__(self, item):
         return self.spline.ppev_single(item)
+
+    def convert_delta(
+        self,
+        delta: float,
+        delta_type: str,
+        phi: float,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Convert the given delta into a call delta equivalent of the type associated with the *Smile*.
+
+        Parameters
+        ----------
+        delta: float
+            The delta to obtain a volatility for.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type the given delta is expressed in.
+        phi: float
+            Whether the given delta is assigned to a put or call option.
+        w_deli: DualTypes, optional
+            Required only for spot/forward conversions.
+        w_spot: DualTypes, optional
+            Required only for spot/forward conversions.
+
+        Returns
+        -------
+        DualTypes
+        """
+        delta_type = _validate_delta_type(delta_type)
+
+        if "_pa" in self.delta_type or "_pa" in delta_type:
+            raise NotImplementedError("Cannot currently convert to/from premium adjusted deltas.")
+
+        # If put delta convert to equivalent call delta
+        if phi < 0:
+            if delta_type == "spot":
+                delta = w_deli / w_spot + delta
+            else:
+                delta = 1.0 + delta
+
+        # If delta types of Smile and given do not align make conversion
+        if self.delta_type == delta_type:
+            return delta
+        elif self.delta_type == "forward" and delta_type == "spot":
+            return delta * w_spot / w_deli
+        else:  # self.delta_type == "spot" and delta_type == "forward":
+            return delta * w_deli / w_spot
+
+    def get(
+        self,
+        delta: float,
+        delta_type: str,
+        phi: float,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Return a volatility for a provided delta.
+
+        This function is more explicit than the `__getitem__` method of the *Smile* because it
+        permits certain forward/spot delta conversions and put/call option delta conversions.
+
+        Parameters
+        ----------
+        delta: float
+            The delta to obtain a volatility for.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type the given delta is expressed in.
+        phi: float
+            Whether the given delta is assigned to a put or call option.
+        w_deli: DualTypes, optional
+            Required only for spot/forward conversions.
+        w_spot: DualTypes, optional
+            Required only for spot/forward conversions.
+
+        Returns
+        -------
+        DualTypes
+        """
+        return self[self.convert_delta(delta, delta_type, phi, w_deli, w_spot)]
 
     def _set_ad_order(self, order: int):
         if order == getattr(self, "ad", None):
@@ -321,7 +424,7 @@ class FXDeltaVolSmile:
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
         # reversed for intuitive strike direction
-        x = np.linspace(self.t[-1], self.t[0], 101)
+        x = np.linspace(self.t[-1], self.t[0], 301)
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":
             x, vols = x[1:-1], vols[1:-1]
@@ -345,3 +448,9 @@ class FXDeltaVolSmile:
         if x_axis == "moneyness":
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
+
+
+def _validate_delta_type(delta_type: str):
+    if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
+        raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
+    return delta_type.lower()

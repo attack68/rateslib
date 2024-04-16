@@ -24,7 +24,6 @@ from rateslib.dual.dualrs import (
 )
 
 DualTypes = Union[float, Dual, Dual2]
-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -185,6 +184,21 @@ def dual_log(x, base=None):
         return math.log(x, base)
 
 
+def dual_norm_pdf(x):
+    """
+    Return the standard normal probability density function.
+
+    Parameters
+    ----------
+    x : float, Dual, Dual2
+
+    Returns
+    -------
+    float, Dual, Dual2
+    """
+    return dual_exp(-0.5 * x**2) / math.sqrt(2.0 * math.pi)
+
+
 def dual_norm_cdf(x):
     """
     Return the cumulative standard normal distribution for given value.
@@ -201,7 +215,6 @@ def dual_norm_cdf(x):
         return x.__norm_cdf__()
     else:
         return NormalDist().cdf(x)
-
 
 def dual_inv_norm_cdf(x):
     """
