@@ -45,6 +45,7 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_norm_cdf,
+    dual_norm_pdf,
     dual_exp,
     dual_log,
     dual_inv_norm_cdf,
@@ -2472,9 +2473,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
         return _ * v2
 
-    def _d_min(self, K, f, vol_sqrt_t_e, vol_sqd_t_e) -> DualTypes:
+    def _d_min(self, K, f, vol_sqrt_t_e) -> DualTypes:
         # AD preserving calculation of d_min in Black-76 formula
-        return (dual_log(f / K) - 0.5 * vol_sqd_t_e) / vol_sqrt_t_e
+        return dual_log(f / K) / vol_sqrt_t_e - 0.5 * vol_sqrt_t_e
+
+    def _d_plus(self, K, f, vol_sqrt_t_e) -> DualTypes:
+        # AD preserving calculation of d_plus in Black-76 formula
+        return dual_log(f / K) / vol_sqrt_t_e + 0.5 * vol_sqrt_t_e
 
     ###
     ###  The following functions used for Strike determination when given a fixed volatility.
@@ -2614,7 +2619,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_sqd_t_e = float(vol**2 * t_e)
         vol_sqrt_t_e = float(vol * t_e**0.5)
         def root(k):
-            d_min = self._d_min(k, float(f), vol_sqrt_t_e, vol_sqd_t_e)
+            d_min = self._d_min(k, float(f), vol_sqrt_t_e)
             return delta - scalar * k / float(f) *self.phi * dual_norm_cdf(self.phi * d_min)
 
         unadjusted_k = self._strike_from_delta_fixed_vol_unadjusted(
@@ -2748,15 +2753,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
             delta *= w_spot / w_deli
 
         vol_sqrt_t_e = vol_ * t_e ** 0.5
-        vol_sqd_t_e = vol_ ** 2 * t_e
         sqrt_2pi_inv = 1 / sqrt(2 * pi)
 
         def root(k):
-            d_min = self._d_min(k, f, vol_sqrt_t_e, vol_sqd_t_e)
+            d_min = self._d_min(k, f, vol_sqrt_t_e)
             return delta - k * self.phi * dual_norm_cdf(self.phi * d_min) / f
 
         def root_deriv(k):
-            d_min = self._d_min(k, f, vol_sqrt_t_e, vol_sqd_t_e)
+            d_min = self._d_min(k, f, vol_sqrt_t_e)
             _ = self.phi * sqrt_2pi_inv * dual_exp(-0.5 * d_min**2) / vol_sqrt_t_e
             _ -= dual_norm_cdf(self.phi * d_min)
             _ *= self.phi / f
@@ -2765,6 +2769,40 @@ class FXOptionPeriod(metaclass=ABCMeta):
         root_solver = _newton(root, root_deriv, k_approx)
         return float(root_solver[0])
 
+    def _delta_from_strike_with_delta_vol_smile_unadjusted(
+        self,
+        f: DualTypes,
+        k: float,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    ) -> float:
+        """
+        Return the delta in the type as specified on the *VolSmile* for the given strike, k.
+        """
+
+        if vol.delta_type == "spot":
+            z_w = float(w_deli / w_spot)
+        else:
+            z_w = 1.0
+        sqrt_t_e = float(t_e ** 0.5)
+
+        def root(delta):
+            vol_ = float(vol.get(delta, vol.delta_type, self.phi) / 100.0)
+            d_plus = self._d_plus(k, float(f), vol_ * sqrt_t_e)
+            return delta - z_w * self.phi * dual_norm_cdf(self.phi * d_plus)
+
+        def root_deriv(delta):
+            vol_ = float(vol.get(delta, vol.delta_type, self.phi)) / 100.0
+            d_plus = self._d_plus(k, float(f), vol_ * t_e ** 0.5)
+            dsigma_ddelta = float(vol.spline.ppdnev_single(vol.convert_delta(delta, vol.delta_type, self.phi), 1)) / 100.0
+            ddplus_dsigma = dsigma_ddelta * (-dual_log(float(f) / k) / (sqrt_t_e * vol_**2) + 0.5 * sqrt_t_e)
+            return 1 - z_w * dual_norm_pdf(self.phi * d_plus) * ddplus_dsigma
+
+        root_solver = _newton(root, root_deriv, 0.5)
+        return root_solver[0]
 
     # def _strike_from_delta_with_money_vol_smile_adjusted(
     #     self,
@@ -3412,7 +3450,7 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
     return x1, steps_taken
 
 
-def _newton(f, f1, x0, max_iter=50, tolerance=1e-9):
+def _newton(f, f1, x0, max_iter=50, tolerance=1e-9, bounds=None):
     steps_taken = 0
 
     while steps_taken < max_iter:

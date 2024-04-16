@@ -1,6 +1,6 @@
 from __future__ import annotations  # type hinting
 
-from rateslib.dual import set_order_convert, dual_exp, dual_inv_norm_cdf
+from rateslib.dual import set_order_convert, dual_exp, dual_inv_norm_cdf, DualTypes
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from uuid import uuid4
@@ -191,7 +191,7 @@ class FXDeltaVolSmile:
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt = self.t_expiry ** 0.5
-        self.delta_type = delta_type
+        self.delta_type = _validate_delta_type(delta_type)
 
         if self.n == 3:
             self.t = [0., 0., 0., 0., 0.5, 1., 1., 1., 1.]
@@ -249,6 +249,87 @@ class FXDeltaVolSmile:
 
     def __getitem__(self, item):
         return self.spline.ppev_single(item)
+
+    def convert_delta(
+        self,
+        delta: float,
+        delta_type: str,
+        phi: float,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Convert the given delta into a call delta equivalent of the type associated with the *Smile*.
+
+        Parameters
+        ----------
+        delta: float
+            The delta to obtain a volatility for.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type the given delta is expressed in.
+        phi: float
+            Whether the given delta is assigned to a put or call option.
+        w_deli: DualTypes, optional
+            Required only for spot/forward conversions.
+        w_spot: DualTypes, optional
+            Required only for spot/forward conversions.
+
+        Returns
+        -------
+        DualTypes
+        """
+        delta_type = _validate_delta_type(delta_type)
+
+        if "_pa" in self.delta_type or "_pa" in delta_type:
+            raise NotImplementedError("Cannot currently convert to/from premium adjusted deltas.")
+
+        # If put delta convert to equivalent call delta
+        if phi < 0:
+            if delta_type == "spot":
+                delta = w_deli / w_spot + delta
+            else:
+                delta = 1.0 + delta
+
+        # If delta types of Smile and given do not align make conversion
+        if self.delta_type == delta_type:
+            return delta
+        elif self.delta_type == "forward" and delta_type == "spot":
+            return delta * w_spot / w_deli
+        else:  # self.delta_type == "spot" and delta_type == "forward":
+            return delta * w_deli / w_spot
+
+    def get(
+        self,
+        delta: float,
+        delta_type: str,
+        phi: float,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Return a volatility for a provided delta.
+
+        This function is more explicit than the `__getitem__` method of the *Smile* because it
+        permits certain forward/spot delta conversions and put/call option delta conversions.
+
+        Parameters
+        ----------
+        delta: float
+            The delta to obtain a volatility for.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type the given delta is expressed in.
+        phi: float
+            Whether the given delta is assigned to a put or call option.
+        w_deli: DualTypes, optional
+            Required only for spot/forward conversions.
+        w_spot: DualTypes, optional
+            Required only for spot/forward conversions.
+
+        Returns
+        -------
+        DualTypes
+        """
+        return self[self.convert_delta(delta, delta_type, phi, w_deli, w_spot)]
 
     def _set_ad_order(self, order: int):
         if order == getattr(self, "ad", None):
@@ -327,3 +408,9 @@ class FXDeltaVolSmile:
         if x_axis == "moneyness":
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
+
+
+def _validate_delta_type(delta_type: str):
+    if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
+        raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
+    return delta_type.lower()
