@@ -174,7 +174,12 @@ class TestCurvesandSolver:
         (IndexCurve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
         (CompositeCurve([Curve({dt(2000, 1, 1): 1.0})])),
         (MultiCsaCurve([Curve({dt(2000, 1, 1): 1.0})])),
-        (FXDeltaVolSmile({0.1:1., 0.2:2., 0.5:3., 0.7:4., 0.9:5.}, 0.25, "forward")),
+        (FXDeltaVolSmile(
+            {0.1:1., 0.2:2., 0.5:3., 0.7:4., 0.9:5.},
+            dt(2023, 3, 16),
+            dt(2023, 6, 16),
+            "forward"
+        )),
     ])
     def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj):
         crv_result, _, _ = _get_curves_fx_and_base_maybe_from_solver(

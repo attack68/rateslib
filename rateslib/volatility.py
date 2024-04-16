@@ -242,6 +242,28 @@ class FXDeltaVolSmile:
 
         self.spline = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)
+
+        self._create_approx_spline_conversions(Spline)
+        return None
+
+    def _create_approx_spline_conversions(self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]):
+        """
+        Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the (Delta, Vol) spline.
+
+        U is moneyness i.e.: U = K / f
+        """
+        # TODO: this only works for forward unadjusted delta because no spot conversion takes place
+        ### Create approximate (K, Delta) curve via interpolation
+        delta = np.array(
+            [0.00001, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6,
+             0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99999]
+        )
+        vols = self.spline.ppev(delta).tolist()
+        u = [dual_exp(-dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100. + 0.0005 * _2 * _2 * self.t_expiry)
+             for (_1, _2) in zip(delta, vols)][::-1]
+
+        self.spline_u_delta_approx = spline_class(t=[u[0]] * 4 + u[2:-2] + [u[-1]] * 4, k=4)
+        self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
         return None
 
     def __iter__(self):
@@ -384,7 +406,7 @@ class FXDeltaVolSmile:
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
         # reversed for intuitive strike direction
-        x = np.linspace(self.t[-1], self.t[0], 101)
+        x = np.linspace(self.t[-1], self.t[0], 301)
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":
             x, vols = x[1:-1], vols[1:-1]
