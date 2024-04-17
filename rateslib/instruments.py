@@ -71,6 +71,7 @@ from rateslib.dual import (
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
+from rateslib.fx_volatility import _get_pricing_params_from_delta_vol_unadjusted
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -267,6 +268,47 @@ def _get_curves_fx_and_base_maybe_from_solver(
     # Third process `curves`
     curves_ = _get_curves_maybe_from_solver(curves_attr, solver, curves)
     return curves_, fx_, base_
+
+
+def _get_vol_maybe_from_solver(vol, solver):
+    if solver is NoInput.blank:
+        if isinstance(vol, str):
+            raise ValueError("String `vol` ids require a `solver` to be mapped. No `solver` provided.")
+        return vol
+    elif isinstance(vol, (float, Dual, Dual2)):
+        return vol
+    elif isinstance(vol, str):
+        return solver.pre_curves[vol]
+    elif vol is NoInput.blank or vol is None:
+        # pass through a None curve. This will either raise errors later or not be needed
+        return NoInput(0)
+    else:
+        try:
+            # it is a safeguard to load curves from solvers when a solver is
+            # provided and multiple curves might have the same id
+            _ = solver.pre_curves[vol.id]
+            if id(_) != id(vol):  # Python id() is a memory id, not a string label id.
+                raise ValueError(
+                    "A ``vol`` object has been supplied which has the same "
+                    f"`id` ('{vol.id}'),\nas one of those available as part of the "
+                    "Solver's collection but is not the same object.\n"
+                    "This is ambiguous and may lead to erroneous prices.\n"
+                )
+            return _
+        except AttributeError:
+            raise AttributeError(
+                "`vol` has no attribute `id`, likely it not a valid object, got: "
+                f"{vol}.\nSince a solver is provided have you missed labelling the `vol` "
+                f"of the instrument or supplying `vol` directly?"
+            )
+        except KeyError:
+            if defaults.curve_not_in_solver == "ignore":
+                return vol
+            elif defaults.curve_not_in_solver == "warn":
+                warnings.warn("`vol` not found in `solver`.", UserWarning)
+                return vol
+            else:
+                raise ValueError("`vol` must be in `solver`.")
 
 
 class Sensitivities:
@@ -7928,6 +7970,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     """
 
     style = "european"
+    _pricing = None
 
     def __init__(
         self,
@@ -7961,6 +8004,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             modifier=modifier,
             delta_type=delta_type,
         )
+        #TODO validate simulateneous premium and strike. Premium cannot be given if strike is delta string.
+
         self.kwargs = _push(spec, self.kwargs)
         # set some defaults if missing
         self.kwargs["delta_type"] = (
@@ -8022,6 +8067,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.curves = curves
         self.spec = spec
 
+    def _get_pricing_parameters(self, vol):
+        """Handle the cases if vol is DualTypes or an object with callable method"""
+        if isinstance(vol, DualTypes):
+            pass
+
     def _set_pricing_mid(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -8032,36 +8082,57 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         """
         Sets parameters for the option at dynamic price time
         """
+
+        # If the strike for the option is not set directly it must be inferred
+        # and some of the pricing elements associated with this strike definition must
+        # be captured for use in subsequent formulae.
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
+
             if method == "atm_forward":
                 k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+                raise NotImplementedError("parameters not yet defined")
             elif method == "atm_spot":
                 m_spot = fx.pairs_settlement[self.kwargs["pair"]]
                 k = fx.rate(self.kwargs["pair"], m_spot)
+                raise NotImplementedError("parameters not yet defined")
             elif method == "atm_delta":
                 # TODO: this uses constant vol
                 t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
                 k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
                 k *= dual_exp(0.5 * vol**2 * t_e)
+                raise NotImplementedError("parameters not yet defined")
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                k = self.periods[0]._strike_from_delta_fixed_vol(
-                    f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-                    delta=float(self.kwargs["strike"][:-1]) / 100,
+                self._pricing = _get_pricing_params_from_delta_vol_unadjusted(
+                    delta=float(self.kwargs["strike"][:-1]) / 100.0,
+                    delta_type=self.kwargs["delta_type"],
                     vol=vol,
                     t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                    phi=self.periods[0].phi,
                     w_deli=curves[1][self.kwargs["delivery"]],
                     w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
-                    v_deli=curves[3][self.kwargs["delivery"]],
-                    # TODO provide a mechanism for defining spot date with FX crosses
-                    # which are only directly available in FXForwards for majors.
                 )
+                self._pricing["k"] = self._pricing["u"] * fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+
+                # k = self.periods[0]._strike_from_delta_fixed_vol(
+                #     f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+                #     delta=float(self.kwargs["strike"][:-1]) / 100,
+                #     vol=vol,
+                #     t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                #     w_deli=curves[1][self.kwargs["delivery"]],
+                #     w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                #     v_deli=curves[3][self.kwargs["delivery"]],
+                #     # TODO provide a mechanism for defining spot date with FX crosses
+                #     # which are only directly available in FXForwards for majors.
+                # )
 
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
             # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
-            self.periods[0].strike = float(k)
+            self.periods[0].strike = float(self._pricing["k"])
+
+
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
             try:
@@ -8091,9 +8162,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         vol: float = NoInput(0),
         metric: str = "pips_or_%"
     ):
+        self._pricing = None
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
+        vol = _get_vol_maybe_from_solver(vol, solver)
+
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
         if metric == "vol":
             return vol * 100.0

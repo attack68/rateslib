@@ -39,7 +39,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.dual import (
     Dual,
     Dual2,

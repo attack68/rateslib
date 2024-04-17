@@ -21,7 +21,7 @@ from rateslib.periods import (
 from rateslib.fx import FXRates, FXForwards
 from rateslib.default import Defaults
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
-from rateslib.volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib import defaults
 
 

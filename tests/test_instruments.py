@@ -37,7 +37,7 @@ from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, MultiCsaCurve, CompositeCurve
 from rateslib.fx import FXRates, FXForwards
-from rateslib.volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.solver import Solver
 
 
