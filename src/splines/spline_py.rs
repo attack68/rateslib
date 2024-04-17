@@ -62,7 +62,7 @@ macro_rules! create_interface {
                 self.inner.ppev_single(&x)
             }
 
-            pub fn ppev<'py>(&'py self, py: Python<'py>, x: Vec<f64>) -> PyResult<Vec<$type>> {
+            pub fn ppev<'py>(&'py self, x: Vec<f64>) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppev_single(&v)).collect();
                 Ok(out)
             }
@@ -71,7 +71,7 @@ macro_rules! create_interface {
                 self.inner.ppdnev_single(&x, m)
             }
 
-            pub fn ppdnev<'py>(&'py self, py: Python<'py>, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
+            pub fn ppdnev<'py>(&'py self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
                 Ok(out)
             }
