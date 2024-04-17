@@ -71,7 +71,7 @@ from rateslib.dual import (
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import _get_pricing_params_from_delta_vol_unadjusted
+from rateslib.fx_volatility import _get_pricing_params_from_delta_vol
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -8086,6 +8086,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # If the strike for the option is not set directly it must be inferred
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
+        self._pricing = {"vol": vol}
+
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
 
@@ -8104,9 +8106,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 raise NotImplementedError("parameters not yet defined")
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                self._pricing = _get_pricing_params_from_delta_vol_unadjusted(
+                self._pricing = _get_pricing_params_from_delta_vol(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
-                    delta_type=self.kwargs["delta_type"],
+                    delta_type=self.kwargs["delta_type"]+self.kwargs["delta_adjustment"],
                     vol=vol,
                     t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
                     phi=self.periods[0].phi,
@@ -8132,11 +8134,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
             self.periods[0].strike = float(self._pricing["k"])
 
-
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
             try:
-                npv = self.periods[0].npv(curves[1], curves[3], fx, vol=vol)
+                npv = self.periods[0].npv(curves[1], curves[3], fx, vol=self._pricing["vol"])
             except AttributeError:
                 raise ValueError(
                     "`premium` has not been configured for the specified FXOption.\nThis is "
@@ -8162,17 +8163,16 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         vol: float = NoInput(0),
         metric: str = "pips_or_%"
     ):
-        self._pricing = None
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         vol = _get_vol_maybe_from_solver(vol, solver)
-
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
+
         if metric == "vol":
             return vol * 100.0
         else:
-            return self.periods[0].rate(curves[1], curves[3], fx, base, False, vol)
+            return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
 
     def npv(
         self,

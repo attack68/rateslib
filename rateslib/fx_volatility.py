@@ -1,6 +1,14 @@
 from __future__ import annotations  # type hinting
 
-from rateslib.dual import set_order_convert, dual_exp, dual_inv_norm_cdf, DualTypes, dual_norm_cdf
+from rateslib.dual import (
+    set_order_convert,
+    dual_exp,
+    dual_inv_norm_cdf,
+    DualTypes,
+    dual_norm_cdf,
+    dual_log,
+    dual_norm_pdf,
+)
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from uuid import uuid4
@@ -170,6 +178,15 @@ class FXDeltaVolSmile:
         values to float, :class:`~rateslib.dual.Dual` or
         :class:`~rateslib.dual.Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
+
+    Notes
+    -----
+    If the ``delta_type`` is not premium adjusted the range of the delta index is set to [0,1].
+
+    If it is premium adjusted the upper limit is set to
+    :math:`e^{\sigma \sqrt{t} (4.75 + \frac{1}{2} \sigma \sqrt{t})}`
+
+
     """
 
     _ini_solve = 0  # All node values are solvable
@@ -194,10 +211,16 @@ class FXDeltaVolSmile:
 
         self.delta_type = _validate_delta_type(delta_type)
 
-        if self.n in [1, 2]:
-            self.t = [0.] * 4 + [1.] * 4
+        if "_pa" in self.delta_type:
+            vol = list(self.nodes.values())[-1] / 100.0
+            upper_bound = dual_exp(vol * self.t_expiry_sqrt * (4.75 + 0.5 * vol * self.t_expiry_sqrt))
         else:
-            self.t = [0.] * 4 + self.node_keys[1:-1] + [1.0] * 4
+            upper_bound = 1.0
+
+        if self.n in [1, 2]:
+            self.t = [0.] * 4 + [float(upper_bound)] * 4
+        else:
+            self.t = [0.] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
 
         self._set_ad_order(ad)  # includes csolve
 
@@ -356,7 +379,6 @@ class FXDeltaVolSmile:
         # self._create_approx_spline_conversions(Spline)
         return None
 
-
     def _build_datatable(self):
         """
         With the given (Delta, Vol)
@@ -474,10 +496,10 @@ class FXDeltaVolSmile:
             ]
 
         if not difference:
-            y = [vols.tolist()]
+            y = [vols]
             if comparators is not None:
                 for comparator in comparators:
-                    y.append(comparator.spline.ppev(x).tolist())
+                    y.append(comparator.spline.ppev(x))
         elif difference and len(comparators) > 0:
             y = []
             for comparator in comparators:
@@ -534,7 +556,7 @@ def _convert_same_adjustment_delta(
         return delta * w_deli / w_spot
 
 
-def _get_pricing_params_from_delta_vol_unadjusted(
+def _get_pricing_params_from_delta_vol(
     delta,
     delta_type,
     vol: Union[DualTypes, FXDeltaVolSmile],
@@ -547,21 +569,28 @@ def _get_pricing_params_from_delta_vol_unadjusted(
         vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot) / 100.0
     else:  # vol is DualTypes
         vol_ = vol
-    return _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-        delta, delta_type, vol_, t_e, phi, w_deli, w_spot,
-    )
+
+    if "_pa" in delta_type:
+        return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
+            delta, delta_type, vol_, t_e, phi, w_deli, w_spot,
+        )
+    else:
+        return _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
+            delta, delta_type, vol_, t_e, phi, w_deli, w_spot,
+        )
+
 
 def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
     delta,
     delta_type,
-    vol: Union[DualTypes, FXDeltaVolSmile],
+    vol: DualTypes,
     t_e,
     phi,
     w_deli: Union[DualTypes, NoInput] = NoInput(0),
     w_spot: Union[DualTypes, NoInput] = NoInput(0),
 ) -> dict:
-    _ = dict()
-    if delta_type == "spot":
+    _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
+    if "spot" in delta_type:
         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / w_deli)
     else:
         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta)
@@ -571,3 +600,69 @@ def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
     _["ln_u"] = (0.5 * _["vol_sqrt_t"] - _["d_plus"]) * _["vol_sqrt_t"]
     _["u"] = dual_exp(_["ln_u"])
     return _
+
+
+def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
+    delta,
+    delta_type,
+    vol: DualTypes,
+    t_e,
+    phi,
+    w_deli: Union[DualTypes, NoInput] = NoInput(0),
+    w_spot: Union[DualTypes, NoInput] = NoInput(0),
+) -> dict:
+    """
+    Iterative algorithm.
+
+    AD is preserved by performing one final iteration with Dual variables reinserted as a
+    Fixed Point iteration.
+    """
+    _ = _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
+        delta, delta_type, vol, t_e, phi, w_deli, w_spot
+    )
+
+    if "spot" in delta_type:
+        z_w = w_deli / w_spot
+    else:
+        z_w = 1.0
+
+    def root(u, delta, vol_sqrt_t, z):
+        d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
+        return delta - z * u * phi * dual_norm_cdf(phi * d_min)
+
+    def root_deriv(u, delta, vol_sqrt_t, z):
+        d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
+        return z * (-phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t))
+
+    root_solver = _newton(root, root_deriv, _["u"], args=(delta, float(_["vol_sqrt_t"]), float(z_w)))
+
+    # Final iteration to capture derivatives:
+    root_solver = _newton(
+        root, root_deriv, float(root_solver[0]), args=(delta, _["vol_sqrt_t"], z_w), max_iter=1
+    )
+
+    _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
+    _["u"] = root_solver[0]
+    if "spot" in delta_type:
+        _["d_min"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / (w_deli * _["u"]))
+    else:
+        _["d_min"] = phi * dual_inv_norm_cdf(phi * delta / _["u"])
+
+    _["vol_sqrt_t"] = vol * t_e ** 0.5
+    _["d_plus"] = _["d_min"] + _["vol_sqrt_t"]
+    _["ln_u"] = dual_log(_["u"])
+    return _
+
+
+def _newton(f, f1, x0, max_iter=50, tolerance=1e-9, bounds=None, args=()):
+    steps_taken = 0
+
+    while steps_taken < max_iter:
+        steps_taken += 1
+        f0, f10 = f(x0, *args), f1(x0, *args)
+        x1 = x0 - f0 / f10
+        if abs(x1 - x0) < tolerance:
+            return x1, steps_taken
+        x0 = x1
+
+    raise ValueError(f"`max_iter`: {max_iter} exceeded in Newton solver.")

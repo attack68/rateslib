@@ -39,7 +39,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, _newton
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -3448,17 +3448,3 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
         steps_taken += 1
 
     return x1, steps_taken
-
-
-def _newton(f, f1, x0, max_iter=50, tolerance=1e-9, bounds=None):
-    steps_taken = 0
-
-    while steps_taken < max_iter:
-        steps_taken += 1
-        f0, f10 = f(x0), f1(x0)
-        x1 = x0 - f0 / f10
-        if abs(x1 - x0) < tolerance:
-            return x1, steps_taken
-        x0 = x1
-
-    raise ValueError(f"`max_iter`: {max_iter} exceeded in Newton solver.")
