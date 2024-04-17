@@ -62,20 +62,18 @@ macro_rules! create_interface {
                 self.inner.ppev_single(&x)
             }
 
-            pub fn ppev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>) -> PyResult<Bound<'_, PyArray1<$type>>> {
-                unsafe {
-                    Ok(x.as_array().map(|v| self.inner.ppev_single(&v)).to_pyarray_bound(py))
-                }
+            pub fn ppev<'py>(&'py self, py: Python<'py>, x: Vec<f64>) -> PyResult<Vec<$type>> {
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppev_single(&v)).collect();
+                Ok(out)
             }
 
             pub fn ppdnev_single(&self, x: f64, m: usize) -> $type {
                 self.inner.ppdnev_single(&x, m)
             }
 
-            pub fn ppdnev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, m: usize) -> PyResult<Bound<'_, PyArray1<$type>>> {
-                unsafe {
-                    Ok(x.as_array().map(|v| self.inner.ppdnev_single(&v, m)).to_pyarray_bound(py))
-                }
+            pub fn ppdnev<'py>(&'py self, py: Python<'py>, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
+                Ok(out)
             }
 
             pub fn bsplev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, i: usize) -> PyResult<Bound<'_, PyArray1<f64>>> {
