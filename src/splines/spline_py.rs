@@ -1,10 +1,11 @@
 use crate::splines::spline_f64::{PPSpline, bsplev_single_f64, bspldnev_single_f64};
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
+use crate::dual::dual_py::DualsOrF64;
 use std::cmp::PartialEq;
 
 use pyo3::prelude::*;
-
+use pyo3::exceptions::PyTypeError;
 
 use numpy::{PyArray1, ToPyArray, PyArrayMethods};
 use ndarray::Array1;
@@ -58,8 +59,12 @@ macro_rules! create_interface {
                 self.inner.csolve(&tau, &y, left_n, right_n, allow_lsq)
             }
 
-            pub fn ppev_single(&self, x: f64) -> $type {
-                self.inner.ppev_single(&x)
+            pub fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
+                match x {
+                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                    DualsOrF64::F64(f) => Ok(self.inner.ppev_single(&f)),
+                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                }
             }
 
             pub fn ppev<'py>(&'py self, x: Vec<f64>) -> PyResult<Vec<$type>> {
@@ -67,8 +72,12 @@ macro_rules! create_interface {
                 Ok(out)
             }
 
-            pub fn ppdnev_single(&self, x: f64, m: usize) -> $type {
-                self.inner.ppdnev_single(&x, m)
+            pub fn ppdnev_single(&self, x: DualsOrF64, m: usize) -> PyResult<$type> {
+                match x {
+                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                    DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, m)),
+                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                }
             }
 
             pub fn ppdnev<'py>(&'py self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
