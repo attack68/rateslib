@@ -1,4 +1,7 @@
-use crate::dual::linalg_f64::{fdmul11_, fdsolve};
+use crate::dual::linalg_f64::{fdmul11_, fdsolve, fouter11_};
+use crate::dual::linalg::{dmul11_};
+use crate::dual::dual1::{Dual, Gradient1};
+use crate::dual::dual2::{Dual2, Gradient2};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use std::iter::Sum;
@@ -38,6 +41,20 @@ pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Opti
         }
         left + right
     }
+}
+
+pub fn bsplev_single_dual(x: &Dual, i:usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> Dual {
+    let b_f64 = bsplev_single_f64(&x.real(), i, k, t, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, 1, org_k);
+    Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
+}
+
+pub fn bsplev_single_dual2(x: &Dual2, i:usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> Dual2 {
+    let b_f64 = bsplev_single_f64(&x.real(), i, k, t, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, 1, org_k);
+    let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, 2, org_k);
+    let dual2 = dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
+    Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
 pub fn bspldnev_single_f64(
@@ -91,6 +108,66 @@ where
     );
     match &pps.c {
         Some(c) => fdmul11_(&b.view(), &c.view()),
+        None => {
+            panic!("Must call csolve before attempting to evaluate spline.")
+        }
+    }
+}
+
+fn ppev_single_f64_dual(pps: &PPSpline<f64>, x: &Dual) -> Dual
+{
+    let b: Array1<Dual> = Array1::from_vec(
+        (0..pps.n)
+            .map(|i| bsplev_single_dual(x, i, &pps.k, &pps.t, None))
+            .collect(),
+    );
+    match &pps.c {
+        Some(c) => fdmul11_(&c.view(), &b.view()),
+        None => {
+            panic!("Must call csolve before attempting to evaluate spline.")
+        }
+    }
+}
+
+fn ppev_single_dual_dual(pps: &PPSpline<Dual>, x: &Dual) -> Dual
+{
+    let b: Array1<Dual> = Array1::from_vec(
+        (0..pps.n)
+            .map(|i| bsplev_single_dual(x, i, &pps.k, &pps.t, None))
+            .collect(),
+    );
+    match &pps.c {
+        Some(c) => dmul11_(&c.view(), &b.view()),
+        None => {
+            panic!("Must call csolve before attempting to evaluate spline.")
+        }
+    }
+}
+
+fn ppev_single_f64_dual2(pps: &PPSpline<f64>, x: &Dual2) -> Dual2
+{
+    let b: Array1<Dual2> = Array1::from_vec(
+        (0..pps.n)
+            .map(|i| bsplev_single_dual2(x, i, &pps.k, &pps.t, None))
+            .collect(),
+    );
+    match &pps.c {
+        Some(c) => fdmul11_(&c.view(), &b.view()),
+        None => {
+            panic!("Must call csolve before attempting to evaluate spline.")
+        }
+    }
+}
+
+fn ppev_single_dual2_dual2(pps: &PPSpline<Dual2>, x: &Dual2) -> Dual2
+{
+    let b: Array1<Dual2> = Array1::from_vec(
+        (0..pps.n)
+            .map(|i| bsplev_single_dual2(x, i, &pps.k, &pps.t, None))
+            .collect(),
+    );
+    match &pps.c {
+        Some(c) => dmul11_(&c.view(), &b.view()),
         None => {
             panic!("Must call csolve before attempting to evaluate spline.")
         }
@@ -207,6 +284,31 @@ where
     }
 }
 
+impl PPSpline<f64>
+{
+    pub fn ppev_single_dual(&self, x: &Dual) -> Dual {
+        ppev_single_f64_dual(&self, &x)
+    }
+
+    pub fn ppev_single_dual2(&self, x: &Dual2) -> Dual2 {
+        ppev_single_f64_dual2(&self, &x)
+    }
+}
+
+impl PPSpline<Dual>
+{
+    pub fn ppev_single_dual(&self, x: &Dual) -> Dual {
+        ppev_single_dual_dual(&self, &x)
+    }
+}
+
+impl PPSpline<Dual2>
+{
+    pub fn ppev_single_dual2(&self, x: &Dual2) -> Dual2 {
+        ppev_single_dual2_dual2(&self, &x)
+    }
+}
+
 use std::cmp::PartialEq;
 
 impl<T> PartialEq for PPSpline<T>
@@ -256,6 +358,25 @@ mod tests {
             .collect();
         let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
         assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn bsplev_single_dual_() {
+        let x: Dual = Dual::new(1.5, vec!["x".to_string()]);
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<Dual> = (0..8)
+            .map(|i| bsplev_single_dual(&x, i as usize, &k, &t, None))
+            .collect();
+        let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
+        for i in 0..8 {
+            assert_eq!(result[i].real(), expected[i])
+        }
+        // These are values from the bspldnev_single evaluation test
+        let dual_expected: Vec<f64> = Vec::from(&[-0.75, -0.75, 0.75, 0.75, 0., 0., 0., 0.]);
+        for i in 0..8 {
+            assert_eq!(result[i].dual()[0], dual_expected[i])
+        }
     }
 
     #[test]
