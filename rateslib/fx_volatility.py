@@ -316,14 +316,15 @@ class FXDeltaVolSmile:
             return delta * w_deli / w_spot
 
     def _csolve_n1(self):
+        # create a straight line by converting from one to two nodes with the first at tau=0.
         tau = list(self.nodes.keys())
+        tau.insert(0, self.t[0])
         y = list(self.nodes.values()) * 2
 
         # Left side constraint
         tau.insert(0, self.t[0])
         y.insert(0, set_order_convert(0.0, self.ad, None))
         left_n = 2
-        tau.insert(1, self.t[0])
 
         tau.append(self.t[-1])
         y.append(set_order_convert(0.0, self.ad, None))
