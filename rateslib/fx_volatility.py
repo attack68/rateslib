@@ -228,7 +228,17 @@ class FXDeltaVolSmile:
         raise TypeError("`FXVolSmile` is not iterable.")
 
     def __getitem__(self, item):
-        return self.spline.ppev_single(item)
+        """
+        Get a value from the DeltaVolSmile given an item which is a delta_index.
+        """
+        if item > self.t[-1]:
+            raise ValueError(f"Cannot index the FXDeltaVolSmile for a delta index out of bounds: {item}")
+           # return self.spline.ppev_single(self.t[-1])
+        elif item < self.t[0]:
+            raise ValueError(f"Cannot index the FXDeltaVolSmile for a delta index out of bounds: {item}")
+           # return self.spline.ppev_single(self.t[0])
+        else:
+            return self.spline.ppev_single(item)
 
     def get(
         self,
@@ -264,21 +274,192 @@ class FXDeltaVolSmile:
         """
         return self[self.convert_delta(delta, delta_type, phi, w_deli, w_spot)]
 
-    def convert_delta(
+    def get_from_strike(
         self,
-        delta: float,
+        k: DualTypes,
+        phi: float,
+        f: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Given a put or call option strike return associated delta and vol values.
+
+        Parameters
+        -----------
+        k: float, Dual, Dual2
+            The strike of the option.
+        phi: float
+            Whether the option is call (1.0) or a put (-1.0).
+        f: float, Dual, Dual2
+            The forward rate at delivery of the option.
+        w_deli: DualTypes, optional
+            Required only for spot/forward conversions.
+        w_spot: DualTypes, optional
+            Required only for spot/forward conversions.
+
+        Returns
+        -------
+        tuple of float, Dual, Dual2 : (delta, vol, k)
+
+        Notes
+        -----
+        This function will return a delta index associated with the *FXDeltaVolSmile* and the volatility attributed
+        to the delta at that point. Recall that the delta index is the negated put option delta for the given strike
+        ``k``.
+        """
+        u = k / f  # moneyness
+
+        if "spot" in self.delta_type:
+            z_w = w_deli / w_spot
+        else:
+            z_w = 1.0
+
+        if "_pa" in self.delta_type:
+            p_m, z_u = -0.5, u
+        else:
+            p_m, z_u = 0.5, 1.0
+
+        # Variables are passed to these functions so that iteration can take place using float
+        # which is faster and then a final iteration at the fixed point can be included with Dual
+        # variables to capture fixed point sensitivity.
+        def root(delta, u, sqrt_t, z_u, z_w, ad):
+            delta_index = self._delta_index_from_call_or_put_delta(delta, phi, z_w, u)
+            vol_ = self[delta_index] / 100.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            vol_sqrt_t = sqrt_t * vol_
+            d_plus_min = -dual_log(u) / vol_sqrt_t + p_m * vol_sqrt_t
+            return delta - z_w * z_u * phi * dual_norm_cdf(phi * d_plus_min)
+
+        def root_deriv(delta, u, sqrt_t, z_u, z_w, ad):
+            delta_index = self._delta_index_from_call_or_put_delta(delta, phi, z_w, u)
+            vol_ = self[delta_index] / 100.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            vol_sqrt_t = sqrt_t * vol_
+            d_plus_min = -dual_log(u) / vol_sqrt_t + p_m * vol_sqrt_t
+            dvol_ddelta = -1.0 * self.spline.ppdnev_single(delta_index, 1) / 100.0
+            dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
+            dd_ddelta = dvol_ddelta * (dual_log(u) / vol_sqrt_t**2 + p_m * sqrt_t)
+            return 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
+
+        # Initial approximation is obtained through the closed form solution of the delta given
+        # an approximated delta at close to the base of the smile.
+        avg_vol = float(list(self.nodes.values())[int(self.n/2)]) / 100.0
+        d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + p_m * avg_vol * float(self.t_expiry_sqrt)
+        delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
+
+        root_solver = _newton(
+            root, root_deriv, delta_0, args=(float(u), float(self.t_expiry_sqrt), float(z_u), float(z_w), 0)
+        )
+
+        # Final iteration of fixed point to capture AD sensitivity
+        root_solver = _newton(
+            root, root_deriv, root_solver[0], args=(u, self.t_expiry_sqrt, z_u, z_w, 1), max_iter=1,  # tolerance=1e-15
+        )
+
+        delta = root_solver[0]
+        if phi > 0:
+            delta_index = -1.0 * self._call_to_put_delta(delta, self.delta_type, z_w, u)
+        else:
+            delta_index = -1.0 * delta
+
+        return (delta_index, self[delta_index], k)
+
+    def _call_to_put_delta(
+        self,
+        delta: DualTypes,
+        delta_type: DualTypes,
+        z_w: Union[DualTypes, NoInput] = NoInput(0),
+        u: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Convert a call delta to a put delta.
+
+        This is required because the delta_index of the *Smile* uses negated put deltas
+
+        Parameters
+        ----------
+        delta: DualTypes
+            The expressed option delta.
+        delta_type: str in {"forward", "spot", "forward_pa", "spot_pa"}
+            The type the delta is expressed in.
+        z_w: DualTypes
+            The spot/forward conversion factor defined by: `w_deli / w_spot`.
+        u: DualTypes
+            Moneyness defined by: `k/f_d`
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        if delta_type == "forward":
+            return delta - 1.0
+        elif delta_type == "spot":
+            return delta - z_w
+        elif delta_type == "forward_pa":
+            return delta - u
+        elif delta_type == "spot_pa":
+            return delta - z_w * u
+        else:
+            raise ValueError("`delta_type` must be in {'forward', 'spot', 'forward_pa', 'spot_pa'}")
+
+    def _delta_index_from_call_or_put_delta(
+        self,
+        delta: DualTypes,
+        phi: float,
+        z_w: Union[DualTypes, NoInput] = NoInput(0),
+        u: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Get the *Smile* index delta given an option delta of the same type as the *Smile*.
+
+        Note: This is required because the delta_index of the *Smile* uses negated put deltas.
+
+        Parameters
+        ----------
+        delta: DualTypes
+            The expressed option delta. This MUST be given in the same type as the *Smile*.
+        phi: float
+            Whether a call (1.0) or a put (-1.0)
+        z_w: DualTypes
+            The spot/forward conversion factor defined by: `w_deli / w_spot`.
+        u: DualTypes
+            Moneyness defined by: `k/f_d`
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        # if call then must convert to put delta using delta parity equations
+        if phi > 0:
+            if self.delta_type == "forward":
+                put_delta = delta - 1.0
+            elif self.delta_type == "spot":
+                put_delta = delta - z_w
+            elif self.delta_type == "forward_pa":
+                put_delta = delta - u
+            else:  # self.delta_type == "spot_pa":
+                put_delta = delta - z_w * u
+        else:
+            put_delta = delta
+        return -1.0 * put_delta
+
+    def _convert_delta(
+        self,
+        delta: DualTypes,
         delta_type: str,
         phi: float,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        u: Union[DualTypes, NoInput] = NoInput(0),
     ):
         """
         Convert the given real option delta into an index delta equivalent of the type associated with the *Smile*.
 
         Parameters
         ----------
-        delta: float
-            The delta to obtain a volatility for.
+        delta: DualTypes
+            The delta to convert to an equivalent Smile delta index
         delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
             The delta type the given delta is expressed in.
         phi: float
@@ -292,8 +473,6 @@ class FXDeltaVolSmile:
         -------
         DualTypes
         """
-        delta_type = _validate_delta_type(delta_type)
-
         if "_pa" in self.delta_type or "_pa" in delta_type:
             raise NotImplementedError("Cannot currently convert to/from premium adjusted deltas.")
 

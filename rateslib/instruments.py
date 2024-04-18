@@ -8092,17 +8092,18 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             method = self.kwargs["strike"].lower()
 
             if method == "atm_forward":
-                k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+                self._pricing["k"] = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
                 raise NotImplementedError("parameters not yet defined")
             elif method == "atm_spot":
                 m_spot = fx.pairs_settlement[self.kwargs["pair"]]
-                k = fx.rate(self.kwargs["pair"], m_spot)
+                self._pricing["k"] = fx.rate(self.kwargs["pair"], m_spot)
                 raise NotImplementedError("parameters not yet defined")
             elif method == "atm_delta":
                 # TODO: this uses constant vol
                 t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
-                k = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
-                k *= dual_exp(0.5 * vol**2 * t_e)
+                self._pricing["k"] = (
+                    fx.rate(self.kwargs["pair"], self.kwargs["delivery"]) * dual_exp(0.5 * vol**2 * t_e)
+                )
                 raise NotImplementedError("parameters not yet defined")
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
