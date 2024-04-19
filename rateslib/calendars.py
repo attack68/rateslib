@@ -1170,20 +1170,6 @@ def _dcf_actacticma(
             return fraction * frequency_months / 12.0
 
 
-            # prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
-            # fraction = 0
-            # if start < prev_start:  # stub is LONG
-            #     fraction += 1
-            #     r = prev_start - start
-            #     s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
-            #     fraction += r / s
-            # else:
-            #     r = end - start
-            #     s = end - prev_start
-            #     fraction += r / s
-            # return fraction * frequency_months / 12
-
-
 def _dcf_actacticma_stub365f(
     start: datetime,
     end: datetime,
