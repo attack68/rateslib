@@ -66,6 +66,8 @@ for notes about installation changes.
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut` and
        :class:`~rateslib.instruments.FXRiskReversal`. See :ref:`user guide section <volatility-doc>`
        for more information.
+   * - Bug
+     - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A", albeit with a *UserWarning*.
 
 
 1.1.0 (20th Mar 2024)
