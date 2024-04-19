@@ -286,11 +286,11 @@ where
 
 impl PPSpline<f64>
 {
-    pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, Err> {
+    pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
         Ok(ppev_single_f64_dual(&self, &x))
     }
 
-    pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, Err> {
+    pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
         Ok(ppev_single_f64_dual2(&self, &x))
     }
 }
@@ -301,16 +301,16 @@ impl PPSpline<Dual>
         Ok(ppev_single_dual_dual(&self, &x))
     }
 
-    pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
-        Err(PyTypeError::new_err("Cannot use type `Dual2` on a spline constructed with `Dual`."))
+    pub fn ppev_single_dual2(&self, _x: &Dual2) -> Result<Dual2, PyErr> {
+        Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
     }
 
 }
 
 impl PPSpline<Dual2>
 {
-    pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
-        Err(PyTypeError::new_err("Cannot use type `Dual` on a spline constructed with `Dual2`."))
+    pub fn ppev_single_dual(&self, _x: &Dual) -> Result<Dual, PyErr> {
+        Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
     }
 
     pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
