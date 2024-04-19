@@ -275,6 +275,10 @@ impl PPSpline<Dual>
         Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
     }
 
+    pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
+        Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
+    }
+
 }
 
 impl PPSpline<Dual2>
@@ -293,6 +297,10 @@ impl PPSpline<Dual2>
             Some(c) => Ok(dmul11_(&c.view(), &b.view())),
             None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
         }
+    }
+
+    pub fn ppdnev_single_dual(&self, _x: &Dual, _m: usize) -> Result<Dual, PyErr> {
+        Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
     }
 }
 
