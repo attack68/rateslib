@@ -11,7 +11,7 @@ use num_traits::{Signed};
 use std::cmp::PartialOrd;
 use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
-use numpy::PyArray2;
+use numpy::{PyArray2, PyArrayMethods};
 
 
 fn dsolve_py<T>(a: Vec<T>, b: Vec<T>, allow_lsq: bool) -> Vec<T>
@@ -59,7 +59,7 @@ where
 /// Wrapper to solve ax = b, when `b` contains `Dual` data types.
 #[pyfunction]
 #[pyo3(name = "_fdsolve1")]
-pub fn fdsolve1_py(_py: Python<'_>, a: &PyArray2<f64>, b: Vec<Dual>, allow_lsq: bool) -> PyResult<Vec<Dual>>
+pub fn fdsolve1_py(_py: Python<'_>, a: &Bound<'_, PyArray2<f64>>, b: Vec<Dual>, allow_lsq: bool) -> PyResult<Vec<Dual>>
 {
     unsafe {
         Ok(fdsolve_py(a.as_array(), b, allow_lsq))
@@ -69,7 +69,7 @@ pub fn fdsolve1_py(_py: Python<'_>, a: &PyArray2<f64>, b: Vec<Dual>, allow_lsq: 
 /// Wrapper to solve ax = b, when `b` contains `Dual2` data types.
 #[pyfunction]
 #[pyo3(name = "_fdsolve2")]
-pub fn fdsolve2_py(_py: Python<'_>, a: &PyArray2<f64>, b: Vec<Dual2>, allow_lsq: bool) -> PyResult<Vec<Dual2>> {
+pub fn fdsolve2_py(_py: Python<'_>, a: &Bound<'_, PyArray2<f64>>, b: Vec<Dual2>, allow_lsq: bool) -> PyResult<Vec<Dual2>> {
     unsafe{
         Ok(fdsolve_py(a.as_array(), b, allow_lsq))
     }

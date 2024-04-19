@@ -23,7 +23,7 @@ use curves::interpolation_py::{index_left_f64};
 pub mod fx;
 
 #[pymodule]
-fn rateslibrs(_py: Python, m: &PyModule) -> PyResult<()> {
+fn rateslibrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Dual>()?;
     m.add_class::<Dual2>()?;
     m.add_function(wrap_pyfunction!(dsolve1_py, m)?)?;
