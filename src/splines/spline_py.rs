@@ -104,12 +104,12 @@ macro_rules! create_interface {
                 Ok(out)
             }
 
-            pub fn bsplev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, i: usize) -> PyResult<Bound<'_, PyArray1<f64>>> {
-                Ok(Array1::from_vec(self.inner.bsplev(&x.to_vec().expect(""), &i)).to_pyarray_bound(py))
+            pub fn bsplev<'py>(&'py self, py: Python<'py>, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
+                Ok(self.inner.bsplev(&x, &i))
             }
 
-            pub fn bspldnev<'py>(&'py self, py: Python<'py>, x: &Bound<'_, PyArray1<f64>>, i: usize, m: usize) -> PyResult<Bound<'_, PyArray1<f64>>> {
-                Ok(Array1::from_vec(self.inner.bspldnev(&x.to_vec().expect(""), &i, &m)).to_pyarray_bound(py))
+            pub fn bspldnev<'py>(&'py self, py: Python<'py>, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
+                Ok(self.inner.bspldnev(&x, &i, &m))
             }
 
             pub fn __eq__(&self, other: &Self) -> PyResult<bool> {
