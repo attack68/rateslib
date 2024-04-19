@@ -255,6 +255,30 @@ impl PPSpline<f64>
             None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
         }
     }
+
+    pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
+        let b: Array1<Dual> = Array1::from_vec(
+            (0..self.n)
+                .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m,None))
+                .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
+
+    pub fn ppdnev_single_dual2(&self, x: &Dual2, m: usize) -> Result<Dual2, PyErr> {
+        let b: Array1<Dual2> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m,None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
 }
 
 impl PPSpline<Dual>
@@ -277,6 +301,18 @@ impl PPSpline<Dual>
 
     pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
         Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
+    }
+
+    pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
+        let b: Array1<Dual> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m,None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
     }
 
 }
@@ -302,6 +338,19 @@ impl PPSpline<Dual2>
     pub fn ppdnev_single_dual(&self, _x: &Dual, _m: usize) -> Result<Dual, PyErr> {
         Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
     }
+
+    pub fn ppdnev_single_dual2(&self, x: &Dual2, m: usize) -> Result<Dual2, PyErr> {
+        let b: Array1<Dual2> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m,None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
+
 }
 
 use std::cmp::PartialEq;
