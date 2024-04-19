@@ -96,6 +96,20 @@ pub fn bspldnev_single_f64(
     r
 }
 
+pub fn bspldnev_single_dual(x: &Dual, i:usize, k: &usize, t: &Vec<f64>, m: usize, org_k: Option<usize>) -> Dual {
+    let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+1, org_k);
+    Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
+}
+
+pub fn bspldnev_single_dual2(x: &Dual2, i:usize, k: &usize, t: &Vec<f64>, m: usize, org_k: Option<usize>) -> Dual2 {
+    let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m,org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+1, org_k);
+    let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+2, org_k);
+    let dual2 = dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
+    Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
+}
+
 #[derive(Clone)]
 pub struct PPSpline<T>
 {
