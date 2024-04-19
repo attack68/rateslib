@@ -121,10 +121,10 @@ def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_):
 @pytest.mark.parametrize(
     "e, t, stub, exp_roll, exp_stub",
     [
-        (dt(2022, 2, 26), dt(2024, 2, 26), "SHORTFRONT", 26, None),
-        (dt(2022, 2, 26), dt(2024, 2, 26), "LONGFRONT", 26, None),
-        (dt(2022, 2, 26), dt(2024, 2, 26), "SHORTBACK", 26, None),
-        (dt(2022, 2, 26), dt(2024, 2, 26), "LONGBACK", 26, None),
+        (dt(2022, 2, 26), dt(2024, 2, 26), "SHORTFRONT", 26, NoInput(0)),
+        (dt(2022, 2, 26), dt(2024, 2, 26), "LONGFRONT", 26, NoInput(0)),
+        (dt(2022, 2, 26), dt(2024, 2, 26), "SHORTBACK", 26, NoInput(0)),
+        (dt(2022, 2, 26), dt(2024, 2, 26), "LONGBACK", 26, NoInput(0)),
     ],
 )
 def test_infer_stub_date_no_inference_on_regular(e, t, stub, exp_roll, exp_stub, cal_):
@@ -152,7 +152,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_):
         cal_,
     )
     assert result[0]
-    assert result[1]["front_stub"] is None
+    assert result[1]["front_stub"] is NoInput(0)
     assert result[1]["roll"] == 26
 
     result = _infer_stub_date(
@@ -168,7 +168,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_):
         cal_,
     )
     assert result[0]
-    assert result[1]["back_stub"] is None
+    assert result[1]["back_stub"] is NoInput(0)
     assert result[1]["roll"] == 26
 
 
@@ -431,14 +431,14 @@ def test_unadjusted_date_alternatives(date, modifier, cal_, expected):
             dt(2023, 2, 4),
             dt(2023, 9, 4),
             dt(2023, 3, 4),
-            None,
+            NoInput(0),
             4,
             [dt(2023, 2, 4), dt(2023, 3, 4), dt(2023, 6, 4), dt(2023, 9, 4)],
         ),
         (
             dt(2023, 2, 4),
             dt(2023, 9, 4),
-            None,
+            NoInput(0),
             dt(2023, 8, 4),
             4,
             [dt(2023, 2, 4), dt(2023, 5, 4), dt(2023, 8, 4), dt(2023, 9, 4)],
@@ -446,8 +446,8 @@ def test_unadjusted_date_alternatives(date, modifier, cal_, expected):
         (
             dt(2023, 3, 4),
             dt(2023, 9, 4),
-            None,
-            None,
+            NoInput(0),
+            NoInput(0),
             4,
             [dt(2023, 3, 4), dt(2023, 6, 4), dt(2023, 9, 4)],
         ),
