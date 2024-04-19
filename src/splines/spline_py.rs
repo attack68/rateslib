@@ -7,8 +7,8 @@ use std::cmp::PartialEq;
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 
-use numpy::{PyArray1, ToPyArray, PyArrayMethods};
-use ndarray::Array1;
+// use numpy::{PyArray1, ToPyArray, PyArrayMethods};
+// use ndarray::Array1;
 
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {
@@ -120,11 +120,11 @@ macro_rules! create_interface {
                 Ok(out)
             }
 
-            pub fn bsplev<'py>(&'py self, py: Python<'py>, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
+            pub fn bsplev<'py>(&'py self, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &0))
             }
 
-            pub fn bspldnev<'py>(&'py self, py: Python<'py>, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
+            pub fn bspldnev<'py>(&'py self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &m))
             }
 
