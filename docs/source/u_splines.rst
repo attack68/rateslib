@@ -540,9 +540,9 @@ Three functions exist for extracting spline values for each case:
 Simultaneous sensitivities to extraneous variables
 ---------------------------------------------------
 
-The following example is more general and demonstrates the power of having a spline interpolator
+The following example is more general and demonstrates the power of having spline interpolator
 functions whose derivatives are fully integrated into the toolset. This is one of the
-advantageous of adopting forward mode derivatives in dual numbers.
+advantages of adopting forward mode derivatives with dual numbers.
 
 Suppose now that everything is sensitive to an extraneous variable, say *z*. The sensitivies of
 each element to *z* are constructed as below:
@@ -555,7 +555,7 @@ each element to *z* are constructed as below:
    y3 = Dual(2, ["z"], [10.0])
    x = Dual(3.5, ["z"], [-5.0])
 
-We construct a spline and measure the resulting *y*-value's sensitivity to *z*.
+We construct a spline and measure the resulting interpolated *y*-value's sensitivity to *z*.
 
 .. ipython:: python
 
