@@ -127,17 +127,6 @@ create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
 
-// #[pymethods]
-// impl PPSplineF64 {
-//     pub fn ppev_single(&self, x: DualsOrF64) -> PyResult<DualsOrF64> {
-//         match x {
-//             DualsOrF64::F64(f) => Ok(DualsOrF64::F64(self.inner.ppev_single(&f))),
-//             DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.inner.ppev_single_dual(&d)?)),
-//             DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.inner.ppev_single_dual2(&d)?)),
-//         }
-//     }
-// }
-
 
 #[pyfunction]
 pub fn bsplev_single(x: f64, i: usize, k: usize, t: Vec<f64>, org_k: Option<usize>) -> PyResult<f64> {

@@ -29,17 +29,6 @@ pub enum DualsOrF64 {
     F64(f64),
 }
 
-// Does not work...
-// impl ToPyObject for DualsOrF64{
-//     fn to_object(&self, py: Python<'_>) -> PyObject {
-//         match self {
-//             DualsOrF64::F64(f) => Py::new(py, *f).unwrap(),
-//             DualsOrF64::Dual(d) => Py::new(py, *d).unwrap(),
-//             DualsOrF64::Dual2(d) => Py::new(py, *d).unwrap(),
-//         }
-//     }
-// }
-
 #[pymethods]
 impl Dual {
     #[new]

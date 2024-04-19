@@ -30,10 +30,10 @@ statrs = "0.16"
 
 [features]
 # py03 = ["pyo3/abi3-py39"]
-multiple-pymethods = ["pyo3/multiple-pymethods"]
+# multiple-pymethods = ["pyo3/multiple-pymethods"]
 abi3-py39 = ["pyo3/abi3-py39"]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module", "abi3-py39", "multiple-pymethods"]
+default = ["extension-module", "abi3-py39"]
 # -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
 [dev-dependencies]
