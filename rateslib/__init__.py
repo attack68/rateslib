@@ -53,7 +53,14 @@ from rateslib.dual import Dual, Dual2, dual_log, dual_exp, dual_solve
 
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 
-from rateslib.splines import bsplev_single, bspldnev_single, PPSpline
+from rateslib.splines import (
+    bsplev_single,
+    bspldnev_single,
+    PPSpline,
+    PPSplineF64,
+    PPSplineDual,
+    PPSplineDual2,
+)
 
 from rateslib.scheduling import Schedule
 
@@ -80,6 +87,8 @@ from rateslib.periods import (
     Cashflow,
     IndexFixedPeriod,
     IndexCashflow,
+    FXPutPeriod,
+    FXCallPeriod,
 )
 
 from rateslib.legs import (
@@ -114,6 +123,9 @@ from rateslib.instruments import (
     Spread,
     Fly,
     Portfolio,
+    FXCall,
+    FXPut,
+    FXRiskReversal,
 )
 
 Instruments = [
@@ -167,6 +179,9 @@ __all__ = [
     "bsplev_single",
     "bspldnev_single",
     "PPSpline",
+    "PPSplineF64",
+    "PPSplineDual",
+    "PPSplineDual2",
     # calendars.py
     "create_calendar",
     "get_calendar",
@@ -193,6 +208,8 @@ __all__ = [
     "Cashflow",
     "IndexCashflow",
     "IndexFixedPeriod",
+    "FXCallPeriod",
+    "FXPutPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",
@@ -223,4 +240,9 @@ __all__ = [
     "Spread",
     "Fly",
     "Portfolio",
+    "FXCall",
+    "FXPut",
+    "FXRiskReversal",
 ]
+
+__version__ = "1.2.0"

@@ -1,8 +1,10 @@
 from math import isclose
 from abc import abstractmethod, ABCMeta
 from typing import Union, Optional
+from statistics import NormalDist
 import math
 import numpy as np
+from rateslib.default import NoInput
 
 PRECISION = 1e-14
 FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
@@ -55,7 +57,9 @@ class DualBase(metaclass=ABCMeta):
     def __eq__(self, argument):
         """Compare an argument with a Dual number for equality."""
         if not isinstance(argument, type(self)):
-            if not isinstance(argument, (*FLOATS, *INTS)):
+            if isinstance(argument, NoInput):
+                return False
+            elif not isinstance(argument, (*FLOATS, *INTS)):
                 raise TypeError(f"Cannot compare {type(self)} with incompatible type.")
             argument = type(self)(float(argument))
         if self.vars == argument.vars:
@@ -90,7 +94,7 @@ class DualBase(metaclass=ABCMeta):
     def __upcast_vars__(self, new_vars: list[str]):
         pass  # pragma: no cover
 
-    def gradient(self, vars=None, order=1, keep_manifold=False):
+    def grad(self, vars=None, order=1, keep_manifold=False):
         """
         Return derivatives of a dual number.
 
@@ -132,6 +136,15 @@ class DualBase(metaclass=ABCMeta):
             for ix, du in zip(ix_, ret):
                 du.dual = 2 * _.dual2[ix, ix_]
             return ret
+
+    def grad1(self, vars=None):
+        return self.grad(vars, order=1, keep_manifold=False)
+
+    def grad1_manifold(self, vars=None):
+        return self.grad(vars, order=1, keep_manifold=True)
+
+    def grad2(self, vars=None, keep_manifold=False):
+        return self.grad(vars, order=2, keep_manifold=keep_manifold)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -193,7 +206,12 @@ class Dual2(DualBase):
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        vars = ", ".join(self.vars[:3])
+        dual = ", ".join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ",..."
+            dual += ",..."
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -331,11 +349,33 @@ class Dual2(DualBase):
             self.dual2 / self.real - np.einsum("i,j", self.dual, self.dual) * 0.5 / self.real**2,
         )
 
+    def __norm_cdf__(self):
+        base = NormalDist().cdf(self.real)
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real**2)
+        scalar2 = scalar * -self.real
+        return Dual2(
+            base,
+            self.vars,
+            scalar * self.dual,
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual),
+        )
+
+    def __norm_inv_cdf__(self):
+        base = NormalDist().inv_cdf(self.real)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base**2)
+        scalar2 = base * scalar**2
+        return Dual2(
+            base,
+            self.vars,
+            scalar * self.dual,
+            scalar * self.dual2 + 0.5 * scalar2 * np.einsum("i,j", self.dual, self.dual),
+        )
+
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
         ix_ = list(map(lambda x: new_vars.index(x), self.vars))
-        dual[ix_] = self.dual,
+        dual[ix_] = (self.dual,)
         dual2[np.ix_(ix_, ix_)] = self.dual2
         return Dual2(self.real, new_vars, dual, dual2)
 
@@ -351,9 +391,16 @@ class Dual2(DualBase):
         if order == 1:
             return Dual(self.real, self.vars, self.dual)
         if order == 2:
-            return Dual2(self.real, self.vars, self.dual, self.dual2)
+            return self
         if order == 0:
             return float(self)
+
+    @staticmethod
+    def vars_from(other, real, vars=(), dual=None, dual2=None):
+        if other.vars == vars:
+            return Dual2(real, vars, dual, dual2)
+        else:
+            return Dual2(real, vars, dual, dual2).__upcast_vars__(other.vars)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -411,7 +458,12 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        vars = ", ".join(self.vars[:3])
+        dual = ", ".join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ",..."
+            dual += ",..."
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -504,6 +556,16 @@ class Dual(DualBase):
     def __log__(self):
         return Dual(math.log(self.real), self.vars, self.dual / self.real)
 
+    def __norm_cdf__(self):
+        base = NormalDist().cdf(self.real)
+        scalar = 1 / math.sqrt(2 * math.pi) * math.exp(-0.5 * self.real**2)
+        return Dual(base, self.vars, scalar * self.dual)
+
+    def __norm_inv_cdf__(self):
+        base = NormalDist().inv_cdf(self.real)
+        scalar = math.sqrt(2 * math.pi) * math.exp(0.5 * base**2)
+        return Dual(base, self.vars, scalar * self.dual)
+
     def __upcast_vars__(self, new_vars):
         n = len(new_vars)
         dual = np.zeros(n)
@@ -511,19 +573,27 @@ class Dual(DualBase):
         dual[ix_] = self.dual
         return Dual(self.real, new_vars, dual)
 
-    def __downcast_vars__(self):
+    def __downcast_vars__(self):  # pragma: no cover
         """removes variables where first order sensitivity is zero"""
+        # this function is not used within the library but left for backwards compat
         ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
         new_vars = tuple(self.vars[i] for i in ix_)
         return Dual(self.real, new_vars, self.dual[ix_])
 
     def _set_order(self, order):
         if order == 1:
-            return Dual(self.real, self.vars, self.dual)
+            return self
         if order == 2:
-            return Dual2(self.real, self.vars, self.dual)
+            return Dual2(self.real, self.vars, self.dual, [])
         if order == 0:
             return float(self)
+
+    @staticmethod
+    def vars_from(other, real, vars=(), dual=None):
+        if other.vars == vars:
+            return Dual(real, vars, dual)
+        else:
+            return Dual(real, vars, dual).__upcast_vars__(other.vars)
 
     # def __str__(self):
     #     output = f"    f = {self.real:.8f}\n"
@@ -532,54 +602,9 @@ class Dual(DualBase):
     #     return output
 
 
-def dual_exp(x):
-    """
-    Calculate the exponential value of a regular int or float or a dual number.
-
-    Parameters
-    ----------
-    x : int, float, Dual, Dual2
-        Value to calculate exponent of.
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    if isinstance(x, (Dual, Dual2)):
-        return x.__exp__()
-    return math.exp(x)
-
-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-def dual_log(x, base=None):
-    """
-    Calculate the logarithm of a regular int or float or a dual number.
-
-    Parameters
-    ----------
-    x : int, float, Dual, Dual2
-        Value to calculate exponent of.
-    base : int, float, optional
-        Base of the logarithm. Defaults to e to compute natural logarithm
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    if isinstance(x, (Dual, Dual2)):
-        val = x.__log__()
-        if base is None:
-            return val
-        else:
-            return val * (1 / math.log(base))
-    elif base is None:
-        return math.log(x)
-    else:
-        return math.log(x, base)
 
 
 def _pivot_matrix(A, method=1):
@@ -604,7 +629,7 @@ def _pivot_matrix(A, method=1):
         if j != row:
             P[[j, row]] = P[[row, j]]  # Define a row swap in P
             PA[[j, row]] = PA[[row, j]]
-            if method == 2:
+            if method == 1:
                 _[[j, row]] = _[[row, j]]  # alters the pivoting by updating underlying
     return P, PA
 
@@ -630,24 +655,23 @@ def _plu_decomp(A, method=1):
     P, PA = _pivot_matrix(A, method=method)
 
     # Perform the LU Decomposition
-    try:
-        for j in range(n):
-            # All diagonal entries of L are set to unity
-            L[j, j] = 1.0
+    for j in range(n):
+        # All diagonal entries of L are set to unity
+        L[j, j] = 1.0
 
-            # LaTeX: u_{ij} = a_{ij} - \sum_{k=1}^{i-1} u_{kj} l_{ik}
-            for i in range(j + 1):
-                sx = np.matmul(L[i, :i], U[:i, j])
-                # s1 = sum(U[k][j] * L[i][k] for k in range(i))
-                U[i, j] = PA[i, j] - sx
+        # LaTeX: u_{ij} = a_{ij} - \sum_{k=1}^{i-1} u_{kj} l_{ik}
+        for i in range(j + 1):
+            sx = np.matmul(L[i, :i], U[:i, j])
+            # s1 = sum(U[k][j] * L[i][k] for k in range(i))
+            U[i, j] = PA[i, j] - sx
 
-            # LaTeX: l_{ij} = \frac{1}{u_{jj}} (a_{ij} - \sum_{k=1}^{j-1} u_{kj} l_{ik})
-            for i in range(j, n):
-                sy = np.matmul(L[i, :j], U[:j, j])
-                # s2 = sum(U[k][j] * L[i][k] for k in range(j))
-                L[i, j] = (PA[i, j] - sy) / U[j, j]
-    except ZeroDivisionError:
-        return _plu_decomp(A, method + 1)  # retry with altered pivoting technique
+        # LaTeX: l_{ij} = \frac{1}{u_{jj}} (a_{ij} - \sum_{k=1}^{j-1} u_{kj} l_{ik})
+        for i in range(j, n):
+            sy = np.matmul(L[i, :j], U[:j, j])
+            # s2 = sum(U[k][j] * L[i][k] for k in range(j))
+            if abs(U[j, j]) < 1e-16:
+                return _plu_decomp(A, method + 1)  # retry with altered pivoting technique
+            L[i, j] = (PA[i, j] - sy) / U[j, j]
 
     return P, L, U
 
@@ -676,7 +700,7 @@ def _solve_upper_triangular(U, b):
     return _solve_lower_triangular(U[::-1, ::-1], b[::-1, ::-1])[::-1, ::-1]
 
 
-def dual_solve(A, b, allow_lsq=False):
+def _dsolve(A, b, allow_lsq=False):
     """
     Solve the linear system Ax=b.
 
@@ -711,63 +735,6 @@ def dual_solve(A, b, allow_lsq=False):
     return x
 
 
-def set_order(val, order):
-    """
-    Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
-    unchanged.
-
-    Parameters
-    ----------
-    val : float, int, Dual or Dual2
-        The value to convert the order of.
-    order : int in [0, 1, 2]
-        The AD order to convert to. If ``val`` is float or int 0 will be used.
-
-    Returns
-    -------
-    float, int, Dual or Dual2
-    """
-    if isinstance(val, (*FLOATS, *INTS)):
-        return val
-    elif isinstance(val, (Dual, Dual2)):
-        return val._set_order(order)
-
-
-def set_order_convert(val, order, tag):
-    """
-    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
-
-    Parameters
-    ----------
-    val : float, Dual or Dual2
-        The value to convert.
-    order : int
-        The AD order to convert the value to if necessary.
-    tag : str
-        The variable name if upcasting a float to a Dual or Dual2
-
-    Returns
-    -------
-    float, Dual, Dual2
-    """
-    if isinstance(val, (*FLOATS, *INTS)):
-        if order == 0:
-            return val
-        elif order == 1:
-            return Dual(val, [tag], [])
-        elif order == 2:
-            return Dual2(val, tag)
-    elif isinstance(val, (Dual, Dual2)):
-        if order == 0:
-            return float(val)
-        elif (order == 1 and isinstance(val, Dual)) or (order == 2 and isinstance(val, Dual2)):
-            return val
-        else:
-            return val._set_order(order)
-
-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-DualTypes = Union[float, Dual, Dual2]

@@ -2,6 +2,7 @@ from typing import Optional, Union, Dict, Any
 from math import floor
 from datetime import datetime, timedelta
 import calendar as calendar_mod
+import warnings
 
 from dateutil.relativedelta import MO, TH, FR
 
@@ -1058,7 +1059,7 @@ def dcf(
 
 
 def _dcf_act365f(start: datetime, end: datetime, *args):
-    return (end - start) / timedelta(days=365)
+    return (end - start).days / 365.0
 
 
 def _dcf_act365fplus(start: datetime, end: datetime, *args):
@@ -1073,20 +1074,20 @@ def _dcf_act365fplus(start: datetime, end: datetime, *args):
 
 
 def _dcf_act360(start: datetime, end: datetime, *args):
-    return (end - start) / timedelta(days=360)
+    return (end - start).days / 360.0
 
 
 def _dcf_30360(start: datetime, end: datetime, *args):
     ds = min(30, start.day)
     de = min(ds, end.day) if ds == 30 else end.day
-    y, m = end.year - start.year, (end.month - start.month) / 12
-    return y + m + (de - ds) / 360
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
 
 
 def _dcf_30e360(start: datetime, end: datetime, *args):
     ds, de = min(30, start.day), min(30, end.day)
-    y, m = end.year - start.year, (end.month - start.month) / 12
-    return y + m + (de - ds) / 360
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
 
 
 def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
@@ -1101,8 +1102,8 @@ def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime,
 
     ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
     de = 30 if (end.day == 31 or (_is_end_feb(end) and end != termination)) else end.day
-    y, m = end.year - start.year, (end.month - start.month) / 12
-    return y + m + (de - ds) / 360
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
 
 
 def _dcf_actactisda(start: datetime, end: datetime, *args):
@@ -1112,8 +1113,8 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
     start_date = datetime.combine(start, datetime.min.time())
     end_date = datetime.combine(end, datetime.min.time())
 
-    year_1_diff = 366 if calendar_mod.isleap(start_date.year) else 365
-    year_2_diff = 366 if calendar_mod.isleap(end_date.year) else 365
+    year_1_diff = 366.0 if calendar_mod.isleap(start_date.year) else 365.0
+    year_2_diff = 366.0 if calendar_mod.isleap(end_date.year) else 365.0
 
     total_sum: float = end.year - start.year - 1
     total_sum += (datetime(start.year + 1, 1, 1) - start_date).days / year_1_diff
@@ -1136,34 +1137,37 @@ def _dcf_actacticma(
         raise ValueError("`termination` must be supplied with specified `convention`.")
     if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
-    if not stub:
-        return frequency_months / 12
+    if not stub and frequency_months < 13:  # This is a well defined period that is NOT zero coupon
+        return frequency_months / 12.0
     else:
+        # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
+        if frequency_months >= 13:
+            warnings.warn(
+                "Using `convention` 'ActActICMA' with a Period having `frequency` 'Z' is undefined, and "
+                "should be avoided.\nFor calculation purposes here the `frequency` is set to 'A'.",
+                UserWarning,
+            )
+            frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
+
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
-            fraction = 0.0
-            if end > fwd_end:  # stub is LONG
-                fraction += 1
-                fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, "NONE", calendar, roll) - fwd_end
-                )
-            else:
-                fraction += (end - start) / (fwd_end - start)
-            return fraction * frequency_months / 12
+            fwd_end_0, fwd_end_1, fraction = start, start, -1.0
+            while end > fwd_end_1:  # Handle Long Stubs which require repeated periods, and Zero frequencies.
+                fwd_end_0 = fwd_end_1
+                fraction += 1.0
+                fwd_end_1 = _add_months(start, (int(fraction) + 1) * frequency_months, "NONE", calendar, roll)
+
+            fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
+            return fraction * frequency_months / 12.0
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
-            fraction = 0
-            if start < prev_start:  # stub is LONG
-                fraction += 1
-                r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
-                fraction += r / s
-            else:
-                r = end - start
-                s = end - prev_start
-                fraction += r / s
-            return fraction * frequency_months / 12
+            prev_start_0, prev_start_1, fraction = end, end, -1.0
+            while start < prev_start_1:  # Handle Long Stubs which require repeated periods, and Zero frequencies.
+                prev_start_0 = prev_start_1
+                fraction += 1.0
+                prev_start_1 = _add_months(end, -(int(fraction) + 1) * frequency_months, "NONE", calendar, roll)
+
+            fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
+            return fraction * frequency_months / 12.0
 
 
 def _dcf_actacticma_stub365f(
@@ -1186,7 +1190,7 @@ def _dcf_actacticma_stub365f(
     if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if not stub:
-        return frequency_months / 12
+        return frequency_months / 12.0
     else:
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
@@ -1223,7 +1227,7 @@ def _dcf_1(*args):
 
 
 def _dcf_1plus(start: datetime, end: datetime, *args):
-    return end.year - start.year + (end.month - start.month) / 12
+    return end.year - start.year + (end.month - start.month) / 12.0
 
 
 _DCF = {

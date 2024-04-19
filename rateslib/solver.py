@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from itertools import combinations
 from uuid import uuid4
 from time import time
@@ -10,7 +10,7 @@ from pandas import DataFrame, MultiIndex, concat, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, dual_log, dual_solve
+from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
 from rateslib.curves import CompositeCurve, ProxyCurve, MultiCsaCurve
 from rateslib.fx import FXRates, FXForwards
 
@@ -39,7 +39,7 @@ class Gradients:
         Depends on ``self.r``.
         """
         if self._J is None:
-            self._J = np.array([rate.gradient(self.variables) for rate in self.r]).T
+            self._J = np.array([gradient(rate, self.variables) for rate in self.r]).T
         return self._J
 
     @property
@@ -69,7 +69,7 @@ class Gradients:
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
             # solver is passed in order to extract curves as string
-            _ = np.array([rate.gradient(self.variables, order=2) for rate in rates])
+            _ = np.array([gradient(rate, self.variables, order=2) for rate in rates])
             self._J2 = np.transpose(_, (1, 2, 0))
         return self._J2
 
@@ -104,7 +104,7 @@ class Gradients:
         self._reset_properties_()
         v_1 = self._update_step_(algorithm)
         s_vars = [f"s{i}" for i in range(self.m)]
-        grad_s_vT = np.array([v.gradient(s_vars) for v in v_1]).T
+        grad_s_vT = np.array([gradient(v, s_vars) for v in v_1]).T
         self.s = _s
         return grad_s_vT
 
@@ -122,7 +122,7 @@ class Gradients:
         _s = self.s
         self.s = np.array([Dual2(v, [f"s{i}"], [], []) for i, v in enumerate(self.s)])
         s_vars = tuple(f"s{i}" for i in range(self.m))
-        grad2 = self.g.gradient(self.variables + s_vars, order=2)
+        grad2 = gradient(self.g, self.variables + s_vars, order=2)
         grad_v_vT_f = grad2[: self.n, : self.n]
         grad_s_vT_f = grad2[self.n :, : self.n]
         grad_s_vT = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
@@ -209,7 +209,7 @@ class Gradients:
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
         """
-        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in self.r_pre]).T
+        grad_f_rT = np.array([gradient(rate, fx_vars) for rate in self.r_pre]).T
         return grad_f_rT
 
     @property
@@ -246,7 +246,7 @@ class Gradients:
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
             # solver is passed in order to extract curves as string
-            _ = np.array([r.gradient(self.pre_variables, order=2) for r in rates])
+            _ = np.array([gradient(r, self.pre_variables, order=2) for r in rates])
             J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
             self._J2_pre = J2
         return self._J2_pre
@@ -267,7 +267,7 @@ class Gradients:
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
         all_gradients = np.array(
-            [rate.gradient(self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre]
+            [gradient(rate, self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre]
         ).swapaxes(0, 2)
 
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
@@ -288,7 +288,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities.
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        grad_f_f_rT = np.array([rate.gradient(fx_vars, order=2) for rate in self.r_pre]).swapaxes(
+        grad_f_f_rT = np.array([gradient(rate, fx_vars, order=2) for rate in self.r_pre]).swapaxes(
             0, 2
         )
         return grad_f_f_rT
@@ -372,7 +372,7 @@ class Gradients:
             The variable name tags for the FX rate sensitivities
         """
         # FX sensitivity requires reverting through all pre-solvers rates.
-        grad_f_rT = np.array([rate.gradient(fx_vars) for rate in self.r_pre]).T
+        grad_f_rT = np.array([gradient(rate, fx_vars) for rate in self.r_pre]).T
         return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
 
     def grad_f_f(self, f, fx_vars):
@@ -391,8 +391,8 @@ class Gradients:
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities
         """
-        grad_f_f = f.gradient(fx_vars)
-        grad_f_f += np.matmul(self.grad_f_vT_pre(fx_vars), f.gradient(self.pre_variables))
+        grad_f_f = gradient(f, fx_vars)
+        grad_f_f += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(f, self.pre_variables))
         return grad_f_f
 
     @property
@@ -418,7 +418,7 @@ class Gradients:
                 grad_s_vT[i : i + m, j : j + n] = pre_solver.grad_s_vT_pre
 
                 # create the right column dependencies
-                grad_v_r = np.array([r.gradient(pre_solver.pre_variables) for r in self.r]).T
+                grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
                 grad_s_vT[i : i + m, -self.m :] = block
@@ -444,7 +444,7 @@ class Gradients:
         f : Dual or Dual2
             The value of the local to base FX conversion rate.
         """
-        _ = np.tensordot(self.grad_s_vT_pre, f.gradient(self.pre_variables), (1, 0))
+        _ = np.tensordot(self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0))
         grad_s_f = _
         return grad_s_f
 
@@ -463,7 +463,7 @@ class Gradients:
             The value of the local to base FX conversion rate.
         """
         grad_s_vT = self.grad_s_vT_pre
-        grad_v_vT_f = f.gradient(self.pre_variables, order=2)
+        grad_v_vT_f = gradient(f, self.pre_variables, order=2)
 
         _ = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))
         _ = np.tensordot(_, grad_s_vT, (1, 1))
@@ -488,9 +488,9 @@ class Gradients:
             The variable name tags for the FX rate sensitivities
         """
         grad_s_vT = self.grad_s_vT_pre
-        grad_v_f = f.gradient(self.pre_variables)
+        grad_v_f = gradient(f, self.pre_variables)
         grad_f_sT_v = self.grad_f_s_vT_pre(fx_vars)
-        _ = f.gradient(self.pre_variables + tuple(fx_vars), order=2)
+        _ = gradient(f, self.pre_variables + tuple(fx_vars), order=2)
         grad_v_vT_f = _[: self.pre_n, : self.pre_n]
         grad_f_vT_f = _[self.pre_n :, : self.pre_n]
         # grad_f_fT_f = _[self.pre_n :, self.pre_n :]
@@ -522,9 +522,9 @@ class Gradients:
             The variable name tags for the FX rate sensitivities
         """
         # grad_s_vT = self.grad_s_vT_pre
-        grad_v_f = f.gradient(self.pre_variables)
+        grad_v_f = gradient(f, self.pre_variables)
         # grad_f_sT_v = self.grad_f_s_vT_pre(fx_vars)
-        _ = f.gradient(self.pre_variables + tuple(fx_vars), order=2)
+        _ = gradient(f, self.pre_variables + tuple(fx_vars), order=2)
         grad_v_vT_f = _[: self.pre_n, : self.pre_n]
         grad_f_vT_f = _[self.pre_n :, : self.pre_n]
         grad_f_fT_f = _[self.pre_n :, self.pre_n :]
@@ -558,7 +558,7 @@ class Gradients:
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
         """
-        grad_s_P = np.matmul(self.grad_s_vT_pre, npv.gradient(self.pre_variables))
+        grad_s_P = np.matmul(self.grad_s_vT_pre, gradient(npv, self.pre_variables))
         return grad_s_P
 
     def grad_f_Ploc(self, npv, fx_vars):
@@ -576,8 +576,8 @@ class Gradients:
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
-        grad_f_P = npv.gradient(fx_vars)
-        grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), npv.gradient(self.pre_variables))
+        grad_f_P = gradient(npv, fx_vars)
+        grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(npv, self.pre_variables))
         return grad_f_P
 
     def grad_s_Pbase(self, npv, grad_s_P, f):
@@ -597,7 +597,7 @@ class Gradients:
             f : Dual or Dual2
                 The local:base FX rate.
         """
-        grad_s_Pbas = float(npv) * np.matmul(self.grad_s_vT_pre, f.gradient(self.pre_variables))
+        grad_s_Pbas = float(npv) * np.matmul(self.grad_s_vT_pre, gradient(f, self.pre_variables))
         grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
         return grad_s_Pbas
 
@@ -638,10 +638,10 @@ class Gradients:
                 A local currency NPV of a period of a leg.
         """
         # instrument-instrument cross gamma:
-        _ = np.tensordot(npv.gradient(self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1))
+        _ = np.tensordot(gradient(npv, self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1))
         _ = np.tensordot(self.grad_s_vT_pre, _, (1, 0))
 
-        _ += np.tensordot(self.grad_s_s_vT_pre, npv.gradient(self.pre_variables), (2, 0))
+        _ += np.tensordot(self.grad_s_s_vT_pre, gradient(npv, self.pre_variables), (2, 0))
         grad_s_sT_P = _
         return grad_s_sT_P
         # grad_s_sT_P = np.matmul(
@@ -669,7 +669,7 @@ class Gradients:
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
         """
-        grad_x_xT_Ploc = npv.gradient(self.pre_variables + tuple(fx_vars), order=2)
+        grad_x_xT_Ploc = gradient(npv, self.pre_variables + tuple(fx_vars), order=2)
         grad_f_vT_Ploc = grad_x_xT_Ploc[self.pre_n :, : self.pre_n]
         return grad_f_vT_Ploc
 
@@ -691,12 +691,12 @@ class Gradients:
         # fx_rate-instrument cross gamma:
         _ = np.tensordot(
             self.grad_f_vT_pre(fx_vars),
-            npv.gradient(self.pre_variables, order=2),
+            gradient(npv, self.pre_variables, order=2),
             (1, 0),
         )
         _ += self.gradp_f_vT_Ploc(npv, fx_vars)
         _ = np.tensordot(_, self.grad_s_vT_pre, (1, 1))
-        _ += np.tensordot(self.grad_f_s_vT_pre(fx_vars), npv.gradient(self.pre_variables), (2, 0))
+        _ += np.tensordot(self.grad_f_s_vT_pre(fx_vars), gradient(npv, self.pre_variables), (2, 0))
         grad_f_sT_Ploc = _
         return grad_f_sT_Ploc
 
@@ -718,10 +718,10 @@ class Gradients:
         # fx_rate-instrument cross gamma:
         gradp_f_vT_Ploc = self.gradp_f_vT_Ploc(npv, fx_vars)
         grad_f_vT_pre = self.grad_f_vT_pre(fx_vars)
-        grad_v_Ploc = npv.gradient(self.pre_variables)
-        grad_v_vT_Ploc = npv.gradient(self.pre_variables, order=2)
+        grad_v_Ploc = gradient(npv, self.pre_variables)
+        grad_v_vT_Ploc = gradient(npv, self.pre_variables, order=2)
 
-        _ = npv.gradient(fx_vars, order=2)
+        _ = gradient(npv, fx_vars, order=2)
         _ += np.tensordot(self.grad_f_f_vT_pre(fx_vars), grad_v_Ploc, (2, 0))
         _ += np.tensordot(grad_f_vT_pre, gradp_f_vT_Ploc, (1, 1))
         _ += np.tensordot(gradp_f_vT_Ploc, grad_f_vT_pre, (1, 1))
@@ -873,24 +873,29 @@ class Solver(Gradients):
         Parameters to control the Levenberg-Marquardt algorithm, defined as the
         initial lambda value, the scaling factor for a successful iteration and the
         scaling factor for an unsuccessful iteration. Defaults to (1000, 0.25, 2).
+    callback : callable, optional
+        Is called after each iteration. Used for debugging or optimisation.
 
     Notes
     -----
     Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant DF node values on each curve simultaneously by calling :meth:`iterate`.
+    relevant DF node values on each *Curve* simultaneously by calling :meth:`iterate`.
 
-    Each instrument provided to ``instruments`` must be a tuple with the following
-    items:
+    Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
+    preset at initialisation, and can then be used directly (as shown in some examples).
 
-      - An instrument which is a class endowed with a :meth:`rate` method which
-        will return a mid-market rate as a :class:`Dual` number so derivatives can
-        be automatically determined.
-      - Positional arguments to be supplied to the :meth:`rate` method when determining
-        the mid-market rate.
-      - Keyword arguments to be supplied to the :meth:`rate` method when determining
-        the mid-market rate.
+    If the *Curves* and/or *metric* are not preset then the *Solver* ``instruments`` can be
+    given as a tuple where the second and third items are a tuple and dict representing positional
+    and keyword arguments passed to the *instrument's*
+    :meth:`~rateslib.instruments.FixedRateBond.rate`` method. Usually using the keyword arguments
+    is more explicit. An example is:
 
-    An example is `(IRS, (curve, disc_curve), {})`.
+    - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+
+    Examples
+    --------
+
+    See the documentation user guide :ref:`here <c-solver-doc>`.
 
     Attributes
     ----------
@@ -941,7 +946,9 @@ class Solver(Gradients):
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
         ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0),
+        callback: Union[Callable, NoInput] = NoInput(0),
     ) -> None:
+        self.callback = callback
         self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
         if ini_lambda is NoInput.blank:
             self.ini_lambda = defaults.ini_lambda
@@ -1253,7 +1260,7 @@ class Solver(Gradients):
 
     def _update_step_(self, algorithm):
         if algorithm == "gradient_descent":
-            grad_v_g = self.g.gradient(self.variables)
+            grad_v_g = gradient(self.g, self.variables)
             y = np.matmul(self.J.transpose(), grad_v_g[:, np.newaxis])[:, 0]
             alpha = np.dot(y, self.weights * self.x) / np.dot(y, self.weights * y)
             v_1 = self.v - grad_v_g * alpha.real
@@ -1263,14 +1270,20 @@ class Solver(Gradients):
                 b = -np.array([x.real for x in self.x])[:, np.newaxis]
             else:
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
-                b = -0.5 * self.g.gradient(self.variables)[:, np.newaxis]
+                b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
+            if self.g_list[-2] < self.g.real:
+                # reject previous iteration and rescale lambda:
+                self.lambd *= self.ini_lambda[2]
+                # self._update_curves_with_parameters(self.v_prev)
+            else:
+                self.lambd *= self.ini_lambda[1]
+            # self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
-            b = -0.5 * self.g.gradient(self.variables)[:, np.newaxis]
+            b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
@@ -1315,69 +1328,85 @@ class Solver(Gradients):
         -------
         None
         """
-        DualType = Dual if self._ad == 1 else Dual2
-        DualArgs = ([],) if self._ad == 1 else ([], [])
-        self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
+
+        # Initialise data and clear and caches
+        self.g_list, self.lambd = [1e10], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
         t0 = time()
+
+        # Begin iteration
         for i in range(self.max_iter):
-            g_val = self.g.real
-            self.g_list.append(g_val)
-            # condition is set to less than to avoid the case where a null update
-            # results in the same solution and this is erroneously categorised
-            # as a converged solution.
-            if self.g.real < self.g_prev and (self.g_prev - self.g.real) < self.conv_tol:
-                print(
-                    f"SUCCESS: `conv_tol` reached after {i} iterations "
-                    f"({self.algorithm}), `f_val`: {self.g.real}, "
-                    f"`time`: {time() - t0:.4f}s"
-                )
-                self.result = {
-                    "status": "SUCCESS",
-                    "state": 1,
-                    "g": self.g.real,
-                    "iterations": i,
-                    "time": time() - t0,
-                }
-                return None
+            self.g_list.append(self.g.real)
+            if self.g.real < self.g_list[i] and (self.g_list[i] - self.g.real) < self.conv_tol:
+                # condition is set to less than to avoid the case where a null update
+                # results in the same solution and this is erroneously categorised
+                # as a converged solution.
+                return self._solver_result(1, i, time()-t0)
             elif self.g.real < self.func_tol:
-                print(
-                    f"SUCCESS: `func_tol` reached after {i} iterations "
-                    f"({self.algorithm}) , `f_val`: {self.g.real}, "
-                    f"`time`: {time() - t0:.4f}s"
-                )
-                self.result = {
-                    "status": "SUCCESS",
-                    "state": 2,
-                    "g": self.g.real,
-                    "iterations": i,
-                    "time": time() - t0,
-                }
-                return None
-            self.g_prev = self.g.real
+                return self._solver_result(2, i, time()-t0)
+
+            # v_0 = self.v.copy()
             v_1 = self._update_step_(self.algorithm)
-            _ = 0
-            for id, curve in self.curves.items():
-                for k in curve.node_dates[curve._ini_solve :]:
-                    curve.nodes[k] = DualType(v_1[_].real, curve.nodes[k].vars, *DualArgs)
-                    _ += 1
-                curve.csolve()
-            self._reset_properties_()
-            self._update_fx()
+            # self.v_prev = v_0
+            self._update_curves_with_parameters(v_1)
+
+            if self.callback is not NoInput.blank:
+                self.callback(self, i, v_1)
+
+        return self._solver_result(-1, self.max_iter, time() - t0)
+
+    def _solver_result(self, state: int, i: int, time: float):
+        state_map = {
+            1: ["SUCCESS", "`conv_tol` reached"],
+            2: ["SUCCESS", "`func_tol` reached"],
+            -1: ["FAILURE", "`max_iter` breached"],
+        }
         print(
-            f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
-            f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"
+            f"{state_map[state][0]}: {state_map[state][1]} after {i} iterations "
+            f"({self.algorithm}), `f_val`: {self.g.real}, "
+            f"`time`: {time:.4f}s"
         )
         self.result = {
-            "status": "FAILURE",
-            "state": -1,
+            "status": state_map[state][0],
+            "state": state,
             "g": self.g.real,
             "iterations": i,
-            "time": time() - t0,
+            "time": time,
         }
         return None
-        # raise ValueError(f"Max iterations reached, func: {self.f.real}")
+
+    def _update_curves_with_parameters(self, v_new):
+        """Populate the variable curves with the new values"""
+        DualType = Dual if self._ad == 1 else Dual2
+        DualArgs = ([],) if self._ad == 1 else ([], [])
+        var_counter = 0
+        for id, curve in self.curves.items():
+            # this was amended in PR126 as performance improvement to keep consistent `vars`
+            d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], *DualArgs)
+            ident = np.eye(curve.n)
+            if curve._ini_solve == 1:
+                # then the first node on the Curve is not updated but set it as a Dual with consistent vars.
+                curve.nodes[curve.node_dates[0]] = DualType.vars_from(
+                    d_vars,
+                    curve.nodes[curve.node_dates[0]].real,
+                    d_vars.vars,
+                    ident[0, :].tolist(),
+                    *DualArgs[1:],
+                )
+            for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
+                curve.nodes[k] = DualType.vars_from(
+                    d_vars,
+                    v_new[var_counter].real,
+                    d_vars.vars,
+                    ident[i + curve._ini_solve, :].tolist(),
+                    *DualArgs[1:],
+                )
+                var_counter += 1
+            curve.csolve()
+
+        self._reset_properties_()
+        self._update_fx()
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
@@ -1394,7 +1423,7 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=None):
+    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=NoInput(0)):
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
@@ -1527,7 +1556,7 @@ class Solver(Gradients):
             base = base.lower()
         return base, fx
 
-    def gamma(self, npv, base=None, fx=None):
+    def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
@@ -1752,7 +1781,7 @@ class Solver(Gradients):
 
         return df.astype("float64")
 
-    def _pnl_explain(self, npv, ds, dfx=None, base=None, fx=None, order=1):
+    def _pnl_explain(self, npv, ds, dfx=None, base=NoInput(0), fx=NoInput(0), order=1):
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
 
@@ -1909,7 +1938,7 @@ class Solver(Gradients):
             ]
         )
         # Get the gradient of these rates with respect to the variable in other
-        grad_v_rT = np.array([_.gradient(solver.pre_variables) for _ in r]).T
+        grad_v_rT = np.array([gradient(_, solver.pre_variables) for _ in r]).T
         return DataFrame(
             np.matmul(solver.grad_s_vT_pre, grad_v_rT),
             columns=self.pre_instrument_labels,

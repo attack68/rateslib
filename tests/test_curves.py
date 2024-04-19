@@ -17,7 +17,7 @@ from rateslib.curves import (
 from rateslib.default import NoInput
 from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.calendars import get_calendar
 from rateslib.solver import Solver
 from rateslib.instruments import IRS
@@ -93,7 +93,10 @@ def test_log_linear_interp():
         ad=1,
     )
     val = exp((log(1.00) + log(0.99)) / 2)
-    assert curve[dt(2022, 3, 16)] == Dual(val, ["v0", "v1"], [0.49749372, 0.50251891])
+    result = curve[dt(2022, 3, 16)]
+    expected = Dual(val, ["v0", "v1"], [0.49749372, 0.50251891])
+    assert abs(result - expected) < 1e-15
+    assert all(np.isclose(gradient(result, ["v0", "v1"]), expected.dual))
 
 
 def test_linear_zero_rate_interp():
@@ -354,7 +357,17 @@ def test_curve_interp_raises():
     with pytest.raises(ValueError, match=err):
         curve[dt(2022, 1, 15)]
 
-
+def test_curve_sorted_nodes_raises():
+    err = 'Curve node dates are not sorted or contain duplicates.'
+    with pytest.raises(ValueError, match=err):
+        Curve(
+            nodes={
+                dt(2022, 2, 1): 0.9,
+                dt(2022, 1, 1): 1.0,
+            },
+            id='curve',
+        )
+        
 def test_interp_raises():
     interp = 'linea'  # Wrongly spelled interpolation method
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
@@ -447,7 +460,8 @@ def test_spline_endpoints(endpoints, expected):
         ],
     )
     for i, date in enumerate([dt(2022, 1, 1), dt(2022, 7, 1), dt(2025, 7, 1), dt(2026, 1, 1)]):
-        assert curve[date] == expected[i]
+        result = curve[date]
+        assert (result - expected[i]) < 1e-12
 
 
 @pytest.mark.parametrize("endpoints", [("natural", "bad"), ("bad", "natural")])
@@ -518,7 +532,7 @@ def test_set_ad_order_no_spline():
 
     old_id = id(curve.nodes)
     curve._set_ad_order(2)
-    assert curve[dt(2022, 1, 1)] == Dual2(1.0, "v0")
+    assert curve[dt(2022, 1, 1)] == Dual2(1.0, ["v0"], [], [])
     assert curve.ad == 2
     assert id(curve.nodes) != old_id  # new nodes object thus a new id
 

@@ -17,12 +17,11 @@
        interpolation="log_linear",
    )
 """
-
 from abc import abstractmethod, ABCMeta
 from datetime import datetime
 from typing import Optional, Union
 import warnings
-from math import comb, log
+from math import comb, log, exp, pi, sqrt
 
 import numpy as np
 
@@ -40,7 +39,16 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    DualTypes,
+    dual_norm_cdf,
+    dual_exp,
+    dual_log,
+    dual_inv_norm_cdf,
+    gradient,
+)
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -54,10 +62,11 @@ def _get_fx_and_base(
     fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
     base: Union[str, NoInput] = NoInput(0),
 ):
+    # TODO these can be removed when no traces of None remain.
     if fx is None:
-        raise NotImplementedError("TraceBack for NoInput")
+        raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
     if base is None:
-        raise NotImplementedError("TraceBack for NoInput")
+        raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
     if isinstance(fx, (FXRates, FXForwards)):
         base = fx.base if base is NoInput.blank else base.lower()
@@ -94,7 +103,7 @@ def _get_fx_and_base(
         if fx is NoInput.blank:
             fx = 1.0
         else:
-            if abs(fx - 1.0) < 1e-10:
+            if abs(fx - 1.0) < 1e-12:
                 pass  # no warning when fx == 1.0
             else:
                 warnings.warn(
@@ -464,11 +473,7 @@ class FixedPeriod(BasePeriod):
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,
@@ -859,9 +864,10 @@ class FloatPeriod(BasePeriod):
         elif isinstance(curve, Curve):
             _ = self.float_spread
             DualType = Dual if curve.ad in [0, 1] else Dual2
-            self.float_spread = DualType(float(_), "z_float_spread")
+            DualArgs = ([],) if curve.ad in [0, 1] else ([], [])
+            self.float_spread = DualType(float(_), ["z_float_spread"], *DualArgs)
             rate = self.rate(curve)
-            dr_dz = rate.gradient("z_float_spread")[0] * 100
+            dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
             self.float_spread = _
         else:
             raise TypeError("`curve` must be supplied for given `spread_compound_method`")
@@ -910,7 +916,7 @@ class FloatPeriod(BasePeriod):
         local: bool = False,
     ):
         """
-        Return the cashflows of the *FloatPeriod*.
+        Return the NPV of the *FloatPeriod*.
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
@@ -918,13 +924,12 @@ class FloatPeriod(BasePeriod):
         if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         if self.payment < disc_curve_.node_dates[0]:
-            return 0.0  # payment date is in the past avoid issues with fixings or rates
+            if local:
+                return {self.currency: 0.0}
+            else:
+                return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Union[Curve, LineCurve, dict]) -> Union[None, DualTypes]:
         if curve is None:
@@ -1454,7 +1459,7 @@ class FloatPeriod(BasePeriod):
 
         if fixing_exposure:
             rates_dual = Series(
-                [Dual(float(r), f"fixing_{i}") for i, (k, r) in enumerate(rates.items())],
+                [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(rates.items())],
                 index=rates.index,
             )
             if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
@@ -1464,7 +1469,7 @@ class FloatPeriod(BasePeriod):
             else:
                 rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
             notional_exposure = Series(
-                [rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
+                [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(dcf_dates.index) - 1)]
             ).astype(float)
             v = disc_curve[self.payment]
             mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
@@ -1803,11 +1808,7 @@ class Cashflow:
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,
@@ -2036,11 +2037,7 @@ class IndexMixin(metaclass=ABCMeta):
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow(curve) * disc_curve_[self.payment]
-        if local:
-            return {self.currency: value}
-        else:
-            fx, _ = _get_fx_and_base(self.currency, fx, base)
-            return fx * value
+        return _maybe_local(value, local, self.currency, fx, base)
 
     @property
     @abstractmethod
@@ -2342,7 +2339,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
-            defaults.headers["cashflow"]: self.cashflow(curve),
+            defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
         }
 
     def npv(self, *args, **kwargs):
@@ -2359,6 +2356,558 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         return 0.0
+
+
+class FXOptionPeriod(metaclass=ABCMeta):
+    """
+    Abstract base class for constructing volatility components of FXOptions.
+
+    Pricing model uses Black 76 log-normal volatility calculations.
+
+    Parameters
+    -----------
+    pair: str
+        The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
+    expiry: datetime
+        The expiry of the option: when the fixing and moneyness is determined.
+    delivery: datetime
+        The delivery date of the underlying FX pair. E.g. typically this would be **spot** as
+        measured from the expiry date.
+    payment: datetime
+        The payment date of the premium associated with the option.
+    strike: float, Dual, Dual2
+        The strike value of the option.
+    notional: float
+        The amount in ccy1 (left side of pair) on which the option is based.
+    option_fixing: float, optional
+        If an option has already expired this argument is used to fix the price determined at
+        expiry.
+    delta_type: str in {"forward", "spot"}
+        When deriving strike from a delta percentage the method used to associate the sensitivity
+        to either a spot rate or a forward rate.
+    metric: str in {"pips", "percent"}, optional
+        The pricing metric for the rate of the options.
+    """
+
+    # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
+    style = "european"
+    kind = None
+    phi = 0.0
+
+    @abstractmethod
+    def __init__(
+        self,
+        pair: str,
+        expiry: datetime,
+        delivery: datetime,
+        payment: datetime,
+        strike: Union[DualTypes, NoInput] = NoInput(0),
+        notional: Union[float, NoInput] = NoInput(0),
+        option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        self.pair = pair.lower()
+        self.currency = self.pair[3:]
+        self.domestic = self.pair[:3]
+        self.notional = defaults.notional if notional is NoInput.blank else notional
+        self.strike = strike
+        self.payment = payment
+        self.delivery = delivery
+        self.expiry = expiry
+        self.option_fixing = option_fixing
+        self.delta_type = (
+            defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
+        )
+        self.metric = metric
+
+    @staticmethod
+    def _black76(F, K, t_e, v1, v2, vol, phi):
+        """
+        Option price in points terms for immediate premium settlement.
+
+        Parameters
+        -----------
+        F: float, Dual, Dual2
+            The forward price for settlement at the delivery date.
+        K: float, Dual, Dual2
+            The strike price of the option.
+        t_e: float
+            The annualised time to expiry.
+        v1: float
+            Not used. The discounting rate on ccy1 side.
+        v2: float, Dual, Dual2
+            The discounting rate to delivery on ccy2, at the appropriate collateral rate.
+        vol: float, Dual, Dual2
+            The volatility measured over the period until expiry.
+        phi: int
+            Whether to calculate for call or put.
+
+        Returns
+        --------
+        float, Dual, Dual2
+        """
+        vs = vol * t_e**0.5
+        d1 = (dual_log(F / K) + 0.5 * vol**2 * t_e) / vs
+        d2 = d1 - vs
+        Nd1, Nd2 = dual_norm_cdf(phi * d1), dual_norm_cdf(phi * d2)
+        _ = phi * (F * Nd1 - K * Nd2)
+
+        # Spot formulation instead of F (Garman Kohlhagen formulation)
+        # https://quant.stackexchange.com/a/63661/29443
+        # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
+        # S_imm = F * df2 / df1
+        # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
+        # d2 = d1 - vs
+        # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+        # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
+        return _ * v2
+
+    def _get_interval_for_premium_adjusted_delta(self, unadj_k, half_vol_sq_t, vol_sqrt_t, f):
+        """
+        Returns the interval for use in Brent variety solver
+
+        Inputs should be float.
+        """
+        # TODO: this formula contains some unproven approximations (like dividing values by 2.0)
+        k_max = unadj_k  # a premium adjusted strike is always lower than an unadjusted one.
+        if self.phi > 0:
+            # call option requires more difficult k_min. k_min is set as the point which
+            # attains the maximum premium adjusted delta.
+
+            # see https://math.stackexchange.com/questions/4892524
+
+            a_ = 3.38777577683324710
+            b_ = -0.0321538987860638
+            c_ = -0.6749937815114762
+            d_ = 1.08648555952878920
+            f_ = -3.0101764849574044
+            g_ = 0.198384242124144070
+            root_appx = a_ * vol_sqrt_t ** b_ + c_ * vol_sqrt_t ** d_ + f_ * vol_sqrt_t ** g_
+
+            def root(x):
+                return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2 * pi)
+
+            def root_deriv(x):
+                return (vol_sqrt_t + x) * dual_exp(-0.5 * x**2) / sqrt(2 * pi)
+
+            root_solver = _newton(root, root_deriv, root_appx)
+            # root_solver = _brents(root, root_appx - 0.25, root_appx + 0.25)  # Python Brents slower than Newton
+            k_min = f * dual_exp(-root_solver[0] * vol_sqrt_t - half_vol_sq_t)
+        else:
+            k_min = unadj_k / 2.0
+        return (k_min, k_max)
+
+    def _strike_from_delta(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: DualTypes,
+        t_e: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        v_deli: Union[DualTypes, NoInput] = NoInput(0),
+    ):
+        """
+        Determine a strike given a delta percentage value.
+
+        Parameters
+        ----------
+        f: float, Dual, Dual2
+            The forward FX rate at delivery.
+        delta: float
+            The percentage delta to calculate strike for.
+        vol: float, Dual, Dual2
+            The volatility (assumed constant) over the period to expiry
+        t: float, Dual, Dual2
+            The time to expiry.
+        w_deli: float, Dual, Dual2
+            The domestic discount factor (LHS currency) in an appropriate collateral until delivery.
+        w_spot: float, Dual, Dual2
+            The domestic discount factor (LHS currency) in appropriate collateral until standard
+            transaction settlement, e.g. spot.
+        v_deli: float, Dual, Dual2
+            The foreign discount factor (RHS currency) in an appropriate collateral until delivery.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        half_vol_sq_t = 0.5 * vol**2 * t_e
+        vol_sqrt_t = vol * t_e**0.5
+
+        if "forward" in self.delta_type:
+            _ = dual_inv_norm_cdf(self.phi * delta)
+            _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
+
+            if self.delta_type == "forward_pa":
+                # make premium adjustment
+                k_min, k_max = self._get_interval_for_premium_adjusted_delta(
+                    float(_), float(half_vol_sq_t), float(vol_sqrt_t), float(f)
+                )
+
+                def root(k):
+                    b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
+                    dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
+                    return delta + b76 / (v_deli * f) - self.phi * dual_norm_cdf(self.phi * dplus)
+
+                root_solver = _brents(root, x0=k_min, x1=k_max)
+                _ = root_solver[0]
+
+        elif "spot" in self.delta_type:
+            w1 = w_spot / w_deli
+            _ = dual_inv_norm_cdf(self.phi * delta * w1)
+            _ = f * dual_exp(-self.phi * _ * vol_sqrt_t + half_vol_sq_t)
+
+            if self.delta_type == "spot_pa":
+                # make premium adjustment
+                k_min, k_max = self._get_interval_for_premium_adjusted_delta(
+                    float(_), float(half_vol_sq_t), float(vol_sqrt_t), float(f)
+                )
+
+                def root(k):
+                    b76 = self._black76(f, k, t_e, None, v_deli, vol, self.phi)
+                    dplus = (dual_log(f / k) + half_vol_sq_t) / vol_sqrt_t
+                    return (
+                        delta
+                        + b76 / (v_deli * f * w1)
+                        - self.phi * dual_norm_cdf(self.phi * dplus) / w1
+                    )
+
+                root_solver = _brents(root, x0=k_min, x1=k_max)
+                _ = root_solver[0]
+
+        return _
+
+    def _delta_percent(
+        self,
+        fx: FXForwards,
+        k: float,
+        vol: DualTypes,
+        t_e: DualTypes,
+        delta_type: str,
+        premium: Union[DualTypes, NoInput] = NoInput(0),
+        disc_curve: Union[Curve, NoInput] = NoInput(0),
+    ):
+        """
+        Determine a percent delta given a strike value.
+
+        Parameters
+        ----------
+        fx: FXForwards
+            The FXForwards object used for determining forwqrds.
+        k: float
+            The strike value of the option.
+        vol: float, Dual, Dual2,
+            The volatility (assumed constant) over the period to expiry
+        t_e: float, Dual, Dual2
+            The time to expiry.
+        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+            The delta type to determine delta for.
+        premium: float, Dual, Dual2, optional
+            The premium, optional, needed only for premium adjusted delta.
+            Must be expressed in domestic (LHS) currency.
+        disc_curve: Curve
+            The discount curve for the domestic (LHS) currency at appropriate collateral rate.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        spot = fx.pairs_settlement[self.pair]
+        f = fx.rate(self.pair, self.delivery)
+
+        vs = vol * t_e**0.5
+        d1 = (dual_log(f / k) + 0.5 * vol**2 * t_e) / vs
+        _ = self.phi * dual_norm_cdf(self.phi * d1)
+        if delta_type == "forward_pa":
+            if self.payment == self.delivery:
+                w1 = 1.0
+            else:
+                w1 = disc_curve[self.payment] / disc_curve[self.delivery]
+            return _ - w1 * premium / self.notional
+        elif delta_type == "spot":
+            w_d = disc_curve[self.delivery]
+            w_spot = disc_curve[spot]
+            return _ * w_d / w_spot
+        elif delta_type == "spot_pa":
+            w_d = disc_curve[self.delivery]
+            w_spot = disc_curve[spot]
+            w_p = disc_curve[self.payment]
+            return _ * w_d / w_spot - w_p * premium / (w_spot * self.notional)
+        else:  # == "forward"
+            return _
+
+    def npv(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+    ):
+        """
+        Return the NPV of the *FXOption*.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        vol: float, Dual, Dual2
+            The percentage log-normal volatility to price the option.
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such.
+        """
+        if self.payment < disc_curve_ccy2.node_dates[0]:
+            # payment date is in the past avoid issues with fixings or rates
+            return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
+
+        if self.option_fixing is not NoInput.blank:
+            if self.kind == "call" and self.strike < self.option_fixing:
+                value = (self.option_fixing - self.strike) * self.notional
+            elif self.kind == "put" and self.strike > self.option_fixing:
+                value = (self.strike - self.option_fixing) * self.notional
+            else:
+                return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
+            value *= disc_curve_ccy2[self.payment]
+
+        else:
+            # value is expressed in currency (i.e. pair[3:])
+            value = self._black76(
+                F=fx.rate(self.pair, self.delivery),
+                K=self.strike,
+                t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+                v1=None,  # not required: disc_curve[self.expiry],
+                v2=disc_curve_ccy2[self.delivery],
+                vol=vol,
+                phi=self.phi,  # controls calls or put price
+            )
+            value *= self.notional
+
+        return _maybe_local(value, local, self.currency, fx, base)
+
+    def rate(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Return the pricing metric of the *FXOption*.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        vol: float, Dual, Dual2
+            The percentage log-normal volatility to price the option.
+        metric: str in {"pips", "percent"}
+            The metric to return. If "pips" assumes the premium is in foreign (rhs)
+            currency. If "percent", the premium is assumed to be domestic (lhs).
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such.
+        """
+        npv = self.npv(
+            disc_curve,
+            disc_curve_ccy2,
+            fx,
+            self.currency,
+            False,
+            vol,
+        )
+
+        if metric is not NoInput.blank:
+            metric_ = metric.lower()
+        elif self.metric is not NoInput.blank:
+            metric_ = self.metric.lower()
+        else:
+            metric_ = defaults.fx_option_metric
+
+        if metric_ == "pips":
+            points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
+            return points_premium * 10000.0
+        elif metric_ == "percent":
+            currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(
+                self.pair, self.payment
+            )
+            return currency_premium / self.notional * 100
+        else:
+            raise ValueError("`metric` must be in {'pips', 'percent'}")
+
+    def implied_vol(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        premium: Union[float, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Calculate the implied volatility of the FX option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        premium: float
+            The premium value of the option paid at the appropriate payment date.
+        metric: str in {"pips", "percent"}, optional
+            The manner in which the premium is expressed.
+
+        Returns
+        -------
+        float
+        """
+        vol_ = Dual(0.25, ["vol"], [])
+        for i in range(20):
+            f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
+            if abs(f_) < 1e-10:
+                break
+            vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
+
+        return float(vol_)  # return a float TODO check whether Dual can be returned.
+
+    def delta_percent(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+        premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
+    ):
+        """
+        Return the percentage delta of the option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            Not used by `delta_percent`.
+        local: bool,
+            Not used by `delta_percent`.
+        premium: float, optional
+            The premium value of the option paid at the appropriate payment date.
+            If not given calculates and assumes a mid-market premium.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
+
+        If ``srtike`` is not set on the *FXOption* this method will **raise**.
+        """
+        if "_pa" in self.delta_type and premium is NoInput.blank:
+            premium = (
+                self.npv(
+                    disc_curve,
+                    disc_curve_ccy2,
+                    fx,
+                    base=self.pair[:3],
+                    vol=vol,
+                )
+                / disc_curve[self.payment]
+            )
+        return self._delta_percent(
+            fx=fx,
+            k=self.strike,
+            vol=vol,
+            t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+            delta_type=self.delta_type,
+            premium=premium,
+            disc_curve=disc_curve,
+        )
+
+    def _t_to_expiry(self, now: datetime):
+        # TODO make this a dual, associated with theta
+        return (self.expiry - now).days / 365.0
+
+    def _payoff_at_expiry(self, range: Union[list[float], NoInput] = NoInput(0)):
+        if self.strike is NoInput.blank:
+            raise ValueError("Cannot return payoff for option without a specified `strike`.")
+        if range is NoInput.blank:
+            x = np.linspace(0, 20, 1001)
+        else:
+            x = np.linspace(range[0], range[1], 1001)
+        _ = (x - self.strike) * self.phi
+        __ = np.zeros(1001)
+        if self.phi > 0:  # call
+            y = np.where(x < self.strike, __, _) * self.notional
+        else:  # put
+            y = np.where(x > self.strike, __, _) * self.notional
+        return x, y
+
+
+class FXCallPeriod(FXOptionPeriod):
+    """
+    Create an FXCallPeriod.
+
+    For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
+    """
+
+    kind = "call"
+    phi = 1.0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class FXPutPeriod(FXOptionPeriod):
+    """
+    Create an FXPutPeriod.
+
+    For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
+    """
+
+    kind = "put"
+    phi = -1.0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 def _float_or_none(val):
@@ -2386,3 +2935,89 @@ def _disc_maybe_from_curve(
     else:
         _ = disc_curve
     return _
+
+
+def _maybe_local(value, local, currency, fx, base):
+    """
+    Return NPVs in scalar form or dict form.
+    """
+    if local:
+        return {currency: value}
+    else:
+        fx, _ = _get_fx_and_base(currency, fx, base)
+        return value * fx
+
+
+def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
+    """
+    Alternative root solver. Used for solving premium adjutsed option strikes from delta values.
+    """
+    fx0 = f(x0)
+    fx1 = f(x1)
+
+    if float(fx0 * fx1) > 0:
+        raise ValueError("`brents` must initiate from function values with opposite signs.")
+
+    if abs(fx0) < abs(fx1):
+        x0, x1 = x1, x0
+        fx0, fx1 = fx1, fx0
+
+    x2, fx2 = x0, fx0
+
+    mflag = True
+    steps_taken = 0
+
+    while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+        fx0 = f(x0)
+        fx1 = f(x1)
+        fx2 = f(x2)
+
+        if fx0 != fx2 and fx1 != fx2:
+            L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+            L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+            L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+            new = L0 + L1 + L2
+
+        else:
+            new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+
+        if (
+            (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+            or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+            or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+            or (mflag is True and (abs(x1 - x2)) < tolerance)
+            or (mflag is False and (abs(x2 - d)) < tolerance)
+        ):
+            new = (x0 + x1) / 2
+            mflag = True
+
+        else:
+            mflag = False
+
+        fnew = f(new)
+        d, x2 = x2, x1
+
+        if float(fx0 * fnew) < 0:
+            x1 = new
+        else:
+            x0 = new
+
+        if abs(fx0) < abs(fx1):
+            x0, x1 = x1, x0
+
+        steps_taken += 1
+
+    return x1, steps_taken
+
+
+def _newton(f, f1, x0, max_iter=50, tolerance=1e-9):
+    steps_taken = 0
+
+    while steps_taken < max_iter:
+        steps_taken += 1
+        x1 = x0 - f(x0) / f1(x0)
+        if abs(x1 - x0) < tolerance:
+            return x1, steps_taken
+        x0 = x1
+
+    raise ValueError(f"`max_iter`: {max_iter} exceeded in Newton solver.")
