@@ -6,7 +6,7 @@ use num_traits::{Pow, Signed};
 use std::sync::Arc;
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyTypeError, PyValueError};
-use pyo3::types::PyFloat;
+// use pyo3::types::PyFloat;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 
