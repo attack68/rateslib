@@ -1,11 +1,12 @@
 use crate::splines::spline_f64::{PPSpline, bsplev_single_f64, bspldnev_single_f64};
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
-use crate::dual::dual_py::DualsOrF64;
+use crate::dual::dual_py::{DualsOrF64};
 use std::cmp::PartialEq;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
+use pyo3::types::{PyFloat, PyList};
 
 use numpy::{PyArray1, ToPyArray, PyArrayMethods};
 use ndarray::Array1;
@@ -86,8 +87,8 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppev<'py>(&'py self, x: Vec<f64>) -> PyResult<Vec<$type>> {
-                let out: Vec<$type> = x.iter().map(|v| self.inner.ppev_single(&v)).collect();
+            pub fn ppev<'py>(&'py self, x: PyList<PyFloat>) -> PyResult<Vec<$type>> {
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppev_single(&v.value())).collect();
                 Ok(out)
             }
 
