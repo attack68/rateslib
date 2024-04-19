@@ -17,6 +17,7 @@ from rateslib.calendars import (
     _is_som,
     _get_imm,
     _get_years_and_months,
+    _dcf_actacticma,
 )
 
 
@@ -405,4 +406,22 @@ def test_dcf_raises(conv, freq_m, term, stub):
 def test_get_years_and_months(d1, d2, exp):
     result = _get_years_and_months(d1, d2)
     assert result == exp
+
+
+@pytest.mark.parametrize("s, e, t, exp", [
+    (dt(2024, 2, 29), dt(2024, 5, 29), dt(2024, 5, 29), 0.24657534),
+    (dt(2021, 2, 28), dt(2024, 5, 29), dt(2024, 5, 29), 3.24863387),
+    (dt(2021, 2, 28), dt(2024, 5, 29), dt(2026, 5, 28), 3.24657534),
+])
+def test_act_act_icma_z_freq(s, e, t, exp):
+    result = _dcf_actacticma(
+        start=s,
+        end=e,
+        termination=t,
+        frequency_months=1e8,  # Z Frequency
+        stub=False,
+        roll=NoInput(0),
+        calendar=NoInput(0),
+    )
+    assert abs(result-exp)<1e-6
 
