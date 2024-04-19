@@ -59,11 +59,11 @@ macro_rules! create_interface {
                 self.inner.csolve(&tau, &y, left_n, right_n, allow_lsq)
             }
 
-            pub fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
+            pub fn ppev_single(&self, x: DualsOrF64) -> PyResult<DualsOrF64> {
                 match x {
-                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
-                    DualsOrF64::F64(f) => Ok(self.inner.ppev_single(&f)),
-                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                    DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.inner.ppev_single_dual(&d)?)),
+                    DualsOrF64::F64(f) => Ok(DualsOrF64::F64(self.inner.ppev_single(&f))),
+                    DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.inner.ppev_single_dual2(&d)?)),
                 }
             }
 

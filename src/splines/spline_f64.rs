@@ -7,7 +7,7 @@ use num_traits::{Signed, Zero};
 use std::iter::Sum;
 use std::ops::{Mul, Sub};
 use pyo3::PyErr;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyValueError, PyTypeError};
 
 pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
@@ -286,26 +286,35 @@ where
 
 impl PPSpline<f64>
 {
-    pub fn ppev_single_dual(&self, x: &Dual) -> Dual {
-        ppev_single_f64_dual(&self, &x)
+    pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, Err> {
+        Ok(ppev_single_f64_dual(&self, &x))
     }
 
-    pub fn ppev_single_dual2(&self, x: &Dual2) -> Dual2 {
-        ppev_single_f64_dual2(&self, &x)
+    pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, Err> {
+        Ok(ppev_single_f64_dual2(&self, &x))
     }
 }
 
 impl PPSpline<Dual>
 {
-    pub fn ppev_single_dual(&self, x: &Dual) -> Dual {
-        ppev_single_dual_dual(&self, &x)
+    pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
+        Ok(ppev_single_dual_dual(&self, &x))
     }
+
+    pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
+        Err(PyTypeError::new_err("Cannot use type `Dual2` on a spline constructed with `Dual`."))
+    }
+
 }
 
 impl PPSpline<Dual2>
 {
-    pub fn ppev_single_dual2(&self, x: &Dual2) -> Dual2 {
-        ppev_single_dual2_dual2(&self, &x)
+    pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
+        Err(PyTypeError::new_err("Cannot use type `Dual` on a spline constructed with `Dual2`."))
+    }
+
+    pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
+        Ok(ppev_single_dual2_dual2(&self, &x))
     }
 }
 
