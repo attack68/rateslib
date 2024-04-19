@@ -6,7 +6,6 @@ use std::cmp::PartialEq;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
-use pyo3::types::{PyFloat, PyList};
 
 use numpy::{PyArray1, ToPyArray, PyArrayMethods};
 use ndarray::Array1;
@@ -87,8 +86,8 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppev<'py>(&'py self, x: PyList<PyFloat>) -> PyResult<Vec<$type>> {
-                let out: Vec<$type> = x.iter().map(|v| self.inner.ppev_single(&v.value())).collect();
+            pub fn ppev<'py>(&'py self, x: Vec<f64>) -> PyResult<Vec<$type>> {
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppev_single(&v)).collect();
                 Ok(out)
             }
 
