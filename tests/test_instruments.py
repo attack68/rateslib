@@ -3106,7 +3106,40 @@ class TestFXOptions:
         result = fxo.rate(curves, fx=fxfo, vol=0.089)
         expected = exp_rate
         assert abs(result - expected) < 1e-6
+        assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
 
+    @pytest.mark.parametrize("ccy, exp_rate, exp_strike", [
+        ("usd", 70.180131, 1.10101920113408469),
+        ("eur", 0.680949, 1.099976),
+    ])
+    def test_fx_call_rate_with_smile(self, fxfo, ccy, exp_rate, exp_strike):
+        fxo = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike="25d",
+            delta_type="spot",
+            premium_ccy=ccy,
+        )
+        vol = FXDeltaVolSmile(
+            {
+                0.25: 10.15,
+                0.5: 8.0,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            id="vol",
+            ad=1,
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        expected = exp_rate
+        assert abs(result - expected) < 1e-6
         assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
 
     def test_fx_call_rate_expiry_tenor(self, fxfo):
