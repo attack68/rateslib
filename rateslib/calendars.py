@@ -1136,34 +1136,46 @@ def _dcf_actacticma(
         raise ValueError("`termination` must be supplied with specified `convention`.")
     if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
-    if not stub:
+    if not stub and frequency_months < 13:  # This is a well defined period that is NOT zero coupon
         return frequency_months / 12.0
     else:
+        # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
+        if frequency_months >= 13:
+            frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
+
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
-            fraction = 0.0
-            if end > fwd_end:  # stub is LONG
+            fwd_end_0, fwd_end_1, fraction = start, start, -1.0
+            while end > fwd_end_1:  # Handle Long Stubs which require repeated periods, and Zero frequencies.
+                fwd_end_0 = fwd_end_1
                 fraction += 1.0
-                fraction += (end - fwd_end) / (
-                    _add_months(start, 2 * frequency_months, "NONE", calendar, roll) - fwd_end
-                )
-            else:
-                fraction += (end - start) / (fwd_end - start)
+                fwd_end_1 = _add_months(start, (int(fraction) + 1) * frequency_months, "NONE", calendar, roll)
+
+            fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
             return fraction * frequency_months / 12.0
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
-            fraction = 0
-            if start < prev_start:  # stub is LONG
-                fraction += 1
-                r = prev_start - start
-                s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
-                fraction += r / s
-            else:
-                r = end - start
-                s = end - prev_start
-                fraction += r / s
-            return fraction * frequency_months / 12
+            prev_start_0, prev_start_1, fraction = end, end, -1.0
+            while start < prev_start_1:  # Handle Long Stubs which require repeated periods, and Zero frequencies.
+                prev_start_0 = prev_start_1
+                fraction += 1.0
+                prev_start_1 = _add_months(end, -(int(fraction) + 1) * frequency_months, "NONE", calendar, roll)
+
+            fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
+            return fraction * frequency_months / 12.0
+
+
+            # prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
+            # fraction = 0
+            # if start < prev_start:  # stub is LONG
+            #     fraction += 1
+            #     r = prev_start - start
+            #     s = prev_start - _add_months(end, -2 * frequency_months, "NONE", calendar, roll)
+            #     fraction += r / s
+            # else:
+            #     r = end - start
+            #     s = end - prev_start
+            #     fraction += r / s
+            # return fraction * frequency_months / 12
 
 
 def _dcf_actacticma_stub365f(
