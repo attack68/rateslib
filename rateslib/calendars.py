@@ -2,6 +2,7 @@ from typing import Optional, Union, Dict, Any
 from math import floor
 from datetime import datetime, timedelta
 import calendar as calendar_mod
+import warnings
 
 from dateutil.relativedelta import MO, TH, FR
 
@@ -1141,6 +1142,11 @@ def _dcf_actacticma(
     else:
         # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
         if frequency_months >= 13:
+            warnings.warn(
+                "Using `convention` 'ActActICMA' with a Period having `frequency` 'Z' is undefined, and "
+                "should be avoided.\nFor calculation purposes here the `frequency` is set to 'A'.",
+                UserWarning,
+            )
             frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
 
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
