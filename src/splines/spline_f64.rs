@@ -96,83 +96,83 @@ pub fn bspldnev_single_f64(
     r
 }
 
-fn ppev_single<T>(pps: &PPSpline<T>, x: &f64) -> T
-where
-    T: Sum,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
-{
-    let b: Array1<f64> = Array1::from_vec(
-        (0..pps.n)
-            .map(|i| bsplev_single_f64(x, i, &pps.k, &pps.t, None))
-            .collect(),
-    );
-    match &pps.c {
-        Some(c) => fdmul11_(&b.view(), &c.view()),
-        None => {
-            panic!("Must call csolve before attempting to evaluate spline.")
-        }
-    }
-}
+// fn ppev_single<T>(pps: &PPSpline<T>, x: &f64) -> T
+// where
+//     T: Sum,
+//     for<'a> &'a f64: Mul<&'a T, Output = T>,
+// {
+//     let b: Array1<f64> = Array1::from_vec(
+//         (0..pps.n)
+//             .map(|i| bsplev_single_f64(x, i, &pps.k, &pps.t, None))
+//             .collect(),
+//     );
+//     match &pps.c {
+//         Some(c) => fdmul11_(&b.view(), &c.view()),
+//         None => {
+//             panic!("Must call csolve before attempting to evaluate spline.")
+//         }
+//     }
+// }
 
-fn ppev_single_f64_dual(pps: &PPSpline<f64>, x: &Dual) -> Dual
-{
-    let b: Array1<Dual> = Array1::from_vec(
-        (0..pps.n)
-            .map(|i| bsplev_single_dual(x, i, &pps.k, &pps.t, None))
-            .collect(),
-    );
-    match &pps.c {
-        Some(c) => fdmul11_(&c.view(), &b.view()),
-        None => {
-            panic!("Must call csolve before attempting to evaluate spline.")
-        }
-    }
-}
+// fn ppev_single_f64_dual(pps: &PPSpline<f64>, x: &Dual) -> Dual
+// {
+//     let b: Array1<Dual> = Array1::from_vec(
+//         (0..pps.n)
+//             .map(|i| bsplev_single_dual(x, i, &pps.k, &pps.t, None))
+//             .collect(),
+//     );
+//     match &pps.c {
+//         Some(c) => fdmul11_(&c.view(), &b.view()),
+//         None => {
+//             panic!("Must call csolve before attempting to evaluate spline.")
+//         }
+//     }
+// }
 
-fn ppev_single_dual_dual(pps: &PPSpline<Dual>, x: &Dual) -> Dual
-{
-    let b: Array1<Dual> = Array1::from_vec(
-        (0..pps.n)
-            .map(|i| bsplev_single_dual(x, i, &pps.k, &pps.t, None))
-            .collect(),
-    );
-    match &pps.c {
-        Some(c) => dmul11_(&c.view(), &b.view()),
-        None => {
-            panic!("Must call csolve before attempting to evaluate spline.")
-        }
-    }
-}
+// fn ppev_single_dual_dual(pps: &PPSpline<Dual>, x: &Dual) -> Dual
+// {
+//     let b: Array1<Dual> = Array1::from_vec(
+//         (0..pps.n)
+//             .map(|i| bsplev_single_dual(x, i, &pps.k, &pps.t, None))
+//             .collect(),
+//     );
+//     match &pps.c {
+//         Some(c) => dmul11_(&c.view(), &b.view()),
+//         None => {
+//             panic!("Must call csolve before attempting to evaluate spline.")
+//         }
+//     }
+// }
 
-fn ppev_single_f64_dual2(pps: &PPSpline<f64>, x: &Dual2) -> Dual2
-{
-    let b: Array1<Dual2> = Array1::from_vec(
-        (0..pps.n)
-            .map(|i| bsplev_single_dual2(x, i, &pps.k, &pps.t, None))
-            .collect(),
-    );
-    match &pps.c {
-        Some(c) => fdmul11_(&c.view(), &b.view()),
-        None => {
-            panic!("Must call csolve before attempting to evaluate spline.")
-        }
-    }
-}
+// fn ppev_single_f64_dual2(pps: &PPSpline<f64>, x: &Dual2) -> Dual2
+// {
+//     let b: Array1<Dual2> = Array1::from_vec(
+//         (0..pps.n)
+//             .map(|i| bsplev_single_dual2(x, i, &pps.k, &pps.t, None))
+//             .collect(),
+//     );
+//     match &pps.c {
+//         Some(c) => fdmul11_(&c.view(), &b.view()),
+//         None => {
+//             panic!("Must call csolve before attempting to evaluate spline.")
+//         }
+//     }
+// }
 
-fn ppev_single_dual2_dual2(pps: &PPSpline<Dual2>, x: &Dual2) -> Dual2
-{
-    let b: Array1<Dual2> = Array1::from_vec(
-        (0..pps.n)
-            .map(|i| bsplev_single_dual2(x, i, &pps.k, &pps.t, None))
-            .collect(),
-    );
-    match &pps.c {
-        Some(c) => dmul11_(&c.view(), &b.view()),
-        None => {
-            panic!("Must call csolve before attempting to evaluate spline.")
-        }
-    }
-}
+// fn ppev_single_dual2_dual2(pps: &PPSpline<Dual2>, x: &Dual2) -> Dual2
+// {
+//     let b: Array1<Dual2> = Array1::from_vec(
+//         (0..pps.n)
+//             .map(|i| bsplev_single_dual2(x, i, &pps.k, &pps.t, None))
+//             .collect(),
+//     );
+//     match &pps.c {
+//         Some(c) => dmul11_(&c.view(), &b.view()),
+//         None => {
+//             panic!("Must call csolve before attempting to evaluate spline.")
+//         }
+//     }
+// }
 
 #[derive(Clone)]
 pub struct PPSpline<T>
@@ -219,7 +219,17 @@ where
     }
 
     pub fn ppev_single(&self, x: &f64) -> T {
-        ppev_single(&self, &x)
+        let b: Array1<f64> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bsplev_single_f64(x, i, &self.k, &self.t, None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => fdmul11_(&b.view(), &c.view()),
+            None => {
+                panic!("Must call csolve before attempting to evaluate spline.")
+            }
+        }
     }
 
     pub fn ppdnev_single(&self, x: &f64, m: usize) -> T {
@@ -287,18 +297,42 @@ where
 impl PPSpline<f64>
 {
     pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
-        Ok(ppev_single_f64_dual(&self, &x))
+        let b: Array1<Dual> = Array1::from_vec(
+            (0..self.n)
+                .map(|i| bsplev_single_dual(x, i, &self.k, &self.t, None))
+                .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
     }
 
     pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
-        Ok(ppev_single_f64_dual2(&self, &x))
+        let b: Array1<Dual2> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bsplev_single_dual2(x, i, &self.k, &self.t, None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
     }
 }
 
 impl PPSpline<Dual>
 {
     pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
-        Ok(ppev_single_dual_dual(&self, &x))
+        let b: Array1<Dual> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bsplev_single_dual(x, i, &self.k, &self.t, None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
     }
 
     pub fn ppev_single_dual2(&self, _x: &Dual2) -> Result<Dual2, PyErr> {
@@ -314,7 +348,15 @@ impl PPSpline<Dual2>
     }
 
     pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
-        Ok(ppev_single_dual2_dual2(&self, &x))
+        let b: Array1<Dual2> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bsplev_single_dual2(x, i, &self.k, &self.t, None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
     }
 }
 
