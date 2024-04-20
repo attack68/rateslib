@@ -3,7 +3,8 @@ import numpy as np
 import copy
 
 import context
-from rateslib.splines import PPSplineF64
+from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
+from rateslib.dual import gradient, Dual, Dual2, set_order_convert
 
 
 @pytest.fixture()
@@ -186,5 +187,87 @@ def test_spline_equality_type():
     assert spline6 == spline7
 
 
-def test_dual_AD():
-    pass
+@pytest.mark.parametrize("klass, order", [
+    (PPSplineF64, 0),
+    (PPSplineDual, 1),
+])
+def test_dual_AD(klass, order):
+    sp = klass(
+        t=[0,0,0,0,1,3,4,4,4,4],
+        k=4,
+    )
+    y=[set_order_convert(_, order, []) for _ in [0,0,0,2,2,0]]
+    sp.csolve([0,0,1,3,4,4], y, 2, 2, False)
+    analytic_deriv = sp.ppdnev_single(3.5, 1)
+    dual_deriv = gradient(sp.ppev_single_dual(Dual(3.5, ["x"], [2.0])))[0]
+    assert abs(dual_deriv - 2.0 * analytic_deriv) < 1e-9
+
+
+@pytest.mark.parametrize("klass, order", [
+    (PPSplineF64, 0),
+    (PPSplineDual2, 2),
+])
+def test_dual2_AD(klass, order):
+    sp = klass(
+        t=[0,0,0,0,1,3,4,4,4,4],
+        k=4,
+    )
+    y=[set_order_convert(_, order, []) for _ in [0,0,0,2,2,0]]
+    sp.csolve([0,0,1,3,4,4], y, 2, 2, False)
+    analytic_deriv = sp.ppdnev_single(3.5, 1)
+    dual_deriv = gradient(sp.ppev_single_dual2(Dual2(3.5, ["x"], [3.0], [])))[0]
+    assert abs(dual_deriv - 3.0 * analytic_deriv) < 1e-9
+
+    analytic_deriv2 = sp.ppdnev_single(3.5, 2)
+    dual_deriv2 = gradient(sp.ppev_single_dual2(Dual2(3.5, ["x"], [3.0], [])), order=2)[0, 0]
+    assert abs(dual_deriv2 - 9.0 * analytic_deriv2) < 1e-9
+
+    dual_deriv_x = gradient(
+        sp.ppev_single_dual2(Dual2(3.5, ["x1", "x2"], [3.0, 1.5], [1, 1, 1, 1])), order=2
+    )[0, 1]
+    analytic_deriv_x = analytic_deriv2 * 3.0 * 1.5 + analytic_deriv * 2.0
+    assert abs(dual_deriv_x - analytic_deriv_x) < 1e-9
+
+
+def test_dual_AD_raises():
+    sp = PPSplineDual(
+        t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
+        k=4,
+    )
+    _0 = Dual(0.0, [], [])
+    y0, y1 = Dual(0.0, ["y0"], []), Dual(0.0, ["y1"], [])
+    y2, y3 = Dual(2.0, ["y2"], []), Dual(2.0, ["y3"], [])
+    sp.csolve([0,0,1,3,4,4], [_0, y0, y1, y2, y3, _0], 2, 2, False)
+    with pytest.raises(TypeError, match="Cannot index with type `Dual2`"):
+        sp.ppev_single_dual2(Dual2(3.5, ["x"], [], []))
+
+    with pytest.raises(TypeError, match="Cannot mix `Dual2` and `Dual` types"):
+        sp.ppev_single_dual(Dual2(3.5, ["x"], [], []))
+
+
+def test_dual2_AD_raises():
+    sp = PPSplineDual2(
+        t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
+        k=4,
+    )
+    _0 = Dual2(0.0, [], [], [])
+    y0, y1 = Dual2(0.0, ["y0"], [], []), Dual2(0.0, ["y1"], [], [])
+    y2, y3 = Dual2(2.0, ["y2"], [], []), Dual2(2.0, ["y3"], [], [])
+    sp.csolve([0, 0, 1, 3, 4, 4], [_0, y0, y1, y2, y3, _0], 2, 2, False)
+    with pytest.raises(TypeError, match="Cannot index with type `Dual`"):
+        sp.ppev_single_dual(Dual(3.5, ["x"], []))
+
+    with pytest.raises(TypeError, match="Cannot mix `Dual2` and `Dual` types"):
+        sp.ppev_single_dual2(Dual(3.5, ["x"], []))
+
+
+def test_dual_float_raises():
+    sp = PPSplineDual(
+        t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
+        k=4,
+    )
+    _0 = Dual(0.0, [], [])
+    y0, y1 = Dual(0.0, ["y0"], []), Dual(0.0, ["y1"], [])
+    y2, y3 = Dual(2.0, ["y2"], []), Dual(2.0, ["y3"], [])
+    with pytest.raises(TypeError, match="argument 'y': 'float' object cannot be"):
+        sp.csolve([0, 0, 1, 3, 4, 4], [0.0, y0, y1, y2, y3, _0], 2, 2, False)
