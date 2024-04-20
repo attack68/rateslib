@@ -452,3 +452,136 @@ in the below manual example.
    x_posix = [_.replace(tzinfo=UTC).timestamp() for _ in x]
    ax.plot(x, np.exp(spline.ppev(np.array(x_posix))), color="g")
    plt.show()
+
+AD and Working with Dual and Dual2
+***********************************
+
+Splines in *rateslib* are designed to be fully integrated into the forward mode AD
+used within the library. This means that both:
+
+A) Sensitivities to the y-axis datapoints can be captured.
+
+B) Sensitivities to the x-axis indexing can also be captured.
+
+Sensitivities to y-axis datapoints
+-----------------------------------
+
+To capture A) 3 splines are available for the specific calculation mode:
+:class:`~rateslib.splines.PPSplineF64`, :class:`~rateslib.splines.PPSplineDual` and
+:class:`~rateslib.splines.PPSplineDual2`. Choose to use the appropriate *Dual* version
+depending upon which derivatives you wish to capture.
+
+For example, suppose we rebuild the **natural spline** from the *endpoints section* above.
+But this time the 4 data points are labelled as variables referencing the y-axis:
+
+.. ipython:: python
+
+   pps = PPSplineDual(t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4], k=4)
+   pps.csolve(
+       tau=[0, 0, 1, 3, 4, 4],
+       y=[
+           Dual(0, [], []),
+           Dual(0, ["y0"], []),
+           Dual(0, ["y1"], []),
+           Dual(2, ["y2"], []),
+           Dual(2, ["y3"], []),
+           Dual(0, [], [])
+       ],
+       left_n=2,
+       right_n=2,
+       allow_lsq=False,
+   )
+
+Now, when we interrogate the spline for a given x-value, say 3.5, the returned value will
+demonstrate the sensitivity of that value to the movement in any of the values *y0, y1, y2,*
+or *y3*.
+
+.. ipython:: python
+
+   pps.ppev_single(3.5)
+
+This suggests that if *y3* were to move up by an infinitesimal amount, say 0.0001, then
+the y-value associated with an x-value of 3.5 would be 0.00004 higher or rather 2.09379.
+
+.. ipython:: python
+
+   pps_f64 = PPSplineF64(t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4], k=4)
+   pps_f64.csolve(
+       tau=[0, 0, 1, 3, 4, 4],
+       y=[0, 0, 0, 2, 2.0001, 0],
+       left_n=2,
+       right_n=2,
+       allow_lsq=False,
+   )
+   pps_f64.ppev_single(3.5)
+
+Sensitivities to x-axis datapoints
+-----------------------------------
+
+To demonstrate B), suppose we wish to capture the sensitivity of that y-value as the x-value
+were to vary. We can do this in two ways. The first is to use the analytical
+function for the derivative of a spline:
+
+.. ipython:: python
+
+   pps_f64.ppdnev_single(3.5, 1)
+
+The second is to interrogate the spline with the x-value set as a variable.
+
+.. ipython:: python
+
+   pps_f64.ppev_single_dual(Dual(3.5, ["x"], [])).dual
+
+Three functions exist for extracting spline values for each case:
+:meth:`~rateslib.splines.PPSplineF64.ppev_single`,
+:meth:`~rateslib.splines.PPSplineF64.ppev_single_dual`,
+:meth:`~rateslib.splines.PPSplineF64.ppev_single_dual2`,
+
+Simultaneous sensitivities to extraneous variables
+---------------------------------------------------
+
+The following example is more general and demonstrates the power of having spline interpolator
+functions whose derivatives are fully integrated into the toolset. This is one of the
+advantages of adopting forward mode derivatives with dual numbers.
+
+Suppose now that everything is sensitive to an extraneous variable, say *z*. The sensitivies of
+each element to *z* are constructed as below:
+
+.. ipython:: python
+
+   y0 = Dual(0, ["z"], [2.0])
+   y1 = Dual(0, ["z"], [-3.0])
+   y2 = Dual(2, ["z"], [4.0])
+   y3 = Dual(2, ["z"], [10.0])
+   x = Dual(3.5, ["z"], [-5.0])
+
+We construct a spline and measure the resulting interpolated *y*-value's sensitivity to *z*.
+
+.. ipython:: python
+
+   pps = PPSplineDual(t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4], k=4)
+   pps.csolve(
+       tau=[0, 0, 1, 3, 4, 4],
+       y=[Dual(0, [], []), y0, y1, y2, y3, Dual(0, [], [])],
+       left_n=2,
+       right_n=2,
+       allow_lsq=False,
+   )
+   pps.ppev_single_dual(x)
+
+This suggests that if *z* moves 0.0001 higher then this value should move by 0.00073 higher to
+2.09448. But of course all of the all *x* and *y* values have sensitivity to *z* as well.
+
+.. ipython:: python
+
+   pps = PPSplineF64(t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4], k=4)
+   pps.csolve(
+       tau=[0, 0, 1, 3, 4, 4],
+       y=[0, 0.0002, -0.0003, 2.0004, 2.001, 0],
+       left_n=2,
+       right_n=2,
+       allow_lsq=False,
+   )
+   pps.ppev_single(3.4995)
+
+As predicted!

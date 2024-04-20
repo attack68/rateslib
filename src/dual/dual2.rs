@@ -9,7 +9,7 @@ use crate::dual::dual1::{VarsState, Gradient1, Vars, MathFuncs, FieldOps};
 use crate::dual::linalg_f64::fouter11_;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
-use ndarray::{Array, Array1, Array2};
+use ndarray::{Array, Array1, Array2, Axis};
 use num_traits;
 use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
@@ -257,6 +257,20 @@ impl Dual2 {
     pub fn try_new_from(other: &Self, real: f64, vars: Vec<String>, dual: Vec<f64>, dual2: Vec<f64>) -> Result<Self, PyErr> {
         let new = Self::try_new(real, vars, dual, dual2)?;
         Ok(new.to_new_vars(&other.vars, None))
+    }
+
+    /// Construct a new `Dual2` cloning the `vars` Arc pointer from another.
+    ///
+    pub fn clone_from(other: &Self, real: f64, dual:Array1<f64>, dual2: Array2<f64>) -> Self {
+        assert_eq!(other.vars().len(), dual.len());
+        assert_eq!(other.vars().len(), dual2.len_of(Axis(0)));
+        assert_eq!(other.vars().len(), dual2.len_of(Axis(1)));
+        Dual2{
+            real,
+            vars: Arc::clone(&other.vars),
+            dual,
+            dual2,
+        }
     }
 
     /// Get the real component value of the struct.
@@ -1193,4 +1207,5 @@ mod tests {
     //     let b = Dual2::new(3.0, Vec::new(), Vec::new(), Vec::new());
     //     a + b
     // }
+
 }

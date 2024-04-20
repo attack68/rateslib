@@ -1,10 +1,13 @@
-use crate::dual::linalg_f64::{fdmul11_, fdsolve};
+use crate::dual::linalg_f64::{fdmul11_, fdsolve, fouter11_};
+use crate::dual::linalg::{dmul11_};
+use crate::dual::dual1::{Dual, Gradient1};
+use crate::dual::dual2::{Dual2, Gradient2};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use std::iter::Sum;
 use std::ops::{Mul, Sub};
 use pyo3::PyErr;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyValueError, PyTypeError};
 
 pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
@@ -38,6 +41,20 @@ pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Opti
         }
         left + right
     }
+}
+
+pub fn bsplev_single_dual(x: &Dual, i:usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> Dual {
+    let b_f64 = bsplev_single_f64(&x.real(), i, k, t, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, 1, org_k);
+    Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
+}
+
+pub fn bsplev_single_dual2(x: &Dual2, i:usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> Dual2 {
+    let b_f64 = bsplev_single_f64(&x.real(), i, k, t, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, 1, org_k);
+    let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, 2, org_k);
+    let dual2 = dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
+    Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
 pub fn bspldnev_single_f64(
@@ -79,22 +96,18 @@ pub fn bspldnev_single_f64(
     r
 }
 
-fn ppev_single<T>(pps: &PPSpline<T>, x: &f64) -> T
-where
-    T: Sum,
-    for<'a> &'a f64: Mul<&'a T, Output = T>,
-{
-    let b: Array1<f64> = Array1::from_vec(
-        (0..pps.n)
-            .map(|i| bsplev_single_f64(x, i, &pps.k, &pps.t, None))
-            .collect(),
-    );
-    match &pps.c {
-        Some(c) => fdmul11_(&b.view(), &c.view()),
-        None => {
-            panic!("Must call csolve before attempting to evaluate spline.")
-        }
-    }
+pub fn bspldnev_single_dual(x: &Dual, i:usize, k: &usize, t: &Vec<f64>, m: usize, org_k: Option<usize>) -> Dual {
+    let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+1, org_k);
+    Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
+}
+
+pub fn bspldnev_single_dual2(x: &Dual2, i:usize, k: &usize, t: &Vec<f64>, m: usize, org_k: Option<usize>) -> Dual2 {
+    let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m,org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+1, org_k);
+    let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+2, org_k);
+    let dual2 = dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
+    Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
 #[derive(Clone)]
@@ -141,9 +154,19 @@ where
         PPSpline { k, t, n, c: c_}
     }
 
-    pub fn ppev_single(&self, x: &f64) -> T {
-        ppev_single(&self, &x)
-    }
+    // pub fn ppev_single(&self, x: &f64) -> T {
+    //     let b: Array1<f64> = Array1::from_vec(
+    //     (0..self.n)
+    //         .map(|i| bsplev_single_f64(x, i, &self.k, &self.t, None))
+    //         .collect(),
+    //     );
+    //     match &self.c {
+    //         Some(c) => fdmul11_(&b.view(), &c.view()),
+    //         None => {
+    //             panic!("Must call csolve before attempting to evaluate spline.")
+    //         }
+    //     }
+    // }
 
     pub fn ppdnev_single(&self, x: &f64, m: usize) -> T {
         let b: Array1<f64> = Array1::from_vec(
@@ -185,9 +208,9 @@ where
         Ok(())
     }
 
-    pub fn bsplev(&self, x: &Vec<f64>, i: &usize) -> Vec<f64> {
-        x.iter().map(|v| bsplev_single_f64(v, *i, self.k(), self.t(), None)).collect()
-    }
+    // pub fn bsplev(&self, x: &Vec<f64>, i: &usize) -> Vec<f64> {
+    //     x.iter().map(|v| bsplev_single_f64(v, *i, self.k(), self.t(), None)).collect()
+    // }
 
     pub fn bspldnev(&self, x: &Vec<f64>, i: &usize, m: &usize) -> Vec<f64> {
         x.iter().map(|v| bspldnev_single_f64(v, *i, self.k(), self.t(), *m, None)).collect()
@@ -205,6 +228,129 @@ where
         }
         b
     }
+}
+
+impl PPSpline<f64>
+{
+    // pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
+    //     let b: Array1<Dual> = Array1::from_vec(
+    //         (0..self.n)
+    //             .map(|i| bsplev_single_dual(x, i, &self.k, &self.t, None))
+    //             .collect(),
+    //     );
+    //     match &self.c {
+    //         Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+    //     }
+    // }
+    //
+    // pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
+    //     let b: Array1<Dual2> = Array1::from_vec(
+    //     (0..self.n)
+    //         .map(|i| bsplev_single_dual2(x, i, &self.k, &self.t, None))
+    //         .collect(),
+    //     );
+    //     match &self.c {
+    //         Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+    //     }
+    // }
+
+    pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
+        let b: Array1<Dual> = Array1::from_vec(
+            (0..self.n)
+                .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m,None))
+                .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
+
+    pub fn ppdnev_single_dual2(&self, x: &Dual2, m: usize) -> Result<Dual2, PyErr> {
+        let b: Array1<Dual2> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m,None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
+}
+
+impl PPSpline<Dual>
+{
+    // pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
+    //     let b: Array1<Dual> = Array1::from_vec(
+    //     (0..self.n)
+    //         .map(|i| bsplev_single_dual(x, i, &self.k, &self.t, None))
+    //         .collect(),
+    //     );
+    //     match &self.c {
+    //         Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+    //     }
+    // }
+    //
+    // pub fn ppev_single_dual2(&self, _x: &Dual2) -> Result<Dual2, PyErr> {
+    //     Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
+    // }
+
+    pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
+        Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
+    }
+
+    pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
+        let b: Array1<Dual> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m,None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
+
+}
+
+impl PPSpline<Dual2>
+{
+    // pub fn ppev_single_dual(&self, _x: &Dual) -> Result<Dual, PyErr> {
+    //     Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
+    // }
+    //
+    // pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
+    //     let b: Array1<Dual2> = Array1::from_vec(
+    //     (0..self.n)
+    //         .map(|i| bsplev_single_dual2(x, i, &self.k, &self.t, None))
+    //         .collect(),
+    //     );
+    //     match &self.c {
+    //         Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+    //     }
+    // }
+
+    pub fn ppdnev_single_dual(&self, _x: &Dual, _m: usize) -> Result<Dual, PyErr> {
+        Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
+    }
+
+    pub fn ppdnev_single_dual2(&self, x: &Dual2, m: usize) -> Result<Dual2, PyErr> {
+        let b: Array1<Dual2> = Array1::from_vec(
+        (0..self.n)
+            .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m,None))
+            .collect(),
+        );
+        match &self.c {
+            Some(c) => Ok(dmul11_(&c.view(), &b.view())),
+            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+        }
+    }
+
 }
 
 use std::cmp::PartialEq;
@@ -256,6 +402,25 @@ mod tests {
             .collect();
         let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
         assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn bsplev_single_dual_() {
+        let x: Dual = Dual::new(1.5, vec!["x".to_string()]);
+        let t: Vec<f64> = Vec::from(&[1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.]);
+        let k: usize = 4;
+        let result: Vec<Dual> = (0..8)
+            .map(|i| bsplev_single_dual(&x, i as usize, &k, &t, None))
+            .collect();
+        let expected: Vec<f64> = Vec::from(&[0.125, 0.375, 0.375, 0.125, 0., 0., 0., 0.]);
+        for i in 0..8 {
+            assert_eq!(result[i].real(), expected[i])
+        }
+        // These are values from the bspldnev_single evaluation test
+        let dual_expected: Vec<f64> = Vec::from(&[-0.75, -0.75, 0.75, 0.75, 0., 0., 0., 0.]);
+        for i in 0..8 {
+            assert_eq!(result[i].dual()[0], dual_expected[i])
+        }
     }
 
     #[test]
@@ -396,11 +561,11 @@ mod tests {
         let t = vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.];
         let mut pps = PPSpline::new(4, t, None);
         pps.c = Some(arr1(&[1., 2., -1., 2., 1., 1., 2., 2.]));
-        let r1 = pps.ppev_single(&1.1);
+        let r1 = pps.ppdnev_single(&1.1, 0);
         assert!(is_close(&r1, &1.19, None));
-        let r2 = pps.ppev_single(&1.8);
+        let r2 = pps.ppdnev_single(&1.8, 0);
         assert!(is_close(&r2, &0.84, None));
-        let r3 = pps.ppev_single(&2.8);
+        let r3 = pps.ppdnev_single(&2.8, 0);
         assert!(is_close(&r3, &1.136, None));
     }
 
