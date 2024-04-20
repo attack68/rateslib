@@ -539,6 +539,39 @@ Three functions exist for extracting spline values for each case:
 :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual`,
 :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual2`,
 
+
+.. list-table::
+   :widths: 16 28 28 28
+   :header-rows: 2
+
+   * -
+     - **y-values**
+     -
+     -
+   * - **x-values**
+     - **Float**
+     - **Dual**
+     - **Dual2**
+   * - **Float**
+     - | *PPSplineF64*, and
+       | *ppev_single()*
+     - | *PPSplineDual*, and
+       | *ppev_single()*
+     - | *PPSplineDual2*,
+       | and *ppev_single()*
+   * - **Dual**
+     - | *PPSplineF64*, and
+       | *ppev_single_dual()*
+     - | *PPSplineDual*, and
+       | *ppev_single_dual()*
+     - *TypeError*
+   * - **Dual2**
+     - | *PPSplineF64*, and
+       | *ppev_single_dual2()*
+     - *TypeError*
+     - | *PPSplineDual2*, and
+       | *ppev_single_dual2()*
+
 Simultaneous sensitivities to extraneous variables
 ---------------------------------------------------
 
