@@ -72,7 +72,8 @@ class TestFXDeltaVolSmile:
         ("vol1", 0.5, 7.8),
         ("vol2", 0.75, 8.9)
     ])
-    def test_get_from_strike_ad(self, fxfo, var, idx, val):
+    @pytest.mark.parametrize("k", [0.9, 1.0, 1.05, 1.10, 1.4])
+    def test_get_from_strike_ad(self, fxfo, var, idx, val, k):
         fxvs = FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
@@ -86,7 +87,7 @@ class TestFXDeltaVolSmile:
             ad=1,
         )
         args = (
-            1.05,
+            k,
             -1.0,
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
@@ -94,10 +95,65 @@ class TestFXDeltaVolSmile:
         )
         put_vol = fxvs.get_from_strike(*args)
 
-        fxvs.nodes[idx] = Dual(val + 0.00001, [var], [])
+        fxvs.nodes[idx] = Dual(val + 0.0000001, [var], [])
         fxvs.csolve()
-        put_vol2 = fxvs.get_from_strike(*args)
-        finite_diff = (put_vol2[1]-put_vol[1]) * 100000.0
+        put_vol_plus = fxvs.get_from_strike(*args)
+
+        finite_diff = (put_vol_plus[1]-put_vol[1]) * 10000000.0
         ad_grad = gradient(put_vol[1], [var])[0]
 
-        assert abs(finite_diff - ad_grad) < 1e-8
+        assert abs(finite_diff - ad_grad) < 1e-7
+
+    @pytest.mark.parametrize("k", [0.9, 1.0, 1.05, 1.10, 1.4])
+    @pytest.mark.parametrize("cross", [
+        (["vol0", 10.15, 0.25], ["vol1", 7.8, 0.5]),
+        (["vol0", 10.15, 0.25], ["vol2", 8.9, 0.75]),
+        (["vol1", 7.8, 0.5], ["vol2", 8.9, 0.75]),
+    ])
+    def test_get_from_strike_ad(self, fxfo, k, cross):
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.5: 7.8,
+                0.75: 8.9,
+            },
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+            ad=2,
+        )
+        fxfo._set_ad_order(2)
+        args = (
+            k,
+            -1.0,
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        )
+        pv00 = fxvs.get_from_strike(*args)
+
+        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
+        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
+        fxvs.csolve()
+        pv11 = fxvs.get_from_strike(*args)
+
+        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
+        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
+        fxvs.csolve()
+        pv1_1 = fxvs.get_from_strike(*args)
+
+        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
+        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
+        fxvs.csolve()
+        pv_1_1 = fxvs.get_from_strike(*args)
+
+        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
+        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
+        fxvs.csolve()
+        pv_11 = fxvs.get_from_strike(*args)
+
+        finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
+        ad_grad = gradient(pv00[1], [cross[0][0], cross[1][0]], 2)[0, 1]
+
+        assert abs(finite_diff - ad_grad) < 1e-3

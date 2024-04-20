@@ -1,6 +1,8 @@
 from __future__ import annotations  # type hinting
 
 from rateslib.dual import (
+    Dual,
+    Dual2,
     set_order_convert,
     dual_exp,
     dual_inv_norm_cdf,
@@ -8,8 +10,9 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_log,
     dual_norm_pdf,
+    gradient,
 )
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
+from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, _interpolate
 from rateslib.default import plot, NoInput
 from uuid import uuid4
 import numpy as np
@@ -213,9 +216,11 @@ class FXDeltaVolSmile:
 
         if "_pa" in self.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
-            upper_bound = dual_exp(vol * self.t_expiry_sqrt * (4.75 + 0.5 * vol * self.t_expiry_sqrt))
+            upper_bound = dual_exp(vol * self.t_expiry_sqrt * (3.0 - 0.5 * vol * self.t_expiry_sqrt))
+            self.plot_upper_bound = dual_exp(vol * self.t_expiry_sqrt * (2.0 - 0.5 * vol * self.t_expiry_sqrt))
         else:
             upper_bound = 1.0
+            self.plot_upper_bound = 1.0
 
         if self.n in [1, 2]:
             self.t = [0.] * 4 + [float(upper_bound)] * 4
@@ -238,7 +243,7 @@ class FXDeltaVolSmile:
             raise ValueError(f"Cannot index the FXDeltaVolSmile for a delta index out of bounds: {item}")
            # return self.spline.ppev_single(self.t[0])
         else:
-            return self.spline.ppev_single(item)
+            return _interpolate(self.spline, item, 0)
 
     def get(
         self,
@@ -337,9 +342,9 @@ class FXDeltaVolSmile:
             vol_ = float(vol_) if ad == 0 else vol_
             vol_sqrt_t = sqrt_t * vol_
             d_plus_min = -dual_log(u) / vol_sqrt_t + p_m * vol_sqrt_t
-            dvol_ddelta = -1.0 * self.spline.ppdnev_single(delta_index, 1) / 100.0
+            dvol_ddelta = -1.0 * _interpolate(self.spline, delta_index, 1) / 100.0
             dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
-            dd_ddelta = dvol_ddelta * (dual_log(u) / vol_sqrt_t**2 + p_m * sqrt_t)
+            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + p_m * sqrt_t)
             return 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
 
         # Initial approximation is obtained through the closed form solution of the delta given
@@ -349,15 +354,23 @@ class FXDeltaVolSmile:
         delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
 
         root_solver = _newton(
-            root, root_deriv, delta_0, args=(float(u), float(self.t_expiry_sqrt), float(z_u), float(z_w), 0)
+            root, root_deriv, delta_0, args=(float(u), float(self.t_expiry_sqrt), float(z_u), float(z_w), 0), tolerance=1e-15,
         )
 
         # Final iteration of fixed point to capture AD sensitivity
         root_solver = _newton(
-            root, root_deriv, root_solver[0], args=(u, self.t_expiry_sqrt, z_u, z_w, 1), max_iter=1,  # tolerance=1e-15
+            root, root_deriv, root_solver[0], args=(u, self.t_expiry_sqrt, z_u, z_w, 1), max_iter=1, tolerance=1e-10
         )
-
         delta = root_solver[0]
+
+        # # Analytical determination of AD sensitivity
+        # h = root(root_solver[0], u, self.t_expiry_sqrt, z_u, z_w, 1)
+        # dh = root_deriv(root_solver[0], u, self.t_expiry_sqrt, z_u, z_w, 1)
+        #
+        # vars = list(set(h.vars).union(dh.vars))
+        # dual = (-1.0 / float(dh)) * gradient(h, vars) # + (float(h) / float(dh) ** 2) * gradient(dh, vars)
+        # delta = Dual(root_solver[0], vars, dual.tolist())
+
         if phi > 0:
             delta_index = -1.0 * self._call_to_put_delta(delta, self.delta_type, z_w, u)
         else:
@@ -666,12 +679,12 @@ class FXDeltaVolSmile:
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
         # reversed for intuitive strike direction
-        x = np.linspace(self.t[-1], self.t[0], 301)
+        x = np.linspace(self.plot_upper_bound, self.t[0], 301)
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":
-            x, vols = x[1:-1], vols[1:-1]
+            x, vols = x[40:-40], vols[40:-40]
             x_as_u = [
-                dual_exp(-dual_inv_norm_cdf(_1)*_2 * self.t_expiry_sqrt / 100. + 0.0005 * _2 * _2 * self.t_expiry)
+                dual_exp(_2 * self.t_expiry_sqrt / 100.0 * (dual_inv_norm_cdf(_1)*_2 * self.t_expiry_sqrt * _2 / 100.))
                 for (_1, _2) in zip(x, vols)
             ]
 
