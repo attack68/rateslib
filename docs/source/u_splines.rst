@@ -453,6 +453,8 @@ in the below manual example.
    ax.plot(x, np.exp(spline.ppev(np.array(x_posix))), color="g")
    plt.show()
 
+.. _splines-ad-doc:
+
 AD and Working with Dual and Dual2
 ***********************************
 
