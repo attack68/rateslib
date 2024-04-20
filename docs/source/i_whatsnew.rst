@@ -61,6 +61,12 @@ for notes about installation changes.
    * - Performance
      - The modules ``rateslib.dual`` and ``rateslib.splines`` have been ported to **Rust**
        instead of Python to improve calculation times.
+   * - Splines
+     - New methods :meth:`~rateslib.splines.ppev_single_dual`,
+       :meth:`~rateslib.splines.ppev_single_dual2`, :meth:`~rateslib.splines.ppdnev_single_dual`,
+       and :meth:`~rateslib.splines.ppdnev_single_dual2` have been added to ensure correct
+       handling of AD with regards to both x-axis and y-axis variables. See
+       :ref:`section on using AD with splines <splines-ad-doc>`
    * - Instruments
      - Basic *FX Volatility Instruments* have been added, including
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut` and

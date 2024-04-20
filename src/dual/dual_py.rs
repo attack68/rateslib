@@ -6,6 +6,7 @@ use num_traits::{Pow, Signed};
 use std::sync::Arc;
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyTypeError, PyValueError};
+// use pyo3::types::PyFloat;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 
@@ -28,6 +29,14 @@ pub enum DualsOrF64 {
     Dual2(Dual2),
     F64(f64),
 }
+
+// https://github.com/PyO3/pyo3/discussions/3911
+// #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
+// pub enum DualsOrPyFloat<'py> {
+//     Dual(Dual),
+//     Dual2(Dual2),
+//     Float(&'py PyFloat),
+// }
 
 #[pymethods]
 impl Dual {
