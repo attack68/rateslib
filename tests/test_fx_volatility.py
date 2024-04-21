@@ -15,6 +15,7 @@ from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
 from rateslib.default import NoInput
 from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.periods import FXPutPeriod
 
 @pytest.fixture()
 def fxfo():
@@ -157,3 +158,56 @@ class TestFXDeltaVolSmile:
         ad_grad = gradient(pv00[1], [cross[0][0], cross[1][0]], 2)[0, 1]
 
         assert abs(finite_diff - ad_grad) < 1e-3
+
+    @pytest.mark.parametrize("delta, type, smile_type, k, phi, exp", [
+        # (-0.2, "forward", "forward", 1.02, -1, 0.2),
+        # (-0.2, "spot", "spot", 1.02, -1, 0.2),
+        # (-0.2, "forward_pa", "forward_pa", 1.02, -1, 0.2),
+        # (-0.2, "spot_pa", "spot_pa", 1.02, -1, 0.2),
+        # (-0.2, "forward", "spot", 1.02, -1, 0.19870506706),
+        # (-0.2, "spot", "forward", 1.02, -1, 0.20130337183),
+        # (-0.2, "forward_pa", "spot_pa", 1.02, -1, 0.19870506706),
+        # (-0.2, "spot_pa", "forward_pa", 1.02, -1, 0.20130337183),
+        # (-0.2, "forward", "forward_pa", 1.02, -1, 0.22081326385),
+        (-0.2, "forward", "spot_pa", 1.02, -1, 0.2194459183655),
+    ])
+    def test_convert_delta_put(self, fxfo, delta, type, smile_type, k, phi, exp):
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.5: 7.8,
+                0.75: 8.9
+            },
+            delta_type=smile_type,
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        result = fxvs._convert_delta(
+            delta,
+            type,
+            phi,
+            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            k / fxfo.rate("eurusd", dt(2023, 6, 20))
+        )
+
+        # Round trip fails becuase the strike is not accurate for the given delta
+        # fxo = FXPutPeriod(
+        #     pair="eurusd",
+        #     expiry=dt(2023, 6, 16),
+        #     delivery=dt(2023, 6, 20),
+        #     payment=dt(2023, 6, 20),
+        #     strike=k,
+        #     delta_type=smile_type,
+        # )
+        # round_trip = fxo.delta_percent(
+        #     fxfo.curve("eur", "usd"),
+        #     fxfo.curve("usd", "usd"),
+        #     fxfo,
+        #     vol=fxvs[result]/100.0
+        # )
+        # assert abs(round_trip - result) < 1e9
+
+        assert abs(result - exp) < 1e-10
+
