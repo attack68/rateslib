@@ -190,7 +190,6 @@ class FXDeltaVolSmile:
     If it is premium adjusted the upper limit is set to
     :math:`e^{\sigma \sqrt{t} (4.75 + \frac{1}{2} \sigma \sqrt{t})}`
 
-
     """
 
     _ini_solve = 0  # All node values are solvable
@@ -318,7 +317,7 @@ class FXDeltaVolSmile:
         ``k``.
         """
         u = k / f  # moneyness
-        kappa, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
+        eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
 
         # Variables are passed to these functions so that iteration can take place using float
         # which is faster and then a final iteration at the fixed point can be included with Dual
@@ -329,12 +328,12 @@ class FXDeltaVolSmile:
             vol_ = self[delta_index] / 100.0
             vol_ = float(vol_) if ad == 0 else vol_
             vol_sqrt_t = sqrt_t * vol_
-            d_plus_min = -dual_log(u) / vol_sqrt_t + kappa * vol_sqrt_t
+            d_plus_min = -dual_log(u) / vol_sqrt_t + eta * vol_sqrt_t
             f0 = delta - z_w * z_u * phi * dual_norm_cdf(phi * d_plus_min)
             # Derivative
             dvol_ddelta = -1.0 * _interpolate(self.spline, delta_index, 1) / 100.0
             dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
-            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t ** 2 + kappa * sqrt_t)
+            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t ** 2 + eta * sqrt_t)
             f1 = 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
             return f0, f1
 
@@ -342,7 +341,7 @@ class FXDeltaVolSmile:
         # Initial approximation is obtained through the closed form solution of the delta given
         # an approximated delta at close to the base of the smile.
         avg_vol = float(list(self.nodes.values())[int(self.n/2)]) / 100.0
-        d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + kappa * avg_vol * float(self.t_expiry_sqrt)
+        d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + eta * avg_vol * float(self.t_expiry_sqrt)
         delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
 
         solver_result = newton_root(
@@ -407,13 +406,13 @@ class FXDeltaVolSmile:
         DualTypes
         """
         z_w = NoInput(0) if (w_deli is NoInput(0) or w_spot is NoInput(0)) else w_deli / w_spot
-        kappa_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
-        kappa_1, z_w_1, z_u_1 = _delta_type_constants(self.delta_type, z_w, u)
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+        eta_1, z_w_1, z_u_1 = _delta_type_constants(self.delta_type, z_w, u)
 
         if phi > 0:
             delta = delta - z_w_0 * z_u_0
 
-        if kappa_0 == kappa_1:  # premium adjustment types are same so closed form (=> z_u_0 == z_u_1)
+        if eta_0 == eta_1:  # premium adjustment types are same so closed form (=> z_u_0 == z_u_1)
             if z_w_1 == z_w_0:
                 return -delta
             else:
@@ -421,34 +420,27 @@ class FXDeltaVolSmile:
         else:  # root solver
             phi_inv = dual_inv_norm_cdf(-delta / (z_w_0 * z_u_0))
 
-            def root(delta_idx, z_1, kappa_0, kappa_1, sqrt_t, ad):
+            def root(delta_idx, z_1, eta_0, eta_1, sqrt_t, ad):
                 # Function value
                 vol_ = self[delta_idx] / 100.0
                 vol_ = float(vol_) if ad == 0 else vol_
-                _ = phi_inv - (kappa_1 - kappa_0) * vol_ * sqrt_t
+                _ = phi_inv - (eta_1 - eta_0) * vol_ * sqrt_t
                 f0 = delta_idx - z_1 * dual_norm_cdf(_)
                 # Derivative
                 dvol_ddelta_idx = _interpolate(self.spline, delta_idx, 1) / 100.0
                 dvol_ddelta_idx = float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
-                f1 = 1 - z_1 * dual_norm_pdf(_) * (kappa_1 - kappa_0) * sqrt_t * dvol_ddelta_idx
+                f1 = 1 - z_1 * dual_norm_pdf(_) * (eta_1 - eta_0) * sqrt_t * dvol_ddelta_idx
                 return f0, f1
-
-            # def root_deriv(delta_idx, z_1, kappa_0, kappa_1, sqrt_t, ad):
-            #     vol_ = self[delta_idx] / 100.0
-            #     vol_ = float(vol_) if ad == 0 else vol_
-            #     _ = phi_inv - (kappa_1 - kappa_0) * vol_ * sqrt_t
-            #     dvol_ddelta_idx = _interpolate(self.spline, delta_idx, 1) / 100.0
-            #     dvol_ddelta_idx = float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
-            #     return 1 - z_1 * dual_norm_pdf(_) * (kappa_1 - kappa_0) * sqrt_t * dvol_ddelta_idx
 
             solver_result = newton_root(
                 f=root,
                 g0=min(-delta, float(w_deli / w_spot)),
-                args=(z_u_1 * z_w_1, kappa_0, kappa_1, self.t_expiry_sqrt),
+                args=(z_u_1 * z_w_1, eta_0, eta_1, self.t_expiry_sqrt),
                 pre_args=(0,),
                 final_args=(1,),
             )
             return solver_result["g"]
+
 
     def _call_to_put_delta(
         self,
@@ -947,7 +939,7 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
 
 def _delta_type_constants(delta_type, w, u):
     """
-    Get the values: (kappa, z_w, z_u) for the type of expressed delta
+    Get the values: (eta, z_w, z_u) for the type of expressed delta
 
     w: should be input as w_deli / w_spot
     u: should be input as K / f_d
