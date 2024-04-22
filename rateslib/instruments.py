@@ -8248,7 +8248,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
-        return self.periods[0].delta_percent(
+        return self.periods[0].analytic_delta(
             curves[1],
             curves[3],
             fx,

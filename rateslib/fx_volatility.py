@@ -318,16 +318,7 @@ class FXDeltaVolSmile:
         ``k``.
         """
         u = k / f  # moneyness
-
-        if "spot" in self.delta_type:
-            z_w = w_deli / w_spot
-        else:
-            z_w = 1.0
-
-        if "_pa" in self.delta_type:
-            p_m, z_u = -0.5, u
-        else:
-            p_m, z_u = 0.5, 1.0
+        kappa, z_w, z_u = self._delta_type_constants(self.delta_type, w_deli / w_spot, u)
 
         # Variables are passed to these functions so that iteration can take place using float
         # which is faster and then a final iteration at the fixed point can be included with Dual
@@ -337,7 +328,7 @@ class FXDeltaVolSmile:
             vol_ = self[delta_index] / 100.0
             vol_ = float(vol_) if ad == 0 else vol_
             vol_sqrt_t = sqrt_t * vol_
-            d_plus_min = -dual_log(u) / vol_sqrt_t + p_m * vol_sqrt_t
+            d_plus_min = -dual_log(u) / vol_sqrt_t + kappa * vol_sqrt_t
             return delta - z_w * z_u * phi * dual_norm_cdf(phi * d_plus_min)
 
         def root_deriv(delta, u, sqrt_t, z_u, z_w, ad):
@@ -345,16 +336,16 @@ class FXDeltaVolSmile:
             vol_ = self[delta_index] / 100.0
             vol_ = float(vol_) if ad == 0 else vol_
             vol_sqrt_t = sqrt_t * vol_
-            d_plus_min = -dual_log(u) / vol_sqrt_t + p_m * vol_sqrt_t
+            d_plus_min = -dual_log(u) / vol_sqrt_t + kappa * vol_sqrt_t
             dvol_ddelta = -1.0 * _interpolate(self.spline, delta_index, 1) / 100.0
             dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
-            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + p_m * sqrt_t)
+            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + kappa * sqrt_t)
             return 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
 
         # Initial approximation is obtained through the closed form solution of the delta given
         # an approximated delta at close to the base of the smile.
         avg_vol = float(list(self.nodes.values())[int(self.n/2)]) / 100.0
-        d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + p_m * avg_vol * float(self.t_expiry_sqrt)
+        d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + kappa * avg_vol * float(self.t_expiry_sqrt)
         delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
 
         solver_result = newton_root(
@@ -418,55 +409,54 @@ class FXDeltaVolSmile:
         -------
         DualTypes
         """
-        k_0, z_w_0, z_u_0 = self._delta_type_constants(delta_type, w_deli / w_spot, u)
-        k_1, z_w_1, z_u_1 = self._delta_type_constants(self.delta_type, w_deli / w_spot, u)
+        z_w = NoInput(0) if (w_deli is NoInput(0) or w_spot is NoInput(0)) else w_deli / w_spot
+        kappa_0, z_w_0, z_u_0 = self._delta_type_constants(delta_type, z_w, u)
+        kappa_1, z_w_1, z_u_1 = self._delta_type_constants(self.delta_type, z_w, u)
 
         if phi > 0:
             delta = delta - z_w_0 * z_u_0
 
-        if k_0 == k_1:  # premium adjustment types are same so closed form
-            return -delta * (z_u_1 * z_w_1) / (z_u_0 * z_w_0)
+        if kappa_0 == kappa_1:  # premium adjustment types are same so closed form (z_u_0 == z_u_1)
+            if z_w_1 == z_w_0:
+                return -delta
+            else:
+                return -delta * z_w_1 / z_w_0
         else:  # root solver
-            def root(delta_idx, z_0,  z_1, k_0, k_1, sqrt_t, ad):
+            phi_inv = dual_inv_norm_cdf(-delta / (z_w_0 * z_u_0))
+            def root(delta_idx, z_1, kappa_0, kappa_1, sqrt_t, ad):
                 vol_ = self[delta_idx] / 100.0
                 vol_ = float(vol_) if ad == 0 else vol_
-                _ = dual_inv_norm_cdf(-delta / (z_0)) - (k_1 - k_0) * vol_ * sqrt_t
+                _ = phi_inv - (kappa_1 - kappa_0) * vol_ * sqrt_t
                 return delta_idx - z_1 * dual_norm_cdf(_)
 
-            def root_deriv(delta_idx, z_0,  z_1, k_0, k_1, sqrt_t, ad):
+            def root_deriv(delta_idx, z_1, kappa_0, kappa_1, sqrt_t, ad):
                 vol_ = self[delta_idx] / 100.0
                 vol_ = float(vol_) if ad == 0 else vol_
-                _ = dual_inv_norm_cdf(-delta / (z_0)) - (k_1 - k_0) * vol_ * sqrt_t
+                _ = phi_inv - (kappa_1 - kappa_0) * vol_ * sqrt_t
                 dvol_ddelta_idx = _interpolate(self.spline, delta_idx, 1) / 100.0
                 dvol_ddelta_idx = float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
-                return 1 - z_1 * dual_norm_pdf(_) * (k_1 - k_0) * sqrt_t * dvol_ddelta_idx
+                return 1 - z_1 * dual_norm_pdf(_) * (kappa_1 - kappa_0) * sqrt_t * dvol_ddelta_idx
 
-            root_solver = _newton(
+            solver_result = newton_root(
                 f=root,
                 f1=root_deriv,
-                x0=min(-delta, float(w_deli / w_spot)),
-                args=(float(z_u_0 * z_w_0), float(z_u_1 * z_w_1), k_0, k_1, float(self.t_expiry_sqrt), 0),
+                g0=min(-delta, float(w_deli / w_spot)),
+                args=(z_u_1 * z_w_1, kappa_0, kappa_1, self.t_expiry_sqrt),
+                pre_args=(0,),
+                final_args=(1,),
             )
-
-            root_solver = _newton(
-                f=root,
-                f1=root_deriv,
-                x0=float(root_solver[0]),
-                max_iter=1,
-                args=(z_u_0 * z_w_0, z_u_1 * z_w_1, k_0, k_1, self.t_expiry_sqrt, 1),
-            )
-            return root_solver[0]
+            return solver_result["g"]
 
     def _delta_type_constants(self, delta_type, w, u):
         """Get the values: (kappa, z_w, z_u) for the type of expressed delta"""
         if delta_type == "forward":
-            return (1.0, 1.0, 1.0)
+            return (0.5, 1.0, 1.0)
         elif delta_type == "spot":
-            return (1.0, w, 1.0)
+            return (0.5, w, 1.0)
         elif delta_type == "forward_pa":
-            return (-1.0, 1.0, u)
+            return (-0.5, 1.0, u)
         else:  # "spot_pa"
-            return (-1.0, w, u)
+            return (-0.5, w, u)
 
     def _call_to_put_delta(
         self,

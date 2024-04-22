@@ -2013,20 +2013,22 @@ def newton_root(
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
 
 
+STATE_MAP = {
+    1: ["SUCCESS", "`conv_tol` reached"],
+    2: ["SUCCESS", "`func_tol` reached"],
+    -1: ["FAILURE", "`max_iter` breached"],
+}
+
+
 def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, algo: str):
-    state_map = {
-        1: ["SUCCESS", "`conv_tol` reached"],
-        2: ["SUCCESS", "`func_tol` reached"],
-        -1: ["FAILURE", "`max_iter` breached"],
-    }
     if log:
         print(
-            f"{state_map[state][0]}: {state_map[state][1]} after {i} iterations "
+            f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "
             f"({algo}), `f_val`: {func_val}, "
             f"`time`: {time:.4f}s"
         )
     return {
-        "status": state_map[state][0],
+        "status": STATE_MAP[state][0],
         "state": state,
         "g": func_val,
         "iterations": i,

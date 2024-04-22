@@ -39,7 +39,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.fx_volatility import FXDeltaVolSmile, _newton, _black76
+from rateslib.fx_volatility import FXDeltaVolSmile, _newton, _black76, _d_min, _d_plus
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -2587,6 +2587,66 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         return float(vol_)  # return a float TODO check whether Dual can be returned. Use Generic Newton
 
+    def analytic_delta(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+        premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
+    ):
+        """
+        Return the percentage delta of the option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            Not used by `delta_percent`.
+        local: bool,
+            Not used by `delta_percent`.
+        premium: float, optional
+            The premium value of the option paid at the appropriate payment date.
+            If not given calculates and assumes a mid-market premium.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
+
+        If ``srtike`` is not set on the *FXOption* this method will **raise**.
+        """
+        if "_pa" in self.delta_type and premium is NoInput.blank:
+            premium = (
+                self.npv(
+                    disc_curve,
+                    disc_curve_ccy2,
+                    fx,
+                    base=self.pair[:3],
+                    vol=vol,
+                )
+                / disc_curve[self.payment]
+            )
+        return self._delta_percent(
+            fx=fx,
+            k=self.strike,
+            vol=vol,
+            t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+            delta_type=self.delta_type,
+            premium=premium,
+            disc_curve=disc_curve,
+        )
+
     ###
     ###  The following functions used for Strike determination when given a fixed volatility.
     ###
@@ -2725,7 +2785,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_sqd_t_e = float(vol**2 * t_e)
         vol_sqrt_t_e = float(vol * t_e**0.5)
         def root(k):
-            d_min = self._d_min(k, float(f), vol_sqrt_t_e)
+            d_min = _d_min(k, float(f), vol_sqrt_t_e)
             return delta - scalar * k / float(f) *self.phi * dual_norm_cdf(self.phi * d_min)
 
         unadjusted_k = self._strike_from_delta_fixed_vol_unadjusted(
@@ -2734,6 +2794,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         k_min, k_max = self._get_interval_for_premium_adjusted_delta_fixed_vol(
             unadjusted_k, 0.5 * vol_sqd_t_e, vol_sqrt_t_e, float(f)
         )
+        # TODO Brents does not return sensitivities
         root_solver = _brents(root, x0=k_min, x1=k_max)
         return root_solver[0]
 
@@ -2862,11 +2923,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_2pi_inv = 1 / sqrt(2 * pi)
 
         def root(k):
-            d_min = self._d_min(k, f, vol_sqrt_t_e)
+            d_min = _d_min(k, f, vol_sqrt_t_e)
             return delta - k * self.phi * dual_norm_cdf(self.phi * d_min) / f
 
         def root_deriv(k):
-            d_min = self._d_min(k, f, vol_sqrt_t_e)
+            d_min = _d_min(k, f, vol_sqrt_t_e)
             _ = self.phi * sqrt_2pi_inv * dual_exp(-0.5 * d_min**2) / vol_sqrt_t_e
             _ -= dual_norm_cdf(self.phi * d_min)
             _ *= self.phi / f
@@ -2888,7 +2949,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         Return the delta in the type as specified on the *VolSmile* for the given strike, k.
         """
-
+        u = NoInput(0)  # u is not need for unadjusted delta
         if vol.delta_type == "spot":
             z_w = float(w_deli / w_spot)
         else:
@@ -2897,13 +2958,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         def root(delta):
             vol_ = float(vol.get(delta, vol.delta_type, self.phi) / 100.0)
-            d_plus = self._d_plus(k, float(f), vol_ * sqrt_t_e)
+            d_plus = _d_plus(k, float(f), vol_ * sqrt_t_e)
             return delta - z_w * self.phi * dual_norm_cdf(self.phi * d_plus)
 
         def root_deriv(delta):
             vol_ = float(vol.get(delta, vol.delta_type, self.phi)) / 100.0
-            d_plus = self._d_plus(k, float(f), vol_ * t_e ** 0.5)
-            dsigma_ddelta = float(vol.spline.ppdnev_single(vol.convert_delta(delta, vol.delta_type, self.phi), 1)) / 100.0
+            d_plus = _d_plus(k, float(f), vol_ * t_e ** 0.5)
+            dsigma_ddelta = float(vol.spline.ppdnev_single(vol._convert_delta(delta, vol.delta_type, self.phi, w_deli, w_spot, u), 1)) / 100.0
             ddplus_dsigma = dsigma_ddelta * (-dual_log(float(f) / k) / (sqrt_t_e * vol_**2) + 0.5 * sqrt_t_e)
             return 1 - z_w * dual_norm_pdf(self.phi * d_plus) * ddplus_dsigma
 
@@ -3183,68 +3244,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return _ * w_d / w_spot - w_p * premium / (w_spot * self.notional)
         else:  # == "forward"
             return _
-
-
-
-    def delta_percent(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
-        premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
-    ):
-        """
-        Return the percentage delta of the option.
-
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            Not used by `delta_percent`.
-        local: bool,
-            Not used by `delta_percent`.
-        premium: float, optional
-            The premium value of the option paid at the appropriate payment date.
-            If not given calculates and assumes a mid-market premium.
-
-        Returns
-        -------
-        float
-
-        Notes
-        -----
-        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
-
-        If ``srtike`` is not set on the *FXOption* this method will **raise**.
-        """
-        if "_pa" in self.delta_type and premium is NoInput.blank:
-            premium = (
-                self.npv(
-                    disc_curve,
-                    disc_curve_ccy2,
-                    fx,
-                    base=self.pair[:3],
-                    vol=vol,
-                )
-                / disc_curve[self.payment]
-            )
-        return self._delta_percent(
-            fx=fx,
-            k=self.strike,
-            vol=vol,
-            t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
-            delta_type=self.delta_type,
-            premium=premium,
-            disc_curve=disc_curve,
-        )
 
     def _t_to_expiry(self, now: datetime):
         # TODO make this a dual, associated with theta

@@ -211,3 +211,91 @@ class TestFXDeltaVolSmile:
 
         assert abs(result - exp) < 1e-10
 
+
+    @pytest.mark.parametrize("delta_type, smile_type, k", [
+        ("forward", "forward_pa", 0.8),
+        ("forward", "spot_pa", 0.8),
+        ("spot", "forward_pa", 0.8),
+        ("spot", "spot_pa", 0.8),
+        ("forward", "forward_pa", 1.0),
+        ("forward", "spot_pa", 1.0),
+        ("spot", "forward_pa", 1.0),
+        ("spot", "spot_pa", 1.0),
+        ("forward", "forward_pa", 1.10),
+        ("forward", "spot_pa", 1.10),
+        ("spot", "forward_pa", 1.10),
+        ("spot", "spot_pa", 1.10),
+        ("forward", "forward_pa", 1.2),
+        ("forward", "spot_pa", 1.2),
+        ("spot", "forward_pa", 1.2),
+        ("spot", "spot_pa", 1.2),
+        ("forward_pa", "forward", 0.8),
+        ("forward_pa", "spot", 0.8),
+        ("spot_pa", "forward", 0.8),
+        ("spot_pa", "spot", 0.8),
+        ("forward_pa", "forward", 1.0),
+        ("forward_pa", "spot", 1.0),
+        ("spot_pa", "forward", 1.0),
+        ("spot_pa", "spot", 1.0),
+        ("forward_pa", "forward", 1.10),
+        ("forward_pa", "spot", 1.10),
+        ("spot_pa", "forward", 1.10),
+        ("spot_pa", "spot", 1.10),
+        ("forward_pa", "forward", 1.2),
+        ("forward_pa", "spot", 1.2),
+        ("spot_pa", "forward", 1.2),
+        ("spot_pa", "spot", 1.2),
+    ])
+    def test_convert_delta_put(self, fxfo, delta_type, smile_type, k):
+        # Test the _convert_delta method of a DeltaVolSmile
+
+        fxo1 = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=k,
+            delta_type=smile_type,
+        )
+        fxo2 = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=k,
+            delta_type=delta_type,
+        )
+        smile_delta = fxo1.analytic_delta(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.10,
+        )
+        delta = fxo2.analytic_delta(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=0.10,
+        )
+
+        if -smile_delta < 0.5:
+            nodes = {float(-smile_delta): 10.0, float(-smile_delta) + 0.25: 12.5}
+        else:
+            nodes = {float(-smile_delta) - 0.25: 7.5, float(-smile_delta): 10}
+
+        fxvs = FXDeltaVolSmile(
+            nodes=nodes,
+            delta_type=smile_type,
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        result = fxvs._convert_delta(
+            delta,
+            delta_type,
+            -1.0,
+            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            k / fxfo.rate("eurusd", dt(2023, 6, 20))
+        )
+        assert abs(result + smile_delta) < 1e-10
