@@ -1357,23 +1357,7 @@ class Solver(Gradients):
         return self._solver_result(-1, self.max_iter, time() - t0)
 
     def _solver_result(self, state: int, i: int, time: float):
-        state_map = {
-            1: ["SUCCESS", "`conv_tol` reached"],
-            2: ["SUCCESS", "`func_tol` reached"],
-            -1: ["FAILURE", "`max_iter` breached"],
-        }
-        print(
-            f"{state_map[state][0]}: {state_map[state][1]} after {i} iterations "
-            f"({self.algorithm}), `f_val`: {self.g.real}, "
-            f"`time`: {time:.4f}s"
-        )
-        self.result = {
-            "status": state_map[state][0],
-            "state": state,
-            "g": self.g.real,
-            "iterations": i,
-            "time": time,
-        }
+        self.result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
         return None
 
     def _update_curves_with_parameters(self, v_new):
@@ -1950,3 +1934,101 @@ class Solver(Gradients):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def newton_root(
+    f,
+    f1,
+    g0,
+    max_iter=50,
+    func_tol=1e-14,
+    conv_tol=1e-9,
+    args=(),
+    pre_args=(),
+    final_args=(),
+    raise_on_fail=True
+):
+    """
+    Use the Newton algorithm to determine to root of a function searching **one** variable.
+
+    Solves the root equation :math:`f(g; s_i)=0` for *g*.
+
+    Parameters
+    ----------
+    f: callable
+        The function, *f*, to find the root of. Of the signature: `f(g, *args)`.
+    f1: callable
+        The total derivative of ``f`` with respect to the target variable. Of the signature `f(g, *args)`.
+    g0: DualTypes
+        Initial guess of the root. Should be reasonable to avoid failure.
+    max_iter: int
+        The maximum number of iterations to try before exiting.
+    func_tol: float, optional
+        The absolute function tolerance to reach before exiting.
+    conv_tol: float, optional
+        The convergence tolerance for subsequent iterations of *g*.
+    args: tuple of float, Dual or Dual2
+        Additional arguments passed to ``f`` and ``f1``.
+    pre_args: tuple
+        Additional arguments passed to ``f`` and ``f1`` only in the float solve section of the algorithm.
+        Functions are called with the signature `f(g, *(*args[as float], *pre_args))`.
+    final_args: tuple of float, Dual, Dual2
+        Additional arguments passed to ``f`` and ``f1`` in the final iteration of the algorithm to capture AD.
+        Functions are called with the signature `f(g, *(*args, *final_args))`.
+
+    Returns
+    -------
+
+    """
+    t0 = time()
+    i = 0
+
+    # First attempt solution using faster float calculations
+    float_args = tuple(float(_) for _ in args)
+    g0 = float(g0)
+    state = -1
+
+    while i < max_iter:
+        f0, f10 = f(g0, *(*float_args, *pre_args)), f1(g0, *(*float_args, *pre_args))
+        i += 1
+        g1 = g0 - f0 / f10
+        if abs(f0) < func_tol:
+            state = 2
+            break
+        elif abs(g1 - g0) < conv_tol:
+            state = 1
+            break
+        g0 = g1
+
+    if i == max_iter:
+        if raise_on_fail:
+            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_root' algorithm'.")
+        else:
+            return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
+
+    # Final iteration method to preserve AD
+    f0, f10 = f(g1, *(*args, *final_args)), f1(g1, *(*args, *final_args))
+    i += 1
+    g1 = g1 - f0 / f10
+    return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
+
+
+def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, algo: str):
+    state_map = {
+        1: ["SUCCESS", "`conv_tol` reached"],
+        2: ["SUCCESS", "`func_tol` reached"],
+        -1: ["FAILURE", "`max_iter` breached"],
+    }
+    if log:
+        print(
+            f"{state_map[state][0]}: {state_map[state][1]} after {i} iterations "
+            f"({algo}), `f_val`: {func_val}, "
+            f"`time`: {time:.4f}s"
+        )
+    return {
+        "status": state_map[state][0],
+        "state": state,
+        "g": func_val,
+        "iterations": i,
+        "time": time,
+    }

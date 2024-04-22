@@ -14,6 +14,7 @@ from rateslib.dual import (
 )
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, _interpolate
 from rateslib.default import plot, NoInput
+from rateslib.solver import newton_root
 from uuid import uuid4
 import numpy as np
 from typing import Union
@@ -356,15 +357,20 @@ class FXDeltaVolSmile:
         d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + p_m * avg_vol * float(self.t_expiry_sqrt)
         delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
 
-        root_solver = _newton(
-            root, root_deriv, delta_0, args=(float(u), float(self.t_expiry_sqrt), float(z_u), float(z_w), 0), tolerance=1e-15,
+        solver_result = newton_root(
+            root, root_deriv, delta_0, args=(u, self.t_expiry_sqrt, z_u, z_w), pre_args=(0,), final_args=(1,), conv_tol=1e-13
         )
+        delta = solver_result["g"]
 
-        # Final iteration of fixed point to capture AD sensitivity
-        root_solver = _newton(
-            root, root_deriv, root_solver[0], args=(u, self.t_expiry_sqrt, z_u, z_w, 1), max_iter=1, tolerance=1e-10
-        )
-        delta = root_solver[0]
+        # # Explicit Final iteration method
+        # root_solver = _newton(
+        #     root, root_deriv, delta_0, args=(float(u), float(self.t_expiry_sqrt), float(z_u), float(z_w), 0), tolerance=1e-15,
+        # )
+        # # Final iteration of fixed point to capture AD sensitivity
+        # root_solver = _newton(
+        #     root, root_deriv, root_solver[0], args=(u, self.t_expiry_sqrt, z_u, z_w, 1), max_iter=1, tolerance=1e-10
+        # )
+        # delta = root_solver[0]
 
         # # Analytical determination of AD sensitivity
         # h = root(root_solver[0], u, self.t_expiry_sqrt, z_u, z_w, 1)
@@ -893,3 +899,66 @@ def _newton(f, f1, x0, max_iter=50, tolerance=1e-9, args=()):
         x0 = x1
 
     raise ValueError(f"`max_iter`: {max_iter} exceeded in Newton solver.")
+
+
+def _black76(
+    F: DualTypes,
+    K: DualTypes,
+    t_e: float,
+    v1: NoInput,
+    v2: DualTypes,
+    vol: DualTypes,
+    phi: float
+):
+    """
+    Option price in points terms for immediate premium settlement.
+
+    Parameters
+    -----------
+    F: float, Dual, Dual2
+        The forward price for settlement at the delivery date.
+    K: float, Dual, Dual2
+        The strike price of the option.
+    t_e: float
+        The annualised time to expiry.
+    v1: float
+        Not used. The discounting rate on ccy1 side.
+    v2: float, Dual, Dual2
+        The discounting rate to delivery on ccy2, at the appropriate collateral rate.
+    vol: float, Dual, Dual2
+        The volatility measured over the period until expiry.
+    phi: float
+        Whether to calculate for call (1.0) or put (-1.0).
+
+    Returns
+    --------
+    float, Dual, Dual2
+    """
+    vs = vol * t_e**0.5
+    d1 = _d_plus(K, F, vs)
+    d2 = d1 - vs
+    Nd1, Nd2 = dual_norm_cdf(phi * d1), dual_norm_cdf(phi * d2)
+    _ = phi * (F * Nd1 - K * Nd2)
+    # Spot formulation instead of F (Garman Kohlhagen formulation)
+    # https://quant.stackexchange.com/a/63661/29443
+    # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
+    # S_imm = F * df2 / df1
+    # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
+    # d2 = d1 - vs
+    # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
+    # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
+    return _ * v2
+
+
+def _d_plus_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes, half_pm: float) -> DualTypes:
+    # AD preserving calculation of d_plus in Black-76 formula
+    return dual_log(f / K) / vol_sqrt_t + half_pm * vol_sqrt_t
+
+
+def _d_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
+    return _d_plus_min(K, f, vol_sqrt_t, -0.5)
+
+
+
+def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
+    return _d_plus_min(K, f, vol_sqrt_t, +0.5)

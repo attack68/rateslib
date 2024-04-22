@@ -39,7 +39,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.fx_volatility import FXDeltaVolSmile, _newton
+from rateslib.fx_volatility import FXDeltaVolSmile, _newton, _black76
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -2423,63 +2423,169 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
         self.metric = metric
 
-    @staticmethod
-    def _black76(
-        F: DualTypes,
-        K: DualTypes,
-        t_e: float,
-        v1: NoInput,
-        v2: DualTypes,
-        vol: DualTypes,
-        phi: float
+    def npv(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
     ):
         """
-        Option price in points terms for immediate premium settlement.
+        Return the NPV of the *FXOption*.
 
         Parameters
-        -----------
-        F: float, Dual, Dual2
-            The forward price for settlement at the delivery date.
-        K: float, Dual, Dual2
-            The strike price of the option.
-        t_e: float
-            The annualised time to expiry.
-        v1: float
-            Not used. The discounting rate on ccy1 side.
-        v2: float, Dual, Dual2
-            The discounting rate to delivery on ccy2, at the appropriate collateral rate.
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
         vol: float, Dual, Dual2
-            The volatility measured over the period until expiry.
-        phi: float
-            Whether to calculate for call (1.0) or put (-1.0).
+            The percentage log-normal volatility to price the option.
 
         Returns
-        --------
-        float, Dual, Dual2
+        -------
+        float, Dual, Dual2 or dict of such.
         """
-        vs = vol * t_e**0.5
-        d1 = (dual_log(F / K) + 0.5 * vol**2 * t_e) / vs
-        d2 = d1 - vs
-        Nd1, Nd2 = dual_norm_cdf(phi * d1), dual_norm_cdf(phi * d2)
-        _ = phi * (F * Nd1 - K * Nd2)
+        if self.payment < disc_curve_ccy2.node_dates[0]:
+            # payment date is in the past avoid issues with fixings or rates
+            return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
 
-        # Spot formulation instead of F (Garman Kohlhagen formulation)
-        # https://quant.stackexchange.com/a/63661/29443
-        # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
-        # S_imm = F * df2 / df1
-        # d1 = (dual_log(S_imm / K) + (r2 - r1 + 0.5 * vol ** 2) * t) / vs
-        # d2 = d1 - vs
-        # Nd1, Nd2 = dual_norm_cdf(d1), dual_norm_cdf(d2)
-        # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
-        return _ * v2
+        if self.option_fixing is not NoInput.blank:
+            if self.kind == "call" and self.strike < self.option_fixing:
+                value = (self.option_fixing - self.strike) * self.notional
+            elif self.kind == "put" and self.strike > self.option_fixing:
+                value = (self.strike - self.option_fixing) * self.notional
+            else:
+                return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
+            value *= disc_curve_ccy2[self.payment]
 
-    def _d_min(self, K, f, vol_sqrt_t_e) -> DualTypes:
-        # AD preserving calculation of d_min in Black-76 formula
-        return dual_log(f / K) / vol_sqrt_t_e - 0.5 * vol_sqrt_t_e
+        else:
+            # value is expressed in currency (i.e. pair[3:])
+            value = _black76(
+                F=fx.rate(self.pair, self.delivery),
+                K=self.strike,
+                t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+                v1=None,  # not required: disc_curve[self.expiry],
+                v2=disc_curve_ccy2[self.delivery],
+                vol=vol,
+                phi=self.phi,  # controls calls or put price
+            )
+            value *= self.notional
 
-    def _d_plus(self, K, f, vol_sqrt_t_e) -> DualTypes:
-        # AD preserving calculation of d_plus in Black-76 formula
-        return dual_log(f / K) / vol_sqrt_t_e + 0.5 * vol_sqrt_t_e
+        return _maybe_local(value, local, self.currency, fx, base)
+
+    def rate(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Return the pricing metric of the *FXOption*.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        vol: float, Dual, Dual2
+            The percentage log-normal volatility to price the option.
+        metric: str in {"pips", "percent"}
+            The metric to return. If "pips" assumes the premium is in foreign (rhs)
+            currency. If "percent", the premium is assumed to be domestic (lhs).
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such.
+        """
+        npv = self.npv(
+            disc_curve,
+            disc_curve_ccy2,
+            fx,
+            self.currency,
+            False,
+            vol,
+        )
+
+        if metric is not NoInput.blank:
+            metric_ = metric.lower()
+        elif self.metric is not NoInput.blank:
+            metric_ = self.metric.lower()
+        else:
+            metric_ = defaults.fx_option_metric
+
+        if metric_ == "pips":
+            points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
+            return points_premium * 10000.0
+        elif metric_ == "percent":
+            currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(
+                self.pair, self.payment
+            )
+            return currency_premium / self.notional * 100
+        else:
+            raise ValueError("`metric` must be in {'pips', 'percent'}")
+
+    def implied_vol(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        premium: Union[float, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Calculate the implied volatility of the FX option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        premium: float
+            The premium value of the option paid at the appropriate payment date.
+        metric: str in {"pips", "percent"}, optional
+            The manner in which the premium is expressed.
+
+        Returns
+        -------
+        float
+        """
+        vol_ = Dual(0.25, ["vol"], [])
+        for i in range(20):
+            f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
+            if abs(f_) < 1e-10:
+                break
+            vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
+
+        return float(vol_)  # return a float TODO check whether Dual can be returned. Use Generic Newton
 
     ###
     ###  The following functions used for Strike determination when given a fixed volatility.
@@ -3078,169 +3184,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         else:  # == "forward"
             return _
 
-    def npv(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
-    ):
-        """
-        Return the NPV of the *FXOption*.
 
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            The base currency in which to express the NPV.
-        local: bool,
-            Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2
-            The percentage log-normal volatility to price the option.
-
-        Returns
-        -------
-        float, Dual, Dual2 or dict of such.
-        """
-        if self.payment < disc_curve_ccy2.node_dates[0]:
-            # payment date is in the past avoid issues with fixings or rates
-            return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
-
-        if self.option_fixing is not NoInput.blank:
-            if self.kind == "call" and self.strike < self.option_fixing:
-                value = (self.option_fixing - self.strike) * self.notional
-            elif self.kind == "put" and self.strike > self.option_fixing:
-                value = (self.strike - self.option_fixing) * self.notional
-            else:
-                return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
-            value *= disc_curve_ccy2[self.payment]
-
-        else:
-            # value is expressed in currency (i.e. pair[3:])
-            value = self._black76(
-                F=fx.rate(self.pair, self.delivery),
-                K=self.strike,
-                t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
-                v1=None,  # not required: disc_curve[self.expiry],
-                v2=disc_curve_ccy2[self.delivery],
-                vol=vol,
-                phi=self.phi,  # controls calls or put price
-            )
-            value *= self.notional
-
-        return _maybe_local(value, local, self.currency, fx, base)
-
-    def rate(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
-        metric: Union[str, NoInput] = NoInput(0),
-    ):
-        """
-        Return the pricing metric of the *FXOption*.
-
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            The base currency in which to express the NPV.
-        local: bool,
-            Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2
-            The percentage log-normal volatility to price the option.
-        metric: str in {"pips", "percent"}
-            The metric to return. If "pips" assumes the premium is in foreign (rhs)
-            currency. If "percent", the premium is assumed to be domestic (lhs).
-
-        Returns
-        -------
-        float, Dual, Dual2 or dict of such.
-        """
-        npv = self.npv(
-            disc_curve,
-            disc_curve_ccy2,
-            fx,
-            self.currency,
-            False,
-            vol,
-        )
-
-        if metric is not NoInput.blank:
-            metric_ = metric.lower()
-        elif self.metric is not NoInput.blank:
-            metric_ = self.metric.lower()
-        else:
-            metric_ = defaults.fx_option_metric
-
-        if metric_ == "pips":
-            points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
-            return points_premium * 10000.0
-        elif metric_ == "percent":
-            currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(
-                self.pair, self.payment
-            )
-            return currency_premium / self.notional * 100
-        else:
-            raise ValueError("`metric` must be in {'pips', 'percent'}")
-
-    def implied_vol(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        premium: Union[float, NoInput] = NoInput(0),
-        metric: Union[str, NoInput] = NoInput(0),
-    ):
-        """
-        Calculate the implied volatility of the FX option.
-
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            The base currency in which to express the NPV.
-        local: bool,
-            Whether to display NPV in a currency local to the object.
-        premium: float
-            The premium value of the option paid at the appropriate payment date.
-        metric: str in {"pips", "percent"}, optional
-            The manner in which the premium is expressed.
-
-        Returns
-        -------
-        float
-        """
-        vol_ = Dual(0.25, ["vol"], [])
-        for i in range(20):
-            f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
-            if abs(f_) < 1e-10:
-                break
-            vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
-
-        return float(vol_)  # return a float TODO check whether Dual can be returned.
 
     def delta_percent(
         self,
