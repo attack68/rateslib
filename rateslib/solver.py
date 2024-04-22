@@ -1938,7 +1938,6 @@ class Solver(Gradients):
 
 def newton_root(
     f,
-    f1,
     g0,
     max_iter=50,
     func_tol=1e-14,
@@ -1957,8 +1956,7 @@ def newton_root(
     ----------
     f: callable
         The function, *f*, to find the root of. Of the signature: `f(g, *args)`.
-    f1: callable
-        The total derivative of ``f`` with respect to the target variable. Of the signature `f(g, *args)`.
+        Must return a tuple where the second value is the derivative of *f* with respec to *g*.
     g0: DualTypes
         Initial guess of the root. Should be reasonable to avoid failure.
     max_iter: int
@@ -1989,9 +1987,9 @@ def newton_root(
     state = -1
 
     while i < max_iter:
-        f0, f10 = f(g0, *(*float_args, *pre_args)), f1(g0, *(*float_args, *pre_args))
+        f0, f1 = f(g0, *(*float_args, *pre_args))
         i += 1
-        g1 = g0 - f0 / f10
+        g1 = g0 - f0 / f1
         if abs(f0) < func_tol:
             state = 2
             break
@@ -2007,9 +2005,9 @@ def newton_root(
             return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
 
     # Final iteration method to preserve AD
-    f0, f10 = f(g1, *(*args, *final_args)), f1(g1, *(*args, *final_args))
+    f0, f1 = f(g1, *(*args, *final_args))
     i += 1
-    g1 = g1 - f0 / f10
+    g1 = g1 - f0 / f1
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
 
 

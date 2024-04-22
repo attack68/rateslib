@@ -3109,8 +3109,8 @@ class TestFXOptions:
         assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
 
     @pytest.mark.parametrize("ccy, exp_rate, exp_strike", [
-        ("usd", 70.180131, 1.10101920113408469),
-        ("eur", 0.680949, 1.099976),
+        ("usd", 69.761440, 1.100804992),  # Verified with BBG OVML
+        ("eur", 0.6768885, 1.09976866),  # Verified with BBG OVML
     ])
     def test_fx_call_rate_with_smile(self, fxfo, ccy, exp_rate, exp_strike):
         fxo = FXCall(
