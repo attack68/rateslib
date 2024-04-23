@@ -216,6 +216,7 @@ def dual_norm_cdf(x):
     else:
         return NormalDist().cdf(x)
 
+
 def dual_inv_norm_cdf(x):
     """
     Return the inverse cumulative standard normal distribution for given value.

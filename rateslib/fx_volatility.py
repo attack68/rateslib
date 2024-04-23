@@ -238,11 +238,17 @@ class FXDeltaVolSmile:
         Get a value from the DeltaVolSmile given an item which is a delta_index.
         """
         if item > self.t[-1]:
-            raise ValueError(f"Cannot index the FXDeltaVolSmile for a delta index out of bounds: {item}")
-           # return self.spline.ppev_single(self.t[-1])
+            # raise ValueError(
+            #     "Cannot index the FXDeltaVolSmile for a delta index out of bounds.\n"
+            #     f"Got: {item}, valid range: [{self.t[0]}, {self.t[-1]}]"
+            # )
+            return self.spline.ppev_single(self.t[-1])
         elif item < self.t[0]:
-            raise ValueError(f"Cannot index the FXDeltaVolSmile for a delta index out of bounds: {item}")
-           # return self.spline.ppev_single(self.t[0])
+            # raise ValueError(
+            #     "Cannot index the FXDeltaVolSmile for a delta index out of bounds.\n"
+            #     f"Got: {item}, valid range: [{self.t[0]}, {self.t[-1]}]"
+            # )
+            return self.spline.ppev_single(self.t[0])
         else:
             return _interpolate(self.spline, item, 0)
 
@@ -932,9 +938,14 @@ def _black76(
     return _ * v2
 
 
-def _d_plus_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes, half_pm: float) -> DualTypes:
-    # AD preserving calculation of d_plus in Black-76 formula
-    return dual_log(f / K) / vol_sqrt_t + half_pm * vol_sqrt_t
+def _d_plus_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes, eta: float) -> DualTypes:
+    # AD preserving calculation of d_plus in Black-76 formula  (eta should +/- 0.5)
+    return dual_log(f / K) / vol_sqrt_t + eta * vol_sqrt_t
+
+
+def _d_plus_min_u(u: DualTypes, vol_sqrt_t: DualTypes, eta: float) -> DualTypes:
+    # AD preserving calculation of d_plus in Black-76 formula  (eta should +/- 0.5)
+    return -dual_log(u) / vol_sqrt_t + eta * vol_sqrt_t
 
 
 def _d_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
@@ -947,7 +958,7 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
 
 def _delta_type_constants(delta_type, w, u):
     """
-    Get the values: (kappa, z_w, z_u) for the type of expressed delta
+    Get the values: (kappa, z_w, z_u, dz_u/du) for the type of expressed delta
 
     w: should be input as w_deli / w_spot
     u: should be input as K / f_d

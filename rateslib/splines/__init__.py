@@ -23,7 +23,7 @@ else:
 def _interpolate(
     spline: Union[PPSplineF64, PPSplineDual, PPSplineDual2],
     x: Union[float, Dual, Dual2],
-    m: int
+    m: int,
 ):
     if isinstance(x, Dual):
         return spline.ppdnev_single_dual(x, m)

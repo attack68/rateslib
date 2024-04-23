@@ -1936,6 +1936,11 @@ class Solver(Gradients):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+def _float_if_not_string(x):
+    if not isinstance(x, str):
+        return float(x)
+    return x
+
 def newton_root(
     f,
     g0,
@@ -1982,7 +1987,7 @@ def newton_root(
     i = 0
 
     # First attempt solution using faster float calculations
-    float_args = tuple(float(_) for _ in args)
+    float_args = tuple(_float_if_not_string(_) for _ in args)
     g0 = float(g0)
     state = -1
 
@@ -2009,6 +2014,85 @@ def newton_root(
     i += 1
     g1 = g1 - f0 / f1
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
+
+
+def newton_multi_root(
+    f,
+    g0,
+    max_iter=50,
+    func_tol=1e-14,
+    conv_tol=1e-9,
+    args=(),
+    pre_args=(),
+    final_args=(),
+    raise_on_fail=True
+):
+    """
+    Use the Newton algorithm to determine to root of a function searching **many** variables.
+
+    Solves each root equation :math:`f_i(g_j; s_k)=0` for *g_j*.
+
+    Parameters
+    ----------
+    f: callable
+        The function, *f*, to find the root of. Of the signature: `f(g_1, .., g_j, *args)`.
+        Must return a tuple where the second value is the Jacobian of *f* with respect to *g*.
+    g0: Sequence of DualTypes
+        Initial guess of the root values. Should be reasonable to avoid failure.
+    max_iter: int
+        The maximum number of iterations to try before exiting.
+    func_tol: float, optional
+        The absolute function tolerance to reach before exiting.
+    conv_tol: float, optional
+        The convergence tolerance for subsequent iterations of *g*.
+    args: tuple of float, Dual or Dual2
+        Additional arguments passed to ``f`` and ``f1``.
+    pre_args: tuple
+        Additional arguments passed to ``f`` and ``f1`` only in the float solve section of the algorithm.
+        Functions are called with the signature `f(g, *(*args[as float], *pre_args))`.
+    final_args: tuple of float, Dual, Dual2
+        Additional arguments passed to ``f`` and ``f1`` in the final iteration of the algorithm to capture AD.
+        Functions are called with the signature `f(g, *(*args, *final_args))`.
+
+    Returns
+    -------
+
+    """
+    t0 = time()
+    i = 0
+    n = len(g0)
+
+    # First attempt solution using faster float calculations
+    float_args = tuple(_float_if_not_string(_) for _ in args)
+    g0 = np.array([float(_) for _ in g0])
+    state = -1
+
+    while i < max_iter:
+        f0, f1 = f(g0, *(*float_args, *pre_args))
+        f0 = np.array(f0)[:, np.newaxis]
+        f1 = np.array(f1)
+
+        i += 1
+        g1 = (g0 - np.matmul(np.linalg.inv(f1), f0)[:, 0])
+        if all(abs(_) < func_tol for _ in f0[:, 0]):
+            state = 2
+            break
+        elif all(abs(g1[_] - g0[_]) < conv_tol for _ in range(n)):
+            state = 1
+            break
+        g0 = g1
+
+    if i == max_iter:
+        if raise_on_fail:
+            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_root' algorithm'.")
+        else:
+            return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
+
+    # # Final iteration method to preserve AD
+    # f0, f1 = f(g1, *(*args, *final_args))
+    # i += 1
+    # g1 = g1 - f0 / f1
+    return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_multi_root")
 
 
 STATE_MAP = {

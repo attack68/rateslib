@@ -39,7 +39,16 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.fx_volatility import FXDeltaVolSmile, _newton, _black76, _d_min, _d_plus
+from rateslib.fx_volatility import (
+    FXDeltaVolSmile,
+    _newton,
+    _black76,
+    _d_min,
+    _d_plus,
+    _delta_type_constants,
+    _d_plus_min_u,
+)
+from rateslib.splines import _interpolate
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -52,7 +61,7 @@ from rateslib.dual import (
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates
-
+from rateslib.solver import newton_multi_root
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2970,6 +2979,69 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         root_solver = _newton(root, root_deriv, 0.5)
         return root_solver[0]
+
+    def _strike_and_index_from_delta(
+        self,
+        delta,
+        delta_type,
+        vol,
+        w_deli,
+        w_spot,
+        f,
+        t_e,
+    ):
+        if not isinstance(vol, FXDeltaVolSmile):
+            raise NotImplementedError("Use this method for Vol Smiles not constant vol")
+        z_w = w_deli / w_spot
+        def root(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, ad):
+            u, delta_idx = g[0], g[1]
+
+            eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+            eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+            dz_u_0_du = 0.5 - eta_0
+            dz_u_1_du = 0.5 - eta_1
+
+            vol_ = vol[delta_idx] / 100.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            vol_sqrt_t = vol_ * sqrt_t_e
+
+            # Calculate function values
+            d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+            _phi0 = dual_norm_cdf(phi * d0)
+            f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
+
+            d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+            _phi1 = dual_norm_cdf(-d1)
+            f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+
+            # Calculate Jacobian values
+            dvol_ddeltaidx = _interpolate(vol.spline, delta_idx, 1) / 100.0
+            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+            dd_du = -1 / (u * vol_sqrt_t)
+            nd0 = dual_norm_pdf(phi * d0)
+            nd1 = dual_norm_pdf(-d1)
+            lnu = dual_log(u) / (vol_ ** 2 * sqrt_t_e)
+            dd0_ddeltaidx = ( lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+            dd1_ddeltaidx = ( lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+            f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du
+            f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
+            f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
+            f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
+
+            return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
+
+        root_solver = newton_multi_root(
+            root,
+            [1.00, min(abs(delta), 0.99)],
+            args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5),
+            pre_args=(0,),
+            final_args=(1,),
+        )
+        return root_solver["g"][0] * f, root_solver["g"][1]
+
+
 
     # def _strike_from_delta_with_money_vol_smile_adjusted(
     #     self,
