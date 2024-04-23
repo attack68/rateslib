@@ -2519,14 +2519,11 @@ class TestFXOption:
         assert result[1][0] == (1.101 - 1.07) * 20e6
         assert result[1][-1] == 0.0
 
-    @pytest.mark.parametrize("delta_type, smile_type, delta", [
-        # ("forward_pa", "forward", -0.25),
-        # ("forward_pa", "forward", -0.5),
-        # ("forward_pa", "forward", -0.90),
-        # ("forward_pa", "forward", -1.5),
-        ("forward", "forward", -0.5),
-    ])
-    def test_strike_and_delta_idx_multisolve_from_delta(self, fxfo, delta_type, smile_type, delta):
+
+    @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize("delta", [-0.1, -0.35, -0.65, -0.9])
+    def test_strike_and_delta_idx_multisolve_from_delta_put(self, fxfo, delta_type, smile_type, delta):
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2572,3 +2569,52 @@ class TestFXOption:
 
         assert abs(delta -expected) < 1e-8
 
+
+    @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize("delta", [0.1, 0.35, 0.65, 0.9])
+    def test_strike_and_delta_idx_multisolve_from_delta_call(self, fxfo, delta_type, smile_type, delta):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+            delta_type=delta_type,
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type=smile_type,
+        )
+        result = fxo._strike_and_index_from_delta(
+            delta,
+            delta_type,
+            fxvs,
+            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+        )
+
+        fxo.strike = result[0]
+        expected = fxo.analytic_delta(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=fxvs.get_from_strike(
+                result[0],
+                1.0,
+                fxfo.rate("eurusd", dt(2023, 6, 20)),
+                fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+                fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            )[1] / 100.0,
+        )
+
+        assert abs(delta -expected) < 1e-8
