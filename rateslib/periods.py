@@ -2739,9 +2739,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 f, delta, vol, t_e, w_deli, w_spot, v_deli
             )
         else:
-            return self._strike_from_delta_fixed_vol_unadjusted(
-                f, delta, vol, t_e, w_deli, w_spot, v_deli
-            )
+            if "forward" in self.delta_type:
+                z_w = 1.0
+            else:
+                z_w = w_deli / w_spot
+            u = self._moneyness_from_delta_fixed_vol_unadjusted_new(delta, vol * 100.0, t_e, z_w)
+            return u * f
 
     def _strike_from_delta_fixed_vol_unadjusted(
         self,
