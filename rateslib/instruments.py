@@ -8138,7 +8138,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
             try:
-                npv = self.periods[0].npv(curves[1], curves[3], fx, vol=self._pricing["vol"]*100.0)
+                npv = self.periods[0].npv(curves[1], curves[3], fx, vol=self._pricing["vol"])
             except AttributeError:
                 raise ValueError(
                     "`premium` has not been configured for the specified FXOption.\nThis is "
@@ -8171,9 +8171,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
         if metric == "vol":
-            return vol
+            return self._pricing["vol"]
         else:
-            return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"] * 100.0)
+            return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
 
     def npv(
         self,

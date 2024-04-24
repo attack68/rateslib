@@ -2080,6 +2080,25 @@ class TestFXOption:
         expected = (1.102-1.101) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
         assert abs(result - expected) < 1e-9
 
+        # valuable put
+        fxo = FXPutPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 3, 15),
+            delivery=dt(2023, 3, 17),
+            payment=dt(2023, 3, 17),
+            strike=1.101,
+            notional=20e6,
+            option_fixing=1.100,
+        )
+        result = fxo.npv(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9,
+        )
+        expected = (1.101-1.100) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
+        assert abs(result - expected) < 1e-9
+
         # worthless option
         fxo = FXCallPeriod(
             pair="eurusd",
@@ -2094,10 +2113,28 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         expected = 0.0
         assert abs(result - expected) < 1e-9
+
+    def test_rate_metric_raises(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        with pytest.raises(ValueError, match="`metric` must be in"):
+            fxo.rate(
+                fxfo.curve("eur", "usd"),
+                fxfo.curve("usd", "usd"),
+                fx=fxfo,
+                vol=8.9,
+                metric="bad"
+            )
 
     def test_premium_points(self, fxfo):
         fxo = FXCallPeriod(

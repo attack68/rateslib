@@ -779,9 +779,9 @@ def _get_pricing_params_from_delta_vol(
     w_spot: Union[DualTypes, NoInput] = NoInput(0),
 ):
     if isinstance(vol, FXDeltaVolSmile):
-        vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot) / 100.0
+        vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot)
     else:  # vol is DualTypes
-        vol_ = vol / 100.0
+        vol_ = vol
 
     if "_pa" in delta_type:
         return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
@@ -808,7 +808,7 @@ def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
     else:
         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta)
 
-    _["vol_sqrt_t"] = vol * t_e ** 0.5
+    _["vol_sqrt_t"] = vol * t_e ** 0.5 / 100.0
     _["d_min"] = _["d_plus"] - _["vol_sqrt_t"]
     _["ln_u"] = (0.5 * _["vol_sqrt_t"] - _["d_plus"]) * _["vol_sqrt_t"]
     _["u"] = dual_exp(_["ln_u"])

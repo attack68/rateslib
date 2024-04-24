@@ -3392,10 +3392,18 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
+        # TODO Although this code works, it is not DRY and is bog standard, embarassing coding.
         spot = fx.pairs_settlement[self.pair]
         f = fx.rate(self.pair, self.delivery)
 
-        vs = vol * t_e**0.5 / 100.0
+        if isinstance(vol, FXDeltaVolSmile):
+            _, vol_, _ = vol.get_from_strike(
+                k, self.phi, f, disc_curve[self.delivery], disc_curve[spot]
+            )
+        else:
+            vol_ = vol
+
+        vs = vol_ * t_e**0.5 / 100.0
         d1 = dual_log(f / k) / vs + 0.5 * vs
         _ = self.phi * dual_norm_cdf(self.phi * d1)
         if delta_type == "forward_pa":
@@ -3422,7 +3430,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _payoff_at_expiry(self, range: Union[list[float], NoInput] = NoInput(0)):
         if self.strike is NoInput.blank:
-            raise ValueError("Cannot return payoff for option without a specified `strike`.")
+            raise ValueError("Cannot return payoff for option without a specified `strike`.") # pragma: no cover
         if range is NoInput.blank:
             x = np.linspace(0, 20, 1001)
         else:
