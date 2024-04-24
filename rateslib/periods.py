@@ -2982,65 +2982,114 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _strike_and_index_from_delta(
         self,
-        delta,
-        delta_type,
-        vol,
+        delta: float,
+        delta_type: str,
+        vol: Union[DualTypes, FXDeltaVolSmile],
         w_deli,
         w_spot,
         f,
         t_e,
     ):
         if not isinstance(vol, FXDeltaVolSmile):
-            raise NotImplementedError("Use this method for Vol Smiles not constant vol")
+            vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
+        else:
+            vol_delta_type = vol.delta_type
+
         z_w = w_deli / w_spot
-        def root(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, ad):
-            u, delta_idx = g[0], g[1]
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
+        eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
-            eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
-            eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
-            dz_u_0_du = 0.5 - eta_0
-            dz_u_1_du = 0.5 - eta_1
+        if eta_0 == eta_1 and eta_0 == 0.5:  # then delta types are both unadjusted, used closed form.
+            if isinstance(vol, FXDeltaVolSmile):
+                delta_idx = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
+                vol = vol[delta_idx]
+            else:
+                delta_idx = None
+            u = self._moneyness_from_delta_fixed_vol_unadjusted_new(delta, vol, t_e, z_w_0)
+        else:
+            def root(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, ad):
+                u, delta_idx = g[0], g[1]
 
-            vol_ = vol[delta_idx] / 100.0
-            vol_ = float(vol_) if ad == 0 else vol_
-            vol_sqrt_t = vol_ * sqrt_t_e
+                eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+                eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+                dz_u_0_du = 0.5 - eta_0
+                dz_u_1_du = 0.5 - eta_1
 
-            # Calculate function values
-            d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
-            _phi0 = dual_norm_cdf(phi * d0)
-            f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
+                vol_ = vol[delta_idx] / 100.0
+                vol_ = float(vol_) if ad == 0 else vol_
+                vol_sqrt_t = vol_ * sqrt_t_e
 
-            d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
-            _phi1 = dual_norm_cdf(-d1)
-            f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+                # Calculate function values
+                d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+                _phi0 = dual_norm_cdf(phi * d0)
+                f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
 
-            # Calculate Jacobian values
-            dvol_ddeltaidx = _interpolate(vol.spline, delta_idx, 1) / 100.0
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+                d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+                _phi1 = dual_norm_cdf(-d1)
+                f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
 
-            dd_du = -1 / (u * vol_sqrt_t)
-            nd0 = dual_norm_pdf(phi * d0)
-            nd1 = dual_norm_pdf(-d1)
-            lnu = dual_log(u) / (vol_ ** 2 * sqrt_t_e)
-            dd0_ddeltaidx = ( lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
-            dd1_ddeltaidx = ( lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+                # Calculate Jacobian values
+                dvol_ddeltaidx = _interpolate(vol.spline, delta_idx, 1) / 100.0
+                dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
-            f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du
-            f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
-            f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
-            f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
+                dd_du = -1 / (u * vol_sqrt_t)
+                nd0 = dual_norm_pdf(phi * d0)
+                nd1 = dual_norm_pdf(-d1)
+                lnu = dual_log(u) / (vol_ ** 2 * sqrt_t_e)
+                dd0_ddeltaidx = ( lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+                dd1_ddeltaidx = ( lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
 
-            return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
+                f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du
+                f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
+                f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
+                f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
 
-        root_solver = newton_multi_root(
-            root,
-            [1.00, min(abs(delta), 0.99)],
-            args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5),
-            pre_args=(0,),
-            final_args=(1,),
-        )
-        return root_solver["g"][0] * f, root_solver["g"][1]
+                return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
+            root_solver = newton_multi_root(
+                root,
+                [1.00, min(abs(delta), 0.99)],
+                args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5),
+                pre_args=(0,),
+                final_args=(1,),
+            )
+            u, delta_idx = root_solver["g"][0], root_solver["g"][1]
+
+        return u * f, delta_idx
+
+    def _moneyness_from_delta_fixed_vol_unadjusted_new(
+        self,
+        delta: float,
+        vol: DualTypes,
+        t_e: DualTypes,
+        z_w: DualTypes,
+    ):
+        """
+        Return `u` given a premium unadjusted delta, of either 'spot' or 'forward' type.
+
+        This function preserves AD.
+
+        Parameters
+        -----------
+        delta: float
+            The input unadjusted delta for which to determine the moneyness for.
+        vol: float, Dual, Dual2
+            The volatility (in %, e.g. 10.0) to use in calculations.
+        t_e: float, Dual, Dual2
+            The time to expiry.
+        z_w: float, Dual, Dual2
+            The scalar for 'spot' or 'forward' delta types.
+            If 'forward', this should equal 1.0.
+            If 'spot', this should be :math:`w_deli / w_spot`.
+
+        Returns
+        -------
+        float, Dual or Dual2
+        """
+        vol_sqrt_t = vol * t_e**0.5 / 100.0
+        _ = dual_inv_norm_cdf(self.phi * delta / z_w)
+        _ = dual_exp(vol_sqrt_t * (0.5 * vol_sqrt_t - self.phi * _))
+        return _
 
 
     # def _strike_from_delta_with_money_vol_smile_adjusted(
