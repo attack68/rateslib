@@ -781,7 +781,7 @@ def _get_pricing_params_from_delta_vol(
     if isinstance(vol, FXDeltaVolSmile):
         vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot) / 100.0
     else:  # vol is DualTypes
-        vol_ = vol
+        vol_ = vol / 100.0
 
     if "_pa" in delta_type:
         return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(

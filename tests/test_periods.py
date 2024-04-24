@@ -1956,7 +1956,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089
+            vol=8.9
         )
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -1969,7 +1969,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         expected = exp_dl
         assert abs(result - expected) < 1e-6
@@ -1995,7 +1995,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -2008,7 +2008,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
             premium=exp_prem
         )
         expected = exp_dl
@@ -2038,7 +2038,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         result /= fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 140451.5273  # 140500 USD premium according to Tullets calcs (may be rounded)
@@ -2057,7 +2057,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         assert result == 0.0
 
@@ -2075,7 +2075,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         expected = (1.102-1.101) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
         assert abs(result - expected) < 1e-9
@@ -2112,7 +2112,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         expected = 70.225764  # 70.25 premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
@@ -2132,8 +2132,8 @@ class TestFXOption:
             fx=fxfo,
             premium=70.25,
         )
-        expected = 0.0890141775  # Tullets have trade confo at 8.9%
-        assert abs(expected - result) < 1e-9
+        expected = 8.90141775  # Tullets have trade confo at 8.9%
+        assert abs(expected - result) < 1e-8
 
         premium_pc = 0.007025 / fxfo.rate("eurusd", fxo.delivery) * 100.0
         result = fxo.implied_vol(
@@ -2143,7 +2143,7 @@ class TestFXOption:
             premium=premium_pc,
             metric="percent",
         )
-        assert abs(expected - result) < 1e-9
+        assert abs(expected - result) < 1e-8
 
     def test_premium_put(self, fxfo):
         fxo = FXPutPeriod(
@@ -2158,7 +2158,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
-            vol=0.1015
+            vol=10.15
         )
         expected = 83.836959  # Tullets trade confo has 83.75
         assert abs(result - expected) < 1e-6
@@ -2176,7 +2176,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
-            vol=0.1015
+            vol=10.15
         ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 167673.917818  # Tullets trade confo has 167 500
         assert abs(result - expected) < 1e-6
@@ -2228,7 +2228,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         assert abs(result2 - delta) < 1e-8
 
@@ -2309,7 +2309,7 @@ class TestFXOption:
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_ / 100.0,
+            vol=vol_,
         )
 
         assert abs(delta -expected) < 1e-8
@@ -2360,6 +2360,6 @@ class TestFXOption:
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_ / 100.0,
+            vol=vol_,
         )
         assert abs(delta -expected) < 1e-8

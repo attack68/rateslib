@@ -2484,7 +2484,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
                 v1=None,  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
-                vol=vol,
+                vol=vol / 100.0,
                 phi=self.phi,  # controls calls or put price
             )
             value *= self.notional
@@ -2587,14 +2587,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float
         """
-        vol_ = Dual(0.25, ["vol"], [])
+        vol_ = Dual(25.0, ["vol"], [])
         for i in range(20):
             f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
             if abs(f_) < 1e-10:
                 break
             vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
 
-        return float(vol_)  # return a float TODO check whether Dual can be returned. Use Generic Newton
+        return float(vol_) # return a float TODO check whether Dual can be returned. Use Generic Newton
 
     def analytic_delta(
         self,
@@ -3395,8 +3395,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         spot = fx.pairs_settlement[self.pair]
         f = fx.rate(self.pair, self.delivery)
 
-        vs = vol * t_e**0.5
-        d1 = (dual_log(f / k) + 0.5 * vol**2 * t_e) / vs
+        vs = vol * t_e**0.5 / 100.0
+        d1 = dual_log(f / k) / vs + 0.5 * vs
         _ = self.phi * dual_norm_cdf(self.phi * d1)
         if delta_type == "forward_pa":
             if self.payment == self.delivery:

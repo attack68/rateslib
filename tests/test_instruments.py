@@ -3052,7 +3052,7 @@ class TestFXOptions:
         result = fxc.rate(
             curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             fx=fxfo,
-            vol=0.089,
+            vol=8.9,
         )
         assert abs(result - exp_pts) <1e-3
 
@@ -3067,7 +3067,7 @@ class TestFXOptions:
             strike=1.101,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=0.089)
+        result = fxo.npv(curves, fx=fxfo, vol=8.9)
         expected = 0.0
         assert abs(result - expected) < 1e-6
 
@@ -3082,7 +3082,7 @@ class TestFXOptions:
             strike=1.101,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=0.089)
+        result = fxo.rate(curves, fx=fxfo, vol=8.9)
         expected = 70.225764
         assert abs(result - expected) < 1e-6
 
@@ -3103,7 +3103,7 @@ class TestFXOptions:
             premium_ccy=ccy,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=0.089)
+        result = fxo.rate(curves, fx=fxfo, vol=8.9)
         expected = exp_rate
         assert abs(result - expected) < 1e-6
         assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
@@ -3156,7 +3156,7 @@ class TestFXOptions:
             delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=0.089)
+        result = fxo.rate(curves, fx=fxfo, vol=8.9)
         expected = 70.180131
         assert abs(result - expected) < 1e-6
 
@@ -3197,7 +3197,7 @@ class TestFXOptions:
             delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=0.1015)
+        result = fxo.rate(curves, fx=fxfo, vol=10.15)
         expected = 83.975596
         assert abs(result - expected) < 1e-6
 
@@ -3216,7 +3216,7 @@ class TestFXOptions:
             delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=[0.1015, 0.089], metric=metric)
+        result = fxo.rate(curves, fx=fxfo, vol=[10.15, 8.9], metric=metric)
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize("prem, prem_ccy, local, exp", [
@@ -3239,7 +3239,7 @@ class TestFXOptions:
             premium_ccy=prem_ccy,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=[0.1015, 0.089], local=local)
+        result = fxo.npv(curves, fx=fxfo, vol=[10.15, 8.9], local=local)
         expected = exp
         if not local:
             assert abs(result - expected) < 1e-6
@@ -3258,7 +3258,7 @@ class TestFXOptions:
             strike=[1.033, 1.101],
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.plot_payoff([1.03, 1.12], curves, fx=fxfo, vol=[0.1015, 0.089])
+        result = fxo.plot_payoff([1.03, 1.12], curves, fx=fxfo, vol=[10.15, 8.9])
         x, y = result[2][0]._x, result[2][0]._y
         assert x[0] == 1.03
         assert x[1000] == 1.12
@@ -3306,9 +3306,9 @@ class TestFXOptions:
             delta_type=dlty
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        assert abs(fxc.delta_percent(curves, fx=fxfo, vol=0.10) - 0.5) < 1e-14
+        assert abs(fxc.delta_percent(curves, fx=fxfo, vol=10.0) - 0.5) < 1e-14
         assert abs(fxc.periods[0].strike - 1.068856) < 1e-6
-        assert abs(fxp.delta_percent(curves, fx=fxfo, vol=0.10) + 0.5) < 1e-14
+        assert abs(fxp.delta_percent(curves, fx=fxfo, vol=10.0) + 0.5) < 1e-14
         assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
 
     @pytest.mark.parametrize("dlty, strike, ccy, exp", [
@@ -3333,7 +3333,7 @@ class TestFXOptions:
             delta_type=dlty
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=0.100)
+        result = fxo.npv(curves, fx=fxfo, vol=10.0)
         call_k = fxo.periods[0].periods[0].strike
         put_k = fxo.periods[1].periods[0].strike
         assert abs(call_k - exp[0]) < 1e-7
@@ -3355,5 +3355,5 @@ class TestFXOptions:
             delta_type=dlty
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=0.100, metric="vol")
+        result = fxo.rate(curves, fx=fxfo, vol=10.0, metric="vol")
         assert abs(result - expected) < 1e-8
