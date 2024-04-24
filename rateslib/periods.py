@@ -2800,8 +2800,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             d_min = _d_min(k, float(f), vol_sqrt_t_e)
             return delta - scalar * k / float(f) *self.phi * dual_norm_cdf(self.phi * d_min)
 
-        unadjusted_k = self._strike_from_delta_fixed_vol_unadjusted(
-            float(f), delta, float(vol), float(t_e), float(w_deli), float(w_spot), float(v_deli)
+        unadjusted_k = float(f) * self._moneyness_from_delta_fixed_vol_unadjusted_new(
+            delta, float(vol) * 100, float(t_e), float(scalar)
         )
         k_min, k_max = self._get_interval_for_premium_adjusted_delta_fixed_vol(
             unadjusted_k, 0.5 * vol_sqd_t_e, vol_sqrt_t_e, float(f)
