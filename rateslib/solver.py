@@ -1941,6 +1941,7 @@ def _float_if_not_string(x):
         return float(x)
     return x
 
+
 def newton_root(
     f,
     g0,

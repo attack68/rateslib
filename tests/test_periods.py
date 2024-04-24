@@ -2202,15 +2202,15 @@ class TestFXOption:
             notional=20e6,
             delta_type=dlty,
         )
-        result = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
+        result = fxo._strike_and_index_from_delta(
             delta,
-            0.089,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            dlty,
+            8.9,
             fxfo.curve("eur", "usd")[fxo.delivery],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            fxfo.curve("usd", "usd")[fxo.delivery]
-        )
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+        )[0]
         expected = exp_k
         assert abs(result - expected) < 1e-8
 
@@ -2231,263 +2231,6 @@ class TestFXOption:
             vol=0.089,
         )
         assert abs(result2 - delta) < 1e-8
-
-    # @pytest.mark.parametrize("dlty, delta, exp_k", [
-    #     ("forward", 0.25, 1.105206944),
-    #     ("spot", 0.25, 1.10492668),
-    #     ("forward_pa", 0.25, 1.1039239905),
-    #     ("spot_pa", 0.25, 1.10363748422),
-    # ])
-    # def test_strike_from_delta_with_money_vol_smile(self, fxfo, dlty, delta, exp_k):
-    #     fxo = FXCallPeriod(
-    #         pair="eurusd",
-    #         expiry=dt(2023, 6, 16),
-    #         delivery=dt(2023, 6, 20),
-    #         payment=dt(2023, 6, 20),
-    #         strike=1.101,
-    #         notional=20e6,
-    #         delta_type=dlty,
-    #     )
-    #     fxvs = FXMoneyVolSmile(
-    #         nodes={
-    #             0.8: 15.0,
-    #             0.9: 11.5,
-    #             1.0: 10.0,
-    #             1.1: 10.2,
-    #             1.2: 12.0,
-    #         }
-    #     )
-    #     result = fxo._strike_from_delta_with_smile(
-    #         fxfo.rate("eurusd", dt(2023, 6, 20)),
-    #         delta,
-    #         fxvs,
-    #         fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-    #         fxfo.curve("eur", "usd")[fxo.delivery],
-    #         fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-    #         fxfo.curve("usd", "usd")[fxo.delivery]
-    #     )
-    #     expected = exp_k
-    #     assert abs(result - expected) < 1e-8
-    #
-    #     vol_at_result = fxvs[float(result) / fxfo.rate("eurusd", dt(2023, 6, 20))]
-    #     std_result = fxo._strike_from_delta_fixed_vol(
-    #         fxfo.rate("eurusd", dt(2023, 6, 20)),
-    #         delta,
-    #         float(vol_at_result) / 100,
-    #         fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-    #         fxfo.curve("eur", "usd")[fxo.delivery],
-    #         fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-    #         fxfo.curve("usd", "usd")[fxo.delivery]
-    #     )
-    #     assert abs(std_result - result) < 1e-7
-
-    @pytest.mark.parametrize("dlty, delta", [
-        ("forward", 0.25),
-        ("spot", 0.25),
-        ("forward_pa", 0.25),
-        ("spot_pa", 0.25),
-    ])
-    def test_call_strike_from_delta_with_delta_vol_smile(self, fxfo, dlty, delta):
-        fxo = FXCallPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=1.101,
-            notional=20e6,
-            delta_type=dlty,
-        )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 8.9,
-                0.5: 8.7,
-                0.75: 10.15,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type=dlty,
-        )
-        result = fxo._strike_from_delta_with_delta_vol_smile(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            delta,
-            fxvs,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("eur", "usd")[fxo.delivery],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            fxfo.curve("usd", "usd")[fxo.delivery]
-        )
-
-        expected = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            delta,
-            0.089,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("eur", "usd")[fxo.delivery],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            fxfo.curve("usd", "usd")[fxo.delivery]
-        )
-        # expected = exp_k
-        assert abs(result - expected) < 1e-8
-
-    @pytest.mark.parametrize("dlty, delta, vol", [
-        ("forward", -0.25, 0.1015),
-        ("spot", -0.25, 0.10095688712860554),  # Puts have a different parity relationship
-        ("forward_pa", -0.25, 0.1015),
-        ("spot_pa", -0.25, 0.10095688712860554),  # Puts have a different partity relationship
-    ])
-    def test_put_strike_from_delta_with_delta_vol_smile(self, fxfo, dlty, delta, vol):
-        fxo = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=1.033,
-            notional=20e6,
-            delta_type=dlty,
-        )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 8.9,
-                0.5: 8.7,
-                0.75: 10.15,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type=dlty,
-        )
-        result = fxo._strike_from_delta_with_delta_vol_smile(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            delta,
-            fxvs,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("eur", "usd")[fxo.delivery],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            fxfo.curve("usd", "usd")[fxo.delivery]
-        )
-        expected = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            delta,
-            vol,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("eur", "usd")[fxo.delivery],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            fxfo.curve("usd", "usd")[fxo.delivery]
-        )
-        # expected = exp_k
-        assert abs(result - expected) < 1e-8
-
-    @pytest.mark.parametrize("dlty, vol_dlty, k, expected", [
-        # ("forward", "forward", 1.05, 0.6461909492),
-        # ("spot", "spot", 1.05, 0.6423281631914),
-        # ("forward", "spot", 1.05, 0.6423281631914),
-        # ("spot", "forward", 1.05, 0.6461909492),
-        ("forward", "forward", 1.20, 0.6461909492),  # high strike
-        ("spot", "spot", 1.20, 0.6423281631914),  # high strike
-    ])
-    def test_call_delta_from_strike_with_delta_vol_smile(self, fxfo, dlty, vol_dlty, k, expected):
-        fxo = FXCallPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=k,
-            notional=20e6,
-            delta_type=dlty,
-        )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 8.9,
-                0.5: 8.7,
-                0.75: 10.15,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type=vol_dlty,
-        )
-        result = fxo._delta_from_strike_with_delta_vol_smile_unadjusted(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            k,
-            fxvs,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            fxfo.curve("eur", "usd")[fxo.delivery],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            fxfo.curve("usd", "usd")[fxo.delivery]
-        )
-        assert abs(result-expected) < 1e-9
-
-    def test_strike_from_forward_delta_put(self, fxfo):
-        fxo = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=1.033,
-            notional=20e6,
-            delta_type="forward",
-        )
-        result = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            -0.25,
-            0.1015,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0])
-        )
-        expected = 1.0327823385682198
-        assert abs(result - expected) < 1e-9
-
-    def test_strike_from_spot_delta(self, fxfo):
-        fxo = FXCallPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=1.101,
-            notional=20e6,
-            delta_type="spot",
-        )
-        result = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            0.25,
-            0.089,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-        )
-        expected = 1.1010192011340847
-        assert abs(result - expected) < 1e-9
-
-        # https://quant.stackexchange.com/a/77802/29443
-        result = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            0.250124,
-            0.089,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-        )
-        expected = 1.101
-        assert abs(result - expected) < 1e-6
-
-    def test_strike_from_spot_delta_put(self, fxfo):
-        fxo = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=1.033,
-            notional=20e6,
-            delta_type="spot",
-        )
-        result = fxo._strike_from_delta_fixed_vol(
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            -0.25,
-            0.1015,
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            v_deli=NoInput(0)
-        )
-        expected = 1.0330517323059478
-        assert abs(result - expected) < 1e-9
 
     def test_payoff_at_expiry(self, fxfo):
         fxo = FXCallPeriod(
@@ -2519,11 +2262,11 @@ class TestFXOption:
         assert result[1][0] == (1.101 - 1.07) * 20e6
         assert result[1][-1] == 0.0
 
-
     @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
     @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
     @pytest.mark.parametrize("delta", [-0.1, -0.35, -0.65, -0.9])
-    def test_strike_and_delta_idx_multisolve_from_delta_put(self, fxfo, delta_type, smile_type, delta):
+    @pytest.mark.parametrize("vol_smile", [True, False])
+    def test_strike_and_delta_idx_multisolve_from_delta_put(self, fxfo, delta_type, smile_type, delta, vol_smile):
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2533,20 +2276,24 @@ class TestFXOption:
             notional=20e6,
             delta_type=delta_type,
         )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 8.9,
-                0.5: 8.7,
-                0.75: 10.15,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type=smile_type,
-        )
+        if vol_smile:
+            vol_ = FXDeltaVolSmile(
+                nodes={
+                    0.25: 8.9,
+                    0.5: 8.7,
+                    0.75: 10.15,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type=smile_type,
+            )
+        else:
+            vol_ = 9.00
+
         result = fxo._strike_and_index_from_delta(
             delta,
             delta_type,
-            fxvs,
+            vol_,
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2554,17 +2301,15 @@ class TestFXOption:
         )
 
         fxo.strike = result[0]
+
+        if vol_smile:
+            vol_ = vol_[result[1]]
+
         expected = fxo.analytic_delta(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=fxvs.get_from_strike(
-                result[0],
-                -1.0,
-                fxfo.rate("eurusd", dt(2023, 6, 20)),
-                fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-                fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            )[1] / 100.0,
+            vol=vol_ / 100.0,
         )
 
         assert abs(delta -expected) < 1e-8
@@ -2573,7 +2318,8 @@ class TestFXOption:
     @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
     @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
     @pytest.mark.parametrize("delta", [0.1, 0.35, 0.65, 0.9])
-    def test_strike_and_delta_idx_multisolve_from_delta_call(self, fxfo, delta_type, smile_type, delta):
+    @pytest.mark.parametrize("vol_smile", [True, False])
+    def test_strike_and_delta_idx_multisolve_from_delta_call(self, fxfo, delta_type, smile_type, delta, vol_smile):
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2583,20 +2329,23 @@ class TestFXOption:
             notional=20e6,
             delta_type=delta_type,
         )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 8.9,
-                0.5: 8.7,
-                0.75: 10.15,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type=smile_type,
-        )
+        if vol_smile:
+            vol_ = FXDeltaVolSmile(
+                nodes={
+                    0.25: 8.9,
+                    0.5: 8.7,
+                    0.75: 10.15,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type=smile_type,
+            )
+        else:
+            vol_ = 9.00
         result = fxo._strike_and_index_from_delta(
             delta,
             delta_type,
-            fxvs,
+            vol_,
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2604,17 +2353,13 @@ class TestFXOption:
         )
 
         fxo.strike = result[0]
+        if vol_smile:
+            vol_ = vol_[result[1]]
+
         expected = fxo.analytic_delta(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=fxvs.get_from_strike(
-                result[0],
-                1.0,
-                fxfo.rate("eurusd", dt(2023, 6, 20)),
-                fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-                fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            )[1] / 100.0,
+            vol=vol_ / 100.0,
         )
-
         assert abs(delta -expected) < 1e-8
