@@ -3077,13 +3077,41 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             return f0, f1
 
-        root_solver = newton_root(
-            root1d,
-            1.00,
-            args=(delta, delta_type, vol_delta_type, self.phi, t_e ** 0.5, z_w),
-            pre_args=(0,),
-            final_args=(1,),
+        if isinstance(vol, FXDeltaVolSmile):
+            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        else:
+            avg_vol = vol
+        g01 = delta if self.phi > 0 else max(delta, -0.75)
+        g00 = self._moneyness_from_delta_closed_form(
+            g01,
+            avg_vol,
+            t_e,
+            1.0
         )
+
+        msg = (
+            f"If the delta, {delta:.1f}, is premium adjusted for a call option is it infeasible?"
+            if self.phi > 0 else ""
+        )
+        try:
+            root_solver = newton_root(
+                root1d,
+                g00,
+                args=(delta, delta_type, vol_delta_type, self.phi, t_e ** 0.5, z_w),
+                pre_args=(0,),
+                final_args=(1,),
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Newton root solver failed, with error: {e.__str__()}.\n{msg}"
+            )
+
+        if root_solver["state"] == -1:
+            raise ValueError(
+                f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}"
+            )
+
+
         u = root_solver["g"]
         return u
 
@@ -3143,13 +3171,28 @@ class FXOptionPeriod(metaclass=ABCMeta):
             1.0
         )
 
-        root_solver = newton_multi_root(
-            root2d,
-            [g00, abs(g01)],
-            args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5, z_w),
-            pre_args=(0,),
-            final_args=(1,),
+        msg = (
+            f"If the delta, {delta:.1f}, is premium adjusted for a call option is it infeasible?"
+            if self.phi > 0 else ""
         )
+        try:
+            root_solver = newton_multi_root(
+                root2d,
+                [g00, abs(g01)],
+                args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5, z_w),
+                pre_args=(0,),
+                final_args=(1,),
+                raise_on_fail=False,
+            )
+        except ValueError as e:
+            raise ValueError(
+                f"Newton root solver failed, with error: {e.__str__()}.\n{msg}"
+            )
+
+        if root_solver["state"] == -1:
+            raise ValueError(
+                f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}"
+            )
         u, delta_idx = root_solver["g"][0], root_solver["g"][1]
         return u, delta_idx
 
@@ -3597,3 +3640,11 @@ def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
         steps_taken += 1
 
     return x1, steps_taken
+
+
+# def _validate_broad_delta_bounds(phi, delta, delta_type):
+#     if phi < 0 and "_pa" in delta_type:
+#         assert delta <= 0.0
+#     elif phi < 0:
+#         assert -1.0 <= delta <= 0.0
+#     elif

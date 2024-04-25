@@ -2361,9 +2361,11 @@ class TestFXOption:
 
     @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
     @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
-    @pytest.mark.parametrize("delta", [-0.1, -0.35, -0.65, -0.9])
+    @pytest.mark.parametrize("delta", [-0.1, -0.25, -0.75, -0.9, -1.5])
     @pytest.mark.parametrize("vol_smile", [True, False])
     def test_strike_and_delta_idx_multisolve_from_delta_put(self, fxfo, delta_type, smile_type, delta, vol_smile):
+        if delta < -1.0 and "_pa" not in delta_type:
+            pytest.skip("Put delta cannot be below -1.0 in unadjusted cases.")
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2414,9 +2416,11 @@ class TestFXOption:
 
     @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
     @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
-    @pytest.mark.parametrize("delta", [0.1, 0.35, 0.65, 0.9])
+    @pytest.mark.parametrize("delta", [0.1, 0.25, 0.65, 0.9])
     @pytest.mark.parametrize("vol_smile", [True, False])
     def test_strike_and_delta_idx_multisolve_from_delta_call(self, fxfo, delta_type, smile_type, delta, vol_smile):
+        if delta > 0.65 and "_pa" in delta_type:
+            pytest.skip("Premium adjusted call delta cannot be above the peak ~0.7?.")
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2460,3 +2464,42 @@ class TestFXOption:
             vol=vol_,
         )
         assert abs(delta -expected) < 1e-8
+
+
+    @pytest.mark.parametrize("delta_type", ["spot_pa", "forward_pa"])
+    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize("delta", [0.9])
+    @pytest.mark.parametrize("vol_smile", [True, False])
+    def test_strike_and_delta_idx_multisolve_from_delta_call_out_of_bounds(self, fxfo, delta_type, smile_type, delta, vol_smile):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.033,
+            notional=20e6,
+            delta_type=delta_type,
+        )
+        if vol_smile:
+            vol_ = FXDeltaVolSmile(
+                nodes={
+                    0.25: 8.9,
+                    0.5: 8.7,
+                    0.75: 10.15,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type=smile_type,
+            )
+        else:
+            vol_ = 9.00
+        with pytest.raises(ValueError, match="Newton root solver failed"):
+            fxo._strike_and_index_from_delta(
+                delta,
+                delta_type,
+                vol_,
+                fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+                fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+                fxfo.rate("eurusd", dt(2023, 6, 20)),
+                fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+            )
