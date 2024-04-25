@@ -2400,3 +2400,30 @@ class TestFXOption:
             vol=vol_,
         )
         assert abs(delta -expected) < 1e-8
+
+    def test_analytic_delta_pa(self, fxfo):
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.5: 7.5,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2024, 3, 16),
+            delta_type="forward_pa"
+        )
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2024, 3, 16),
+            delivery=dt(2024, 3, 20),
+            payment=dt(2024, 3, 20),
+            strike=0.985,
+            delta_type="forward_pa",
+        )
+        result = fxo.analytic_delta(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fxfo,
+            vol=fxvs,
+        )
+        assert False

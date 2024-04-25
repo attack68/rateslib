@@ -2478,13 +2478,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         else:
             # value is expressed in currency (i.e. pair[3:])
+            vol_ = self._get_vol_maybe_from_smile(vol, fx, disc_curve)
+
             value = _black76(
                 F=fx.rate(self.pair, self.delivery),
                 K=self.strike,
                 t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
                 v1=None,  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
-                vol=vol / 100.0,
+                vol=vol_ / 100.0,
                 phi=self.phi,  # controls calls or put price
             )
             value *= self.notional
@@ -3041,7 +3043,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: DualTypes,
         z_w: DualTypes,
     ):
-        def root(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+        def root1d(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u = g
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -3076,7 +3078,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         root_solver = newton_root(
-            root,
+            root1d,
             1.00,
             args=(delta, delta_type, vol_delta_type, self.phi, t_e ** 0.5, z_w),
             pre_args=(0,),
@@ -3093,7 +3095,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: DualTypes,
         z_w: DualTypes
     ):
-        def root(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+        def root2d(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u, delta_idx = g[0], g[1]
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -3133,7 +3135,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
         root_solver = newton_multi_root(
-            root,
+            root2d,
             [1.00, min(abs(delta), 0.99)],
             args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5, z_w),
             pre_args=(0,),
@@ -3356,6 +3358,24 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     root_solver = _brents(root, u_min, u_max)
     #
     #     return float(root_solver[0] * f)
+
+    def _get_vol_maybe_from_smile(
+        self,
+        vol: FXDeltaVolSmile, 
+        fx: FXForwards,
+        disc_curve: Curve
+    ) -> DualTypes:
+        """Return a volatility for the option from a given Smile."""
+        if isinstance(vol, FXDeltaVolSmile):
+            spot = fx.pairs_settlement[self.pair]
+            f = fx.rate(self.pair, self.delivery)
+            _, vol_, _ = vol.get_from_strike(
+                self.strike, self.phi, f, disc_curve[self.delivery], disc_curve[spot]
+            )
+        else:
+            vol_ = vol
+
+        return vol_
 
     def _delta_percent(
         self,
