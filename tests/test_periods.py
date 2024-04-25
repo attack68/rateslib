@@ -1932,6 +1932,21 @@ def fxfo():
     return fxf
 
 
+@pytest.fixture()
+def fxvs():
+    vol_ = FXDeltaVolSmile(
+        nodes={
+            0.25: 8.9,
+            0.5: 8.7,
+            0.75: 10.15,
+        },
+        eval_date=dt(2023, 3, 16),
+        expiry=dt(2023, 6, 16),
+        delta_type="forward",
+    )
+    return vol_
+
+
 class TestFXOption:
 
     # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
@@ -1942,7 +1957,14 @@ class TestFXOption:
         (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),  # BBG 0.251756
         (dt(2023, 6, 20), 1.10101922, 70.180, 140360.17, "spot", 0.250000),
     ])
-    def test_premium_bbg_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_premium_bbg_usd_pips(self, fxfo, fxvs, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes= {0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type=dlty,
+        )
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -1956,7 +1978,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9
+            vol=vol_
         )
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -1969,7 +1991,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            vol=vol_,
         )
         expected = exp_dl
         assert abs(result - expected) < 1e-6
@@ -1980,7 +2002,14 @@ class TestFXOption:
         (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, "spot_pa", 0.243548),
         (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, "forward_pa", 0.245178),
     ])
-    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type=dlty,
+        )
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -1995,7 +2024,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            vol=vol_,
         )
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -2008,24 +2037,20 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            vol=vol_,
             premium=exp_prem
         )
         expected = exp_dl
         assert abs(result - expected) < 5e-5
 
-    # def test_wystup_pips_premium(self):
-    #     # A Guide to FX Options Quoting Conventions
-    #     fxo = FXCallPeriod(
-    #         pair="eurusd",
-    #         expiry=dt(2023, 6, 16),
-    #         delivery=dt(2023, 6, 20),
-    #         payment=dt(2023, 6, 20),
-    #         strike=1.101,
-    #         notional=20e6,
-    #     )
-
-    def test_npv(self, fxfo):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_npv(self, fxfo, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2038,13 +2063,20 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            vol=vol_,
         )
         result /= fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 140451.5273  # 140500 USD premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-3
 
-    def test_npv_in_past(self, fxfo):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_npv_in_past(self, fxfo, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2022, 6, 16),
@@ -2057,7 +2089,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            vol=vol_,
         )
         assert result == 0.0
 
@@ -2136,7 +2168,14 @@ class TestFXOption:
                 metric="bad"
             )
 
-    def test_premium_points(self, fxfo):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_premium_points(self, fxfo, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2149,7 +2188,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            vol=vol_,
         )
         expected = 70.225764  # 70.25 premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
@@ -2182,7 +2221,14 @@ class TestFXOption:
         )
         assert abs(expected - result) < 1e-8
 
-    def test_premium_put(self, fxfo):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_premium_put(self, fxfo, smile):
+        vol_ = 10.15 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 10.15},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2195,12 +2241,19 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
-            vol=10.15
+            vol=vol_,
         )
         expected = 83.836959  # Tullets trade confo has 83.75
         assert abs(result - expected) < 1e-6
 
-    def test_npv_put(self, fxfo):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_npv_put(self, fxfo, smile):
+        vol_ = 10.15 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 10.15},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
         fxo = FXPutPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2213,7 +2266,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
-            vol=10.15
+            vol=vol_,
         ) / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 167673.917818  # Tullets trade confo has 167 500
         assert abs(result - expected) < 1e-6
@@ -2228,8 +2281,15 @@ class TestFXOption:
         ("spot", 0.251754, 1.10074736155),
         ("spot_pa", 0.8870, 0.97543175409),  # close to peak of premium adjusted delta graph.
     ])
-    def test_strike_from_delta(self, fxfo, dlty, delta, exp_k):
+    @pytest.mark.parametrize("smile", [False, True])
+    def test_strike_from_delta(self, fxfo, dlty, delta, exp_k, smile):
         # https://quant.stackexchange.com/a/77802/29443
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type=dlty,
+        )
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -2242,7 +2302,7 @@ class TestFXOption:
         result = fxo._strike_and_index_from_delta(
             delta,
             dlty,
-            8.9,
+            vol_,
             fxfo.curve("eur", "usd")[fxo.delivery],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
@@ -2265,7 +2325,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
-            vol=8.9,
+            vol=vol_,
         )
         assert abs(result2 - delta) < 1e-8
 
@@ -2400,30 +2460,3 @@ class TestFXOption:
             vol=vol_,
         )
         assert abs(delta -expected) < 1e-8
-
-    def test_analytic_delta_pa(self, fxfo):
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 10.15,
-                0.5: 7.5,
-                0.75: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2024, 3, 16),
-            delta_type="forward_pa"
-        )
-        fxo = FXCallPeriod(
-            pair="eurusd",
-            expiry=dt(2024, 3, 16),
-            delivery=dt(2024, 3, 20),
-            payment=dt(2024, 3, 20),
-            strike=0.985,
-            delta_type="forward_pa",
-        )
-        result = fxo.analytic_delta(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=fxvs,
-        )
-        assert False

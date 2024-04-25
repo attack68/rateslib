@@ -3134,9 +3134,18 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
+        avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        g01 = delta if self.phi > 0 else max(delta, -0.75)
+        g00 = self._moneyness_from_delta_closed_form(
+            g01,
+            avg_vol,
+            t_e,
+            1.0
+        )
+
         root_solver = newton_multi_root(
             root2d,
-            [1.00, min(abs(delta), 0.99)],
+            [g00, abs(g01)],
             args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5, z_w),
             pre_args=(0,),
             final_args=(1,),
@@ -3285,7 +3294,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #         u_min = float(u_max) / 2.0
     #     return (u_min, u_max)
 
-
     # def _strike_from_delta_with_money_vol_smile_unadjusted(
     #     self,
     #     f: DualTypes,
@@ -3358,7 +3366,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     root_solver = _brents(root, u_min, u_max)
     #
     #     return float(root_solver[0] * f)
-
     def _get_vol_maybe_from_smile(
         self,
         vol: FXDeltaVolSmile, 
