@@ -157,7 +157,7 @@ class TestFXDeltaVolSmile:
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
         ad_grad = gradient(pv00[1], [cross[0][0], cross[1][0]], 2)[0, 1]
 
-        assert abs(finite_diff - ad_grad) < 1e-3
+        assert abs(finite_diff - ad_grad) < 1e-9
 
     @pytest.mark.parametrize("delta, type, smile_type, k, phi, exp", [
         (-0.2, "forward", "forward", 1.02, -1, 0.2),

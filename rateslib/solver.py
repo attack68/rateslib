@@ -2014,6 +2014,10 @@ def newton_root(
     f0, f1 = f(g1, *(*args, *final_args))
     i += 1
     g1 = g1 - f0 / f1
+    f0, f1 = f(g1, *(*args, *final_args))
+    i += 1
+    g1 = g1 - f0 / f1
+
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
 
 
@@ -2057,7 +2061,7 @@ def newton_multi_root(
 
     Returns
     -------
-
+    ndarray
     """
     t0 = time()
     i = 0
@@ -2089,10 +2093,19 @@ def newton_multi_root(
         else:
             return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
 
-    # # Final iteration method to preserve AD
-    # f0, f1 = f(g1, *(*args, *final_args))
-    # i += 1
-    # g1 = g1 - f0 / f1
+    # Final iteration method to preserve AD
+    f0, f1 = f(g1, *(*args, *final_args))
+    i += 1
+
+    f1, f0 = np.array(f1), np.array(f0)
+    if any([_ is Dual for _ in f1.flatten()]) or any([_ is Dual for _ in f0]):
+        types = (Dual, Dual)
+    elif any([_ is Dual2 for _ in f1.flatten()]) or any([_ is Dual2 for _ in f0]):
+        types = (Dual2, Dual2)
+    else:
+        types = (float, float)
+    g1 = g0 + dual_solve(f1, f0, allow_lsq=False, types=types)
+
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_multi_root")
 
 

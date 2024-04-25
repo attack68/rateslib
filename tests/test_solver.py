@@ -10,8 +10,8 @@ import context
 from rateslib import default_context
 from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
-from rateslib.solver import Solver, Gradients
-from rateslib.dual import Dual, Dual2
+from rateslib.solver import Solver, Gradients, newton_root, newton_multi_root
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS
 from rateslib.fx import FXRates, FXForwards
 
@@ -1695,3 +1695,28 @@ def test_solver_jacobians_pre():
     S_BA = par_solver2.jacobian(fwd_solver2)
     S_AB = fwd_solver2.jacobian(par_solver2)
     assert np.all(np.isclose(np.eye(4), np.matmul(S_AB.to_numpy(), S_BA.to_numpy())))
+
+
+def test_newton_solver_1dim_dual():
+    def root(x, s):
+        return x**2 - s, 2*x
+
+    x0 = Dual(1.0, ["x"], [])
+    s = Dual(2.0, ["s"], [])
+    result = newton_root(root, x0, args=(s,))
+
+    expected = 0.5 / 2.0**0.5
+    sensitivity = gradient(result["g"], ["s"])[0]
+    assert abs(expected - sensitivity) < 1e-9
+
+def test_newton_solver_1dim_dual2():
+    def root(x, s):
+        return x**2 - s, 2*x
+
+    x0 = Dual2(1.0, ["x"], [], [])
+    s = Dual2(2.0, ["s"], [],[])
+    result = newton_root(root, x0, args=(s,))
+
+    expected = -0.25 * (1 / 2.0**1.5)
+    sensitivity = gradient(result["g"], ["s"], order=2)[0, 0]
+    assert abs(expected - sensitivity) < 1e-9
