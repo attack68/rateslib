@@ -10,7 +10,7 @@ from pandas import DataFrame, MultiIndex, concat, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient, set_order_convert
 from rateslib.curves import CompositeCurve, ProxyCurve, MultiCsaCurve
 from rateslib.fx import FXRates, FXForwards
 
@@ -1951,7 +1951,7 @@ def newton_root(
     args=(),
     pre_args=(),
     final_args=(),
-    raise_on_fail=True
+    raise_on_fail=True,
 ):
     """
     Use the Newton algorithm to determine to root of a function searching **one** variable.
@@ -1979,10 +1979,12 @@ def newton_root(
     final_args: tuple of float, Dual, Dual2
         Additional arguments passed to ``f`` and ``f1`` in the final iteration of the algorithm to capture AD.
         Functions are called with the signature `f(g, *(*args, *final_args))`.
+    ad: int in {0, 1, 2}
+        Whether to return a float, Dual, or Dual2. Should be consistent with input args.
 
     Returns
     -------
-
+    dict
     """
     t0 = time()
     i = 0
@@ -2010,13 +2012,43 @@ def newton_root(
         else:
             return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
 
-    # Final iteration method to preserve AD
+    # # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
-    i += 1
-    g1 = g1 - f0 / f1
-    f0, f1 = f(g1, *(*args, *final_args))
-    i += 1
-    g1 = g1 - f0 / f1
+    if isinstance(f0, (Dual, Dual2)) or isinstance(f1, (Dual, Dual2)):
+        i += 1
+        g1 = g1 - f0 / f1
+    if isinstance(f0, Dual2) or isinstance(f1, Dual2):
+        f0, f1 = f(g1, *(*args, *final_args))
+        i += 1
+        g1 = g1 - f0 / f1
+
+    # # Analytical approach to capture AD sensitivities
+    # f0, f1 = f(g1, *(*args, *final_args))
+    # if isinstance(f0, Dual):
+    #     g1 = Dual.vars_from(f0, float(g1), f0.vars, float(f1) ** -1 * -gradient(f0))
+    # if isinstance(f0, Dual2):
+    #     g1 = Dual2.vars_from(f0, float(g1), f0.vars, float(f1) ** -1 * -gradient(f0), [])
+    #     f02, f1 = f(g1, *(*args, *final_args))
+    #
+    #     #f0_beta = gradient(f0, order=1, vars=f0.vars, keep_manifold=True)
+    #
+    #     f0_gamma = gradient(f02, order=2)
+    #     f0_beta = gradient(f0, order=1)
+    #     # f1 = set_order_convert(g1, tag=[], order=2)
+    #     f1_gamma = gradient(f1, f0.vars, order=2)
+    #     f1_beta = gradient(f1, f0.vars, order=1)
+    #
+    #     g1_beta = -float(f1) ** -1 * f0_beta
+    #     g1_gamma = (
+    #         -float(f1)**-1 * f0_gamma +
+    #         float(f1)**-2 * (
+    #                 np.matmul(f0_beta[:, None], f1_beta[None, :]) +
+    #                 np.matmul(f1_beta[:, None], f0_beta[None, :]) +
+    #                 float(f0) * f1_gamma
+    #         ) -
+    #         2 * float(f1)**-3 * float(f0) * np.matmul(f1_beta[:, None], f1_beta[None, :])
+    #     )
+    #     g1 = Dual2.vars_from(f0, float(g1), f0.vars, g1_beta, g1_gamma.flatten())
 
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
 
@@ -2095,16 +2127,23 @@ def newton_multi_root(
 
     # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
-    i += 1
-
     f1, f0 = np.array(f1), np.array(f0)
-    if any([_ is Dual for _ in f1.flatten()]) or any([_ is Dual for _ in f0]):
-        types = (Dual, Dual)
-    elif any([_ is Dual2 for _ in f1.flatten()]) or any([_ is Dual2 for _ in f0]):
-        types = (Dual2, Dual2)
-    else:
-        types = (float, float)
-    g1 = g0 + dual_solve(f1, f0, allow_lsq=False, types=types)
+
+    # get AD type
+    ad = 0
+    if _is_any_dual(f0) or _is_any_dual(f1):
+        ad, DualType = 1, Dual
+    elif _is_any_dual2(f0) or _is_any_dual2(f1):
+        ad, DualType = 1, Dual2
+
+    if ad > 0:
+        i += 1
+        g1 = g0 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
+    if ad == 2:
+        f0, f1 = f(g1, *(*args, *final_args))
+        f1, f0 = np.array(f1), np.array(f0)
+        i += 1
+        g1 = g0 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
 
     return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_multi_root")
 
@@ -2130,3 +2169,10 @@ def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, 
         "iterations": i,
         "time": time,
     }
+
+
+def _is_any_dual(arr):
+    return any([isinstance(_, Dual) for _ in arr.flatten()])
+
+def _is_any_dual2(arr):
+    return any([isinstance(_, Dual2) for _ in arr.flatten()])
