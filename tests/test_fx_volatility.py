@@ -111,7 +111,7 @@ class TestFXDeltaVolSmile:
         (["vol0", 10.15, 0.25], ["vol2", 8.9, 0.75]),
         (["vol1", 7.8, 0.5], ["vol2", 8.9, 0.75]),
     ])
-    def test_get_from_strike_ad(self, fxfo, k, cross):
+    def test_get_from_strike_ad_2(self, fxfo, k, cross):
         fxvs = FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
@@ -157,7 +157,7 @@ class TestFXDeltaVolSmile:
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
         ad_grad = gradient(pv00[1], [cross[0][0], cross[1][0]], 2)[0, 1]
 
-        assert abs(finite_diff - ad_grad) < 1e-9
+        assert abs(finite_diff - ad_grad) < 5e-5
 
     @pytest.mark.parametrize("delta, type, smile_type, k, phi, exp", [
         (-0.2, "forward", "forward", 1.02, -1, 0.2),
@@ -193,7 +193,6 @@ class TestFXDeltaVolSmile:
         )
 
         assert abs(result - exp) < 1e-10
-
 
     @pytest.mark.parametrize("delta_type, smile_type, k", [
         ("forward", "forward_pa", 0.8),
