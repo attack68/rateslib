@@ -9,7 +9,7 @@ from rateslib.dual import (
     dual_log,
     dual_norm_pdf,
 )
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, _interpolate
+from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
 from rateslib.solver import newton_root
 from uuid import uuid4
@@ -250,7 +250,7 @@ class FXDeltaVolSmile:
             # )
             return self.spline.ppev_single(self.t[0])
         else:
-            return _interpolate(self.spline, item, 0)
+            return evaluate(self.spline, item, 0)
 
     def get(
         self,
@@ -338,7 +338,7 @@ class FXDeltaVolSmile:
             d_plus_min = -dual_log(u) / vol_sqrt_t + eta * vol_sqrt_t
             f0 = delta - z_w * z_u * phi * dual_norm_cdf(phi * d_plus_min)
             # Derivative
-            dvol_ddelta = -1.0 * _interpolate(self.spline, delta_index, 1) / 100.0
+            dvol_ddelta = -1.0 * evaluate(self.spline, delta_index, 1) / 100.0
             dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
             dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + eta * sqrt_t)
             f1 = 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
@@ -440,7 +440,7 @@ class FXDeltaVolSmile:
                 _ = phi_inv - (eta_1 - eta_0) * vol_ * sqrt_t
                 f0 = delta_idx - z_1 * dual_norm_cdf(_)
                 # Derivative
-                dvol_ddelta_idx = _interpolate(self.spline, delta_idx, 1) / 100.0
+                dvol_ddelta_idx = evaluate(self.spline, delta_idx, 1) / 100.0
                 dvol_ddelta_idx = float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
                 f1 = 1 - z_1 * dual_norm_pdf(_) * (eta_1 - eta_0) * sqrt_t * dvol_ddelta_idx
                 return f0, f1

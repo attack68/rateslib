@@ -45,7 +45,7 @@ from rateslib.fx_volatility import (
     _delta_type_constants,
     _d_plus_min_u,
 )
-from rateslib.splines import _interpolate
+from rateslib.splines import evaluate
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -3054,7 +3054,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * z_u_0 * (phi + 1.0) * 0.5)
             if isinstance(vol, FXDeltaVolSmile):
                 vol_ = vol[delta_idx] / 100.0
-                dvol_ddeltaidx = _interpolate(vol.spline, delta_idx, 1) / 100.0
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
@@ -3136,7 +3136,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
 
             # Calculate Jacobian values
-            dvol_ddeltaidx = _interpolate(vol.spline, delta_idx, 1) / 100.0
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
