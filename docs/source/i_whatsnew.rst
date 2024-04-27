@@ -67,6 +67,9 @@ for notes about installation changes.
        and :meth:`~rateslib.splines.ppdnev_single_dual2` have been added to ensure correct
        handling of AD with regards to both x-axis and y-axis variables. See
        :ref:`section on using AD with splines <splines-ad-doc>`
+   * - Splines
+       Added :meth:`~rateslib.splines.evaluate` for automatically handling which ppdnev method
+       to use based on the AD sensitivities of the given `x` value.
    * - Instruments
      - Basic *FX Volatility Instruments* have been added, including
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut` and
