@@ -2010,7 +2010,7 @@ def newton_root(
         if raise_on_fail:
             raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_root' algorithm'.")
         else:
-            return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
+            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_root")
 
     # # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
@@ -2050,7 +2050,7 @@ def newton_root(
     #     )
     #     g1 = Dual2.vars_from(f0, float(g1), f0.vars, g1_beta, g1_gamma.flatten())
 
-    return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_root")
+    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_root")
 
 
 def newton_multi_root(
@@ -2062,7 +2062,7 @@ def newton_multi_root(
     args=(),
     pre_args=(),
     final_args=(),
-    raise_on_fail=True
+    raise_on_fail=True,
 ):
     """
     Use the Newton algorithm to determine to root of a function searching **many** variables.
@@ -2110,7 +2110,7 @@ def newton_multi_root(
         f1 = np.array(f1)
 
         i += 1
-        g1 = (g0 - np.matmul(np.linalg.inv(f1), f0)[:, 0])
+        g1 = g0 - np.matmul(np.linalg.inv(f1), f0)[:, 0]
         if all(abs(_) < func_tol for _ in f0[:, 0]):
             state = 2
             break
@@ -2123,7 +2123,7 @@ def newton_multi_root(
         if raise_on_fail:
             raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_root' algorithm'.")
         else:
-            return _solver_result(-1, i, g1, time()-t0, log=True, algo="newton_root")
+            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_root")
 
     # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
@@ -2145,7 +2145,7 @@ def newton_multi_root(
         i += 1
         g1 = g1 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
 
-    return _solver_result(state, i, g1, time()-t0, log=False, algo="newton_multi_root")
+    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_multi_root")
 
 
 STATE_MAP = {
@@ -2173,6 +2173,7 @@ def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, 
 
 def _is_any_dual(arr):
     return any([isinstance(_, Dual) for _ in arr.flatten()])
+
 
 def _is_any_dual2(arr):
     return any([isinstance(_, Dual2) for _ in arr.flatten()])

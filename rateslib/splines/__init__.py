@@ -31,4 +31,3 @@ def _interpolate(
         return spline.ppdnev_single_dual2(x, m)
     else:
         return spline.ppdnev_single(x, m)
-

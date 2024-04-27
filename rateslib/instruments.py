@@ -271,7 +271,9 @@ def _get_curves_fx_and_base_maybe_from_solver(
 def _get_vol_maybe_from_solver(vol, solver):
     if solver is NoInput.blank:
         if isinstance(vol, str):
-            raise ValueError("String `vol` ids require a `solver` to be mapped. No `solver` provided.")
+            raise ValueError(
+                "String `vol` ids require a `solver` to be mapped. No `solver` provided."
+            )
         return vol
     elif isinstance(vol, (float, Dual, Dual2)):
         return vol
@@ -4314,7 +4316,10 @@ class BondFuture(Sensitivities):
             None,
             self.basket[0].leg1.schedule.calendar,
         )
-        unsorted_nodes = {today: 1.0, **{_.leg1.schedule.termination: 1.0 for _ in self.basket}}
+        unsorted_nodes = {
+            today: 1.0,
+            **{_.leg1.schedule.termination: 1.0 for _ in self.basket},
+        }
         bcurve = Curve(
             nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
             convention="act365f",  # use the most natural DCF without scaling
@@ -8002,7 +8007,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             modifier=modifier,
             delta_type=delta_type,
         )
-        #TODO validate simulateneous premium and strike. Premium cannot be given if strike is delta string.
+        # TODO validate simulateneous premium and strike. Premium cannot be given if strike is delta string.
 
         self.kwargs = _push(spec, self.kwargs)
         # set some defaults if missing
@@ -8032,7 +8037,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.kwargs["delivery"] = self.kwargs["delivery_lag"]
         else:
             self.kwargs["delivery"] = add_tenor(
-                self.kwargs["expiry"], f"{self.kwargs['delivery_lag']}b", "F", calendar, NoInput(0)
+                self.kwargs["expiry"],
+                f"{self.kwargs['delivery_lag']}b",
+                "F",
+                calendar,
+                NoInput(0),
             )
 
         self.kwargs["payment_lag"] = (
@@ -8044,14 +8053,21 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
         else:
             self.kwargs["payment"] = add_tenor(
-                self.kwargs["expiry"], f"{self.kwargs['payment_lag']}b", "F", calendar, NoInput(0)
+                self.kwargs["expiry"],
+                f"{self.kwargs['payment_lag']}b",
+                "F",
+                calendar,
+                NoInput(0),
             )
         if self.kwargs["premium_ccy"] is NoInput.blank:
             self.kwargs["premium_ccy"] = self.kwargs["pair"][3:]
             self.kwargs["metric"] = "pips"
             self.kwargs["delta_adjustment"] = ""
         else:
-            if self.kwargs["premium_ccy"] not in [self.kwargs["pair"][:3], self.kwargs["pair"][3:]]:
+            if self.kwargs["premium_ccy"] not in [
+                self.kwargs["pair"][:3],
+                self.kwargs["pair"][3:],
+            ]:
                 raise ValueError("`premium_ccy` must be one of option currency pair.")
             elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
                 self.kwargs["metric"] = "pips"
@@ -8111,22 +8127,24 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             elif method == "atm_delta":
                 # TODO: this uses constant vol
                 t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
-                self._pricing["k"] = (
-                    fx.rate(self.kwargs["pair"], self.kwargs["delivery"]) * dual_exp(0.5 * vol**2 * t_e)
-                )
+                self._pricing["k"] = fx.rate(
+                    self.kwargs["pair"], self.kwargs["delivery"]
+                ) * dual_exp(0.5 * vol**2 * t_e)
                 raise NotImplementedError("parameters not yet defined")
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
                 self._pricing = _get_pricing_params_from_delta_vol(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
-                    delta_type=self.kwargs["delta_type"]+self.kwargs["delta_adjustment"],
+                    delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                     vol=vol,
                     t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
                     phi=self.periods[0].phi,
                     w_deli=curves[1][self.kwargs["delivery"]],
                     w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
                 )
-                self._pricing["k"] = self._pricing["u"] * fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+                self._pricing["k"] = self._pricing["u"] * fx.rate(
+                    self.kwargs["pair"], self.kwargs["delivery"]
+                )
 
                 # k = self.periods[0]._strike_from_delta_fixed_vol(
                 #     f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
@@ -8172,7 +8190,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: float = NoInput(0),
-        metric: str = "pips_or_%"
+        metric: str = "pips_or_%",
     ):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
@@ -8366,13 +8384,21 @@ class FXPut(FXOption):
 
 
 class FXOptionStrat:
-
-    def __init__(self, options: list[FXOption], rate_weight: list[float], rate_weight_vol: list[float]):
+    def __init__(
+        self,
+        options: list[FXOption],
+        rate_weight: list[float],
+        rate_weight_vol: list[float],
+    ):
         self.periods = options
         self.rate_weight = rate_weight
         self.rate_weight_vol = rate_weight_vol
-        if len(self.periods) != len(self.rate_weight) or len(self.periods) != len(self.rate_weight_vol):
-            raise ValueError("`rate_weight` and `rate_weight_vol` must have same length as `options`.")
+        if len(self.periods) != len(self.rate_weight) or len(self.periods) != len(
+            self.rate_weight_vol
+        ):
+            raise ValueError(
+                "`rate_weight` and `rate_weight_vol` must have same length as `options`."
+            )
 
     def rate(
         self,
@@ -8387,7 +8413,7 @@ class FXOptionStrat:
             vol = [vol] * len(self.periods)
 
         _, weights = 0.0, self.rate_weight if metric != "vol" else self.rate_weight_vol
-        for (option, vol_, weight) in zip(self.periods, vol, weights):
+        for option, vol_, weight in zip(self.periods, vol, weights):
             _ += option.rate(curves, solver, fx, base, vol_, metric) * weight
         return _
 
@@ -8403,7 +8429,10 @@ class FXOptionStrat:
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
-        results = [option.npv(curves, solver, fx, base, local, vol_) for (option, vol_) in zip(self.periods, vol)]
+        results = [
+            option.npv(curves, solver, fx, base, local, vol_)
+            for (option, vol_) in zip(self.periods, vol)
+        ]
 
         if local:
             _ = DataFrame(results).fillna(0.0)

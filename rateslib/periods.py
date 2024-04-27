@@ -3049,7 +3049,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
             dz_u_0_du = 0.5 - eta_0
 
-            delta_idx = (-z_w_1/z_w_0) * (delta - z_w_0 * z_u_0 * (phi + 1.0) * 0.5)
+            delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * z_u_0 * (phi + 1.0) * 0.5)
             if isinstance(vol, FXDeltaVolSmile):
                 vol_ = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = _interpolate(vol.spline, delta_idx, 1) / 100.0
@@ -3068,11 +3068,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # Calculate derivative values
             ddelta_idx_du = dz_u_0_du * z_w_1 * (phi + 1.0) * 0.5
 
-            lnu = dual_log(u) / (vol_ ** 2 * sqrt_t_e)
-            dd_du = -1 / (u * vol_sqrt_t) + dvol_ddeltaidx * (lnu + eta_0 * sqrt_t_e) * ddelta_idx_du
+            lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+            dd_du = (
+                -1 / (u * vol_sqrt_t) + dvol_ddeltaidx * (lnu + eta_0 * sqrt_t_e) * ddelta_idx_du
+            )
 
             nd0 = dual_norm_pdf(phi * d0)
-            f1 = - dz_u_0_du * z_w_0 * phi * _phi0 - z_u_0 * z_w_0 * nd0 * dd_du
+            f1 = -dz_u_0_du * z_w_0 * phi * _phi0 - z_u_0 * z_w_0 * nd0 * dd_du
 
             return f0, f1
 
@@ -3081,46 +3083,34 @@ class FXOptionPeriod(metaclass=ABCMeta):
         else:
             avg_vol = vol
         g01 = delta if self.phi > 0 else max(delta, -0.75)
-        g00 = self._moneyness_from_delta_closed_form(
-            g01,
-            avg_vol,
-            t_e,
-            1.0
-        )
+        g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
         msg = (
             f"If the delta, {delta:.1f}, is premium adjusted for a call option is it infeasible?"
-            if self.phi > 0 else ""
+            if self.phi > 0
+            else ""
         )
         try:
             root_solver = newton_root(
                 root1d,
                 g00,
-                args=(delta, delta_type, vol_delta_type, self.phi, t_e ** 0.5, z_w),
+                args=(delta, delta_type, vol_delta_type, self.phi, t_e**0.5, z_w),
                 pre_args=(0,),
                 final_args=(1,),
             )
         except ValueError as e:
-            raise ValueError(
-                f"Newton root solver failed, with error: {e.__str__()}.\n{msg}"
-            )
+            raise ValueError(f"Newton root solver failed, with error: {e.__str__()}.\n{msg}")
 
         if root_solver["state"] == -1:
             raise ValueError(
                 f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}"
             )
 
-
         u = root_solver["g"]
         return u
 
     def _moneyness_from_delta_two_dimensional(
-        self,
-        delta,
-        delta_type,
-        vol: FXDeltaVolSmile,
-        t_e: DualTypes,
-        z_w: DualTypes
+        self, delta, delta_type, vol: FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
     ):
         def root2d(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u, delta_idx = g[0], g[1]
@@ -3150,7 +3140,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
             nd1 = dual_norm_pdf(-d1)
-            lnu = dual_log(u) / (vol_ ** 2 * sqrt_t_e)
+            lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
             dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
             dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
 
@@ -3163,30 +3153,24 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
         g01 = delta if self.phi > 0 else max(delta, -0.75)
-        g00 = self._moneyness_from_delta_closed_form(
-            g01,
-            avg_vol,
-            t_e,
-            1.0
-        )
+        g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
         msg = (
             f"If the delta, {delta:.1f}, is premium adjusted for a call option is it infeasible?"
-            if self.phi > 0 else ""
+            if self.phi > 0
+            else ""
         )
         try:
             root_solver = newton_multi_root(
                 root2d,
                 [g00, abs(g01)],
-                args=(delta, delta_type, vol.delta_type, self.phi, t_e ** 0.5, z_w),
+                args=(delta, delta_type, vol.delta_type, self.phi, t_e**0.5, z_w),
                 pre_args=(0,),
                 final_args=(1,),
                 raise_on_fail=False,
             )
         except ValueError as e:
-            raise ValueError(
-                f"Newton root solver failed, with error: {e.__str__()}.\n{msg}"
-            )
+            raise ValueError(f"Newton root solver failed, with error: {e.__str__()}.\n{msg}")
 
         if root_solver["state"] == -1:
             raise ValueError(
@@ -3409,10 +3393,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #
     #     return float(root_solver[0] * f)
     def _get_vol_maybe_from_smile(
-        self,
-        vol: FXDeltaVolSmile, 
-        fx: FXForwards,
-        disc_curve: Curve
+        self, vol: FXDeltaVolSmile, fx: FXForwards, disc_curve: Curve
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         if isinstance(vol, FXDeltaVolSmile):
@@ -3499,7 +3480,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _payoff_at_expiry(self, range: Union[list[float], NoInput] = NoInput(0)):
         if self.strike is NoInput.blank:
-            raise ValueError("Cannot return payoff for option without a specified `strike`.") # pragma: no cover
+            raise ValueError(
+                "Cannot return payoff for option without a specified `strike`."
+            )  # pragma: no cover
         if range is NoInput.blank:
             x = np.linspace(0, 20, 1001)
         else:

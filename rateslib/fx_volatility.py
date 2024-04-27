@@ -210,22 +210,26 @@ class FXDeltaVolSmile:
         self.eval_date = eval_date
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
-        self.t_expiry_sqrt = self.t_expiry ** 0.5
+        self.t_expiry_sqrt = self.t_expiry**0.5
 
         self.delta_type = _validate_delta_type(delta_type)
 
         if "_pa" in self.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
-            upper_bound = dual_exp(vol * self.t_expiry_sqrt * (3.0 - 0.5 * vol * self.t_expiry_sqrt))
-            self.plot_upper_bound = dual_exp(vol * self.t_expiry_sqrt * (2.0 - 0.5 * vol * self.t_expiry_sqrt))
+            upper_bound = dual_exp(
+                vol * self.t_expiry_sqrt * (3.0 - 0.5 * vol * self.t_expiry_sqrt)
+            )
+            self.plot_upper_bound = dual_exp(
+                vol * self.t_expiry_sqrt * (2.0 - 0.5 * vol * self.t_expiry_sqrt)
+            )
         else:
             upper_bound = 1.0
             self.plot_upper_bound = 1.0
 
         if self.n in [1, 2]:
-            self.t = [0.] * 4 + [float(upper_bound)] * 4
+            self.t = [0.0] * 4 + [float(upper_bound)] * 4
         else:
-            self.t = [0.] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
+            self.t = [0.0] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
 
         self._set_ad_order(ad)  # includes csolve
 
@@ -339,19 +343,25 @@ class FXDeltaVolSmile:
             # Derivative
             dvol_ddelta = -1.0 * _interpolate(self.spline, delta_index, 1) / 100.0
             dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
-            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t ** 2 + eta * sqrt_t)
+            dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + eta * sqrt_t)
             f1 = 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
             return f0, f1
 
-
         # Initial approximation is obtained through the closed form solution of the delta given
         # an approximated delta at close to the base of the smile.
-        avg_vol = float(list(self.nodes.values())[int(self.n/2)]) / 100.0
-        d_plus_min = -dual_log(float(u)) / (avg_vol * float(self.t_expiry_sqrt)) + eta * avg_vol * float(self.t_expiry_sqrt)
+        avg_vol = float(list(self.nodes.values())[int(self.n / 2)]) / 100.0
+        d_plus_min = -dual_log(float(u)) / (
+            avg_vol * float(self.t_expiry_sqrt)
+        ) + eta * avg_vol * float(self.t_expiry_sqrt)
         delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
 
         solver_result = newton_root(
-            root, delta_0, args=(u, self.t_expiry_sqrt, z_u, z_w), pre_args=(0,), final_args=(1,), conv_tol=1e-13
+            root,
+            delta_0,
+            args=(u, self.t_expiry_sqrt, z_u, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+            conv_tol=1e-13,
         )
         delta = solver_result["g"]
 
@@ -446,7 +456,6 @@ class FXDeltaVolSmile:
                 final_args=(1,),
             )
             return solver_result["g"]
-
 
     def _call_to_put_delta(
         self,
@@ -597,7 +606,7 @@ class FXDeltaVolSmile:
         With the given (Delta, Vol)
         """
         N_ROWS = 101  # Must be odd to have explicit midpoint (0, 1, 2, 3, 4) = 2
-        MID = int((N_ROWS-1)/2)
+        MID = int((N_ROWS - 1) / 2)
 
         # Choose an appropriate distribution of forward delta:
         delta = np.linspace(0, 1, N_ROWS)
@@ -608,7 +617,7 @@ class FXDeltaVolSmile:
         vol = self.spline.ppev(delta)
 
         # Derive d_plus from forward delta, using symmetry to reduce calculations
-        _ = np.array([dual_inv_norm_cdf(_) for _ in delta[:MID+1]])
+        _ = np.array([dual_inv_norm_cdf(_) for _ in delta[: MID + 1]])
         d_plus = np.concatenate((-1.0 * _, _[:-1][::-1]))
 
         data = DataFrame(
@@ -626,7 +635,9 @@ class FXDeltaVolSmile:
         data["put_delta_forward_pa"] = (data["d_min"].map(dual_norm_cdf) - 1.0) * data["moneyness"]
         return data
 
-    def _create_approx_spline_conversions(self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]):
+    def _create_approx_spline_conversions(
+        self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]
+    ):
         """
         Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the (Delta, Vol) spline.
 
@@ -635,12 +646,38 @@ class FXDeltaVolSmile:
         # TODO: this only works for forward unadjusted delta because no spot conversion takes place
         ### Create approximate (K, Delta) curve via interpolation
         delta = np.array(
-            [0.00001, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6,
-             0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99999]
+            [
+                0.00001,
+                0.05,
+                0.1,
+                0.15,
+                0.2,
+                0.25,
+                0.3,
+                0.35,
+                0.4,
+                0.45,
+                0.5,
+                0.55,
+                0.6,
+                0.65,
+                0.7,
+                0.75,
+                0.8,
+                0.85,
+                0.9,
+                0.95,
+                0.99999,
+            ]
         )
         vols = self.spline.ppev(delta).tolist()
-        u = [dual_exp(-dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100. + 0.0005 * _2 * _2 * self.t_expiry)
-             for (_1, _2) in zip(delta, vols)][::-1]
+        u = [
+            dual_exp(
+                -dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100.0
+                + 0.0005 * _2 * _2 * self.t_expiry
+            )
+            for (_1, _2) in zip(delta, vols)
+        ][::-1]
 
         self.spline_u_delta_approx = spline_class(t=[u[0]] * 4 + u[2:-2] + [u[-1]] * 4, k=4)
         self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
@@ -704,7 +741,12 @@ class FXDeltaVolSmile:
         if x_axis == "moneyness":
             x, vols = x[40:-40], vols[40:-40]
             x_as_u = [
-                dual_exp(_2 * self.t_expiry_sqrt / 100.0 * (dual_inv_norm_cdf(_1)*_2 * self.t_expiry_sqrt * _2 / 100.))
+                dual_exp(
+                    _2
+                    * self.t_expiry_sqrt
+                    / 100.0
+                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0)
+                )
                 for (_1, _2) in zip(x, vols)
             ]
 
@@ -758,8 +800,12 @@ def _convert_same_adjustment_delta(
     -------
     DualTypes
     """
-    if ("_pa" in from_delta_type and "_pa" not in to_delta_type) or ("_pa" not in from_delta_type and "_pa" in to_delta_type):
-        raise ValueError("Can only convert between deltas of the same premium type, i.e. adjusted or unadjusted.")
+    if ("_pa" in from_delta_type and "_pa" not in to_delta_type) or (
+        "_pa" not in from_delta_type and "_pa" in to_delta_type
+    ):
+        raise ValueError(
+            "Can only convert between deltas of the same premium type, i.e. adjusted or unadjusted."
+        )
 
     if from_delta_type == to_delta_type:
         return delta
@@ -785,11 +831,23 @@ def _get_pricing_params_from_delta_vol(
 
     if "_pa" in delta_type:
         return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
-            delta, delta_type, vol_, t_e, phi, w_deli, w_spot,
+            delta,
+            delta_type,
+            vol_,
+            t_e,
+            phi,
+            w_deli,
+            w_spot,
         )
     else:
         return _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-            delta, delta_type, vol_, t_e, phi, w_deli, w_spot,
+            delta,
+            delta_type,
+            vol_,
+            t_e,
+            phi,
+            w_deli,
+            w_spot,
         )
 
 
@@ -808,7 +866,7 @@ def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
     else:
         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta)
 
-    _["vol_sqrt_t"] = vol * t_e ** 0.5 / 100.0
+    _["vol_sqrt_t"] = vol * t_e**0.5 / 100.0
     _["d_min"] = _["d_plus"] - _["vol_sqrt_t"]
     _["ln_u"] = (0.5 * _["vol_sqrt_t"] - _["d_plus"]) * _["vol_sqrt_t"]
     _["u"] = dual_exp(_["ln_u"])
@@ -842,7 +900,9 @@ def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
     def root(u, delta, vol_sqrt_t, z):
         d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
         f0 = delta - z * u * phi * dual_norm_cdf(phi * d_min)
-        f1 = z * (-phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t))
+        f1 = z * (
+            -phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t)
+        )
         return f0, f1
 
     root_solver = newton_root(root, _["u"], args=(delta, _["vol_sqrt_t"], z_w))
@@ -854,7 +914,7 @@ def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
     else:
         _["d_min"] = phi * dual_inv_norm_cdf(phi * delta / _["u"])
 
-    _["vol_sqrt_t"] = vol * t_e ** 0.5
+    _["vol_sqrt_t"] = vol * t_e**0.5
     _["d_plus"] = _["d_min"] + _["vol_sqrt_t"]
     _["ln_u"] = dual_log(_["u"])
     return _
@@ -867,7 +927,7 @@ def _black76(
     v1: NoInput,
     v2: DualTypes,
     vol: DualTypes,
-    phi: float
+    phi: float,
 ):
     """
     Option price in points terms for immediate premium settlement.
