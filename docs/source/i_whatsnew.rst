@@ -74,6 +74,9 @@ for notes about installation changes.
        for more information.
    * - AD
      - Added :meth:`~rateslib.dual.dual_norm_pdf` for AD safe standard normal probability density.
+   * - AD
+     - Added :meth:`~rateslib.solver.newton_root` and :meth:`~rateslib.newton.newton_multi_root`
+       for AD safe Newton root solving in one or multiple dimensions.
    * - Bug
      - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A", albeit with a *UserWarning*.
 
