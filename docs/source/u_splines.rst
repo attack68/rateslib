@@ -470,7 +470,7 @@ Sensitivities to y-axis datapoints
 
 To capture A) 3 splines are available for the specific calculation mode:
 :class:`~rateslib.splines.PPSplineF64`, :class:`~rateslib.splines.PPSplineDual` and
-:class:`~rateslib.splines.PPSplineDual2`. Choose to use the appropriate *Dual* version
+:class:`~rateslib.splines.PPSplineDual2`. **Choose to use** the appropriate *Dual* version
 depending upon which derivatives you wish to capture.
 
 For example, suppose we rebuild the **natural spline** from the *endpoints section* above.
@@ -539,6 +539,10 @@ Three functions exist for extracting spline values for each case:
 :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual`,
 :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual2`,
 
+*Rateslib* **recommends** the use of the :meth:`~rateslib.splines.evaluate` method, however,
+since this method will automatically choose the appropriate method above to call and return the
+value with the correct AD sensitivity.
+
 
 .. list-table::
    :widths: 16 28 28 28
@@ -602,7 +606,7 @@ We construct a spline and measure the resulting interpolated *y*-value's sensiti
        right_n=2,
        allow_lsq=False,
    )
-   pps.ppev_single_dual(x)
+   evaluate(pps, x)
 
 This suggests that if *z* moves 0.0001 higher then this value should move by 0.00073 higher to
 2.09448. But of course all of the all *x* and *y* values have sensitivity to *z* as well.
@@ -617,6 +621,6 @@ This suggests that if *z* moves 0.0001 higher then this value should move by 0.0
        right_n=2,
        allow_lsq=False,
    )
-   pps.ppev_single(3.4995)
+   evaluate(pps, 3.4995)
 
 As predicted!
