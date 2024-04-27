@@ -1342,9 +1342,9 @@ class Solver(Gradients):
                 # condition is set to less than to avoid the case where a null update
                 # results in the same solution and this is erroneously categorised
                 # as a converged solution.
-                return self._solver_result(1, i, time()-t0)
+                return self._solver_result(1, i, time() - t0)
             elif self.g.real < self.func_tol:
-                return self._solver_result(2, i, time()-t0)
+                return self._solver_result(2, i, time() - t0)
 
             # v_0 = self.v.copy()
             v_1 = self._update_step_(self.algorithm)
@@ -1394,7 +1394,7 @@ class Solver(Gradients):
                     ident[0, :].tolist(),
                     *DualArgs[1:],
                 )
-            for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
+            for i, k in enumerate(curve.node_dates[curve._ini_solve :]):
                 curve.nodes[k] = DualType.vars_from(
                     d_vars,
                     v_new[var_counter].real,

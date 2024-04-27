@@ -2483,7 +2483,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             d_ = 1.08648555952878920
             f_ = -3.0101764849574044
             g_ = 0.198384242124144070
-            root_appx = a_ * vol_sqrt_t ** b_ + c_ * vol_sqrt_t ** d_ + f_ * vol_sqrt_t ** g_
+            root_appx = a_ * vol_sqrt_t**b_ + c_ * vol_sqrt_t**d_ + f_ * vol_sqrt_t**g_
 
             def root(x):
                 return vol_sqrt_t * dual_norm_cdf(x) - dual_exp(-0.5 * x**2) / sqrt(2 * pi)

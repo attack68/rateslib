@@ -1152,19 +1152,27 @@ def _dcf_actacticma(
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
             fwd_end_0, fwd_end_1, fraction = start, start, -1.0
-            while end > fwd_end_1:  # Handle Long Stubs which require repeated periods, and Zero frequencies.
+            while (
+                end > fwd_end_1
+            ):  # Handle Long Stubs which require repeated periods, and Zero frequencies.
                 fwd_end_0 = fwd_end_1
                 fraction += 1.0
-                fwd_end_1 = _add_months(start, (int(fraction) + 1) * frequency_months, "NONE", calendar, roll)
+                fwd_end_1 = _add_months(
+                    start, (int(fraction) + 1) * frequency_months, "NONE", calendar, roll
+                )
 
             fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
             return fraction * frequency_months / 12.0
         else:  # stub is a FRONT stub
             prev_start_0, prev_start_1, fraction = end, end, -1.0
-            while start < prev_start_1:  # Handle Long Stubs which require repeated periods, and Zero frequencies.
+            while (
+                start < prev_start_1
+            ):  # Handle Long Stubs which require repeated periods, and Zero frequencies.
                 prev_start_0 = prev_start_1
                 fraction += 1.0
-                prev_start_1 = _add_months(end, -(int(fraction) + 1) * frequency_months, "NONE", calendar, roll)
+                prev_start_1 = _add_months(
+                    end, -(int(fraction) + 1) * frequency_months, "NONE", calendar, roll
+                )
 
             fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
             return fraction * frequency_months / 12.0
