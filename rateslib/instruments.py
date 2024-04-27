@@ -36,10 +36,10 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months, _DCF1d
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
 from rateslib.default import NoInput, plot
 
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve, average_rate
+from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
 from rateslib.solver import Solver
 from rateslib.periods import (
     Cashflow,
@@ -66,8 +66,6 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_log,
-    dual_exp,
-    dual_norm_cdf,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx

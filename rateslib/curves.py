@@ -14,7 +14,6 @@ from typing import Optional, Union, Callable, Any
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import Holiday
 from uuid import uuid4
-import numpy as np
 import warnings
 import json
 from math import floor, comb
@@ -2369,8 +2368,8 @@ class MultiCsaCurve(CompositeCurve):
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-        days = (date - self.curves[0].node_dates[0]).days
-        d = _DCF1d[self.convention.upper()]
+        # days = (date - self.curves[0].node_dates[0]).days
+        # d = _DCF1d[self.convention.upper()]
 
         # method uses the step and picks the highest (cheapest rate)
         # in each period

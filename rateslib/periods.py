@@ -21,7 +21,7 @@ from abc import abstractmethod, ABCMeta
 from datetime import datetime
 from typing import Optional, Union
 import warnings
-from math import comb, log, exp, pi, sqrt
+from math import comb, log, pi, sqrt
 
 import numpy as np
 

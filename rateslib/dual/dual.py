@@ -1,6 +1,6 @@
 from math import isclose
 from abc import abstractmethod, ABCMeta
-from typing import Union, Optional
+from typing import Optional
 from statistics import NormalDist
 import math
 import numpy as np
