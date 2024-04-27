@@ -66,10 +66,11 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_log,
+    dual_exp,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import _get_pricing_params_from_delta_vol
+from rateslib.fx_volatility import FXDeltaVolSmile
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -8101,29 +8102,31 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
         self._pricing = {"vol": vol}
-
+        m_spot = fx.pairs_settlement[self.kwargs["pair"]]
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
 
             if method == "atm_forward":
-                raise NotImplementedError()
                 self._pricing["k"] = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
-                self._pricing.update(
-                    _get_pricing_params_from_delta_vol(
-                        delta=float(self.kwargs["strike"][:-1]) / 100.0,
-                        delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
-                        vol=vol,
-                        t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                if isinstance(vol, FXDeltaVolSmile):
+                    self._pricing["vol"] = vol.get_from_strike(
+                        k=self._pricing["k"],
                         phi=self.periods[0].phi,
+                        f=self._pricing["k"],
                         w_deli=curves[1][self.kwargs["delivery"]],
-                        w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
-                    )
-                )
+                        w_spot=curves[1][m_spot],
+                    )[1]
 
             elif method == "atm_spot":
-                m_spot = fx.pairs_settlement[self.kwargs["pair"]]
                 self._pricing["k"] = fx.rate(self.kwargs["pair"], m_spot)
-                raise NotImplementedError("parameters not yet defined")
+                if isinstance(vol, FXDeltaVolSmile):
+                    self._pricing["vol"] = vol.get_from_strike(
+                        k=self._pricing["k"],
+                        phi=self.periods[0].phi,
+                        f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+                        w_deli=curves[1][self.kwargs["delivery"]],
+                        w_spot=curves[1][m_spot],
+                    )[1]
             elif method == "atm_delta":
                 # TODO: this uses constant vol
                 t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
@@ -8133,30 +8136,18 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 raise NotImplementedError("parameters not yet defined")
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                self._pricing = _get_pricing_params_from_delta_vol(
+                k, delta_idx = self.periods[0]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                     vol=vol,
-                    t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
-                    phi=self.periods[0].phi,
                     w_deli=curves[1][self.kwargs["delivery"]],
                     w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                    f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+                    t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
                 )
-                self._pricing["k"] = self._pricing["u"] * fx.rate(
-                    self.kwargs["pair"], self.kwargs["delivery"]
-                )
-
-                # k = self.periods[0]._strike_from_delta_fixed_vol(
-                #     f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-                #     delta=float(self.kwargs["strike"][:-1]) / 100,
-                #     vol=vol,
-                #     t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
-                #     w_deli=curves[1][self.kwargs["delivery"]],
-                #     w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
-                #     v_deli=curves[3][self.kwargs["delivery"]],
-                #     # TODO provide a mechanism for defining spot date with FX crosses
-                #     # which are only directly available in FXForwards for majors.
-                # )
+                self._pricing["k"] = k
+                if isinstance(vol, FXDeltaVolSmile):
+                    self._pricing["vol"] = vol[delta_idx]
 
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
             # set the strike as a float without any sensitivity. Trade definition is a fixed quantity

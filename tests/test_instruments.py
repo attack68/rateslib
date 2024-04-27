@@ -3320,7 +3320,15 @@ class TestFXOptions:
         ("spot", "atm_delta", "usd", [1.068856203, 1.068856203]),
         # ("forward", "eur", 1.0),
     ])
-    def test_straddle_strikes(self, fxfo, dlty, strike, ccy, exp):
+    @pytest.mark.parametrize("smile", [True, False])
+    def test_straddle_strikes(self, fxfo, dlty, strike, ccy, exp, smile):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.5: 10.0},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        vol_ = fxvs if smile else 10.0
         fxo = FXStraddle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3333,7 +3341,7 @@ class TestFXOptions:
             delta_type=dlty
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=10.0)
+        result = fxo.npv(curves, fx=fxfo, vol=vol_)
         call_k = fxo.periods[0].periods[0].strike
         put_k = fxo.periods[1].periods[0].strike
         assert abs(call_k - exp[0]) < 1e-7

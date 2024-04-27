@@ -811,110 +811,110 @@ def _convert_same_adjustment_delta(
     else:  # to_delta_type == "spot" and from_delta_type == "forward":
         return delta * w_deli / w_spot
 
-
-def _get_pricing_params_from_delta_vol(
-    delta,
-    delta_type,
-    vol: Union[DualTypes, FXDeltaVolSmile],
-    t_e,
-    phi,
-    w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    w_spot: Union[DualTypes, NoInput] = NoInput(0),
-):
-    if isinstance(vol, FXDeltaVolSmile):
-        vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot)
-    else:  # vol is DualTypes
-        vol_ = vol
-
-    if "_pa" in delta_type:
-        return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
-            delta,
-            delta_type,
-            vol_,
-            t_e,
-            phi,
-            w_deli,
-            w_spot,
-        )
-    else:
-        return _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-            delta,
-            delta_type,
-            vol_,
-            t_e,
-            phi,
-            w_deli,
-            w_spot,
-        )
-
-
-def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-    delta,
-    delta_type,
-    vol: DualTypes,
-    t_e,
-    phi,
-    w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    w_spot: Union[DualTypes, NoInput] = NoInput(0),
-) -> dict:
-    _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
-    if "spot" in delta_type:
-        _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / w_deli)
-    else:
-        _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta)
-
-    _["vol_sqrt_t"] = vol * t_e**0.5 / 100.0
-    _["d_min"] = _["d_plus"] - _["vol_sqrt_t"]
-    _["ln_u"] = (0.5 * _["vol_sqrt_t"] - _["d_plus"]) * _["vol_sqrt_t"]
-    _["u"] = dual_exp(_["ln_u"])
-    return _
-
-
-def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
-    delta: DualTypes,
-    delta_type: str,
-    vol: DualTypes,
-    t_e: DualTypes,
-    phi: float,
-    w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    w_spot: Union[DualTypes, NoInput] = NoInput(0),
-) -> dict:
-    """
-    Iterative algorithm.
-
-    AD is preserved by newton_root.
-    """
-    # TODO can get unadjusted prcing params for out of bounds adjusted delta e.g. -1.5
-    _ = _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-        delta, delta_type, vol, t_e, phi, w_deli, w_spot
-    )
-
-    if "spot" in delta_type:
-        z_w = w_deli / w_spot
-    else:
-        z_w = 1.0
-
-    def root(u, delta, vol_sqrt_t, z):
-        d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
-        f0 = delta - z * u * phi * dual_norm_cdf(phi * d_min)
-        f1 = z * (
-            -phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t)
-        )
-        return f0, f1
-
-    root_solver = newton_root(root, _["u"], args=(delta, _["vol_sqrt_t"], z_w))
-
-    _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
-    _["u"] = root_solver["g"]
-    if "spot" in delta_type:
-        _["d_min"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / (w_deli * _["u"]))
-    else:
-        _["d_min"] = phi * dual_inv_norm_cdf(phi * delta / _["u"])
-
-    _["vol_sqrt_t"] = vol * t_e**0.5
-    _["d_plus"] = _["d_min"] + _["vol_sqrt_t"]
-    _["ln_u"] = dual_log(_["u"])
-    return _
+#
+# def _get_pricing_params_from_delta_vol(
+#     delta,
+#     delta_type,
+#     vol: Union[DualTypes, FXDeltaVolSmile],
+#     t_e,
+#     phi,
+#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+# ):
+#     if isinstance(vol, FXDeltaVolSmile):
+#         vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot)
+#     else:  # vol is DualTypes
+#         vol_ = vol
+#
+#     if "_pa" in delta_type:
+#         return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
+#             delta,
+#             delta_type,
+#             vol_,
+#             t_e,
+#             phi,
+#             w_deli,
+#             w_spot,
+#         )
+#     else:
+#         return _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
+#             delta,
+#             delta_type,
+#             vol_,
+#             t_e,
+#             phi,
+#             w_deli,
+#             w_spot,
+#         )
+#
+#
+# def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
+#     delta,
+#     delta_type,
+#     vol: DualTypes,
+#     t_e,
+#     phi,
+#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+# ) -> dict:
+#     _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
+#     if "spot" in delta_type:
+#         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / w_deli)
+#     else:
+#         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta)
+#
+#     _["vol_sqrt_t"] = vol * t_e**0.5 / 100.0
+#     _["d_min"] = _["d_plus"] - _["vol_sqrt_t"]
+#     _["ln_u"] = (0.5 * _["vol_sqrt_t"] - _["d_plus"]) * _["vol_sqrt_t"]
+#     _["u"] = dual_exp(_["ln_u"])
+#     return _
+#
+#
+# def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
+#     delta: DualTypes,
+#     delta_type: str,
+#     vol: DualTypes,
+#     t_e: DualTypes,
+#     phi: float,
+#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+# ) -> dict:
+#     """
+#     Iterative algorithm.
+#
+#     AD is preserved by newton_root.
+#     """
+#     # TODO can get unadjusted prcing params for out of bounds adjusted delta e.g. -1.5
+#     _ = _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
+#         delta, delta_type, vol, t_e, phi, w_deli, w_spot
+#     )
+#
+#     if "spot" in delta_type:
+#         z_w = w_deli / w_spot
+#     else:
+#         z_w = 1.0
+#
+#     def root(u, delta, vol_sqrt_t, z):
+#         d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
+#         f0 = delta - z * u * phi * dual_norm_cdf(phi * d_min)
+#         f1 = z * (
+#             -phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t)
+#         )
+#         return f0, f1
+#
+#     root_solver = newton_root(root, _["u"], args=(delta, _["vol_sqrt_t"], z_w))
+#
+#     _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
+#     _["u"] = root_solver["g"]
+#     if "spot" in delta_type:
+#         _["d_min"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / (w_deli * _["u"]))
+#     else:
+#         _["d_min"] = phi * dual_inv_norm_cdf(phi * delta / _["u"])
+#
+#     _["vol_sqrt_t"] = vol * t_e**0.5
+#     _["d_plus"] = _["d_min"] + _["vol_sqrt_t"]
+#     _["ln_u"] = dual_log(_["u"])
+#     return _
 
 
 def _black76(
