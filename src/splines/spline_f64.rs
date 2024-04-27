@@ -5,6 +5,7 @@ use crate::dual::dual2::{Dual2, Gradient2};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use std::iter::Sum;
+use std::iter::zip;
 use std::ops::{Mul, Sub};
 use pyo3::PyErr;
 use pyo3::exceptions::{PyValueError, PyTypeError};
@@ -144,6 +145,9 @@ where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<T>>) -> Self {
+        // t is given and is non-decreasing
+        assert!(t.len() > 1);
+        assert!(zip(&t[1..], &t[..(t.len()-1)]).all(|(a, b)| a >= b));
         let n = t.len() - k;
         let c_;
         match c {
@@ -577,6 +581,12 @@ mod tests {
         let pp1 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
         let pp2 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
         assert!(pp1 == pp2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn backwards_definition() {
+        let mut pp1 = PPSpline::<f64>::new(4, vec![3., 3., 3., 3., 2., 1., 1., 1., 1.], None);
     }
 
 }
