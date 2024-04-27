@@ -2595,7 +2595,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 break
             vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
 
-        return float(vol_) # return a float TODO check whether Dual can be returned. Use Generic Newton
+        # return a float TODO check whether Dual can be returned. Use Generic Newton
+        return float(vol_)
 
     def analytic_delta(
         self,
@@ -2980,14 +2981,17 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
-        if eta_0 == eta_1 and eta_0 == 0.5:  # then delta types are both unadjusted, used closed form.
+        # then delta types are both unadjusted, used closed form.
+        if eta_0 == eta_1 and eta_0 == 0.5:
             if isinstance(vol, FXDeltaVolSmile):
                 delta_idx = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
                 vol = vol[delta_idx]
             else:
                 delta_idx = None
             u = self._moneyness_from_delta_closed_form(delta, vol, t_e, z_w_0)
-        elif eta_0 == eta_1 and eta_0 == -0.5:  # then delta types are both adjusted, use 1-d solver.
+
+        # then delta types are both adjusted, use 1-d solver.
+        elif eta_0 == eta_1 and eta_0 == -0.5:
             u = self._moneyness_from_delta_one_dimensional(
                 delta, delta_type, vol_delta_type, vol, t_e, z_w
             )
