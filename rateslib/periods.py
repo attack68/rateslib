@@ -41,7 +41,6 @@ from rateslib.curves import (
 )
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
-    _newton,
     _black76,
     _d_min,
     _d_plus,

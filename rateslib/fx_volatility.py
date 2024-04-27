@@ -816,20 +816,20 @@ def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
 
 
 def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
-    delta,
-    delta_type,
+    delta: DualTypes,
+    delta_type: str,
     vol: DualTypes,
-    t_e,
-    phi,
+    t_e: DualTypes,
+    phi: float,
     w_deli: Union[DualTypes, NoInput] = NoInput(0),
     w_spot: Union[DualTypes, NoInput] = NoInput(0),
 ) -> dict:
     """
     Iterative algorithm.
 
-    AD is preserved by performing one final iteration with Dual variables reinserted as a
-    Fixed Point iteration.
+    AD is preserved by newton_root.
     """
+    # TODO can get unadjusted prcing params for out of bounds adjusted delta e.g. -1.5
     _ = _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
         delta, delta_type, vol, t_e, phi, w_deli, w_spot
     )
@@ -841,21 +841,14 @@ def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
 
     def root(u, delta, vol_sqrt_t, z):
         d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
-        return delta - z * u * phi * dual_norm_cdf(phi * d_min)
+        f0 = delta - z * u * phi * dual_norm_cdf(phi * d_min)
+        f1 = z * (-phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t))
+        return f0, f1
 
-    def root_deriv(u, delta, vol_sqrt_t, z):
-        d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
-        return z * (-phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t))
-
-    root_solver = _newton(root, root_deriv, _["u"], args=(delta, float(_["vol_sqrt_t"]), float(z_w)))
-
-    # Final iteration to capture derivatives:
-    root_solver = _newton(
-        root, root_deriv, float(root_solver[0]), args=(delta, _["vol_sqrt_t"], z_w), max_iter=1
-    )
+    root_solver = newton_root(root, _["u"], args=(delta, _["vol_sqrt_t"], z_w))
 
     _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
-    _["u"] = root_solver[0]
+    _["u"] = root_solver["g"]
     if "spot" in delta_type:
         _["d_min"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / (w_deli * _["u"]))
     else:
@@ -865,20 +858,6 @@ def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
     _["d_plus"] = _["d_min"] + _["vol_sqrt_t"]
     _["ln_u"] = dual_log(_["u"])
     return _
-
-
-def _newton(f, f1, x0, max_iter=50, tolerance=1e-9, args=()):
-    steps_taken = 0
-
-    while steps_taken < max_iter:
-        steps_taken += 1
-        f0, f10 = f(x0, *args), f1(x0, *args)
-        x1 = x0 - f0 / f10
-        if abs(x1 - x0) < tolerance:
-            return x1, steps_taken
-        x0 = x1
-
-    raise ValueError(f"`max_iter`: {max_iter} exceeded in Newton solver.")
 
 
 def _black76(

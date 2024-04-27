@@ -8092,8 +8092,20 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             method = self.kwargs["strike"].lower()
 
             if method == "atm_forward":
+                raise NotImplementedError()
                 self._pricing["k"] = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
-                raise NotImplementedError("parameters not yet defined")
+                self._pricing.update(
+                    _get_pricing_params_from_delta_vol(
+                        delta=float(self.kwargs["strike"][:-1]) / 100.0,
+                        delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                        vol=vol,
+                        t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                        phi=self.periods[0].phi,
+                        w_deli=curves[1][self.kwargs["delivery"]],
+                        w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
+                    )
+                )
+
             elif method == "atm_spot":
                 m_spot = fx.pairs_settlement[self.kwargs["pair"]]
                 self._pricing["k"] = fx.rate(self.kwargs["pair"], m_spot)
