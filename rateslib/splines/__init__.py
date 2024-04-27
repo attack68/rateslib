@@ -36,7 +36,7 @@ def evaluate(
 
     Parameters
     ----------
-    spline: PPSplineF64, PPSplineDual, PPSPlineDual2
+    spline: PPSplineF64, PPSplineDual, PPSplineDual2
         The *Spline* on which to evaluate the data point.
     x: float, Dual, Dual2
         The x-axis data point to evaluate.
