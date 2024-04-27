@@ -1,8 +1,6 @@
 from __future__ import annotations  # type hinting
 
 from rateslib.dual import (
-    Dual,
-    Dual2,
     set_order_convert,
     dual_exp,
     dual_inv_norm_cdf,
@@ -10,7 +8,6 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_log,
     dual_norm_pdf,
-    gradient,
 )
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, _interpolate
 from rateslib.default import plot, NoInput
@@ -644,7 +641,7 @@ class FXDeltaVolSmile:
         U is moneyness i.e.: U = K / f
         """
         # TODO: this only works for forward unadjusted delta because no spot conversion takes place
-        ### Create approximate (K, Delta) curve via interpolation
+        # Create approximate (K, Delta) curve via interpolation
         delta = np.array(
             [
                 0.00001,

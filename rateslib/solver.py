@@ -10,7 +10,7 @@ from pandas import DataFrame, MultiIndex, concat, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient, set_order_convert
+from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
 from rateslib.curves import CompositeCurve, ProxyCurve, MultiCsaCurve
 from rateslib.fx import FXRates, FXForwards
 

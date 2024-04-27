@@ -21,7 +21,7 @@ from abc import abstractmethod, ABCMeta
 from datetime import datetime
 from typing import Optional, Union
 import warnings
-from math import comb, log, exp, pi, sqrt
+from math import comb, log
 
 import numpy as np
 
@@ -42,8 +42,6 @@ from rateslib.curves import (
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     _black76,
-    _d_min,
-    _d_plus,
     _delta_type_constants,
     _d_plus_min_u,
 )
