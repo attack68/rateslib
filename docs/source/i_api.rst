@@ -86,12 +86,11 @@ Piecewise Polynomial Splines
    :no-heading:
    :no-inheritance-diagram:
 
-Functions
-^^^^^^^^^^
-
-.. autosummary::
-   ~rateslib.splines.bsplev_single
-   ~rateslib.splines.bspldnev_single
+.. Functions
+   ^^^^^^^^^^
+   .. autosummary::
+      ~rateslib.splines.bsplev_single
+      ~rateslib.splines.bspldnev_single
 
 
 Classes

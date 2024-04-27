@@ -145,15 +145,16 @@ where
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
     pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<T>>) -> Self {
+        // t is given and is non-decreasing
         assert!(t.len() > 1);
-        assert!(zip(&t[1..], &t[..(t.len()-1)]).all(|(a, b)| a >= b));  // t is non-decreasing
-
+        assert!(zip(&t[1..], &t[..(t.len()-1)]).all(|(a, b)| a >= b));
         let n = t.len() - k;
         let c_;
         match c {
             Some(v) => {c_ = Some(Array1::from_vec(v))},
             None => {c_ = None}
         }
+
         PPSpline { k, t, n, c: c_}
     }
 
