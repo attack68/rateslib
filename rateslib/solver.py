@@ -1954,7 +1954,7 @@ def newton_root(
     raise_on_fail=True,
 ):
     """
-    Use the Newton algorithm to determine to root of a function searching **one** variable.
+    Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
 
     Solves the root equation :math:`f(g; s_i)=0` for *g*.
 
@@ -1962,7 +1962,7 @@ def newton_root(
     ----------
     f: callable
         The function, *f*, to find the root of. Of the signature: `f(g, *args)`.
-        Must return a tuple where the second value is the derivative of *f* with respec to *g*.
+        Must return a tuple where the second value is the derivative of *f* with respect to *g*.
     g0: DualTypes
         Initial guess of the root. Should be reasonable to avoid failure.
     max_iter: int
@@ -1972,19 +1972,37 @@ def newton_root(
     conv_tol: float, optional
         The convergence tolerance for subsequent iterations of *g*.
     args: tuple of float, Dual or Dual2
-        Additional arguments passed to ``f`` and ``f1``.
+        Additional arguments passed to ``f``.
     pre_args: tuple
-        Additional arguments passed to ``f`` and ``f1`` only in the float solve section of the algorithm.
+        Additional arguments passed to ``f`` used only in the float solve section of
+        the algorithm.
         Functions are called with the signature `f(g, *(*args[as float], *pre_args))`.
     final_args: tuple of float, Dual, Dual2
-        Additional arguments passed to ``f`` and ``f1`` in the final iteration of the algorithm to capture AD.
+        Additional arguments passed to ``f`` in the final iteration of the algorithm
+        to capture AD sensitivities.
         Functions are called with the signature `f(g, *(*args, *final_args))`.
-    ad: int in {0, 1, 2}
-        Whether to return a float, Dual, or Dual2. Should be consistent with input args.
+    raise_on_fail: bool, optional
+        If *False* will return a solver result dict with state and message indicating failure.
 
     Returns
     -------
     dict
+
+    Examples
+    --------
+    Iteratively solve the equation: :math:`f(g, s) = g^2 - s = 0`.
+
+    .. ipython:: python
+
+       from rateslib.solver import newton_root
+
+       def f(g, s):
+           f0 = g**2 - s   # Function value
+           f1 = 2*g        # Analytical derivative is required
+           return f0, f1
+
+       s = Dual(2.0, ["s"], [])
+       newton_root(f, g0=1.0, args=(s,))
     """
     t0 = time()
     i = 0
@@ -2083,17 +2101,46 @@ def newton_multi_root(
     conv_tol: float, optional
         The convergence tolerance for subsequent iterations of *g*.
     args: tuple of float, Dual or Dual2
-        Additional arguments passed to ``f`` and ``f1``.
+        Additional arguments passed to ``f``.
     pre_args: tuple
-        Additional arguments passed to ``f`` and ``f1`` only in the float solve section of the algorithm.
+        Additional arguments passed to ``f`` only in the float solve section
+        of the algorithm.
         Functions are called with the signature `f(g, *(*args[as float], *pre_args))`.
     final_args: tuple of float, Dual, Dual2
-        Additional arguments passed to ``f`` and ``f1`` in the final iteration of the algorithm to capture AD.
+        Additional arguments passed to ``f`` in the final iteration of the algorithm
+        to capture AD sensitivities.
         Functions are called with the signature `f(g, *(*args, *final_args))`.
+    raise_on_fail: bool, optional
+        If *False* will return a solver result dict with state and message indicating failure.
 
     Returns
     -------
     ndarray
+
+    Examples
+    --------
+    Iteratively solve the equation system:
+
+    - :math:`f_0(\mathbf{g}, s) = g_1^2 + g_2^2 + s = 0`.
+    - :math:`f_1(\mathbf{g}, s) = g_1^2 - 2g_2^2 + s = 0`.
+
+    .. ipython:: python
+
+       from rateslib.solver import newton_multi_root
+
+       def f(g, s):
+           # Function value
+           f0 = g[0] ** 2 + g[1] ** 2 + s
+           f1 = g[0] ** 2 - 2 * g[1]**2 - s
+           # Analytical derivative is required
+           f00 = 2 * g[0]
+           f01 = 2 * g[1]
+           f10 = 2 * g[0]
+           f11 = -4 * g[1]
+           return [f0, f1], [[f00, f01], [f10, f11]]
+
+       s = Dual(-2.0, ["s"], [])
+       newton_multi_root(f, g0=[1.0, 1.0], args=(s,))
     """
     t0 = time()
     i = 0
@@ -2177,3 +2224,4 @@ def _is_any_dual(arr):
 
 def _is_any_dual2(arr):
     return any([isinstance(_, Dual2) for _ in arr.flatten()])
+
