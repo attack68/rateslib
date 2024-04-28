@@ -19,6 +19,7 @@ from rateslib.instruments import (
     FXSwap,
     FXExchange,
     Value,
+    VolValue,
     ZCS,
     ZCIS,
     _get_curve_from_solver,
@@ -3396,3 +3397,24 @@ class TestFXStraddle:
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol, metric=metric)
         assert abs(result - expected) < 1e-6
+
+
+class TestVolValue:
+
+    def test_solver_passthrough(self):
+        smile = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+            id="VolSmile",
+        )
+        instruments = [
+            VolValue(0.25, vol=smile),
+            VolValue(0.5, vol="VolSmile"),
+            VolValue(0.75, vol="VolSmile"),
+        ]
+        solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1])
+        assert abs(smile[0.25] - 8.9) < 5e-7
+        assert abs(smile[0.5] - 8.2) < 5e-7
+        assert abs(smile[0.75] - 9.1) < 5e-7

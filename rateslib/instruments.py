@@ -940,16 +940,6 @@ class VolValue(BaseMixin):
 
     .. ipython:: python
 
-       # Setup a FXForwards market for use with FXOptions
-       eureur = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur")
-       usdusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd")
-       eurusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd")
-       fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
-       fxf = FXForwards(
-           fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
-           fx_rates=fxr
-       )
-       # Create an FXDeltaVolSmile and calibrate it with 3 points
        smile = FXDeltaVolSmile(
            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
            eval_date=dt(2023, 3, 16),
@@ -960,7 +950,7 @@ class VolValue(BaseMixin):
        instruments = [
            VolValue(0.25, vol="VolSmile"),
            VolValue(0.5, vol="VolSmile"),
-           VolValue(0.75, vol="VolSmile")
+           VolValue(0.75, vol=smile)
        ]
        solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 7.8, 9.9])
        smile[0.25]
