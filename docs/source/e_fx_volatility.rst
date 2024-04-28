@@ -20,7 +20,7 @@ volatility value.
 
 The following *Instruments* are currently available.
 
-.. inheritance-diagram:: rateslib.instruments.FXCall rateslib.instruments.FXPut rateslib.instruments.FXRiskReversal
+.. inheritance-diagram:: rateslib.instruments.FXCall rateslib.instruments.FXPut rateslib.instruments.FXRiskReversal rateslib.instruments.FXStraddle rateslib.instruments.FXStrangle
    :private-bases:
    :parts: 1
 
@@ -28,6 +28,8 @@ The following *Instruments* are currently available.
    rateslib.instruments.FXCall
    rateslib.instruments.FXPut
    rateslib.instruments.FXRiskReversal
+   rateslib.instruments.FXStraddle
+   rateslib.instruments.FXStrangle
 
 FXForwards Market
 ==================
@@ -91,12 +93,12 @@ This can be replicated with *rateslib* native functionality.
          fxc.rate(
              curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
              fx=fxf,
-             vol=0.089
+             vol=8.9
          )
          fxc.delta_percent(
              curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
              fx=fxf,
-             vol=0.089
+             vol=8.9
          )
 
    .. container:: rightside60
@@ -220,12 +222,12 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
    fxc.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
        fx=fxf,
-       vol=0.089
+       vol=8.9
    )
    fxc.delta_percent(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=0.089
+       vol=8.9
    )
 
 When the pricing functions are called the **strike is implied** and automatically set on the
@@ -243,12 +245,12 @@ If the pricing parameters change the *Option* strike will adapt accordingly to m
    fxc.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
        fx=fxf,
-       vol=0.10
+       vol=10.0
    )
    fxc.delta_percent(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=0.10
+       vol=10.0
    )
    fxc.periods[0].strike
 
@@ -280,13 +282,13 @@ two different ``vol`` inputs in the absense of a volatility surface.
    fxrr.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[0.1015, 0.089]
+       vol=[10.15, 8.9]
    )
    fxrr.plot_payoff(
        range=[1.025, 1.11],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[0.1015, 0.089]
+       vol=[10.15, 8.9]
    )
 
 .. plot::
@@ -325,5 +327,5 @@ two different ``vol`` inputs in the absense of a volatility surface.
        range=[1.025, 1.11],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[0.1015, 0.089],
+       vol=[10.15, 8.9],
    )

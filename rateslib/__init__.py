@@ -127,6 +127,7 @@ from rateslib.instruments import (
     FXPut,
     FXRiskReversal,
     FXStraddle,
+    FXStrangle,
 )
 
 # module level doc-string
@@ -223,6 +224,7 @@ __all__ = [
     "FXPut",
     "FXRiskReversal",
     "FXStraddle",
+    "FXStrangle",
 ]
 
 __version__ = "1.2.0"

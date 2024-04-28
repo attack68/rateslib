@@ -2618,9 +2618,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            Not used by `delta_percent`.
+            Not used by `analytic_delta`.
         local: bool,
-            Not used by `delta_percent`.
+            Not used by `analytic_delta`.
         premium: float, optional
             The premium value of the option paid at the appropriate payment date.
             If not given calculates and assumes a mid-market premium.

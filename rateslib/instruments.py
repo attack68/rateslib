@@ -7937,8 +7937,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         The expiry of the option.
     notional: float
         The amount in ccy1 (left side of `pair`) on which the option is based.
-    strike: float, Dual, Dual2, str
-        The strike value of the option. If str should be labelled with a 'd' for delta e.g. "25d".
+    strike: float, Dual, Dual2, str in {"atm_forward", "atm_spot", "atm_delta", "[float]d"}
+        The strike value of the option.
+        If str there are four possibilities as above. If giving a specific delta should end
+        with a 'd' for delta e.g. "-25d". Put deltas should be input including negative sign.
     eval_date: datetime, optional
         The date from which to evaluate a string tenor expiry.
     modifier : str, optional
@@ -8103,6 +8105,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # be captured for use in subsequent formulae.
         self._pricing = {"vol": vol}
         m_spot = fx.pairs_settlement[self.kwargs["pair"]]
+        t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
+        w_deli = curves[1][self.kwargs["delivery"]]
+        w_spot = curves[1][m_spot]
+        f = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
 
@@ -8113,8 +8120,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                         k=self._pricing["k"],
                         phi=self.periods[0].phi,
                         f=self._pricing["k"],
-                        w_deli=curves[1][self.kwargs["delivery"]],
-                        w_spot=curves[1][m_spot],
+                        w_deli=w_deli,
+                        w_spot=w_spot,
                     )[1]
 
             elif method == "atm_spot":
@@ -8123,27 +8130,35 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     self._pricing["vol"] = vol.get_from_strike(
                         k=self._pricing["k"],
                         phi=self.periods[0].phi,
-                        f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-                        w_deli=curves[1][self.kwargs["delivery"]],
-                        w_spot=curves[1][m_spot],
+                        f=f,
+                        w_deli=w_deli,
+                        w_spot=w_spot,
                     )[1]
+
             elif method == "atm_delta":
-                # TODO: this uses constant vol
-                t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
-                self._pricing["k"] = fx.rate(
-                    self.kwargs["pair"], self.kwargs["delivery"]
-                ) * dual_exp(0.5 * vol**2 * t_e)
-                raise NotImplementedError("parameters not yet defined")
+                k, delta_idx = self.periods[0]._strike_and_index_from_delta(
+                    delta=0.5 * self.periods[0].phi,
+                    delta_type="forward",
+                    vol=vol,
+                    w_deli=w_deli,
+                    w_spot=w_spot,
+                    f=f,
+                    t_e=t_e,
+                )
+                self._pricing["k"] = k
+                if isinstance(vol, FXDeltaVolSmile):
+                    self._pricing["vol"] = vol[delta_idx]
+
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
                 k, delta_idx = self.periods[0]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                     vol=vol,
-                    w_deli=curves[1][self.kwargs["delivery"]],
-                    w_spot=curves[1][fx.pairs_settlement[self.kwargs["pair"]]],
-                    f=fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-                    t_e=self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+                    w_deli=w_deli,
+                    w_spot=w_spot,
+                    f=f,
+                    t_e=t_e,
                 )
                 self._pricing["k"] = k
                 if isinstance(vol, FXDeltaVolSmile):
@@ -8218,7 +8233,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         else:
             return opt_npv + prem_npv
 
-    def delta_percent(
+    def analytic_delta(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
         solver: Union[Solver, NoInput] = NoInput(0),
@@ -8246,8 +8261,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         base : str, optional
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        metric : str, optional
-            Metric returned by the method. Available options are {"pips_or_%", "vol"}
+
 
         Returns
         -------
@@ -8255,13 +8269,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         Notes
         ------
-        If ``metric`` is *"vol"* then the volatility used to price the option is returned scaled to %. This is useful
-        for :class:`~rateslib.instruments.FXOptionStrat` when comparative volatilities define the price, i.e.
-        for :class:`~rateslib.instruments.FXRiskReversal`.
 
-        If ``metric`` is *"pips_or_%"*, which is the default, then the underlying price is determined from the
-        :class:`~rateslib.periods.FXOptionPeriod` in pips if the premium currency is foreign (RHS) or is in percent of
-        notional if the premium currency is domestic (LHS).
         """
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
@@ -8470,8 +8478,6 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     strike: 2-element sequence
         The first element is applied to the lower strike put and the
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
-    option_fixing: 2-element sequence, optional
-        The option fixing is applied to the put and call in order.
     premium: 2-element sequence, optional
         The premiums associated with each option of the risk reversal.
     kwargs: tuple
@@ -8493,10 +8499,19 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     rate_weight = [-1.0, 1.0]
     rate_weight_vol = [-1.0, 1.0]
 
-    def __init__(self, *args, **kwargs):
-        super(FXOptionStrat, self).__init__(*args, **kwargs)
-        if self.kwargs["option_fixing"] is NoInput.blank:
-            self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
+    def __init__(
+        self,
+        *args,
+        strike=[NoInput(0), NoInput(0)],
+        premium=[NoInput(0), NoInput(0)],
+        **kwargs,
+    ):
+        super(FXOptionStrat, self).__init__(
+            *args,
+            **kwargs,
+        )
+        self.kwargs["strike"] = strike
+        self.kwargs["premium"] = premium
         self.periods = [
             FXPut(
                 pair=self.kwargs["pair"],
@@ -8507,7 +8522,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 modifier=self.kwargs["modifier"],
                 strike=self.kwargs["strike"][0],
                 notional=-self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"][0],
+                option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
                 premium=NoInput(0)
                 if self.kwargs["premium"] is NoInput.blank
@@ -8523,7 +8538,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 modifier=self.kwargs["modifier"],
                 strike=self.kwargs["strike"][1],
                 notional=self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"][1],
+                option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
                 premium=NoInput(0)
                 if self.kwargs["premium"] is NoInput.blank
@@ -8535,7 +8550,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
 class FXStraddle(FXOptionStrat, FXOption):
     """
-    Create an *FX Risk Reversal* option strategy.
+    Create an *FX Straddle* option strategy.
 
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
@@ -8543,20 +8558,15 @@ class FXStraddle(FXOptionStrat, FXOption):
     ----------
     args: tuple
         Positional arguments to :class:`~rateslib.instruments.FXOption`.
-    strike: 2-element sequence
-        The first element is applied to the lower strike put and the
-        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
-    option_fixing: 2-element sequence, optional
-        The option fixing is applied to the put and call in order.
     premium: 2-element sequence, optional
-        The premiums associated with each option of the risk reversal.
+        The premiums associated with each option of the straddle.
     kwargs: tuple
         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
     Notes
     -----
     When supplying ``strike`` as a string delta the strike will be determined at price time from
-    the provided volatility.
+    the provided volatility and FX forward market.
 
     Buying a *Straddle* equates to buying an :class:`~rateslib.instruments.FXCall`
     and an :class:`~rateslib.instruments.FXPut` at the same strike.
@@ -8569,29 +8579,10 @@ class FXStraddle(FXOptionStrat, FXOption):
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
-        if self.kwargs["option_fixing"] is NoInput.blank:
-            self.kwargs["option_fixing"] = [NoInput(0), NoInput(0)]
-        if not isinstance(self.kwargs["strike"], (list, tuple)):
-            self.kwargs["strike"] = [self.kwargs["strike"]] * 2
+        self.kwargs["premium"] = premium
         self.periods = [
-            FXCall(
-                pair=self.kwargs["pair"],
-                expiry=self.kwargs["expiry"],
-                delivery_lag=self.kwargs["delivery"],
-                payment_lag=self.kwargs["payment"],
-                calendar=self.kwargs["calendar"],
-                modifier=self.kwargs["modifier"],
-                strike=self.kwargs["strike"][0],
-                notional=self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"][0],
-                delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][0],
-                premium_ccy=self.kwargs["premium_ccy"],
-            ),
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -8599,9 +8590,98 @@ class FXStraddle(FXOptionStrat, FXOption):
                 payment_lag=self.kwargs["payment"],
                 calendar=self.kwargs["calendar"],
                 modifier=self.kwargs["modifier"],
-                strike=self.kwargs["strike"][1],
+                strike=self.kwargs["strike"],
                 notional=self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"][1],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][0],
+                premium_ccy=self.kwargs["premium_ccy"],
+            ),
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][1],
+                premium_ccy=self.kwargs["premium_ccy"],
+            ),
+        ]
+
+
+class FXStrangle(FXOptionStrat, FXOption):
+    """
+    Create an *FX Strangle* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    strike: 2-element sequence
+        The first element is applied to the lower strike put and the
+        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the straddle.
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+
+    Buying a *Strangle* equates to buying a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
+
+    This class is essentially an alias constructor for an
+    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    of options and their definitions and nominals have been specifically set.
+    """
+
+    rate_weight = [1.0, 1.0]
+    rate_weight_vol = [0.5, 0.5]
+
+    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], **kwargs):
+        super(FXOptionStrat, self).__init__(*args, **kwargs)
+        self.kwargs["premium"] = premium
+        self.periods = [
+            FXPut(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=NoInput(0)
+                if self.kwargs["premium"] is NoInput.blank
+                else self.kwargs["premium"][0],
+                premium_ccy=self.kwargs["premium_ccy"],
+            ),
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
                 premium=NoInput(0)
                 if self.kwargs["premium"] is NoInput.blank

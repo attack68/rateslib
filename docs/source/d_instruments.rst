@@ -54,5 +54,5 @@ allows things like *Spread trades*, *Butterflies*, *Portfolios* and a *Value* fo
     e_securities.rst
     e_singlecurrency.rst
     e_multicurrency.rst
-    e_volatility.rst
+    e_fx_volatility.rst
     e_combinations.rst
