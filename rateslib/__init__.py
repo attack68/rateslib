@@ -105,6 +105,7 @@ from rateslib.legs import (
 
 from rateslib.instruments import (
     Value,
+    VolValue,
     Bill,
     FixedRateBond,
     IndexFixedRateBond,
@@ -207,6 +208,7 @@ __all__ = [
     "BondFuture",
     "FRA",
     "Value",
+    "VolValue",
     "Bill",
     "IRS",
     "STIRFuture",

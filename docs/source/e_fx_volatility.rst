@@ -95,7 +95,7 @@ This can be replicated with *rateslib* native functionality.
              fx=fxf,
              vol=8.9
          )
-         fxc.delta_percent(
+         fxc.analytic_delta(
              curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
              fx=fxf,
              vol=8.9
@@ -224,7 +224,7 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
        fx=fxf,
        vol=8.9
    )
-   fxc.delta_percent(
+   fxc.analytic_delta(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9
@@ -247,7 +247,7 @@ If the pricing parameters change the *Option* strike will adapt accordingly to m
        fx=fxf,
        vol=10.0
    )
-   fxc.delta_percent(
+   fxc.analytic_delta(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=10.0

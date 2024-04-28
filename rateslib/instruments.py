@@ -269,7 +269,12 @@ def _get_curves_fx_and_base_maybe_from_solver(
     return curves_, fx_, base_
 
 
-def _get_vol_maybe_from_solver(vol, solver):
+def _get_vol_maybe_from_solver(vol_attr, vol, solver):
+    if vol is NoInput.blank and vol_attr is NoInput.blank:
+        return NoInput(0)
+    elif vol is NoInput.blank:
+        vol = vol_attr
+
     if solver is NoInput.blank:
         if isinstance(vol, str):
             raise ValueError(
@@ -912,6 +917,122 @@ class Value(BaseMixin):
 
     def analytic_delta(self, *args, **kwargs):
         raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
+
+
+class VolValue(BaseMixin):
+    """
+    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    to directly parametrise a *Vol* node, via some calculated metric.
+
+    Parameters
+    ----------
+    index_value : float, Dual, Dual2
+        The value of some index to the *VolSmile* or *VolSurface*.
+    metric: str, optional
+        The default metric to return from the ``rate`` method.
+    vol: str, FXDeltaVolSmile, optional
+        The associated object from which to determine the ``rate``.
+
+    Examples
+    --------
+    The below :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is solved directly
+    from calibrating volatility values.
+
+    .. ipython:: python
+
+       # Setup a FXForwards market for use with FXOptions
+       eureur = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur")
+       usdusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd")
+       eurusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd")
+       fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
+       fxf = FXForwards(
+           fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
+           fx_rates=fxr
+       )
+       # Create an FXDeltaVolSmile and calibrate it with 3 points
+       smile = FXDeltaVolSmile(
+           nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
+           eval_date=dt(2023, 3, 16),
+           expiry=dt(2023, 6, 16),
+           delta_type="forward",
+           id="VolSmile",
+       )
+       instruments = [
+           VolValue(0.25, vol="VolSmile"),
+           VolValue(0.5, vol="VolSmile"),
+           VolValue(0.75, vol="VolSmile")
+       ]
+       solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 7.8, 9.9])
+       smile[0.25]
+       smile[0.5]
+       smile[0.75]
+    """
+
+    def __init__(
+        self,
+        index_value: DualTypes,
+        # index_type: str = "delta",
+        # delta_type: str = NoInput(0),
+        metric: str = "vol",
+        vol: Union[NoInput, str, FXDeltaVolSmile] = NoInput(0),
+    ):
+        self.index_value = index_value
+        # self.index_type = index_type
+        # self.delta_type = delta_type
+        self.vol = vol
+        self.curves = NoInput(0)
+        self.metric = metric.lower()
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[DualTypes, FXDeltaVolSmile] = NoInput(0),
+        metric: str = "vol"
+    ):
+        """
+        Return a value derived from a *Curve*.
+
+        Parameters
+        ----------
+        curves : Curve, LineCurve, str or list of such
+            Uses only one *Curve*, the one given or the first in the list.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            Not used.
+        base : str, optional
+            Not used.
+        metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+            Configures which type of value to return from the applicable *Curve*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, "_"
+        )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        metric = self.metric if metric is NoInput.blank else metric.lower()
+
+        if metric == "vol":
+            return vol[self.index_value]
+
+        raise ValueError("`metric` must be in {'vol'}.")
+
+    def npv(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of NPV.")
+
+    def cashflows(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of cashflows.")
+
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of analytic delta.")
 
 
 class FXExchange(Sensitivities, BaseMixin):
@@ -7994,6 +8115,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         option_fixing: Union[float, NoInput] = NoInput(0),
         delta_type: Union[float, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        vol: Union[str, FXDeltaVolSmile, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
     ):
         self.kwargs = dict(
@@ -8081,6 +8203,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
+        self.vol = vol
         self.curves = curves
         self.spec = spec
 
@@ -8201,7 +8324,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
-        vol = _get_vol_maybe_from_solver(vol, solver)
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
         if metric == "vol":
@@ -8221,7 +8344,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
+
         opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves[1]
@@ -8274,7 +8399,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
+
         return self.periods[0].analytic_delta(
             curves[1],
             curves[3],
@@ -8301,7 +8428,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
+
         x, y = self.periods[0]._payoff_at_expiry(range)
         return x, y
 
