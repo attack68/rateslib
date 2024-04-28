@@ -8088,6 +8088,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     style = "european"
     _pricing = None
+    _rate_scalar = 1.0
 
     def __init__(
         self,
@@ -8525,11 +8526,12 @@ class FXOptionStrat:
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: Union[list[float], float] = NoInput(0),
-        metric: str = "pips_or_%",
+        metric: Union[str, NoInput(0)] = NoInput(0),  # "pips_or_%",
     ):
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
+        metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
         _, weights = 0.0, self.rate_weight if metric != "vol" else self.rate_weight_vol
         for option, vol_, weight in zip(self.periods, vol, weights):
             _ += option.rate(curves, solver, fx, base, vol_, metric) * weight
@@ -8599,6 +8601,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
     premium: 2-element sequence, optional
         The premiums associated with each option of the risk reversal.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
@@ -8623,6 +8627,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         *args,
         strike=[NoInput(0), NoInput(0)],
         premium=[NoInput(0), NoInput(0)],
+        metric: str = "vol",
         **kwargs,
     ):
         super(FXOptionStrat, self).__init__(
@@ -8631,6 +8636,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         )
         self.kwargs["strike"] = strike
         self.kwargs["premium"] = premium
+        self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
                 pair=self.kwargs["pair"],
@@ -8647,6 +8653,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 if self.kwargs["premium"] is NoInput.blank
                 else self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
             ),
             FXCall(
                 pair=self.kwargs["pair"],
@@ -8663,6 +8671,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 if self.kwargs["premium"] is NoInput.blank
                 else self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
             ),
         ]
 
@@ -8679,6 +8689,8 @@ class FXStraddle(FXOptionStrat, FXOption):
         Positional arguments to :class:`~rateslib.instruments.FXOption`.
     premium: 2-element sequence, optional
         The premiums associated with each option of the straddle.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
@@ -8698,9 +8710,10 @@ class FXStraddle(FXOptionStrat, FXOption):
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
 
-    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], **kwargs):
+    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], metric="vol", **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
         self.kwargs["premium"] = premium
+        self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
                 pair=self.kwargs["pair"],
@@ -8717,6 +8730,8 @@ class FXStraddle(FXOptionStrat, FXOption):
                 if self.kwargs["premium"] is NoInput.blank
                 else self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
             ),
             FXCall(
                 pair=self.kwargs["pair"],
@@ -8733,6 +8748,8 @@ class FXStraddle(FXOptionStrat, FXOption):
                 if self.kwargs["premium"] is NoInput.blank
                 else self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
             ),
         ]
 
@@ -8752,6 +8769,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
     premium: 2-element sequence, optional
         The premiums associated with each option of the straddle.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
 
@@ -8771,9 +8790,18 @@ class FXStrangle(FXOptionStrat, FXOption):
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
 
-    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], **kwargs):
+    def __init__(
+        self,
+        *args,
+        strike=[NoInput(0), NoInput(0)],
+        premium=[NoInput(0), NoInput(0)],
+        metric="vol",
+        **kwargs
+    ):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
+        self.kwargs["strike"] = strike
         self.kwargs["premium"] = premium
+        self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
                 pair=self.kwargs["pair"],
@@ -8782,7 +8810,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 payment_lag=self.kwargs["payment"],
                 calendar=self.kwargs["calendar"],
                 modifier=self.kwargs["modifier"],
-                strike=self.kwargs["strike"],
+                strike=self.kwargs["strike"][0],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
@@ -8790,6 +8818,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                 if self.kwargs["premium"] is NoInput.blank
                 else self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
             ),
             FXCall(
                 pair=self.kwargs["pair"],
@@ -8798,7 +8828,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 payment_lag=self.kwargs["payment"],
                 calendar=self.kwargs["calendar"],
                 modifier=self.kwargs["modifier"],
-                strike=self.kwargs["strike"],
+                strike=self.kwargs["strike"][1],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
@@ -8806,6 +8836,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                 if self.kwargs["premium"] is NoInput.blank
                 else self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
             ),
         ]
 
