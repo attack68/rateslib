@@ -2519,5 +2519,64 @@ class TestFXOption:
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.9
-        ) * 20e6 / 100
-        assert abs(result - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+        )
+        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+
+        p0 = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9,
+            metric="pips"
+        )
+        p1 = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.91,
+            metric="pips"
+        )
+        fwd_diff = (p1 - p0)
+        assert abs(result - fwd_diff) < 1e-2
+
+    def test_analytic_vomma(self, fxfo):
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 3, 16),
+            notional=20e6,
+            strike=1.101,
+            delta_type="forward",
+        )
+        result = fxc.analytic_vomma(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9
+        )
+        # assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+
+        p0 = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9,
+            metric="pips"
+        )
+        p1 = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.91,
+            metric="pips"
+        )
+        p_1 = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.89,
+            metric="pips"
+        )
+        fwd_diff = (p1 - p0 - p0 + p_1) * 10000
+        assert abs(result - fwd_diff) < 1e-2

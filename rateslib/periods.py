@@ -2710,6 +2710,63 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         return v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0))
 
+    def analytic_vomma(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+    ):
+        """
+        Return the vomma of the option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            Not used by `analytic_vega`.
+        local: bool,
+            Not used by `analytic_vega`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        If ``strike`` is not set on the *FXOption* this method will **raise**.
+
+        This returns the second derivative of option price with respect to volatility. The return of this
+        method represents a percentage, which when applied to the given domestic notional
+        returns the vomma exposure in foreign currency.
+
+        TODO example.
+        """
+        w_d = disc_curve[self.delivery]
+        v_d = disc_curve_ccy2[self.delivery]
+        f_d = fx.rate(self.pair, self.delivery)
+        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+        spot = fx.pairs_settlement[self.pair]
+
+        if isinstance(vol, FXDeltaVolSmile):
+            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+        else:
+            vol_ = vol
+
+        d_plus = _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0)
+        vega = v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * d_plus)
+        ddplus_dsigma = dual_log(self.strike / f_d) / (vol_ ** 2 * sqrt_t / 10000.0) + 0.5 * sqrt_t
+        return -vega * d_plus * ddplus_dsigma / 100.0
+
 
     ###
     ###  The following functions used for Strike determination when given a fixed volatility.
