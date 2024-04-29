@@ -8581,7 +8581,7 @@ class FXOptionStrat:
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: Union[list[float], float] = NoInput(0),
-        metric: Union[str, NoInput(0)] = NoInput(0),  # "pips_or_%",
+        metric: Union[str, NoInput] = NoInput(0),  # "pips_or_%",
     ):
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
