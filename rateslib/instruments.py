@@ -8205,11 +8205,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.curves = curves
         self.spec = spec
 
-    def _get_pricing_parameters(self, vol):
-        """Handle the cases if vol is DualTypes or an object with callable method"""
-        if isinstance(vol, DualTypes):
-            pass
-
     def _set_pricing_mid(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -8225,14 +8220,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
         self._pricing = {"vol": vol}
-        m_spot = fx.pairs_settlement[self.kwargs["pair"]]
-        t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
-        w_deli = curves[1][self.kwargs["delivery"]]
-        w_spot = curves[1][m_spot]
-        f = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
 
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
+            m_spot = fx.pairs_settlement[self.kwargs["pair"]]
+            t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
+            w_deli = curves[1][self.kwargs["delivery"]]
+            w_spot = curves[1][m_spot]
+            f = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
 
             if method == "atm_forward":
                 self._pricing["k"] = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])

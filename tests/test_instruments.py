@@ -3302,6 +3302,27 @@ class TestFXOptions:
         assert abs(fxp.analytic_delta(curves, fx=fxfo, vol=10.0) + 0.5) < 1e-14
         assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
 
+    def test_analytic_vega(self, fxfo):
+        fxo = FXCall(
+            pair="eurusd",
+            expiry="3m",
+            eval_date=dt(2023, 3, 16),
+            modifier="mf",
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=dt(2023, 3, 16),
+            calendar="tgt",
+            strike=1.101,
+            delta_type="spot",
+        )
+        result = fxo.analytic_vega(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            fx=fxfo,
+            vol=8.9,
+        )
+        # see test_periods/test_analytic_vega
+        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+
 
 class TestFXStraddle:
 
