@@ -2578,5 +2578,5 @@ class TestFXOption:
             vol=8.89,
             metric="pips"
         )
-        fwd_diff = (p1 - p0 - p0 + p_1) * 10000
+        fwd_diff = (p1 - p0 - p0 + p_1) * 100.0
         assert abs(result - fwd_diff) < 1e-2

@@ -3418,3 +3418,8 @@ class TestVolValue:
         assert abs(smile[0.25] - 8.9) < 5e-7
         assert abs(smile[0.5] - 8.2) < 5e-7
         assert abs(smile[0.75] - 9.1) < 5e-7
+
+    def test_no_solver_vol_value(self):
+        vv = VolValue(0.25, vol="string_id")
+        with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
+            vv.rate()
