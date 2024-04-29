@@ -61,6 +61,8 @@ For the purpose of this user guide page, we create such a market below.
     fxf._set_ad_order(1)
     fxf.swap("eurusd", [dt(2023, 3, 20), dt(2023, 6, 20)])  # should be 60.1 points
 
+.. _build-option-doc:
+
 Building and Pricing an Option
 ================================
 
@@ -84,22 +86,15 @@ This can be replicated with *rateslib* native functionality.
              modifier="mf",
              premium_ccy="usd",
              eval_date=NoInput(0),
-             premium=NoInput(0),
              option_fixing=NoInput(0),
+             premium=NoInput(0),
              delta_type="forward",
-             curves=NoInput(0),
+             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
              spec=NoInput(0),
          )
-         fxc.rate(
-             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
-             fx=fxf,
-             vol=8.9
-         )
-         fxc.analytic_delta(
-             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
-             fx=fxf,
-             vol=8.9
-         )
+         fxc.rate(fx=fxf, vol=8.9)
+         fxc.analytic_delta(fx=fxf, vol=8.9)
+         fxc.analytic_vega(fx=fxf, vol=8.9) * 20e6 / 100.0
 
    .. container:: rightside60
 

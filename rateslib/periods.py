@@ -44,6 +44,7 @@ from rateslib.fx_volatility import (
     _black76,
     _delta_type_constants,
     _d_plus_min_u,
+    _d_plus
 )
 from rateslib.splines import evaluate
 from rateslib.dual import (
@@ -2621,6 +2622,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             Not used by `analytic_delta`.
         local: bool,
             Not used by `analytic_delta`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
         premium: float, optional
             The premium value of the option paid at the appropriate payment date.
             If not given calculates and assumes a mid-market premium.
@@ -2655,6 +2658,58 @@ class FXOptionPeriod(metaclass=ABCMeta):
             premium=premium,
             disc_curve=disc_curve,
         )
+
+    def analytic_vega(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+    ):
+        """
+        Return the vega of the option.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            Not used by `analytic_vega`.
+        local: bool,
+            Not used by `analytic_vega`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
+
+        Returns
+        -------
+        float
+
+        Notes
+        -----
+        If ``strike`` is not set on the *FXOption* this method will **raise**.
+
+        The return of this method represents a percentage, which when applied to the given domestic notional
+        returns the vega exposure in foreign currency. See :ref:`building an option <build-option-doc>`.
+        """
+        w_d = disc_curve[self.delivery]
+        v_d = disc_curve_ccy2[self.delivery]
+        f_d = fx.rate(self.pair, self.delivery)
+        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+        spot = fx.pairs_settlement[self.pair]
+
+        if isinstance(vol, FXDeltaVolSmile):
+            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+        else:
+            vol_ = vol
+
+        return v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0))
+
 
     ###
     ###  The following functions used for Strike determination when given a fixed volatility.

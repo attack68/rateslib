@@ -2503,3 +2503,21 @@ class TestFXOption:
                 fxfo.rate("eurusd", dt(2023, 6, 20)),
                 fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
             )
+
+    def test_analytic_vega(self, fxfo):
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 3, 16),
+            notional=20e6,
+            strike=1.101,
+            delta_type="forward",
+        )
+        result = fxc.analytic_vega(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9
+        ) * 20e6 / 100
+        assert abs(result - 33757.945) < 1e-2  # BBG validation gives 33775.78 $

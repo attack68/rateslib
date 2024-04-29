@@ -939,6 +939,13 @@ class VolValue(BaseMixin):
     from calibrating volatility values.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib.fx_volatility import FXDeltaVolSmile
+       from rateslib.instruments import VolValue
+       from rateslib.solver import Solver
+
+    .. ipython:: python
 
        smile = FXDeltaVolSmile(
            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
@@ -8401,6 +8408,59 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             local,
             vol,
             self.kwargs["premium"],
+        )
+
+    def analytic_vega(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        ------
+
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+
+        return self.periods[0].analytic_vega(
+            curves[1],
+            curves[3],
+            fx,
+            base,
+            local,
+            vol,
         )
 
     def _plot_payoff(
