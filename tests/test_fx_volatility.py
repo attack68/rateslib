@@ -247,18 +247,18 @@ class TestFXDeltaVolSmile:
             strike=k,
             delta_type=delta_type,
         )
-        smile_delta = fxo1.analytic_delta(
+        smile_delta = fxo1.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
             vol=0.10,
-        )
-        delta = fxo2.analytic_delta(
+        )["delta"]
+        delta = fxo2.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
             vol=0.10,
-        )
+        )["delta"]
 
         if -smile_delta < 0.5:
             nodes = {float(-smile_delta): 10.0, float(-smile_delta) + 0.25: 12.5}
@@ -292,11 +292,11 @@ class TestFXDeltaVolSmile:
         with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
             fxvs.__iter__()
 
-    @pytest.mark.parametrize("smile_type, delta_type, exp", [
-        ("forward", "forward", 0.25),
-        ("forward", "spot", 0.25),
-    ])
-    def test_get(self, fxfo):
-
+    # @pytest.mark.parametrize("smile_type, delta_type, exp", [
+    #     ("forward", "forward", 0.25),
+    #     ("forward", "spot", 0.25),
+    # ])
+    # def test_get(self, fxfo):
+    #     pass
 
 

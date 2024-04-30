@@ -1987,12 +1987,12 @@ class TestFXOption:
         expected = exp_prem
         assert abs(result - expected) < 1e-2
 
-        result = fxo.analytic_delta(
+        result = fxo.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=vol_,
-        )
+        )["delta"]
         expected = exp_dl
         assert abs(result - expected) < 1e-6
 
@@ -2033,13 +2033,13 @@ class TestFXOption:
         expected = exp_prem
         assert abs(result - expected) < 1e-1
 
-        result = fxo.analytic_delta(
+        result = fxo.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=vol_,
             premium=exp_prem
-        )
+        )["delta"]
         expected = exp_dl
         assert abs(result - expected) < 5e-5
 
@@ -2321,12 +2321,12 @@ class TestFXOption:
             notional=20e6,
             delta_type=dlty,
         )
-        result2 = fxo.analytic_delta(
+        result2 = fxo.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fxfo,
             vol=vol_,
-        )
+        )["delta"]
         assert abs(result2 - delta) < 1e-8
 
     def test_payoff_at_expiry(self, fxfo):
@@ -2404,12 +2404,12 @@ class TestFXOption:
         if vol_smile:
             vol_ = vol_[result[1]]
 
-        expected = fxo.analytic_delta(
+        expected = fxo.analytic_greeks(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=vol_,
-        )
+        )["delta"]
 
         assert abs(delta -expected) < 1e-8
 
@@ -2457,12 +2457,12 @@ class TestFXOption:
         if vol_smile:
             vol_ = vol_[result[1]]
 
-        expected = fxo.analytic_delta(
+        expected = fxo.analytic_greeks(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=vol_,
-        )
+        )["delta"]
         assert abs(delta -expected) < 1e-8
 
 
@@ -2514,12 +2514,12 @@ class TestFXOption:
             strike=1.101,
             delta_type="forward",
         )
-        result = fxc.analytic_vega(
+        result = fxc.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.9
-        )
+        )["vega"]
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
         p0 = fxc.rate(
@@ -2549,12 +2549,12 @@ class TestFXOption:
             strike=1.101,
             delta_type="forward",
         )
-        result = fxc.analytic_vomma(
+        result = fxc.analytic_greeks(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.9
-        )
+        )["vomma"]
         # assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
         p0 = fxc.rate(

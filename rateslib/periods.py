@@ -2613,15 +2613,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Parameters
         ----------
         disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
+            The discount *Curve* for the LHS currency.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            Not used by `analytic_delta`.
+            Not used by `analytic_greeks`.
         local: bool,
-            Not used by `analytic_delta`.
+            Not used by `analytic_greeks`.
         vol: float, or FXDeltaVolSmile
             The volatility used in calculation.
         premium: float, optional
@@ -2638,213 +2638,226 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         If ``srtike`` is not set on the *FXOption* this method will **raise**.
         """
+        spot = fx.pairs_settlement[self.pair]
+        w_spot = disc_curve[spot]
+        w_deli = disc_curve[self.delivery]
+        if self.delivery != self.payment:
+            w_payment = disc_curve[self.payment]
+        else:
+            w_payment = w_deli
+        v_deli = disc_curve_ccy2[self.delivery]
+        v_spot = disc_curve_ccy2[spot]
+        f_d = fx.rate(self.pair, self.delivery)
+        u = self.strike / f_d
+        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+
         if isinstance(vol, FXDeltaVolSmile):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_deli, w_spot)
         else:
             vol_ = vol
+        vol_ /= 100.0
+        vol_sqrt_t = vol_ * sqrt_t
+        eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
+        d_eta = _d_plus_min_u(u, vol_sqrt_t, eta)
+        d_plus = _d_plus_min_u(u, vol_sqrt_t, 0.5)
+        d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
 
         _ = {"delta_type": self.delta_type}
-
-        w_d = disc_curve[self.delivery]
-        v_d = disc_curve_ccy2[self.delivery]
-        f_d = fx.rate(self.pair, self.delivery)
-        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
-        spot = fx.pairs_settlement[self.pair]
-
-        if "_pa" in self.delta_type and premium is NoInput.blank:
-            premium = (
-                self.npv(disc_curve, disc_curve_ccy2, fx, base=self.pair[:3], vol=vol)
-                / disc_curve[self.payment]
-            )
-        return self._delta_percent(
-            fx=fx,
-            k=self.strike,
-            vol=vol,
-            t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
-            delta_type=self.delta_type,
-            premium=premium,
-            disc_curve=disc_curve,
-        )
-
-
-        _["vega"] = v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0))
+        _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
         _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
-
-        d_plus = _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0)
-        ddplus_dsigma = dual_log(self.strike / f_d) / (vol_ ** 2 * sqrt_t / 10000.0) + 0.5 * sqrt_t
-        _["vomma"] = -_["vega"] * d_plus * ddplus_dsigma / 100.0
-        _[f"vomma_{self.pair[3:]}"] = _["vomma"] * self.notional / 100.0
-
-
-    def analytic_delta(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
-        premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
-    ):
-        """
-        Return the percentage delta of the option.
-
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            Not used by `analytic_delta`.
-        local: bool,
-            Not used by `analytic_delta`.
-        vol: float, or FXDeltaVolSmile
-            The volatility used in calculation.
-        premium: float, optional
-            The premium value of the option paid at the appropriate payment date.
-            If not given calculates and assumes a mid-market premium.
-
-        Returns
-        -------
-        float
-
-        Notes
-        -----
-        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
-
-        If ``srtike`` is not set on the *FXOption* this method will **raise**.
-        """
-        if "_pa" in self.delta_type and premium is NoInput.blank:
-            premium = (
-                self.npv(
-                    disc_curve,
-                    disc_curve_ccy2,
-                    fx,
-                    base=self.pair[:3],
-                    vol=vol,
-                )
-                / disc_curve[self.payment]
-            )
-        return self._delta_percent(
-            fx=fx,
-            k=self.strike,
-            vol=vol,
-            t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
-            delta_type=self.delta_type,
-            premium=premium,
-            disc_curve=disc_curve,
+        _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
+        _["gamma"] = self._analytic_gamma(
+            "spot" in self.delta_type, v_deli, v_spot, w_deli, w_spot, self.phi, d_plus, f_d, vol_sqrt_t
         )
+        _["delta"] = self._analytic_delta(
+            premium, "_pa" in self.delta_type, z_u, z_w, d_eta, self.phi, d_plus, w_payment, w_spot, self.notional
+        )
+        return _
 
-    def analytic_vega(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
-    ):
-        """
-        Return the vega of the option.
+    @staticmethod
+    def _analytic_vega(v_deli, f_d, sqrt_t, phi, d_plus):
+        return v_deli * f_d * sqrt_t * dual_norm_pdf(phi * d_plus)
 
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            Not used by `analytic_vega`.
-        local: bool,
-            Not used by `analytic_vega`.
-        vol: float, or FXDeltaVolSmile
-            The volatility used in calculation.
+    @staticmethod
+    def _analytic_vomma(vega, d_plus, d_min, vol):
+        return vega * d_plus * d_min * vol
 
-        Returns
-        -------
-        float
+    @staticmethod
+    def _analytic_gamma(spot, v_deli, v_spot, w_deli, w_spot, phi, d_plus, f_d, vol_sqrt_t):
+        _ = v_deli * dual_norm_pdf(phi * d_plus) / (f_d * vol_sqrt_t)
+        if spot:
+            return _ * ((w_deli * v_spot) / (w_spot * v_deli))**2
+        return _
 
-        Notes
-        -----
-        If ``strike`` is not set on the *FXOption* this method will **raise**.
-
-        The return of this method represents a percentage, which when applied to the given domestic notional
-        returns the vega exposure in foreign currency. See :ref:`building an option <build-option-doc>`.
-        """
-        w_d = disc_curve[self.delivery]
-        v_d = disc_curve_ccy2[self.delivery]
-        f_d = fx.rate(self.pair, self.delivery)
-        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
-        spot = fx.pairs_settlement[self.pair]
-
-        if isinstance(vol, FXDeltaVolSmile):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+    @staticmethod
+    def _analytic_delta(premium, adjusted, z_u, z_w, d_eta, phi, d_plus, w_payment, w_spot, N_dom):
+        if not adjusted or premium is NoInput.blank:
+            # returns unadjusted delta or mid-market premium adjusted delta
+            return z_u * z_w * phi * dual_norm_cdf(phi * d_eta)
         else:
-            vol_ = vol
+            # returns adjusted delta with set premium in domestic (LHS) currency.
+            # ASSUMES: if premium adjusted the premium is expressed in LHS currency.
+            return z_w * phi * dual_norm_cdf(phi * d_plus) - w_payment / w_spot * premium / N_dom
 
-        return v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0))
+    # def analytic_delta(
+    #     self,
+    #     disc_curve: Curve,
+    #     disc_curve_ccy2: Curve,
+    #     fx: Union[FXForwards, NoInput] = NoInput(0),
+    #     base: Union[str, NoInput] = NoInput(0),
+    #     local: bool = False,
+    #     vol: Union[float, NoInput] = NoInput(0),
+    #     premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
+    # ):
+    #     """
+    #     Return the percentage delta of the option.
+    #
+    #     Parameters
+    #     ----------
+    #     disc_curve: Curve
+    #         The discount *Curve* for the LHS currency. (Not used).
+    #     disc_curve_ccy2: Curve
+    #         The discount *Curve* for the RHS currency.
+    #     fx: float, FXRates, FXForwards, optional
+    #         The object to project the currency pair FX rate at delivery.
+    #     base: str, optional
+    #         Not used by `analytic_delta`.
+    #     local: bool,
+    #         Not used by `analytic_delta`.
+    #     vol: float, or FXDeltaVolSmile
+    #         The volatility used in calculation.
+    #     premium: float, optional
+    #         The premium value of the option paid at the appropriate payment date.
+    #         If not given calculates and assumes a mid-market premium.
+    #
+    #     Returns
+    #     -------
+    #     float
+    #
+    #     Notes
+    #     -----
+    #     Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
+    #
+    #     If ``srtike`` is not set on the *FXOption* this method will **raise**.
+    #     """
+    #     greeks = self.analytic_greeks(
+    #         disc_curve,
+    #         disc_curve_ccy2,
+    #         fx,
+    #         base,
+    #         local,
+    #         vol,
+    #         premium,
+    #     )
+    #     return greeks["delta"]
 
-    def analytic_vomma(
-        self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
-        fx: Union[FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
-        local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
-    ):
-        """
-        Return the vomma of the option.
-
-        Parameters
-        ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            Not used by `analytic_vega`.
-        local: bool,
-            Not used by `analytic_vega`.
-        vol: float, or FXDeltaVolSmile
-            The volatility used in calculation.
-
-        Returns
-        -------
-        float
-
-        Notes
-        -----
-        If ``strike`` is not set on the *FXOption* this method will **raise**.
-
-        This returns the second derivative of option price with respect to volatility. The return of this
-        method represents a percentage, which when applied to the given domestic notional
-        returns the vomma exposure in foreign currency.
-
-        TODO example.
-        """
-        w_d = disc_curve[self.delivery]
-        v_d = disc_curve_ccy2[self.delivery]
-        f_d = fx.rate(self.pair, self.delivery)
-        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
-        spot = fx.pairs_settlement[self.pair]
-
-        if isinstance(vol, FXDeltaVolSmile):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
-        else:
-            vol_ = vol
-
-        d_plus = _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0)
-        vega = v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * d_plus)
-        ddplus_dsigma = dual_log(self.strike / f_d) / (vol_ ** 2 * sqrt_t / 10000.0) + 0.5 * sqrt_t
-        return -vega * d_plus * ddplus_dsigma / 100.0
+    # def analytic_vega(
+    #     self,
+    #     disc_curve: Curve,
+    #     disc_curve_ccy2: Curve,
+    #     fx: Union[FXForwards, NoInput] = NoInput(0),
+    #     base: Union[str, NoInput] = NoInput(0),
+    #     local: bool = False,
+    #     vol: Union[float, NoInput] = NoInput(0),
+    # ):
+    #     """
+    #     Return the vega of the option.
+    #
+    #     Parameters
+    #     ----------
+    #     disc_curve: Curve
+    #         The discount *Curve* for the LHS currency. (Not used).
+    #     disc_curve_ccy2: Curve
+    #         The discount *Curve* for the RHS currency.
+    #     fx: float, FXRates, FXForwards, optional
+    #         The object to project the currency pair FX rate at delivery.
+    #     base: str, optional
+    #         Not used by `analytic_vega`.
+    #     local: bool,
+    #         Not used by `analytic_vega`.
+    #     vol: float, or FXDeltaVolSmile
+    #         The volatility used in calculation.
+    #
+    #     Returns
+    #     -------
+    #     float
+    #
+    #     Notes
+    #     -----
+    #     If ``strike`` is not set on the *FXOption* this method will **raise**.
+    #
+    #     The return of this method represents a percentage, which when applied to the given domestic notional
+    #     returns the vega exposure in foreign currency. See :ref:`building an option <build-option-doc>`.
+    #     """
+    #     w_d = disc_curve[self.delivery]
+    #     v_d = disc_curve_ccy2[self.delivery]
+    #     f_d = fx.rate(self.pair, self.delivery)
+    #     sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+    #     spot = fx.pairs_settlement[self.pair]
+    #
+    #     if isinstance(vol, FXDeltaVolSmile):
+    #         _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+    #     else:
+    #         vol_ = vol
+    #
+    #     return v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0))
+    #
+    # def analytic_vomma(
+    #     self,
+    #     disc_curve: Curve,
+    #     disc_curve_ccy2: Curve,
+    #     fx: Union[FXForwards, NoInput] = NoInput(0),
+    #     base: Union[str, NoInput] = NoInput(0),
+    #     local: bool = False,
+    #     vol: Union[float, NoInput] = NoInput(0),
+    # ):
+    #     """
+    #     Return the vomma of the option.
+    #
+    #     Parameters
+    #     ----------
+    #     disc_curve: Curve
+    #         The discount *Curve* for the LHS currency. (Not used).
+    #     disc_curve_ccy2: Curve
+    #         The discount *Curve* for the RHS currency.
+    #     fx: float, FXRates, FXForwards, optional
+    #         The object to project the currency pair FX rate at delivery.
+    #     base: str, optional
+    #         Not used by `analytic_vega`.
+    #     local: bool,
+    #         Not used by `analytic_vega`.
+    #     vol: float, or FXDeltaVolSmile
+    #         The volatility used in calculation.
+    #
+    #     Returns
+    #     -------
+    #     float
+    #
+    #     Notes
+    #     -----
+    #     If ``strike`` is not set on the *FXOption* this method will **raise**.
+    #
+    #     This returns the second derivative of option price with respect to volatility. The return of this
+    #     method represents a percentage, which when applied to the given domestic notional
+    #     returns the vomma exposure in foreign currency.
+    #
+    #     TODO example.
+    #     """
+    #     w_d = disc_curve[self.delivery]
+    #     v_d = disc_curve_ccy2[self.delivery]
+    #     f_d = fx.rate(self.pair, self.delivery)
+    #     sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+    #     spot = fx.pairs_settlement[self.pair]
+    #
+    #     if isinstance(vol, FXDeltaVolSmile):
+    #         _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+    #     else:
+    #         vol_ = vol
+    #
+    #     d_plus = _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0)
+    #     vega = v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * d_plus)
+    #     ddplus_dsigma = dual_log(self.strike / f_d) / (vol_ ** 2 * sqrt_t / 10000.0) + 0.5 * sqrt_t
+    #     return -vega * d_plus * ddplus_dsigma / 100.0
 
 
     ###
@@ -3600,72 +3613,72 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         return vol_
 
-    def _delta_percent(
-        self,
-        fx: FXForwards,
-        k: float,
-        vol: DualTypes,
-        t_e: DualTypes,
-        delta_type: str,
-        premium: Union[DualTypes, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-    ):
-        """
-        Determine a percent delta given a strike value.
-
-        Parameters
-        ----------
-        fx: FXForwards
-            The FXForwards object used for determining forwards.
-        k: float
-            The strike value of the option.
-        vol: float, Dual, Dual2,
-            The volatility (assumed constant) over the period to expiry
-        t_e: float, Dual, Dual2
-            The time to expiry.
-        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
-            The delta type to determine delta for.
-        premium: float, Dual, Dual2, optional
-            The premium, optional, needed only for premium adjusted delta.
-            Must be expressed in domestic (LHS) currency.
-        disc_curve: Curve
-            The discount curve for the domestic (LHS) currency at appropriate collateral rate.
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-        # TODO Although this code works, it is not DRY and is bog standard, embarassing coding.
-        spot = fx.pairs_settlement[self.pair]
-        f = fx.rate(self.pair, self.delivery)
-
-        if isinstance(vol, FXDeltaVolSmile):
-            _, vol_, _ = vol.get_from_strike(
-                k, self.phi, f, disc_curve[self.delivery], disc_curve[spot]
-            )
-        else:
-            vol_ = vol
-
-        vs = vol_ * t_e**0.5 / 100.0
-        d1 = dual_log(f / k) / vs + 0.5 * vs
-        _ = self.phi * dual_norm_cdf(self.phi * d1)
-        if delta_type == "forward_pa":
-            if self.payment == self.delivery:
-                w1 = 1.0
-            else:
-                w1 = disc_curve[self.payment] / disc_curve[self.delivery]
-            return _ - w1 * premium / self.notional
-        elif delta_type == "spot":
-            w_d = disc_curve[self.delivery]
-            w_spot = disc_curve[spot]
-            return _ * w_d / w_spot
-        elif delta_type == "spot_pa":
-            w_d = disc_curve[self.delivery]
-            w_spot = disc_curve[spot]
-            w_p = disc_curve[self.payment]
-            return _ * w_d / w_spot - w_p * premium / (w_spot * self.notional)
-        else:  # == "forward"
-            return _
+    # def _delta_percent(
+    #     self,
+    #     fx: FXForwards,
+    #     k: float,
+    #     vol: DualTypes,
+    #     t_e: DualTypes,
+    #     delta_type: str,
+    #     premium: Union[DualTypes, NoInput] = NoInput(0),
+    #     disc_curve: Union[Curve, NoInput] = NoInput(0),
+    # ):
+    #     """
+    #     Determine a percent delta given a strike value.
+    #
+    #     Parameters
+    #     ----------
+    #     fx: FXForwards
+    #         The FXForwards object used for determining forwards.
+    #     k: float
+    #         The strike value of the option.
+    #     vol: float, Dual, Dual2,
+    #         The volatility (assumed constant) over the period to expiry
+    #     t_e: float, Dual, Dual2
+    #         The time to expiry.
+    #     delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+    #         The delta type to determine delta for.
+    #     premium: float, Dual, Dual2, optional
+    #         The premium, optional, needed only for premium adjusted delta.
+    #         Must be expressed in domestic (LHS) currency.
+    #     disc_curve: Curve
+    #         The discount curve for the domestic (LHS) currency at appropriate collateral rate.
+    #
+    #     Returns
+    #     -------
+    #     float, Dual, Dual2
+    #     """
+    #     # TODO Although this code works, it is not DRY and is bog standard, embarassing coding.
+    #     spot = fx.pairs_settlement[self.pair]
+    #     f = fx.rate(self.pair, self.delivery)
+    #
+    #     if isinstance(vol, FXDeltaVolSmile):
+    #         _, vol_, _ = vol.get_from_strike(
+    #             k, self.phi, f, disc_curve[self.delivery], disc_curve[spot]
+    #         )
+    #     else:
+    #         vol_ = vol
+    #
+    #     vs = vol_ * t_e**0.5 / 100.0
+    #     d1 = dual_log(f / k) / vs + 0.5 * vs
+    #     _ = self.phi * dual_norm_cdf(self.phi * d1)
+    #     if delta_type == "forward_pa":
+    #         if self.payment == self.delivery:
+    #             w1 = 1.0
+    #         else:
+    #             w1 = disc_curve[self.payment] / disc_curve[self.delivery]
+    #         return _ - w1 * premium / self.notional
+    #     elif delta_type == "spot":
+    #         w_d = disc_curve[self.delivery]
+    #         w_spot = disc_curve[spot]
+    #         return _ * w_d / w_spot
+    #     elif delta_type == "spot_pa":
+    #         w_d = disc_curve[self.delivery]
+    #         w_spot = disc_curve[spot]
+    #         w_p = disc_curve[self.payment]
+    #         return _ * w_d / w_spot - w_p * premium / (w_spot * self.notional)
+    #     else:  # == "forward"
+    #         return _
 
     def _t_to_expiry(self, now: datetime):
         # TODO make this a dual, associated with theta
