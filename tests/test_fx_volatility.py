@@ -281,3 +281,22 @@ class TestFXDeltaVolSmile:
             k / fxfo.rate("eurusd", dt(2023, 6, 20))
         )
         assert abs(result + smile_delta) < 1e-10
+
+    def test_iter_raises(self):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.5: 1.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+        )
+        with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
+            fxvs.__iter__()
+
+    @pytest.mark.parametrize("smile_type, delta_type, exp", [
+        ("forward", "forward", 0.25),
+        ("forward", "spot", 0.25),
+    ])
+    def test_get(self, fxfo):
+
+
+

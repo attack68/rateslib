@@ -170,10 +170,11 @@ class FXDeltaVolSmile:
     expiry: datetime
         The expiry date of the options associated with this *Smile*
     delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
-        The type of delta calculation that is used on the options to attain a delta which is referenced by the
-        node keys.
+        The type of delta calculation that is used on the options to attain a delta which
+        is referenced by the node keys.
     id: str, optional
-        The unique identifier to distinguish between *Smiles* in a multicurrency framework and/or *Surface*.
+        The unique identifier to distinguish between *Smiles* in a multicurrency framework
+        and/or *Surface*.
     ad: int, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`~rateslib.dual.Dual` or
@@ -182,10 +183,21 @@ class FXDeltaVolSmile:
 
     Notes
     -----
-    If the ``delta_type`` is not premium adjusted the range of the delta index is set to [0,1].
+    The *delta* axis of this *Smile* is a **negated put delta**, i.e. 0.25 corresponds to a put
+    delta of -0.25. This permits increasing strike for increasing delta index.
+    For a 'forward' delta type 0.25 corresponds to a call delta of 0.75 via
+    put-call delta parity. For a 'spot' delta type it would not because under a 'spot' delta
+    type put-call delta parity is not 1.0, but related to the spot versus forward interest rates.
 
-    If it is premium adjusted the upper limit is set to
-    :math:`e^{\sigma \sqrt{t} (4.75 + \frac{1}{2} \sigma \sqrt{t})}`
+    The **interpolation function** between nodes is a **cubic spline**.
+
+    - For an *unadjusted* ``delta_type`` the range of the delta index is set to [0,1], and the
+      cubic spline is **natural** with second order derivatives set to zero at the endpoints.
+
+    - For *premium adjusted* ``delta_types`` the range of the delta index is in [0, *d*] where *d*
+      is set large enough to encompass 99.99% of all possible values. The right endpoint is clamped
+      with a first derivative of zero to avoid uncontrolled behaviour. The value of *d* is derivaed
+      using :math:`d = e^{\sigma \sqrt{t} (3.75 + \frac{1}{2} \sigma \sqrt{t})}`
 
     """
 
@@ -214,14 +226,16 @@ class FXDeltaVolSmile:
         if "_pa" in self.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
             upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.0 - 0.5 * vol * self.t_expiry_sqrt)
+                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt)
             )
             self.plot_upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (2.0 - 0.5 * vol * self.t_expiry_sqrt)
+                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt)
             )
+            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
         else:
             upper_bound = 1.0
             self.plot_upper_bound = 1.0
+            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
 
         if self.n in [1, 2]:
             self.t = [0.0] * 4 + [float(upper_bound)] * 4
@@ -231,7 +245,7 @@ class FXDeltaVolSmile:
         self._set_ad_order(ad)  # includes csolve
 
     def __iter__(self):
-        raise TypeError("`FXVolSmile` is not iterable.")
+        raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
     def __getitem__(self, item):
         """
@@ -546,7 +560,7 @@ class FXDeltaVolSmile:
 
         tau.append(self.t[-1])
         y.append(set_order_convert(0.0, self.ad, None))
-        right_n = 2
+        right_n = self._right_n
         return tau, y, left_n, right_n
 
     def _csolve_n_other(self):
@@ -560,7 +574,7 @@ class FXDeltaVolSmile:
 
         tau.append(self.t[-1])
         y.append(set_order_convert(0.0, self.ad, None))
-        right_n = 2
+        right_n = self._right_n
         return tau, y, left_n, right_n
 
     def csolve(self):
