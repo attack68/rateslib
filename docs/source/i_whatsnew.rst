@@ -68,20 +68,26 @@ for notes about installation changes.
        handling of AD with regards to both x-axis and y-axis variables. See
        :ref:`section on using AD with splines <splines-ad-doc>`
    * - Splines
-       Added :meth:`~rateslib.splines.evaluate` for automatically handling which ppdnev method
+     - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
        to use based on the AD sensitivities of the given `x` value.
    * - Instruments
      - Basic *FX Volatility Instruments* have been added, including
-       :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut` and
-       :class:`~rateslib.instruments.FXRiskReversal`. See :ref:`user guide section <volatility-doc>`
-       for more information.
+       :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
+       :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
+       :class:`~rateslib.instruments.FXStrangle`, and :class:`~rateslib.instruments.FXOptionStrat`.
+       See :ref:`user guide section <volatility-doc>` for more information.
+   * - FX Volatility
+     - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
+       to allow pricing of single expiry *FX Options* with a *Smile* interpolated over a *Delta*
+       axis.
    * - AD
      - Added :meth:`~rateslib.dual.dual_norm_pdf` for AD safe standard normal probability density.
    * - AD
      - Added :meth:`~rateslib.solver.newton_root` and :meth:`~rateslib.newton.newton_multi_root`
        for AD safe Newton root solving in one or multiple dimensions.
    * - Bug
-     - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A", albeit with a *UserWarning*.
+     - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A",
+       albeit with a *UserWarning*.
 
 
 1.1.0 (20th Mar 2024)

@@ -24,7 +24,6 @@ from rateslib.dual.dualrs import (
 )
 
 DualTypes = Union[float, Dual, Dual2]
-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.

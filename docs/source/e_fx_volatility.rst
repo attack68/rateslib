@@ -20,7 +20,7 @@ volatility value.
 
 The following *Instruments* are currently available.
 
-.. inheritance-diagram:: rateslib.instruments.FXCall rateslib.instruments.FXPut rateslib.instruments.FXRiskReversal
+.. inheritance-diagram:: rateslib.instruments.FXCall rateslib.instruments.FXPut rateslib.instruments.FXRiskReversal rateslib.instruments.FXStraddle rateslib.instruments.FXStrangle
    :private-bases:
    :parts: 1
 
@@ -28,6 +28,8 @@ The following *Instruments* are currently available.
    rateslib.instruments.FXCall
    rateslib.instruments.FXPut
    rateslib.instruments.FXRiskReversal
+   rateslib.instruments.FXStraddle
+   rateslib.instruments.FXStrangle
 
 FXForwards Market
 ==================
@@ -59,6 +61,8 @@ For the purpose of this user guide page, we create such a market below.
     fxf._set_ad_order(1)
     fxf.swap("eurusd", [dt(2023, 3, 20), dt(2023, 6, 20)])  # should be 60.1 points
 
+.. _build-option-doc:
+
 Building and Pricing an Option
 ================================
 
@@ -82,22 +86,15 @@ This can be replicated with *rateslib* native functionality.
              modifier="mf",
              premium_ccy="usd",
              eval_date=NoInput(0),
-             premium=NoInput(0),
              option_fixing=NoInput(0),
+             premium=NoInput(0),
              delta_type="forward",
-             curves=NoInput(0),
+             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
              spec=NoInput(0),
          )
-         fxc.rate(
-             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
-             fx=fxf,
-             vol=0.089
-         )
-         fxc.delta_percent(
-             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
-             fx=fxf,
-             vol=0.089
-         )
+         fxc.rate(fx=fxf, vol=8.9)
+         fxc.analytic_delta(fx=fxf, vol=8.9)
+         fxc.analytic_vega(fx=fxf, vol=8.9) * 20e6 / 100.0
 
    .. container:: rightside60
 
@@ -220,12 +217,12 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
    fxc.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
        fx=fxf,
-       vol=0.089
+       vol=8.9
    )
-   fxc.delta_percent(
+   fxc.analytic_delta(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=0.089
+       vol=8.9
    )
 
 When the pricing functions are called the **strike is implied** and automatically set on the
@@ -243,12 +240,12 @@ If the pricing parameters change the *Option* strike will adapt accordingly to m
    fxc.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
        fx=fxf,
-       vol=0.10
+       vol=10.0
    )
-   fxc.delta_percent(
+   fxc.analytic_delta(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=0.10
+       vol=10.0
    )
    fxc.periods[0].strike
 
@@ -280,13 +277,13 @@ two different ``vol`` inputs in the absense of a volatility surface.
    fxrr.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[0.1015, 0.089]
+       vol=[10.15, 8.9]
    )
    fxrr.plot_payoff(
        range=[1.025, 1.11],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[0.1015, 0.089]
+       vol=[10.15, 8.9]
    )
 
 .. plot::
@@ -325,5 +322,5 @@ two different ``vol`` inputs in the absense of a volatility surface.
        range=[1.025, 1.11],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[0.1015, 0.089],
+       vol=[10.15, 8.9],
    )

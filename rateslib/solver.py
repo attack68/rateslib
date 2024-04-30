@@ -1371,14 +1371,15 @@ class Solver(Gradients):
             ident = np.eye(curve.n)
             if curve._ini_solve == 1:
                 # then the first node on the Curve is not updated but set it as a Dual with consistent vars.
-                curve.nodes[curve.node_dates[0]] = DualType.vars_from(
+
+                curve.nodes[curve.node_keys[0]] = DualType.vars_from(
                     d_vars,
-                    curve.nodes[curve.node_dates[0]].real,
+                    curve.nodes[curve.node_keys[0]].real,
                     d_vars.vars,
                     ident[0, :].tolist(),
                     *DualArgs[1:],
                 )
-            for i, k in enumerate(curve.node_dates[curve._ini_solve :]):
+            for i, k in enumerate(curve.node_keys[curve._ini_solve :]):
                 curve.nodes[k] = DualType.vars_from(
                     d_vars,
                     v_new[var_counter].real,
@@ -2224,3 +2225,64 @@ def _is_any_dual(arr):
 def _is_any_dual2(arr):
     return any([isinstance(_, Dual2) for _ in arr.flatten()])
 
+
+# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
+#     """
+#     Alternative root solver. Used for solving premium adjutsed option strikes from delta values.
+#     """
+#     fx0 = f(x0)
+#     fx1 = f(x1)
+#
+#     if float(fx0 * fx1) > 0:
+#         raise ValueError("`brents` must initiate from function values with opposite signs.")
+#
+#     if abs(fx0) < abs(fx1):
+#         x0, x1 = x1, x0
+#         fx0, fx1 = fx1, fx0
+#
+#     x2, fx2 = x0, fx0
+#
+#     mflag = True
+#     steps_taken = 0
+#
+#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+#         fx0 = f(x0)
+#         fx1 = f(x1)
+#         fx2 = f(x2)
+#
+#         if fx0 != fx2 and fx1 != fx2:
+#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+#             new = L0 + L1 + L2
+#
+#         else:
+#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+#
+#         if (
+#             (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+#             or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+#             or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+#             or (mflag is True and (abs(x1 - x2)) < tolerance)
+#             or (mflag is False and (abs(x2 - d)) < tolerance)
+#         ):
+#             new = (x0 + x1) / 2
+#             mflag = True
+#
+#         else:
+#             mflag = False
+#
+#         fnew = f(new)
+#         d, x2 = x2, x1
+#
+#         if float(fx0 * fnew) < 0:
+#             x1 = new
+#         else:
+#             x0 = new
+#
+#         if abs(fx0) < abs(fx1):
+#             x0, x1 = x1, x0
+#
+#         steps_taken += 1
+#
+#     return x1, steps_taken
