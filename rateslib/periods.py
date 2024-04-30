@@ -2634,9 +2634,23 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Notes
         -----
-        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
+        **Delta**
 
-        If ``srtike`` is not set on the *FXOption* this method will **raise**.
+        This is the percentage value of the domestic notional in either the *forward* or *spot*
+        FX rate to which the option price has exposure.
+
+        **Gamma**
+
+        This is the amount of domestic notional
+
+        **Vega**
+
+        **Vomma**
+
+        Raises
+        ------
+        ValueError: if the ``strike`` is not set on the *Option*.
+
         """
         spot = fx.pairs_settlement[self.pair]
         w_spot = disc_curve[spot]
@@ -2648,6 +2662,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         v_deli = disc_curve_ccy2[self.delivery]
         v_spot = disc_curve_ccy2[spot]
         f_d = fx.rate(self.pair, self.delivery)
+        f_t = fx.rate(self.pair, spot)
         u = self.strike / f_d
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
@@ -2661,17 +2676,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
         d_eta = _d_plus_min_u(u, vol_sqrt_t, eta)
         d_plus = _d_plus_min_u(u, vol_sqrt_t, 0.5)
         d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
+        _is_spot = "spot" in self.delta_type
 
         _ = {"delta_type": self.delta_type}
-        _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
-        _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
-        _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
-        _["gamma"] = self._analytic_gamma(
-            "spot" in self.delta_type, v_deli, v_spot, w_deli, w_spot, self.phi, d_plus, f_d, vol_sqrt_t
-        )
         _["delta"] = self._analytic_delta(
             premium, "_pa" in self.delta_type, z_u, z_w, d_eta, self.phi, d_plus, w_payment, w_spot, self.notional
         )
+        _[f"delta_{self.pair[:3]}"] = self.notional * _["delta"]
+        _["gamma"] = self._analytic_gamma(
+            _is_spot, v_deli, v_spot, z_w, self.phi, d_plus, f_d, vol_sqrt_t
+        )
+        _[f"gamma_{self.pair[:3]}_1%"] = _["gamma"] * self.notional * (f_t if _is_spot else f_d) * 0.01
+        _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
+        _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
+        _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
+
         return _
 
     @staticmethod
@@ -2683,10 +2702,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return vega * d_plus * d_min * vol
 
     @staticmethod
-    def _analytic_gamma(spot, v_deli, v_spot, w_deli, w_spot, phi, d_plus, f_d, vol_sqrt_t):
-        _ = v_deli * dual_norm_pdf(phi * d_plus) / (f_d * vol_sqrt_t)
+    def _analytic_gamma(spot, v_deli, v_spot, z_w, phi, d_plus, f_d, vol_sqrt_t):
+        _ = z_w * dual_norm_pdf(phi * d_plus) / (f_d * vol_sqrt_t)
         if spot:
-            return _ * ((w_deli * v_spot) / (w_spot * v_deli))**2
+            return _ * z_w * v_spot / v_deli
         return _
 
     @staticmethod
@@ -3385,64 +3404,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         u, delta_idx = root_solver["g"][0], root_solver["g"][1]
         return u, delta_idx
 
-    # def _strike_from_delta_with_money_vol_smile_adjusted(
-    #     self,
-    #     f: DualTypes,
-    #     delta: float,
-    #     vol: FXMoneyVolSmile,
-    #     t_e: DualTypes,
-    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
-    # ) -> float:
-    #     """
-    #     Use a Brent root solver for u (moneyness)
-    #
-    #     Needs an interval.
-    #
-    #     Must return float because uses a root solving algorithm.
-    #     """
-    #
-    #     if "forward" in self.delta_type:
-    #         scalar = 1.0
-    #     else:
-    #         scalar = float(w_deli / w_spot)
-    #
-    #     sqt_e = float(t_e) ** 0.5
-    #
-    #     def root(u):
-    #         vol_ = float(vol[u]) / 100.0
-    #         vol_sqt_e = vol_ * sqt_e
-    #         d_min = - vol_sqt_e * 0.5 - dual_log(u) / vol_sqt_e
-    #         return delta - scalar * u * self.phi * dual_norm_cdf(self.phi * d_min)
-    #
-    #     u_min, u_max = self._get_interval_for_premium_adjusted_delta_vol_smile2(
-    #         vol.u_max, vol, t_e, f
-    #     )
-    #
-    #     root_solver = _brents(root, u_min, u_max)
-    #
-    #     return float(root_solver[0] * f)
-
-    # def _strike_from_delta_with_money_vol_smile(
-    #     self,
-    #     f: DualTypes,
-    #     delta: float,
-    #     vol: FXMoneyVolSmile,
-    #     t_e: DualTypes,
-    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
-    # ):
-    #     if "_pa" in self.delta_type:
-    #         return self._strike_from_delta_with_money_vol_smile_adjusted(
-    #             f, delta, vol, t_e, w_deli, w_spot, v_deli,
-    #         )
-    #     else:
-    #         return self._strike_from_delta_with_money_vol_smile_unadjusted(
-    #             f, delta, vol, t_e, w_deli, w_spot, v_deli,
-    #         )
-
     # def _get_interval_for_premium_adjusted_delta_with_money_vol_smile(
     #     self,
     #     u_max,
@@ -3526,40 +3487,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #         u_min = float(u_max) / 2.0
     #     return (u_min, u_max)
 
-    # def _strike_from_delta_with_money_vol_smile_unadjusted(
-    #     self,
-    #     f: DualTypes,
-    #     delta: float,
-    #     vol: FXMoneyVolSmile,
-    #     t_e: DualTypes,
-    #     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    #     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-    #     v_deli: Union[DualTypes, NoInput] = NoInput(0),
-    # ):
-    #     """
-    #     Use a Newton root solver for u (moneyness).
-    #     """
-    #     if "forward" in self.delta_type:
-    #         delta_ = delta
-    #     elif "spot" in self.delta_type:
-    #         delta_ = delta * w_spot / w_deli
-    #
-    #     val = self.phi * dual_inv_norm_cdf(self.phi * delta_) * t_e ** 0.5
-    #
-    #     def root(u):
-    #         vol_ = vol[u] / 100.0
-    #         return dual_log(u) - vol_**2 * t_e * 0.5 + vol_ * val
-    #
-    #     def root_deriv(u):
-    #         vol_ = vol[u] / 100.0
-    #         vol_deriv_ = vol.spline.ppdnev_single(u, 1) / 100.0
-    #         return 1 / u + vol_deriv_ * (val - vol_ * t_e)
-    #
-    #     root_solver = _newton(root, root_deriv, 1.0)
-    #     _ = root_solver[0] * f
-    #     return _
-    #
-    #
     # def _strike_from_delta_with_money_vol_smile_adjusted(
     #     self,
     #     f: DualTypes,
@@ -3612,73 +3539,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
             vol_ = vol
 
         return vol_
-
-    # def _delta_percent(
-    #     self,
-    #     fx: FXForwards,
-    #     k: float,
-    #     vol: DualTypes,
-    #     t_e: DualTypes,
-    #     delta_type: str,
-    #     premium: Union[DualTypes, NoInput] = NoInput(0),
-    #     disc_curve: Union[Curve, NoInput] = NoInput(0),
-    # ):
-    #     """
-    #     Determine a percent delta given a strike value.
-    #
-    #     Parameters
-    #     ----------
-    #     fx: FXForwards
-    #         The FXForwards object used for determining forwards.
-    #     k: float
-    #         The strike value of the option.
-    #     vol: float, Dual, Dual2,
-    #         The volatility (assumed constant) over the period to expiry
-    #     t_e: float, Dual, Dual2
-    #         The time to expiry.
-    #     delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
-    #         The delta type to determine delta for.
-    #     premium: float, Dual, Dual2, optional
-    #         The premium, optional, needed only for premium adjusted delta.
-    #         Must be expressed in domestic (LHS) currency.
-    #     disc_curve: Curve
-    #         The discount curve for the domestic (LHS) currency at appropriate collateral rate.
-    #
-    #     Returns
-    #     -------
-    #     float, Dual, Dual2
-    #     """
-    #     # TODO Although this code works, it is not DRY and is bog standard, embarassing coding.
-    #     spot = fx.pairs_settlement[self.pair]
-    #     f = fx.rate(self.pair, self.delivery)
-    #
-    #     if isinstance(vol, FXDeltaVolSmile):
-    #         _, vol_, _ = vol.get_from_strike(
-    #             k, self.phi, f, disc_curve[self.delivery], disc_curve[spot]
-    #         )
-    #     else:
-    #         vol_ = vol
-    #
-    #     vs = vol_ * t_e**0.5 / 100.0
-    #     d1 = dual_log(f / k) / vs + 0.5 * vs
-    #     _ = self.phi * dual_norm_cdf(self.phi * d1)
-    #     if delta_type == "forward_pa":
-    #         if self.payment == self.delivery:
-    #             w1 = 1.0
-    #         else:
-    #             w1 = disc_curve[self.payment] / disc_curve[self.delivery]
-    #         return _ - w1 * premium / self.notional
-    #     elif delta_type == "spot":
-    #         w_d = disc_curve[self.delivery]
-    #         w_spot = disc_curve[spot]
-    #         return _ * w_d / w_spot
-    #     elif delta_type == "spot_pa":
-    #         w_d = disc_curve[self.delivery]
-    #         w_spot = disc_curve[spot]
-    #         w_p = disc_curve[self.payment]
-    #         return _ * w_d / w_spot - w_p * premium / (w_spot * self.notional)
-    #     else:  # == "forward"
-    #         return _
 
     def _t_to_expiry(self, now: datetime):
         # TODO make this a dual, associated with theta
