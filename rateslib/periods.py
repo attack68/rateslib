@@ -2597,6 +2597,85 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # return a float TODO check whether Dual can be returned. Use Generic Newton
         return float(vol_)
 
+    def analytic_greeks(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[float, NoInput] = NoInput(0),
+        premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
+    ):
+        """
+        Return the different greeks for the *Option*.
+
+        Parameters
+        ----------
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency. (Not used).
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            Not used by `analytic_delta`.
+        local: bool,
+            Not used by `analytic_delta`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
+        premium: float, optional
+            The premium value of the option paid at the appropriate payment date.
+            If not given calculates and assumes a mid-market premium.
+
+        Returns
+        -------
+        dict
+
+        Notes
+        -----
+        Uses the ``delta_type`` parameter associated with the *FXOption* to make calculations.
+
+        If ``srtike`` is not set on the *FXOption* this method will **raise**.
+        """
+        if isinstance(vol, FXDeltaVolSmile):
+            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_d, disc_curve[spot])
+        else:
+            vol_ = vol
+
+        _ = {"delta_type": self.delta_type}
+
+        w_d = disc_curve[self.delivery]
+        v_d = disc_curve_ccy2[self.delivery]
+        f_d = fx.rate(self.pair, self.delivery)
+        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+        spot = fx.pairs_settlement[self.pair]
+
+        if "_pa" in self.delta_type and premium is NoInput.blank:
+            premium = (
+                self.npv(disc_curve, disc_curve_ccy2, fx, base=self.pair[:3], vol=vol)
+                / disc_curve[self.payment]
+            )
+        return self._delta_percent(
+            fx=fx,
+            k=self.strike,
+            vol=vol,
+            t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+            delta_type=self.delta_type,
+            premium=premium,
+            disc_curve=disc_curve,
+        )
+
+
+        _["vega"] = v_d * f_d * sqrt_t * dual_norm_pdf(self.phi * _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0))
+        _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
+
+        d_plus = _d_plus(self.strike, f_d, sqrt_t * vol_ / 100.0)
+        ddplus_dsigma = dual_log(self.strike / f_d) / (vol_ ** 2 * sqrt_t / 10000.0) + 0.5 * sqrt_t
+        _["vomma"] = -_["vega"] * d_plus * ddplus_dsigma / 100.0
+        _[f"vomma_{self.pair[3:]}"] = _["vomma"] * self.notional / 100.0
+
+
     def analytic_delta(
         self,
         disc_curve: Curve,
