@@ -2580,3 +2580,37 @@ class TestFXOption:
         )
         fwd_diff = (p1 - p0 - p0 + p_1) * 100.0
         assert abs(result - fwd_diff) < 1e-2
+
+    def test_vega_and_vomma_example(self, fxfo):
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 3, 16),
+            notional=10e6,
+            strike=1.10,
+            delta_type="forward",
+        )
+        rate = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=10.0,
+            metric="pips"
+        ) * 10e6 / 10e3
+        rate2 = fxc.rate(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=11.0,
+            metric="pips"
+        ) * 10e6 / 10e3
+        greeks = fxc.analytic_greeks(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=10.0,
+        )
+        taylor = 10e6 / 100 * ( greeks["vega"] + 0.5 * greeks["vomma"])
+        expected = rate2 - rate
+        assert abs(taylor - expected) < 30.0
