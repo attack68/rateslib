@@ -93,8 +93,7 @@ This can be replicated with *rateslib* native functionality.
              spec=NoInput(0),
          )
          fxc.rate(fx=fxf, vol=8.9)
-         fxc.analytic_delta(fx=fxf, vol=8.9)
-         fxc.analytic_vega(fx=fxf, vol=8.9) * 20e6 / 100.0
+         fxc.analytic_greeks(vol=8.9, fx=fxf)
 
    .. container:: rightside60
 
@@ -219,11 +218,11 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
        fx=fxf,
        vol=8.9
    )
-   fxc.analytic_delta(
+   fxc.analytic_greeks(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9
-   )
+   )["delta"]
 
 When the pricing functions are called the **strike is implied** and automatically set on the
 attached *FXCallPeriod*.
@@ -242,11 +241,11 @@ If the pricing parameters change the *Option* strike will adapt accordingly to m
        fx=fxf,
        vol=10.0
    )
-   fxc.analytic_delta(
+   fxc.analytic_greeks(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=10.0
-   )
+   )["delta"]
    fxc.periods[0].strike
 
 

@@ -3297,9 +3297,9 @@ class TestFXOptions:
             delta_type=dlty
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        assert abs(fxc.analytic_delta(curves, fx=fxfo, vol=10.0) - 0.5) < 1e-14
+        assert abs(fxc.analytic_greeks(curves, fx=fxfo, vol=10.0)["delta"] - 0.5) < 1e-14
         assert abs(fxc.periods[0].strike - 1.068856) < 1e-6
-        assert abs(fxp.analytic_delta(curves, fx=fxfo, vol=10.0) + 0.5) < 1e-14
+        assert abs(fxp.analytic_greeks(curves, fx=fxfo, vol=10.0)["delta"] + 0.5) < 1e-14
         assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
 
     def test_analytic_vega(self, fxfo):
@@ -3315,11 +3315,11 @@ class TestFXOptions:
             strike=1.101,
             delta_type="spot",
         )
-        result = fxo.analytic_vega(
+        result = fxo.analytic_greeks(
             curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=8.9,
-        )
+        )["vega"]
         # see test_periods/test_analytic_vega
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
