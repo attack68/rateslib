@@ -2749,7 +2749,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #         return vega / f_d * (1 - d_plus / vol_sqrt_t)
 
 
-    
+
 
 
     ###

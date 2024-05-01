@@ -2522,22 +2522,20 @@ class TestFXOption:
         )["vega"]
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
-        p0 = fxc.rate(
+        p0 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.9,
-            metric="pips"
         )
-        p1 = fxc.rate(
+        p1 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.91,
-            metric="pips"
         )
-        fwd_diff = (p1 - p0)
-        assert abs(result - fwd_diff) < 1e-2
+        fwd_diff = (p1 - p0) / 20e6 * 10000.0
+        assert abs(result - fwd_diff) < 1e-4
 
     def test_analytic_vomma(self, fxfo):
         fxc = FXCallPeriod(
@@ -2545,7 +2543,7 @@ class TestFXOption:
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
             payment=dt(2023, 3, 16),
-            notional=20e6,
+            notional=1,
             strike=1.101,
             delta_type="forward",
         )
@@ -2557,29 +2555,26 @@ class TestFXOption:
         )["vomma"]
         # assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
-        p0 = fxc.rate(
+        p0 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.9,
-            metric="pips"
         )
-        p1 = fxc.rate(
+        p1 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.91,
-            metric="pips"
         )
-        p_1 = fxc.rate(
+        p_1 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             vol=8.89,
-            metric="pips"
         )
-        fwd_diff = (p1 - p0 - p0 + p_1) * 100.0
-        assert abs(result - fwd_diff) < 1e-2
+        fwd_diff = (p1 - p0 - p0 + p_1) * 1e4 * 1e4
+        assert abs(result - fwd_diff) < 1e-6
 
     @pytest.mark.parametrize("payment", [dt(2023, 3, 16), dt(2023, 6, 20)])
     def test_vega_and_vomma_example(self, fxfo, payment):
