@@ -2690,6 +2690,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
         _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
+        _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
+        # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
         return _
 
@@ -2699,7 +2701,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     @staticmethod
     def _analytic_vomma(vega, d_plus, d_min, vol):
-        return vega * d_plus * d_min * vol
+        return vega * d_plus * d_min / vol
 
     @staticmethod
     def _analytic_gamma(spot, v_deli, v_spot, z_w, phi, d_plus, f_d, vol_sqrt_t):
@@ -2717,6 +2719,17 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # returns adjusted delta with set premium in domestic (LHS) currency.
             # ASSUMES: if premium adjusted the premium is expressed in LHS currency.
             return z_w * phi * dual_norm_cdf(phi * d_plus) - w_payment / w_spot * premium / N_dom
+
+    @staticmethod
+    def _analytic_vanna(z_w, phi, d_plus, d_min, vol):
+        return -z_w * dual_norm_pdf(phi * d_plus) * d_min / vol
+
+    # @staticmethod
+    # def _analytic_vanna(vega, spot, f_t, f_d, d_plus, vol_sqrt_t):  # Alternative monetary def.
+    #     if spot:
+    #         return vega / f_t * (1 - d_plus / vol_sqrt_t)
+    #     else:
+    #         return vega / f_d * (1 - d_plus / vol_sqrt_t)
 
     # def analytic_delta(
     #     self,

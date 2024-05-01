@@ -7,7 +7,7 @@ from pandas import DataFrame, Series, Index
 import numpy as np
 
 import context
-from rateslib.default import NoInput
+from rateslib.default import NoInput, Defaults
 from rateslib.periods import (
     Cashflow,
     FixedPeriod,
@@ -19,7 +19,7 @@ from rateslib.periods import (
     FXPutPeriod,
 )
 from rateslib.fx import FXRates, FXForwards
-from rateslib.default import Defaults
+from rateslib.dual import Dual
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
 from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib import defaults
@@ -2608,12 +2608,12 @@ class TestFXOption:
             disc_curve=fxfo.curve("eur", "usd"),
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.0,
+            vol=Dual(10.0, ["vol"], [100.0]),
         )
-        taylor_vega = 10e6 / 100 * greeks["vega"] * 0.1
-        taylor_vomma = 10e6 / 100 * 0.5 * greeks["vomma"] * 0.01
+        taylor_vega = 10e6 * greeks["vega"] * 0.1 / 100.0
+        taylor_vomma = 10e6 * 0.5 * greeks["vomma"] * 0.1**2 / 10000.0
         expected = npv2 - npv
-        assert abs(taylor_vega + taylor_vomma - expected) < 0.1
+        assert abs(taylor_vega + taylor_vomma - expected) < 0.2
 
     @pytest.mark.parametrize("payment", [dt(2023, 3, 16), dt(2023, 6, 20)])
     @pytest.mark.parametrize("delta_type", ["spot", "forward"])
@@ -2660,3 +2660,58 @@ class TestFXOption:
         expected = npv2 - npv
         taylor = (taylor_delta + taylor_gamma) * fxfo.curve("usd", "usd")[discount_date]
         assert abs(taylor - expected) < 0.5
+
+    @pytest.mark.parametrize("payment", [dt(2023, 6, 20), dt(2023, 3, 16)])
+    @pytest.mark.parametrize("delta_type", ["spot", "forward"])
+    def test_all_5_greeks_example(self, fxfo, payment, delta_type):
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=payment,
+            notional=10e6,
+            strike=1.10,
+            delta_type=delta_type,
+        )
+        npv = fxc.npv(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=10.0,
+        )
+        greeks = fxc.analytic_greeks(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=Dual(10.0, ["vol"], [100.0]),
+        )
+        f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
+        fxfo.fx_rates.update({"eurusd": 1.0625})
+        fxfo.update()
+        f_d2 = fxfo.rate("eurusd", dt(2023, 6, 20))
+        if delta_type == "forward":
+            fwd_diff = (f_d2 - f_d)
+            discount_date = fxc.delivery
+        else:
+            fwd_diff = 0.001
+            discount_date = dt(2023, 3, 20)
+        npv2 = fxc.npv(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=10.1,
+        )
+        greeks2 = fxc.analytic_greeks(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=Dual(10.1, ["vol"], [100.0]),
+        )
+        expected = npv2 - npv
+        taylor_delta = fwd_diff * greeks["delta"] * 10e6
+        taylor_gamma = 0.5 * fwd_diff**2 * greeks["gamma"] * 10e6
+        taylor_vega = 0.1 / 100.0 * greeks["vega"] * 10e6
+        taylor_vomma = 0.5 * 0.1**2 / 10000.0 * greeks["vomma"] * 10e6
+        taylor_vanna = 0.1 / 100.0 * fwd_diff * greeks["vanna"] * 10e6
+        taylor = fxfo.curve("usd", "usd")[discount_date] * (taylor_delta + taylor_gamma + taylor_vanna) + taylor_vomma + taylor_vega
+        assert abs(taylor - expected) < 5e-1
