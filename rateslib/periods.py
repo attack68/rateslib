@@ -2637,15 +2637,32 @@ class FXOptionPeriod(metaclass=ABCMeta):
         **Delta**
 
         This is the percentage value of the domestic notional in either the *forward* or *spot*
-        FX rate to which the option price has exposure.
+        FX rate. The choice of which is defined by the option's ``delta_type``.
+
+        Delta is also expressed in nominal domestic currency amount.
 
         **Gamma**
 
-        This is the amount of domestic notional
+        This defines by how much *delta* will change for a 1.0 increase in either the *forward*
+        or *spot* FX rate. Which rate is determined by the option's ``delta_type``.
+
+        Gamma is also expressed in nominal domestic currency amount for a +1% change in FX rates.
+
+        **Vanna**
+
+        This defines by how much *delta* will change for a 1.0 increase (i.e. 100 log-vols) in
+        volatility.
 
         **Vega**
 
+        This defines by how much the PnL of the option will change for a 1.0 increase in
+        volatility for a nominal of 1 unit of domestic currency.
+
+        Vega is also expressed in foreign currency for a 0.01 (i.e. 1 log-vol) move higher in vol.
+
         **Vomma**
+
+        This defines by how much *vega* will change for a 1.0 increase in volatility.
 
         Raises
         ------
