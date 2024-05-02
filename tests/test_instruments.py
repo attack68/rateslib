@@ -32,6 +32,7 @@ from rateslib.instruments import (
     FXPut,
     FXRiskReversal,
     FXStraddle,
+    FXStrangle,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
@@ -3418,6 +3419,40 @@ class TestFXStraddle:
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol, metric=metric)
         assert abs(result - expected) < 1e-6
+
+
+class TestFXStrangle:
+
+    @pytest.mark.parametrize("dlty, strike, ccy, expected", [
+        ("forward", ["-20d", "20d"], "usd", 10.0),
+    ])
+    def test_strangle_rate(self, fxfo, dlty, strike, ccy, expected):
+        # test pricing a straddle with vol 10.0 returns 10.0
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=strike,
+            premium_ccy=ccy,
+            delta_type=dlty,
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=fxvs)
+        assert abs(result - expected) < 1e-8
+
 
 
 class TestVolValue:

@@ -2664,6 +2664,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         This defines by how much *vega* will change for a 1.0 increase in volatility.
 
+        **Internal use**
+
+        The non-traditional pseudo greeks **kappa**, :math:`\frac{\partial P }{\partial K}`,
+        and *kega*, :math:` \left . \frac{\partial K }{\partial \sigma} \right |_\Delta` are used internally by
+        some calculations.
+
         Raises
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
@@ -2710,6 +2716,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
+
+        _["__kega"] = self._analytic_kega(z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta)
+        _["__kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
         return _
 
     @staticmethod
@@ -2748,8 +2757,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     else:
     #         return vega / f_d * (1 - d_plus / vol_sqrt_t)
 
+    @staticmethod
+    def _analytic_kega(z_u, z_w, eta, vol, sqrt_t, f_d, phi, k, d_eta):
+        if eta < 0:
+            # dz_u_du = 1.0
+            u_ = z_w * phi * dual_norm_cdf(phi * d_eta) / f_d
+        else:
+            u_ = 0.0
 
+        _ = z_u * z_w * dual_norm_pdf(phi * d_eta)
+        _ = (_ * d_eta) / (vol * (u_ + _ / (k * vol * sqrt_t)))
+        return _
 
+    @staticmethod
+    def _analytic_kappa(v_deli, phi, d_min):
+        return -v_deli * phi * dual_norm_cdf(phi * d_min)
 
 
     ###

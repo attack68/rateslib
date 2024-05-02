@@ -8899,7 +8899,40 @@ class FXStrangle(FXOptionStrat, FXOption):
             return super().rate(curves, solver, fx, base, vol, metric)
 
         # else the strangle has a particular type of mkt convention which specified a single volatility
-        raise NotImplementedError("Strangle single vol not yet priced.")
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        num, den, prem = 0.0, 0.0, 0.0
+        a, b, c = 0.0, 0.0, 0.0
+        for option, vol_, strike in zip(self.periods, vol, self.kwargs["strike"]):
+            sigma = option.rate(curves, solver, fx, base, vol_, "vol")
+            greeks = option.analytic_greeks(curves, solver, fx, base, vol=vol_)
+            if isinstance(strike, str) and strike[-1].lower() == "d":
+                # then strike is variable (fixed delta) and dP_dsigma requires that partial derivative modification
+                vega = greeks["vega"] # + greeks["__kega"] * greeks["__kappa"]
+            else:
+                vega = greeks["vega"]
+            num += sigma * vega
+            den += vega
+
+            a += greeks["vomma"] / 2.0
+            b += vega - sigma * greeks["vomma"]
+            c += -sigma * vega + sigma**2 * greeks["vomma"] / 2.0
+            # check
+            prem += option.rate(curves, solver, fx, base, sigma, "pips_or_%")
+
+        _ = num / den
+        disc = b**2 - 4 * a * c
+        _2 = (-b + disc ** 0.5) / (2 * a)
+        _2b = (-b - disc ** 0.5) / (2 * a)
+
+        # check
+        prem2 = 0.0
+        for option in self.periods:
+            prem2 += option.rate(curves, solver, fx, base, _, "pips_or_%")
+
+        return _
+
 
 # Generic Instruments
 
