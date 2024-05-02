@@ -1249,7 +1249,7 @@ _DCF = {
     "EUROBONDBASIS": _dcf_30e360,
     "30E360ISDA": _dcf_30e360isda,
     "ACTACT": _dcf_actactisda,
-    "ACTACTISDA": _dcf_30e360isda,
+    "ACTACTISDA": _dcf_actactisda,
     "ACTACTICMA": _dcf_actacticma,
     "ACTACTICMA_STUB365F": _dcf_actacticma_stub365f,
     "ACTACTISMA": _dcf_actacticma,
