@@ -8505,6 +8505,18 @@ class FXPut(FXOption):
 
 
 class FXOptionStrat:
+    """
+    Create a custom option strategy composed of a list of :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    options: list
+        The *FXOptions* which make up the strategy.
+    rate_weight: list
+        The multiplier for the *'pips_or_%'* metric that sums the options to a final *rate*.
+    rate_weight_vol: list
+        The multiplier for the *'vol'* metric that sums the options to a final *rate*.
+    """
     def __init__(
         self,
         options: list[FXOption],
@@ -8530,6 +8542,36 @@ class FXOptionStrat:
         vol: Union[list[float], float] = NoInput(0),
         metric: Union[str, NoInput] = NoInput(0),  # "pips_or_%",
     ):
+        """
+        Return the mid-market rate of an option strategy.
+
+        Parameters
+        ----------
+        curves
+        solver
+        fx
+        base
+        vol
+        metric
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+
+        The different types of ``metric`` return different quotation conventions.
+
+        - *'vol'*: sums the mid-market volatilities of each option multiplied by their respective ``rate_weight_vol``
+          parameter. For example this is the default pricing convention for
+          a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call minus the vol of the
+          put and the ``rate_weight_vol`` parameters are [-1.0, 1.0].
+
+        - *'pips_or_%'*: sums the mid-market pips or percent price of each option multiplied by their respective
+          ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle` the total premium
+          is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
+        """
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
@@ -8790,14 +8832,14 @@ class FXStrangle(FXOptionStrat, FXOption):
     """
 
     rate_weight = [1.0, 1.0]
-    rate_weight_vol = [0.5, 0.5]
+    rate_weight_vol = [-1.0, 1.0]
 
     def __init__(
         self,
         *args,
         strike=[NoInput(0), NoInput(0)],
         premium=[NoInput(0), NoInput(0)],
-        metric="vol",
+        metric="single_vol",
         **kwargs
     ):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
@@ -8843,6 +8885,21 @@ class FXStrangle(FXOptionStrat, FXOption):
             ),
         ]
 
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),  # "pips_or_%",
+    ):
+        metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
+        if metric != "single_vol":
+            return super().rate(curves, solver, fx, base, vol, metric)
+
+        # else the strangle has a particular type of mkt convention which specified a single volatility
+        raise NotImplementedError("Strangle single vol not yet priced.")
 
 # Generic Instruments
 
