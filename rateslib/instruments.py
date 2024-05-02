@@ -8904,32 +8904,85 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         num, den, prem = 0.0, 0.0, 0.0
         a, b, c = 0.0, 0.0, 0.0
-        for option, vol_, strike in zip(self.periods, vol, self.kwargs["strike"]):
-            sigma = option.rate(curves, solver, fx, base, vol_, "vol")
-            greeks = option.analytic_greeks(curves, solver, fx, base, vol=vol_)
+
+        greeks = [
+            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
+            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
+        ]
+
+        d_vega, premium = [], 0.0
+        for i in range(2):
+            strike = self.kwargs["strike"][i]
             if isinstance(strike, str) and strike[-1].lower() == "d":
                 # then strike is variable (fixed delta) and dP_dsigma requires that partial derivative modification
-                vega = greeks["vega"] # + greeks["__kega"] * greeks["__kappa"]
+                d_vega.append(greeks[i]["vega"] + greeks[i]["__kega"] * greeks[i]["__kappa"])
             else:
-                vega = greeks["vega"]
+                d_vega.append(greeks[0]["vega"])
+            premium += self.periods[i].rate(
+                curves, solver, fx, base, greeks[i]["__vol"] * 100.0, "pips_or_%"
+            )
+
+        _ = (greeks[0]["__vol"] * d_vega[0] + greeks[1]["__vol"] * d_vega[1]) / (d_vega[0] + d_vega[1])
+
+        __ = Dual(float(_) * 100.0, ["vol"], [])
+        premium2 = (
+            self.periods[0].rate(curves, solver, fx, base, __, "pips_or_%") +
+            self.periods[1].rate(curves, solver, fx, base, __, "pips_or_%")
+        )
+
+        diff = premium - premium2
+        increase = diff / gradient(premium2, ["vol"])[0]
+        scalar = float( (__ + increase)/__ )
+
+        ___ = _ * scalar
+        premium3 = (
+            self.periods[0].rate(curves, solver, fx, base, ___ * 100.0, "pips_or_%") +
+            self.periods[1].rate(curves, solver, fx, base, ___ * 100.0, "pips_or_%")
+        )
+
+
+
+
+        for option, vol_, strike in zip(self.periods, vol, self.kwargs["strike"]):
+            sigma = option.rate(curves, solver, fx, base, vol_, "vol") / 100.0
+            greeks_ = option.analytic_greeks(curves, solver, fx, base, vol=vol_)
+
             num += sigma * vega
             den += vega
 
-            a += greeks["vomma"] / 2.0
-            b += vega - sigma * greeks["vomma"]
-            c += -sigma * vega + sigma**2 * greeks["vomma"] / 2.0
+            a += greeks_["vomma"] / 2.0
+            b += vega - sigma * greeks_["vomma"]
+            c += -sigma * vega + sigma**2 * greeks_["vomma"] / 2.0
             # check
-            prem += option.rate(curves, solver, fx, base, sigma, "pips_or_%")
+            prem += option.rate(curves, solver, fx, base, sigma * 100.0, "pips_or_%")
 
         _ = num / den
         disc = b**2 - 4 * a * c
         _2 = (-b + disc ** 0.5) / (2 * a)
         _2b = (-b - disc ** 0.5) / (2 * a)
 
+        def root(g, s1, s2, v1, v2, vv1, vv2):
+            f0 = (g-s1)**2 * vv1 / 2.0 + (g-s1) * v1 + (g-s2)**2 * vv2 / 2.0 + (g-s2) * v2
+            f1 = (g-s1) * vv1 + v1 + (g-s2) * vv2 + v2
+            return f0, f1
+
+        from rateslib.solver import newton_root
+
+        result = newton_root(
+            root,
+            g0=(greeks[0]["__vol"] + greeks[1]["__vol"]) / 2.0,
+            args=(
+                greeks[0]["__vol"], greeks[1]["__vol"],
+                greeks[0]["vega"] + greeks[0]["__kega"] * greeks[0]["__kappa"],
+                greeks[1]["vega"] + greeks[1]["__kega"] * greeks[1]["__kappa"],
+                greeks[0]["vomma"], greeks[1]["vomma"],
+            )
+        )
+
         # check
         prem2 = 0.0
         for option in self.periods:
-            prem2 += option.rate(curves, solver, fx, base, _, "pips_or_%")
+            prem2 += option.rate(curves, solver, fx, base, _2*100.0 + 0.05, "pips_or_%")
 
         return _
 

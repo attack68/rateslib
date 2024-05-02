@@ -2719,6 +2719,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         _["__kega"] = self._analytic_kega(z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta)
         _["__kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
+        _["__vol"] = vol_
+        _["__strike"] = self.strike
+
         return _
 
     @staticmethod
