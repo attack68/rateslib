@@ -2716,11 +2716,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
-
-        _["__kega"] = self._analytic_kega(z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta)
-        _["__kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
+        _["_kega"] = self._analytic_kega(z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta)
+        _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
         _["__vol"] = vol_
         _["__strike"] = self.strike
+        _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
 
         return _
 
@@ -2775,6 +2775,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
     @staticmethod
     def _analytic_kappa(v_deli, phi, d_min):
         return -v_deli * phi * dual_norm_cdf(phi * d_min)
+
+    @staticmethod
+    def _analytic_bs76(phi, v_deli, f_d, d_plus, k, d_min):
+        return phi * v_deli * (f_d * dual_norm_cdf(phi * d_plus) - k * dual_norm_cdf(phi * d_min))
 
 
     ###

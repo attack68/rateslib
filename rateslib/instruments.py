@@ -8915,7 +8915,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             strike = self.kwargs["strike"][i]
             if isinstance(strike, str) and strike[-1].lower() == "d":
                 # then strike is variable (fixed delta) and dP_dsigma requires that partial derivative modification
-                d_vega.append(greeks[i]["vega"] + greeks[i]["__kega"] * greeks[i]["__kappa"])
+                d_vega.append(greeks[i]["vega"] + greeks[i]["_kega"] * greeks[i]["_kappa"])
             else:
                 d_vega.append(greeks[i]["vega"])
             premium += self.periods[i].rate(
