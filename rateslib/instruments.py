@@ -8907,7 +8907,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         greeks = [
             self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
-            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
+            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
         ]
 
         d_vega, premium = [], 0.0
@@ -8917,7 +8917,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 # then strike is variable (fixed delta) and dP_dsigma requires that partial derivative modification
                 d_vega.append(greeks[i]["vega"] + greeks[i]["__kega"] * greeks[i]["__kappa"])
             else:
-                d_vega.append(greeks[0]["vega"])
+                d_vega.append(greeks[i]["vega"])
             premium += self.periods[i].rate(
                 curves, solver, fx, base, greeks[i]["__vol"] * 100.0, "pips_or_%"
             )

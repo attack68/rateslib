@@ -3424,6 +3424,7 @@ class TestFXStraddle:
 class TestFXStrangle:
 
     @pytest.mark.parametrize("dlty, strike, ccy, expected", [
+        ("forward", [1.02, 1.10], "usd", 10.0),
         ("forward", ["-20d", "20d"], "usd", 10.0),
     ])
     def test_strangle_rate(self, fxfo, dlty, strike, ccy, expected):
