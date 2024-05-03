@@ -12,8 +12,9 @@ from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
 from rateslib.solver import Solver, Gradients, newton_root, newton_multi_root
 from rateslib.dual import Dual, Dual2, gradient
-from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS
+from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS, FXStrangle, FXStraddle, FXRiskReversal
 from rateslib.fx import FXRates, FXForwards
+from rateslib.fx_volatility import FXDeltaVolSmile
 
 
 class TestGradients:
@@ -1792,3 +1793,53 @@ def test_newton_solver_2dim_dual2():
     sensitivity_y2 = gradient(result["g"][1], ["s"], order=2)[0, 0]
     assert abs(expected_x2 - sensitivity_x2) < 1e-9
     assert abs(expected_y2 - sensitivity_y2) < 1e-9
+
+
+def test_solver_with_vol_smile():
+    eureur = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur")
+    usdusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd")
+    # eurusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd")
+    fxr = FXRates({"eurusd": 1.3088}, settlement=dt(2023, 3, 20))
+    fxf = FXForwards(
+        fx_curves={"eureur": eureur, "eurusd": eureur, "usdusd": usdusd},
+        fx_rates=fxr
+    )
+    fxf._set_ad_order(1)
+    solver = Solver(
+        curves=[eureur, usdusd],
+        instruments=[
+            IRS(dt(2023, 3, 20), "1m", curves=[eureur], spec="eur_irs"),
+            IRS(dt(2023, 3, 20), "1m", curves=[usdusd], spec="usd_irs"),
+        ],
+        s=[2.0113, 0.3525],
+        fx=fxf,
+    )
+    eurusd_1m_smile = FXDeltaVolSmile(
+        nodes={
+            0.25: 10.0,
+            0.50: 10.0,
+            0.75: 10.0,
+        },
+        eval_date=dt(2023, 3, 16),
+        expiry=dt(2023, 4, 18),
+        delta_type="spot",
+        id="smile",
+        )
+    args = {
+        "pair": "eurusd",
+        "expiry": dt(2023, 4, 18),
+        "curves": [None, "eureur", None, "usdusd"],
+        "delta_type": "spot",
+        "vol": "smile"
+    }
+    solver2 = Solver(
+        pre_solvers=[solver],
+        curves=[eurusd_1m_smile],
+        instruments=[
+            FXStraddle(strike="atm_delta", **args),
+            FXRiskReversal(strike=["-25d", "25d"], **args),
+            FXStrangle(strike=["-25d", "25d"], **args)
+        ],
+        s=[21.6215, -0.5, 22.359],
+        fx=fxf,
+    )

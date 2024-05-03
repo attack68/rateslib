@@ -8917,6 +8917,17 @@ class FXStrangle(FXOptionStrat, FXOption):
         if metric != "single_vol":
             return super().rate(curves, solver, fx, base, vol, metric)
 
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+
+        if vol is NoInput.blank:
+            vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        elif isinstance(vol, (list, tuple)):
+            vol0 = _get_vol_maybe_from_solver(self.vol, vol[0], solver)
+            vol1 = _get_vol_maybe_from_solver(self.vol, vol[1], solver)
+            vol = [vol0, vol1]
+
         # else the strangle has a particular type of mkt convention which specifies a single volatility quotation
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
