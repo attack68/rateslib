@@ -40,7 +40,7 @@ from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_mont
 from rateslib.default import NoInput, plot
 
 from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
-from rateslib.solver import Solver
+from rateslib.solver import Solver, quadratic_eqn
 from rateslib.periods import (
     Cashflow,
     FloatPeriod,
@@ -8829,6 +8829,13 @@ class FXStrangle(FXOptionStrat, FXOption):
     This class is essentially an alias constructor for an
     :class:`~rateslib.instruments.FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically set.
+
+    .. warning::
+
+       The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative algorithm to solve.
+       For defined strikes it is usually very accurate but for strikes defined by delta it
+       will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+
     """
 
     rate_weight = [1.0, 1.0]
@@ -8894,97 +8901,95 @@ class FXStrangle(FXOptionStrat, FXOption):
         vol: Union[list[float], float] = NoInput(0),
         metric: Union[str, NoInput] = NoInput(0),  # "pips_or_%",
     ):
+        """
+        Returns the rate of the *FXStraddle* according to a pricing metric.
+
+        .. warning::
+
+           The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative algorithm to solve.
+           For defined strikes it is usually very accurate but for strikes defined by delta it
+           will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+
+        For parameters see :meth:`~rateslib.instruments.FXOption.rate`
+        """
+
         metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
         if metric != "single_vol":
             return super().rate(curves, solver, fx, base, vol, metric)
 
-        # else the strangle has a particular type of mkt convention which specified a single volatility
+        # else the strangle has a particular type of mkt convention which specifies a single volatility quotation
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
-        num, den, prem = 0.0, 0.0, 0.0
-        a, b, c = 0.0, 0.0, 0.0
+        _is_fixed_delta = [
+            isinstance(self.kwargs["strike"][0], str) and self.kwargs["strike"][0][-1].lower() == "d",
+            isinstance(self.kwargs["strike"][1], str) and self.kwargs["strike"][1][-1].lower() == "d",
+        ]
 
-        greeks = [
+        # first start by evaluating the individual swaptions given their strikes - delta or fixed
+        gks = [
             self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
             self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
         ]
 
-        d_vega, premium = [], 0.0
-        for i in range(2):
-            strike = self.kwargs["strike"][i]
-            if isinstance(strike, str) and strike[-1].lower() == "d":
-                # then strike is variable (fixed delta) and dP_dsigma requires that partial derivative modification
-                d_vega.append(greeks[i]["vega"] + greeks[i]["_kega"] * greeks[i]["_kappa"])
-            else:
-                d_vega.append(greeks[i]["vega"])
-            premium += self.periods[i].rate(
-                curves, solver, fx, base, greeks[i]["__vol"] * 100.0, "pips_or_%"
-            )
+        vega = [
+            self._analytic_vega(gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]),
+            self._analytic_vega(gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1])
+        ]
 
-        _ = (greeks[0]["__vol"] * d_vega[0] + greeks[1]["__vol"] * d_vega[1]) / (d_vega[0] + d_vega[1])
-
-        __ = Dual(float(_) * 100.0, ["vol"], [])
-        premium2 = (
-            self.periods[0].rate(curves, solver, fx, base, __, "pips_or_%") +
-            self.periods[1].rate(curves, solver, fx, base, __, "pips_or_%")
+        result = quadratic_eqn(
+            (gks[0]["vomma"] + gks[1]["vomma"]) / 2.0,
+            vega[0] + vega[1] - gks[0]["__vol"] * gks[0]["vomma"] - gks[1]["__vol"] * gks[1]["vomma"],
+            (gks[0]["__vol"]**2 * gks[0]["vomma"] + gks[1]["__vol"]**2 * gks[1]["vomma"]) / 2.0
+            - gks[0]["__vol"] * vega[0] - gks[1]["__vol"] * vega[1],
+            (gks[0]["__vol"] * vega[0] + gks[1]["__vol"] * vega[1]) / (vega[0] + vega[1])
         )
 
-        diff = premium - premium2
-        increase = diff / gradient(premium2, ["vol"])[0]
-        scalar = float( (__ + increase)/__ )
+        tgt_vol = result["g"] * 100.0
+        resultant_premium_diff, iters = 100e6, 1
+        while abs(resultant_premium_diff) > 1e-5 and iters < 10:
+            gks = [
+                self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+            ]
+            vega = [
+                self._analytic_vega(gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]),
+                self._analytic_vega(gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1])
+            ]
+            smile_gks = [  # note the strikes have been set at price time by the previous call, call OptionPeriods direct
+                self.periods[0].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                self.periods[1].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+            ]
 
-        ___ = _ * scalar
-        premium3 = (
-            self.periods[0].rate(curves, solver, fx, base, ___ * 100.0, "pips_or_%") +
-            self.periods[1].rate(curves, solver, fx, base, ___ * 100.0, "pips_or_%")
-        )
+            resultant_premium_diff = smile_gks[0]["__bs76"] + smile_gks[1]["__bs76"] - gks[0]["__bs76"] - gks[1]["__bs76"]
+            vol_addon = resultant_premium_diff / (vega[0] + vega[1])
+            tgt_vol = tgt_vol + vol_addon * 100.0
+            iters += 1
 
+        # def root(g, s1, s2, v1, v2, vv1, vv2):
+        #     f0 = (g - s1) ** 2 * vv1 / 2.0 + (g - s1) * v1 + (g - s2) ** 2 * vv2 / 2.0 + (g - s2) * v2
+        #     f1 = (g - s1) * vv1 + v1 + (g - s2) * vv2 + v2
+        #     return f0, f1
+        #
+        # from rateslib.solver import newton_root
+        #
+        # result = newton_root(
+        #     root,
+        #     g0=(greeks[0]["__vol"] + greeks[1]["__vol"]) / 2.0,
+        #     args=(
+        #         greeks[0]["__vol"], greeks[1]["__vol"],
+        #         d_vega[0], d_vega[1],
+        #         greeks[0]["vomma"], greeks[1]["vomma"],
+        #     )
+        # )
 
+        return tgt_vol
 
-
-        for option, vol_, strike in zip(self.periods, vol, self.kwargs["strike"]):
-            sigma = option.rate(curves, solver, fx, base, vol_, "vol") / 100.0
-            greeks_ = option.analytic_greeks(curves, solver, fx, base, vol=vol_)
-
-            num += sigma * vega
-            den += vega
-
-            a += greeks_["vomma"] / 2.0
-            b += vega - sigma * greeks_["vomma"]
-            c += -sigma * vega + sigma**2 * greeks_["vomma"] / 2.0
-            # check
-            prem += option.rate(curves, solver, fx, base, sigma * 100.0, "pips_or_%")
-
-        _ = num / den
-        disc = b**2 - 4 * a * c
-        _2 = (-b + disc ** 0.5) / (2 * a)
-        _2b = (-b - disc ** 0.5) / (2 * a)
-
-        def root(g, s1, s2, v1, v2, vv1, vv2):
-            f0 = (g-s1)**2 * vv1 / 2.0 + (g-s1) * v1 + (g-s2)**2 * vv2 / 2.0 + (g-s2) * v2
-            f1 = (g-s1) * vv1 + v1 + (g-s2) * vv2 + v2
-            return f0, f1
-
-        from rateslib.solver import newton_root
-
-        result = newton_root(
-            root,
-            g0=(greeks[0]["__vol"] + greeks[1]["__vol"]) / 2.0,
-            args=(
-                greeks[0]["__vol"], greeks[1]["__vol"],
-                greeks[0]["vega"] + greeks[0]["__kega"] * greeks[0]["__kappa"],
-                greeks[1]["vega"] + greeks[1]["__kega"] * greeks[1]["__kappa"],
-                greeks[0]["vomma"], greeks[1]["vomma"],
-            )
-        )
-
-        # check
-        prem2 = 0.0
-        for option in self.periods:
-            prem2 += option.rate(curves, solver, fx, base, _2*100.0 + 0.05, "pips_or_%")
-
-        return _
+    @staticmethod
+    def _analytic_vega(p_vega, d_kega, p_kappa, fixed_delta):
+        if fixed_delta:
+            return p_vega + d_kega * p_kappa
+        return p_vega
 
 
 # Generic Instruments
