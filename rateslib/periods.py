@@ -2607,7 +2607,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: Union[float, NoInput] = NoInput(0),
         premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
     ):
-        """
+        r"""
         Return the different greeks for the *Option*.
 
         Parameters
@@ -2634,41 +2634,53 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Notes
         -----
-        **Delta**
+        **Delta** :math:`\Delta`
 
         This is the percentage value of the domestic notional in either the *forward* or *spot*
         FX rate. The choice of which is defined by the option's ``delta_type``.
 
         Delta is also expressed in nominal domestic currency amount.
 
-        **Gamma**
+        **Gamma** :math:`\Gamma`
 
         This defines by how much *delta* will change for a 1.0 increase in either the *forward*
         or *spot* FX rate. Which rate is determined by the option's ``delta_type``.
 
         Gamma is also expressed in nominal domestic currency amount for a +1% change in FX rates.
 
-        **Vanna**
+        **Vanna** :math:`\Delta_{\nu}`
 
         This defines by how much *delta* will change for a 1.0 increase (i.e. 100 log-vols) in
-        volatility.
+        volatility. The additional
 
-        **Vega**
+        **Vega** :math:`\nu`
 
         This defines by how much the PnL of the option will change for a 1.0 increase in
         volatility for a nominal of 1 unit of domestic currency.
 
         Vega is also expressed in foreign currency for a 0.01 (i.e. 1 log-vol) move higher in vol.
 
-        **Vomma**
+        **Vomma (Volga)** :math:`\nu_{\nu}`
 
         This defines by how much *vega* will change for a 1.0 increase in volatility.
 
-        **Internal use**
+        These values can be used to estimate PnL for a change in the *forward* or
+        *spot* FX rate and the volatility according to,
 
-        The non-traditional pseudo greeks **kappa**, :math:`\frac{\partial P }{\partial K}`,
-        and *kega*, :math:` \left . \frac{\partial K }{\partial \sigma} \right |_\Delta` are used internally by
-        some calculations.
+        .. math::
+
+           \delta P \approx v_{deli} N^{dom} \left ( \Delta \delta f + \frac{1}{2} \Gamma \delta f^2 + \Delta_{\nu} \delta f \delta \sigma \right ) + N^{dom} \left ( \nu \delta \sigma + \frac{1}{2} \nu_{\nu} \delta \sigma^2 \right )
+
+        where :math:`v_{deli}` is the date of FX settlement for *forward* or *spot* rate.
+
+        **Kappa** :math:`\kappa`
+
+        This defines by how much the PnL of the option will change for a 1.0 increase in
+        strike for a nominal of 1 unit of domestic currency.
+
+        **Kega** :math:`\left . \frac{dK}{d\sigma} \right|_{\Delta}`
+
+        This defines the rate of change of strike with respect to volatility for a constant delta.
 
         Raises
         ------
