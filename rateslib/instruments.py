@@ -987,7 +987,7 @@ class VolValue(BaseMixin):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: Union[DualTypes, FXDeltaVolSmile] = NoInput(0),
-        metric: str = "vol"
+        metric: str = "vol",
     ):
         """
         Return a value derived from a *Curve*.
@@ -8517,6 +8517,7 @@ class FXOptionStrat:
     rate_weight_vol: list
         The multiplier for the *'vol'* metric that sums the options to a final *rate*.
     """
+
     def __init__(
         self,
         options: list[FXOption],
@@ -8847,7 +8848,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         strike=[NoInput(0), NoInput(0)],
         premium=[NoInput(0), NoInput(0)],
         metric="single_vol",
-        **kwargs
+        **kwargs,
     ):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
         self.kwargs["strike"] = strike
@@ -8933,8 +8934,10 @@ class FXStrangle(FXOptionStrat, FXOption):
             vol = [vol] * len(self.periods)
 
         _is_fixed_delta = [
-            isinstance(self.kwargs["strike"][0], str) and self.kwargs["strike"][0][-1].lower() == "d",
-            isinstance(self.kwargs["strike"][1], str) and self.kwargs["strike"][1][-1].lower() == "d",
+            isinstance(self.kwargs["strike"][0], str)
+            and self.kwargs["strike"][0][-1].lower() == "d",
+            isinstance(self.kwargs["strike"][1], str)
+            and self.kwargs["strike"][1][-1].lower() == "d",
         ]
 
         # first start by evaluating the individual swaptions given their strikes - delta or fixed
@@ -8944,16 +8947,24 @@ class FXStrangle(FXOptionStrat, FXOption):
         ]
 
         vega = [
-            self._analytic_vega(gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]),
-            self._analytic_vega(gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1])
+            self._analytic_vega(
+                gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]
+            ),
+            self._analytic_vega(
+                gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1]
+            ),
         ]
 
         result = quadratic_eqn(
             (gks[0]["vomma"] + gks[1]["vomma"]) / 2.0,
-            vega[0] + vega[1] - gks[0]["__vol"] * gks[0]["vomma"] - gks[1]["__vol"] * gks[1]["vomma"],
-            (gks[0]["__vol"]**2 * gks[0]["vomma"] + gks[1]["__vol"]**2 * gks[1]["vomma"]) / 2.0
-            - gks[0]["__vol"] * vega[0] - gks[1]["__vol"] * vega[1],
-            (gks[0]["__vol"] * vega[0] + gks[1]["__vol"] * vega[1]) / (vega[0] + vega[1])
+            vega[0]
+            + vega[1]
+            - gks[0]["__vol"] * gks[0]["vomma"]
+            - gks[1]["__vol"] * gks[1]["vomma"],
+            (gks[0]["__vol"] ** 2 * gks[0]["vomma"] + gks[1]["__vol"] ** 2 * gks[1]["vomma"]) / 2.0
+            - gks[0]["__vol"] * vega[0]
+            - gks[1]["__vol"] * vega[1],
+            (gks[0]["__vol"] * vega[0] + gks[1]["__vol"] * vega[1]) / (vega[0] + vega[1]),
         )
 
         tgt_vol = result["g"] * 100.0
@@ -8964,15 +8975,28 @@ class FXStrangle(FXOptionStrat, FXOption):
                 self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
             ]
             vega = [
-                self._analytic_vega(gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]),
-                self._analytic_vega(gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1])
+                self._analytic_vega(
+                    gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]
+                ),
+                self._analytic_vega(
+                    gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1]
+                ),
             ]
             smile_gks = [  # note the strikes have been set at price time by the previous call, call OptionPeriods direct
-                self.periods[0].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
-                self.periods[1].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+                self.periods[0]
+                .periods[0]
+                .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                self.periods[1]
+                .periods[0]
+                .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
             ]
 
-            resultant_premium_diff = smile_gks[0]["__bs76"] + smile_gks[1]["__bs76"] - gks[0]["__bs76"] - gks[1]["__bs76"]
+            resultant_premium_diff = (
+                smile_gks[0]["__bs76"]
+                + smile_gks[1]["__bs76"]
+                - gks[0]["__bs76"]
+                - gks[1]["__bs76"]
+            )
             vol_addon = resultant_premium_diff / (vega[0] + vega[1])
             tgt_vol = tgt_vol + vol_addon * 100.0
             iters += 1

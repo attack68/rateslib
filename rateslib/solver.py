@@ -2253,9 +2253,11 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
         if raise_on_fail:
             raise ValueError("`quadratic_eqn` has failed to solve: discriminant is less than zero.")
         else:
-            return _solver_result(state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn")
-    _1 = (-b + discriminant ** 0.5) / (2*a)
-    _2 = (-b - discriminant ** 0.5) / (2*a)
+            return _solver_result(
+                state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn"
+            )
+    _1 = (-b + discriminant**0.5) / (2 * a)
+    _2 = (-b - discriminant**0.5) / (2 * a)
     if abs(x0 - _1) < abs(x0 - _2):
         return _solver_result(state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn")
     else:
