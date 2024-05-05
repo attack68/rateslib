@@ -2615,13 +2615,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The discount *Curve* for the LHS currency.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
         base: str, optional
             Not used by `analytic_greeks`.
         local: bool,
             Not used by `analytic_greeks`.
-        vol: float, or FXDeltaVolSmile
+        vol: float or FXDeltaVolSmile
             The volatility used in calculation.
         premium: float, optional
             The premium value of the option paid at the appropriate payment date.

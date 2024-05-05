@@ -8222,6 +8222,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
+            if fx is NoInput.blank:
+                raise ValueError(
+                    "An FXForwards object for `fx` is required for FXOption pricing.\n"
+                    "If this instrument is part of a Solver, have you omitted the `fx` input?"
+                )
             m_spot = fx.pairs_settlement[self.kwargs["pair"]]
             t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
             w_deli = curves[1][self.kwargs["delivery"]]
@@ -8365,28 +8370,24 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         Parameters
         ----------
         curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
             The numerical :class:`Solver` that constructs ``Curves`` from calibrating
             instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            Not used by `analytic_greeks`.
+        local: bool,
+            Not used by `analytic_greeks`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
 
         Returns
         -------
         float, Dual, Dual2
-
-        Notes
-        ------
-
         """
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
@@ -8628,6 +8629,72 @@ class FXOptionStrat:
                 y += y_
 
         return x, y
+
+    def analytic_greeks(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        ------
+
+        """
+        # implicitly call set_pricing_mid for unpriced parameters
+        self.rate(curves, solver, fx, base, vol)
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        gks = []
+        for option, vol in zip(self.periods, vol):
+            # by calling on the OptionPeriod directly the strike is maintained from rate call.
+            gks.append(
+                option.periods[0].analytic_greeks(
+                    curves[1],
+                    curves[3],
+                    fx,
+                    base,
+                    local,
+                    vol,
+                    option.kwargs["premium"],
+                )
+            )
+
+        excludes = ["delta_type", "__vol", "__strike", "__bs76"]
+        _ = {k: sum(d.get(k) for d in gks) for k in set(gks[0]) if k not in excludes}
+        _.update({"options": gks, "delta_type": gks[0]["delta_type"]})
+        return _
 
 
 class FXRiskReversal(FXOptionStrat, FXOption):
