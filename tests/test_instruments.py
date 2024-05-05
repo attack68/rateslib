@@ -3495,6 +3495,35 @@ class TestFXStrangle:
         assert abs(premium - premium_vol) < 5e-2
 
 
+    def test_analytic_greeks(self, fxfo):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["-25d", "25d"],
+            premium_ccy="usd",
+            delta_type="forward",
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+
+        result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
+        assert False
+
+
+
 class TestVolValue:
 
     def test_solver_passthrough(self):

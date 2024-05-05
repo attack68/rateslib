@@ -8667,25 +8667,33 @@ class FXOptionStrat:
         ------
 
         """
-        # implicitly call set_pricing_mid for unpricied parameters
+        # implicitly call set_pricing_mid for unpriced parameters
         self.rate(curves, solver, fx, base, vol)
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
 
         gks = []
-        for option in self.periods:
-            gks.append(option.period[0].analytic_greeks(curves[1], curves[3], ))
+        for option, vol in zip(self.periods, vol):
+            # by calling on the OptionPeriod directly the strike is maintained from rate call.
+            gks.append(
+                option.periods[0].analytic_greeks(
+                    curves[1],
+                    curves[3],
+                    fx,
+                    base,
+                    local,
+                    vol,
+                    option.kwargs["premium"],
+                )
+            )
 
-        return self.periods[0].analytic_greeks(
-            curves[1],
-            curves[3],
-            fx,
-            base,
-            local,
-            vol,
-            self.kwargs["premium"],
-        )
+        excludes = ["delta_type", "__vol", "__strike", "__bs76"]
+        _ = {k: sum(d.get(k) for d in gks) for k in set(gks[0]) if k not in excludes}
+        _.update({"options": gks, "delta_type": gks[0]["delta_type"]})
+        return _
 
 
 class FXRiskReversal(FXOptionStrat, FXOption):
