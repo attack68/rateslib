@@ -2728,6 +2728,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
+        _["_kega"] = self._analytic_kega(z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta)
+        _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
+        _["__vol"] = vol_
+        _["__strike"] = self.strike
+        _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
+
         return _
 
     @staticmethod
@@ -2766,8 +2772,25 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     else:
     #         return vega / f_d * (1 - d_plus / vol_sqrt_t)
 
+    @staticmethod
+    def _analytic_kega(z_u, z_w, eta, vol, sqrt_t, f_d, phi, k, d_eta):
+        if eta < 0:
+            # dz_u_du = 1.0
+            u_ = z_w * phi * dual_norm_cdf(phi * d_eta) / f_d
+        else:
+            u_ = 0.0
 
+        _ = z_u * z_w * dual_norm_pdf(phi * d_eta)
+        _ = (_ * d_eta) / (vol * (u_ + _ / (k * vol * sqrt_t)))
+        return _
 
+    @staticmethod
+    def _analytic_kappa(v_deli, phi, d_min):
+        return -v_deli * phi * dual_norm_cdf(phi * d_min)
+
+    @staticmethod
+    def _analytic_bs76(phi, v_deli, f_d, d_plus, k, d_min):
+        return phi * v_deli * (f_d * dual_norm_cdf(phi * d_plus) - k * dual_norm_cdf(phi * d_min))
 
 
     ###

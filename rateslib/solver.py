@@ -2198,6 +2198,7 @@ def newton_multi_root(
 STATE_MAP = {
     1: ["SUCCESS", "`conv_tol` reached"],
     2: ["SUCCESS", "`func_tol` reached"],
+    3: ["SUCCESS", "closed form valid"],
     -1: ["FAILURE", "`max_iter` breached"],
 }
 
@@ -2224,6 +2225,41 @@ def _is_any_dual(arr):
 
 def _is_any_dual2(arr):
     return any([isinstance(_, Dual2) for _ in arr.flatten()])
+
+
+def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
+    """
+    Solve the quadratic equation, :math:`ax^2 + bx +c = 0`, with error reporting.
+
+    Parameters
+    ----------
+    a: float, Dual Dual2
+        The *a* coefficient value.
+    b: float, Dual Dual2
+        The *b* coefficient value.
+    c: float, Dual Dual2
+        The *c* coefficient value.
+    x0: float
+        The expected solution to discriminate between two possible solutions.
+    raise_on_fail: bool, optional
+        Whether to raise if unsolved or return a solver result in failed state.
+
+    Returns
+    -------
+    dict
+    """
+    discriminant = b**2 - 4 * a * c
+    if discriminant < 0.0:
+        if raise_on_fail:
+            raise ValueError("`quadratic_eqn` has failed to solve: discriminant is less than zero.")
+        else:
+            return _solver_result(state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn")
+    _1 = (-b + discriminant ** 0.5) / (2*a)
+    _2 = (-b - discriminant ** 0.5) / (2*a)
+    if abs(x0 - _1) < abs(x0 - _2):
+        return _solver_result(state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn")
+    else:
+        return _solver_result(state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn")
 
 
 # def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):

@@ -32,6 +32,7 @@ from rateslib.instruments import (
     FXPut,
     FXRiskReversal,
     FXStraddle,
+    FXStrangle,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.dual import Dual, Dual2
@@ -3418,6 +3419,80 @@ class TestFXStraddle:
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol, metric=metric)
         assert abs(result - expected) < 1e-6
+
+
+class TestFXStrangle:
+
+    @pytest.mark.parametrize("strike, ccy", [
+        ([1.02, 1.10], "usd"),
+        (["-20d", "20d"], "usd"),
+    ])
+    @pytest.mark.parametrize("smile", [True, False])
+    @pytest.mark.parametrize("delta_type", ["forward", "spot_pa"])
+    def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile):
+        # test pricing a straddle with vol 10.0 returns 10.0
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=strike,
+            premium_ccy=ccy,
+            delta_type="forward",
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type=delta_type,
+        )
+        vol = fxvs if smile else 10.0
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+
+        premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
+        premium_vol = fxo.periods[0].periods[0].rate(
+            fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol,
+        )
+        premium_vol += fxo.periods[1].periods[0].rate(
+            fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol,
+        )
+
+        assert abs(premium - premium_vol) < 5e-2
+
+
+    def test_strangle_rate_2vols(self, fxfo):
+        # test pricing a straddle with vol [8.0, 10.0] returns a valid value close to 9.0
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["-25d", "25d"],
+            premium_ccy="usd",
+            delta_type="forward",
+        )
+        vol = [8.0, 10.0]
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+
+        premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
+        premium_vol = fxo.periods[0].periods[0].rate(
+            fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol[0],
+        )
+        premium_vol += fxo.periods[1].periods[0].rate(
+            fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol[1],
+        )
+
+        assert abs(premium - premium_vol) < 5e-2
 
 
 class TestVolValue:
