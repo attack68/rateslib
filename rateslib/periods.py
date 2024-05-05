@@ -3455,6 +3455,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         if isinstance(vol, FXDeltaVolSmile):
+            if self.expiry != vol.expiry:
+                raise ValueError(
+                    "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
+                    "due to potential pricing errors."
+                )
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
             _, vol_, _ = vol.get_from_strike(

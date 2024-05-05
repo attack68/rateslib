@@ -3324,6 +3324,25 @@ class TestFXOptions:
         # see test_periods/test_analytic_vega
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
+    def test_rate_vol(self, fxfo):
+        args = {
+            "expiry": dt(2009, 6, 16),
+            "pair": "eurusd",
+            "curves": [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            "delta_type": "spot",
+        }
+        vol = FXDeltaVolSmile(
+            {0.75: 8.9},
+            eval_date=dt(2009, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            id="vol",
+            ad=1,
+        )
+        fxc = FXCall(strike=1.10, **args, notional=100e6, vol=vol)
+        result = fxc.rate(fx=fxfo)
+        assert False
+
 
 class TestFXStraddle:
 
@@ -3596,7 +3615,6 @@ class TestFXStrangle:
         result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
         assert isinstance(result, dict)
         result["options"]
-
 
 
 class TestVolValue:

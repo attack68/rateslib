@@ -2710,3 +2710,26 @@ class TestFXOption:
         taylor_vanna = 0.1 / 100.0 * fwd_diff * greeks["vanna"] * 10e6
         taylor = fxfo.curve("usd", "usd")[discount_date] * (taylor_delta + taylor_gamma + taylor_vanna) + taylor_vomma + taylor_vega
         assert abs(taylor - expected) < 5e-1
+
+    def test_bad_expiries_raises(self, fxfo):
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            notional=10e6,
+            strike=1.10,
+            delta_type="forward",
+        )
+        vol_ = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 18),
+            delta_type="forward",
+        )
+        with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
+            fxc.npv(fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol_)
