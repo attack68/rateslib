@@ -44,7 +44,6 @@ from rateslib.fx_volatility import (
     _black76,
     _delta_type_constants,
     _d_plus_min_u,
-    _d_plus,
 )
 from rateslib.splines import evaluate
 from rateslib.dual import (

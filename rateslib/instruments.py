@@ -66,7 +66,6 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_log,
-    dual_exp,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
