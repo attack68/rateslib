@@ -8223,6 +8223,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
+            if fx is NoInput.blank:
+                raise ValueError(
+                    "An FXForwards object for `fx` is required for FXOption pricing.\n"
+                    "If this instrument is part of a Solver, have you omitted the `fx` input?"
+                )
             m_spot = fx.pairs_settlement[self.kwargs["pair"]]
             t_e = self.periods[0]._t_to_expiry(curves[3].node_dates[0])
             w_deli = curves[1][self.kwargs["delivery"]]
@@ -8366,28 +8371,24 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         Parameters
         ----------
         curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
             The numerical :class:`Solver` that constructs ``Curves`` from calibrating
             instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            Not used by `analytic_greeks`.
+        local: bool,
+            Not used by `analytic_greeks`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
 
         Returns
         -------
         float, Dual, Dual2
-
-        Notes
-        ------
-
         """
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
