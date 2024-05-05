@@ -8747,6 +8747,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
     rate_weight = [-1.0, 1.0]
     rate_weight_vol = [-1.0, 1.0]
+    _rate_scalar = 100.0
 
     def __init__(
         self,
@@ -8835,6 +8836,7 @@ class FXStraddle(FXOptionStrat, FXOption):
 
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
+    _rate_scalar = 100.0
 
     def __init__(self, *args, premium=[NoInput(0), NoInput(0)], metric="vol", **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
@@ -8922,6 +8924,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [-1.0, 1.0]
+    _rate_scalar = 100.0
 
     def __init__(
         self,
