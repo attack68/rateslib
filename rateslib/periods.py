@@ -44,7 +44,6 @@ from rateslib.fx_volatility import (
     _black76,
     _delta_type_constants,
     _d_plus_min_u,
-    _d_plus
 )
 from rateslib.splines import evaluate
 from rateslib.dual import (
@@ -2715,20 +2714,33 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         _ = {"delta_type": self.delta_type}
         _["delta"] = self._analytic_delta(
-            premium, "_pa" in self.delta_type, z_u, z_w, d_eta, self.phi, d_plus, w_payment, w_spot, self.notional
+            premium,
+            "_pa" in self.delta_type,
+            z_u,
+            z_w,
+            d_eta,
+            self.phi,
+            d_plus,
+            w_payment,
+            w_spot,
+            self.notional,
         )
         _[f"delta_{self.pair[:3]}"] = self.notional * _["delta"]
         _["gamma"] = self._analytic_gamma(
             _is_spot, v_deli, v_spot, z_w, self.phi, d_plus, f_d, vol_sqrt_t
         )
-        _[f"gamma_{self.pair[:3]}_1%"] = _["gamma"] * self.notional * (f_t if _is_spot else f_d) * 0.01
+        _[f"gamma_{self.pair[:3]}_1%"] = (
+            _["gamma"] * self.notional * (f_t if _is_spot else f_d) * 0.01
+        )
         _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
         _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
         _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
-        _["_kega"] = self._analytic_kega(z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta)
+        _["_kega"] = self._analytic_kega(
+            z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta
+        )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
         _["__vol"] = vol_
         _["__strike"] = self.strike
@@ -2791,7 +2803,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
     @staticmethod
     def _analytic_bs76(phi, v_deli, f_d, d_plus, k, d_min):
         return phi * v_deli * (f_d * dual_norm_cdf(phi * d_plus) - k * dual_norm_cdf(phi * d_min))
-
 
     ###
     ###  The following functions used for Strike determination when given a fixed volatility.

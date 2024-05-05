@@ -74,9 +74,7 @@ from rateslib.curves import (
     ProxyCurve,
 )
 
-from rateslib.fx_volatility import (
-    FXDeltaVolSmile
-)
+from rateslib.fx_volatility import FXDeltaVolSmile
 
 from rateslib.fx import (
     FXRates,

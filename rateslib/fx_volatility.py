@@ -825,6 +825,7 @@ def _convert_same_adjustment_delta(
     else:  # to_delta_type == "spot" and from_delta_type == "forward":
         return delta * w_deli / w_spot
 
+
 #
 # def _get_pricing_params_from_delta_vol(
 #     delta,
