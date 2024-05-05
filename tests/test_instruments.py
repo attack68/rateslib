@@ -3340,8 +3340,8 @@ class TestFXOptions:
             ad=1,
         )
         fxc = FXCall(strike=1.10, **args, notional=100e6, vol=vol)
-        result = fxc.rate(fx=fxfo)
-        assert False
+        with pytest.raises(ValueError, match="The `eval_date` on the FXDeltaVolSmile and the"):
+            fxc.rate(fx=fxfo)
 
 
 class TestFXStraddle:
