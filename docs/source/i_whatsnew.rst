@@ -85,6 +85,9 @@ for notes about installation changes.
    * - AD
      - Added :meth:`~rateslib.solver.newton_root` and :meth:`~rateslib.newton.newton_multi_root`
        for AD safe Newton root solving in one or multiple dimensions.
+   * - Solver
+     - Added :meth:`~rateslib.solver.quadratic_eqn` to return the solution of a quadratic equation
+       in an AD safe and consistent return format to other solvers for convenience.
    * - Bug
      - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A",
        albeit with a *UserWarning*.
