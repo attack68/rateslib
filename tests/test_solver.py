@@ -10,7 +10,7 @@ import context
 from rateslib import default_context
 from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
-from rateslib.solver import Solver, Gradients, newton_root, newton_multi_root
+from rateslib.solver import Solver, Gradients, newton_1dim, newton_ndim
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS, FXStrangle, FXStraddle, FXRiskReversal
 from rateslib.fx import FXRates, FXForwards
@@ -1704,7 +1704,7 @@ def test_newton_solver_1dim_dual():
 
     x0 = Dual(1.0, ["x"], [])
     s = Dual(2.0, ["s"], [])
-    result = newton_root(root, x0, args=(s,))
+    result = newton_1dim(root, x0, args=(s,))
 
     expected = 0.5 / 2.0**0.5
     sensitivity = gradient(result["g"], ["s"])[0]
@@ -1717,7 +1717,7 @@ def test_newton_solver_1dim_dual2():
 
     x0 = Dual2(1.0, ["x"], [], [])
     s = Dual2(2.0, ["s"], [], [])
-    result = newton_root(root, x0, args=(s,))
+    result = newton_1dim(root, x0, args=(s,))
 
     expected = 0.5 / 2.0**0.5
     sensitivity = gradient(result["g"], ["s"])[0]
@@ -1742,7 +1742,7 @@ def test_newton_solver_2dim_dual():
 
     g0 = [Dual(1.0, ["x"], []), Dual(2.0, ["y"], [])]
     s = Dual(-2.0, ["s"], [])
-    result = newton_multi_root(root, g0, args=(s,))
+    result = newton_ndim(root, g0, args=(s,))
 
     expected_x = (2/3)**0.5
     assert abs(result["g"][0] - expected_x) < 1e-9
@@ -1773,7 +1773,7 @@ def test_newton_solver_2dim_dual2():
 
     g0 = [Dual2(1.0, ["x"], [], []), Dual2(2.0, ["y"], [], [])]
     s = Dual2(-2.0, ["s"], [], [])
-    result = newton_multi_root(root, g0, args=(s,))
+    result = newton_ndim(root, g0, args=(s,))
 
     expected_x = (2 / 3) ** 0.5
     assert abs(result["g"][0] - expected_x) < 1e-9
@@ -1793,6 +1793,26 @@ def test_newton_solver_2dim_dual2():
     sensitivity_y2 = gradient(result["g"][1], ["s"], order=2)[0, 0]
     assert abs(expected_x2 - sensitivity_x2) < 1e-9
     assert abs(expected_y2 - sensitivity_y2) < 1e-9
+
+
+def test_newton_1d_failed_state():
+    def root(g):
+        f0 = g**2 + 10.0
+        f1 = 2 * g
+        return f0, f1
+
+    result = newton_1dim(root, 1.5, max_iter=5, raise_on_fail=False)
+    assert result["state"] == -1
+
+
+def test_newton_ndim_raises():
+    def root(g):
+        f0_0 = g[0]**2 + 10.0
+        f0_1 = g[0] + g[1]**2 - 2.0
+        return [f0_0, f0_1], [[2*g[0], 0.0], [1.0, 2*g[1]]]
+
+    with pytest.raises(ValueError, match="`max_iter`: 5 exceeded in 'newton_ndim'"):
+        newton_ndim(root, [0.5, 1.0], max_iter=5)
 
 
 def test_solver_with_vol_smile():
@@ -1843,3 +1863,8 @@ def test_solver_with_vol_smile():
         s=[21.6215, -0.5, 22.359],
         fx=fxf,
     )
+
+
+
+
+

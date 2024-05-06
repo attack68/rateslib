@@ -11,7 +11,7 @@ from rateslib.dual import (
 )
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
-from rateslib.solver import newton_root
+from rateslib.solver import newton_1dim
 from uuid import uuid4
 import numpy as np
 from typing import Union
@@ -366,7 +366,7 @@ class FXDeltaVolSmile:
         ) + eta * avg_vol * float(self.t_expiry_sqrt)
         delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
 
-        solver_result = newton_root(
+        solver_result = newton_1dim(
             root,
             delta_0,
             args=(u, self.t_expiry_sqrt, z_u, z_w),
@@ -459,7 +459,7 @@ class FXDeltaVolSmile:
                 f1 = 1 - z_1 * dual_norm_pdf(_) * (eta_1 - eta_0) * sqrt_t * dvol_ddelta_idx
                 return f0, f1
 
-            solver_result = newton_root(
+            solver_result = newton_1dim(
                 f=root,
                 g0=min(-delta, float(w_deli / w_spot)),
                 args=(z_u_1 * z_w_1, eta_0, eta_1, self.t_expiry_sqrt),
