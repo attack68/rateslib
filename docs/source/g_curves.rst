@@ -49,6 +49,7 @@ The following pages describe these two processes.
 
     c_curves.rst
     c_solver.rst
+    c_fx_smile.rst
 
 The below provides a basic introduction, exemplifying how a SOFR curve,
 which might otherwise be bootstrapped, can be constructed in *rateslib* using the
