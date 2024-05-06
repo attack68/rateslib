@@ -2248,6 +2248,11 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
     -------
     dict
 
+    Notes
+    -----
+    If ``a`` is evaluated to be less that 1e-15 in absolute terms then it is treated as zero and the
+    equation is solved as a linear equation in ``b`` and ``c`` only.
+
     Examples
     --------
     .. ipython:: python
