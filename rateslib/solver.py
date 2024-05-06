@@ -2026,9 +2026,9 @@ def newton_1dim(
 
     if i == max_iter:
         if raise_on_fail:
-            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_root' algorithm'.")
+            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_1dim' algorithm'.")
         else:
-            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_root")
+            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_1dim")
 
     # # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
@@ -2168,9 +2168,9 @@ def newton_ndim(
 
     if i == max_iter:
         if raise_on_fail:
-            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_root' algorithm'.")
+            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_ndim' algorithm'.")
         else:
-            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_root")
+            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_ndim")
 
     # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
