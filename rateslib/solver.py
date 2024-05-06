@@ -2247,6 +2247,15 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
     Returns
     -------
     dict
+
+    Examples
+    --------
+    .. ipython:: python
+
+       from rateslib.solver import quadratic_eqn
+
+       quadratic_eqn(a=1.0, b=1.0, c=Dual(-6.0, ["c"], []), x0=-2.9)
+
     """
     discriminant = b**2 - 4 * a * c
     if discriminant < 0.0:
@@ -2256,13 +2265,19 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
             return _solver_result(
                 state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn"
             )
-    _1 = (-b + discriminant**0.5) / (2 * a)
-    _2 = (-b - discriminant**0.5) / (2 * a)
-    if abs(x0 - _1) < abs(x0 - _2):
-        return _solver_result(state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn")
-    else:
-        return _solver_result(state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn")
 
+    if abs(a) > 1e-15:  # machine tolerance on normal float64 is 2.22e-16
+        sqrt_d = discriminant**0.5
+        _1 = (-b + sqrt_d) / (2 * a)
+        _2 = (-b - sqrt_d) / (2 * a)
+        if abs(x0 - _1) < abs(x0 - _2):
+            return _solver_result(state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn")
+        else:
+            return _solver_result(state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn")
+    else:
+        # 'a' is considered too close to zero for the quadratic eqn, solve the linear eqn
+        # to avoid division by zero errors
+        return _solver_result(state=3, i=1, func_val=-c / b, time=0.0, log=False, algo="quadratic_eqn->linear_eqn")
 
 # def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
 #     """
