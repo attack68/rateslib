@@ -1805,6 +1805,16 @@ def test_newton_1d_failed_state():
     assert result["state"] == -1
 
 
+def test_newton_ndim_raises():
+    def root(g):
+        f0_0 = g[0]**2 + 10.0
+        f0_1 = g[0] + g[1]**2 - 2.0
+        return [f0_0, f0_1], [[2*g[0], 0.0], [1.0, 2*g[1]]]
+
+    with pytest.raises(ValueError, match="`max_iter`: 5 exceeded in 'newton_ndim'"):
+        newton_ndim(root, [0.5, 1.0], max_iter=5)
+
+
 def test_solver_with_vol_smile():
     eureur = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur")
     usdusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd")
