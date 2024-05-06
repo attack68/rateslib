@@ -2039,11 +2039,12 @@ class BondMixin:
         curves[1]._set_ad_order(2)
         disc_curve = curves[1].shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
-        a, b = (
+        a, b, c = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
             gradient(npv_price, ["z_spread"], 1)[0],
+            float(npv_price) - float(price)
         )
-        z_hat2 = _quadratic_equation(a, b, float(npv_price) - float(price))
+        z_hat2 = quadratic_eqn(a, b, c, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
         curves[1]._set_ad_order(0)
@@ -9583,28 +9584,6 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         return _ytm_quadratic_converger2(
             f, y2 - pad, y, 2 * y - y2 + pad, None, f_, None, tol
         )  # pragma: no cover
-
-
-def _quadratic_equation(a: float, b: float, c: float):
-    """
-    solver the equation ax^2 + bx + c = 0, via the quadratic formula.
-    """
-    # perform the quadratic solution
-    _1 = -c / b  # approximate linear solution: applicable for most situations.
-    discriminant = b**2 - 4 * a * c
-    if abs(a) > 1e-14:
-        _2a = (-b - discriminant**0.5) / (2 * a)
-        _2b = (-b + discriminant**0.5) / (2 * a)  # alt quadratic soln
-        if abs(_1 - _2a) < abs(_1 - _2b):
-            _ = _2a
-        else:
-            _ = _2b  # select quadratic soln
-    else:
-        # this is to avoid divide by zero errors and return an approximation
-        # also isda_flat_compounding has a=0
-        _ = _1
-
-    return _
 
 
 def _get(kwargs: dict, leg: int = 1, filter=[]):

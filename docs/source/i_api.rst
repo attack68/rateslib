@@ -218,6 +218,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: Series
    :skip: datetime
    :skip: comb
+   :skip: FXDeltaVolSmile
 
 Legs
 =====
@@ -289,6 +290,9 @@ Instruments
    :skip: forward_fx
    :skip: partial
    :skip: timedelta
+   :skip: FXCallPeriod
+   :skip: FXDeltaVolSmile
+   :skip: FXPutPeriod
 
 Solver
 =======
@@ -307,6 +311,12 @@ Solver
    :skip: Series
    :skip: CompositeCurve
    :skip: ProxyCurve
+   :skip: concat
+   :skip: dual_log
+   :skip: dual_solve
+   :skip: gradient
+   :skip: time
+   :skip: uuid4
 
 Cookbook
 =========
