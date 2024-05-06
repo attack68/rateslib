@@ -2071,7 +2071,7 @@ def newton_root(
     return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_root")
 
 
-def newton_multi_root(
+def newton_ndim(
     f,
     g0,
     max_iter=50,
@@ -2081,16 +2081,16 @@ def newton_multi_root(
     pre_args=(),
     final_args=(),
     raise_on_fail=True,
-):
+) -> dict:
     """
-    Use the Newton algorithm to determine to root of a function searching **many** variables.
+    Use the Newton algorithm to determine the root of a function searching **many** variables.
 
-    Solves each root equation :math:`f_i(g_j; s_k)=0` for *g_j*.
+    Solves the *n* root equations :math:`f_i(g_1, \hdots, g_n; s_k)=0` for each :math:`g_j`.
 
     Parameters
     ----------
     f: callable
-        The function, *f*, to find the root of. Of the signature: `f(g_1, .., g_j, *args)`.
+        The function, *f*, to find the root of. Of the signature: `f([g_1, .., g_n], *args)`.
         Must return a tuple where the second value is the Jacobian of *f* with respect to *g*.
     g0: Sequence of DualTypes
         Initial guess of the root values. Should be reasonable to avoid failure.
@@ -2115,7 +2115,7 @@ def newton_multi_root(
 
     Returns
     -------
-    ndarray
+    dict
 
     Examples
     --------
@@ -2126,13 +2126,13 @@ def newton_multi_root(
 
     .. ipython:: python
 
-       from rateslib.solver import newton_multi_root
+       from rateslib.solver import newton_ndim
 
        def f(g, s):
            # Function value
            f0 = g[0] ** 2 + g[1] ** 2 + s
            f1 = g[0] ** 2 - 2 * g[1]**2 - s
-           # Analytical derivative is required
+           # Analytical derivative as Jacobian matrix is required
            f00 = 2 * g[0]
            f01 = 2 * g[1]
            f10 = 2 * g[0]
@@ -2140,7 +2140,7 @@ def newton_multi_root(
            return [f0, f1], [[f00, f01], [f10, f11]]
 
        s = Dual(-2.0, ["s"], [])
-       newton_multi_root(f, g0=[1.0, 1.0], args=(s,))
+       newton_ndim(f, g0=[1.0, 1.0], args=(s,))
     """
     t0 = time()
     i = 0
@@ -2192,7 +2192,7 @@ def newton_multi_root(
         i += 1
         g1 = g1 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
 
-    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_multi_root")
+    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_ndim")
 
 
 STATE_MAP = {
