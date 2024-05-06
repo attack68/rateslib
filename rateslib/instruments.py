@@ -8292,6 +8292,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
+            if isinstance(vol, FXDeltaVolSmile):
+                self._pricing["vol"] = self.periods[0]._get_vol_maybe_from_smile(
+                    vol, fx, curves[1]
+                )
             try:
                 npv = self.periods[0].npv(curves[1], curves[3], fx, vol=self._pricing["vol"])
             except AttributeError:
@@ -8310,19 +8314,33 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
             self.periods[1].notional = float(premium)
 
+    def _get_vol_curves_fx_and_base_maybe_from_solver(self, solver, curves, fx, base, vol):
+        """
+        Parses the inputs including the instrument's attributes and also validates them
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        if isinstance(vol, FXDeltaVolSmile) and vol.eval_date != curves[1].node_dates[0]:
+            raise ValueError(
+                "The `eval_date` on the FXDeltaVolSmile and the Curve do not align.\n"
+                "Aborting calculation to avoid pricing errors."
+            )
+        return curves, fx, base, vol
+
     def rate(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
         solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
-        vol: float = NoInput(0),
+        vol: Union[float, FXDeltaVolSmile, NoInput] = NoInput(0),
         metric: str = "pips_or_%",
     ):
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
         )
-        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
         if metric == "vol":
@@ -8339,10 +8357,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local: bool = False,
         vol: float = NoInput(0),
     ):
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
         )
-        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
         opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
@@ -8390,10 +8407,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
         )
-        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
         return self.periods[0].analytic_greeks(
@@ -8419,10 +8435,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
         )
-        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
         x, y = self.periods[0]._payoff_at_expiry(range)
@@ -8733,6 +8748,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
     rate_weight = [-1.0, 1.0]
     rate_weight_vol = [-1.0, 1.0]
+    _rate_scalar = 100.0
 
     def __init__(
         self,
@@ -8821,6 +8837,7 @@ class FXStraddle(FXOptionStrat, FXOption):
 
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
+    _rate_scalar = 100.0
 
     def __init__(self, *args, premium=[NoInput(0), NoInput(0)], metric="vol", **kwargs):
         super(FXOptionStrat, self).__init__(*args, **kwargs)
@@ -8908,6 +8925,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [-1.0, 1.0]
+    _rate_scalar = 100.0
 
     def __init__(
         self,
