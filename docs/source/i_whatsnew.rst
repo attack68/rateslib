@@ -83,7 +83,7 @@ for notes about installation changes.
    * - AD
      - Added :meth:`~rateslib.dual.dual_norm_pdf` for AD safe standard normal probability density.
    * - AD
-     - Added :meth:`~rateslib.solver.newton_root` and :meth:`~rateslib.solver.newton_ndim`
+     - Added :meth:`~rateslib.solver.newton_1dim` and :meth:`~rateslib.solver.newton_ndim`
        for AD safe Newton root solving in one or multiple dimensions.
    * - Solver
      - Added :meth:`~rateslib.solver.quadratic_eqn` to return the solution of a quadratic equation

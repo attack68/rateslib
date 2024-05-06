@@ -1942,7 +1942,7 @@ def _float_if_not_string(x):
     return x
 
 
-def newton_root(
+def newton_1dim(
     f,
     g0,
     max_iter=50,
@@ -1994,7 +1994,7 @@ def newton_root(
 
     .. ipython:: python
 
-       from rateslib.solver import newton_root
+       from rateslib.solver import newton_1dim
 
        def f(g, s):
            f0 = g**2 - s   # Function value
@@ -2002,7 +2002,7 @@ def newton_root(
            return f0, f1
 
        s = Dual(2.0, ["s"], [])
-       newton_root(f, g0=1.0, args=(s,))
+       newton_1dim(f, g0=1.0, args=(s,))
     """
     t0 = time()
     i = 0
@@ -2068,7 +2068,7 @@ def newton_root(
     #     )
     #     g1 = Dual2.vars_from(f0, float(g1), f0.vars, g1_beta, g1_gamma.flatten())
 
-    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_root")
+    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_1dim")
 
 
 def newton_ndim(
@@ -2083,7 +2083,7 @@ def newton_ndim(
     raise_on_fail=True,
 ) -> dict:
     """
-    Use the Newton algorithm to determine the root of a function searching **many** variables.
+    Use the Newton-Raphson algorithm to determine the root of a function searching **many** variables.
 
     Solves the *n* root equations :math:`f_i(g_1, \hdots, g_n; s_k)=0` for each :math:`g_j`.
 
