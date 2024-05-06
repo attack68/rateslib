@@ -8707,9 +8707,9 @@ class FXOptionStrat:
                 )
             )
 
-        excludes = ["delta_type", "__vol", "__strike", "__bs76"]
+        excludes = ["option", "delta_type", "__vol", "__strike", "__bs76"]
         _ = {k: sum(d.get(k) for d in gks) for k in set(gks[0]) if k not in excludes}
-        _.update({"options": gks, "delta_type": gks[0]["delta_type"]})
+        _.update({"option": "OptionStrat", "options": gks, "delta_type": gks[0]["delta_type"]})
         return _
 
 
