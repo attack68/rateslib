@@ -339,6 +339,9 @@ in calibrating a volatility *Surface* or *Smile*.
 lower and a higher strike. These can be entered in delta terms. Pricing also allows
 two different ``vol`` inputs if a volatility *Surface* or *Smile* is not given.
 
+The default pricing ``metric`` for a *RiskReversal* is 'vol' which calculates the difference in volatility
+quotations for each option.
+
 .. ipython:: python
 
    fxrr = FXRiskReversal(
@@ -402,3 +405,15 @@ two different ``vol`` inputs if a volatility *Surface* or *Smile* is not given.
        fx=fxf,
        vol=[10.15, 8.9],
    )
+
+Strangles
+==========
+
+The other common *Instrument* combination for calibrating *Surfaces* and *Smiles* is an
+:class:`~rateslib.instruments.FXStrangle`. Again, the strangle requires two strike inputs,
+which can be input in delta terms.
+
+The default pricing ``metric`` for a strangle is *'single_vol'*, which quotes a single volatility
+value used to price the strike and premium for each option. *Rateslib* uses an iteration to
+calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surface* or *Smile*.
+
