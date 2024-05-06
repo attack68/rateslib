@@ -58,7 +58,7 @@ from rateslib.dual import (
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates
-from rateslib.solver import newton_multi_root, newton_root
+from rateslib.solver import newton_ndim, newton_1dim
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -3241,7 +3241,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else ""
         )
         try:
-            root_solver = newton_root(
+            root_solver = newton_1dim(
                 root1d,
                 g00,
                 args=(delta, delta_type, vol_delta_type, self.phi, t_e**0.5, z_w),
@@ -3311,7 +3311,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else ""
         )
         try:
-            root_solver = newton_multi_root(
+            root_solver = newton_ndim(
                 root2d,
                 [g00, abs(g01)],
                 args=(delta, delta_type, vol.delta_type, self.phi, t_e**0.5, z_w),
