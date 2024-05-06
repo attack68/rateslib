@@ -75,7 +75,7 @@ for notes about installation changes.
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
        :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
        :class:`~rateslib.instruments.FXStrangle`, and :class:`~rateslib.instruments.FXOptionStrat`.
-       See :ref:`user guide section <volatility-doc>` for more information.
+       See :ref:`user guide section <fx-volatility-doc>` for more information.
    * - FX Volatility
      - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
        to allow pricing of single expiry *FX Options* with a *Smile* interpolated over a *Delta*

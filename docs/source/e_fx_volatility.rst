@@ -1,4 +1,4 @@
-.. _volatility-doc:
+.. _fx-volatility-doc:
 
 .. ipython:: python
    :suppress:

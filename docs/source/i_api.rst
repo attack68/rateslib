@@ -285,7 +285,6 @@ Instruments
    :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver
-   :skip: CompositeCurve
    :skip: ZeroFixedLeg
    :skip: forward_fx
    :skip: partial

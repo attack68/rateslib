@@ -14,6 +14,8 @@ No-Derivatives 4.0 International Licence**.
 for ``commerical`` use by employees or members of commercial entities,
 e.g. <span style="color: orange">banks, funds, accountants, corporate treasuries, etc.</span>.
 
+Please contact **rateslib@gmail.com** to arrange licences.
+
 .. note::
 
    This means that you **can**;
@@ -37,9 +39,6 @@ e.g. <span style="color: orange">banks, funds, accountants, corporate treasuries
    - Include this code, or package, as a **dependency** of any other package.
    - Use this code as a benchmark or as a validator for developing your own code
      which will be used in a commercial capacity.
-
-If you would like to discuss licensing, under very reasonable terms, please contact the
-author at **rateslib@gmail.com**.
 
 
 Creative Commons Attribution, Non-Commercial, No-Derivatives 4.0 International Public License

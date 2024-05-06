@@ -26,13 +26,18 @@
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
 with a high level, well documented API.
 
-Its design objective is to be able to create a self-consistent, arbitrage free
-framework for pricing all aspects of linear fixed income trading, such as spot FX, FX forwards,
-single currency securities and derivatives like fixed rate bonds and IRSs, and also
-multi-currency derivatives such as FX swaps and cross-currency swaps. Volatility products
-are under consideration for future versions.
+.. raw:: html
 
-The techniques and object interation within *rateslib* were inspired by
+   <p>*Rateslib* is <span style="color: darkgreen; font-size: 1.25em;">free to use</span> for
+   ``academic`` and ``personal educational`` use.</p>
+
+   <p>*Rateslib* <span style="color: darkorange; font-size: 1.25em;">costs $300 per year / per user</span>
+   to extend this licence to allow for ``commerical`` use by employees or members of commercial entities,
+   e.g. <span style="color: darkorange;">banks, funds, accountants, corporate treasuries, etc.</span>.<p>
+
+Please contact **rateslib@gmail.com** to arrange licences.
+
+The techniques and object interaction within *rateslib* were inspired by
 the requirements of multi-disciplined fixed income teams working, both cooperatively
 and independently, within global investment banks.
 
@@ -141,25 +146,6 @@ Licence
 
 This library is released under a **Creative Commons Attribution, Non-Commercial,
 No-Derivatives 4.0 International Licence**. See `here <licence-doc>`_ for more details.
-
-.. raw:: html
-
-    <span style="color: darkgreen; font-size: 1.25em;">Activities allowed:</span>&nbsp;
-
-Academic work, personal learning, **private and non-commercial** uses, and non-profit functions.
-
-.. raw:: html
-
-    <span style="color: firebrick; font-size: 1.25em;">Activities prohibited:</span>
-
-Any **commercial based activity**, for example inside a bank, fund, or investment firm, or corporation.
-
-.. raw:: html
-
-    <span style="color: darkorange; font-size: 1.25em;">Other licence options available:</span>
-
-If you would like to discuss licensing, under very reasonable terms, please contact the
-author at **rateslib@gmail.com**.
 
 
 Get Started
