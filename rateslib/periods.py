@@ -2712,7 +2712,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
         _is_spot = "spot" in self.delta_type
 
-        _ = {"delta_type": self.delta_type}
+        _ = {"__delta_type": self.delta_type}
+        if self.phi > 0:
+            _["__class"] = "FXCallPeriod"
+        else:
+            _["__class"] = "FXPutPeriod"
         _["delta"] = self._analytic_delta(
             premium,
             "_pa" in self.delta_type,

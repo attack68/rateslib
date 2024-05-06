@@ -3614,7 +3614,7 @@ class TestFXStrangle:
 
         result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
         assert isinstance(result, dict)
-        result["options"]
+        result["__options"]
 
 
 class TestVolValue:
