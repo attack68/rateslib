@@ -1795,6 +1795,16 @@ def test_newton_solver_2dim_dual2():
     assert abs(expected_y2 - sensitivity_y2) < 1e-9
 
 
+def test_newton_1d_failed_state():
+    def root(g):
+        f0 = g**2 + 10.0
+        f1 = 2 * g
+        return f0, f1
+
+    result = newton_1dim(root, 1.5, max_iter=5, raise_on_fail=False)
+    assert result["state"] == -1
+
+
 def test_solver_with_vol_smile():
     eureur = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur")
     usdusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd")
@@ -1843,3 +1853,8 @@ def test_solver_with_vol_smile():
         s=[21.6215, -0.5, 22.359],
         fx=fxf,
     )
+
+
+
+
+
