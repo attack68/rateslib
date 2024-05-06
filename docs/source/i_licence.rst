@@ -8,6 +8,12 @@ Licence
 This library is released under a **Creative Commons Attribution, Non-Commercial,
 No-Derivatives 4.0 International Licence**.
 
+*Rateslib* is <span style="color: green">free to use</span> for ``academic`` and ``personal educational`` use.
+
+*Rateslib* <span style="color: orange">costs $300 per year / per user</span> to extend this licence to allow
+for ``commerical`` use by employees or members of commercial entities,
+e.g. <span style="color: orange">banks, funds, accountants, corporate treasuries, etc.</span>.
+
 .. note::
 
    This means that you **can**;
