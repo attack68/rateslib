@@ -158,11 +158,11 @@ from pandas import DataFrame
 
 
 class FXDeltaVolSmile:
-    """
+    r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
     Parameters
-    -----------
+    ----------
     nodes: dict[float, DualTypes]
         Key-value pairs for a delta index amount and associated volatility. See examples.
     eval_date: datetime
@@ -196,7 +196,7 @@ class FXDeltaVolSmile:
 
     - For *premium adjusted* ``delta_types`` the range of the delta index is in [0, *d*] where *d*
       is set large enough to encompass 99.99% of all possible values. The right endpoint is clamped
-      with a first derivative of zero to avoid uncontrolled behaviour. The value of *d* is derivaed
+      with a first derivative of zero to avoid uncontrolled behaviour. The value of *d* is derived
       using :math:`d = e^{\sigma \sqrt{t} (3.75 + \frac{1}{2} \sigma \sqrt{t})}`
 
     """

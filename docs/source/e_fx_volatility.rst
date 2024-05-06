@@ -417,3 +417,66 @@ The default pricing ``metric`` for a strangle is *'single_vol'*, which quotes a 
 value used to price the strike and premium for each option. *Rateslib* uses an iteration to
 calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surface* or *Smile*.
 
+.. ipython:: python
+
+   fxstg = FXStrangle(
+       pair="eurusd",
+       expiry=dt(2023, 6, 16),
+       notional=20e6,
+       strike=("-25d", "25d"),
+       payment_lag=2,
+       delivery_lag=2,
+       calendar="tgt",
+       premium_ccy="usd",
+       delta_type="spot",
+   )
+   fxstg.rate(
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=[10.15, 8.9]
+   )
+   fxstg.plot_payoff(
+       range=[1.025, 1.11],
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=9.533895,
+   )
+
+.. plot::
+
+   from rateslib.curves import Curve
+   from rateslib.instruments import FXStrangle
+   from rateslib import dt
+   from rateslib.fx import FXForwards, FXRates
+
+   eureur = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+   )
+   usdusd = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+   )
+   eurusd = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd"
+   )
+   fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
+   fxf = FXForwards(
+       fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
+       fx_rates=fxr
+   )
+   fxstg = FXStrangle(
+       pair="eurusd",
+       expiry=dt(2023, 6, 16),
+       notional=20e6,
+       strike=("-25d", "25d"),
+       payment_lag=2,
+       delivery_lag=2,
+       calendar="tgt",
+       premium_ccy="usd",
+       delta_type="spot",
+   )
+   fxstg.plot_payoff(
+       range=[1.025, 1.11],
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=9.533895,
+   )

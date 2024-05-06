@@ -2712,11 +2712,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
         _is_spot = "spot" in self.delta_type
 
-        _ = {"__delta_type": self.delta_type}
-        if self.phi > 0:
-            _["__class"] = "FXCallPeriod"
-        else:
-            _["__class"] = "FXPutPeriod"
+        _ = dict()
         _["delta"] = self._analytic_delta(
             premium,
             "_pa" in self.delta_type,
@@ -2746,10 +2742,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
             z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta
         )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
+
+        _["__delta_type"] = self.delta_type
         _["__vol"] = vol_
         _["__strike"] = self.strike
         _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
-
+        if self.phi > 0:
+            _["__class"] = "FXCallPeriod"
+        else:
+            _["__class"] = "FXPutPeriod"
         return _
 
     @staticmethod
