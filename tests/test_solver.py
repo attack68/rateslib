@@ -10,7 +10,7 @@ import context
 from rateslib import default_context
 from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
-from rateslib.solver import Solver, Gradients, newton_root, newton_multi_root
+from rateslib.solver import Solver, Gradients, newton_1dim, newton_ndim
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS, FXStrangle, FXStraddle, FXRiskReversal
 from rateslib.fx import FXRates, FXForwards
@@ -1704,7 +1704,7 @@ def test_newton_solver_1dim_dual():
 
     x0 = Dual(1.0, ["x"], [])
     s = Dual(2.0, ["s"], [])
-    result = newton_root(root, x0, args=(s,))
+    result = newton_1dim(root, x0, args=(s,))
 
     expected = 0.5 / 2.0**0.5
     sensitivity = gradient(result["g"], ["s"])[0]
@@ -1717,7 +1717,7 @@ def test_newton_solver_1dim_dual2():
 
     x0 = Dual2(1.0, ["x"], [], [])
     s = Dual2(2.0, ["s"], [], [])
-    result = newton_root(root, x0, args=(s,))
+    result = newton_1dim(root, x0, args=(s,))
 
     expected = 0.5 / 2.0**0.5
     sensitivity = gradient(result["g"], ["s"])[0]
@@ -1742,7 +1742,7 @@ def test_newton_solver_2dim_dual():
 
     g0 = [Dual(1.0, ["x"], []), Dual(2.0, ["y"], [])]
     s = Dual(-2.0, ["s"], [])
-    result = newton_multi_root(root, g0, args=(s,))
+    result = newton_ndim(root, g0, args=(s,))
 
     expected_x = (2/3)**0.5
     assert abs(result["g"][0] - expected_x) < 1e-9
@@ -1773,7 +1773,7 @@ def test_newton_solver_2dim_dual2():
 
     g0 = [Dual2(1.0, ["x"], [], []), Dual2(2.0, ["y"], [], [])]
     s = Dual2(-2.0, ["s"], [], [])
-    result = newton_multi_root(root, g0, args=(s,))
+    result = newton_ndim(root, g0, args=(s,))
 
     expected_x = (2 / 3) ** 0.5
     assert abs(result["g"][0] - expected_x) < 1e-9
