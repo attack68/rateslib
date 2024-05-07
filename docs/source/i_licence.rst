@@ -8,13 +8,30 @@ Licence
 This library is released under a **Creative Commons Attribution, Non-Commercial,
 No-Derivatives 4.0 International Licence**.
 
-*Rateslib* is <span style="color: green">free to use</span> for ``academic`` and ``personal educational`` use.
+.. raw:: html
 
-*Rateslib* <span style="color: orange">costs $300 per year / per user</span> to extend this licence to allow
-for ``commerical`` use by employees or members of commercial entities,
-e.g. <span style="color: orange">banks, funds, accountants, corporate treasuries, etc.</span>.
-
-Please contact **rateslib@gmail.com** to arrange licences.
+   <table style="width:100%; text-align:center; border-collapse: collapse; font-size:0.8em;">
+   <thead>
+     <tr>
+       <th style="color:#459db9; border: 1px solid #d0d7de">Academic, Personal, or Educational Use</th>
+       <th style="color:#459db9; border: 1px solid #d0d7de">Commercial or Corporate Use</th>
+     </tr>
+   </thead>
+   <tbody>
+     <tr>
+       <td style="color:green; font-size: 1.25em; font-weight:bold; border: 1px solid #d0d7de">FREE to use and modify.<br></td>
+       <td style="border: 1px solid #d0d7de">
+       <span style="color: orange;">Banks, Funds, Accountants, Treasuries:</span>
+       <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
+          <span style="text-align: center; font-style:italic;">
+          Can purchase a licence extension. $300 per year / per user.</span><br>
+          <span style="text-align: center; font-style:italic;">
+          contact: rateslib@gmail.com
+          </span>
+       </td>
+     </tr>
+   </tbody>
+   </table>
 
 .. note::
 

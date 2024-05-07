@@ -33,14 +33,24 @@ Introduction
 The *FXDeltaVolSmile* is parametrised by a series of *(delta, vol)* node points
 interpolated by a cubic spline. This interpolation is automatically constructed with knot
 sequences that adjust to the number of given ``nodes``. One node will create a constant
-vol level, and two nodes will create a straight line gradient. More nodes, well calibrated,
+vol level, and two nodes will create a straight line gradient. More nodes (appropriately calibrated)
 will create a traditional smile shape.
 
 An *FXDeltaVolSmile* must also be initialised with an ``eval_date`` which serves the same
-purpose as the initial node point on a *Curve*. There must also be an ``expiry``, and
+purpose as the initial node point on a *Curve*, and indicates *'today'*. There must also be an ``expiry``, and
 options priced with this *Smile* must have an equivalent expiry or errors will be raised.
 Finally, the ``delta_type`` of the *Smile* must be specified so that its delta index is well
 defined.
+
+Constructing a Smile
+*********************
+
+The following data describes *Instruments* to calibrate the EURUSD FX volatility surface on 7th May 2024.
+We will take a cross-section of this data, at the 3-week expiry, and create an *FXDeltaVolSmile*.
+
+.. image:: _static/fx_eurusd_3m_surf.PNG
+  :alt: EURUSD FX volatility surface prices on 7th May 2024
+  :width: 489
 
 
 
