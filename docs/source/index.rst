@@ -159,7 +159,7 @@ Licence
 =======
 
 This library is released under a **Creative Commons Attribution, Non-Commercial,
-No-Derivatives 4.0 International Licence**. See `here <licence-doc>`_ for more details.
+No-Derivatives 4.0 International Licence**. See :ref:`here<licence-doc>` for more details.
 
 
 Get Started
