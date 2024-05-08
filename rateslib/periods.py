@@ -3122,6 +3122,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         w_spot,
         f,
         t_e,
+        is_atm_delta: bool = False,
     ):
         if not isinstance(vol, FXDeltaVolSmile):
             vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
@@ -3132,8 +3133,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
+        if is_atm_delta:
+            u, delta_idx, delta = self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
+
         # then delta types are both unadjusted, used closed form.
-        if eta_0 == eta_1 and eta_0 == 0.5:
+        elif eta_0 == eta_1 and eta_0 == 0.5:
             if isinstance(vol, FXDeltaVolSmile):
                 delta_idx = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
                 vol = vol[delta_idx]
@@ -3333,6 +3337,84 @@ class FXOptionPeriod(metaclass=ABCMeta):
             )
         u, delta_idx = root_solver["g"][0], root_solver["g"][1]
         return u, delta_idx
+
+    def _moneyness_from_delta_three_dimensional(
+        self, delta_type, vol: FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
+    ):
+        """
+        Solve the ATM delta problem where delta is not explicit except implied from exogenous information.
+        """
+        def root3d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+            u, delta_idx, delta = g[0], g[1], g[2]
+
+            eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+            eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+            dz_u_0_du = 0.5 - eta_0
+            dz_u_1_du = 0.5 - eta_1
+
+            if isinstance(vol, FXDeltaVolSmile):
+                vol_ = vol[delta_idx] / 100.0
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+            else:
+                vol_ = vol / 100.0
+                dvol_ddeltaidx = 0.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            vol_sqrt_t = vol_ * sqrt_t_e
+
+            # Calculate function values
+            d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+            _phi0 = dual_norm_cdf(phi * d0)
+            f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
+
+            d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+            _phi1 = dual_norm_cdf(-d1)
+            f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+
+            f0_2 = delta - phi * z_u_0 * z_w_0 / 2.0
+
+            # Calculate Jacobian values
+            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+            dd_du = -1 / (u * vol_sqrt_t)
+            nd0 = dual_norm_pdf(phi * d0)
+            nd1 = dual_norm_pdf(-d1)
+            lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+            dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+            dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+            f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du  # dh0/du
+            f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du  # dh1/du
+            f1_20 = -phi * z_w_0 * dz_u_0_du / 2.0  # dh2/du
+            f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx  # dh0/ddidx
+            f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx  # dh1/ddidx
+            f1_21 = 0.0  # dh2/ddidx
+            f1_02 = 1.0  # dh0/ddelta
+            f1_12 = 0.0  # dh1/ddelta
+            f1_22 = 1.0  # dh2/ddelta
+
+            return [f0_0, f0_1, f0_2], [[f1_00, f1_01, f1_02], [f1_10, f1_11, f1_12], [f1_20, f1_21, f1_22]]
+
+        if isinstance(vol, FXDeltaVolSmile):
+            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            vol_delta_type = vol.delta_type
+        else:
+            avg_vol = vol
+            vol_delta_type = self.delta_type
+        g02 = 0.5 * self.phi * (z_w if "spot" in delta_type else 1.0)
+        g01 = g02 if self.phi > 0 else max(g02, -0.75)
+        g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
+
+        root_solver = newton_ndim(
+            root3d,
+            [g00, abs(g01), g02],
+            args=(delta_type, vol_delta_type, self.phi, t_e**0.5, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+            raise_on_fail=True,
+        )
+
+        u, delta_idx, delta = root_solver["g"][0], root_solver["g"][1], root_solver["g"][1]
+        return u, delta_idx, delta
 
     # def _get_interval_for_premium_adjusted_delta_with_money_vol_smile(
     #     self,
