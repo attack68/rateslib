@@ -8,6 +8,31 @@ Licence
 This library is released under a **Creative Commons Attribution, Non-Commercial,
 No-Derivatives 4.0 International Licence**.
 
+.. raw:: html
+
+   <table style="width:100%; text-align:center; border-collapse: collapse; font-size:0.8em;">
+   <thead>
+     <tr>
+       <th style="color:#459db9; border: 1px solid #d0d7de">Academic, Personal, or Educational Use</th>
+       <th style="color:#459db9; border: 1px solid #d0d7de">Commercial or Corporate Use</th>
+     </tr>
+   </thead>
+   <tbody>
+     <tr>
+       <td style="color:green; font-size: 1.25em; font-weight:bold; border: 1px solid #d0d7de">FREE to use and modify.<br></td>
+       <td style="border: 1px solid #d0d7de">
+       <span style="color: orange;">Banks, Funds, Accountants, Treasuries:</span>
+       <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
+          <span style="text-align: center; font-style:italic;">
+          Can purchase a licence extension. $300 per year / per user.</span><br>
+          <span style="text-align: center; font-style:italic;">
+          contact: rateslib@gmail.com
+          </span>
+       </td>
+     </tr>
+   </tbody>
+   </table>
+
 .. note::
 
    This means that you **can**;
@@ -31,9 +56,6 @@ No-Derivatives 4.0 International Licence**.
    - Include this code, or package, as a **dependency** of any other package.
    - Use this code as a benchmark or as a validator for developing your own code
      which will be used in a commercial capacity.
-
-If you would like to discuss licensing, under very reasonable terms, please contact the
-author at **rateslib@gmail.com**.
 
 
 Creative Commons Attribution, Non-Commercial, No-Derivatives 4.0 International Public License

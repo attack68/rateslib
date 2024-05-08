@@ -6,45 +6,11 @@
 Release Notes
 **************
 
-Rough Development Plan
-***********************
-
 The future development of *rateslib* is open to many avenues.
 Some possibilities are listed below. The author is very interested in any feedback
 and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
-
-.. list-table::
-   :widths: 20 35 35 10
-   :header-rows: 1
-
-
-   * - Feature
-     - Description
-     - Consideration
-     - Timeframe
-   * - Vanilla FX options and volatility products
-     - Adding option instruments and benchmark trades such as risk-reversals.
-     - Highly likely (v2.0?)
-     - By mid 2024
-   * - Vanilla Swaptions
-     - Adding the instruments priced by a volatility input.
-     - Likely (v2.0 or v3.0?)
-     - By end 2024
-   * - SABR model for options
-     - Adding the parameters to construct SABR vol surfaces/ cuves.
-     - Possible, with dependencies to other developments. (v3.0?)
-     - By end 2024
-   * - Optimization of code
-     - Using C extensions, or rust, or re-writing certain blocks to improve performance.
-     - Likely to some degree, depending upon community adoption and contributions.
-     - no ETA
-   * - AD backend
-     - Changing the AD implementation to another 3rd party (JAX, PyAudi)
-     - Very unlikely, maturity of those libraries must increase and the performance
-       improvements must be sufficient to warrant such a large codebase change.
-     - no ETA
 
 1.2.0 (not released)
 **********************
@@ -75,7 +41,7 @@ for notes about installation changes.
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
        :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
        :class:`~rateslib.instruments.FXStrangle`, and :class:`~rateslib.instruments.FXOptionStrat`.
-       See :ref:`user guide section <volatility-doc>` for more information.
+       See :ref:`user guide section <fx-volatility-doc>` for more information.
    * - FX Volatility
      - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
        to allow pricing of single expiry *FX Options* with a *Smile* interpolated over a *Delta*

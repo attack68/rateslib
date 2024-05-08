@@ -30,6 +30,8 @@ The two main classes provided are distinct.
 It is suggested to proceed by reading the documentation for :ref:`FXRates<fxr-doc>` first, before
 then reviewing the documentation for  :ref:`FXForwards<fxr-doc>`.
 
+*Rateslib* also supports some :ref:`FX volatility products <fx-volatility-doc>`.
+
 .. toctree::
    :hidden:
    :maxdepth: 0

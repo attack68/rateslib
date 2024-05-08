@@ -26,7 +26,7 @@ risk, calculations of *Legs* resolves to a linear sum of those same calculations
 looped over all of the individual *Periods*.
 Like *Periods*, it is probably quite
 rare that *Legs* will be instantiated directly, rather they will form the
-components of :ref:`Instruments<instruments-doc>`, but none-the-less, this page
+components of :ref:`Instruments<instruments-toc-doc>`, but none-the-less, this page
 describes their construction.
 
 The following *Legs* are provided, click on the links for a full description of each
