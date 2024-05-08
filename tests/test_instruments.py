@@ -3386,8 +3386,8 @@ class TestFXStraddle:
         ("spot", "atm_delta", "usd", [1.068856203, 1.068856203]),
         ("spot", "atm_forward", "eur", [1.06750999, 1.06750999]),
         ("spot", "atm_spot", "eur", [1.061500, 1.061500]),
-        ("forward", "atm_delta", "eur", [1.068856203, 1.068856203]),
-        ("spot", "atm_delta", "eur", [1.068856203, 1.068856203]),
+        ("forward", "atm_delta", "eur", [1.06616549, 1.06616549]),
+        ("spot", "atm_delta", "eur", [1.06616549, 1.06616549]),
         # ("forward", ["50d", "-50d"], "eur", [1.0660752074, 1.06624508149]),  # pa strikes
         # ("spot", ["50d", "-50d"], "eur", [1.0656079102, 1.066656812]),  # pa strikes
     ])

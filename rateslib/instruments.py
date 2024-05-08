@@ -8764,10 +8764,10 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     ):
         super(FXOptionStrat, self).__init__(
             *args,
+            strike=strike,
+            premium=premium,
             **kwargs,
         )
-        self.kwargs["strike"] = strike
-        self.kwargs["premium"] = premium
         self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
@@ -8844,8 +8844,7 @@ class FXStraddle(FXOptionStrat, FXOption):
     _rate_scalar = 100.0
 
     def __init__(self, *args, premium=[NoInput(0), NoInput(0)], metric="vol", **kwargs):
-        super(FXOptionStrat, self).__init__(*args, **kwargs)
-        self.kwargs["premium"] = premium
+        super(FXOptionStrat, self).__init__(*args, premium=premium, **kwargs)
         self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
@@ -8939,9 +8938,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         metric="single_vol",
         **kwargs,
     ):
-        super(FXOptionStrat, self).__init__(*args, **kwargs)
-        self.kwargs["strike"] = strike
-        self.kwargs["premium"] = premium
+        super(FXOptionStrat, self).__init__(*args, strike=strike, premium=premium , **kwargs)
         self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
