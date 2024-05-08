@@ -8201,6 +8201,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
+        if self.kwargs["strike"] is NoInput.blank:
+            raise ValueError("`strike` for FXOption must be set to numeric or string value.")
+
         self.vol = vol
         self.curves = curves
         self.spec = spec
@@ -8257,6 +8260,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     )[1]
 
             elif method == "atm_delta":
+
                 k, delta_idx = self.periods[0]._strike_and_index_from_delta(
                     delta=0.5 * self.periods[0].phi,
                     delta_type="forward",

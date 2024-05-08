@@ -35,7 +35,7 @@ from rateslib.instruments import (
     FXStrangle,
     _get_curves_fx_and_base_maybe_from_solver,
 )
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, dual_exp
 from rateslib.calendars import dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, MultiCsaCurve, CompositeCurve
 from rateslib.fx import FXRates, FXForwards
@@ -3342,6 +3342,35 @@ class TestFXOptions:
         fxc = FXCall(strike=1.10, **args, notional=100e6, vol=vol)
         with pytest.raises(ValueError, match="The `eval_date` on the FXDeltaVolSmile and the"):
             fxc.rate(fx=fxfo)
+
+    @pytest.mark.parametrize("phi", [-1.0, 1.0])
+    @pytest.mark.parametrize("prem_ccy", ["usd", "eur"])
+    def test_atm_rates(self, fxfo, phi, prem_ccy):
+        FXOp = FXCall if phi > 0 else FXPut
+        vol = FXDeltaVolSmile(
+            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            id="vol",
+        )
+        fxo = FXOp(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            delta_type="spot",
+            vol=vol,
+            premium_ccy=prem_ccy,
+            strike="atm_delta",
+        )
+        result = fxo.analytic_greeks(fx=fxfo)
+
+        f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
+        eta = 0.5 if prem_ccy == "usd" else -0.5
+        expected = f_d * dual_exp(result["__vol"]**2 * vol.t_expiry * eta)
+        assert abs(result["__strike"] - expected) < 1e-8
 
 
 class TestFXStraddle:
