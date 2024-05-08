@@ -3339,10 +3339,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return u, delta_idx
 
     def _moneyness_from_delta_three_dimensional(
-        self, delta_type, vol: FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
+        self, delta_type, vol: Union[float, FXDeltaVolSmile], t_e: DualTypes, z_w: DualTypes
     ):
         """
-        Solve the ATM delta problem where delta is not explicit except implied from exogenous information.
+        Solve the ATM delta problem where delta is not explicit.
         """
         def root3d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u, delta_idx, delta = g[0], g[1], g[2]
