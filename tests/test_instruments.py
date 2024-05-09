@@ -3345,14 +3345,16 @@ class TestFXOptions:
 
     @pytest.mark.parametrize("phi", [-1.0, 1.0])
     @pytest.mark.parametrize("prem_ccy", ["usd", "eur"])
+    @pytest.mark.parametrize("dt_0", ["spot", "forward"])
+    @pytest.mark.parametrize("dt_1", ["spot", "forward", "spot_pa", "forward_pa"])
     @pytest.mark.parametrize("smile", [True, False])
-    def test_atm_rates(self, fxfo, phi, prem_ccy, smile):
+    def test_atm_rates(self, fxfo, phi, prem_ccy, smile, dt_0, dt_1):
         FXOp = FXCall if phi > 0 else FXPut
         fxvs = FXDeltaVolSmile(
             {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
-            delta_type="spot",
+            delta_type=dt_1,
             id="vol",
         )
         vol = fxvs if smile else 9.50
@@ -3362,7 +3364,7 @@ class TestFXOptions:
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
             curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
-            delta_type="spot",
+            delta_type=dt_0,
             vol=vol,
             premium_ccy=prem_ccy,
             strike="atm_delta",

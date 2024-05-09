@@ -8261,15 +8261,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
             elif method == "atm_delta":
 
-                k, delta_idx = self.periods[0]._strike_and_index_from_delta(
-                    delta=NoInput(0),
+                k, delta_idx = self.periods[0]._strike_and_index_from_atm(
                     delta_type=self.periods[0].delta_type,
                     vol=vol,
                     w_deli=w_deli,
                     w_spot=w_spot,
                     f=f,
                     t_e=t_e,
-                    is_atm_delta=True
                 )
                 self._pricing["k"] = k
                 if isinstance(vol, FXDeltaVolSmile):

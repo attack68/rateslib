@@ -3113,16 +3113,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     root_solver = _newton(root, root_deriv, 0.5)
     #     return root_solver[0]
 
-    def _strike_and_index_from_delta(
+    def _strike_and_index_from_atm(
         self,
-        delta: float,
         delta_type: str,
         vol: Union[DualTypes, FXDeltaVolSmile],
         w_deli,
         w_spot,
         f,
         t_e,
-        is_atm_delta: bool = False,
     ):
         if not isinstance(vol, FXDeltaVolSmile):
             vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
@@ -3133,11 +3131,47 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
-        if is_atm_delta:
+        # then delta types is unadjusted
+        if eta_0 == 0.5:
+            # then closed form available because smile delta type matches
+            if eta_1 == 0.5:
+                if isinstance(vol, FXDeltaVolSmile):
+                    delta_idx = z_w_1 / 2.0
+                    vol = vol[delta_idx]
+                else:
+                    delta_idx = None
+                u = dual_exp((vol / 100.0)**2 * t_e / 2.0)
+            else:
+                delta = z_w_0 * self.phi / 2.0
+                u, delta_idx = self._moneyness_from_delta_two_dimensional(
+                    delta, delta_type, vol, t_e, z_w
+                )
+        # then delta types is adjusted, use 3-d solver.
+        else:
             u, delta_idx, delta = self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
+        return u * f, delta_idx
+
+    def _strike_and_index_from_delta(
+        self,
+        delta: float,
+        delta_type: str,
+        vol: Union[DualTypes, FXDeltaVolSmile],
+        w_deli,
+        w_spot,
+        f,
+        t_e,
+    ):
+        if not isinstance(vol, FXDeltaVolSmile):
+            vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
+        else:
+            vol_delta_type = vol.delta_type
+
+        z_w = w_deli / w_spot
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
+        eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
         # then delta types are both unadjusted, used closed form.
-        elif eta_0 == eta_1 and eta_0 == 0.5:
+        if eta_0 == eta_1 and eta_0 == 0.5:
             if isinstance(vol, FXDeltaVolSmile):
                 delta_idx = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
                 vol = vol[delta_idx]
