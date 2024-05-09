@@ -3131,31 +3131,31 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
-        u, delta_idx, delta = self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
+        # u, delta_idx, delta = self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
 
-        # if eta_0 == 0.5:  # then delta type is unadjusted
-        #     if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
-        #         if isinstance(vol, FXDeltaVolSmile):
-        #             delta_idx = z_w_1 / 2.0
-        #             vol = vol[delta_idx]
-        #         else:
-        #             delta_idx = None
-        #         u = self._moneyness_from_atm_delta_closed_form(vol, t_e)
-        #     else:  # then smile delta type unmatched: 2-d solver required
-        #         delta = z_w_0 * self.phi / 2.0
-        #         u, delta_idx = self._moneyness_from_delta_two_dimensional(
-        #             delta, delta_type, vol, t_e, z_w
-        #         )
-        # else:  # then delta type is adjusted,
-        #     if eta_1 == -0.5:  # then smile type matches: use 1-d solver
-        #         u = self._moneyness_from_atm_delta_one_dimensional(
-        #             delta_type, vol_delta_type, vol, t_e, z_w
-        #         )
-        #         delta_idx = z_w_1 * u * 0.5
-        #     else:  # smile delta type unmatched: 2-d solver required
-        #         u, delta_idx = self._moneyness_from_atm_delta_two_dimensional(
-        #             delta_type, vol, t_e, z_w
-        #         )
+        if eta_0 == 0.5:  # then delta type is unadjusted
+            if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
+                if isinstance(vol, FXDeltaVolSmile):
+                    delta_idx = z_w_1 / 2.0
+                    vol = vol[delta_idx]
+                else:
+                    delta_idx = None
+                u = self._moneyness_from_atm_delta_closed_form(vol, t_e)
+            else:  # then smile delta type unmatched: 2-d solver required
+                delta = z_w_0 * self.phi / 2.0
+                u, delta_idx = self._moneyness_from_delta_two_dimensional(
+                    delta, delta_type, vol, t_e, z_w
+                )
+        else:  # then delta type is adjusted,
+            if eta_1 == -0.5:  # then smile type matches: use 1-d solver
+                u = self._moneyness_from_atm_delta_one_dimensional(
+                    delta_type, vol_delta_type, vol, t_e, z_w
+                )
+                delta_idx = z_w_1 * u * 0.5
+            else:  # smile delta type unmatched: 2-d solver required
+                u, delta_idx = self._moneyness_from_atm_delta_two_dimensional(
+                    delta_type, vol, t_e, z_w
+                )
 
         return u * f, delta_idx
 
