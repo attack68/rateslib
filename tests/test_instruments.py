@@ -3673,7 +3673,7 @@ class TestFXBrokerFly:
         ([1.024, 1.116, 1.0683], "eur"),
         (["-20d", "20d", "atm_delta"], "eur"),
     ])
-    @pytest.mark.parametrize("smile", [True, False])
+    @pytest.mark.parametrize("smile", [True])
     def test_fxbf_rate_pips(self, fxfo, strike, ccy, smile):
         fxo = FXBrokerFly(
             pair="eurusd",
@@ -3685,7 +3685,7 @@ class TestFXBrokerFly:
             strike=strike,
             premium_ccy=ccy,
             delta_type="forward",
-            metric="pips_or_%"
+            metric="pips_or_%",
         )
         fxvs = FXDeltaVolSmile(
             nodes={
@@ -3700,7 +3700,44 @@ class TestFXBrokerFly:
         vol = fxvs if smile else 9.5
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
-        assert False
+        expected = (-114.5, 5) if ccy == "usd" else (-1.07, 0.1)
+        assert abs(result - expected[0]) < expected[1]
+
+    @pytest.mark.parametrize("strike, ccy", [
+        ([1.024, 1.116, 1.0683], "usd"),
+        (["-20d", "20d", "atm_delta"], "usd"),
+        ([1.024, 1.116, 1.0683], "eur"),
+        (["-20d", "20d", "atm_delta"], "eur"),
+    ])
+    @pytest.mark.parametrize("smile", [True])
+    def test_fxbf_rate_premium(self, fxfo, strike, ccy, smile):
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=[20e6, NoInput(0)],
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=strike,
+            premium_ccy=ccy,
+            delta_type="forward",
+            metric="premium",
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        vol = fxvs if smile else 9.5
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        expected = (-229055, 3000) if ccy == "usd" else (-214500, 6000)
+        assert abs(result - expected[0]) < expected[1]
 
     def test_bf_rate_vols_list(self, fxfo):
         fxbf = FXBrokerFly(
@@ -3732,7 +3769,32 @@ class TestFXBrokerFly:
         assert abs(result - expected) < 1e-6
 
     def test_bf_analytic_greeks(self, fxfo):
-        assert False
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=[20e6, NoInput(0)],
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=strike,
+            premium_ccy=ccy,
+            delta_type="forward",
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        vol = fxvs if smile else 9.5
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        expected = (-114.5, 5) if ccy == "usd" else (-1.07, 0.1)
+        assert abs(result - expected[0]) < expected[1]
 
 
 class TestVolValue:

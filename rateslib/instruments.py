@@ -8388,9 +8388,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         _ = self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
         if metric == "premium":
-            return _ * self.periods[0].notional / 10000
-        else:
-            return _
+            if self.periods[0].metric == "pips":
+                _ *= self.periods[0].notional / 10000
+            else:  # == "percent"
+                _ *= self.periods[0].notional / 100
+        return _
 
     def npv(
         self,
@@ -9251,13 +9253,15 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         else:
             vol = [[vol[0], vol[1]], vol[2]]  # restructure to pass to Strangle and Straddle separately
 
-        if metric is NoInput.blank and self.kwargs["metric"] == "pips_or_%":
-            metric = "pips_or_%"
+        temp_metric = _drb(self.kwargs["metric"], metric)
+        if temp_metric in ["pips_or_%", "premium"]:
             self._set_vega_neutral_notional(curves, solver, fx, base, vol)
 
-        if metric == "pips_or_%":
+        if temp_metric == "pips_or_%":
             straddle_scalar = self.periods[1].periods[0].periods[0].notional / self.periods[0].periods[0].periods[0].notional
             weights = [1.0, straddle_scalar]
+        elif temp_metric == "premium":
+            weights = self.rate_weight
         else:
             weights = self.rate_weight_vol
         _ = 0.0
