@@ -9313,7 +9313,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         if not isinstance(vol, list):
-            vol = [vol] * len(self.periods) * 2
+            vol = [[vol, vol], [vol, vol]]
         else:
             vol = [[vol[0], vol[1]], [vol[2], vol[2]]]  # restructure for strangle / straddle
 

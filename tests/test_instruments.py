@@ -3776,8 +3776,8 @@ class TestFXBrokerFly:
             delivery_lag=2,
             payment_lag=2,
             calendar="tgt",
-            strike=strike,
-            premium_ccy=ccy,
+            strike=["-25d", "25d", "atm_delta"],
+            premium_ccy="usd",
             delta_type="forward",
         )
         fxvs = FXDeltaVolSmile(
@@ -3790,11 +3790,10 @@ class TestFXBrokerFly:
             expiry=dt(2023, 6, 16),
             delta_type="spot",
         )
-        vol = fxvs if smile else 9.5
+        vol = fxvs
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
-        expected = (-114.5, 5) if ccy == "usd" else (-1.07, 0.1)
-        assert abs(result - expected[0]) < expected[1]
+        result = fxo.analytic_greeks(curves, fx=fxfo, vol=vol)
+        assert False  # greeks need to be summed properly for option strats
 
 
 class TestVolValue:
