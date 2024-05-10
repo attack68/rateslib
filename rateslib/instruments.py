@@ -8133,6 +8133,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             calendar=calendar,
             modifier=modifier,
             delta_type=delta_type,
+            metric=metric,
         )
         # TODO validate simulateneous premium and strike. Premium cannot be given if strike is delta string.
 
@@ -8141,6 +8142,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.kwargs["delta_type"] = _drb(defaults.fx_delta_type, self.kwargs["delta_type"])
         self.kwargs["notional"] = _drb(defaults.notional, self.kwargs["notional"])
         self.kwargs["modifier"] = _drb(defaults.modifier, self.kwargs["modifier"])
+        self.kwargs["metric"] = _drb("pips_or_%", self.kwargs["metric"])
 
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
@@ -8179,7 +8181,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if self.kwargs["premium_ccy"] is NoInput.blank:
             self.kwargs["premium_ccy"] = self.kwargs["pair"][3:]
             # set some defaults if missing
-            self.kwargs["metric"] = _drb("pips", metric)
+            self.kwargs["metric_period"] = "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
             self.kwargs["delta_adjustment"] = ""
         else:
             if self.kwargs["premium_ccy"] not in [
@@ -8191,10 +8193,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     f"currency pair: '{self.kwargs['pair']}'."
                 )
             elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-                self.kwargs["metric"] = _drb("pips", metric)
+                self.kwargs["metric_period"] = "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
                 self.kwargs["delta_adjustment"] = ""
             else:
-                self.kwargs["metric"] = _drb("percent", metric)
+                self.kwargs["metric_period"] = "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
                 self.kwargs["delta_adjustment"] = "_pa"
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
@@ -8516,7 +8518,7 @@ class FXCall(FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
-                metric=self.kwargs["metric"],
+                metric=self.kwargs["metric_period"],
             ),
             Cashflow(
                 notional=self.kwargs["premium"],
@@ -8548,6 +8550,7 @@ class FXPut(FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                metric=self.kwargs["metric_period"],
             ),
             Cashflow(
                 notional=self.kwargs["premium"],

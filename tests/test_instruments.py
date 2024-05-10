@@ -3265,7 +3265,7 @@ class TestFXOptions:
             )
 
     def test_premium_ccy_raises(self):
-        with pytest.raises(ValueError, match="`premium_ccy` must be one of option currency pair"):
+        with pytest.raises(ValueError, match="`premium_ccy`: 'chf' must be one of option currency pair"):
             FXCall(
                 pair="eurusd",
                 expiry="3m",
