@@ -8082,6 +8082,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         If premium currency is ccy1 (left side of `pair`) then this will produce **premium adjusted**
         delta values. If the `premium_ccy` is ccy2 (right side of `pair`) then delta values are
         **unadjusted**.
+    metric: str in {"pips", "percent", "vol", "premium"}, optional
+        The pricing metric returned by the ``rate`` metric. Should be aligned with the ``premium_ccy``. If not
+        given will default to the appropriate *'pips'* or *'percent'* value.
     curves : Curve, LineCurve, str or list of such, optional
         For *FXOptions* curves should be expressed as a list with the discount curves
         entered either as *Curve* or str for discounting cashflows in the appropriate currency
@@ -8112,6 +8115,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         payment_lag: Union[str, datetime, NoInput] = NoInput(0),
         option_fixing: Union[float, NoInput] = NoInput(0),
         delta_type: Union[float, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
         vol: Union[str, FXDeltaVolSmile, NoInput] = NoInput(0),
         spec: Union[str, NoInput] = NoInput(0),
@@ -8133,29 +8137,23 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # TODO validate simulateneous premium and strike. Premium cannot be given if strike is delta string.
 
         self.kwargs = _push(spec, self.kwargs)
-        # set some defaults if missing
-        self.kwargs["delta_type"] = (
-            defaults.fx_delta_type
-            if self.kwargs["delta_type"] is NoInput.blank
-            else self.kwargs["delta_type"]
-        )
-        self.kwargs["notional"] = (
-            defaults.notional
-            if self.kwargs["notional"] is NoInput.blank
-            else self.kwargs["notional"]
-        )
+
+        self.kwargs["delta_type"] = _drb(defaults.fx_delta_type, self.kwargs["delta_type"])
+        self.kwargs["notional"] = _drb(defaults.notional, self.kwargs["notional"])
+        self.kwargs["modifier"] = _drb(defaults.modifier, self.kwargs["modifier"])
+
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
                 raise ValueError("`expiry` as string tenor requires `eval_date`.")
-            if modifier is NoInput.blank:
-                modifier = defaults.modifier
-            self.kwargs["expiry"] = add_tenor(eval_date, expiry, modifier, calendar, NoInput(0))
+            self.kwargs["expiry"] = add_tenor(
+                eval_date,
+                self.kwargs["expiry"],
+                self.kwargs["modifier"],
+                self.kwargs["calendar"],
+                NoInput(0)
+            )
 
-        self.kwargs["delivery_lag"] = (
-            defaults.fx_delivery_lag
-            if self.kwargs["delivery_lag"] is NoInput.blank
-            else self.kwargs["delivery_lag"]
-        )
+        self.kwargs["delivery_lag"] = _drb(defaults.fx_delivery_lag, self.kwargs["delivery_lag"])
         if isinstance(self.kwargs["delivery_lag"], datetime):
             self.kwargs["delivery"] = self.kwargs["delivery_lag"]
         else:
@@ -8163,15 +8161,11 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 self.kwargs["expiry"],
                 f"{self.kwargs['delivery_lag']}b",
                 "F",
-                calendar,
+                self.kwargs["calendar"],
                 NoInput(0),
             )
 
-        self.kwargs["payment_lag"] = (
-            defaults.payment_lag
-            if self.kwargs["payment_lag"] is NoInput.blank
-            else self.kwargs["payment_lag"]
-        )
+        self.kwargs["payment_lag"] = _drb(defaults.payment_lag, self.kwargs["payment_lag"])
         if isinstance(self.kwargs["payment_lag"], datetime):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
         else:
@@ -8179,24 +8173,28 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 self.kwargs["expiry"],
                 f"{self.kwargs['payment_lag']}b",
                 "F",
-                calendar,
+                self.kwargs["calendar"],
                 NoInput(0),
             )
         if self.kwargs["premium_ccy"] is NoInput.blank:
             self.kwargs["premium_ccy"] = self.kwargs["pair"][3:]
-            self.kwargs["metric"] = "pips"
+            # set some defaults if missing
+            self.kwargs["metric"] = _drb("pips", metric)
             self.kwargs["delta_adjustment"] = ""
         else:
             if self.kwargs["premium_ccy"] not in [
                 self.kwargs["pair"][:3],
                 self.kwargs["pair"][3:],
             ]:
-                raise ValueError("`premium_ccy` must be one of option currency pair.")
+                raise ValueError(
+                    f"`premium_ccy`: '{self.kwargs['premium_ccy']}' must be one of option "
+                    f"currency pair: '{self.kwargs['pair']}'."
+                )
             elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-                self.kwargs["metric"] = "pips"
+                self.kwargs["metric"] = _drb("pips", metric)
                 self.kwargs["delta_adjustment"] = ""
             else:
-                self.kwargs["metric"] = "percent"
+                self.kwargs["metric"] = _drb("percent", metric)
                 self.kwargs["delta_adjustment"] = "_pa"
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
@@ -8338,6 +8336,44 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         vol: Union[float, FXDeltaVolSmile, NoInput] = NoInput(0),
         metric: str = "pips_or_%",
     ):
+        """
+        Calculate the rate of the *FXOption*
+
+                Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            Not used by `analytic_greeks`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
+        metric: str in {"pips_or_%", "vol", "premium"}, optional
+            The pricing metric type to return. See notes.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        The available choices for the pricing ``metric`` that can be used are:
+
+        - *"pips_or_%"*: if the ``premium_ccy`` is the foreign (RHS) currency then *pips* will be returned, else
+          if the premium is the domestic (LHS) currency then % of notional will be returned.
+
+        - *"vol"*: the volatility used to price the option at that strike / delta is returned.
+
+        - *"premium"*: the monetary amount in ``premium_ccy`` payable at the payment date is returned.
+        """
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
@@ -8345,6 +8381,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         if metric == "vol":
             return self._pricing["vol"]
+        elif metric == "premium":
+            raise NotImplementedError()
         else:
             return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
 
@@ -9695,3 +9733,8 @@ def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.upper()
     return val
+
+
+def _drb(default, possible_blank):
+    """(D)efault (r)eplaces (b)lank"""
+    return default if possible_blank is NoInput.blank else possible_blank
