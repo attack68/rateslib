@@ -8337,7 +8337,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: Union[FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         vol: Union[float, FXDeltaVolSmile, NoInput] = NoInput(0),
-        metric: str = "pips_or_%",
+        metric: Union[str, NoInput] = NoInput(0),
     ):
         """
         Calculate the rate of the *FXOption*
@@ -8382,6 +8382,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         )
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
 
+        metric = _drb(self.kwargs["metric"], metric)
         if metric == "vol":
             return self._pricing["vol"]
 
