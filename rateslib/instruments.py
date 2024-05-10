@@ -8138,10 +8138,15 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         self.kwargs = _push(spec, self.kwargs)
 
-        self.kwargs["delta_type"] = _drb(defaults.fx_delta_type, self.kwargs["delta_type"])
-        self.kwargs["notional"] = _drb(defaults.notional, self.kwargs["notional"])
-        self.kwargs["modifier"] = _drb(defaults.modifier, self.kwargs["modifier"])
-        self.kwargs["metric"] = _drb("pips_or_%", self.kwargs["metric"])
+        self.kwargs = _update_with_defaults(self.kwargs, {
+            "delta_type": defaults.fx_delta_type,
+            "notional": defaults.notional,
+            "modifier": defaults.modifier,
+            "metric": "pips_or_%",
+            "delivery_lag": defaults.fx_delivery_lag,
+            "payment_lag": defaults.payment_lag,
+            "premium_ccy": self.kwargs["pair"][3:],
+        })
 
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
@@ -8154,7 +8159,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 NoInput(0)
             )
 
-        self.kwargs["delivery_lag"] = _drb(defaults.fx_delivery_lag, self.kwargs["delivery_lag"])
         if isinstance(self.kwargs["delivery_lag"], datetime):
             self.kwargs["delivery"] = self.kwargs["delivery_lag"]
         else:
@@ -8166,7 +8170,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 NoInput(0),
             )
 
-        self.kwargs["payment_lag"] = _drb(defaults.payment_lag, self.kwargs["payment_lag"])
         if isinstance(self.kwargs["payment_lag"], datetime):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
         else:
@@ -8177,26 +8180,22 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 self.kwargs["calendar"],
                 NoInput(0),
             )
-        if self.kwargs["premium_ccy"] is NoInput.blank:
-            self.kwargs["premium_ccy"] = self.kwargs["pair"][3:]
-            # set some defaults if missing
+
+        if self.kwargs["premium_ccy"] not in [
+            self.kwargs["pair"][:3],
+            self.kwargs["pair"][3:],
+        ]:
+            raise ValueError(
+                f"`premium_ccy`: '{self.kwargs['premium_ccy']}' must be one of option "
+                f"currency pair: '{self.kwargs['pair']}'."
+            )
+        elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
             self.kwargs["metric_period"] = "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
             self.kwargs["delta_adjustment"] = ""
         else:
-            if self.kwargs["premium_ccy"] not in [
-                self.kwargs["pair"][:3],
-                self.kwargs["pair"][3:],
-            ]:
-                raise ValueError(
-                    f"`premium_ccy`: '{self.kwargs['premium_ccy']}' must be one of option "
-                    f"currency pair: '{self.kwargs['pair']}'."
-                )
-            elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-                self.kwargs["metric_period"] = "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
-                self.kwargs["delta_adjustment"] = ""
-            else:
-                self.kwargs["metric_period"] = "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
-                self.kwargs["delta_adjustment"] = "_pa"
+            self.kwargs["metric_period"] = "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            self.kwargs["delta_adjustment"] = "_pa"
+
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
