@@ -9208,22 +9208,99 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         """
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
+        else:
+            vol = [[vol[0], vol[1]], vol[2]]  # restructure to pass to Strangle and Straddle separately
 
         if metric is NoInput.blank and self.kwargs["metric"] == "pips_or_%":
-            scalar = self._set_vega_neutral_notional(curves, solver, fx, base, vol)
+            metric = "pips_or_%"
+            self._set_vega_neutral_notional(curves, solver, fx, base, vol)
 
-        _, weights = 0.0, self.rate_weight_vol if metric != "pips_or_%" else self.rate_weight
+        if metric == "pips_or_%":
+            straddle_scalar = self.periods[1].periods[0].periods[0].notional / self.periods[0].periods[0].periods[0].notional
+            weights = [1.0, straddle_scalar]
+        else:
+            weights = self.rate_weight_vol
+        _ = 0.0
         for option_strat, vol_, weight in zip(self.periods, vol, weights):
             _ += option_strat.rate(curves, solver, fx, base, vol_, metric) * weight
         return _
 
+    def analytic_greeks(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        ------
+
+        """
+        # implicitly call set_pricing_mid for unpriced parameters
+        self.rate(curves, solver, fx, base, vol, metric="pips_or_%")
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods) * 2
+        else:
+            vol = [[vol[0], vol[1]], [vol[2], vol[2]]]  # restructure for strangle / straddle
+
+        gks = []
+        for strategy, vol_ in zip(self.periods, vol):
+            for option, vol__ in zip(strategy.periods, vol_):
+                # by calling on the OptionPeriod directly the strike (and notional) is maintained from rate call.
+                gks.append(
+                    option.periods[0].analytic_greeks(
+                        curves[1],
+                        curves[3],
+                        fx,
+                        base,
+                        local,
+                        vol__,
+                        option.kwargs["premium"],
+                    )
+                )
+
+        _ = {k: sum(d.get(k) for d in gks) for k in set(gks[0]) if "__" != k[:2]}
+        _.update({"__class": "FXOptionStrat", "__options": gks, "__delta_type": gks[0]["__delta_type"]})
+        return _
+
     def _set_vega_neutral_notional(self, curves, solver, fx, base, vol) -> DualTypes:
-        strangle_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol)
-        straddle_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol)
-        scalar = strangle_grks["vega"] / straddle_grks["vega"]
-        self.periods[1]._set_notionals(float(self.periods[0].periods[0].periods[0].notional * -scalar))
-        # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
-        return scalar
+        # Only reset the Straddle notional if it is unspecified at initialisation.
+        if self.kwargs["notional"][1] is NoInput.blank:
+            strangle_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol)
+            straddle_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol)
+            scalar = strangle_grks["vega"] / straddle_grks["vega"]
+            self.periods[1]._set_notionals(float(self.periods[0].periods[0].periods[0].notional * -scalar))
+            # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
 
     def _plot_payoff(
         self,

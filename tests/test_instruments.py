@@ -3692,6 +3692,40 @@ class TestFXBrokerFly:
         vol = fxvs if smile else 9.5
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
+        assert False
+
+    def test_bf_rate_vols_list(self, fxfo):
+        fxbf = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=[20e6, -13.5e6],
+            strike=("-25d", "25d", "atm_delta"),
+            payment_lag=2,
+            delivery_lag=2,
+            calendar="tgt",
+            premium_ccy="usd",
+            delta_type="spot",
+        )
+        result = fxbf.rate(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            fx=fxfo,
+            vol=[10.15, 8.9, 1.0],
+        )
+        expected = 8.533895
+        assert abs(result - expected) < 1e-6
+
+        result = fxbf.rate(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            fx=fxfo,
+            vol=[10.15, 8.9, 7.8],
+            metric="pips_or_%"
+        )
+        expected = -71.102094
+        assert abs(result - expected) < 1e-6
+
+    def test_bf_analytic_greeks(self, fxfo):
+        assert False
+
 
 class TestVolValue:
 
