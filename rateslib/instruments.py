@@ -8082,9 +8082,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         If premium currency is ccy1 (left side of `pair`) then this will produce **premium adjusted**
         delta values. If the `premium_ccy` is ccy2 (right side of `pair`) then delta values are
         **unadjusted**.
-    metric: str in {"pips", "percent", "vol", "premium"}, optional
-        The pricing metric returned by the ``rate`` metric. Should be aligned with the ``premium_ccy``. If not
-        given will default to the appropriate *'pips'* or *'percent'* value.
+    metric: str in {"pips_or_%", "vol", "premium"}, optional
+        The pricing metric returned by the ``rate`` method.
     curves : Curve, LineCurve, str or list of such, optional
         For *FXOptions* curves should be expressed as a list with the discount curves
         entered either as *Curve* or str for discounting cashflows in the appropriate currency
