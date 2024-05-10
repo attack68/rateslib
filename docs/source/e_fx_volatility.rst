@@ -30,6 +30,7 @@ The following *Instruments* are currently available.
    rateslib.instruments.FXRiskReversal
    rateslib.instruments.FXStraddle
    rateslib.instruments.FXStrangle
+   rateslib.instruments.FXBrokerFly
 
 FXForwards Market
 ==================
@@ -258,7 +259,7 @@ An :class:`~rateslib.instruments.FXStraddle` is the most frequently traded instr
 volatility. *Straddles* are defined by a single strike, which can be a defined numeric value (for a 'struck' deal),
 or an or associated value, e.g. "atm_delta", "atm_forward" or "atm_spot".
 
-The default pricing ``metric`` for an *FX Straddle* is vol points.
+The default pricing ``metric`` for an *FX Straddle* is *'vol'* points.
 
 .. ipython:: python
 
@@ -339,7 +340,7 @@ in calibrating a volatility *Surface* or *Smile*.
 lower and a higher strike. These can be entered in delta terms. Pricing also allows
 two different ``vol`` inputs if a volatility *Surface* or *Smile* is not given.
 
-The default pricing ``metric`` for a *RiskReversal* is 'vol' which calculates the difference in volatility
+The default pricing ``metric`` for a *RiskReversal* is *'vol'* which calculates the difference in volatility
 quotations for each option.
 
 .. ipython:: python
@@ -411,11 +412,11 @@ Strangles
 
 The other common *Instrument* combination for calibrating *Surfaces* and *Smiles* is an
 :class:`~rateslib.instruments.FXStrangle`. Again, the strangle requires two strike inputs,
-which can be input in delta terms.
+which can be input in delta terms or numeric value.
 
 The default pricing ``metric`` for a strangle is *'single_vol'*, which quotes a single volatility
-value used to price the strike and premium for each option. *Rateslib* uses an iteration to
-calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surface* or *Smile*.
+value used to price the strike and premium for each option. This is a complex calculation: *Rateslib* uses
+an iteration to calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surface* or *Smile*.
 
 .. ipython:: python
 
@@ -480,3 +481,13 @@ calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surfa
        fx=fxf,
        vol=9.533895,
    )
+
+
+BrokerFly
+==========
+
+The final instrument commonly seen is an :class:`~rateslib.instruments.FXBrokerFly`.
+This is a combination of an *FXStrangle* and an *FXStraddle*, where the ``notional`` on the
+*FXStraddle* is determined at mid-market by making the structure *vega neutral*.
+
+

@@ -8651,6 +8651,11 @@ class FXOptionStrat:
 
         return x, y
 
+    def _set_notionals(self, notional):
+        """Set the notionals on each option period. Mainly used by Brokerfly for vega neutral strangle and straddle."""
+        for option in self.periods:
+            option.periods[0].notional = notional
+
     def analytic_greeks(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
@@ -9122,7 +9127,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         **kwargs
     ):
         super(FXOptionStrat, self).__init__(*args, premium=premium, strike=strike, notional=notional, **kwargs)
-        self.kwargs["metric"] = ["single_vol", "vol"] if metric == "single_vol" else [metric, metric]
+        self.kwargs["metric"] = metric
         self.periods = [
             FXStrangle(
                 pair=self.kwargs["pair"],
@@ -9137,7 +9142,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 delta_type=self.kwargs["delta_type"],
                 premium=self.kwargs["premium"][0:2],
                 premium_ccy=self.kwargs["premium_ccy"],
-                metric=self.kwargs["metric"][0],
+                metric=self.kwargs["metric"],
                 curves=self.curves,
                 vol=self.vol,
             ),
@@ -9154,7 +9159,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 delta_type=self.kwargs["delta_type"],
                 premium=self.kwargs["premium"][2:4],
                 premium_ccy=self.kwargs["premium_ccy"],
-                metric=self.kwargs["metric"][1],
+                metric="vol" if self.kwargs["metric"] == "single_vol" else self.kwargs["metric"],
                 curves=self.curves,
                 vol=self.vol,
             )
@@ -9190,6 +9195,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         The different types of ``metric`` return different quotation conventions.
 
+        - *'single_vol'*: the default type for a :class:`~rateslib.instruments.FXStrangle`
+
         - *'vol'*: sums the mid-market volatilities of each option multiplied by their respective ``rate_weight_vol``
           parameter. For example this is the default pricing convention for
           a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call minus the vol of the
@@ -9202,10 +9209,34 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
+        if metric is NoInput.blank and self.kwargs["metric"] == "pips_or_%":
+            scalar = self._set_vega_neutral_notional(curves, solver, fx, base, vol)
+
         _, weights = 0.0, self.rate_weight_vol if metric != "pips_or_%" else self.rate_weight
         for option_strat, vol_, weight in zip(self.periods, vol, weights):
             _ += option_strat.rate(curves, solver, fx, base, vol_, metric) * weight
         return _
+
+    def _set_vega_neutral_notional(self, curves, solver, fx, base, vol) -> DualTypes:
+        strangle_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol)
+        straddle_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol)
+        scalar = strangle_grks["vega"] / straddle_grks["vega"]
+        self.periods[1]._set_notionals(float(self.periods[0].periods[0].periods[0].notional * -scalar))
+        # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
+        return scalar
+
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        self._set_vega_neutral_notional(curves, solver, fx, base, vol)
+        return super()._plot_payoff(range, curves, solver, fx, base, local, vol)
 
 
 # Generic Instruments
