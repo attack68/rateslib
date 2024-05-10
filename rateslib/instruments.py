@@ -8349,7 +8349,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if metric == "vol":
             return self._pricing["vol"]
         else:
-            return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
+            if metric == "pips_or_%":
+                metric = self.kwargs["metric"]
+            return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"], metric=metric)
 
     def npv(
         self,
@@ -8779,9 +8781,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 notional=-self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][0],
+                premium=self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
                 curves=self.curves,
                 vol=self.vol,
@@ -8797,9 +8797,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][1],
+                premium=self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
                 curves=self.curves,
                 vol=self.vol,
@@ -8856,9 +8854,7 @@ class FXStraddle(FXOptionStrat, FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][0],
+                premium=self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
                 curves=self.curves,
                 vol=self.vol,
@@ -8874,9 +8870,7 @@ class FXStraddle(FXOptionStrat, FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][1],
+                premium=self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
                 curves=self.curves,
                 vol=self.vol,
@@ -8898,7 +8892,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         The first element is applied to the lower strike put and the
         second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
     premium: 2-element sequence, optional
-        The premiums associated with each option of the straddle.
+        The premiums associated with each option of the strangle.
     metric: str, optional
         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
@@ -8936,7 +8930,12 @@ class FXStrangle(FXOptionStrat, FXOption):
         metric="single_vol",
         **kwargs,
     ):
-        super(FXOptionStrat, self).__init__(*args, strike=strike, premium=premium , **kwargs)
+        super(FXOptionStrat, self).__init__(
+            *args,
+            strike=strike,
+            premium=premium,
+            **kwargs
+        )
         self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
@@ -8950,9 +8949,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][0],
+                premium=self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
                 curves=self.curves,
                 vol=self.vol,
@@ -8968,9 +8965,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=NoInput(0)
-                if self.kwargs["premium"] is NoInput.blank
-                else self.kwargs["premium"][1],
+                premium=self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
                 curves=self.curves,
                 vol=self.vol,
@@ -9109,6 +9104,108 @@ class FXStrangle(FXOptionStrat, FXOption):
         if fixed_delta:
             return p_vega + d_kega * p_kappa
         return p_vega
+
+
+class FXBrokerFly(FXOptionStrat, FXOption):
+
+    rate_weight = [1.0, 1.0]
+    rate_weight_vol = [1.0, -1.0]
+    _rate_scalar = 100.0
+
+    def __init__(
+        self,
+        *args,
+        premium=[NoInput(0), NoInput(0), NoInput(0), NoInput(0)],
+        strike=[NoInput(0), NoInput(0), NoInput(0)],
+        notional=[NoInput(0), NoInput(0)],
+        metric="single_vol",
+        **kwargs
+    ):
+        super(FXOptionStrat, self).__init__(*args, premium=premium, strike=strike, notional=notional, **kwargs)
+        self.kwargs["metric"] = ["single_vol", "vol"] if metric == "single_vol" else [metric, metric]
+        self.periods = [
+            FXStrangle(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][0:2],
+                notional=self.kwargs["notional"][0],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][0:2],
+                premium_ccy=self.kwargs["premium_ccy"],
+                metric=self.kwargs["metric"][0],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+            FXStraddle(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][2],
+                notional=self.kwargs["notional"][1],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][2:4],
+                premium_ccy=self.kwargs["premium_ccy"],
+                metric=self.kwargs["metric"][1],
+                curves=self.curves,
+                vol=self.vol,
+            )
+        ]
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Return the mid-market rate of an option strategy.
+
+        Parameters
+        ----------
+        curves
+        solver
+        fx
+        base
+        vol
+        metric
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+
+        The different types of ``metric`` return different quotation conventions.
+
+        - *'vol'*: sums the mid-market volatilities of each option multiplied by their respective ``rate_weight_vol``
+          parameter. For example this is the default pricing convention for
+          a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call minus the vol of the
+          put and the ``rate_weight_vol`` parameters are [-1.0, 1.0].
+
+        - *'pips_or_%'*: sums the mid-market pips or percent price of each option multiplied by their respective
+          ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle` the total premium
+          is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
+        """
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        _, weights = 0.0, self.rate_weight_vol if metric != "pips_or_%" else self.rate_weight
+        for option_strat, vol_, weight in zip(self.periods, vol, weights):
+            _ += option_strat.rate(curves, solver, fx, base, vol_, metric) * weight
+        return _
 
 
 # Generic Instruments
