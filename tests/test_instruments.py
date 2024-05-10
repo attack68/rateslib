@@ -3070,6 +3070,14 @@ class TestFXOptions:
         )
         assert abs(result - exp_pts) <1e-3
 
+        result = fxc.rate(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            fx=fxfo,
+            vol=vol,
+            metric="premium"
+        )
+        assert abs(result - exp_prem) <1e-2
+
     def test_fx_call_npv_unpriced(self, fxfo):
         fxo = FXCall(
             pair="eurusd",
@@ -3265,7 +3273,7 @@ class TestFXOptions:
             )
 
     def test_premium_ccy_raises(self):
-        with pytest.raises(ValueError, match="`premium_ccy` must be one of option currency pair"):
+        with pytest.raises(ValueError, match="`premium_ccy`: 'chf' must be one of option currency pair"):
             FXCall(
                 pair="eurusd",
                 expiry="3m",
