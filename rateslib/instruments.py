@@ -8381,10 +8381,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         if metric == "vol":
             return self._pricing["vol"]
-        elif metric == "premium":
-            raise NotImplementedError()
+
+        _ = self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
+        if metric == "premium":
+            return _ * self.periods[0].notional / 10000
         else:
-            return self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
+            return _
 
     def npv(
         self,
