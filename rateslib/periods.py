@@ -2743,10 +2743,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
             _is_spot, v_deli, v_spot, z_w, self.phi, d_plus, f_d, vol_sqrt_t
         )
         _[f"gamma_{self.pair[:3]}_1%"] = (
-            _["gamma"] * self.notional * (f_t if _is_spot else f_d) * 0.01
+            _["gamma"] * abs(self.notional) * (f_t if _is_spot else f_d) * 0.01
         )
         _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
-        _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
+        _[f"vega_{self.pair[3:]}"] = _["vega"] * abs(self.notional) * 0.01
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
         _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)

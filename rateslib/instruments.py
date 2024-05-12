@@ -8518,7 +8518,7 @@ class FXCall(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=self.kwargs["strike"],
+                strike=NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -8550,7 +8550,7 @@ class FXPut(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=self.kwargs["strike"],
+                strike=NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -9315,6 +9315,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         else:
             vol = [[vol[0], vol[1]], [vol[2], vol[2]]]  # restructure for strangle / straddle
 
+        scalar = self.periods[1].periods[0].periods[0].notional / self.periods[0].periods[0].periods[0].notional
         gks = []
         for strategy, vol_ in zip(self.periods, vol):
             for option, vol__ in zip(strategy.periods, vol_):
@@ -9331,7 +9332,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                     )
                 )
 
-        _ = {k: sum(d.get(k) for d in gks) for k in set(gks[0]) if "__" != k[:2]}
+        _ = {k: sum(d.get(k) * s for (d, s) in zip(gks, [1.0, 1.0, scalar, scalar])) for k in set(gks[0]) if "__" != k[:2]}
         _.update({"__class": "FXOptionStrat", "__options": gks, "__delta_type": gks[0]["__delta_type"]})
         return _
 
