@@ -2386,7 +2386,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     strike: float, Dual, Dual2
         The strike value of the option.
     notional: float
-        The amount in ccy1 (left side of pair) on which the option is based.
+        The amount in ccy1 (LHS) on which the option is based.
     option_fixing: float, optional
         If an option has already expired this argument is used to fix the price determined at
         expiry.
@@ -2436,7 +2436,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
+        vol: Union[DualTypes, FXDeltaVolSmile, NoInput] = NoInput(0),
     ):
         """
         Return the NPV of the *FXOption*.
@@ -2444,7 +2444,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Parameters
         ----------
         disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
+            The discount *Curve* for the LHS currency.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
         fx: float, FXRates, FXForwards, optional
@@ -2453,7 +2453,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The base currency in which to express the NPV.
         local: bool,
             Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2
+        vol: float, Dual, Dual2, FXDeltaVolSmile
             The percentage log-normal volatility to price the option.
 
         Returns
@@ -2512,9 +2512,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            The base currency in which to express the NPV.
+            Not used by `rate`.
         local: bool,
-            Whether to display NPV in a currency local to the object.
+            Not used by `rate`.
         vol: float, Dual, Dual2
             The percentage log-normal volatility to price the option.
         metric: str in {"pips", "percent"}
@@ -2559,7 +2559,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        premium: Union[float, NoInput] = NoInput(0),
+        premium: Union[DualTypes, NoInput] = NoInput(0),
         metric: Union[str, NoInput] = NoInput(0),
     ):
         """
@@ -2568,16 +2568,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Parameters
         ----------
         disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
+            Not used by `implied_vol`.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            The base currency in which to express the NPV.
+            Not used by `implied_vol`.
         local: bool,
-            Whether to display NPV in a currency local to the object.
-        premium: float
+            Not used by `implied_vol`.
+        premium: float, Dual, Dual2
             The premium value of the option paid at the appropriate payment date. Expressed
             either in *'pips'* or *'percent'* of notional. Must align with ``metric``.
         metric: str in {"pips", "percent"}, optional
@@ -2585,12 +2585,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Returns
         -------
-        float
+        float, Dual or Dual2
         """
+        # This function uses newton_1d and is AD safe.
+
         # convert the premium to a standardised immediate pips value.
         if metric == "percent":
             premium = premium * fx.rate(self.pair, self.payment) * 100.0
         imm_premium = premium * disc_curve_ccy2[self.payment]
+
         t_e = self._t_to_expiry(disc_curve_ccy2.node_dates[0])
         v2 = disc_curve_ccy2[self.delivery]
         f_d = fx.rate(self.pair, self.delivery)
@@ -2605,16 +2608,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         result = newton_1dim(root, 0.10, args=(f_d, self.strike, t_e, v2, self.phi))
         return result["g"] * 100.0
 
-        # vol_ = Dual(25.0, ["vol"], [])
-        # for i in range(20):
-        #     f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
-        #     if abs(f_) < 1e-10:
-        #         break
-        #     vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
-        #
-        # # return a float TODO check whether Dual can be returned. Use Generic Newton
-        # return float(vol_)
-
     def analytic_greeks(
         self,
         disc_curve: Curve,
@@ -2626,7 +2619,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
     ):
         r"""
-        Return the different greeks for the *Option*.
+        Return the different greeks for the *FX Option*.
 
         Parameters
         ----------
@@ -2640,10 +2633,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
             Not used by `analytic_greeks`.
         local: bool,
             Not used by `analytic_greeks`.
-        vol: float or FXDeltaVolSmile
+        vol: float, Dual, Dual2 or FXDeltaVolSmile
             The volatility used in calculation.
-        premium: float, optional
+        premium: float, Dual, Dual2, optional
             The premium value of the option paid at the appropriate payment date.
+            Premium should be expressed in domestic currency.
             If not given calculates and assumes a mid-market premium.
 
         Returns
@@ -3740,7 +3734,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #
     #     return float(root_solver[0] * f)
     def _get_vol_maybe_from_smile(
-        self, vol: FXDeltaVolSmile, fx: FXForwards, disc_curve: Curve
+        self,
+        vol: Union[FXDeltaVolSmile, DualTypes],
+        fx: FXForwards,
+        disc_curve: Curve,
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         if isinstance(vol, FXDeltaVolSmile):

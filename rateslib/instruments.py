@@ -8340,9 +8340,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         metric: Union[str, NoInput] = NoInput(0),
     ):
         """
-        Calculate the rate of the *FXOption*
-
-                Return various pricing metrics of the *FX Option*.
+        Return various pricing metrics of the *FX Option*.
 
         Parameters
         ----------
@@ -8356,8 +8354,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            Not used by `analytic_greeks`.
-        vol: float, or FXDeltaVolSmile
+            Not used by `rate`.
+        vol: float, Dual, Dual2 or FXDeltaVolSmile
             The volatility used in calculation.
         metric: str in {"pips_or_%", "vol", "premium"}, optional
             The pricing metric type to return. See notes.
@@ -8377,7 +8375,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         - *"premium"*: the monetary amount in ``premium_ccy`` payable at the payment date is returned.
         """
-        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+        curves, fx, _base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
         self._set_pricing_mid(curves, NoInput(0), fx, vol)
@@ -8386,7 +8384,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if metric == "vol":
             return self._pricing["vol"]
 
-        _ = self.periods[0].rate(curves[1], curves[3], fx, base, False, self._pricing["vol"])
+        _ = self.periods[0].rate(curves[1], curves[3], fx, NoInput(0), False, self._pricing["vol"])
         if metric == "premium":
             if self.periods[0].metric == "pips":
                 _ *= self.periods[0].notional / 10000
