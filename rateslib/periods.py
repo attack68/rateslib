@@ -2578,7 +2578,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool,
             Whether to display NPV in a currency local to the object.
         premium: float
-            The premium value of the option paid at the appropriate payment date.
+            The premium value of the option paid at the appropriate payment date. Expressed
+            either in *'pips'* or *'percent'* of notional. Must align with ``metric``.
         metric: str in {"pips", "percent"}, optional
             The manner in which the premium is expressed.
 
@@ -2586,15 +2587,33 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float
         """
-        vol_ = Dual(25.0, ["vol"], [])
-        for i in range(20):
-            f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
-            if abs(f_) < 1e-10:
-                break
-            vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
+        # convert the premium to a standardised immediate pips value.
+        if metric == "percent":
+            premium = premium * fx.rate(self.pair, self.payment) * 100.0
+        imm_premium = premium * disc_curve_ccy2[self.payment]
+        t_e = self._t_to_expiry(disc_curve_ccy2.node_dates[0])
+        v2 = disc_curve_ccy2[self.delivery]
+        f_d = fx.rate(self.pair, self.delivery)
 
-        # return a float TODO check whether Dual can be returned. Use Generic Newton
-        return float(vol_)
+        def root(vol, f_d, k, t_e, v2, phi):
+            f0 = _black76(f_d, k, t_e, None, v2, vol, phi) * 10000.0 - imm_premium
+            sqrt_t = t_e ** 0.5
+            d_plus = _d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
+            f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0
+            return f0, f1
+
+        result = newton_1dim(root, 0.10, args=(f_d, self.strike, t_e, v2, self.phi))
+        return result["g"] * 100.0
+
+        # vol_ = Dual(25.0, ["vol"], [])
+        # for i in range(20):
+        #     f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
+        #     if abs(f_) < 1e-10:
+        #         break
+        #     vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
+        #
+        # # return a float TODO check whether Dual can be returned. Use Generic Newton
+        # return float(vol_)
 
     def analytic_greeks(
         self,
