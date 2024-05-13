@@ -2738,7 +2738,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             w_spot,
             self.notional,
         )
-        _[f"delta_{self.pair[:3]}"] = self.notional * _["delta"]
+        _[f"delta_{self.pair[:3]}"] = abs(self.notional) * _["delta"]
         _["gamma"] = self._analytic_gamma(
             _is_spot, v_deli, v_spot, z_w, self.phi, d_plus, f_d, vol_sqrt_t
         )

@@ -3079,7 +3079,6 @@ class TestFXOptions:
         )
         assert abs(result - exp_prem) <1e-2
 
-
     @pytest.mark.parametrize("pay, k, exp_pts, exp_prem, dlty, exp_dl", [
         (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "spot", 0.243588),
         (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "forward", 0.245175),
@@ -3206,22 +3205,16 @@ class TestFXOptions:
             strike=1.101,
             premium=0.0,
         )
-        result = fxc.plot_payoff([1.03, 1.12])
+        result = fxc.plot_payoff(
+            [1.03, 1.12],
+            fx=fxfo,
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        )
         x, y = result[2][0]._x, result[2][0]._y
         assert x[0] == 1.03
         assert x[1000] == 1.12
         assert y[0] == 0.0
         assert y[1000] == (1.12 - 1.101) * 20e6
-
-    def test_fx_call_plot_payoff_raises(self, fxfo):
-        fxc = FXCall(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            notional=20e6,
-            strike=1.101,
-        )
-        with pytest.raises(ValueError, match="`premium`"):
-            fxc.plot_payoff([1.03, 1.12])
 
     def test_fx_put_rate(self, fxfo):
         fxo = FXPut(
@@ -3306,7 +3299,7 @@ class TestFXOptions:
         # see test_periods/test_analytic_vega
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
-    def test_rate_vol(self, fxfo):
+    def test_rate_vol_raises(self, fxfo):
         args = {
             "expiry": dt(2009, 6, 16),
             "pair": "eurusd",
@@ -3358,13 +3351,89 @@ class TestFXOptions:
         expected = f_d * dual_exp(result["__vol"]**2 * fxvs.t_expiry * eta)
         assert abs(result["__strike"] - expected) < 1e-8
 
+    @pytest.mark.parametrize("phi", [1.0, -1.0])
+    def test_traded_option_rate_vol(self, fxfo, phi):
+        FXOp = FXCall if phi > 0 else FXPut
+        fxo = FXOp(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            delta_type="spot",
+            premium_ccy="usd",
+            strike=1.05,
+            premium=100000.0,
+        )
+        fxvs = FXDeltaVolSmile(
+            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        result = fxo.rate(
+            curves=[None, fxfo.curve("eur", "usd", None, fxfo.curve("usd", "usd"))],
+            vol=fxvs,
+            fx=fxfo,
+            metric="vol",
+        )
+        expected = 8.899854
+        assert abs(result - expected) < 1e-6
+
+    def test_option_strike_premium_validation(self):
+        with pytest.raises(ValueError, match="`strike` for FXOption must be set"):
+            FXCall(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+            )
+
+        with pytest.raises(ValueError, match="FXOption with string delta as `strike` cannot be"):
+            FXCall(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+                strike="25d",
+                premium= 0.0
+            )
+
+    @pytest.mark.parametrize("notn, expected, phi",[
+        (1e6, [0.5, 500000], 1.0),
+        (2e6, [0.5, 1000000], 1.0),
+        (-2e6, [0.5, 1000000], 1.0),
+        (1e6, [-0.5, -500000], -1.0),
+        (2e6, [-0.5, -1000000], -1.0),
+        (-2e6, [-0.5, -1000000], -1.0),
+    ])
+    def test_greeks_delta_direction(self, fxfo, notn, expected, phi):
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        FXOp = FXCall if phi > 0 else FXPut
+        delta = f"{'-' if phi < 0 else ''}50d"
+        fxo = fxo = FXOp(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=delta,
+            notional=notn,
+        )
+        fxvs = FXDeltaVolSmile(
+            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        result = fxo.analytic_greeks(curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")], vol=fxvs, fx=fxfo)
+        assert abs(result["delta"] - expected[0]) < 1e-6
+        assert abs(result["delta_eur"] - expected[1]) < 1e-6
+
 
 class TestRiskReversal:
-
     @pytest.mark.parametrize("metric, expected", [
-        ("pips_or_%", -13.795465), ("vol", -1.25)
+        ("pips_or_%", -13.795465), ("vol", -1.25), ("premium", -27590.930533),
     ])
-    def test_risk_reversal_rate(self, fxfo, metric, expected):
+    def test_risk_reversal_rate_metrics(self, fxfo, metric, expected):
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3425,6 +3494,58 @@ class TestRiskReversal:
         assert abs(y[0] + (1.033 - 1.03) * 20e6 ) < 1e-5
         assert abs(y[1000] - (1.12-1.101) * 20e6) < 1e-5
 
+    def test_rr_strike_premium_validation(self):
+        with pytest.raises(ValueError, match="`strike` for FXRiskReversal must be set"):
+            FXRiskReversal(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+            )
+
+        with pytest.raises(ValueError, match="FXRiskReversal with string delta as `strike` cannot"):
+            FXRiskReversal(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+                strike=["25d", "35d"],
+                premium=[NoInput(0), 1.0],
+            )
+
+    @pytest.mark.parametrize("notn, expected_grks, expected_ccy",[
+        (1e6, [0.5, -1.329654, -0.035843], [500000, -14194.192533, -358.428628]),
+        (2e6, [0.5, -1.329654, -0.035843], [1000000, -28388.384, -716.8572]),
+        (-2e6, [0.5, -1.329654, -0.035843], [1000000, -28388.384, -716.8572]),
+    ])
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy):
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-30d", "20d"],
+            notional=notn,
+        )
+        fxvs = FXDeltaVolSmile(
+            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        result = fxo.analytic_greeks(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            vol=fxvs,
+            fx=fxfo
+        )
+        assert abs(result["delta"] - expected_grks[0]) < 1e-6
+        assert abs(result["gamma"] - expected_grks[1]) < 1e-6
+        assert abs(result["vega"] - expected_grks[2]) < 1e-6
+
+        assert abs(result["delta_eur"] - expected_ccy[0]) < 1e-2
+        assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
+        assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
+
 
 class TestFXStraddle:
 
@@ -3469,11 +3590,10 @@ class TestFXStraddle:
         assert abs(call_k - exp[0]) < 1e-7
         assert abs(put_k - exp[1]) < 1e-7
 
-    @pytest.mark.parametrize("dlty, strike, ccy, expected", [
-        ("forward", "atm_delta", "usd", 10.0),
+    @pytest.mark.parametrize("metric, expected", [
+        ("pips_or_%", 337.998151), ("vol", 7.9), ("premium", 675996.301147),
     ])
-    def test_straddle_rate(self, fxfo, dlty, strike, ccy, expected):
-        # test pricing a straddle with vol 10.0 returns 10.0
+    def test_straddle_rate_metrics(self, fxfo, metric, expected):
         fxo = FXStraddle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3481,45 +3601,64 @@ class TestFXStraddle:
             delivery_lag=2,
             payment_lag=2,
             calendar="tgt",
-            strike=strike,
-            premium_ccy=ccy,
-            delta_type=dlty
+            strike="atm_delta",
+            delta_type="spot",
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=10.0, metric="vol")
-        assert abs(result - expected) < 1e-8
+        result = fxo.rate(curves, fx=fxfo, vol=7.9, metric=metric)
+        assert abs(result - expected) < 1e-6
 
-    @pytest.mark.parametrize("metric, expected", [
-        ("pips_or_%", -13.795465), ("vol", -1.25)
+    def test_strad_strike_premium_validation(self):
+        with pytest.raises(ValueError, match="`strike` for FXStraddle must be set"):
+            FXStraddle(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+            )
+
+        with pytest.raises(ValueError, match="FXStraddle with string delta as `strike` cannot"):
+            FXStraddle(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+                strike="25d",
+                premium=[NoInput(0), 1.0],
+            )
+
+    @pytest.mark.parametrize("notn, expected_grks, expected_ccy", [
+        (1e6, [0.0, 19.086488, 0.422238], [0, 203750.1688, 4222.379]),
+        (2e6, [0.0, 19.086488,  0.422238], [0, 407500.336, 8444.758]),
+        (-2e6, [0.0, 19.086488,  0.422238], [0, 407500.336, 8444.758]),
     ])
-    @pytest.mark.parametrize("smile", [True, False])
-    def test_straddle_rate(self, fxfo, metric, expected, smile):
-        # test pricing a straddle with different vols returns the difference.
-        vol = FXDeltaVolSmile(
-            {
-                0.25: 10.15,
-                0.7435253: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type="spot",
-            id="vol",
-            ad=1,
-        )
-        vol = vol if smile else [10.15, 8.9]
-        fxo = FXRiskReversal(
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy):
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        fxo = FXStraddle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
-            notional=20e6,
-            delivery_lag=2,
-            payment_lag=2,
-            calendar="tgt",
-            strike=["-25d", "25d"],
-            delta_type="spot",
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            delta_type="forward",
+            premium_ccy="usd",
+            strike="atm_delta",
+            notional=notn,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol, metric=metric)
-        assert abs(result - expected) < 1e-6
+        fxvs = FXDeltaVolSmile(
+            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        result = fxo.analytic_greeks(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            vol=fxvs,
+            fx=fxfo
+        )
+        assert abs(result["delta"] - expected_grks[0]) < 1e-6
+        assert abs(result["gamma"] - expected_grks[1]) < 1e-6
+        assert abs(result["vega"] - expected_grks[2]) < 1e-6
+
+        assert abs(result["delta_eur"] - expected_ccy[0]) < 1e-2
+        assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
+        assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
 
 
 class TestFXStrangle:
@@ -3569,7 +3708,6 @@ class TestFXStrangle:
         )
         assert abs(premium - premium_vol) < 5e-2
 
-
     def test_strangle_rate_2vols(self, fxfo):
         # test pricing a straddle with vol [8.0, 10.0] returns a valid value close to 9.0
         fxo = FXStrangle(
@@ -3597,6 +3735,34 @@ class TestFXStrangle:
 
         assert abs(premium - premium_vol) < 5e-2
 
+    def test_analytic_greeks_numeric_strike(self, fxfo):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=[1.04, 1.10],
+            premium_ccy="usd",
+            delta_type="forward",
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+
+        result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
+        assert isinstance(result, dict)
+        result["__options"]
+        assert False
 
     def test_analytic_greeks(self, fxfo):
         fxo = FXStrangle(
@@ -3625,6 +3791,22 @@ class TestFXStrangle:
         result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
         assert isinstance(result, dict)
         result["__options"]
+        assert False
+
+    def test_strang_strike_premium_validation(self):
+        with pytest.raises(ValueError, match="`strike` for FXStrangle must be set"):
+            FXStrangle(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+            )
+
+        with pytest.raises(ValueError, match="FXStrangle with string delta as `strike` cannot"):
+            FXStrangle(
+                pair="eurusd",
+                expiry=dt(2023, 6, 16),
+                strike=["25d", "35d"],
+                premium=[NoInput(0), 1.0],
+            )
 
 
 class TestFXBrokerFly:
