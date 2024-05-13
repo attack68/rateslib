@@ -8212,17 +8212,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 "Either set `strike` as a defined numeric value, or remove the `premium`."
             )
 
-    def _set_pricing_mid(
+    def _set_strike_and_vol(
         self,
         curves: Union[Curve, str, list, NoInput] = NoInput(0),
-        solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[FXForwards, NoInput] = NoInput(0),
         vol: float = NoInput(0),
     ):
-        """
-        Sets parameters for the option at dynamic price time
-        """
-
         # If the strike for the option is not set directly it must be inferred
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
@@ -8292,12 +8287,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             else:
                 self._pricing["vol"] = vol[self._pricing["delta_index"]]
 
+    def _set_premium(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+    ):
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
-            if isinstance(vol, FXDeltaVolSmile):
-                self._pricing["vol"] = self.periods[0]._get_vol_maybe_from_smile(
-                    vol, fx, curves[1]
-                )
             try:
                 npv = self.periods[0].npv(curves[1], curves[3], fx, vol=self._pricing["vol"])
             except AttributeError:
@@ -8385,7 +8381,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, _base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
-        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        self._set_strike_and_vol(curves, fx, vol)
+        # self._set_premium(curves, fx)
 
         metric = _drb(self.kwargs["metric"], metric)
         if metric == "vol":
@@ -8411,7 +8408,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
-        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        self._set_strike_and_vol(curves, fx, vol)
+        self._set_premium(curves, fx)
 
         opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
@@ -8461,7 +8459,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
-        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        self._set_strike_and_vol(curves, fx, vol)
+        # self._set_premium(curves, fx)
 
         return self.periods[0].analytic_greeks(
             curves[1],
@@ -8470,7 +8469,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             base,
             local,
             vol,
-            self.kwargs["premium"],
+            premium=NoInput(0),
         )
 
     def _plot_payoff(
@@ -8489,7 +8488,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
-        self._set_pricing_mid(curves, NoInput(0), fx, vol)
+        self._set_strike_and_vol(curves, fx, vol)
+        # self._set_premium(curves, fx)
 
         x, y = self.periods[0]._payoff_at_expiry(range)
         return x, y
