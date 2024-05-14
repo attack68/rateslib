@@ -3798,6 +3798,7 @@ class TestFXStrangle:
             FXStrangle(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
+                strike=["25d", NoInput(0)],
             )
 
         with pytest.raises(ValueError, match="FXStrangle with string delta as `strike` cannot"):

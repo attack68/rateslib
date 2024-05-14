@@ -40,7 +40,7 @@ from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_mont
 from rateslib.default import NoInput, plot
 
 from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
-from rateslib.solver import Solver, quadratic_eqn
+from rateslib.solver import Solver, quadratic_eqn, newton_1dim
 from rateslib.periods import (
     Cashflow,
     FloatPeriod,
@@ -66,10 +66,12 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_log,
+    dual_norm_cdf,
+    dual_norm_pdf,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -8852,7 +8854,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
     def _validate_strike_and_premiums(self):
         """called as part of init, specific validation rules for straddle"""
-        if self.kwargs["strike"] == [NoInput.blank, NoInput.blank]:
+        if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
             raise ValueError("`strike` for FXRiskReversal must be set to list of 2 numeric or string values.")
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
@@ -9041,7 +9043,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
     def _validate_strike_and_premiums(self):
         """called as part of init, specific validation rules for strangle"""
-        if self.kwargs["strike"] == [NoInput.blank, NoInput.blank]:
+        if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
             raise ValueError("`strike` for FXStrangle must be set to list of 2 numeric or string values.")
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
@@ -9071,21 +9073,20 @@ class FXStrangle(FXOptionStrat, FXOption):
         For parameters see :meth:`~rateslib.instruments.FXOption.rate`
         """
 
-        metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
+        metric = _drb(self.kwargs["metric"], metric)
         if metric != "single_vol":
             return super().rate(curves, solver, fx, base, vol, metric)
 
+        # Get curves and vol
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
-
         if vol is NoInput.blank:
             vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
         elif isinstance(vol, (list, tuple)):
             vol0 = _get_vol_maybe_from_solver(self.vol, vol[0], solver)
             vol1 = _get_vol_maybe_from_solver(self.vol, vol[1], solver)
             vol = [vol0, vol1]
-
         # else the strangle has a particular type of mkt convention which specifies a single volatility quotation
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
@@ -9176,6 +9177,33 @@ class FXStrangle(FXOptionStrat, FXOption):
         # )
 
         return tgt_vol
+
+    # def _single_vol_rate_known_strikes(
+    #     self,
+    #     imm_prem,
+    #     f_d,
+    #     t_e,
+    #     v_deli,
+    #     g0,
+    # ):
+    #     k1 = self.kwargs["strike"][0]
+    #     k2 = self.kwargs["strike"][1]
+    #     sqrt_t = t_e ** 0.5
+    #
+    #     def root(g, imm_prem, k1, k2, f_d, sqrt_t, v_deli):
+    #         vol_sqrt_t = g * sqrt_t
+    #         d_plus_1 = _d_plus_min(k1, f_d, vol_sqrt_t, 0.5)
+    #         d_min_1 = _d_plus_min(k1, f_d, vol_sqrt_t, -0.5)
+    #         d_plus_2 = _d_plus_min(k2, f_d, vol_sqrt_t, 0.5)
+    #         d_min_2 = _d_plus_min(k2, f_d, vol_sqrt_t, -0.5)
+    #         f0 = -(f_d * dual_norm_cdf(-d_plus_1) - k1 * dual_norm_cdf(-d_min_1))
+    #         f0 += (f_d * dual_norm_cdf(d_plus_2) - k2 * dual_norm_cdf(d_min_2))
+    #         f0 = f0 * v_deli - imm_prem
+    #         f1 = v_deli * f_d * sqrt_t * (dual_norm_pdf(-d_plus_1) + dual_norm_pdf(d_plus_2))
+    #         return f0, f1
+    #
+    #     result = newton_1dim(root, g0=g0, args=(imm_prem, k1, k2, f_d, sqrt_t, v_deli))
+    #     return result["g"]
 
     @staticmethod
     def _analytic_vega(p_vega, d_kega, p_kappa, fixed_delta):
