@@ -9126,21 +9126,13 @@ class FXStrangle(FXOptionStrat, FXOption):
         )
 
         tgt_vol = result["g"] * 100.0
-        resultant_premium_diff, iters = 100e6, 1
-        while abs(resultant_premium_diff) > 1e-5 and iters < 10:
+        f0, iters = 100e6, 1
+        while abs(f0) > 1e-5 and iters < 10:
             gks = [
                 self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
                 self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
             ]
-            vega = [
-                self._analytic_vega(
-                    gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]
-                ),
-                self._analytic_vega(
-                    gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1]
-                ),
-            ]
-            smile_gks = [  # note the strikes have been set at price time by the previous call, call OptionPeriods direct
+            smile_gks = [  # note the strikes have been set at price time by previous call, call OptionPeriods direct
                 self.periods[0]
                 .periods[0]
                 .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
@@ -9149,14 +9141,15 @@ class FXStrangle(FXOptionStrat, FXOption):
                 .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
             ]
 
-            resultant_premium_diff = (
-                smile_gks[0]["__bs76"]
-                + smile_gks[1]["__bs76"]
-                - gks[0]["__bs76"]
-                - gks[1]["__bs76"]
-            )
-            vol_addon = resultant_premium_diff / (vega[0] + vega[1])
-            tgt_vol = tgt_vol + vol_addon * 100.0
+            # Apply ad hoc Newton 1d algorithm
+            f0 = (smile_gks[0]["__bs76"] + smile_gks[1]["__bs76"] - gks[0]["__bs76"] - gks[1]["__bs76"])
+
+            kega1 = gks[0]["_kega"] if _is_fixed_delta[0] else 0.0
+            kega2 = gks[1]["_kega"] if _is_fixed_delta[1] else 0.0
+            f1 = smile_gks[0]["_kappa"] * kega1 + smile_gks[1]["_kappa"] * kega2
+            f1 -= gks[0]["vega"] + gks[1]["vega"] + gks[0]["_kappa"] * kega1 + gks[1]["_kappa"] * kega2
+
+            tgt_vol = tgt_vol - (f0 / f1) * 100.0
             iters += 1
 
         # def root(g, s1, s2, v1, v2, vv1, vv2):
@@ -9176,6 +9169,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         #     )
         # )
 
+        print(f"Numbers of iters: {iters}")
         return tgt_vol
 
     # def _single_vol_rate_known_strikes(
