@@ -9169,8 +9169,6 @@ class FXStrangle(FXOptionStrat, FXOption):
         #         greeks[0]["vomma"], greeks[1]["vomma"],
         #     )
         # )
-
-        print(f"Numbers of iters: {iters}")
         return tgt_vol
 
     # def _single_vol_rate_known_strikes(

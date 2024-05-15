@@ -3897,63 +3897,43 @@ class TestFXStrangle:
 
         assert abs(premium - premium_vol) < 5e-2
 
-    def test_analytic_greeks_numeric_strike(self, fxfo):
+    @pytest.mark.parametrize("notn, expected_grks, expected_ccy", [
+        (1e6, [-0.026421, 10.217468, 0.294607], [-26421.048, 109072.493, 2946.066]),
+        (2e6, [-0.026421, 10.217468, 0.294607], [-52842.096, 218144.986, 5892.132]),
+        (-2e6, [-0.026421, 10.217468, 0.294607],  [-52842.096, 218144.986, 5892.132]),
+    ])
+    @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.02387514, 1.115919308)])
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
         fxo = FXStrangle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
-            notional=20e6,
-            delivery_lag=2,
-            payment_lag=2,
-            calendar="tgt",
-            strike=[1.04, 1.10],
-            premium_ccy="usd",
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             delta_type="forward",
+            premium_ccy="usd",
+            strike=strikes,
+            notional=notn,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 10.15,
-                0.50: 7.9,
-                0.75: 8.9,
-            },
+            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
             delta_type="forward",
         )
-
-        result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
-        assert isinstance(result, dict)
-        result["__options"]
-        assert False
-
-    def test_analytic_greeks(self, fxfo):
-        fxo = FXStrangle(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            notional=20e6,
-            delivery_lag=2,
-            payment_lag=2,
-            calendar="tgt",
-            strike=["-25d", "25d"],
-            premium_ccy="usd",
-            delta_type="forward",
+        result = fxo.analytic_greeks(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            vol=fxvs,
+            fx=fxfo
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 10.15,
-                0.50: 7.9,
-                0.75: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type="forward",
-        )
+        assert abs(result["delta"] - expected_grks[0]) < 1e-6
+        assert abs(result["gamma"] - expected_grks[1]) < 1e-6
+        assert abs(result["vega"] - expected_grks[2]) < 1e-6
 
-        result = fxo.analytic_greeks(curves, fx=fxfo, vol=fxvs)
-        assert isinstance(result, dict)
-        result["__options"]
-        assert False
+        assert abs(result["delta_eur"] - expected_ccy[0]) < 1e-1
+        assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-1
+        assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-1
 
     def test_strang_strike_premium_validation(self):
         with pytest.raises(ValueError, match="`strike` for FXStrangle must be set"):
