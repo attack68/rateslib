@@ -36,7 +36,7 @@ from rateslib.instruments import (
     FXBrokerFly,
     _get_curves_fx_and_base_maybe_from_solver,
 )
-from rateslib.dual import Dual, Dual2, dual_exp
+from rateslib.dual import Dual, Dual2, dual_exp, gradient
 from rateslib.calendars import dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, MultiCsaCurve, CompositeCurve
 from rateslib.fx import FXRates, FXForwards
@@ -3707,6 +3707,168 @@ class TestFXStrangle:
             fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol, metric=metric,
         )
         assert abs(premium - premium_vol) < 5e-2
+
+    def test_strangle_rate_strike_str(self, fxfo):
+        # test pricing a strangle with delta as string that is not a delta percent should fail?
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["atm_spot", "atm_forward"],
+            premium_ccy="eur",
+            delta_type="forward",
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            ad=1
+        )
+        vol = fxvs
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+
+        premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
+        metric = "percent"
+        premium_vol = fxo.periods[0].periods[0].rate(
+            fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol, metric=metric,
+        )
+        premium_vol += fxo.periods[1].periods[0].rate(
+            fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol, metric=metric,
+        )
+        assert abs(premium - premium_vol) < 5e-2
+
+    def test_strangle_rate_ad(self, fxfo):
+        # test pricing a strangle with delta as string that is not a delta percent should fail?
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["atm_spot", "atm_forward"],
+            premium_ccy="eur",
+            delta_type="forward",
+        )
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            ad=1,
+            id="vol"
+        )
+        vol = fxvs
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+
+        #test fwd diff
+        m_ = {
+            0: [10.151, 7.9, 8.9],
+            1: [10.15, 7.901, 8.9],
+            2: [10.15, 7.9, 8.901],
+        }
+        for i in range(3):
+            fxvs2 = FXDeltaVolSmile(
+                nodes={
+                    0.25: m_[i][0],
+                    0.50: m_[i][1],
+                    0.75: m_[i][2],
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type="spot",
+                ad=1,
+                id="vol"
+            )
+            result2 = fxo.rate(curves, fx=fxfo, vol=fxvs2)
+            fwd_diff = (result2 - result) * 1000.0
+            assert abs(fwd_diff - gradient(result, [f"vol{i}"])[0]) < 1e-4
+
+    def test_strangle_rate_ad2(self, fxfo):
+        # test pricing a strangle with delta as string that is not a delta percent should fail?
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=["atm_spot", "atm_forward"],
+            premium_ccy="eur",
+            delta_type="forward",
+        )
+        fxfo._set_ad_order(2)
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            ad=2,
+            id="vol"
+        )
+        vol = fxvs
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+
+        #test fwd diff
+        m_ = {
+            0: [10.151, 7.9, 8.9],
+            1: [10.15, 7.901, 8.9],
+            2: [10.15, 7.9, 8.901],
+        }
+        n_ = {
+            0: [10.149, 7.9, 8.9],
+            1: [10.15, 7.899, 8.9],
+            2: [10.15, 7.9, 8.899],
+        }
+        for i in range(3):
+            fxvs2 = FXDeltaVolSmile(
+                nodes={
+                    0.25: m_[i][0],
+                    0.50: m_[i][1],
+                    0.75: m_[i][2],
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type="spot",
+                ad=2,
+                id="vol"
+            )
+            result_plus = fxo.rate(curves, fx=fxfo, vol=fxvs2)
+            fxvs3 = FXDeltaVolSmile(
+                nodes={
+                    0.25: n_[i][0],
+                    0.50: n_[i][1],
+                    0.75: n_[i][2],
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type="spot",
+                ad=2,
+                id="vol"
+            )
+            result_min = fxo.rate(curves, fx=fxfo, vol=fxvs3)
+
+            fwd_diff = (result_plus + result_min - 2 * result) * 1000000.0
+            assert abs(fwd_diff - gradient(result, [f"vol{i}"], order=2)[0]) < 1e-4
 
     def test_strangle_rate_2vols(self, fxfo):
         # test pricing a straddle with vol [8.0, 10.0] returns a valid value close to 9.0

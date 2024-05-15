@@ -9093,41 +9093,42 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         _is_fixed_delta = [
             isinstance(self.kwargs["strike"][0], str)
-            and self.kwargs["strike"][0][-1].lower() == "d",
+            and self.kwargs["strike"][0][-1].lower() == "d" and self.kwargs["strike"][0] != "atm_forward",
             isinstance(self.kwargs["strike"][1], str)
-            and self.kwargs["strike"][1][-1].lower() == "d",
+            and self.kwargs["strike"][1][-1].lower() == "d" and self.kwargs["strike"][1] != "atm_forward",
         ]
 
-        # first start by evaluating the individual swaptions given their strikes - delta or fixed
+        # first start by evaluating the individual swaptions given their strikes with the smile - delta or fixed
         gks = [
             self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
             self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
         ]
 
-        vega = [
-            self._analytic_vega(
-                gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]
-            ),
-            self._analytic_vega(
-                gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1]
-            ),
-        ]
+        # vega = [
+        #     self._analytic_vega(
+        #         gks[0]["vega"], gks[0]["_kega"], gks[0]["_kappa"], _is_fixed_delta[0]
+        #     ),
+        #     self._analytic_vega(
+        #         gks[1]["vega"], gks[1]["_kega"], gks[1]["_kappa"], _is_fixed_delta[1]
+        #     ),
+        # ]
+        # result = quadratic_eqn(
+        #     (gks[0]["vomma"] + gks[1]["vomma"]) / 2.0,
+        #     vega[0]
+        #     + vega[1]
+        #     - gks[0]["__vol"] * gks[0]["vomma"]
+        #     - gks[1]["__vol"] * gks[1]["vomma"],
+        #     (gks[0]["__vol"] ** 2 * gks[0]["vomma"] + gks[1]["__vol"] ** 2 * gks[1]["vomma"]) / 2.0
+        #     - gks[0]["__vol"] * vega[0]
+        #     - gks[1]["__vol"] * vega[1],
+        #     (gks[0]["__vol"] * vega[0] + gks[1]["__vol"] * vega[1]) / (vega[0] + vega[1]),
+        # )
+        # tgt_vol = result["g"] * 100.0
 
-        result = quadratic_eqn(
-            (gks[0]["vomma"] + gks[1]["vomma"]) / 2.0,
-            vega[0]
-            + vega[1]
-            - gks[0]["__vol"] * gks[0]["vomma"]
-            - gks[1]["__vol"] * gks[1]["vomma"],
-            (gks[0]["__vol"] ** 2 * gks[0]["vomma"] + gks[1]["__vol"] ** 2 * gks[1]["vomma"]) / 2.0
-            - gks[0]["__vol"] * vega[0]
-            - gks[1]["__vol"] * vega[1],
-            (gks[0]["__vol"] * vega[0] + gks[1]["__vol"] * vega[1]) / (vega[0] + vega[1]),
-        )
-
-        tgt_vol = result["g"] * 100.0
+        tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
+        tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
         f0, iters = 100e6, 1
-        while abs(f0) > 1e-5 and iters < 10:
+        while abs(f0) > 1e-6 and iters < 10:
             gks = [
                 self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
                 self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
