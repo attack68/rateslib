@@ -8587,6 +8587,7 @@ class FXOptionStrat:
     rate_weight_vol: list
         The multiplier for the *'vol'* metric that sums the options to a final *rate*.
     """
+    _pricing = {}
 
     def __init__(
         self,
@@ -9072,6 +9073,9 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         For parameters see :meth:`~rateslib.instruments.FXOption.rate`
         """
+        return self._rate(curves, solver, fx, base, vol, metric)
+
+    def _rate(self, curves, solver, fx, base, vol, metric, record_greeks=False):
 
         metric = _drb(self.kwargs["metric"], metric)
         if metric != "single_vol":
@@ -9169,6 +9173,18 @@ class FXStrangle(FXOptionStrat, FXOption):
         #         greeks[0]["vomma"], greeks[1]["vomma"],
         #     )
         # )
+        if record_greeks:  # this needs to be explicitly called since it degrades performance
+            self._pricing["strangle_greeks"] = {
+                "single_vol": {
+                    "FXPut": self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                    "FXCall": self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                },
+                "market_vol": {
+                    "FXPut": self.periods[0].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                    "FXCall": self.periods[1].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+                }
+            }
+
         return tgt_vol
 
     # def _single_vol_rate_known_strikes(
@@ -9393,9 +9409,12 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     def _set_vega_neutral_notional(self, curves, solver, fx, base, vol) -> DualTypes:
         # Only reset the Straddle notional if it is unspecified at initialisation.
         if self.kwargs["notional"][1] is NoInput.blank:
-            strangle_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol)
-            straddle_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol)
-            scalar = strangle_grks["vega"] / straddle_grks["vega"]
+            self.periods[0]._rate(curves, solver, fx, base, vol=vol[0], metric="single_vol", record_greeks=True)
+            self._pricing["straddle_greeks"] = self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol)
+            strangle_vega = self._pricing["strangle_greeks"]["market_vol"]["FXPut"]["vega"]
+            strangle_vega += self._pricing["strangle_greeks"]["market_vol"]["FXCall"]["vega"]
+            straddle_vega = self._pricing["straddle_greeks"]["vega"]
+            scalar = strangle_vega / straddle_vega
             self.periods[1]._set_notionals(float(self.periods[0].periods[0].periods[0].notional * -scalar))
             # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
 

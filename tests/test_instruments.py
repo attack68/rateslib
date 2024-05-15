@@ -4040,9 +4040,8 @@ class TestFXBrokerFly:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             notional=[20e6, NoInput(0)],
-            delivery_lag=2,
-            payment_lag=2,
-            calendar="tgt",
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
             strike=strike,
             premium_ccy=ccy,
             delta_type="forward",
@@ -4051,17 +4050,17 @@ class TestFXBrokerFly:
         fxvs = FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
-                0.50: 7.9,
+                0.50: 7.8,
                 0.75: 8.9,
             },
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
-            delta_type="spot",
+            delta_type="forward",
         )
         vol = fxvs if smile else 9.5
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
-        expected = (-229055, 3000) if ccy == "usd" else (-214500, 6000)
+        expected = (-229055, 900) if ccy == "usd" else (-214500, 6000)
         assert abs(result - expected[0]) < expected[1]
 
     def test_bf_rate_vols_list(self, fxfo):
