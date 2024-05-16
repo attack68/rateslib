@@ -2806,12 +2806,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _analytic_kega(z_u, z_w, eta, vol, sqrt_t, f_d, phi, k, d_eta):
         if eta < 0:
             # dz_u_du = 1.0
-            u_ = z_w * phi * dual_norm_cdf(phi * d_eta) / f_d
+            x = vol * phi * dual_norm_cdf(phi * d_eta) / (f_d * z_u * dual_norm_pdf(phi * d_eta))
         else:
-            u_ = 0.0
+            x = 0.0
 
-        _ = z_u * z_w * dual_norm_pdf(phi * d_eta)
-        _ = (_ * d_eta) / (vol * (u_ + _ / (k * vol * sqrt_t)))
+        _ = (d_eta - eta * vol * sqrt_t) / (-1/(k * sqrt_t) + x)
         return _
 
     @staticmethod

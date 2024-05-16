@@ -9181,6 +9181,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             tgt_vol = tgt_vol - (f0 / f1) * 100.0
             iters += 1
 
+        print(f"Iters in single vol: {iters}")
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._pricing["strangle_greeks"] = {
                 "single_vol": {
