@@ -10,6 +10,12 @@
 FX Volatility
 ****************************
 
+.. warning::
+
+   FX volatility products in *rateslib* are not in stable status. Their API and/or object
+   interactions may incur breaking changes in upcoming releases as it matures and other
+   classes, such as a *VolSurface* are added.
+
 Interbank standard conventions for quoting FX volatility products are quite varied.
 None-the-less, *rateslib* provides the most common definitions and products, all priced using
 the **Black-76** model.
@@ -499,7 +505,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        pair="eurusd",
        expiry=dt(2023, 6, 16),
        notional=[20e6, -13.5e6],
-       strike=("-25d", "25d", "atm_delta"),
+       strike=("-25d", "atm_delta", "25d"),
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt",
@@ -509,10 +515,10 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
    fxbf.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[10.15, 8.9, 7.5]
+       vol=[10.15, 7.5, 8.9]
    )
    fxbf.plot_payoff(
-       range=[1.025, 1.11],
+       range=[1.000, 1.150],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,
@@ -521,7 +527,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
 .. plot::
 
    from rateslib.curves import Curve
-   from rateslib.instruments import FXStrangle
+   from rateslib.instruments import FXBrokerFly
    from rateslib import dt
    from rateslib.fx import FXForwards, FXRates
 
@@ -539,19 +545,19 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
        fx_rates=fxr
    )
-   fxstg = FXStrangle(
+   fxbf = FXBrokerFly(
        pair="eurusd",
        expiry=dt(2023, 6, 16),
-       notional=20e6,
-       strike=("-25d", "25d"),
+       notional=[20e6, -13.5e6],
+       strike=("-25d", "atm_delta", "25d"),
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt",
        premium_ccy="usd",
        delta_type="spot",
    )
-   fxstg.plot_payoff(
-       range=[1.025, 1.11],
+   fxbf.plot_payoff(
+       range=[1.000, 1.150],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,

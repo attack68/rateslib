@@ -73,12 +73,10 @@ Since we have 5 calibrating instruments we require 5 degrees of freedom.
    )
 
 The above *Smile* is initialised as a flat vol at 10%. In order to calibrate it we need to create the pricing
-instruments. *BrokerFlys (BFs)* are complicated *Instruments* with 4 options. Instead we will use the *Strangle*
-equivalents which adds the ATM delta price to the *BF* prices to yield 25delta and 10delta *Strangle* prices of
-5.564 and 5.731 respectively. *Strangles* are slightly less complex and faster to calculate.
+instruments, given in the market prices data table.
 
 Since we are using multi-currency derivatives we will also need to setup an :class:`~rateslib.fx.FXForwards`
-framework. We will do this simultaneously.
+framework. We will do this simultaneously using other prevailing market data.
 
 .. ipython:: python
 
@@ -105,10 +103,10 @@ framework. We will do this simultaneously.
            FXStraddle(strike="atm_delta", **option_args),
            FXRiskReversal(strike=["-25d", "25d"], **option_args),
            FXRiskReversal(strike=["-10d", "10d"], **option_args),
-           FXStrangle(strike=["-25d", "25d"], **option_args),
-           FXStrangle(strike=["-10d", "10d"], **option_args),
+           FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **option_args),
+           FXBrokerFly(strike=["-10d", "atm_delta", "10d"], **option_args),
        ],
-       s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 5.564, 5.731],
+       s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 0.071, 0.238],
        fx=fxf,
    )
    smile.plot()
@@ -163,10 +161,10 @@ framework. We will do this simultaneously.
                  FXStraddle(strike="atm_delta", **option_args),
                  FXRiskReversal(strike=["-25d", "25d"], **option_args),
                  FXRiskReversal(strike=["-10d", "10d"], **option_args),
-                 FXStrangle(strike=["-25d", "25d"], **option_args),
-                 FXStrangle(strike=["-10d", "10d"], **option_args),
+                 FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **option_args),
+                 FXBrokerFly(strike=["-10d", "atm_delta", "10d"], **option_args),
              ],
-             s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 5.564, 5.731],
+             s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 0.071, 0.238],
              fx=fxf,
          )
          fig, ax, line = smile.plot()

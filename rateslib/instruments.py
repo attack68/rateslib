@@ -9186,7 +9186,6 @@ class FXStrangle(FXOptionStrat, FXOption):
             tgt_vol = tgt_vol - (f0 / f1) * 100.0
             iters += 1
 
-        print(f"Iters in single vol: {iters}")
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._pricing["strangle_greeks"] = {
                 "single_vol": {
@@ -9415,7 +9414,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         local: bool = False,
         vol: Union[list[float], float] = NoInput(0),
     ):
-        self._set_vega_neutral_notional(curves, solver, fx, base, vol)
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, metric="pips_or_%")
         return super()._plot_payoff(range, curves, solver, fx, base, local, vol)
 
 
