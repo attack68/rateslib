@@ -2760,6 +2760,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["__vol"] = vol_
         _["__strike"] = self.strike
         _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
+        _["__notional"] = self.notional
         if self.phi > 0:
             _["__class"] = "FXCallPeriod"
         else:
