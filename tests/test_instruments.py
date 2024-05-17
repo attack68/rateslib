@@ -3898,11 +3898,11 @@ class TestFXStrangle:
         assert abs(premium - premium_vol) < 5e-2
 
     @pytest.mark.parametrize("notn, expected_grks, expected_ccy", [
-        (1e6, [-0.026421, 10.217465, 0.294607], [-26421.048, 109072.493, 2946.066]),
-        (2e6, [-0.026421, 10.217465, 0.294607], [-52842.096, 218144.986, 5892.132]),
-        (-2e6, [-0.026421, 10.217465, 0.294607],  [-52842.096, 218144.986, 5892.132]),
+        (1e6, [-0.026421, 10.217464, 0.294607], [-26421.048, 109072.493, 2946.066]),
+        (2e6, [-0.026421, 10.217464, 0.294607], [-52842.096, 218144.986, 5892.132]),
+        (-2e6, [-0.026421, 10.217464, 0.294607],  [-52842.096, 218144.986, 5892.132]),
     ])
-    @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.02387512664, 1.115919329409)])
+    @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.0238751229, 1.115919333)])
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
         fxo = FXStrangle(
