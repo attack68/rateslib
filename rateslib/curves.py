@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pytz import UTC
 from typing import Optional, Union, Callable, Any
+import numpy as np
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import Holiday
 from uuid import uuid4
@@ -18,7 +19,7 @@ import warnings
 import json
 from math import floor, comb
 from rateslib import defaults
-from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
+from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert, DualTypes, Dual2
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from rateslib.calendars import (
@@ -1178,6 +1179,34 @@ class Curve(_Serialize):
         x = [left + timedelta(days=i) for i in range(points)]
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
         return plot(x, [rates])
+
+    def _set_node_vector(self, vector: list[DualTypes], ad):
+        """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
+        DualType = Dual if ad == 1 else Dual2
+        DualArgs = ([],) if ad == 1 else ([], [])
+        base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
+        ident = np.eye(self.n)
+
+        if self._ini_solve == 1:
+            # then the first node on the Curve is not updated but
+            # set it as a dual type with consistent vars.
+            self.nodes[self.node_keys[0]] = DualType.vars_from(
+                base_obj,
+                self.nodes[self.node_keys[0]].real,
+                base_obj.vars,
+                ident[0, :].tolist(),
+                *DualArgs[1:],
+            )
+
+        for i, k in enumerate(self.node_keys[self._ini_solve:]):
+            self.nodes[k] = DualType.vars_from(
+                base_obj,
+                vector[i].real,
+                base_obj.vars,
+                ident[i + self._ini_solve, :].tolist(),
+                *DualArgs[1:],
+            )
+        self.csolve()
 
 
 class LineCurve(Curve):

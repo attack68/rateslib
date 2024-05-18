@@ -1362,33 +1362,13 @@ class Solver(Gradients):
 
     def _update_curves_with_parameters(self, v_new):
         """Populate the variable curves with the new values"""
-        DualType = Dual if self._ad == 1 else Dual2
-        DualArgs = ([],) if self._ad == 1 else ([], [])
         var_counter = 0
-        for id, curve in self.curves.items():
+        for curve in self.curves.values():
             # this was amended in PR126 as performance improvement to keep consistent `vars`
-            d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], *DualArgs)
-            ident = np.eye(curve.n)
-            if curve._ini_solve == 1:
-                # then the first node on the Curve is not updated but set it as a Dual with consistent vars.
-
-                curve.nodes[curve.node_keys[0]] = DualType.vars_from(
-                    d_vars,
-                    curve.nodes[curve.node_keys[0]].real,
-                    d_vars.vars,
-                    ident[0, :].tolist(),
-                    *DualArgs[1:],
-                )
-            for i, k in enumerate(curve.node_keys[curve._ini_solve :]):
-                curve.nodes[k] = DualType.vars_from(
-                    d_vars,
-                    v_new[var_counter].real,
-                    d_vars.vars,
-                    ident[i + curve._ini_solve, :].tolist(),
-                    *DualArgs[1:],
-                )
-                var_counter += 1
-            curve.csolve()
+            # and was restructured in PR## to decouple methods to accomodate vol surfaces
+            vars = curve.n - curve._ini_solve
+            curve._set_node_vector(v_new[var_counter:var_counter+vars], self._ad)
+            var_counter += vars
 
         self._reset_properties_()
         self._update_fx()
