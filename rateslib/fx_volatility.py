@@ -8,6 +8,8 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_log,
     dual_norm_pdf,
+    Dual,
+    Dual2,
 )
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
@@ -776,6 +778,23 @@ class FXDeltaVolSmile:
         if x_axis == "moneyness":
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
+
+    def _set_node_vector(self, vector, ad):
+        """Update the node values in a Solver. ``ad`` in {1, 2}."""
+        DualType = Dual if ad == 1 else Dual2
+        DualArgs = ([],) if ad == 1 else ([], [])
+        base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
+        ident = np.eye(self.n)
+
+        for i, k in enumerate(self.node_keys):
+            self.nodes[k] = DualType.vars_from(
+                base_obj,
+                vector[i].real,
+                base_obj.vars,
+                ident[i, :].tolist(),
+                *DualArgs[1:],
+            )
+        self.csolve()
 
 
 def _validate_delta_type(delta_type: str):
