@@ -310,7 +310,7 @@ class FXDeltaVolSmile:
         f: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
-    ):
+    ) -> tuple:
         """
         Given a put or call option strike return associated delta and vol values.
 

@@ -2386,7 +2386,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     strike: float, Dual, Dual2
         The strike value of the option.
     notional: float
-        The amount in ccy1 (left side of pair) on which the option is based.
+        The amount in ccy1 (LHS) on which the option is based.
     option_fixing: float, optional
         If an option has already expired this argument is used to fix the price determined at
         expiry.
@@ -2436,7 +2436,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        vol: Union[float, NoInput] = NoInput(0),
+        vol: Union[DualTypes, FXDeltaVolSmile, NoInput] = NoInput(0),
     ):
         """
         Return the NPV of the *FXOption*.
@@ -2444,7 +2444,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Parameters
         ----------
         disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
+            The discount *Curve* for the LHS currency.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
         fx: float, FXRates, FXForwards, optional
@@ -2453,7 +2453,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The base currency in which to express the NPV.
         local: bool,
             Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2
+        vol: float, Dual, Dual2, FXDeltaVolSmile
             The percentage log-normal volatility to price the option.
 
         Returns
@@ -2512,9 +2512,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            The base currency in which to express the NPV.
+            Not used by `rate`.
         local: bool,
-            Whether to display NPV in a currency local to the object.
+            Not used by `rate`.
         vol: float, Dual, Dual2
             The percentage log-normal volatility to price the option.
         metric: str in {"pips", "percent"}
@@ -2559,7 +2559,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        premium: Union[float, NoInput] = NoInput(0),
+        premium: Union[DualTypes, NoInput] = NoInput(0),
         metric: Union[str, NoInput] = NoInput(0),
     ):
         """
@@ -2568,16 +2568,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Parameters
         ----------
         disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
+            Not used by `implied_vol`.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            The base currency in which to express the NPV.
+            Not used by `implied_vol`.
         local: bool,
-            Whether to display NPV in a currency local to the object.
-        premium: float
+            Not used by `implied_vol`.
+        premium: float, Dual, Dual2
             The premium value of the option paid at the appropriate payment date. Expressed
             either in *'pips'* or *'percent'* of notional. Must align with ``metric``.
         metric: str in {"pips", "percent"}, optional
@@ -2585,12 +2585,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Returns
         -------
-        float
+        float, Dual or Dual2
         """
+        # This function uses newton_1d and is AD safe.
+
         # convert the premium to a standardised immediate pips value.
         if metric == "percent":
             premium = premium * fx.rate(self.pair, self.payment) * 100.0
         imm_premium = premium * disc_curve_ccy2[self.payment]
+
         t_e = self._t_to_expiry(disc_curve_ccy2.node_dates[0])
         v2 = disc_curve_ccy2[self.delivery]
         f_d = fx.rate(self.pair, self.delivery)
@@ -2605,16 +2608,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         result = newton_1dim(root, 0.10, args=(f_d, self.strike, t_e, v2, self.phi))
         return result["g"] * 100.0
 
-        # vol_ = Dual(25.0, ["vol"], [])
-        # for i in range(20):
-        #     f_ = self.rate(disc_curve, disc_curve_ccy2, fx, base, local, vol_, metric) - premium
-        #     if abs(f_) < 1e-10:
-        #         break
-        #     vol_ = Dual(float(vol_ - f_ / gradient(f_, ["vol"])[0]), ["vol"], [])
-        #
-        # # return a float TODO check whether Dual can be returned. Use Generic Newton
-        # return float(vol_)
-
     def analytic_greeks(
         self,
         disc_curve: Curve,
@@ -2626,7 +2619,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         premium: Union[DualTypes, NoInput] = NoInput(0),  # expressed in the payment currency
     ):
         r"""
-        Return the different greeks for the *Option*.
+        Return the different greeks for the *FX Option*.
 
         Parameters
         ----------
@@ -2640,10 +2633,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
             Not used by `analytic_greeks`.
         local: bool,
             Not used by `analytic_greeks`.
-        vol: float or FXDeltaVolSmile
+        vol: float, Dual, Dual2 or FXDeltaVolSmile
             The volatility used in calculation.
-        premium: float, optional
+        premium: float, Dual, Dual2, optional
             The premium value of the option paid at the appropriate payment date.
+            Premium should be expressed in domestic currency.
             If not given calculates and assumes a mid-market premium.
 
         Returns
@@ -2744,15 +2738,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
             w_spot,
             self.notional,
         )
-        _[f"delta_{self.pair[:3]}"] = self.notional * _["delta"]
+        _[f"delta_{self.pair[:3]}"] = abs(self.notional) * _["delta"]
         _["gamma"] = self._analytic_gamma(
             _is_spot, v_deli, v_spot, z_w, self.phi, d_plus, f_d, vol_sqrt_t
         )
         _[f"gamma_{self.pair[:3]}_1%"] = (
-            _["gamma"] * self.notional * (f_t if _is_spot else f_d) * 0.01
+            _["gamma"] * abs(self.notional) * (f_t if _is_spot else f_d) * 0.01
         )
         _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
-        _[f"vega_{self.pair[3:]}"] = _["vega"] * self.notional / 100.0
+        _[f"vega_{self.pair[3:]}"] = _["vega"] * abs(self.notional) * 0.01
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
         _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
@@ -2766,6 +2760,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["__vol"] = vol_
         _["__strike"] = self.strike
         _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
+        _["__notional"] = self.notional
         if self.phi > 0:
             _["__class"] = "FXCallPeriod"
         else:
@@ -2812,12 +2807,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _analytic_kega(z_u, z_w, eta, vol, sqrt_t, f_d, phi, k, d_eta):
         if eta < 0:
             # dz_u_du = 1.0
-            u_ = z_w * phi * dual_norm_cdf(phi * d_eta) / f_d
+            x = phi * dual_norm_cdf(phi * d_eta) / (f_d * z_u * dual_norm_pdf(phi * d_eta))
         else:
-            u_ = 0.0
+            x = 0.0
 
-        _ = z_u * z_w * dual_norm_pdf(phi * d_eta)
-        _ = (_ * d_eta) / (vol * (u_ + _ / (k * vol * sqrt_t)))
+        _ = (d_eta / vol - 2.0 * eta * sqrt_t) / (-1/(k * sqrt_t * vol) + x)
         return _
 
     @staticmethod
@@ -3132,6 +3126,52 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     root_solver = _newton(root, root_deriv, 0.5)
     #     return root_solver[0]
 
+    def _strike_and_index_from_atm(
+        self,
+        delta_type: str,
+        vol: Union[DualTypes, FXDeltaVolSmile],
+        w_deli,
+        w_spot,
+        f,
+        t_e,
+    ):
+        if not isinstance(vol, FXDeltaVolSmile):
+            vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
+        else:
+            vol_delta_type = vol.delta_type
+
+        z_w = w_deli / w_spot
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
+        eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
+
+        # u, delta_idx, delta = self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
+
+        if eta_0 == 0.5:  # then delta type is unadjusted
+            if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
+                if isinstance(vol, FXDeltaVolSmile):
+                    delta_idx = z_w_1 / 2.0
+                    vol = vol[delta_idx]
+                else:
+                    delta_idx = None
+                u = self._moneyness_from_atm_delta_closed_form(vol, t_e)
+            else:  # then smile delta type unmatched: 2-d solver required
+                delta = z_w_0 * self.phi / 2.0
+                u, delta_idx = self._moneyness_from_delta_two_dimensional(
+                    delta, delta_type, vol, t_e, z_w
+                )
+        else:  # then delta type is adjusted,
+            if eta_1 == -0.5:  # then smile type matches: use 1-d solver
+                u = self._moneyness_from_atm_delta_one_dimensional(
+                    delta_type, vol_delta_type, vol, t_e, z_w
+                )
+                delta_idx = z_w_1 * u * 0.5
+            else:  # smile delta type unmatched: 2-d solver required
+                u, delta_idx = self._moneyness_from_atm_delta_two_dimensional(
+                    delta_type, vol, t_e, z_w
+                )
+
+        return u * f, delta_idx
+
     def _strike_and_index_from_delta(
         self,
         delta: float,
@@ -3165,13 +3205,33 @@ class FXOptionPeriod(metaclass=ABCMeta):
             u = self._moneyness_from_delta_one_dimensional(
                 delta, delta_type, vol_delta_type, vol, t_e, z_w
             )
-            delta_idx = delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * u * (self.phi + 1.0) * 0.5)
+            delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * u * (self.phi + 1.0) * 0.5)
         else:  # delta adjustment types are different, use 2-d solver.
             u, delta_idx = self._moneyness_from_delta_two_dimensional(
                 delta, delta_type, vol, t_e, z_w
             )
 
         return u * f, delta_idx
+
+    def _moneyness_from_atm_delta_closed_form(self, vol: DualTypes, t_e: DualTypes):
+        """
+        Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
+
+        This function preserves AD.
+
+        Parameters
+        -----------
+        vol: float, Dual, Dual2
+            The volatility (in %, e.g. 10.0) to use in calculations.
+        t_e: float, Dual, Dual2
+            The time to expiry.
+
+        Returns
+        -------
+        float, Dual or Dual2
+        """
+        _ = dual_exp((vol / 100.0) ** 2 * t_e / 2.0)
+        return _
 
     def _moneyness_from_delta_closed_form(
         self,
@@ -3206,6 +3266,69 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _ = dual_inv_norm_cdf(self.phi * delta / z_w_0)
         _ = dual_exp(vol_sqrt_t * (0.5 * vol_sqrt_t - self.phi * _))
         return _
+
+    def _moneyness_from_atm_delta_one_dimensional(
+        self,
+        delta_type: str,
+        vol_delta_type: str,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        z_w: DualTypes,
+    ):
+        def root1d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+            u = g
+
+            eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+            eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+            dz_u_0_du = 0.5 - eta_0
+
+            delta_idx = z_w_1 * z_u_0 / 2.0
+            if isinstance(vol, FXDeltaVolSmile):
+                vol_ = vol[delta_idx] / 100.0
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+            else:
+                vol_ = vol / 100.0
+                dvol_ddeltaidx = 0.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            vol_sqrt_t = vol_ * sqrt_t_e
+
+            # Calculate function values
+            d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+            _phi0 = dual_norm_cdf(phi * d0)
+            f0 = phi * z_w_0 * z_u_0 * (0.5 - _phi0)
+
+            # Calculate derivative values
+            ddelta_idx_du = dz_u_0_du * z_w_1 * 0.5
+
+            lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+            dd_du = (
+                -1 / (u * vol_sqrt_t) + dvol_ddeltaidx * (lnu + eta_0 * sqrt_t_e) * ddelta_idx_du
+            )
+
+            nd0 = dual_norm_pdf(phi * d0)
+            f1 = -dz_u_0_du * z_w_0 * phi * _phi0 - z_u_0 * z_w_0 * nd0 * dd_du
+
+            return f0, f1
+
+        if isinstance(vol, FXDeltaVolSmile):
+            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        else:
+            avg_vol = vol
+        g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
+        g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
+
+        root_solver = newton_1dim(
+            root1d,
+            g00,
+            args=(delta_type, vol_delta_type, self.phi, t_e**0.5, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+            raise_on_fail=True,
+        )
+
+        u = root_solver["g"]
+        return u
 
     def _moneyness_from_delta_one_dimensional(
         self,
@@ -3330,7 +3453,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
         msg = (
-            f"If the delta, {delta:.1f}, is premium adjusted for a call option is it infeasible?"
+            f"If the delta, {float(delta):.1f}, is premium adjusted for a call option is it infeasible?"
             if self.phi > 0
             else ""
         )
@@ -3352,6 +3475,142 @@ class FXOptionPeriod(metaclass=ABCMeta):
             )
         u, delta_idx = root_solver["g"][0], root_solver["g"][1]
         return u, delta_idx
+
+    def _moneyness_from_atm_delta_two_dimensional(
+        self, delta_type, vol: FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
+    ):
+        def root2d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+            u, delta_idx = g[0], g[1]
+
+            eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+            eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+            dz_u_0_du = 0.5 - eta_0
+            dz_u_1_du = 0.5 - eta_1
+
+            vol_ = vol[delta_idx] / 100.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            vol_sqrt_t = vol_ * sqrt_t_e
+
+            # Calculate function values
+            d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+            _phi0 = dual_norm_cdf(phi * d0)
+            f0_0 = phi * z_w_0 * z_u_0 * (0.5 - _phi0)
+
+            d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+            _phi1 = dual_norm_cdf(-d1)
+            f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+
+            # Calculate Jacobian values
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+            dd_du = -1 / (u * vol_sqrt_t)
+            nd0 = dual_norm_pdf(phi * d0)
+            nd1 = dual_norm_pdf(-d1)
+            lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+            dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+            dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+            f1_00 = phi * z_w_0 * dz_u_0_du * (0.5 - _phi0) - z_w_0 * z_u_0 * nd0 * dd_du
+            f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
+            f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
+            f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
+
+            return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
+
+        avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
+        g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
+
+        root_solver = newton_ndim(
+            root2d,
+            [g00, abs(g01)],
+            args=(delta_type, vol.delta_type, self.phi, t_e**0.5, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+            raise_on_fail=True,
+        )
+
+        u, delta_idx = root_solver["g"][0], root_solver["g"][1]
+        return u, delta_idx
+
+    def _moneyness_from_delta_three_dimensional(
+        self, delta_type, vol: Union[float, FXDeltaVolSmile], t_e: DualTypes, z_w: DualTypes
+    ):
+        """
+        Solve the ATM delta problem where delta is not explicit.
+        """
+        def root3d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+            u, delta_idx, delta = g[0], g[1], g[2]
+
+            eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+            eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+            dz_u_0_du = 0.5 - eta_0
+            dz_u_1_du = 0.5 - eta_1
+
+            if isinstance(vol, FXDeltaVolSmile):
+                vol_ = vol[delta_idx] / 100.0
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+            else:
+                vol_ = vol / 100.0
+                dvol_ddeltaidx = 0.0
+            vol_ = float(vol_) if ad == 0 else vol_
+            vol_sqrt_t = vol_ * sqrt_t_e
+
+            # Calculate function values
+            d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+            _phi0 = dual_norm_cdf(phi * d0)
+            f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
+
+            d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+            _phi1 = dual_norm_cdf(-d1)
+            f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+
+            f0_2 = delta - phi * z_u_0 * z_w_0 / 2.0
+
+            # Calculate Jacobian values
+            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+            dd_du = -1 / (u * vol_sqrt_t)
+            nd0 = dual_norm_pdf(phi * d0)
+            nd1 = dual_norm_pdf(-d1)
+            lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+            dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+            dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+            f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du  # dh0/du
+            f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du  # dh1/du
+            f1_20 = -phi * z_w_0 * dz_u_0_du / 2.0  # dh2/du
+            f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx  # dh0/ddidx
+            f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx  # dh1/ddidx
+            f1_21 = 0.0  # dh2/ddidx
+            f1_02 = 1.0  # dh0/ddelta
+            f1_12 = 0.0  # dh1/ddelta
+            f1_22 = 1.0  # dh2/ddelta
+
+            return [f0_0, f0_1, f0_2], [[f1_00, f1_01, f1_02], [f1_10, f1_11, f1_12], [f1_20, f1_21, f1_22]]
+
+        if isinstance(vol, FXDeltaVolSmile):
+            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            vol_delta_type = vol.delta_type
+        else:
+            avg_vol = vol
+            vol_delta_type = self.delta_type
+        g02 = 0.5 * self.phi * (z_w if "spot" in delta_type else 1.0)
+        g01 = g02 if self.phi > 0 else max(g02, -0.75)
+        g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
+
+        root_solver = newton_ndim(
+            root3d,
+            [g00, abs(g01), g02],
+            args=(delta_type, vol_delta_type, self.phi, t_e**0.5, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+            raise_on_fail=True,
+        )
+
+        u, delta_idx, delta = root_solver["g"][0], root_solver["g"][1], root_solver["g"][1]
+        return u, delta_idx, delta
 
     # def _get_interval_for_premium_adjusted_delta_with_money_vol_smile(
     #     self,
@@ -3475,7 +3734,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #
     #     return float(root_solver[0] * f)
     def _get_vol_maybe_from_smile(
-        self, vol: FXDeltaVolSmile, fx: FXForwards, disc_curve: Curve
+        self,
+        vol: Union[FXDeltaVolSmile, DualTypes],
+        fx: FXForwards,
+        disc_curve: Curve,
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         if isinstance(vol, FXDeltaVolSmile):

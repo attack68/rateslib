@@ -10,6 +10,12 @@
 FX Volatility
 ****************************
 
+.. warning::
+
+   FX volatility products in *rateslib* are not in stable status. Their API and/or object
+   interactions may incur breaking changes in upcoming releases as it matures and other
+   classes, such as a *VolSurface* are added.
+
 Interbank standard conventions for quoting FX volatility products are quite varied.
 None-the-less, *rateslib* provides the most common definitions and products, all priced using
 the **Black-76** model.
@@ -30,6 +36,7 @@ The following *Instruments* are currently available.
    rateslib.instruments.FXRiskReversal
    rateslib.instruments.FXStraddle
    rateslib.instruments.FXStrangle
+   rateslib.instruments.FXBrokerFly
 
 FXForwards Market
 ==================
@@ -258,7 +265,7 @@ An :class:`~rateslib.instruments.FXStraddle` is the most frequently traded instr
 volatility. *Straddles* are defined by a single strike, which can be a defined numeric value (for a 'struck' deal),
 or an or associated value, e.g. "atm_delta", "atm_forward" or "atm_spot".
 
-The default pricing ``metric`` for an *FX Straddle* is vol points.
+The default pricing ``metric`` for an *FX Straddle* is *'vol'* points.
 
 .. ipython:: python
 
@@ -339,7 +346,7 @@ in calibrating a volatility *Surface* or *Smile*.
 lower and a higher strike. These can be entered in delta terms. Pricing also allows
 two different ``vol`` inputs if a volatility *Surface* or *Smile* is not given.
 
-The default pricing ``metric`` for a *RiskReversal* is 'vol' which calculates the difference in volatility
+The default pricing ``metric`` for a *RiskReversal* is *'vol'* which calculates the difference in volatility
 quotations for each option.
 
 .. ipython:: python
@@ -411,11 +418,11 @@ Strangles
 
 The other common *Instrument* combination for calibrating *Surfaces* and *Smiles* is an
 :class:`~rateslib.instruments.FXStrangle`. Again, the strangle requires two strike inputs,
-which can be input in delta terms.
+which can be input in delta terms or numeric value.
 
 The default pricing ``metric`` for a strangle is *'single_vol'*, which quotes a single volatility
-value used to price the strike and premium for each option. *Rateslib* uses an iteration to
-calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surface* or *Smile*.
+value used to price the strike and premium for each option. This is a complex calculation: *Rateslib* uses
+an iteration to calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surface* or *Smile*.
 
 .. ipython:: python
 
@@ -476,6 +483,81 @@ calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate`) from a *Surfa
    )
    fxstg.plot_payoff(
        range=[1.025, 1.11],
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=9.533895,
+   )
+
+
+BrokerFly
+==========
+
+The final instrument commonly seen is an :class:`~rateslib.instruments.FXBrokerFly`.
+This is a combination of an *FXStrangle* and an *FXStraddle*, where the ``notional`` on the
+*FXStraddle* is determined at mid-market by making the structure *vega neutral*.
+
+The default pricing ``metric`` is *'single_vol'* which calculates the single volatility price of the
+*FXStrangle* and subtracts the volatility of the *FXStraddle*.
+
+.. ipython:: python
+
+   fxbf = FXBrokerFly(
+       pair="eurusd",
+       expiry=dt(2023, 6, 16),
+       notional=[20e6, -13.5e6],
+       strike=("-25d", "atm_delta", "25d"),
+       payment_lag=2,
+       delivery_lag=2,
+       calendar="tgt",
+       premium_ccy="usd",
+       delta_type="spot",
+   )
+   fxbf.rate(
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=[10.15, 7.5, 8.9]
+   )
+   fxbf.plot_payoff(
+       range=[1.000, 1.150],
+       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       fx=fxf,
+       vol=9.533895,
+   )
+
+.. plot::
+
+   from rateslib.curves import Curve
+   from rateslib.instruments import FXBrokerFly
+   from rateslib import dt
+   from rateslib.fx import FXForwards, FXRates
+
+   eureur = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+   )
+   usdusd = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+   )
+   eurusd = Curve(
+       {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd"
+   )
+   fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
+   fxf = FXForwards(
+       fx_curves={"eureur": eureur, "eurusd": eurusd, "usdusd": usdusd},
+       fx_rates=fxr
+   )
+   fxbf = FXBrokerFly(
+       pair="eurusd",
+       expiry=dt(2023, 6, 16),
+       notional=[20e6, -13.5e6],
+       strike=("-25d", "atm_delta", "25d"),
+       payment_lag=2,
+       delivery_lag=2,
+       calendar="tgt",
+       premium_ccy="usd",
+       delta_type="spot",
+   )
+   fxbf.plot_payoff(
+       range=[1.000, 1.150],
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,
