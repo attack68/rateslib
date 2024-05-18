@@ -28,27 +28,26 @@ with a high level, well documented API.
 
 .. raw:: html
 
-   <table style="width:100%; text-align:center; border-collapse: collapse; font-size:0.8em;">
-   <thead>
-     <tr>
-       <th style="color:#459db9; border: 1px solid #d0d7de">Academic, Personal, or Educational Use</th>
-       <th style="color:#459db9; border: 1px solid #d0d7de">Commercial or Corporate Use</th>
-     </tr>
-   </thead>
-   <tbody>
-     <tr>
-       <td style="color:green; font-size: 1.25em; font-weight:bold; border: 1px solid #d0d7de">FREE to use and modify.<br></td>
-       <td style="border: 1px solid #d0d7de">
-       <span style="color: orange;">Banks, Funds, Accountants, Treasuries:</span>
-       <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
-          <span style="text-align: center; font-style:italic;">
-          Can purchase a licence extension. $300 per year / per user.</span><br>
-          <span style="text-align: center; font-style:italic;">
-          contact: rateslib@gmail.com
-          </span>
-       </td>
-     </tr>
-   </tbody>
+   <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
+      <thead style="background-color: #ebf0f4;">
+        <tr>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic, Personal, or Educational Use</th>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use: Banks, Funds, Accountants, Treasuries</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:green; font-size: 1.25em; font-weight:bold;">FREE to use and modify.<br></td>
+          <td style="">
+          <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
+             <span style="text-align: center; font-style:italic;">
+             Can purchase a licence extension. $300 per year / per user.</span><br>
+             <span style="text-align: center; font-style:italic;">
+             contact: rateslib@gmail.com
+             </span>
+          </td>
+        </tr>
+      </tbody>
    </table>
 
 The techniques and object interaction within *rateslib* were inspired by
