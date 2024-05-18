@@ -18,6 +18,8 @@ email contact through **rateslib@gmail.com**.
 This version uses **Rust** bindings. See :ref:`getting started <pricing-doc>`
 for notes about installation changes.
 
+New *FX Volatility Products* are set to **beta** status, probably until version 2.0.
+
 .. list-table::
    :widths: 25 75
    :header-rows: 1
@@ -37,10 +39,11 @@ for notes about installation changes.
      - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
        to use based on the AD sensitivities of the given `x` value.
    * - Instruments
-     - Basic *FX Volatility Instruments* have been added, including
+     - Basic *FX Volatility Instruments* have been added in **beta** status, including
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
        :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
-       :class:`~rateslib.instruments.FXStrangle`, and :class:`~rateslib.instruments.FXOptionStrat`.
+       :class:`~rateslib.instruments.FXStrangle`, :class:`~rateslib.instruments.FXBrokerFly`
+       and :class:`~rateslib.instruments.FXOptionStrat`.
        See :ref:`user guide section <fx-volatility-doc>` for more information.
    * - FX Volatility
      - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
