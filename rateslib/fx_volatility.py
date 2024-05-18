@@ -778,6 +778,49 @@ class FXDeltaVolSmile:
         return plot(x, y, labels)
 
 
+class FXDeltaVolSurface:
+
+    def __init__(
+        self,
+        delta_indexes: Union[list, NoInput] = NoInput(0),
+        expiries: Union[list, NoInput] = NoInput(0),
+        node_values: Union[list, NoInput] = NoInput(0),
+        eval_date: Union[datetime, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
+        id: Union[str, NoInput] = NoInput(0),
+        ad: int = 0,
+    ):
+        node_values = np.asarray(node_values)
+        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
+        self.eval_date = eval_date
+        self.expiries = expiries
+        self.delta_indexes = delta_indexes
+        self.delta_type = _validate_delta_type(delta_type)
+        self.smiles = [
+            FXDeltaVolSmile(
+                nodes={
+                    k: v for k, v in zip(self.delta_indexes, node_values[i, :])
+                },
+                expiry=expiry,
+                eval_date=self.eval_date,
+                delta_type=self.delta_type,
+                id=f"{self.id}_{i}",
+            ) for i, expiry in enumerate(self.expiries)
+        ]
+        self.n = len(self.expiries) * len(self.delta_indexes)
+
+        self._set_ad_order(ad)  # includes csolve on each smile
+
+    def _set_ad_order(self, order: int):
+        for smile in self.smiles:
+            smile._set_ad_order(order)
+
+    def _set_node_values(self, node_vector):
+        m = len(self.delta_indexes)
+        for i in range(len(node_vector) / m):
+            self.smiles[i]._set_node_values(node_vector[i*m:i*m+m])
+
+
 def _validate_delta_type(delta_type: str):
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
