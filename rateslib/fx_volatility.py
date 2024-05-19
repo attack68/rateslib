@@ -14,11 +14,13 @@ from rateslib.dual import (
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
 from rateslib.solver import newton_1dim
+from rateslibrs import index_left_f64
 from uuid import uuid4
 import numpy as np
 from typing import Union
 from datetime import datetime
 from pandas import DataFrame
+from pytz import UTC
 
 # class FXMoneyVolSmile:
 #
@@ -813,8 +815,9 @@ class FXDeltaVolSurface:
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.eval_date = eval_date
         self.expiries = expiries
+        self.expiries_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
         for idx in range(1, len(self.expiries)):
-            if self.node_dates[idx - 1] >= self.node_dates[idx]:
+            if self.expiries[idx - 1] >= self.expiries[idx]:
                 raise ValueError(
                     "Surface `expiries` are not sorted or contain duplicates.\n"
                 )
@@ -829,7 +832,7 @@ class FXDeltaVolSurface:
                 expiry=expiry,
                 eval_date=self.eval_date,
                 delta_type=self.delta_type,
-                id=f"{self.id}_{i}",
+                id=f"{self.id}_{i}_",
             ) for i, expiry in enumerate(self.expiries)
         ]
         self.n = len(self.expiries) * len(self.delta_indexes)
@@ -837,6 +840,7 @@ class FXDeltaVolSurface:
         self._set_ad_order(ad)  # includes csolve on each smile
 
     def _set_ad_order(self, order: int):
+        self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
 
@@ -845,6 +849,55 @@ class FXDeltaVolSurface:
         for i in range(len(vector) / m):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
+
+    def get_smile(self, expiry: datetime):
+        """
+        Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
+
+        Parameters
+        ----------
+        expiry: datetime
+            The expiry for the *Smile* as cross-section of *Surface*.
+
+        Returns
+        -------
+        FXDeltaVolSmile
+        """
+        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
+        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
+        if abs(expiry_posix - self.expiries_posix[e_idx]) < 1e-15:
+            # expiry aligns with a known smile
+            return self.smiles[e_idx]
+        elif expiry_posix > self.expiries_posix[-1]:
+            # use the data from the last smile
+            _ = FXDeltaVolSmile(
+                nodes={
+                    k: v for k, v in zip(self.delta_indexes, self.smiles[-1].nodes.values())
+                },
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                delta_type=self.delta_type,
+                id=self.smiles[-1].id + "_ext"
+            )
+            return _
+        elif expiry <= self.eval_date:
+            raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
+        elif expiry_posix < self.expiries_posix[0]:
+            # use the data from the first smile
+            _ = FXDeltaVolSmile(
+                nodes={
+                    k: v for k, v in zip(self.delta_indexes, self.smiles[0].nodes.values())
+                },
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                delta_type=self.delta_type,
+                id=self.smiles[-1].id + "_ext"
+            )
+            return _
+        else:
+            raise NotImplementedError("not interpolated yet.")
 
 
 def _validate_delta_type(delta_type: str):
