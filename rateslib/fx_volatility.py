@@ -813,6 +813,12 @@ class FXDeltaVolSurface:
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.eval_date = eval_date
         self.expiries = expiries
+        for idx in range(1, len(self.expiries)):
+            if self.node_dates[idx - 1] >= self.node_dates[idx]:
+                raise ValueError(
+                    "Surface `expiries` are not sorted or contain duplicates.\n"
+                )
+
         self.delta_indexes = delta_indexes
         self.delta_type = _validate_delta_type(delta_type)
         self.smiles = [
@@ -834,10 +840,11 @@ class FXDeltaVolSurface:
         for smile in self.smiles:
             smile._set_ad_order(order)
 
-    def _set_node_values(self, node_vector):
+    def _set_node_vector(self, vector, ad: int):
         m = len(self.delta_indexes)
-        for i in range(len(node_vector) / m):
-            self.smiles[i]._set_node_values(node_vector[i*m:i*m+m])
+        for i in range(len(vector) / m):
+            # smiles are indexed by expiry, shortest first
+            self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
 
 
 def _validate_delta_type(delta_type: str):
