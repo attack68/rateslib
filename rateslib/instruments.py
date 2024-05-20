@@ -40,7 +40,7 @@ from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_mont
 from rateslib.default import NoInput, plot
 
 from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
-from rateslib.solver import Solver, quadratic_eqn, newton_1dim
+from rateslib.solver import Solver, quadratic_eqn
 from rateslib.periods import (
     Cashflow,
     FloatPeriod,
@@ -66,12 +66,10 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_log,
-    dual_norm_cdf,
-    dual_norm_pdf,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min
+from rateslib.fx_volatility import FXDeltaVolSmile
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -273,11 +271,11 @@ def _get_curves_fx_and_base_maybe_from_solver(
 def _get_vol_maybe_from_solver(
     vol_attr: Union[DualTypes, str, FXDeltaVolSmile, NoInput],
     vol: Union[DualTypes, str, FXDeltaVolSmile, NoInput],
-    solver: Union[Solver, NoInput]
+    solver: Union[Solver, NoInput],
 ):
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with instrument.
-    
+
     Parameters
     ----------
     vol_attr: DualTypes, str or FXDeltaVolSmile
@@ -2064,7 +2062,7 @@ class BondMixin:
         a, b, c = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
             gradient(npv_price, ["z_spread"], 1)[0],
-            float(npv_price) - float(price)
+            float(npv_price) - float(price),
         )
         z_hat2 = quadratic_eqn(a, b, c, x0=-c / b)["g"]
 
@@ -8158,15 +8156,18 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         )
         self.kwargs = _push(spec, self.kwargs)
 
-        self.kwargs = _update_with_defaults(self.kwargs, {
-            "delta_type": defaults.fx_delta_type,
-            "notional": defaults.notional,
-            "modifier": defaults.modifier,
-            "metric": "pips_or_%",
-            "delivery_lag": defaults.fx_delivery_lag,
-            "payment_lag": defaults.payment_lag,
-            "premium_ccy": self.kwargs["pair"][3:],
-        })
+        self.kwargs = _update_with_defaults(
+            self.kwargs,
+            {
+                "delta_type": defaults.fx_delta_type,
+                "notional": defaults.notional,
+                "modifier": defaults.modifier,
+                "metric": "pips_or_%",
+                "delivery_lag": defaults.fx_delivery_lag,
+                "payment_lag": defaults.payment_lag,
+                "premium_ccy": self.kwargs["pair"][3:],
+            },
+        )
 
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
@@ -8176,7 +8177,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 self.kwargs["expiry"],
                 self.kwargs["modifier"],
                 self.kwargs["calendar"],
-                NoInput(0)
+                NoInput(0),
             )
 
         if isinstance(self.kwargs["delivery_lag"], datetime):
@@ -8210,10 +8211,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 f"currency pair: '{self.kwargs['pair']}'."
             )
         elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-            self.kwargs["metric_period"] = "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            self.kwargs["metric_period"] = (
+                "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            )
             self.kwargs["delta_adjustment"] = ""
         else:
-            self.kwargs["metric_period"] = "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            self.kwargs["metric_period"] = (
+                "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            )
             self.kwargs["delta_adjustment"] = "_pa"
 
         # nothing to inherit or negate.
@@ -8230,7 +8235,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             raise ValueError("`strike` for FXOption must be set to numeric or string value.")
         if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] is not NoInput.blank:
             raise ValueError(
-                f"FXOption with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "FXOption with string delta as `strike` cannot be initialised with a known `premium`.\n"
                 "Either set `strike` as a defined numeric value, or remove the `premium`."
             )
 
@@ -8271,7 +8276,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 self._pricing["k"] = fx.rate(self.kwargs["pair"], self._pricing["spot"])
 
             elif method == "atm_delta":
-                self._pricing["k"], self._pricing["delta_index"] = self.periods[0]._strike_and_index_from_atm(
+                self._pricing["k"], self._pricing["delta_index"] = self.periods[
+                    0
+                ]._strike_and_index_from_atm(
                     delta_type=self.periods[0].delta_type,
                     vol=vol,
                     w_deli=w_deli,
@@ -8282,7 +8289,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                self._pricing["k"], self._pricing["delta_index"] = self.periods[0]._strike_and_index_from_delta(
+                self._pricing["k"], self._pricing["delta_index"] = self.periods[
+                    0
+                ]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                     vol=vol,
@@ -8547,7 +8556,9 @@ class FXCall(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"],
+                strike=NoInput(0)
+                if isinstance(self.kwargs["strike"], str)
+                else self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -8579,7 +8590,9 @@ class FXPut(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"],
+                strike=NoInput(0)
+                if isinstance(self.kwargs["strike"], str)
+                else self.kwargs["strike"],
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -8607,6 +8620,7 @@ class FXOptionStrat:
     rate_weight_vol: list
         The multiplier for the *'vol'* metric that sums the options to a final *rate*.
     """
+
     _pricing = {}
 
     def __init__(
@@ -8629,9 +8643,7 @@ class FXOptionStrat:
         """Standardise a vol input over the list of periods"""
         if not isinstance(vol, (list, tuple)):
             vol = [vol] * len(self.periods)
-        return [
-            _get_vol_maybe_from_solver(self.vol, _, solver) for _ in vol
-        ]
+        return [_get_vol_maybe_from_solver(self.vol, _, solver) for _ in vol]
 
     def rate(
         self,
@@ -8654,7 +8666,7 @@ class FXOptionStrat:
         map_ = {
             "pips_or_%": self.rate_weight,
             "vol": self.rate_weight_vol,
-            "premium": [1.0] * len(self.periods)
+            "premium": [1.0] * len(self.periods),
         }
         weights = map_[metric]
 
@@ -8784,7 +8796,7 @@ class FXOptionStrat:
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
         _ = {}
         for attr in _unit_attrs:
-            _[attr] = sum(gk[attr]*self.rate_weight[i] for i, gk in enumerate(gks))
+            _[attr] = sum(gk[attr] * self.rate_weight[i] for i, gk in enumerate(gks))
 
         _notional_attrs = [
             f"delta_{self.kwargs['pair'][:3]}",
@@ -8792,14 +8804,16 @@ class FXOptionStrat:
             f"vega_{self.kwargs['pair'][3:]}",
         ]
         for attr in _notional_attrs:
-            _[attr] = sum(gk[attr]*self.rate_weight[i] for i, gk in enumerate(gks))
+            _[attr] = sum(gk[attr] * self.rate_weight[i] for i, gk in enumerate(gks))
 
-        _.update({
-            "__class": "FXOptionStrat",
-            "__options": gks,
-            "__delta_type": gks[0]["__delta_type"],
-            "__notional": self.kwargs["notional"]
-        })
+        _.update(
+            {
+                "__class": "FXOptionStrat",
+                "__options": gks,
+                "__delta_type": gks[0]["__delta_type"],
+                "__notional": self.kwargs["notional"],
+            }
+        )
         return _
 
 
@@ -8893,11 +8907,13 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     def _validate_strike_and_premiums(self):
         """called as part of init, specific validation rules for straddle"""
         if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
-            raise ValueError("`strike` for FXRiskReversal must be set to list of 2 numeric or string values.")
+            raise ValueError(
+                "`strike` for FXRiskReversal must be set to list of 2 numeric or string values."
+            )
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
-                    f"FXRiskReversal with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "FXRiskReversal with string delta as `strike` cannot be initialised with a known `premium`.\n"
                     "Either set `strike` as a defined numeric value, or remove the `premium`."
                 )
 
@@ -8978,9 +8994,12 @@ class FXStraddle(FXOptionStrat, FXOption):
         """called as part of init, specific validation rules for straddle"""
         if self.kwargs["strike"] is NoInput.blank:
             raise ValueError("`strike` for FXStraddle must be set to numeric or string value.")
-        if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] != [NoInput.blank, NoInput.blank]:
+        if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] != [
+            NoInput.blank,
+            NoInput.blank,
+        ]:
             raise ValueError(
-                f"FXStraddle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "FXStraddle with string delta as `strike` cannot be initialised with a known `premium`.\n"
                 "Either set `strike` as a defined numeric value, or remove the `premium`."
             )
 
@@ -9037,12 +9056,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         metric="single_vol",
         **kwargs,
     ):
-        super(FXOptionStrat, self).__init__(
-            *args,
-            strike=strike,
-            premium=premium,
-            **kwargs
-        )
+        super(FXOptionStrat, self).__init__(*args, strike=strike, premium=premium, **kwargs)
         self.kwargs["metric"] = metric
         self._is_fixed_delta = [
             isinstance(self.kwargs["strike"][0], str)
@@ -9090,11 +9104,13 @@ class FXStrangle(FXOptionStrat, FXOption):
     def _validate_strike_and_premiums(self):
         """called as part of init, specific validation rules for strangle"""
         if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
-            raise ValueError("`strike` for FXStrangle must be set to list of 2 numeric or string values.")
+            raise ValueError(
+                "`strike` for FXStrangle must be set to list of 2 numeric or string values."
+            )
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
-                    f"FXStrangle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "FXStrangle with string delta as `strike` cannot be initialised with a known `premium`.\n"
                     "Either set `strike` as a defined numeric value, or remove the `premium`."
                 )
 
@@ -9127,7 +9143,6 @@ class FXStrangle(FXOptionStrat, FXOption):
         return self._rate(curves, solver, fx, base, vol, metric)
 
     def _rate(self, curves, solver, fx, base, vol, metric, record_greeks=False):
-
         metric = _drb(self.kwargs["metric"], metric).lower()
         if metric != "single_vol" and not any(self._is_fixed_delta):
             # the strikes are explicitly defined and independent across options.
@@ -9176,12 +9191,22 @@ class FXStrangle(FXOptionStrat, FXOption):
             ]
 
             # Apply ad hoc Newton 1d algorithm
-            f0 = (smile_gks[0]["__bs76"] + smile_gks[1]["__bs76"] - gks[0]["__bs76"] - gks[1]["__bs76"])
+            f0 = (
+                smile_gks[0]["__bs76"]
+                + smile_gks[1]["__bs76"]
+                - gks[0]["__bs76"]
+                - gks[1]["__bs76"]
+            )
 
             kega1 = gks[0]["_kega"] if self._is_fixed_delta[0] else 0.0
             kega2 = gks[1]["_kega"] if self._is_fixed_delta[1] else 0.0
             f1 = smile_gks[0]["_kappa"] * kega1 + smile_gks[1]["_kappa"] * kega2
-            f1 -= gks[0]["vega"] + gks[1]["vega"] + gks[0]["_kappa"] * kega1 + gks[1]["_kappa"] * kega2
+            f1 -= (
+                gks[0]["vega"]
+                + gks[1]["vega"]
+                + gks[0]["_kappa"] * kega1
+                + gks[1]["_kappa"] * kega2
+            )
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0
             iters += 1
@@ -9190,12 +9215,18 @@ class FXStrangle(FXOptionStrat, FXOption):
             self._pricing["strangle_greeks"] = {
                 "single_vol": {
                     "FXPut": self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
-                    "FXCall": self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                    "FXCall": self.periods[1].analytic_greeks(
+                        curves, solver, fx, base, vol=tgt_vol
+                    ),
                 },
                 "market_vol": {
-                    "FXPut": self.periods[0].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
-                    "FXCall": self.periods[1].periods[0].analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
-                }
+                    "FXPut": self.periods[0]
+                    .periods[0]
+                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                    "FXCall": self.periods[1]
+                    .periods[0]
+                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+                },
             }
 
         return tgt_vol
@@ -9229,7 +9260,6 @@ class FXStrangle(FXOptionStrat, FXOption):
 
 
 class FXBrokerFly(FXOptionStrat, FXOption):
-
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [1.0, -1.0]
     _rate_scalar = 100.0
@@ -9241,10 +9271,14 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         strike=[NoInput(0), NoInput(0), NoInput(0)],
         notional=[NoInput(0), NoInput(0)],
         metric="single_vol",
-        **kwargs
+        **kwargs,
     ):
-        super(FXOptionStrat, self).__init__(*args, premium=premium, strike=strike, notional=notional, **kwargs)
-        self.kwargs["notional"][1] = NoInput(0) if self.kwargs["notional"][1] is None else self.kwargs["notional"][1]
+        super(FXOptionStrat, self).__init__(
+            *args, premium=premium, strike=strike, notional=notional, **kwargs
+        )
+        self.kwargs["notional"][1] = (
+            NoInput(0) if self.kwargs["notional"][1] is None else self.kwargs["notional"][1]
+        )
         self.kwargs["metric"] = metric
         self.periods = [
             FXStrangle(
@@ -9280,18 +9314,24 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 metric="vol" if self.kwargs["metric"] == "single_vol" else self.kwargs["metric"],
                 curves=self.curves,
                 vol=self.vol,
-            )
+            ),
         ]
 
     def _maybe_set_vega_neutral_notional(self, curves, solver, fx, base, vol, metric):
         if self.kwargs["notional"][1] is NoInput.blank and metric in ["pips_or_%", "premium"]:
-            self.periods[0]._rate(curves, solver, fx, base, vol=vol[0], metric="single_vol", record_greeks=True)
-            self._pricing["straddle_greeks"] = self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1])
+            self.periods[0]._rate(
+                curves, solver, fx, base, vol=vol[0], metric="single_vol", record_greeks=True
+            )
+            self._pricing["straddle_greeks"] = self.periods[1].analytic_greeks(
+                curves, solver, fx, base, vol=vol[1]
+            )
             strangle_vega = self._pricing["strangle_greeks"]["market_vol"]["FXPut"]["vega"]
             strangle_vega += self._pricing["strangle_greeks"]["market_vol"]["FXCall"]["vega"]
             straddle_vega = self._pricing["straddle_greeks"]["vega"]
             scalar = strangle_vega / straddle_vega
-            self.periods[1].kwargs["notional"] = float(self.periods[0].periods[0].periods[0].notional * -scalar)
+            self.periods[1].kwargs["notional"] = float(
+                self.periods[0].periods[0].periods[0].notional * -scalar
+            )
             self.periods[1]._set_notionals(self.periods[1].kwargs["notional"])
             # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
 
@@ -9339,13 +9379,19 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         if not isinstance(vol, list):
             vol = [[vol, vol], vol]
         else:
-            vol = [[vol[0], vol[2]], vol[1]]  # restructure to pass to Strangle and Straddle separately
+            vol = [
+                [vol[0], vol[2]],
+                vol[1],
+            ]  # restructure to pass to Strangle and Straddle separately
 
         temp_metric = _drb(self.kwargs["metric"], metric)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, temp_metric.lower())
 
         if temp_metric == "pips_or_%":
-            straddle_scalar = self.periods[1].periods[0].periods[0].notional / self.periods[0].periods[0].periods[0].notional
+            straddle_scalar = (
+                self.periods[1].periods[0].periods[0].notional
+                / self.periods[0].periods[0].periods[0].notional
+            )
             weights = [1.0, straddle_scalar]
         elif temp_metric == "premium":
             weights = self.rate_weight
@@ -9365,9 +9411,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         local: bool = False,
         vol: float = NoInput(0),
     ):
-        """
-
-        """
+        """ """
         # implicitly call set_pricing_mid for unpriced parameters
         self.rate(curves, solver, fx, base, vol, metric="pips_or_%")
         # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
@@ -9381,7 +9425,10 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         # TODO: this method can be optimised because it calculates greeks at multiple times within frames
         g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, local, vol[0])
         d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, local, vol[1])
-        sclr = abs(self.periods[1].periods[0].periods[0].notional / self.periods[0].periods[0].periods[0].notional)
+        sclr = abs(
+            self.periods[1].periods[0].periods[0].notional
+            / self.periods[0].periods[0].periods[0].notional
+        )
 
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
         _ = {}
@@ -9396,12 +9443,14 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         for attr in _notional_attrs:
             _[attr] = g_grks[attr] - d_grks[attr]
 
-        _.update({
-            "__class": "FXOptionStrat",
-            "__strategies": {"FXStrangle": g_grks, "FXStraddle": d_grks},
-            "__delta_type": g_grks["__delta_type"],
-            "__notional": self.kwargs["notional"],
-        })
+        _.update(
+            {
+                "__class": "FXOptionStrat",
+                "__strategies": {"FXStrangle": g_grks, "FXStraddle": d_grks},
+                "__delta_type": g_grks["__delta_type"],
+                "__notional": self.kwargs["notional"],
+            }
+        )
         return _
 
     def _plot_payoff(
