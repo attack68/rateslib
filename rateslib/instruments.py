@@ -37,7 +37,7 @@ from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
-from rateslib.default import NoInput, plot
+from rateslib.default import NoInput, plot, _drb
 
 from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
 from rateslib.solver import Solver, quadratic_eqn
@@ -8314,6 +8314,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     f=self._pricing["f_d"],
                     w_deli=w_deli,
                     w_spot=w_spot,
+                    expiry=self.kwargs["expiry"]
                 )
             else:
                 self._pricing["vol"] = vol[self._pricing["delta_index"]]
@@ -9463,6 +9464,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         local: bool = False,
         vol: Union[list[float], float] = NoInput(0),
     ):
+        vol = self._vol_as_list(vol, solver)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, metric="pips_or_%")
         return super()._plot_payoff(range, curves, solver, fx, base, local, vol)
 
@@ -10053,6 +10055,4 @@ def _upper(val: Union[str, NoInput]):
     return val
 
 
-def _drb(default, possible_blank):
-    """(D)efault (r)eplaces (b)lank"""
-    return default if possible_blank is NoInput.blank else possible_blank
+

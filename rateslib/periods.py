@@ -41,9 +41,12 @@ from rateslib.curves import (
 )
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
+    FXDeltaVolSurface,
     _black76,
     _delta_type_constants,
     _d_plus_min_u,
+    FXVols,
+    FXVolObj,
 )
 from rateslib.splines import evaluate
 from rateslib.dual import (
@@ -2436,7 +2439,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
-        vol: Union[DualTypes, FXDeltaVolSmile, NoInput] = NoInput(0),
+        vol: Union[DualTypes, FXVols, NoInput] = NoInput(0),
     ):
         """
         Return the NPV of the *FXOption*.
@@ -2453,7 +2456,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The base currency in which to express the NPV.
         local: bool,
             Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2, FXDeltaVolSmile
+        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
             The percentage log-normal volatility to price the option.
 
         Returns
@@ -2475,7 +2478,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         else:
             # value is expressed in currency (i.e. pair[3:])
-            vol_ = self._get_vol_maybe_from_smile(vol, fx, disc_curve)
+            vol_ = self._get_vol_maybe_from_obj(vol, fx, disc_curve)
 
             value = _black76(
                 F=fx.rate(self.pair, self.delivery),
@@ -2633,7 +2636,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             Not used by `analytic_greeks`.
         local: bool,
             Not used by `analytic_greeks`.
-        vol: float, Dual, Dual2 or FXDeltaVolSmile
+        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
             The volatility used in calculation.
         premium: float, Dual, Dual2, optional
             The premium value of the option paid at the appropriate payment date.
@@ -2713,8 +2716,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         u = self.strike / f_d
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
-        if isinstance(vol, FXDeltaVolSmile):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_deli, w_spot)
+        if isinstance(vol, FXVolObj):
+            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_deli, w_spot, self.expiry)
         else:
             vol_ = vol
         vol_ /= 100.0
@@ -3129,15 +3132,18 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _strike_and_index_from_atm(
         self,
         delta_type: str,
-        vol: Union[DualTypes, FXDeltaVolSmile],
+        vol: Union[DualTypes, FXVols],
         w_deli,
         w_spot,
         f,
         t_e,
     ):
-        if not isinstance(vol, FXDeltaVolSmile):
+        if not isinstance(vol, FXVolObj):
             vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
         else:
+            if isinstance(vol, FXDeltaVolSurface):
+                # convert a Surface to Smile for simplified calculations below.
+                vol = vol.get_smile(self.expiry)
             vol_delta_type = vol.delta_type
 
         z_w = w_deli / w_spot
@@ -3176,15 +3182,17 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: str,
-        vol: Union[DualTypes, FXDeltaVolSmile],
+        vol: Union[DualTypes, FXVols],
         w_deli,
         w_spot,
         f,
         t_e,
     ):
-        if not isinstance(vol, FXDeltaVolSmile):
+        if not isinstance(vol, FXVolObj):
             vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
         else:
+            if isinstance(vol, FXDeltaVolSurface):
+                vol = vol.get_smile(self.expiry)
             vol_delta_type = vol.delta_type
 
         z_w = w_deli / w_spot
@@ -3738,23 +3746,18 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #     root_solver = _brents(root, u_min, u_max)
     #
     #     return float(root_solver[0] * f)
-    def _get_vol_maybe_from_smile(
+    def _get_vol_maybe_from_obj(
         self,
-        vol: Union[FXDeltaVolSmile, DualTypes],
+        vol: Union[FXVols, DualTypes],
         fx: FXForwards,
         disc_curve: Curve,
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
-        if isinstance(vol, FXDeltaVolSmile):
-            if self.expiry != vol.expiry:
-                raise ValueError(
-                    "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
-                    "due to potential pricing errors."
-                )
+        if isinstance(vol, FXVolObj):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
             _, vol_, _ = vol.get_from_strike(
-                self.strike, self.phi, f, disc_curve[self.delivery], disc_curve[spot]
+                self.strike, self.phi, f, disc_curve[self.delivery], disc_curve[spot], self.expiry
             )
         else:
             vol_ = vol
