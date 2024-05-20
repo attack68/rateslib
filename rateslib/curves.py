@@ -1208,6 +1208,9 @@ class Curve(_Serialize):
             )
         self.csolve()
 
+    def _get_node_vector(self):
+        return np.array(list(self.nodes.values())[self._ini_solve:])
+
 
 class LineCurve(Curve):
     """
@@ -2314,6 +2317,9 @@ class CompositeCurve(IndexCurve):
             raise TypeError("`index_value` not available on non `IndexCurve` types.")
         return super().index_value(date, interpolation)
 
+    def _get_node_vector(self):
+        return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
+
 
 class MultiCsaCurve(CompositeCurve):
     """
@@ -2657,6 +2663,9 @@ class ProxyCurve(Curve):
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         return NotImplementedError("`set_ad_order` not available on proxy curve.")
+
+    def _get_node_vector(self):
+        return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
 def average_rate(effective, termination, convention, rate):

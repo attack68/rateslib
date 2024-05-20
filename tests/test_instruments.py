@@ -106,7 +106,7 @@ class TestCurvesandSolver:
     def test_get_curve_from_solver(self):
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-        solver = Solver([curve], inst, [0.975])
+        solver = Solver([curve], [], inst, [0.975])
 
         result = _get_curve_from_solver("tagged", solver)
         assert result == curve
@@ -143,7 +143,7 @@ class TestCurvesandSolver:
             FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
         )
-        solver = Solver([curve], inst, [0.975], fx=fxfs if fxf else NoInput(0)) if solver else NoInput(0)
+        solver = Solver([curve], [], inst, [0.975], fx=fxfs if fxf else NoInput(0)) if solver else NoInput(0)
         curve = curve if crv else NoInput(0)
 
         if solver is not NoInput(0) and fxf and fx is not NoInput(0):
@@ -195,7 +195,7 @@ class TestCurvesandSolver:
 
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-        solver = Solver([curve], inst, [0.975])
+        solver = Solver([curve], [], inst, [0.975])
 
         with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
             _get_curves_fx_and_base_maybe_from_solver(NoInput(0), NoInput(0), "tagged", NoInput(0), NoInput(0), "")
@@ -212,7 +212,7 @@ class TestCurvesandSolver:
 
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
-        solver = Solver([curve], inst, [0.975])
+        solver = Solver([curve], [], inst, [0.975])
         result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0), solver, ["tagged"] * num, NoInput(0), NoInput(0), ""
         )
@@ -226,7 +226,7 @@ class TestCurvesandSolver:
             FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
         )
-        solver = Solver([curve], inst, [0.975], fx=fxf)
+        solver = Solver([curve], [], inst, [0.975], fx=fxf)
         curve = fxf.curve("eur", "usd")
         irs = IRS(dt(2022, 1, 1), "3m", "Q")
 
@@ -4132,6 +4132,7 @@ class TestFXBrokerFly:
         assert abs(result["delta_eur"] - expected_ccy[0]) < 1e-1
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1.5
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-1
+
 
 class TestVolValue:
 

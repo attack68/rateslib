@@ -535,7 +535,7 @@ def test_solver_pre_solver_dependency_generates_same_delta():
         (IRS(dt(2022, 1, 1), "2Y", "A"), (eur_disc_curve,), {}),
     ]
     eur_disc_s = [2.01, 2.22, 2.55]
-    eur_disc_solver = Solver([eur_disc_curve], eur_instruments, eur_disc_s, id="estr")
+    eur_disc_solver = Solver([eur_disc_curve], [], eur_instruments, eur_disc_s, id="estr")
 
     eur_ibor_curve = Curve(
         nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0, dt(2024, 1, 1): 1.0}, id="eur_ibor"
@@ -546,7 +546,7 @@ def test_solver_pre_solver_dependency_generates_same_delta():
     ]
     eur_ibor_s = [2.25, 2.65]
     eur_solver2 = Solver(
-        [eur_ibor_curve], eur_ibor_instruments, eur_ibor_s, pre_solvers=[eur_disc_solver], id="ibor"
+        [eur_ibor_curve], [], eur_ibor_instruments, eur_ibor_s, pre_solvers=[eur_disc_solver], id="ibor"
     )
 
     eur_disc_curve2 = Curve(
@@ -565,6 +565,7 @@ def test_solver_pre_solver_dependency_generates_same_delta():
     eur_disc_s2 = [2.01, 2.22, 2.55, 2.25, 2.65]
     eur_solver_sim = Solver(
         [eur_disc_curve2, eur_ibor_curve2],
+        [],
         eur_instruments2,
         eur_disc_s2,
         id="eur_sol_sim",
@@ -597,7 +598,7 @@ def test_delta_gamma_calculation():
         (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
     ]
     estr_solver = Solver(
-        [estr_curve], estr_instruments, [2.0, 1.5], id="estr", instrument_labels=["10Y", "20Y"]
+        [estr_curve], [], estr_instruments, [2.0, 1.5], id="estr", instrument_labels=["10Y", "20Y"]
     )
 
     # Mechanism 1: dynamic
@@ -635,7 +636,7 @@ def test_solver_delta_fx_noinput():
         (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
     ]
     estr_solver = Solver(
-        [estr_curve], estr_instruments, [2.0, 1.5], id="estr", instrument_labels=["10Y", "20Y"]
+        [estr_curve], [], estr_instruments, [2.0, 1.5], id="estr", instrument_labels=["10Y", "20Y"]
     )
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, fixed_rate=2)
     npv = eur_swap.npv(curves=estr_curve, solver=estr_solver, local=True)
@@ -654,6 +655,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
     estr_labels = ["7ye", "15ye", "20ye"]
     estr_solver = Solver(
         [estr_curve],
+        [],
         estr_instruments,
         estr_s,
         id="estr",
@@ -670,6 +672,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
     ibor_labels = ["10Yi", "20Yi"]
     ibor_solver = Solver(
         [ibor_curve],
+        [],
         ibor_instruments,
         ibor_s,
         id="ibor",
@@ -693,6 +696,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
     ]
     simultaneous_solver = Solver(
         [estr_curve2, ibor_curve2],
+        [],
         sim_instruments,
         estr_s + ibor_s,
         id="simul",
@@ -733,6 +737,7 @@ def test_nonmutable_presolver_defaults():
     estr_labels = ["10ye"]
     estr_solver = Solver(
         [estr_curve],
+        [],
         estr_instruments,
         estr_s,
         id="estr",
@@ -761,7 +766,7 @@ def test_solver_grad_s_vT_methods_equivalent():
         (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
     ]
     s = [1.2, 1.4, 1.6, 1.7, 1.9]
-    solver = Solver([curve], instruments, s, algorithm="gauss_newton")
+    solver = Solver([curve], [], instruments, s, algorithm="gauss_newton")
 
     solver._grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
     grad_s_vT_final_iter_anal = solver.grad_s_vT
@@ -799,7 +804,7 @@ def test_solver_grad_s_vT_methods_equivalent_overspecified_curve():
         (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
     ]
     s = [1.2, 1.4, 1.6, 1.7, 1.9]
-    solver = Solver([curve], instruments, s, algorithm="gauss_newton")
+    solver = Solver([curve], [], instruments, s, algorithm="gauss_newton")
 
     solver._grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
     grad_s_vT_final_iter_anal = solver.grad_s_vT
@@ -901,7 +906,7 @@ def test_solver_float_rate_bond():
             {"metric": "spread"},
         ),
     ]
-    Solver([d_c], instruments, [25, 25, 25])
+    Solver([d_c], [], instruments, [25, 25, 25])
     result = d_c.rate(dt(2022, 7, 1), "1D")
     expected = f_c.rate(dt(2022, 7, 1), "1D") + 0.25
     assert abs(result - expected) < 3e-4

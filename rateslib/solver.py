@@ -836,9 +836,13 @@ class Solver(Gradients):
     Parameters
     ----------
     curves : sequence
-        Sequence of :class:`Curve` objects where each curve has been individually
-        configured for its node dates and interpolation structures, and has a unique
-        ``id``. Each :class:`Curve` will be dynamically updated by the Solver.
+        Sequence of :class:`Curve` or :class:`FXDeltaVolSmile` objects where each *curve*
+        has been individually configured for its node dates and interpolation structures,
+        and has a unique ``id``. Each *curve* will be dynamically updated by the Solver.
+    surfaces : sequence
+        Sequence of :class:`FXDeltaVolSurface` objects where each *surface* has been configured
+        with a unique ``id``. Each *surface* will be dynamically updated. *Surfaces* are appended
+        to ``curves`` and just provide a distinct keyword for organisational distinction.
     instruments : sequence
         Sequence of calibrating instrument specifications that will be used by
         the solver to determine the solved curves. See notes.
@@ -934,6 +938,7 @@ class Solver(Gradients):
     def __init__(
         self,
         curves: Union[list, tuple] = (),
+        surfaces: Union[list, tuple] = (),
         instruments: Union[tuple[tuple], list[tuple]] = (),
         s: list[float] = [],
         weights: Optional[list] = NoInput(0),
@@ -990,7 +995,7 @@ class Solver(Gradients):
 
         self.curves = {
             curve.id: curve
-            for curve in curves
+            for curve in list(curves) + list(surfaces)
             if not type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
             # Proxy and Composite curves have no parameters of their own
         }
@@ -1156,10 +1161,7 @@ class Solver(Gradients):
         Depends on ``self.curves``.
         """
         if self._v is None:
-            _ = []
-            for id, curve in self.curves.items():
-                _.extend([v for v in list(curve.nodes.values())[curve._ini_solve :]])
-            self._v = np.array(_)
+            self._v = np.block([_._get_node_vector() for _ in self.curves.values()])
         return self._v
 
     @property
