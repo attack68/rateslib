@@ -161,6 +161,7 @@ from rateslib.default import _drb
 #                 y.append(diff)
 #         return plot(x, y, labels)
 
+
 class FXDeltaVolSmile:
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
@@ -809,6 +810,9 @@ class FXDeltaVolSmile:
             )
         self.csolve()
 
+    def _get_node_vector(self):
+        return np.array(list(self.nodes.values()))
+
 
 class FXDeltaVolSurface:
 
@@ -861,6 +865,9 @@ class FXDeltaVolSurface:
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
+
+    def _get_node_vector(self):
+        return np.array([list(_.nodes.values()) for _ in self.smiles]).ravel()
 
     def get_smile(self, expiry: datetime):
         """
