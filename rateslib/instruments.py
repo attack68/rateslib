@@ -40,7 +40,7 @@ from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_mont
 from rateslib.default import NoInput, plot
 
 from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
-from rateslib.solver import Solver, quadratic_eqn, newton_1dim
+from rateslib.solver import Solver, quadratic_eqn
 from rateslib.periods import (
     Cashflow,
     FloatPeriod,
@@ -66,12 +66,10 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     dual_log,
-    dual_norm_cdf,
-    dual_norm_pdf,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min
+from rateslib.fx_volatility import FXDeltaVolSmile
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -277,7 +275,7 @@ def _get_vol_maybe_from_solver(
 ):
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with instrument.
-    
+
     Parameters
     ----------
     vol_attr: DualTypes, str or FXDeltaVolSmile
@@ -8230,7 +8228,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             raise ValueError("`strike` for FXOption must be set to numeric or string value.")
         if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] is not NoInput.blank:
             raise ValueError(
-                f"FXOption with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "FXOption with string delta as `strike` cannot be initialised with a known `premium`.\n"
                 "Either set `strike` as a defined numeric value, or remove the `premium`."
             )
 
@@ -8897,7 +8895,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
-                    f"FXRiskReversal with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "FXRiskReversal with string delta as `strike` cannot be initialised with a known `premium`.\n"
                     "Either set `strike` as a defined numeric value, or remove the `premium`."
                 )
 
@@ -8980,7 +8978,7 @@ class FXStraddle(FXOptionStrat, FXOption):
             raise ValueError("`strike` for FXStraddle must be set to numeric or string value.")
         if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] != [NoInput.blank, NoInput.blank]:
             raise ValueError(
-                f"FXStraddle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "FXStraddle with string delta as `strike` cannot be initialised with a known `premium`.\n"
                 "Either set `strike` as a defined numeric value, or remove the `premium`."
             )
 
@@ -9094,7 +9092,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
-                    f"FXStrangle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "FXStrangle with string delta as `strike` cannot be initialised with a known `premium`.\n"
                     "Either set `strike` as a defined numeric value, or remove the `premium`."
                 )
 
