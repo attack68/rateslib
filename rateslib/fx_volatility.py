@@ -856,9 +856,9 @@ class FXDeltaVolSurface:
         for smile in self.smiles:
             smile._set_ad_order(order)
 
-    def _set_node_vector(self, vector, ad: int):
+    def _set_node_vector(self, vector: np.array, ad: int):
         m = len(self.delta_indexes)
-        for i in range(len(vector) / m):
+        for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
 

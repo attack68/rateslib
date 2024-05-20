@@ -294,6 +294,18 @@ class TestFXDeltaVolSmile:
         expected = 10.0
         assert (result - expected) < 0.01
 
+    @pytest.mark.parametrize("delta_type, exp", [("spot", 10.00000489), ("forward", 10.0)])
+    def test_get_from_similar_delta(self, delta_type, exp):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 11.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        result = fxvs.get(0.5, delta_type, 1.0, 0.99, 0.991, 1.02)
+        assert abs(result-exp) < 1e-6
+
     def test_set_same_ad_order(self):
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
@@ -422,6 +434,30 @@ class TestFXDeltaVolSurface:
         assert result.delta_type == expected.delta_type
         assert result.eval_date == expected.eval_date
 
+    def test_smile_from_exact_expiry(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+            id="surf"
+        )
+        expected = FXDeltaVolSmile(
+            nodes={0.25: 19.590, 0.5: 18.25, 0.75: 18.967},
+            eval_date=dt(2023, 1, 1),
+            expiry=dt(2024, 1, 1),
+            delta_type="forward",
+            id="surf_0_"
+        )
+        result = fxvs.get_smile(dt(2024, 1, 1))
+        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+            assert abs(v1 - v2) < 0.0001
+        assert result.expiry == expected.expiry
+        assert result.delta_type == expected.delta_type
+        assert result.eval_date == expected.eval_date
+        assert result.id == expected.id
+
     def test_get_vol_from_strike(self):
         # from a surface creates a smile and then re-uses methods
         fxvs = FXDeltaVolSurface(
@@ -449,6 +485,33 @@ class TestFXDeltaVolSurface:
         )
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
             fxvs.get_from_strike(1.05, 1.0, 1.03, 0.99, 0.999)
+
+    def test_set_node_vector(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+
+        )
+        vec = np.array([3, 2, 4, 5, 4, 6])
+        fxvs._set_node_vector(vec, 1)
+        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values()):
+            assert abs(v1 - v2) < 1e-10
+        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values()):
+            assert abs(v1 - v2) < 1e-10
+
+    def test_expiries_unsorted(self):
+        with pytest.raises(ValueError, match="Surface `expiries` are not sorted or"):
+            fxvs = FXDeltaVolSurface(
+                delta_indexes=[0.25, 0.5, 0.75],
+                expiries=[dt(2024, 1, 1), dt(2024, 1, 1)],
+                node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+                eval_date=dt(2023, 1, 1),
+                delta_type="forward",
+
+            )
 
 
 def test_validate_delta_type():
