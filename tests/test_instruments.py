@@ -892,6 +892,31 @@ class TestIRS:
         cashflows = irs.cashflows(solver=solver)
         assert (cashflows.loc[("leg2", 0), "Rate"] - 3.93693) < 1e-4
 
+    def test_no_rfr_fixings_raises(self):
+        # GH 170
+        T_irs = IRS(
+            effective=dt(2020, 12, 15),
+            termination=dt(2037, 12, 15),
+            notional=-600e6,
+            frequency="A",
+            leg2_frequency="A",
+            fixed_rate=4.5,
+            curves="curve"
+        )
+        par_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 1.0,
+                dt(2024, 1, 1): 1.0,
+                dt(2025, 1, 1): 1.0,
+            },
+            id="curve",
+        )
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+            T_irs.cashflows(curves=par_curve)
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+            T_irs.npv(curves=par_curve)
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve):
