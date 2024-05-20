@@ -14,7 +14,7 @@ from rateslib.fx import (
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
 from rateslib.default import NoInput
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate_delta_type
 from rateslib.periods import FXPutPeriod
 
 @pytest.fixture()
@@ -282,8 +282,7 @@ class TestFXDeltaVolSmile:
         )
         assert abs(result + smile_delta) < 1e-10
 
-
-    def test_get_from_unsimilar_delta(self, ):
+    def test_get_from_unsimilar_delta(self):
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
             delta_type="forward",
@@ -294,6 +293,30 @@ class TestFXDeltaVolSmile:
         result = fxvs.get(0.65, "spot_pa", 1.0, 0.99, 0.999, 0.9)
         expected = 10.0
         assert (result - expected) < 0.01
+
+    def test_set_same_ad_order(self):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+            ad=1,
+        )
+        assert fxvs._set_ad_order(1) is None
+        assert fxvs.nodes[0.25] == Dual(10.0, ["vol0"], [])
+
+    def test_set_ad_order_raises(self):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+            ad=1,
+        )
+        with pytest.raises(ValueError, match="`order` can only be in"):
+            fxvs._set_ad_order(10)
 
     def test_call_to_put_delta_raises(self):
         fxvs = FXDeltaVolSmile(
@@ -324,3 +347,110 @@ class TestFXDeltaVolSmile:
     #     pass
 
 
+class TestFXDeltaVolSurface:
+
+    def test_expiry_before_eval(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[11, 10, 12], [8, 7, 9]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        with pytest.raises(ValueError, match="`expiry` before the `eval_date` of"):
+            fxvs.get_smile(dt(2022, 1, 1))
+
+    def test_smile_0_no_interp(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[11, 10, 12], [8, 7, 9]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        result = fxvs.get_smile(dt(2023, 2, 1))
+        expected = FXDeltaVolSmile(
+            nodes={0.25: 11, 0.5: 10, 0.75: 12},
+            eval_date=dt(2023, 1, 1),
+            expiry=dt(2023, 2, 1),
+            delta_type="forward",
+        )
+        assert result.nodes == expected.nodes
+        assert result.expiry == expected.expiry
+        assert result.delta_type == expected.delta_type
+        assert result.eval_date == expected.eval_date
+
+    def test_smile_end_no_interp(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[11, 10, 12], [8, 7, 9]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        result = fxvs.get_smile(dt(2029, 2, 1))
+        expected = FXDeltaVolSmile(
+            nodes={0.25: 8, 0.5: 7, 0.75: 9},
+            eval_date=dt(2023, 1, 1),
+            expiry=dt(2029, 2, 1),
+            delta_type="forward",
+        )
+        assert result.nodes == expected.nodes
+        assert result.expiry == expected.expiry
+        assert result.delta_type == expected.delta_type
+        assert result.eval_date == expected.eval_date
+
+    def test_smile_tot_var_lin_interp(self):
+        # See Foreign Exchange Option Pricing: Iain Clarke Table 4.5
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        result = fxvs.get_smile(dt(2024, 7, 1))
+        expected = FXDeltaVolSmile(
+            nodes={0.25: 19.0693, 0.5: 17.8713, 0.75: 18.4864},
+            eval_date=dt(2023, 1, 1),
+            expiry=dt(2024, 7, 1),
+            delta_type="forward",
+        )
+        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+            assert abs(v1 - v2) < 0.0001
+        assert result.expiry == expected.expiry
+        assert result.delta_type == expected.delta_type
+        assert result.eval_date == expected.eval_date
+
+    def test_get_vol_from_strike(self):
+        # from a surface creates a smile and then re-uses methods
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        result = fxvs.get_from_strike(
+            1.05, 1.0, 1.03, 0.99, 0.999, dt(2024, 7, 1)
+        )[1]
+        # expected close to delta index of 0.5 i.e around 17.87% vol
+        expected = 17.882603173
+        assert abs(result - expected) < 1e-8
+
+    def test_get_vol_from_strike_raises(self):
+        # from a surface creates a smile and then re-uses methods
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
+            fxvs.get_from_strike(1.05, 1.0, 1.03, 0.99, 0.999)
+
+
+def test_validate_delta_type():
+    with pytest.raises(ValueError, match="`delta_type` must be in"):
+        _validate_delta_type("BAD_TYPE")
