@@ -1441,6 +1441,7 @@ class FloatPeriod(BasePeriod):
         # TODO (low) the next two lines could probably be vectorised and made more efficient.
         fixed = ~isna(rates)
         rates = Series({k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()})
+        # Alternative solution to PR 172.
         # rates = Series({
         #     k: v
         #     if notna(v)
