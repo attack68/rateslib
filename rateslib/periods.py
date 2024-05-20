@@ -2600,7 +2600,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         def root(vol, f_d, k, t_e, v2, phi):
             f0 = _black76(f_d, k, t_e, None, v2, vol, phi) * 10000.0 - imm_premium
-            sqrt_t = t_e ** 0.5
+            sqrt_t = t_e**0.5
             d_plus = _d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
             f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0
             return f0, f1
@@ -2811,7 +2811,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         else:
             x = 0.0
 
-        _ = (d_eta / vol - 2.0 * eta * sqrt_t) / (-1/(k * sqrt_t * vol) + x)
+        _ = (d_eta / vol - 2.0 * eta * sqrt_t) / (-1 / (k * sqrt_t * vol) + x)
         return _
 
     @staticmethod
@@ -3540,6 +3540,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         Solve the ATM delta problem where delta is not explicit.
         """
+
         def root3d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u, delta_idx, delta = g[0], g[1], g[2]
 
@@ -3588,7 +3589,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f1_12 = 0.0  # dh1/ddelta
             f1_22 = 1.0  # dh2/ddelta
 
-            return [f0_0, f0_1, f0_2], [[f1_00, f1_01, f1_02], [f1_10, f1_11, f1_12], [f1_20, f1_21, f1_22]]
+            return [f0_0, f0_1, f0_2], [
+                [f1_00, f1_01, f1_02],
+                [f1_10, f1_11, f1_12],
+                [f1_20, f1_21, f1_22],
+            ]
 
         if isinstance(vol, FXDeltaVolSmile):
             avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
