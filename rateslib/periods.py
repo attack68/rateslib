@@ -1513,7 +1513,8 @@ class FloatPeriod(BasePeriod):
             raise ValueError(
                 "RFRs could not be calculated, have you missed providing `fixings` or "
                 "does the `Curve` begin after the start of a `FloatPeriod` including "
-                "the `method_param` adjustment?"
+                "the `method_param` adjustment?\n"
+                "For further info see: Documentation > Cookbook > Working with fixings."
             )
 
         return rate, DataFrame(
