@@ -1198,7 +1198,7 @@ class Curve(_Serialize):
                 *DualArgs[1:],
             )
 
-        for i, k in enumerate(self.node_keys[self._ini_solve:]):
+        for i, k in enumerate(self.node_keys[self._ini_solve :]):
             self.nodes[k] = DualType.vars_from(
                 base_obj,
                 vector[i].real,

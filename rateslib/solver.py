@@ -1367,7 +1367,7 @@ class Solver(Gradients):
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
             vars = curve.n - curve._ini_solve
-            curve._set_node_vector(v_new[var_counter:var_counter+vars], self._ad)
+            curve._set_node_vector(v_new[var_counter : var_counter + vars], self._ad)
             var_counter += vars
 
         self._reset_properties_()
@@ -2256,13 +2256,20 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
         _1 = (-b + sqrt_d) / (2 * a)
         _2 = (-b - sqrt_d) / (2 * a)
         if abs(x0 - _1) < abs(x0 - _2):
-            return _solver_result(state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn")
+            return _solver_result(
+                state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn"
+            )
         else:
-            return _solver_result(state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn")
+            return _solver_result(
+                state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn"
+            )
     else:
         # 'a' is considered too close to zero for the quadratic eqn, solve the linear eqn
         # to avoid division by zero errors
-        return _solver_result(state=3, i=1, func_val=-c / b, time=0.0, log=False, algo="quadratic_eqn->linear_eqn")
+        return _solver_result(
+            state=3, i=1, func_val=-c / b, time=0.0, log=False, algo="quadratic_eqn->linear_eqn"
+        )
+
 
 # def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
 #     """
