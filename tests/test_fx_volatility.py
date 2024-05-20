@@ -282,6 +282,30 @@ class TestFXDeltaVolSmile:
         )
         assert abs(result + smile_delta) < 1e-10
 
+
+    def test_get_from_unsimilar_delta(self, ):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99, 0.999, 0.9)
+        expected = 10.0
+        assert (result - expected) < 0.01
+
+    def test_call_to_put_delta_raises(self):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        with pytest.raises(ValueError, match="`delta_type` must be in"):
+            fxvs._call_to_put_delta(0.5, "bad_type")
+
     def test_iter_raises(self):
         fxvs = FXDeltaVolSmile(
             nodes={0.5: 1.0},
