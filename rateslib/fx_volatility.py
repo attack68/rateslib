@@ -14,11 +14,14 @@ from rateslib.dual import (
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
 from rateslib.solver import newton_1dim
+from rateslibrs import index_left_f64
 from uuid import uuid4
 import numpy as np
 from typing import Union
 from datetime import datetime
 from pandas import DataFrame
+from pytz import UTC
+from rateslib.default import _drb
 
 # class FXMoneyVolSmile:
 #
@@ -157,7 +160,6 @@ from pandas import DataFrame
 #                 diff = [comparator.spline.ppev(x) - vols]
 #                 y.append(diff)
 #         return plot(x, y, labels)
-
 
 class FXDeltaVolSmile:
     r"""
@@ -312,9 +314,10 @@ class FXDeltaVolSmile:
         f: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        expiry: Union[datetime, NoInput(0)] = NoInput(0)
     ) -> tuple:
         """
-        Given a put or call option strike return associated delta and vol values.
+        Given an option strike return associated delta and vol values.
 
         Parameters
         -----------
@@ -328,10 +331,13 @@ class FXDeltaVolSmile:
             Required only for spot/forward conversions.
         w_spot: DualTypes, optional
             Required only for spot/forward conversions.
+        expiry: datetime, optional
+            If given, performs a check to ensure consistency of valuations. Raises if expiry requested and expiry
+            of the *Smile* do not match. Used internally.
 
         Returns
         -------
-        tuple of float, Dual, Dual2 : (delta, vol, k)
+        tuple of float, Dual, Dual2 : (delta index, vol, k)
 
         Notes
         -----
@@ -339,6 +345,13 @@ class FXDeltaVolSmile:
         to the delta at that point. Recall that the delta index is the negated put option delta for the given strike
         ``k``.
         """
+        expiry = _drb(self.expiry, expiry)
+        if self.expiry != expiry:
+            raise ValueError(
+                "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
+                "due to potential pricing errors."
+            )
+
         u = k / f  # moneyness
         eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
 
@@ -614,87 +627,87 @@ class FXDeltaVolSmile:
         # self._create_approx_spline_conversions(Spline)
         return None
 
-    def _build_datatable(self):
-        """
-        With the given (Delta, Vol)
-        """
-        N_ROWS = 101  # Must be odd to have explicit midpoint (0, 1, 2, 3, 4) = 2
-        MID = int((N_ROWS - 1) / 2)
+    # def _build_datatable(self):
+    #     """
+    #     With the given (Delta, Vol)
+    #     """
+    #     N_ROWS = 101  # Must be odd to have explicit midpoint (0, 1, 2, 3, 4) = 2
+    #     MID = int((N_ROWS - 1) / 2)
+    #
+    #     # Choose an appropriate distribution of forward delta:
+    #     delta = np.linspace(0, 1, N_ROWS)
+    #     delta[0] = 0.0001
+    #     delta[-1] = 0.9999
+    #
+    #     # Derive the vol directly from the spline
+    #     vol = self.spline.ppev(delta)
+    #
+    #     # Derive d_plus from forward delta, using symmetry to reduce calculations
+    #     _ = np.array([dual_inv_norm_cdf(_) for _ in delta[: MID + 1]])
+    #     d_plus = np.concatenate((-1.0 * _, _[:-1][::-1]))
+    #
+    #     data = DataFrame(
+    #         data={
+    #             "index_delta": delta,
+    #             "put_delta_forward": delta * -1.0,
+    #             "vol": vol,
+    #             "d_plus": d_plus,
+    #         },
+    #     )
+    #     data["vol_sqrt_t"] = data["vol"] * self.t_expiry_sqrt / 100.0
+    #     data["d_min"] = data["d_plus"] - data["vol_sqrt_t"]
+    #     data["log_moneyness"] = (0.5 * data["vol_sqrt_t"] - data["d_plus"]) * data["vol_sqrt_t"]
+    #     data["moneyness"] = data["log_moneyness"].map(dual_exp)
+    #     data["put_delta_forward_pa"] = (data["d_min"].map(dual_norm_cdf) - 1.0) * data["moneyness"]
+    #     return data
 
-        # Choose an appropriate distribution of forward delta:
-        delta = np.linspace(0, 1, N_ROWS)
-        delta[0] = 0.0001
-        delta[-1] = 0.9999
-
-        # Derive the vol directly from the spline
-        vol = self.spline.ppev(delta)
-
-        # Derive d_plus from forward delta, using symmetry to reduce calculations
-        _ = np.array([dual_inv_norm_cdf(_) for _ in delta[: MID + 1]])
-        d_plus = np.concatenate((-1.0 * _, _[:-1][::-1]))
-
-        data = DataFrame(
-            data={
-                "index_delta": delta,
-                "put_delta_forward": delta * -1.0,
-                "vol": vol,
-                "d_plus": d_plus,
-            },
-        )
-        data["vol_sqrt_t"] = data["vol"] * self.t_expiry_sqrt / 100.0
-        data["d_min"] = data["d_plus"] - data["vol_sqrt_t"]
-        data["log_moneyness"] = (0.5 * data["vol_sqrt_t"] - data["d_plus"]) * data["vol_sqrt_t"]
-        data["moneyness"] = data["log_moneyness"].map(dual_exp)
-        data["put_delta_forward_pa"] = (data["d_min"].map(dual_norm_cdf) - 1.0) * data["moneyness"]
-        return data
-
-    def _create_approx_spline_conversions(
-        self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]
-    ):
-        """
-        Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the (Delta, Vol) spline.
-
-        U is moneyness i.e.: U = K / f
-        """
-        # TODO: this only works for forward unadjusted delta because no spot conversion takes place
-        # Create approximate (K, Delta) curve via interpolation
-        delta = np.array(
-            [
-                0.00001,
-                0.05,
-                0.1,
-                0.15,
-                0.2,
-                0.25,
-                0.3,
-                0.35,
-                0.4,
-                0.45,
-                0.5,
-                0.55,
-                0.6,
-                0.65,
-                0.7,
-                0.75,
-                0.8,
-                0.85,
-                0.9,
-                0.95,
-                0.99999,
-            ]
-        )
-        vols = self.spline.ppev(delta).tolist()
-        u = [
-            dual_exp(
-                -dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100.0
-                + 0.0005 * _2 * _2 * self.t_expiry
-            )
-            for (_1, _2) in zip(delta, vols)
-        ][::-1]
-
-        self.spline_u_delta_approx = spline_class(t=[u[0]] * 4 + u[2:-2] + [u[-1]] * 4, k=4)
-        self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
-        return None
+    # def _create_approx_spline_conversions(
+    #     self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]
+    # ):
+    #     """
+    #     Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the (Delta, Vol) spline.
+    #
+    #     U is moneyness i.e.: U = K / f
+    #     """
+    #     # TODO: this only works for forward unadjusted delta because no spot conversion takes place
+    #     # Create approximate (K, Delta) curve via interpolation
+    #     delta = np.array(
+    #         [
+    #             0.00001,
+    #             0.05,
+    #             0.1,
+    #             0.15,
+    #             0.2,
+    #             0.25,
+    #             0.3,
+    #             0.35,
+    #             0.4,
+    #             0.45,
+    #             0.5,
+    #             0.55,
+    #             0.6,
+    #             0.65,
+    #             0.7,
+    #             0.75,
+    #             0.8,
+    #             0.85,
+    #             0.9,
+    #             0.95,
+    #             0.99999,
+    #         ]
+    #     )
+    #     vols = self.spline.ppev(delta).tolist()
+    #     u = [
+    #         dual_exp(
+    #             -dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100.0
+    #             + 0.0005 * _2 * _2 * self.t_expiry
+    #         )
+    #         for (_1, _2) in zip(delta, vols)
+    #     ][::-1]
+    #
+    #     self.spline_u_delta_approx = spline_class(t=[u[0]] * 4 + u[2:-2] + [u[-1]] * 4, k=4)
+    #     self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
+    #     return None
 
     def _set_ad_order(self, order: int):
         if order == getattr(self, "ad", None):
@@ -797,52 +810,242 @@ class FXDeltaVolSmile:
         self.csolve()
 
 
+class FXDeltaVolSurface:
+
+    def __init__(
+        self,
+        delta_indexes: Union[list, NoInput] = NoInput(0),
+        expiries: Union[list, NoInput] = NoInput(0),
+        node_values: Union[list, NoInput] = NoInput(0),
+        eval_date: Union[datetime, NoInput] = NoInput(0),
+        delta_type: Union[str, NoInput] = NoInput(0),
+        id: Union[str, NoInput] = NoInput(0),
+        ad: int = 0,
+    ):
+        node_values = np.asarray(node_values)
+        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
+        self.eval_date = eval_date
+        self.eval_posix = self.eval_date.replace(tzinfo=UTC).timestamp()
+        self.expiries = expiries
+        self.expiries_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
+        for idx in range(1, len(self.expiries)):
+            if self.expiries[idx - 1] >= self.expiries[idx]:
+                raise ValueError(
+                    "Surface `expiries` are not sorted or contain duplicates.\n"
+                )
+
+        self.delta_indexes = delta_indexes
+        self.delta_type = _validate_delta_type(delta_type)
+        self.smiles = [
+            FXDeltaVolSmile(
+                nodes={
+                    k: v for k, v in zip(self.delta_indexes, node_values[i, :])
+                },
+                expiry=expiry,
+                eval_date=self.eval_date,
+                delta_type=self.delta_type,
+                id=f"{self.id}_{i}_",
+            ) for i, expiry in enumerate(self.expiries)
+        ]
+        self.n = len(self.expiries) * len(self.delta_indexes)
+
+        self._set_ad_order(ad)  # includes csolve on each smile
+
+    def _set_ad_order(self, order: int):
+        self.ad = order
+        for smile in self.smiles:
+            smile._set_ad_order(order)
+
+    def _set_node_vector(self, vector: np.array, ad: int):
+        m = len(self.delta_indexes)
+        for i in range(int(len(vector) / m)):
+            # smiles are indexed by expiry, shortest first
+            self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
+
+    def get_smile(self, expiry: datetime):
+        """
+        Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
+
+        Parameters
+        ----------
+        expiry: datetime
+            The expiry for the *Smile* as cross-section of *Surface*.
+
+        Returns
+        -------
+        FXDeltaVolSmile
+        """
+        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
+        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
+        if abs(expiry_posix - self.expiries_posix[e_idx]) < 1e-15:
+            # expiry aligns with a known smile
+            return self.smiles[e_idx]
+        elif expiry_posix > self.expiries_posix[-1]:
+            # use the data from the last smile
+            _ = FXDeltaVolSmile(
+                nodes={
+                    k: v for k, v in zip(self.delta_indexes, self.smiles[-1].nodes.values())
+                },
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                delta_type=self.delta_type,
+                id=self.smiles[-1].id + "_ext"
+            )
+            return _
+        elif expiry <= self.eval_date:
+            raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
+        elif expiry_posix < self.expiries_posix[0]:
+            # use the data from the first smile
+            _ = FXDeltaVolSmile(
+                nodes={
+                    k: v for k, v in zip(self.delta_indexes, self.smiles[0].nodes.values())
+                },
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                delta_type=self.delta_type,
+                id=self.smiles[-1].id + "_ext"
+            )
+            return _
+        else:
+            def t_var_interp(ep1, vol1, ep2, vol2, ep_t):
+                """
+                Return the volatility of an intermediate timestamp via total linear variance interpolation.
+
+                Parameters
+                ----------
+                ep1: float
+                    The left side expiry in posix timestamp.
+                vol1: float, Dual, Dual2
+                    The left side vol value.
+                ep2: float
+                    The right side expiry in posix timestamp.
+                vol2: float, Dual, Dual2
+                    The right side vol value.
+                ep_t: float
+                    The posix timestamp for the interpolated time value.
+
+                Returns
+                -------
+                float, Dual, Dual2
+                """
+                # 86400 posix seconds per day
+                # 31536000 posix seconds per 365 day year
+                t_var_1 = (ep1 - self.eval_posix) * vol1 **2
+                t_var_2 = (ep2 - self.eval_posix) * vol2 **2
+                _ = t_var_1 + (t_var_2 - t_var_1) * (ep_t - ep1) / (ep2 - ep1)
+                _ /= (ep_t - self.eval_posix)
+                return _ ** 0.5
+
+            _ = FXDeltaVolSmile(
+                nodes={
+                    k: t_var_interp(self.expiries_posix[e_idx], vol1, self.expiries_posix[e_idx+1], vol2, expiry_posix)
+                    for k, vol1, vol2 in zip(
+                        self.delta_indexes,
+                        self.smiles[e_idx].nodes.values(),
+                        self.smiles[e_idx+1].nodes.values()
+                    )
+                },
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                delta_type=self.delta_type,
+                id=self.smiles[e_idx].id + "_" + self.smiles[e_idx+1].id + "_intp"
+            )
+            return _
+
+    def get_from_strike(
+        self,
+        k: DualTypes,
+        phi: float,
+        f: DualTypes,
+        w_deli: Union[DualTypes, NoInput] = NoInput(0),
+        w_spot: Union[DualTypes, NoInput] = NoInput(0),
+        expiry: Union[datetime, NoInput(0)] = NoInput(0)
+    ) -> tuple:
+        """
+        Given an option strike and expiry return associated delta and vol values.
+
+        Parameters
+        -----------
+        k: float, Dual, Dual2
+            The strike of the option.
+        phi: float
+            Whether the option is call (1.0) or a put (-1.0).
+        f: float, Dual, Dual2
+            The forward rate at delivery of the option.
+        w_deli: DualTypes, optional
+            Required only for spot/forward conversions.
+        w_spot: DualTypes, optional
+            Required only for spot/forward conversions.
+        expiry: datetime
+            Required to produce the cross-sectional *Smile* on the *Surface*.
+
+        Returns
+        -------
+        tuple of float, Dual, Dual2 : (delta index, vol, k)
+
+        Notes
+        -----
+        This function will return a delta index associated with the *FXDeltaVolSmile* and the volatility attributed
+        to the delta at that point. Recall that the delta index is the negated put option delta for the given strike
+        ``k``.
+        """
+        if expiry is NoInput.blank:
+            raise ValueError(
+                "`expiry` required to get cross-section of FXDeltaVolSurface."
+            )
+        smile = self.get_smile(expiry)
+        return smile.get_from_strike(k, phi, f, w_deli, w_spot, expiry)
+
+
 def _validate_delta_type(delta_type: str):
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
     return delta_type.lower()
 
 
-def _convert_same_adjustment_delta(
-    delta: float,
-    from_delta_type: str,
-    to_delta_type: str,
-    w_deli: Union[DualTypes, NoInput] = NoInput(0),
-    w_spot: Union[DualTypes, NoInput] = NoInput(0),
-):
-    """
-    Convert a delta of one type to another, preserving its unadjusted or premium adjusted nature.
-
-    Parameters
-    ----------
-    delta: float
-        The delta to obtain a volatility for.
-    from_delta_type: str in {"spot", "forward"}
-        The delta type the given delta is expressed in.
-    to_delta_type: str in {"spot", "forward"}
-        The delta type the given delta is to be converted to
-    w_deli: DualTypes, optional
-        Required only for spot/forward conversions.
-    w_spot: DualTypes, optional
-        Required only for spot/forward conversions.
-
-    Returns
-    -------
-    DualTypes
-    """
-    if ("_pa" in from_delta_type and "_pa" not in to_delta_type) or (
-        "_pa" not in from_delta_type and "_pa" in to_delta_type
-    ):
-        raise ValueError(
-            "Can only convert between deltas of the same premium type, i.e. adjusted or unadjusted."
-        )
-
-    if from_delta_type == to_delta_type:
-        return delta
-    elif "forward" in to_delta_type and "spot" in from_delta_type:
-        return delta * w_spot / w_deli
-    else:  # to_delta_type == "spot" and from_delta_type == "forward":
-        return delta * w_deli / w_spot
+# def _convert_same_adjustment_delta(
+#     delta: float,
+#     from_delta_type: str,
+#     to_delta_type: str,
+#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
+#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
+# ):
+#     """
+#     Convert a delta of one type to another, preserving its unadjusted or premium adjusted nature.
+#
+#     Parameters
+#     ----------
+#     delta: float
+#         The delta to obtain a volatility for.
+#     from_delta_type: str in {"spot", "forward"}
+#         The delta type the given delta is expressed in.
+#     to_delta_type: str in {"spot", "forward"}
+#         The delta type the given delta is to be converted to
+#     w_deli: DualTypes, optional
+#         Required only for spot/forward conversions.
+#     w_spot: DualTypes, optional
+#         Required only for spot/forward conversions.
+#
+#     Returns
+#     -------
+#     DualTypes
+#     """
+#     if ("_pa" in from_delta_type and "_pa" not in to_delta_type) or (
+#         "_pa" not in from_delta_type and "_pa" in to_delta_type
+#     ):
+#         raise ValueError(
+#             "Can only convert between deltas of the same premium type, i.e. adjusted or unadjusted."
+#         )
+#
+#     if from_delta_type == to_delta_type:
+#         return delta
+#     elif "forward" in to_delta_type and "spot" in from_delta_type:
+#         return delta * w_spot / w_deli
+#     else:  # to_delta_type == "spot" and from_delta_type == "forward":
+#         return delta * w_deli / w_spot
 
 
 #
@@ -1033,3 +1236,7 @@ def _delta_type_constants(delta_type, w, u):
         return (-0.5, 1.0, u)
     else:  # "spot_pa"
         return (-0.5, w, u)
+
+
+FXVols = Union[FXDeltaVolSmile, FXDeltaVolSurface]
+FXVolObj = (FXDeltaVolSmile, FXDeltaVolSurface)
