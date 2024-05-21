@@ -7488,8 +7488,9 @@ class XCS(BaseDerivative):
         else:
             self.leg2_notional = self.leg1.notional * -fx_arg
             self.leg2.notional = self.leg2_notional
-            self.leg2_amortization = self.leg1.amortization * -fx_arg
-            self.leg2.amortization = self.leg2_amortization
+            if self.kwargs["amortization"] is not NoInput.blank:
+                self.leg2_amortization = self.leg1.amortization * -fx_arg
+                self.leg2.amortization = self.leg2_amortization
 
     @property
     def _is_unpriced(self):
@@ -7650,9 +7651,14 @@ class XCS(BaseDerivative):
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-        if not _is_float_tgt_leg and getattr(tgt_leg, "fixed_rate") is NoInput.blank:
-            # set the target fixed leg to a null fixed rate for calculation
-            tgt_leg.fixed_rate = 0.0
+        if not _is_float_tgt_leg:
+            tgt_leg_fixed_rate = getattr(tgt_leg, "fixed_rate")
+            if tgt_leg_fixed_rate is NoInput.blank:
+                # set the target fixed leg to a null fixed rate for calculation
+                tgt_leg.fixed_rate = 0.0
+            else:
+                # set the fixed rate to a float for calculation and no Dual Type crossing PR: XXX
+                tgt_leg.fixed_rate = float(tgt_leg_fixed_rate)
 
         self._set_fx_fixings(fx_)
         if self._is_mtm:
@@ -7908,12 +7914,16 @@ class FXSwap(XCS):
         if not self._is_split:
             self._split_notional = self.kwargs["notional"]
             # fixed rate at zero remains
+
+        # a split notional is given by a user and then this is set and never updated.
         elif self.kwargs["split_notional"] is not NoInput.blank:
             if at_init:  # this will be run for one time only at initialisation
                 self._split_notional = self.kwargs["split_notional"]
                 self._set_leg1_fixed_rate()
             else:
                 return None
+
+        # else new pricing parameters will affect and unpriced split notional
         else:
             if at_init:
                 self._split_notional = None
