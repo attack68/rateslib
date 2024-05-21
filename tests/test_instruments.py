@@ -2323,6 +2323,25 @@ class TestFXSwap:
     #     npv_usd = fxs.npv([NoInput(0), curve, NoInput(0), fxf.curve("nok", "usd")], NoInput(0), fxf)
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
 
+    def test_transition_from_dual_to_dual2(self, curve, curve2):
+        # Test added for BUG, see PR: XXX
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxf._set_ad_order(1)
+        fxs = FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            currency="usd",
+            leg2_currency="nok",
+            payment_lag=0,
+            notional=1e6,
+        )
+        fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+        fxf._set_ad_order(2)
+        fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+
 
 class TestSTIRFuture:
     def test_stir_rate(self, curve, curve2):
