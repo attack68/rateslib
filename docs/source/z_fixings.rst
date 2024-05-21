@@ -102,12 +102,12 @@ historical *FloatPeriods* in the absense of real data.
    from rateslib.calendars import get_calendar
    fixings = Series(
        data=2.5,
-       index=date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14), freq=get_calendar("nyc"))
+       index=date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14), freq=get_calendar("nyc")),
    )
    irs = IRS(
        effective=dt(2022, 2, 4),
        termination="6M",
-       spec="usd_irs"
+       spec="usd_irs",
        leg2_fixings=fixings,
        fixed_rate=2.00,
    )
