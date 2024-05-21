@@ -271,6 +271,13 @@ class FXDeltaVolSmile:
         else:
             return evaluate(self.spline, item, 0)
 
+    def _get_index(self, delta_index: float, expiry: NoInput(0)):
+        """
+        Return a volatility from a given delta index
+        Used internally alongside Surface, where a surface also requires an expiry.
+        """
+        return self[delta_index]
+
     def get(
         self,
         delta: float,
@@ -811,10 +818,17 @@ class FXDeltaVolSmile:
         self.csolve()
 
     def _get_node_vector(self):
+        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array(list(self.nodes.values()))
+
+    def _get_node_vars(self):
+        """Get the variable names of elements updated by a Solver"""
+        return tuple((f"{self.id}{i}" for i in range(self.n)))
 
 
 class FXDeltaVolSurface:
+
+    _ini_solve = 0
 
     def __init__(
         self,
@@ -867,7 +881,15 @@ class FXDeltaVolSurface:
             self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
 
     def _get_node_vector(self):
+        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array([list(_.nodes.values()) for _ in self.smiles]).ravel()
+
+    def _get_node_vars(self):
+        """Get the variable names of elements updated by a Solver"""
+        vars = ()
+        for smile in self.smiles:
+            vars += tuple((f"{smile.id}{i}" for i in range(smile.n)))
+        return vars
 
     def get_smile(self, expiry: datetime):
         """
@@ -1005,6 +1027,13 @@ class FXDeltaVolSurface:
             )
         smile = self.get_smile(expiry)
         return smile.get_from_strike(k, phi, f, w_deli, w_spot, expiry)
+
+    def _get_index(self, delta_index: float, expiry: datetime):
+        """
+        Return a volatility from a given delta index.
+        Used internally alongside Surface, where a surface also requires an expiry.
+        """
+        return self.get_smile(expiry)[delta_index]
 
 
 def _validate_delta_type(delta_type: str):
