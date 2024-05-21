@@ -1098,9 +1098,10 @@ class FloatPeriod(BasePeriod):
         return curve[fixing_date] + self.float_spread / 100
 
     def _rfr_rate_from_df_curve(self, curve: Curve):
+        if self.start < curve.node_dates[0]:
+            return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
         if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve.rate(self.start, self.end) + self.float_spread / 100
-
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
             start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
             end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
@@ -1423,10 +1424,10 @@ class FloatPeriod(BasePeriod):
                     if rates[~isna(rates)].index[-1] > first_forecast_date:
                         # then a missing fixing exists
                         warnings.warn(
-                            f"`fixings` has missed a calendar value "
+                            "`fixings` has missed a calendar value "
                             f"({first_forecast_date}) which "
-                            "has been inferred from the curve. Subsequent "
-                            "fixings have been detected",
+                            "may be set to zero on a LineCurve or error on a Curve. "
+                            "Subsequent fixings have been detected",
                             UserWarning,
                         )
                 except (KeyError, IndexError):
@@ -1440,6 +1441,13 @@ class FloatPeriod(BasePeriod):
         # TODO (low) the next two lines could probably be vectorised and made more efficient.
         fixed = ~isna(rates)
         rates = Series({k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()})
+        # Alternative solution to PR 172.
+        # rates = Series({
+        #     k: v
+        #     if notna(v)
+        #     else (curve.rate(k, "1b", "F") if k >= curve.node_dates[0] else None)
+        #     for k, v in rates.items()
+        # })
 
         if fixing_exposure:
             # need to calculate the dcfs associated with the rates (unshifted)
@@ -1504,8 +1512,9 @@ class FloatPeriod(BasePeriod):
         if rates.isna().any():
             raise ValueError(
                 "RFRs could not be calculated, have you missed providing `fixings` or "
-                "does the `Curve` begin after the start of a `FloatPeriod` including"
-                "the `method_param` adjustment?"
+                "does the `Curve` begin after the start of a `FloatPeriod` including "
+                "the `method_param` adjustment?\n"
+                "For further info see: Documentation > Cookbook > Working with fixings."
             )
 
         return rate, DataFrame(

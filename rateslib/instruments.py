@@ -859,7 +859,7 @@ class Value(BaseMixin):
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="v")
        instruments = [(Value(dt(2022, 11, 1)), (curve,), {})]
-       solver = Solver([curve], instruments, [0.99])
+       solver = Solver([curve], [], instruments, [0.99])
        curve[dt(2022, 1, 1)]
        curve[dt(2022, 11, 1)]
        curve[dt(2023, 1, 1)]

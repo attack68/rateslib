@@ -13,6 +13,11 @@
 Working with Fixings
 **********************
 
+.. note::
+
+   To understand the difference between RFR and IBOR date indexing in *rateslib* see
+   :ref:`IBOR or RFR <c-curves-ibor-rfr>`.
+
 The *rateslib* `defaults` object lazy loads fixings from CSV files.
 These files are stored in the rateslib package files under the directory *'data'*.
 Due to static packaging and licencing issues rateslib cannot be distributed
@@ -80,6 +85,33 @@ index lag is 2 business days so the fixing for the below *IRS* effective as of
        fixed_rate=2.00,
    )
    curve = Curve({dt(2023, 1, 3): 1.0, dt(2024, 1, 3): 0.97})
+   irs.cashflows(curve)
+   irs.leg2.fixings_table(curve)
+
+
+Debugging with *fixings* on-the-fly
+------------------------------------
+
+Using pandas and the *rateslib* calendar methods it is simple to build a series of
+*fixings* to match the *Curve* calendar. This is often useful for debugging
+historical *FloatPeriods* in the absense of real data.
+
+.. ipython:: python
+
+   from pandas import Series, date_range
+   from rateslib.calendars import get_calendar
+   fixings = Series(
+       data=2.5,
+       index=date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14), freq=get_calendar("nyc"))
+   )
+   irs = IRS(
+       effective=dt(2022, 2, 4),
+       termination="6M",
+       spec="usd_irs"
+       leg2_fixings=fixings,
+       fixed_rate=2.00,
+   )
+   curve = Curve({dt(2022, 4, 15): 1.0, dt(2024, 1, 3): 0.97})
    irs.cashflows(curve)
    irs.leg2.fixings_table(curve)
 

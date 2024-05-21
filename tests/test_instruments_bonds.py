@@ -16,7 +16,7 @@ from rateslib.instruments import (
     IndexFixedRateBond,
 )
 from rateslib.dual import Dual, Dual2
-from rateslib.calendars import dcf
+from rateslib.calendars import dcf, get_calendar
 from rateslib.curves import Curve, IndexCurve, LineCurve
 from rateslib.fx import FXRates
 from rateslib.solver import Solver
@@ -1505,11 +1505,15 @@ class TestFloatRateNote:
         [
             ("clean_price", 0.0, 100),
             ("dirty_price", 0.0, 100),
-            ("clean_price", 50.0, 99.99602155150806),
-            ("dirty_price", 50.0, 100.03848730493272),
+            ("clean_price", 50.0, 99.99601798513253),
+            ("dirty_price", 50.0, 100.03848373855718),
         ],
     )
     def test_float_rate_bond_forward_prices(self, metric, spd, exp):
+        fixings = Series(
+            data=2.0,
+            index=date_range(start=dt(2007, 1, 1), end=dt(2010, 2, 28), freq=get_calendar("bus"))
+        )
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
@@ -1518,11 +1522,17 @@ class TestFloatRateNote:
             ex_div=3,
             float_spread=spd,
             fixing_method="rfr_observation_shift",
+            calendar="bus",
+            fixings=fixings,
             method_param=5,
             spread_compound_method="none_simple",
             settle=2,
         )
-        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
+        curve = Curve(
+            {dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0},
+            convention="act365f",
+            calendar="bus"
+        )
         disc_curve = curve.shift(spd)
 
         result = bond.rate(
