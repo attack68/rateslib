@@ -64,6 +64,9 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
      - ``npv`` and ``cashflows`` of a :class:`~rateslib.periods.FloatPeriod` did not
        handle error messages regarding missing RFR fixings for a historical period.
        Calculations wll now raise if missing ``fixings``.
+   * - Bug
+     - `FXSwap` now no longer raises `TypeError` for dual number type mixing when `npv` or `rate`
+       are called after changing the AD order of curves and fx objects.
 
 
 1.1.0 (20th Mar 2024)
