@@ -157,6 +157,7 @@ Curves
    :skip: Any
    :skip: CustomBusinessDay
    :skip: Dual
+   :skip: Dual2
    :skip: PPSplineF64
    :skip: PPSplineDual
    :skip: PPSplineDual2
@@ -206,6 +207,8 @@ FX Volatility
    :skip: dual_exp
    :skip: dual_inv_norm_cdf
    :skip: DualTypes
+   :skip: Dual
+   :skip: Dual2
    :skip: dual_norm_cdf
    :skip: dual_log
    :skip: dual_norm_pdf
@@ -242,6 +245,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: Series
    :skip: datetime
    :skip: comb
+   :skip: FXDeltaVolSurface
    :skip: FXDeltaVolSmile
 
 Legs

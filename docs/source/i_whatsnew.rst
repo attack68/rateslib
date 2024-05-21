@@ -60,6 +60,10 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
    * - Bug
      - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A",
        albeit with a *UserWarning*.
+   * - Bug
+     - ``npv`` and ``cashflows`` of a :class:`~rateslib.periods.FloatPeriod` did not
+       handle error messages regarding missing RFR fixings for a historical period.
+       Calculations wll now raise if missing ``fixings``.
 
 
 1.1.0 (20th Mar 2024)

@@ -94,7 +94,7 @@ Debugging with *fixings* on-the-fly
 
 Using pandas and the *rateslib* calendar methods it is simple to build a series of
 *fixings* to match the *Curve* calendar. This is often useful for debugging
-historical *FloatPeriods* in the absense of real data.
+historical *FloatPeriods* in the absence of real data.
 
 .. ipython:: python
 
@@ -102,16 +102,19 @@ historical *FloatPeriods* in the absense of real data.
    from rateslib.calendars import get_calendar
    fixings = Series(
        data=2.5,
-       index=date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14), freq=get_calendar("nyc"))
+       index=date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14), freq=get_calendar("nyc")),
    )
    irs = IRS(
        effective=dt(2022, 2, 4),
        termination="6M",
-       spec="usd_irs"
+       spec="usd_irs",
        leg2_fixings=fixings,
        fixed_rate=2.00,
    )
-   curve = Curve({dt(2022, 4, 15): 1.0, dt(2024, 1, 3): 0.97})
+   curve = Curve(
+       nodes={dt(2022, 4, 15): 1.0, dt(2024, 1, 3): 0.97},
+       calendar="nyc",
+   )
    irs.cashflows(curve)
    irs.leg2.fixings_table(curve)
 
