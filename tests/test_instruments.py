@@ -2338,7 +2338,10 @@ class TestFXSwap:
             payment_lag=0,
             notional=1e6,
         )
-        fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+        fxs.npv(
+            curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")],
+            fx=fxf
+        )
         fxf._set_ad_order(2)
         fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
 

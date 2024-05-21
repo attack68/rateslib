@@ -7491,10 +7491,11 @@ class XCS(BaseDerivative):
             # and impact solvers. A better solution may be to trace the
             # the variables and never use an old value. Always rely on initiated values,
             # which are NOT Dual variables.
-            self.leg2_notional = self.leg1.notional * -float(fx_arg)
+            self.leg2_notional = self.kwargs["notional"] * fx_arg
             self.leg2.notional = self.leg2_notional
-            self.leg2_amortization = self.leg1.amortization * -float(fx_arg)
-            self.leg2.amortization = self.leg2_amortization
+            if self.kwargs["amortization"] is not NoInput.blank:
+                self.leg2_amortization = self.kwargs["amortization"] * -fx_arg
+                self.leg2.amortization = self.leg2_amortization
 
     @property
     def _is_unpriced(self):
@@ -7927,7 +7928,7 @@ class FXSwap(XCS):
                 # TODO this is a very subtle change for Solvers:
                 # Split notional AD information is lost here - the instrumenst notionals
                 # are assumed to be fixed after this determination.
-                self._split_notional = self.kwargs["notional"] * float(curve[dt1] / curve[dt2])
+                self._split_notional = self.kwargs["notional"] * curve[dt1] / curve[dt2]
                 self._set_leg1_fixed_rate()
 
     def _set_leg1_fixed_rate(self):
