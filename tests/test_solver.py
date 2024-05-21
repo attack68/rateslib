@@ -12,9 +12,9 @@ from rateslib.default import NoInput
 from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
 from rateslib.solver import Solver, Gradients, newton_1dim, newton_ndim
 from rateslib.dual import Dual, Dual2, gradient
-from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS, FXStrangle, FXStraddle, FXRiskReversal
+from rateslib.instruments import IRS, Value, FloatRateNote, Portfolio, XCS, FXStrangle, FXStraddle, FXRiskReversal, FXBrokerFly, FXCall, FXSwap
 from rateslib.fx import FXRates, FXForwards
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 
 
 class TestGradients:
@@ -1869,7 +1869,74 @@ def test_solver_with_vol_smile():
         fx=fxf,
     )
 
-
+def test_gamma_with_surface_solver():
+    eureur = Curve({dt(2024, 5, 7): 1.0, dt(2025, 5, 30): 1.0}, calendar="tgt", id="eureur")
+    eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2025, 5, 30): 1.0}, id="eurusd")
+    usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2025, 5, 30): 1.0}, calendar="nyc", id="usdusd")
+    # Create an FX Forward market with spot FX rate data
+    fxf = FXForwards(
+        fx_rates=FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9)),
+        fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
+    )
+    solver = Solver(
+        curves=[eureur, eurusd, usdusd],
+        instruments=[
+            IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
+            IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
+            FXSwap(dt(2024, 5, 9), "3W", currency="eur", leg2_currency="usd", curves=[None, "eurusd", None, "usdusd"]),
+        ],
+        s=[3.90, 5.32, 8.85],
+        instrument_labels=["3w EU", "3w US", "3w FXSw"],
+        fx=fxf,
+    )
+    surface = FXDeltaVolSurface(
+        eval_date=dt(2024, 5, 7),
+        expiries=[dt(2024, 5, 28), dt(2024, 6, 7)],
+        delta_indexes=[0.1, 0.25, 0.5, 0.75, 0.9],
+        delta_type="forward",
+        node_values=np.ones(shape=(2, 5)) * 5.0,
+        id="eurusd_vol",
+    )
+    data = DataFrame(
+        data=[
+            [5.493, -0.157, 0.071, -0.289, 0.238],
+            [5.525, -0.213, 0.075, -0.400, 0.250],
+        ],
+        columns=["ATM", "25dRR", "25dBF", "10dRR", "25dBF"],
+        index=[dt(2024, 5, 28), dt(2024, 6, 7)]
+    )
+    fx_args = dict(
+        pair="eurusd",
+        delta_type="spot",
+        calendar="tgt",
+        curves=[None, "eurusd", None, "usdusd"],
+        vol="eurusd_vol"
+    )
+    instruments, s, labels = [], [], []
+    for e, row in enumerate(data.itertuples()):
+        instruments.extend([
+            FXStraddle(strike="atm_delta", expiry=row[0], **fx_args),
+            FXRiskReversal(strike=["-25d", "25d"], expiry=row[0], **fx_args),
+            FXBrokerFly(strike=["-25d", "atm_delta", "25d"], expiry=row[0], **fx_args),
+            FXRiskReversal(strike=["-10d", "10d"], expiry=row[0], **fx_args),
+            FXBrokerFly(strike=["-10d", "atm_delta", "10d"], expiry=row[0], **fx_args),
+        ])
+        s.extend([row[1], row[2], row[3], row[4], row[5]])
+        labels.extend([f"atm{e}", f"25rr{e}", f"25bf{e}", f"10rr{e}", f"10bf{e}"])
+    surf_solver = Solver(
+        surfaces=[surface],
+        instruments=instruments,
+        s=s,
+        pre_solvers=[solver],
+        instrument_labels=labels,
+        fx=fxf,
+    )
+    fxc = FXCall(
+        expiry=dt(2024, 6, 7),
+        strike=1.08,
+        **fx_args
+    )
+    fxc.gamma(solver=surf_solver)
 
 
 

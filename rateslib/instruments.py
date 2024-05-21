@@ -7486,9 +7486,14 @@ class XCS(BaseDerivative):
             self.leg2._set_periods(fx_arg)
             self.leg2_notional = self.leg2.notional
         else:
-            self.leg2_notional = self.leg1.notional * -fx_arg
+            # TODO this is a subtle change to remove AD sensitivity of notionals from
+            # instruments definitions. It can change the NPV sensitivities
+            # and impact solvers. A better solution may be to trace the
+            # the variables and never use an old value. Always rely on initiated values,
+            # which are NOT Dual variables.
+            self.leg2_notional = self.leg1.notional * -float(fx_arg)
             self.leg2.notional = self.leg2_notional
-            self.leg2_amortization = self.leg1.amortization * -fx_arg
+            self.leg2_amortization = self.leg1.amortization * -float(fx_arg)
             self.leg2.amortization = self.leg2_amortization
 
     @property
@@ -7919,7 +7924,10 @@ class FXSwap(XCS):
                 self._split_notional = None
             else:
                 dt1, dt2 = self.leg1.periods[0].payment, self.leg1.periods[2].payment
-                self._split_notional = self.kwargs["notional"] * curve[dt1] / curve[dt2]
+                # TODO this is a very subtle change for Solvers:
+                # Split notional AD information is lost here - the instrumenst notionals
+                # are assumed to be fixed after this determination.
+                self._split_notional = self.kwargs["notional"] * float(curve[dt1] / curve[dt2])
                 self._set_leg1_fixed_rate()
 
     def _set_leg1_fixed_rate(self):
