@@ -19,7 +19,7 @@ The :class:`~rateslib.solver.Solver` serves two purposes:
 - obtaining **risk sensitivities** to those **calibrating instruments**.
 
 The mathematical processes involved here are technical and better explained in the
-supplementary material (TODO link). Essentially a mapping is created between
+:ref:`supplementary material <about-doc>`. Essentially a mapping is created between
 the **fundamental derivatives** obtained through AD and
 the **calibrating instrument rates**.
 The :class:`~rateslib.solver.Solver` stores and uses this mapping to create the
