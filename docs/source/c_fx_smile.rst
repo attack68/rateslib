@@ -7,13 +7,15 @@
    warnings.filterwarnings('always')
    from rateslib.solver import *
    from rateslib.instruments import *
+   from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
+   from pandas import DataFrame
 
-********************
-FX Volatility Smile
-********************
+*********************************
+FX Vol Surfaces
+*********************************
 
 .. warning::
 
@@ -21,14 +23,15 @@ FX Volatility Smile
    interactions may incur breaking changes in upcoming releases as it matures and other
    classes, such as a *VolSurface* are added.
 
-The ``rateslib.fx_volatility`` module includes an :class:`~rateslib.fx_volatility.FXDeltaVolSmile`
-class which can be used to price *FX Options* and *FX Option Strategies*.
+The ``rateslib.fx_volatility`` module includes classes for *Smiles* and *Surfaces*
+which can be used to price *FX Options* and *FX Option Strategies*.
 
 .. autosummary::
    rateslib.fx_volatility.FXDeltaVolSmile
+   rateslib.fx_volatility.FXDeltaVolSurface
 
-Introduction
-************
+Introduction and FX Volatility Smiles
+*************************************
 
 The *FXDeltaVolSmile* is parametrised by a series of *(delta, vol)* node points
 interpolated by a cubic spline. This interpolation is automatically constructed with knot
@@ -181,3 +184,156 @@ framework. We will do this simultaneously using other prevailing market data.
          :width: 320
 
          BBG Fenics Vol Smile
+
+
+
+FX Volatility Surfaces
+**********************
+
+*FX Surfaces* are collections of cross-sectional *FXDeltaVolSmiles* where:
+
+- each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
+- the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
+- each *Smile* has its own calibrated node values,
+- *sSmiles* for *expiries* that do not pre-exist are generated with an interpolation
+  scheme that uses linear total variance, which is equivalent to flat-forward volatility
+
+To demonstrate this, we will use an example adapted from Iain Clark's *Foreign Exchange
+Option Pricing: A Practicitioner's Guide*.
+
+The ``eval_date`` is fictionally assumed to be 3rd May 2009 and the FX spot rate is 1.34664,
+and the continuously compounded EUR and USD rates are 1.0% and 0.4759..% respectively. With these
+we will be able to closely match his values for option strikes.
+
+.. ipython:: python
+
+   eur = Curve({dt(2009, 5, 3): 1.0, dt(2011, 5, 10): 1.0})
+   usd = Curve({dt(2009, 5, 3): 1.0, dt(2011, 5, 10): 1.0})
+   fxf = FXForwards(
+       fx_rates=FXRates({"eurusd": 1.34664}, settlement=dt(2009, 5, 5)),
+       fx_curves={"eureur": eur, "usdusd": usd, "eurusd": eur},
+   )
+   solver = Solver(
+       curves=[eur, usd],
+       instruments=[
+           Value(dt(2009, 5, 4), curves=eur, metric="cc_zero_rate"),
+           Value(dt(2009, 5, 4), curves=usd, metric="cc_zero_rate")
+       ],
+       s=[1.00, 0.4759550366220911],
+       fx=fxf,
+   )
+
+His *Table 4.2* is shown below.
+
+.. ipython:: python
+
+   data = DataFrame(
+       data = [["spot", 18.25, 0.95, -0.6], ["forward", 17.677, 0.85, -0.562]],
+       index=["1y", "2y"],
+       columns=["Delta Type", "ATM", "25dBF", "25dRR"],
+   )
+   data
+
+Constructing a Surface
+**********************
+
+We will now create a *Surface* that will be calibrated by the rates in the next section.
+The *Surface* is initialised at a flat 18% volatility.
+
+.. ipython:: python
+
+   surface = FXDeltaVolSurface(
+       eval_date=dt(2009, 5, 3),
+       delta_indexes=[0.25, 0.5, 0.75],
+       expiries=[dt(2010, 5, 3), dt(2011, 5, 3)],
+       node_values=np.ones((2, 3))* 18.0,
+       delta_type="forward",
+       id="surface",
+   )
+
+The calibration of the *Surface* requires a *Solver* that will iterate and update the surface
+node values until convergence with the given instrument rates.
+
+**Note** that the *Surface* is
+parametrised by a *'forward'* *delta type* but that the 1Y *Instruments* here use *'spot'*.
+Internally this is all handled appropriately with necessary conversions, but it is the users
+responsibility to label the *Surface* and *Instrument* with the correct types. As Clark and
+others highlight "failing to take [correct delta types] into account introduces a mismatch -
+large enough to be relevant for calibration and pricing, but small enough that it may not be
+noticed at first". Parametrising the *Surface* with a *'forward'* delta type is the **recommended**
+choice because it is more standardised and the configuration of which *delta types* to use for
+the *Instruments* can be a separate consideration.
+
+.. ipython:: python
+
+   fx_args_0 = dict(
+       pair="eurusd",
+       curves=[None, eur, None, usd],
+       expiry=dt(2010, 5, 3),
+       delta_type="spot",
+       vol="surface",
+   )
+   fx_args_1 = dict(
+       pair="eurusd",
+       curves=[None, eur, None, usd],
+       expiry=dt(2011, 5, 3),
+       delta_type="forward",
+       vol="surface",
+   )
+
+   solver = Solver(
+       surfaces=[surface],
+       instruments=[
+           FXStraddle(strike="atm_delta", **fx_args_0),
+           FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **fx_args_0),
+           FXRiskReversal(strike=["-25d", "25d"], **fx_args_0),
+           FXStraddle(strike="atm_delta", **fx_args_1),
+           FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **fx_args_1),
+           FXRiskReversal(strike=["-25d", "25d"], **fx_args_1),
+       ],
+       s=[18.25, 0.95, -0.6, 17.677, 0.85, -0.562],
+       fx=fxf,
+   )
+
+Clark's Table 4.5 is replicated here. Note that due to using a different parametric form for
+*Smiles* (i.e. a natural cubic spline), inferring his FX forwards market rates, and not ncessarily
+knowing the exact dates and holiday calendars, this produces
+minor deviations from his calculated values.
+
+.. ipython:: python
+   :suppress:
+
+   args = dict(
+       pair="eurusd",
+       curves=[None, eur, None, usd],
+       vol=surface,
+       delta_type="forward"
+   )
+
+   ops = [
+       FXPut(strike="-25d", expiry=dt(2010, 5, 3), **args),
+       FXPut(strike="atm_delta", expiry=dt(2010, 5, 3), **args),
+       FXCall(strike="25d", expiry=dt(2010, 5, 3), **args),
+       FXPut(strike="-25d", expiry=dt(2010, 11, 3), **args),
+       FXPut(strike="atm_delta", expiry=dt(2010, 11, 3), **args),
+       FXCall(strike="25d", expiry=dt(2010, 11, 3), **args),
+       FXPut(strike="-25d", expiry=dt(2011, 5, 3), **args),
+       FXPut(strike="atm_delta", expiry=dt(2011, 5, 3), **args),
+       FXCall(strike="25d", expiry=dt(2011, 5, 3), **args),
+   ]
+   for op in ops:
+       op.rate(fx=fxf)
+
+   strikes = [float(_._pricing["k"]) for _ in ops]
+   vols = [float(_._pricing["vol"]) for _ in ops]
+   data2 = DataFrame(
+       data=[strikes[0:3], vols[0:3], strikes[3:6], vols[3:6], strikes[6:9], vols[6:9]],
+       index=[("1y", "k"), ("1y", "vol"), ("18m", "k"), ("18m", "vol"), ("2y", "k"), ("2y", "vol")],
+       columns=["25d Put", "ATM Put", "25d Call"]
+   )
+
+.. ipython:: python
+
+   data2
+
+
