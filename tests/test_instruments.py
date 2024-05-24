@@ -3943,7 +3943,7 @@ class TestFXStrangle:
             result_min = fxo.rate(curves, fx=fxfo, vol=fxvs3)
 
             fwd_diff = (result_plus + result_min - 2 * result) * 1000000.0
-            assert abs(fwd_diff - gradient(result, [f"vol{i}"], order=2)[0]) < 1e-4
+            assert abs(fwd_diff - gradient(result, [f"vol{i}"], order=2)[0][0]) < 1e-4
 
     def test_strangle_rate_2vols(self, fxfo):
         # test pricing a straddle with vol [8.0, 10.0] returns a valid value close to 9.0
