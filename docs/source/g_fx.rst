@@ -84,7 +84,7 @@ any chosen ``settlement``.
 
    fxf.rate("audusd", dt(2005, 4, 7))
 
-The documentation for the *FXForwards* class contains further information :ref:`here<fxr-doc>`.
+The documentation for the *FXForwards* class contains further information :ref:`here<fxf-doc>`.
 
 FX Volatility
 ***************
