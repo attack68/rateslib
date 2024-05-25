@@ -199,7 +199,7 @@ FX Volatility Surfaces
   scheme that uses linear total variance, which is equivalent to flat-forward volatility
 
 To demonstrate this, we will use an example adapted from Iain Clark's *Foreign Exchange
-Option Pricing: A Practicitioner's Guide*.
+Option Pricing: A Practitioner's Guide*.
 
 The ``eval_date`` is fictionally assumed to be 3rd May 2009 and the FX spot rate is 1.34664,
 and the continuously compounded EUR and USD rates are 1.0% and 0.4759..% respectively. With these
