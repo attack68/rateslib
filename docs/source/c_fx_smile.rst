@@ -20,8 +20,8 @@ FX Vol Surfaces
 .. warning::
 
    FX volatility products in *rateslib* are not in stable status. Their API and/or object
-   interactions may incur breaking changes in upcoming releases as it matures and other
-   classes, such as a *VolSurface* are added.
+   interactions *may* incur breaking changes in upcoming releases as they mature and other
+   classes or pricing models may be added.
 
 The ``rateslib.fx_volatility`` module includes classes for *Smiles* and *Surfaces*
 which can be used to price *FX Options* and *FX Option Strategies*.

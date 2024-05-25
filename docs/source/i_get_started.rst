@@ -145,7 +145,7 @@ derivatives, so the :class:`~rateslib.fx.FXRates` and :class:`~rateslib.fx.FXFor
 classes exist to allow full flexibility and expressing quantities in
 consistent currencies.
 
-Additionally (as of v1.2.0 in Beta status) *rateslib* also includes certain *FX Option*
+Additionally *rateslib* also includes certain *FX Option*
 products and the ability to
 construct an :class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
 :class:`~rateslib.fx_volatility.FXDeltaVolSurface` for pricing.
