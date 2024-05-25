@@ -119,7 +119,7 @@ Which ``fixed income instruments`` does *rateslib* include?
    * - :class:`~rateslib.instruments.ZCIS`
      -
      -
-     -
+     - :class:`~rateslib.instruments.FXBrokerFly`
      -
    * - :class:`~rateslib.instruments.IIRS`
      -
@@ -145,8 +145,10 @@ derivatives, so the :class:`~rateslib.fx.FXRates` and :class:`~rateslib.fx.FXFor
 classes exist to allow full flexibility and expressing quantities in
 consistent currencies.
 
-Additional *rateslib* also includes certain *FX Option* products and the ability to
-construct an :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for pricing.
+Additionally *rateslib* also includes certain *FX Option*
+products and the ability to
+construct an :class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
+:class:`~rateslib.fx_volatility.FXDeltaVolSurface` for pricing.
 
 .. raw:: html
 

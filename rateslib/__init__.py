@@ -74,7 +74,7 @@ from rateslib.curves import (
     ProxyCurve,
 )
 
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 
 from rateslib.fx import (
     FXRates,
@@ -183,6 +183,7 @@ __all__ = [
     "index_left",
     # fx_volatility.py
     "FXDeltaVolSmile",
+    "FXDeltaVolSurface",
     # solver.py
     "Solver",
     # fx.py

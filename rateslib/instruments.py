@@ -69,7 +69,7 @@ from rateslib.dual import (
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -8316,7 +8316,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
             self.periods[0].strike = float(self._pricing["k"])
 
-        if isinstance(vol, FXDeltaVolSmile):
+        if isinstance(vol, FXVolObj):
             if self._pricing["delta_index"] is None:
                 self._pricing["delta_index"], self._pricing["vol"], _ = vol.get_from_strike(
                     k=self._pricing["k"],
@@ -8327,7 +8327,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     expiry=self.kwargs["expiry"]
                 )
             else:
-                self._pricing["vol"] = vol[self._pricing["delta_index"]]
+                self._pricing["vol"] = vol._get_index(self._pricing["delta_index"], self.kwargs["expiry"])
 
     def _set_premium(
         self,
@@ -8670,8 +8670,10 @@ class FXOptionStrat:
 
         See :meth:`~rateslib.instruments.FXOption.rate`.
         """
-        if not isinstance(vol, list):
-            vol = [vol] * len(self.periods)
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = self._vol_as_list(vol, solver)
 
         metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
         map_ = {

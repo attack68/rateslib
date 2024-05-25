@@ -993,6 +993,7 @@ class Solver(Gradients):
             self.weights = np.asarray(weights)
         self.W = np.diag(self.weights)
 
+        # `surfaces` are treated identically to `curves`. Introduced in PR
         self.curves = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
@@ -1002,8 +1003,7 @@ class Solver(Gradients):
         self.variables = ()
         for curve in self.curves.values():
             curve._set_ad_order(1)  # solver uses gradients in optimisation
-            curve_vars = tuple((f"{curve.id}{i}" for i in range(curve._ini_solve, curve.n)))
-            self.variables += curve_vars
+            self.variables += curve._get_node_vars()
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers

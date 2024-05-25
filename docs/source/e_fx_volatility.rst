@@ -13,8 +13,8 @@ FX Volatility
 .. warning::
 
    FX volatility products in *rateslib* are not in stable status. Their API and/or object
-   interactions may incur breaking changes in upcoming releases as it matures and other
-   classes, such as a *VolSurface* are added.
+   interactions *may* incur breaking changes in upcoming releases as they mature and other
+   classes or pricing models may be added.
 
 Interbank standard conventions for quoting FX volatility products are quite varied.
 None-the-less, *rateslib* provides the most common definitions and products, all priced using
