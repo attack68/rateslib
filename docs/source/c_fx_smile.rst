@@ -78,8 +78,8 @@ Since we have 5 calibrating instruments we require 5 degrees of freedom.
 The above *Smile* is initialised as a flat vol at 10%. In order to calibrate it we need to create the pricing
 instruments, given in the market prices data table.
 
-Since we are using multi-currency derivatives we will also need to setup an :class:`~rateslib.fx.FXForwards`
-framework. We will do this simultaneously using other prevailing market data.
+Since these *Instruments* are **multi-currency derivatives** an :class:`~rateslib.fx.FXForwards`
+framework also needs to be setup for pricing. We will do this simultaneously using other prevailing market data.
 
 .. ipython:: python
 
@@ -195,7 +195,7 @@ FX Volatility Surfaces
 - each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
 - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
 - each *Smile* has its own calibrated node values,
-- *sSmiles* for *expiries* that do not pre-exist are generated with an interpolation
+- *Smiles* for *expiries* that do not pre-exist are generated with an interpolation
   scheme that uses linear total variance, which is equivalent to flat-forward volatility
 
 To demonstrate this, we will use an example adapted from Iain Clark's *Foreign Exchange
