@@ -23,6 +23,11 @@ represent and how they operate.
 This module relies on the ultility modules :ref:`splines<splines-doc>`
 and :ref:`dual<dual-doc>`.
 
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.IndexCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve
+   :private-bases:
+   :top-classes: rateslib.curves.Curve
+   :parts: 1
+
 .. autosummary::
    rateslib.curves.Curve
    rateslib.curves.LineCurve
