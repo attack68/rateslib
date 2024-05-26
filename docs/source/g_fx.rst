@@ -8,6 +8,7 @@
    from rateslib.instruments import Value
    from rateslib.solver import Solver
    from datetime import datetime as dt
+   import math
 
 ************
 FX
@@ -34,7 +35,7 @@ expected to be used for spot FX rates, and for value conversion from one currenc
    fxr = FXRates(fx_rates={"audusd": 0.62}, settlement=dt(2003, 4, 7))
    fxr.rates_table()
 
-Read more about these and other methods of the *FXRates* class :ref:`here<fxr-doc>`.
+:ref:`Read more here<fxr-doc>` about these and other methods of the *FXRates* class .
 
 FX Forwards
 *************
@@ -55,27 +56,17 @@ technically immediate) FX rate as above.
 
 .. ipython:: python
 
-   aud = Curve({dt(2003, 4, 7): 1.0, dt(2005, 4, 7): 1.0}, id="aud")
-   usd = Curve({dt(2003, 4, 7): 1.0, dt(2005, 4, 7): 1.0}, id="usd")
+   aud = Curve({dt(2003, 4, 7): 1.0, dt(2005, 4, 7): math.exp(-0.05*2)}, id="aud")
+   usd = Curve({dt(2003, 4, 7): 1.0, dt(2005, 4, 7): math.exp(-0.07*2)}, id="usd")
    fxf = FXForwards(
       fx_rates=fxr,
       fx_curves={"audaud": aud, "usdusd": usd, "audusd": aud},
    )
 
-The discount factors (DFs) on the currency *Curves* can be **calibrated, with a Solver**
-using continuously compounded zero rates in accordance with the specification in Hull's book.
-
-.. ipython:: python
-
-   solver = Solver(
-       curves=[aud, usd],
-       instruments=[
-           Value(dt(2005, 4, 7), curves="aud", metric="cc_zero_rate", convention="30360"),
-           Value(dt(2005, 4, 7), curves="usd", metric="cc_zero_rate", convention="30360"),
-       ],
-       s=[5.00, 7.00],
-       fx=fxf,
-   )
+The discount factors (DFs) on the currency *Curves* have been specified directly
+to match the continuously compounded zero rates in accordance with the specification
+in Hull's book. We could also have calibrated these with a *Solver* using the
+:class:`~rateslib.instruments.Value` *Instrument* with a ``metric`` of *'cc_zero_rate'*.
 
 The value :math:`F_0` is then directly available, along with forward rates on
 any chosen ``settlement``.
@@ -84,12 +75,12 @@ any chosen ``settlement``.
 
    fxf.rate("audusd", dt(2005, 4, 7))
 
-The documentation for the *FXForwards* class contains further information :ref:`here<fxf-doc>`.
+:ref:`Read more here<fxf-doc>` about the *FXForwards* class.
 
 FX Volatility
 ***************
 
-*Rateslib* also supports some :ref:`FX volatility products <fx-volatility-doc>`.
+*Rateslib* also has some support for *FX volatility*. :ref:`Read more here<fx-volatility-doc>`.
 
 .. toctree::
    :hidden:

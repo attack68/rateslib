@@ -9273,6 +9273,44 @@ class FXStrangle(FXOptionStrat, FXOption):
 
 
 class FXBrokerFly(FXOptionStrat, FXOption):
+    """
+    Create an *FX BrokerFly* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    strike: 3-element sequence
+        The first element is applied to the lower strike put, the
+        second element to the straddle strike and the third element to the higher strike
+        call, e.g. `["-25d", "atm_delta", "25d"]`.
+    premium: 4-element sequence, optional
+        The premiums associated with each option of the strategy; lower strike put, straddle put,
+        straddle call, higher strike call.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+
+    Buying a *BrokerFly* equates to buying an :class:`~rateslib.instruments.FXStrangle` and
+    selling a :class:`~rateslib.instruments.FXStraddle`, where the convention is to set the
+    notional on the *Straddle* such that the entire strategy is *vega* neutral at inception.
+
+    .. warning::
+
+       The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an iterative algorithm to solve.
+       For defined strikes it is usually very accurate but for strikes defined by delta it
+       will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+
+    """
+
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [1.0, -1.0]
     _rate_scalar = 100.0
@@ -9280,8 +9318,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args,
-        premium=[NoInput(0), NoInput(0), NoInput(0), NoInput(0)],
         strike=[NoInput(0), NoInput(0), NoInput(0)],
+        premium=[NoInput(0), NoInput(0), NoInput(0), NoInput(0)],
         notional=[NoInput(0), NoInput(0)],
         metric="single_vol",
         **kwargs,
