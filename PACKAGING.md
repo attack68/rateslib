@@ -29,12 +29,24 @@ On "release branch":
 5) Run `cargo test --lib --no-default-features`
 6) Change the Cargo.toml file for abi3-py39 features.
 
-Build:
+Pre Rust extension Build:
 $ pip install build twine
 $ python -m build
 $ twine check dist/*
 $ twine upload -r testpypi dist/*
 $ twine upload dist/*  [use __token__ as username and token is in env file]
+
+Rust Extension Build:
+Build:  https://doc.rust-lang.org/rustc/platform-support.html
+$ maturin build --release
+$ maturin build --release --sdist
+$ maturin build --release --target aarch64-apple-darwin
+$ maturin build --release --target x86_64-apple-darwin
+
+$ twine check dist/*
+$ twine upload -r testpypi dist/*
+$ twine upload dist/*  [use __token__ as username and token is in env file]
+
 
 check:
 $ pip install -i https://test.pypi.org/simple rateslib
