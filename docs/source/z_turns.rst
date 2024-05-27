@@ -95,13 +95,14 @@ it. Things get more complicated when the *Curve* wants an interpolation style wh
 smoothness, such as **log-cubic spline**.
 
 If we naively try to add log-cubic spline interpolation to the above setup things will not go well
-in *rateslib*. The curve will try to adapt to the excessive turn and diverge away to 50% rates.
-The mathematical concept of the multiplicative constant, however, is still valid but
-it requires the Python class (in this case a *Curve*) to be constructed with an inherent overlay
+in *rateslib* (or any other curve building software). The curve will try to adapt to the
+excessive turn and diverge/oscillate away to 50% rates.
+The mathematical concept of the multiplicative constant, however, is still valid, but this
+would require the Python class (in this case a *Curve*) to be constructed with an inherent overlay
 of DF adjustments when including turns. This is a very specific coding requirement and does not
 readily suit an environment that is otherwise completely generalist. It would add significant
 cyclomatic complexity to the code and also cognitive complexity. It would also considerably
-slow down the *Curve* lookup.
+slow down the *Curve* lookup. So *rateslib* does not do this.
 
 *Rateslib's* way of handling this, instead, is to provide a :class:`~rateslib.curves.CompositeCurve`
 class, which stores a record of different curves and allows it to return rates that are some

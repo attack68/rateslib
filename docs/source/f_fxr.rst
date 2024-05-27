@@ -38,8 +38,8 @@ to derive all FX rates from the stated FX market are performed internally.
 .. ipython:: python
 
    fxr = FXRates(
-       fx_rates={"eurusd": 1.1, "gbpusd":1.25, "eursek": 10.85, "noksek": 1.05},
-       base="USD"
+       fx_rates={"eurusd": 1.1, "eursek": 10.85, "noksek": 1.05, "gbpusd":1.25},
+       base="usd",
    )
    fxr.rates_table()
 
@@ -54,9 +54,9 @@ currency.
 
    curve = Curve(
        nodes={dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 0.99, dt(2023, 1, 1): 0.97},
-       id="estr"
+       id="estr",
    )
-   swap = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.00, currency="EUR")
+   swap = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.00, currency="eur")
    swap.npv(curve)
    swap.analytic_delta(curve)
 
@@ -73,7 +73,7 @@ Or, other currencies too, that are non-base, can also be displayed upon request.
 
 .. ipython:: python
 
-   swap.npv(curve, fx=fxr, base="NOK")
+   swap.npv(curve, fx=fxr, base="nok")
 
 .. _fx-dual-doc:
 

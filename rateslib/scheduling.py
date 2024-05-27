@@ -1280,7 +1280,10 @@ def _generate_irregular_schedule_unadjusted(
     else:
         yield ueffective
         yield from _generate_regular_schedule_unadjusted(
-            ufront_stub, utermination if uback_stub is NoInput.blank else uback_stub, frequency, roll
+            ufront_stub,
+            utermination if uback_stub is NoInput.blank else uback_stub,
+            frequency,
+            roll,
         )
     if uback_stub is not NoInput(0):
         yield utermination

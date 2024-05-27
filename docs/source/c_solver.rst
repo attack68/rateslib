@@ -17,7 +17,7 @@ Solver
 
 The ``rateslib.solver`` module includes a :class:`~rateslib.solver.Solver` class
 which iteratively solves for the parameters of :ref:`Curve <curves-doc>` objects, to
-fit the given market data of calibrating :ref:`Instruments <instruments-doc>`.
+fit the given market data of calibrating :ref:`Instruments <instruments-toc-doc>`.
 
 This module relies on the utility module :ref:`dual<dual-doc>` for gradient based
 optimization.

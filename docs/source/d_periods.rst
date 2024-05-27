@@ -11,6 +11,9 @@
 Periods
 ***********
 
+Conventional Periods
+*********************
+
 The ``rateslib.periods`` module creates *Period* objects that define ways to
 describe single cashflows,
 generated under various calculation methodologies. It is probably quite rare that
@@ -20,7 +23,11 @@ generated under various calculation methodologies. It is probably quite rare tha
 The following *Periods* are provided, click on the links for a full description
 of each *Period* type:
 
-.. automod-diagram:: rateslib.periods
+.. inheritance-diagram:: rateslib.periods.FixedPeriod rateslib.periods.FloatPeriod rateslib.periods.IndexFixedPeriod rateslib.periods.Cashflow rateslib.periods.IndexCashflow
+   :private-bases:
+   :parts: 1
+
+.. .. automod-diagram:: rateslib.periods
    :private-bases:
    :parts: 1
 
@@ -34,7 +41,7 @@ of each *Period* type:
 
 **Common methods**
 
-Every *Period* type is endowed with the following the methods:
+Every *Period* type is endowed with the following methods:
 
 .. autosummary::
    rateslib.periods.BasePeriod.npv
@@ -63,3 +70,27 @@ their specific functionality, such as:
    .. autoclass:: rateslib.periods.FloatPeriod
       :members: rate, fixings_table
    .. autoclass:: rateslib.periods.Cashflow
+
+Volatility Periods
+*******************
+
+Volatility periods provide the basic calculations for european options priced with Black-76
+pricing formula.
+
+.. inheritance-diagram:: rateslib.periods.FXCallPeriod rateslib.periods.FXPutPeriod
+   :private-bases:
+   :parts: 1
+
+.. autosummary::
+   rateslib.periods.FXCallPeriod
+   rateslib.periods.FXPutPeriod
+
+**Common methods**
+
+Every volatility *Period* type is endowed with the following methods:
+
+.. autosummary::
+   rateslib.periods.FXOptionPeriod.npv
+   rateslib.periods.FXOptionPeriod.analytic_greeks
+   rateslib.periods.FXOptionPeriod.rate
+   rateslib.periods.FXOptionPeriod.implied_vol

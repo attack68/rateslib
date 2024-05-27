@@ -73,9 +73,9 @@ Introduction to Rateslib
 For what purpose would I use *rateslib*?
 =============================================
 
-- If you want to integrate linear fixed income analysis into your workflow with Python.
+- If you want to integrate linear fixed income, FX and FX volatility analysis into your workflow with Python.
 - If you desire a pain free setup process, a user-oriented API, and extensive documentation.
-- If you are new to fixed income and interested to learn about basic and advanced concepts with
+- If you are new to fixed income and currencies and interested to learn about basic and advanced concepts with
   tools to explore the nuances of these markets, as a companion to various authored books.
 
 Which ``fixed income instruments`` does *rateslib* include?
@@ -89,7 +89,7 @@ Which ``fixed income instruments`` does *rateslib* include?
    * - Single Ccy Derivatives
      - Multi-Ccy Derivatives
      - Securities
-     - Volatility
+     - FX Volatility
      - Combinations
    * - :class:`~rateslib.instruments.IRS`
      - :class:`~rateslib.instruments.FXExchange`
@@ -109,17 +109,17 @@ Which ``fixed income instruments`` does *rateslib* include?
    * - :class:`~rateslib.instruments.STIRFuture`
      -
      - :class:`~rateslib.instruments.BondFuture`
-     -
+     - :class:`~rateslib.instruments.FXStraddle`
      -
    * - :class:`~rateslib.instruments.ZCS`
      -
      - :class:`~rateslib.instruments.IndexFixedRateBond`
-     -
+     - :class:`~rateslib.instruments.FXStrangle`
      -
    * - :class:`~rateslib.instruments.ZCIS`
      -
      -
-     -
+     - :class:`~rateslib.instruments.FXBrokerFly`
      -
    * - :class:`~rateslib.instruments.IIRS`
      -
@@ -131,7 +131,7 @@ Which ``fixed income instruments`` does *rateslib* include?
 
     <div class="tutorial">
 
-:ref:`Straight to tutorial...<instruments-doc>`
+:ref:`Straight to tutorial...<instruments-toc-doc>`
 
 .. raw:: html
 
@@ -144,6 +144,11 @@ Does *rateslib* handle ``foreign exchange (FX)``?
 derivatives, so the :class:`~rateslib.fx.FXRates` and :class:`~rateslib.fx.FXForwards`
 classes exist to allow full flexibility and expressing quantities in
 consistent currencies.
+
+Additionally *rateslib* also includes certain *FX Option*
+products and the ability to
+construct an :class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
+:class:`~rateslib.fx_volatility.FXDeltaVolSurface` for pricing.
 
 .. raw:: html
 

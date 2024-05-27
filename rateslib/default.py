@@ -308,3 +308,8 @@ def plot(x, y: list, labels=[]):
         ax.xaxis.set_minor_locator(months)
         fig.autofmt_xdate()
     return fig, ax, lines
+
+
+def _drb(default, possible_blank):
+    """(D)efault (r)eplaces (b)lank"""
+    return default if possible_blank is NoInput.blank else possible_blank

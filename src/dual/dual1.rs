@@ -275,6 +275,17 @@ impl Dual {
         Ok(new.to_new_vars(&other.vars, None))
     }
 
+    /// Construct a new `Dual` cloning the `vars` Arc pointer from another.
+    ///
+    pub fn clone_from(other: &Self, real: f64, dual: Array1<f64>) -> Self {
+        assert_eq!(other.vars().len(), dual.len());
+        Dual{
+            real,
+            vars: Arc::clone(&other.vars),
+            dual,
+        }
+    }
+
     /// Get the real component value of the struct.
     pub fn real(&self) -> f64 {
         self.real.clone()

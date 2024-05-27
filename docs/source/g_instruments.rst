@@ -9,19 +9,23 @@
 Instruments
 ************
 
-:ref:`Instruments<instruments-doc>` in *rateslib* are generally categorised into the following
+*Instruments* in *rateslib* are generally categorised into the following
 groups:
 
-- **Securities**, which are single currency based, like *Bonds* and *Bills*.
-- **Single Currency Derivatives**, like *Interest Rate Swaps (IRS)*, *FRAs*.
-- **Multi-currency Derivatives**, like *FXSwaps* and *Cross-Currency Swaps (XCSs)*
+- :ref:`Securities<securities-doc>`, which are single currency based, like *Bonds* and *Bills*.
+- :ref:`Single Currency Derivatives<singlecurrency-doc>`, like *Interest Rate Swaps (IRS)*, *FRAs*,
+  *Inflation Swaps (ZCISs)*.
+- :ref:`Multi-Currency Derivatives<multicurrency-doc>`, like *FXSwaps* and *Cross-Currency Swaps (XCSs)*.
+- :ref:`FX Volatility Derivatives<fx-volatility-doc>`, like *FXCalls*, *FXPuts* and *FXStraddles*.
+- :ref:`Utilities and Instrument Combinations<combinations-doc>`, which allows things like *Spread trades*,
+  *Butterflies*, *Portfolios* and a *Value* for a *Curve*.
 
 Each *Instrument* is its own Python *Class*, and it is sequentially constructed from other classes.
 
 - First :ref:`Periods<periods-doc>` are defined in the ``rateslib.periods`` module.
 - Secondly :ref:`Legs<legs-doc>` are defined in the ``rateslib.legs`` module and these
   combine and control a list of organised :ref:`Periods<periods-doc>`.
-- Finally :ref:`Instruments<instruments-doc>` are defined in the
+- Finally *Instruments* are defined in the
   ``rateslib.instruments`` module and these combine and control one or two
   :ref:`Legs<legs-doc>`.
 
@@ -42,7 +46,11 @@ to construct custom objects.
 
     d_periods.rst
     d_legs.rst
-    d_instruments.rst
+    e_securities.rst
+    e_singlecurrency.rst
+    e_multicurrency.rst
+    e_fx_volatility.rst
+    e_combinations.rst
 
 The below example demonstrates this composition when creating an :class:`~rateslib.instruments.IRS`.
 

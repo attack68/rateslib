@@ -74,6 +74,8 @@ from rateslib.curves import (
     ProxyCurve,
 )
 
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+
 from rateslib.fx import (
     FXRates,
     FXForwards,
@@ -105,6 +107,7 @@ from rateslib.legs import (
 
 from rateslib.instruments import (
     Value,
+    VolValue,
     Bill,
     FixedRateBond,
     IndexFixedRateBond,
@@ -126,6 +129,9 @@ from rateslib.instruments import (
     FXCall,
     FXPut,
     FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
+    FXBrokerFly,
 )
 
 Instruments = [
@@ -197,6 +203,9 @@ __all__ = [
     "ProxyCurve",
     "interpolate",
     "index_left",
+    # fx_volatility.py
+    "FXDeltaVolSmile",
+    "FXDeltaVolSurface",
     # solver.py
     "Solver",
     # fx.py
@@ -227,6 +236,7 @@ __all__ = [
     "BondFuture",
     "FRA",
     "Value",
+    "VolValue",
     "Bill",
     "IRS",
     "STIRFuture",
@@ -243,6 +253,9 @@ __all__ = [
     "FXCall",
     "FXPut",
     "FXRiskReversal",
+    "FXStraddle",
+    "FXStrangle",
+    "FXBrokerFly",
 ]
 
 __version__ = "1.2.0"

@@ -15,6 +15,7 @@ crate-type = ["lib"]
 [dependencies]
 #pyo3 = { version = "0.20.3", features = ["abi3-py39", "extension-module"] }
 #chrono = "0.4.0"
+pyo3 = "0.21"
 ndarray = "0.15.6"
 indexmap = "1.9.3"
 num-traits = "0.2.15"
@@ -24,12 +25,15 @@ itertools = "0.12.1"
 statrs = "0.16"
 
 # --- This section should be live in development to use `cargo test --lib --no-default-features`
-[dependencies.pyo3]
-version = "0.21"
+#[dependencies.pyo3]
+#version = "0.21"
 
 [features]
+# py03 = ["pyo3/abi3-py39"]
+# multiple-pymethods = ["pyo3/multiple-pymethods"]
+abi3-py39 = ["pyo3/abi3-py39"]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module"]
+default = ["extension-module", "abi3-py39"]
 # -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
 [dev-dependencies]
