@@ -20,9 +20,9 @@ Interbank standard conventions for quoting FX volatility products are quite vari
 None-the-less, *rateslib* provides the most common definitions and products, all priced using
 the **Black-76** model.
 
-Currently, in v1.2.x, there is no ability to build a volatility *Surface*.
-However, there is a :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for options with consistent expiries,
-and the ability to input ``vol`` as an explicit value, to pricing methods.
+There is an :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, for options with consistent expiries,
+and an :class:`~rateslib.fx_volatility.FXDeltaVolSurface`, for a more generalised pricing model.
+The ability to input ``vol`` as an explicit numeric value in pricing methods also exists.
 
 The following *Instruments* are currently available.
 
