@@ -45,6 +45,10 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
        Also **reverse** the ``notional`` so that a +1mm EURUSD transaction is considered as a purchase of
        EUR and a sale of USD.
    * - Instruments
+     - :class:`~rateslib.instruments.FXSwap` allows the dominant ``pair`` argument, consistent with other *FX*
+       instruments to define the currencies. ``currency`` and ``leg2_currency`` are still currently permissible if
+       ``pair`` is omitted.
+   * - Instruments
      - Basic *FX Volatility Instruments* have been added in **beta** status, including
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
        :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
