@@ -6,51 +6,19 @@
 Release Notes
 **************
 
-Rough Development Plan
-***********************
-
 The future development of *rateslib* is open to many avenues.
 Some possibilities are listed below. The author is very interested in any feedback
 and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
-.. list-table::
-   :widths: 20 35 35 10
-   :header-rows: 1
-
-
-   * - Feature
-     - Description
-     - Consideration
-     - Timeframe
-   * - Vanilla FX options and volatility products
-     - Adding option instruments and benchmark trades such as risk-reversals.
-     - Highly likely (v2.0?)
-     - By mid 2024
-   * - Vanilla Swaptions
-     - Adding the instruments priced by a volatility input.
-     - Likely (v2.0 or v3.0?)
-     - By end 2024
-   * - SABR model for options
-     - Adding the parameters to construct SABR vol surfaces/ cuves.
-     - Possible, with dependencies to other developments. (v3.0?)
-     - By end 2024
-   * - Optimization of code
-     - Using C extensions, or rust, or re-writing certain blocks to improve performance.
-     - Likely to some degree, depending upon community adoption and contributions.
-     - no ETA
-   * - AD backend
-     - Changing the AD implementation to another 3rd party (JAX, PyAudi)
-     - Very unlikely, maturity of those libraries must increase and the performance
-       improvements must be sufficient to warrant such a large codebase change.
-     - no ETA
-
 1.2.0 (not released)
 **********************
 
 This version uses **Rust** bindings. See :ref:`getting started <pricing-doc>`
 for notes about installation changes.
+
+New *FX Volatility Products* are set to **beta** status, probably until version 2.0.
 
 .. list-table::
    :widths: 25 75
@@ -61,13 +29,44 @@ for notes about installation changes.
    * - Performance
      - The modules ``rateslib.dual`` and ``rateslib.splines`` have been ported to **Rust**
        instead of Python to improve calculation times.
+   * - Splines
+     - New methods :meth:`~rateslib.splines.ppev_single_dual`,
+       :meth:`~rateslib.splines.ppev_single_dual2`, :meth:`~rateslib.splines.ppdnev_single_dual`,
+       and :meth:`~rateslib.splines.ppdnev_single_dual2` have been added to ensure correct
+       handling of AD with regards to both x-axis and y-axis variables. See
+       :ref:`section on using AD with splines <splines-ad-doc>`
+   * - Splines
+     - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
+       to use based on the AD sensitivities of the given `x` value.
    * - Instruments
-     - Basic *FX Volatility Instruments* have been added, including
-       :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut` and
-       :class:`~rateslib.instruments.FXRiskReversal`. See :ref:`user guide section <volatility-doc>`
-       for more information.
+     - Basic *FX Volatility Instruments* have been added in **beta** status, including
+       :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
+       :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
+       :class:`~rateslib.instruments.FXStrangle`, :class:`~rateslib.instruments.FXBrokerFly`
+       and :class:`~rateslib.instruments.FXOptionStrat`.
+       See :ref:`user guide section <fx-volatility-doc>` for more information.
+   * - FX Volatility
+     - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
+       to allow pricing of single expiry *FX Options* with a *Smile* interpolated over a *Delta*
+       axis.
+   * - AD
+     - Added :meth:`~rateslib.dual.dual_norm_pdf` for AD safe standard normal probability density.
+   * - AD
+     - Added :meth:`~rateslib.solver.newton_1dim` and :meth:`~rateslib.solver.newton_ndim`
+       for AD safe Newton root solving in one or multiple dimensions.
+   * - Solver
+     - Added :meth:`~rateslib.solver.quadratic_eqn` to return the solution of a quadratic equation
+       in an AD safe and consistent return format to other solvers for convenience.
    * - Bug
-     - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A", albeit with a *UserWarning*.
+     - "ActActICMA" convention now handles ``frequency`` of "Z", asserting that of "A",
+       albeit with a *UserWarning*.
+   * - Bug
+     - ``npv`` and ``cashflows`` of a :class:`~rateslib.periods.FloatPeriod` did not
+       handle error messages regarding missing RFR fixings for a historical period.
+       Calculations wll now raise if missing ``fixings``.
+   * - Bug
+     - `FXSwap` now no longer raises `TypeError` for dual number type mixing when `npv` or `rate`
+       are called after changing the AD order of curves and fx objects.
 
 
 1.1.0 (20th Mar 2024)

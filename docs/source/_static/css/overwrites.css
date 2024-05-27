@@ -51,8 +51,18 @@ div.leftside40 {
   float: left !important;
 }
 
+div.leftside50 {
+  width: 48% !important;
+  float: left !important;
+}
+
 div.rightside60 {
   width: 58% !important;
+  float: right !important;
+}
+
+div.rightside50 {
+  width: 48% !important;
   float: right !important;
 }
 

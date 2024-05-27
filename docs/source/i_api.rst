@@ -86,12 +86,11 @@ Piecewise Polynomial Splines
    :no-heading:
    :no-inheritance-diagram:
 
-Functions
-^^^^^^^^^^
-
-.. autosummary::
-   ~rateslib.splines.bsplev_single
-   ~rateslib.splines.bspldnev_single
+.. Functions
+   ^^^^^^^^^^
+   .. autosummary::
+      ~rateslib.splines.bsplev_single
+      ~rateslib.splines.bspldnev_single
 
 
 Classes
@@ -158,6 +157,7 @@ Curves
    :skip: Any
    :skip: CustomBusinessDay
    :skip: Dual
+   :skip: Dual2
    :skip: PPSplineF64
    :skip: PPSplineDual
    :skip: PPSplineDual2
@@ -198,6 +198,32 @@ FX
    :skip: set_order
    :skip: gradient
 
+FX Volatility
+==============
+
+.. automodapi:: rateslib.fx_volatility
+   :no-heading:
+   :skip: set_order_convert
+   :skip: dual_exp
+   :skip: dual_inv_norm_cdf
+   :skip: DualTypes
+   :skip: Dual
+   :skip: Dual2
+   :skip: dual_norm_cdf
+   :skip: dual_log
+   :skip: dual_norm_pdf
+   :skip: PPSplineF64
+   :skip: PPSplineDual
+   :skip: PPSplineDual2
+   :skip: evaluate
+   :skip: plot
+   :skip: NoInput
+   :skip: newton_1dim
+   :skip: uuid4
+   :skip: Union
+   :skip: datetime
+   :skip: DataFrame
+
 Periods
 ========
 
@@ -219,6 +245,8 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: Series
    :skip: datetime
    :skip: comb
+   :skip: FXDeltaVolSurface
+   :skip: FXDeltaVolSmile
 
 Legs
 =====
@@ -285,11 +313,13 @@ Instruments
    :skip: ZeroFloatLeg
    :skip: LineCurve
    :skip: Solver
-   :skip: CompositeCurve
    :skip: ZeroFixedLeg
    :skip: forward_fx
    :skip: partial
    :skip: timedelta
+   :skip: FXCallPeriod
+   :skip: FXDeltaVolSmile
+   :skip: FXPutPeriod
 
 Solver
 =======
@@ -308,6 +338,12 @@ Solver
    :skip: Series
    :skip: CompositeCurve
    :skip: ProxyCurve
+   :skip: concat
+   :skip: dual_log
+   :skip: dual_solve
+   :skip: gradient
+   :skip: time
+   :skip: uuid4
 
 Cookbook
 =========

@@ -26,13 +26,31 @@
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
 with a high level, well documented API.
 
-Its design objective is to be able to create a self-consistent, arbitrage free
-framework for pricing all aspects of linear fixed income trading, such as spot FX, FX forwards,
-single currency securities and derivatives like fixed rate bonds and IRSs, and also
-multi-currency derivatives such as FX swaps and cross-currency swaps. Volatility products
-are under consideration for future versions.
+.. raw:: html
 
-The techniques and object interation within *rateslib* were inspired by
+   <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
+      <thead style="background-color: #ebf0f4;">
+        <tr>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic, Personal, or Educational Use</th>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use: Banks, Funds, Accountants, Treasuries</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:green; font-size: 1.25em; font-weight:bold;">FREE to use and modify.<br></td>
+          <td style="">
+          <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
+             <span style="text-align: center; font-style:italic;">
+             Can purchase a licence extension. $300 per year / per user.</span><br>
+             <span style="text-align: center; font-style:italic;">
+             contact: rateslib@gmail.com
+             </span>
+          </td>
+        </tr>
+      </tbody>
+   </table>
+
+The techniques and object interaction within *rateslib* were inspired by
 the requirements of multi-disciplined fixed income teams working, both cooperatively
 and independently, within global investment banks.
 
@@ -140,26 +158,7 @@ Licence
 =======
 
 This library is released under a **Creative Commons Attribution, Non-Commercial,
-No-Derivatives 4.0 International Licence**. See `here <licence-doc>`_ for more details.
-
-.. raw:: html
-
-    <span style="color: darkgreen; font-size: 1.25em;">Activities allowed:</span>&nbsp;
-
-Academic work, personal learning, **private and non-commercial** uses, and non-profit functions.
-
-.. raw:: html
-
-    <span style="color: firebrick; font-size: 1.25em;">Activities prohibited:</span>
-
-Any **commercial based activity**, for example inside a bank, fund, or investment firm, or corporation.
-
-.. raw:: html
-
-    <span style="color: darkorange; font-size: 1.25em;">Other licence options available:</span>
-
-If you would like to discuss licensing, under very reasonable terms, please contact the
-author at **rateslib@gmail.com**.
+No-Derivatives 4.0 International Licence**. See :ref:`here<licence-doc>` for more details.
 
 
 Get Started

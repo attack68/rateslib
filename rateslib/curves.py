@@ -11,15 +11,15 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pytz import UTC
 from typing import Optional, Union, Callable, Any
+import numpy as np
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import Holiday
 from uuid import uuid4
-import numpy as np
 import warnings
 import json
 from math import floor, comb
 from rateslib import defaults
-from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
+from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert, DualTypes, Dual2
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.default import plot, NoInput
 from rateslib.calendars import (
@@ -309,7 +309,8 @@ class Curve(_Serialize):
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
-        self.node_dates = list(self.nodes.keys())
+        self.node_keys = list(self.nodes.keys())
+        self.node_dates = self.node_keys
         self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
         self.n = len(self.node_dates)
         for idx in range(1, self.n):
@@ -494,6 +495,14 @@ class Curve(_Serialize):
         # calendar = self.calendar if calendar is False else calendar
         # convention = self.convention if convention is None else convention
 
+        # Alternative solution to PR 172.
+        # if effective < self.node_dates[0]:
+        #     raise ValueError(
+        #         "`effective` date for rate period is before the initial node date of the Curve.\n"
+        #         "If you are trying to calculate a rate for an historical FloatPeriod have you "
+        #         "neglected to supply appropriate `fixings`?\n"
+        #         "See Documentation > Cookbook > Working with Fixings."
+        #     )
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
         try:
@@ -1178,6 +1187,42 @@ class Curve(_Serialize):
         x = [left + timedelta(days=i) for i in range(points)]
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
         return plot(x, [rates])
+
+    def _set_node_vector(self, vector: list[DualTypes], ad):
+        """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
+        DualType = Dual if ad == 1 else Dual2
+        DualArgs = ([],) if ad == 1 else ([], [])
+        base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
+        ident = np.eye(self.n)
+
+        if self._ini_solve == 1:
+            # then the first node on the Curve is not updated but
+            # set it as a dual type with consistent vars.
+            self.nodes[self.node_keys[0]] = DualType.vars_from(
+                base_obj,
+                self.nodes[self.node_keys[0]].real,
+                base_obj.vars,
+                ident[0, :].tolist(),
+                *DualArgs[1:],
+            )
+
+        for i, k in enumerate(self.node_keys[self._ini_solve :]):
+            self.nodes[k] = DualType.vars_from(
+                base_obj,
+                vector[i].real,
+                base_obj.vars,
+                ident[i + self._ini_solve, :].tolist(),
+                *DualArgs[1:],
+            )
+        self.csolve()
+
+    def _get_node_vector(self):
+        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
+        return np.array(list(self.nodes.values())[self._ini_solve:])
+
+    def _get_node_vars(self):
+        """Get the variable names of elements updated by a Solver"""
+        return tuple((f"{self.id}{i}" for i in range(self._ini_solve, self.n)))
 
 
 class LineCurve(Curve):
@@ -2285,6 +2330,9 @@ class CompositeCurve(IndexCurve):
             raise TypeError("`index_value` not available on non `IndexCurve` types.")
         return super().index_value(date, interpolation)
 
+    def _get_node_vector(self):
+        return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
+
 
 class MultiCsaCurve(CompositeCurve):
     """
@@ -2369,8 +2417,8 @@ class MultiCsaCurve(CompositeCurve):
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-        days = (date - self.curves[0].node_dates[0]).days
-        d = _DCF1d[self.convention.upper()]
+        # days = (date - self.curves[0].node_dates[0]).days
+        # d = _DCF1d[self.convention.upper()]
 
         # method uses the step and picks the highest (cheapest rate)
         # in each period
@@ -2628,6 +2676,9 @@ class ProxyCurve(Curve):
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         return NotImplementedError("`set_ad_order` not available on proxy curve.")
+
+    def _get_node_vector(self):
+        return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
 def average_rate(effective, termination, convention, rate):
