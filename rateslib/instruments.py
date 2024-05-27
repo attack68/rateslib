@@ -1073,49 +1073,38 @@ class FXExchange(Sensitivities, BaseMixin):
     ----------
     settlement : datetime
         The date of the currency exchange.
-    currency : str
-        The currency of the cashflow for which ``notional`` is applicable (3-digit code).
-    leg2_currency : str
-        The currency of the cashflow on the alternate *Leg*.
+    pair: str
+        The curreny pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
     fx_rate : float, optional
         The FX rate used to derive the notional exchange on *Leg2*.
     notional : float
-        The cashflow amount for the initial currency.
+        The cashflow amount of the LHS currency.
     curves : Curve, LineCurve, str or list of such, optional
-        A single :class:`~rateslib.curves.Curve`,
-        :class:`~rateslib.curves.LineCurve` or id or a
-        list of such. A list defines the following curves in the order:
-
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg1``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg2``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+        For *FXExchange* only discounting curves are required in each currency and not rate forecasting curves.
+        The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
     def __init__(
         self,
         settlement: datetime,
-        currency: str,
-        leg2_currency: str,
+        pair: str,
         fx_rate: Union[float, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         self.settlement = settlement
-        self.pair = f"{currency.lower()}{leg2_currency.lower()}"
+        self.pair = pair.lower()
         self.leg1 = Cashflow(
             notional=-defaults.notional if notional is NoInput.blank else -notional,
-            currency=currency.lower(),
+            currency=self.pair[0:3],
             payment=settlement,
             stub_type="Exchange",
             rate=NoInput(0),
         )
         self.leg2 = Cashflow(
             notional=1.0,  # will be determined by setting fx_rate
-            currency=leg2_currency.lower(),
+            currency=self.pair[3:6],
             payment=settlement,
             stub_type="Exchange",
             rate=fx_rate,
