@@ -79,7 +79,8 @@ The above *Smile* is initialised as a flat vol at 10%. In order to calibrate it 
 instruments, given in the market prices data table.
 
 Since these *Instruments* are **multi-currency derivatives** an :class:`~rateslib.fx.FXForwards`
-framework also needs to be setup for pricing. We will do this simultaneously using other prevailing market data.
+framework also needs to be setup for pricing. We will do this simultaneously using other prevailing market data,
+i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.85 points.
 
 .. ipython:: python
 
