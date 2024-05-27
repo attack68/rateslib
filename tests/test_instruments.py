@@ -1332,6 +1332,18 @@ class TestFXExchange:
         with pytest.raises(ValueError, match="Must have some FX info"):
             fxe.npv(curve)
 
+    def test_notional_direction(self, curve, curve2):
+        fx1 = FXExchange(notional=1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.20)
+        fx2 = FXExchange(notional=-1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.30)
+        pf = Portfolio([fx1, fx2])
+        fx= FXRates({"eurusd": 1.30}, base="usd")
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx)
+        expected = 100000.0
+        assert abs(result - expected) < 1e-8
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="eur")
+        expected = 100000.0 / 1.30
+        assert abs(result - expected) < 1e-8
+
 
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
