@@ -21,7 +21,7 @@ from rateslib.periods import (
 from rateslib.fx import FXRates, FXForwards
 from rateslib.dual import Dual
 from rateslib.curves import Curve, LineCurve, IndexCurve, CompositeCurve
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u
 from rateslib import defaults
 
 
@@ -2710,6 +2710,22 @@ class TestFXOption:
         taylor_vanna = 0.1 / 100.0 * fwd_diff * greeks["vanna"] * 10e6
         taylor = fxfo.curve("usd", "usd")[discount_date] * (taylor_delta + taylor_gamma + taylor_vanna) + taylor_vomma + taylor_vega
         assert abs(taylor - expected) < 5e-1
+
+    def test_kega(self, fxfo):
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            notional=10e6,
+            strike=1.10,
+            delta_type="spot_pa",
+        )
+
+        d_eta = _d_plus_min_u(1.10/1.065, 0.10*0.5, -0.5)
+        result = fxc._analytic_kega(1.10/1.065, 0.99, -0.5, 0.10, 0.50, 1.065, 1.0, 1.10, d_eta)
+        expected = 0.355964619118249
+        assert abs(result - expected) < 1e-12
 
     def test_bad_expiries_raises(self, fxfo):
         fxc = FXCallPeriod(

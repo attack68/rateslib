@@ -2604,7 +2604,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         # convert the premium to a standardised immediate pips value.
         if metric == "percent":
+            # convert premium to pips form
             premium = premium * fx.rate(self.pair, self.payment) * 100.0
+        # convert to immediate pips form
         imm_premium = premium * disc_curve_ccy2[self.payment]
 
         t_e = self._t_to_expiry(disc_curve_ccy2.node_dates[0])
@@ -2820,11 +2822,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _analytic_kega(z_u, z_w, eta, vol, sqrt_t, f_d, phi, k, d_eta):
         if eta < 0:
             # dz_u_du = 1.0
-            x = phi * dual_norm_cdf(phi * d_eta) / (f_d * z_u * dual_norm_pdf(phi * d_eta))
+            x = vol * phi * dual_norm_cdf(phi * d_eta) / (f_d * z_u * dual_norm_pdf(phi * d_eta))
         else:
             x = 0.0
 
-        _ = (d_eta / vol - 2.0 * eta * sqrt_t) / (-1 / (k * sqrt_t * vol) + x)
+        _ = (d_eta - 2.0 * eta * sqrt_t * vol) / (-1 / (k * sqrt_t) + x)
         return _
 
     @staticmethod

@@ -26,7 +26,7 @@ and the ability to input ``vol`` as an explicit value, to pricing methods.
 
 The following *Instruments* are currently available.
 
-.. inheritance-diagram:: rateslib.instruments.FXCall rateslib.instruments.FXPut rateslib.instruments.FXRiskReversal rateslib.instruments.FXStraddle rateslib.instruments.FXStrangle
+.. inheritance-diagram:: rateslib.instruments.FXCall rateslib.instruments.FXPut rateslib.instruments.FXRiskReversal rateslib.instruments.FXStraddle rateslib.instruments.FXStrangle rateslib.instruments.FXBrokerFly
    :private-bases:
    :parts: 1
 
