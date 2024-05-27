@@ -7712,7 +7712,7 @@ class FXSwap(XCS):
     args : dict
         Required positional args to :class:`XCS`.
     pair : str, optional
-        The FX pair, e.g. "eurusd" as 3-digit ISO codes. If not given, fallbacks to the base implementation of
+        The FX pair, e.g. "eurusd" as 3-digit ISO codes. If not given, fallsback to the base implementation of
         *XCS* which defines separate inputs as ``currency`` and ``leg2_currency``. If overspecified, ``pair`` will
         dominate.
     fx_fixings : float, FXForwards or None
