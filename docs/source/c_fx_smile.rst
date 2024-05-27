@@ -102,7 +102,7 @@ framework also needs to be setup for pricing. We will do this simultaneously usi
        instruments=[
            IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
            IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-           FXSwap(dt(2024, 5, 9), "3W", currency="eur", leg2_currency="usd", curves=[None, "eurusd", None, "usdusd"]),
+           FXSwap(dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]),
            FXStraddle(strike="atm_delta", **option_args),
            FXRiskReversal(strike=["-25d", "25d"], **option_args),
            FXRiskReversal(strike=["-10d", "10d"], **option_args),
