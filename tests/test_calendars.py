@@ -278,6 +278,7 @@ def test_is_eom_som(date, expected):
         (dt(2022, 1, 1), dt(2022, 1, 1), "ACTACT", 0.0),
         (dt(2022, 1, 1), dt(2023, 1, 31), "1+", 1.0),
         (dt(2022, 1, 1), dt(2024, 2, 28), "1+", 2 + 1 / 12),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "BUS252", 0.35714285714285715),
     ],
 )
 def test_dcf(start, end, conv, expected):
@@ -378,6 +379,10 @@ def test_dcf_special(start, end, conv, expected, freq_m, term, stub):
     result = dcf(start, end, conv, term, freq_m, stub)
     assert abs(result - expected) < 1e-12
 
+
+def test_dcf_bus_252():
+    result = dcf(start, end, conv, term, freq_m, stub)
+    assert abs(result - expected) < 1e-12
 
 @pytest.mark.parametrize(
     "conv, freq_m, term, stub",

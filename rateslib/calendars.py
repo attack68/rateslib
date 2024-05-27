@@ -15,6 +15,7 @@ from pandas.tseries.holiday import (
     nearest_workday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from pandas import date_range
 from rateslib.default import NoInput
 
 CalInput = Union[CustomBusinessDay, str, NoInput]
@@ -1230,6 +1231,24 @@ def _dcf_actacticma_stub365f(
         return d_
 
 
+def _dcf_bus252(
+    start: datetime,
+    end: datetime,
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
+    roll: Union[str, int, NoInput],
+    calendar: CalInput,
+):
+    """
+    Counts the number of business days in a range and divides by 252
+    [designed for Brazilian interest rate swaps]
+    """
+    cal_ = get_calendar(calendar)
+    dr = date_range(start, end, freq=cal_)
+    return (len(dr)-1.0) / 252.0
+
+
 def _dcf_1(*args):
     return 1.0
 
@@ -1256,6 +1275,7 @@ _DCF = {
     "ACTACTBOND": _dcf_actacticma,
     "1": _dcf_1,
     "1+": _dcf_1plus,
+    "BUS252": _dcf_bus252,
 }
 
 _DCF1d = {
@@ -1276,6 +1296,7 @@ _DCF1d = {
     "ACTACTBOND": 1.0 / 365.25,
     "1": None,
     "1+": None,
+    "BUS252": 1.0 / 252.0,
 }
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
