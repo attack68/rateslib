@@ -186,12 +186,14 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
 
          BBG Fenics Vol Smile
 
+      |
+      |
 
 
 FX Volatility Surfaces
 **********************
 
-*FX Surfaces* are collections of cross-sectional *FXDeltaVolSmiles* where:
+*FX Surfaces* in *rateslib* are collections of cross-sectional *FX Smiles* where:
 
 - each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
 - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
@@ -208,6 +210,7 @@ we will be able to closely match his values for option strikes.
 
 .. ipython:: python
 
+   # Setup the FXForward market...
    eur = Curve({dt(2009, 5, 3): 1.0, dt(2011, 5, 10): 1.0})
    usd = Curve({dt(2009, 5, 3): 1.0, dt(2011, 5, 10): 1.0})
    fxf = FXForwards(
@@ -224,7 +227,8 @@ we will be able to closely match his values for option strikes.
        fx=fxf,
    )
 
-His *Table 4.2* is shown below.
+His *Table 4.2* is shown below, which outlines the delta type of the used instruments at their respective tenors,
+and the ATM-delta straddle, the 25-delta broker-fly and the 25-delta risk reversal market volatility prices.
 
 .. ipython:: python
 
@@ -238,7 +242,7 @@ His *Table 4.2* is shown below.
 Constructing a Surface
 **********************
 
-We will now create a *Surface* that will be calibrated by the rates in the next section.
+We will now create a *Surface* that will be calibrated by those given rates.
 The *Surface* is initialised at a flat 18% volatility.
 
 .. ipython:: python
@@ -255,15 +259,24 @@ The *Surface* is initialised at a flat 18% volatility.
 The calibration of the *Surface* requires a *Solver* that will iterate and update the surface
 node values until convergence with the given instrument rates.
 
-**Note** that the *Surface* is
-parametrised by a *'forward'* *delta type* but that the 1Y *Instruments* here use *'spot'*.
-Internally this is all handled appropriately with necessary conversions, but it is the users
-responsibility to label the *Surface* and *Instrument* with the correct types. As Clark and
-others highlight "failing to take [correct delta types] into account introduces a mismatch -
-large enough to be relevant for calibration and pricing, but small enough that it may not be
-noticed at first". Parametrising the *Surface* with a *'forward'* delta type is the **recommended**
-choice because it is more standardised and the configuration of which *delta types* to use for
-the *Instruments* can be a separate consideration.
+.. note::
+
+   The *Surface* is
+   parametrised by a *'forward'* *delta type* but that the 1Y *Instruments* use *'spot'*.
+   Internally this is all handled appropriately with necessary conversions, but it is the users
+   responsibility to label the *Surface* and *Instrument* with the correct types. As Clark and
+   others highlight "failing to take [correct delta types] into account introduces a mismatch -
+   large enough to be relevant for calibration and pricing, but small enough that it may not be
+   noticed at first". Parametrising the *Surface* with a *'forward'* delta type is the **recommended**
+   choice because it is more standardised and the configuration of which *delta types* to use for
+   the *Instruments* can be a separate consideration.
+
+   For performance reasons it is recommended to match unadjusted delta type *Surfaces* with
+   calibrating *Instruments* that also have unadjusted delta types. And vice versa with premium adjusted
+   delta types. However, *rateslib* has internal root solvers which can handle these cross-delta type
+   specifications, although it degrades the performance of the *Solver* because the calculations are more
+   difficult. Mixing 'spot' and 'forward' is not a difficult distinction to refactor and that does
+   not cause performance degradation.
 
 .. ipython:: python
 
@@ -297,7 +310,7 @@ the *Instruments* can be a separate consideration.
    )
 
 Clark's Table 4.5 is replicated here. Note that due to using a different parametric form for
-*Smiles* (i.e. a natural cubic spline), inferring his FX forwards market rates, and not ncessarily
+*Smiles* (i.e. a natural cubic spline), inferring his FX forwards market rates, and not necessarily
 knowing the exact dates and holiday calendars, this produces
 minor deviations from his calculated values.
 
