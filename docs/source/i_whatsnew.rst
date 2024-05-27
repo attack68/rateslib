@@ -39,6 +39,12 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
      - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
        to use based on the AD sensitivities of the given `x` value.
    * - Instruments
+     - :red:`Breaking Changes!` Amend :class:`~rateslib.instruments.FXExchange` to **remove** the
+       arguments ``currency`` and ``leg2_currency``
+       in favour of using ``pair`` which is consistent with the new *FX Volatility* naming convention.
+       Also **reverse** the ``notional`` so that a +1mm EURUSD transaction is considered as a purchase of
+       EUR and a sale of USD.
+   * - Instruments
      - Basic *FX Volatility Instruments* have been added in **beta** status, including
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
        :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,

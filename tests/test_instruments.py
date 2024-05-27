@@ -532,10 +532,9 @@ class TestNullPricing:
             ),
             FXExchange(
                 settlement=dt(2022, 10, 1),
-                currency="eur",
-                leg2_currency="usd",
-                curves=["eureur", "eureur", "usdusd", "usdusd"],
-                notional=1e6 * 25 / 74.27,
+                pair="eurusd",
+                curves=[None, "eureur", None, "usdusd"],
+                notional=-1e6 * 25 / 74.27,
             ),
         ],
     )
@@ -580,7 +579,7 @@ class TestNullPricing:
         (ZCS(dt(2022, 1, 1), "1Y", "Q", curves=["usdusd"]), "fixed_rate"),
         (ZCIS(dt(2022, 1, 1), "1Y", "A", curves=["usdusd", "usdusd", "eu_cpi", "usdusd"]), "fixed_rate"),
         (IIRS(dt(2022, 1, 1), "1Y", "Q", curves=["eu_cpi", "usdusd", "usdusd", "usdusd"]), "fixed_rate"),
-        (FXExchange(dt(2022, 3, 1), currency="usd", leg2_currency="eur", curves=[NoInput(0), "usdusd", NoInput(0), "eurusd"]), "fx_rate")
+        (FXExchange(dt(2022, 3, 1), pair="usdeur", curves=[NoInput(0), "usdusd", NoInput(0), "eurusd"]), "fx_rate")
     ])
     def test_null_priced_delta_round_trip_one_pricing_param(self, inst, param):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
@@ -1255,9 +1254,8 @@ class TestFXExchange:
     def test_cashflows(self):
         fxe = FXExchange(
             settlement=dt(2022, 10, 1),
-            currency="eur",
-            leg2_currency="usd",
-            notional=1e6,
+            pair="eurusd",
+            notional=-1e6,
             fx_rate=2.05,
         )
         result = fxe.cashflows()
@@ -1287,8 +1285,7 @@ class TestFXExchange:
     def test_npv_rate(self, curve, curve2, base, fx):
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
-            currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             fx_rate=1.2080131682341035,
         )
         if not isinstance(fx, FXRates):
@@ -1301,8 +1298,7 @@ class TestFXExchange:
     def test_rate(self, curve, curve2):
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
-            currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             fx_rate=1.2080131682341035,
         )
         result = fxe.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), 1.20)
@@ -1314,9 +1310,9 @@ class TestFXExchange:
         # using numeric fx as pricing input, although it will return.
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
-            currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             fx_rate=1.2080131682341035,
+            notional=-1e6,
         )
         # result_ = fxe.npv([curve] * 4, fx=2.0, local=True)
         with pytest.warns(UserWarning):
@@ -1330,12 +1326,23 @@ class TestFXExchange:
     def test_npv_no_fx_raises(self, curve):
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
-            currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             fx_rate=1.2080131682341035,
         )
         with pytest.raises(ValueError, match="Must have some FX info"):
             fxe.npv(curve)
+
+    def test_notional_direction(self, curve, curve2):
+        fx1 = FXExchange(notional=1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.20)
+        fx2 = FXExchange(notional=-1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.30)
+        pf = Portfolio([fx1, fx2])
+        fx= FXRates({"eurusd": 1.30}, base="usd")
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx)
+        expected = 100000.0
+        assert abs(result - expected) < 1e-8
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="eur")
+        expected = 100000.0 / 1.30
+        assert abs(result - expected) < 1e-8
 
 
 # test the commented out FXSwap variant
@@ -2997,8 +3004,8 @@ class TestSpec:
               )
     ),
     (
-    FXExchange(dt(2022, 1, 15), currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
-    DataFrame([[-1000000.0, 1101072.93429]],
+    FXExchange(dt(2022, 1, 15), pair="eurusd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+    DataFrame([[1000000.0, -1101072.93429]],
               index=Index([dt(2022, 1, 15)], name="payment"),
               columns=MultiIndex.from_tuples([("EUR", "eur"), ("USD", "eur")],
                                              names=["local_ccy", "collateral_ccy"])
