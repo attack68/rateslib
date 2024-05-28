@@ -30,10 +30,11 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
      - The modules ``rateslib.dual`` and ``rateslib.splines`` have been ported to **Rust**
        instead of Python to improve calculation times.
    * - Splines
-     - New methods :meth:`~rateslib.splines.ppev_single_dual`,
-       :meth:`~rateslib.splines.ppev_single_dual2`, :meth:`~rateslib.splines.ppdnev_single_dual`,
-       and :meth:`~rateslib.splines.ppdnev_single_dual2` have been added to ensure correct
-       handling of AD with regards to both x-axis and y-axis variables. See
+     - New methods :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual`,
+       :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual2`,
+       :meth:`~rateslib.splines.PPSplineF64.ppdnev_single_dual`,
+       and :meth:`~rateslib.splines.PPSplineF64.ppdnev_single_dual2` have been added to
+       ensure correct handling of AD with regards to both x-axis and y-axis variables. See
        :ref:`section on using AD with splines <splines-ad-doc>`
    * - Splines
      - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
@@ -56,9 +57,11 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
        and :class:`~rateslib.instruments.FXOptionStrat`.
        See :ref:`user guide section <fx-volatility-doc>` for more information.
    * - FX Volatility
-     - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
+     - New pricing components :class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
+       :class:`~rateslib.fx_volatility.FXDeltaVolSurface`
+       have been added
        to allow pricing of single expiry *FX Options* with a *Smile* interpolated over a *Delta*
-       axis.
+       axis. See :ref:`FX volatility construction <c-fx-smile-doc>`.
    * - AD
      - Added :meth:`~rateslib.dual.dual_norm_pdf` for AD safe standard normal probability density.
    * - AD
