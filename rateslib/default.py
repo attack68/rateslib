@@ -1,3 +1,4 @@
+import numpy as np
 from pandas import read_csv
 import pandas
 import os
@@ -308,6 +309,19 @@ def plot(x, y: list, labels=[]):
         ax.xaxis.set_minor_locator(months)
         fig.autofmt_xdate()
     return fig, ax, lines
+
+
+def plot3d(x, y, z, labels=[]):
+    import matplotlib.pyplot as plt  # type: ignore[import]
+    from matplotlib import cm  # type: ignore[import]
+    # import matplotlib.dates as mdates  # type: ignore[import]
+
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+
+    X, Y = np.meshgrid(x, y)
+    # Plot the surface.
+    surf = ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    return fig, ax, None
 
 
 def _drb(default, possible_blank):

@@ -12,7 +12,7 @@ from rateslib.dual import (
     Dual2,
 )
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
-from rateslib.default import plot, NoInput
+from rateslib.default import plot, NoInput, plot3d
 from rateslib.solver import newton_1dim
 from rateslibrs import index_left_f64
 from uuid import uuid4
@@ -1069,6 +1069,14 @@ class FXDeltaVolSurface:
         Used internally alongside Surface, where a surface also requires an expiry.
         """
         return self.get_smile(expiry)[delta_index]
+
+    def plot(self):
+        plot_upper_bound = max([_.plot_upper_bound for _ in self.smiles])
+        deltas = np.linspace(0.0, plot_upper_bound, 20)
+        vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
+        expiries = [(_ - self.eval_posix)/(365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
+        return plot3d(deltas, expiries, vols)
+
 
 
 def _validate_delta_type(delta_type: str):
