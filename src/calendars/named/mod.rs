@@ -47,6 +47,7 @@ pub fn get_calendar_by_name(name: &str) -> HolCal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calendars::calendar::DateRoll;
 
     #[test]
     fn test_get_weekmask() {
