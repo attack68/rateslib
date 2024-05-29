@@ -1,5 +1,6 @@
 pub mod bus;
 pub mod nyc;
+pub mod tgt;
 
 use crate::calendars::calendar::HolCal;
 use std::collections::HashMap;
@@ -9,6 +10,7 @@ fn get_weekmask_by_name(name: &str) -> Vec<u8> {
     let hmap: HashMap<&str, &[u8]> = HashMap::from([
         ("bus", bus::WEEKMASK),
         ("nyc", nyc::WEEKMASK),
+        ("tgt", tgt::WEEKMASK),
     ]);
     hmap.get(name).unwrap().to_vec()
 }
@@ -17,6 +19,7 @@ fn get_holidays_by_name(name: &str) -> Vec<NaiveDateTime> {
     let hmap: HashMap<&str, &[&str]> = HashMap::from([
         ("bus", bus::HOLIDAYS),
         ("nyc", nyc::HOLIDAYS),
+        ("tgt", tgt::HOLIDAYS),
     ]);
     hmap.get(name).unwrap().iter().map(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%d %H:%M:%S").unwrap()).collect()
 }
@@ -53,6 +56,12 @@ mod tests {
     fn test_nyc() {
         let cal = get_calendar_by_name("nyc");
         assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+    }
+
+    #[test]
+    fn test_tgt() {
+        let cal = get_calendar_by_name("tgt");
+        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-05-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
     }
 
 }

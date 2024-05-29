@@ -264,9 +264,9 @@ CALENDARS: Dict[str, CustomBusinessDay] = {
     "tro": create_calendar(rules=CALENDAR_RULES["tro"], weekmask="Mon Tue Wed Thu Fri"),
 }
 
-cal = CALENDARS["nyc"]
+### RUN THE SCRIPT TO EXPORT HOLIDAY LIST
+cal = CALENDARS["tgt"]
 ts = pd.to_datetime(cal.holidays)
 strings = ['"'+_.strftime("%Y-%m-%d %H:%M:%S")+'"' for _ in ts]
 line = ",\n".join(strings)
 print(line)
-
