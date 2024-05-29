@@ -38,6 +38,23 @@ impl UnionCal {
     }
 }
 
+
+/// Struct for defining a holiday calendar which is the union of two or more other calendars,
+/// with the additional constraint of also ensuring settlement compliance with one or more
+/// other calendars.
+#[pyclass]
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct SettleCal {
+    calendars: Vec<HolCal>,
+    settle_calendars: Vec<HolCal>,
+}
+
+impl SettleCal {
+    pub fn new(calendars: Vec<HolCal>, settle_calendars: Vec<HolCal>) -> Self {
+        SettleCal { calendars, settle_calendars }
+    }
+}
+
 /// A trait to control business day management and date rolling.
 pub trait DateRoll {
 
@@ -46,6 +63,9 @@ pub trait DateRoll {
 
     /// Returns whether the date is a specific holiday excluded from the regular working week.
     fn is_holiday(&self, date: &NaiveDateTime) -> bool;
+
+    /// Returns whether the date can settle transactions, even if it is a valid business day.
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool;
 
     /// Returns whether the date is a business day, i.e. part of the working week and not a holiday.
     fn is_bus_day(&self, date: &NaiveDateTime) -> bool {
@@ -96,6 +116,10 @@ impl DateRoll for HolCal {
         self.holidays.contains(date)
     }
 
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        true
+    }
+
 }
 
 impl DateRoll for UnionCal {
@@ -106,6 +130,26 @@ impl DateRoll for UnionCal {
 
     fn is_holiday(&self, date: &NaiveDateTime) -> bool {
         self.calendars.iter().any(|cal| cal.is_holiday(date))
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        true
+    }
+
+}
+
+impl DateRoll for SettleCal {
+
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        self.calendars.iter().all(|cal| cal.is_weekday(date))
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        self.calendars.iter().any(|cal| cal.is_holiday(date))
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        !self.settle_calendars.iter().any(|cal| cal.is_holiday(date))
     }
 
 }
@@ -247,5 +291,21 @@ mod tests {
         let sat = NaiveDateTime::parse_from_str("2015-09-05 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
         let next = ucal.next_bus_day(&sat);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-10 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+    }
+
+    #[test]
+    fn test_settle_cal() {
+        let hols = vec![
+            NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
+            NaiveDateTime::parse_from_str("2015-09-09 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
+        ];
+        let settlecal = HolCal::new(hols, vec![5, 6]);
+        let holcal = HolCal::new(vec![], vec![5,6]);
+        let cal = SettleCal::new(vec![holcal], vec![settlecal]);
+
+
+        let mon = NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let next = cal.next_bus_day(&mon);
+        assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
     }
 }
