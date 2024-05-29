@@ -116,7 +116,7 @@ impl DateRoll for HolCal {
         self.holidays.contains(date)
     }
 
-    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
         true
     }
 
@@ -132,7 +132,7 @@ impl DateRoll for UnionCal {
         self.calendars.iter().any(|cal| cal.is_holiday(date))
     }
 
-    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
         true
     }
 
