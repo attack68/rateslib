@@ -4,13 +4,13 @@
 
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
-use std::collections::HashSet;
+use std::collections::{HashSet};
 use chrono::{Days, Weekday};
 use pyo3::pyclass;
 
 /// Struct for defining a holiday calendar.
 #[pyclass]
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct HolCal {
     holidays: IndexSet<NaiveDateTime>,
     week_mask: HashSet<Weekday>,
@@ -50,11 +50,6 @@ impl HolCal {
     pub fn is_bus_day(&self, date: &NaiveDateTime) -> bool {
         self.is_weekday(date) && !self.is_holiday(date)
     }
-
-//     pub fn roll_days_forward(date: &NaiveDateTime, days: u64, modified: bool) -> NaiveDateTime {
-//         let new_date = date + Days::new(days);
-//
-//     }
 }
 
 fn next_bus_day(date: &NaiveDateTime, cal: &HolCal) -> NaiveDateTime {
@@ -65,17 +60,17 @@ fn next_bus_day(date: &NaiveDateTime, cal: &HolCal) -> NaiveDateTime {
     new_date
 }
 
-fn mod_next_bus_day(date: &NaiveDateTime, cal: &HolCal) -> NaiveDateTime {
-    let new_date = next_bus_day(date, cal);
-    if new_date.month() != date.month() { prev_bus_day(date, cal) } else { new_date }
-}
-
 fn prev_bus_day(date: &NaiveDateTime, cal: &HolCal) -> NaiveDateTime {
     let mut new_date = date.clone();
     while !cal.is_bus_day(&new_date) {
         new_date = new_date - Days::new(1);
     }
     new_date
+}
+
+fn mod_next_bus_day(date: &NaiveDateTime, cal: &HolCal) -> NaiveDateTime {
+    let new_date = next_bus_day(date, cal);
+    if new_date.month() != date.month() { prev_bus_day(date, cal) } else { new_date }
 }
 
 fn mod_prev_bus_day(date: &NaiveDateTime, cal: &HolCal) -> NaiveDateTime {
