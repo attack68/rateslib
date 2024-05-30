@@ -1,6 +1,5 @@
-//! Create holiday calendars for financial date manipulation.
+//! Provides functionality to create holiday calendars and perform financial date manipulation.
 //!
-//! Calendars are defined by a specific set of holiday dates and generalised work week mask.
 
 use chrono::prelude::*;
 use indexmap::set::IndexSet;

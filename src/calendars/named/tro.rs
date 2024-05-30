@@ -1,4 +1,4 @@
-//! Define the parameters for a Toronto business day calendar.
+//! Define a Toronto business day calendar, aligned with CORRA publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const HOLIDAYS: &'static [&str] = &[

@@ -1,4 +1,4 @@
-//! Define the parameters for an Oslo business day calendar.
+//! Define an Oslo business day calendar, aligned with NOWA publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const HOLIDAYS: &'static [&str] = &[

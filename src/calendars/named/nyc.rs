@@ -1,4 +1,4 @@
-//! Define the parameters for Ney York business day calendar.
+//! Define a New York business day calendar, aligned with SOFR publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const HOLIDAYS: &'static [&str] = &[
