@@ -208,9 +208,11 @@ mod tests {
         let hol = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
         let no_hol = NaiveDateTime::parse_from_str("2015-09-10 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
         let saturday = NaiveDateTime::parse_from_str("2024-01-06 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let sunday = NaiveDateTime::parse_from_str("2024-01-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
         assert!(cal.is_weekday(&hol));  // Monday
         assert!(cal.is_weekday(&no_hol));  //Thursday
         assert!(!cal.is_weekday(&saturday));  // Saturday
+        assert!(!cal.is_weekday(&sunday));  // Sunday
     }
 
     #[test]
