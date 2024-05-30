@@ -28,13 +28,50 @@
 //! let ldn_tky = UnionCal::new(vec![ldn, tky], None);
 //! let spot = ldn_tky.add_bus_days(&date, 2, &Modifier::F, true);
 //! // Monday 8th May 2017, observing all holidays.
-
+//! ```
+//!
+//! Particularly when adjusting for FX transaction calendars the non-USD calendars may be used
+//! for date determination but the US calendar is used to validate eligible settlement.
+//! This is also a union of calendars but it is enforced via the `settlement_calendars` field.
+//!
+//! ```rust
+//! let tgt = Cal::new(vec![], vec![5, 6]);
+//! let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
+//! let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
+//! ```
+//!
+//! The spot (T+2) date as measured from Friday 16th June 2023 ignores the US calendar for date
+//! determination and allows Tuesday 20th June 2023 since the US holiday is on the Monday.
+//!
+//! ```rust
+//! let date = ndt(2023, 6, 16);
+//! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+//! // Tuesday 20th June 2023, ignoring the US holiday.
+//! ```
+//!
+//! On the other hand as measured from Thursday 15th June 2023 the spot cannot be on the Monday
+//! when `settlement` is enforced over the US calendar.
+//!
+//! ```rust
+//! let date = ndt(2023, 6, 15);
+//! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+//! // Tuesday 20th June 2023, enforcing no US holiday settlement.
+//! ```
+//!
+//! If `settlement` is not enforced spot can be set as the Monday for the EU calendar.
+//!
+//! ```rust
+//! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, false);
+//! // Monday 19th June 2023, ignoring the US holiday settlement requirement.
+//! ```
 
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use std::collections::{HashSet};
+use num_traits::ops::euclid;
 use chrono::{Days, Weekday};
-use pyo3::pyclass;
+use pyo3::{pyclass, PyErr};
+use pyo3::exceptions::PyValueError;
 
 /// Define a single, business day calendar.
 ///
@@ -161,8 +198,8 @@ pub trait DateRoll {
         if new_date.month() != date.month() { self.prev_bus_day(date) } else { new_date }
     }
 
-    /// Return the date, if a business day that can be settled, or get the proceeding such date, without rolling
-    /// into a new month.
+    /// Return the date, if a business day that can be settled, or get the proceeding
+    /// such date, without rolling into a new month.
     fn mod_next_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
         let new_date = self.next_settled_bus_day(date);
         if new_date.month() != date.month() { self.prev_settled_bus_day(date) } else { new_date }
@@ -184,6 +221,10 @@ pub trait DateRoll {
 
     /// Add a given number of calendar days to a `date` with the result adjusted to a business day that may or may not
     /// allow `settlement`.
+    ///
+    /// *Note*: When adding a positive number of days the only sensible modifiers are
+    /// `Modifier::F` or `Modifier::Act` and when subtracting business days one should
+    /// use `Modifier::P` or `Modifier::Act`.
     fn add_days(&self, date: &NaiveDateTime, days: i8, modifier: &Modifier, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
@@ -198,6 +239,9 @@ pub trait DateRoll {
 
     /// Add a given number of business days to a `date` with the result adjusted to a business day that may or may
     /// not allow `settlement`.
+    ///
+    /// *Note*: When adding a positive number of business days the only sensible modifier is
+    /// `Modifier::F` and when subtracting business days it is `Modifier::P`.
     fn add_bus_days(&self, date: &NaiveDateTime, days: i8, modifier: &Modifier, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
@@ -217,6 +261,26 @@ pub trait DateRoll {
         self.adjust(&new_date, modifier, settlement)
     }
 
+    /// Add a given number of business days to a `date` with the result adjusted to a business day that may or may
+    /// not allow `settlement`.
+    ///
+    /// *Note*: When adding a positive number of business days the only sensible modifier is
+    /// `Modifier::F` and when subtracting business days it is `Modifier::P`.
+    fn add_months(&self, date: &NaiveDateTime, months: i32, modifier: &Modifier, roll: &RollDay, settlement: bool) -> NaiveDateTime
+    where Self: Sized
+    {
+        let month_i = i32::try_from(date.month()).unwrap();
+        let yr_roll = (month_i + months - 1).div_euclid(12_i32);
+        let mut month = u32::try_from((month_i + months) % 12).unwrap();
+        month = if month == 0 {12} else {month};
+        match roll {
+            RollDay::Unspecified => self.add_months(date, months, modifier, &RollDay::Int(date.day()), settlement),
+            _ =>  {
+                let new_date = get_roll(date.year() + yr_roll, month, roll).unwrap();
+                self.adjust(&new_date, modifier, settlement)
+            }
+        }
+    }
 
     /// Adjust a date under a date roll modifier, either to a business day enforcing settlement or a business day that
     /// may not allow settlement.
@@ -230,6 +294,32 @@ pub trait DateRoll {
         }
     }
 
+}
+
+/// Return a specific roll date given the `month`, `year` and `roll`.
+pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
+    match roll {
+        RollDay::Int(day) => Ok(get_roll_by_day(year, month, *day)),
+        RollDay::EoM => Ok(get_roll_by_day(year, month, 31)),
+        RollDay::SoM => Ok(get_roll_by_day(year, month, 1)),
+        RollDay::IMM => Err(PyValueError::new_err("Not Implemented.")),
+        RollDay::Unspecified => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
+    }
+}
+
+/// Return a specific roll date given the `month`, `year` and `roll`.
+fn get_roll_by_day(year: i32, month: u32, day: u32) -> NaiveDateTime {
+    let d = NaiveDate::from_ymd_opt(year, month, day);
+    match d {
+        Some(date) => NaiveDateTime::new(date, NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+        None => {
+            if day > 28 {
+                get_roll_by_day(year, month, day - 1)
+            } else {
+                panic!("Unexpected error in `get_roll_by_day`")
+            }
+        }
+    }
 }
 
 impl DateRoll for Cal {
@@ -280,6 +370,21 @@ pub enum Modifier {
     P,
     /// Modified previous: date is rolled to the previous except if it changes month.
     ModP,
+}
+
+/// Enum defining the roll day.
+#[derive(Copy, Clone)]
+pub enum RollDay {
+    /// Inherit the day of the input date as the roll.
+    Unspecified,
+    /// A day of the month in [1, 31].
+    Int(u32),
+    /// The last day of the month (semantically equivalent to 31).
+    EoM,
+    /// The first day of the month (semantically equivalent to 1).
+    SoM,
+    /// The third Wednesday of the month.
+    IMM,
 }
 
 fn adjust_with_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
@@ -533,6 +638,22 @@ mod tests {
         let ldn_tky = UnionCal::new(vec![ldn, tky], None);
         let spot = ldn_tky.add_bus_days(&date, 2, &Modifier::F, true);
         assert_eq!(spot, ndt(2017, 5, 8));
+
+
+        let tgt = Cal::new(vec![], vec![5, 6]);
+        let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
+        let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
+
+        let date = ndt(2023, 6, 16);
+        let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+        assert_eq!(spot, ndt(2023, 6, 20));
+
+        let date = ndt(2023, 6, 15);
+        let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+        assert_eq!(spot, ndt(2023, 6, 20));
+
+        let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, false);
+        assert_eq!(spot, ndt(2023, 6, 19));
     }
 
 }
