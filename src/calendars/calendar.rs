@@ -8,6 +8,14 @@ use chrono::{Days, Weekday};
 use pyo3::pyclass;
 
 /// Struct for defining a holiday calendar.
+///
+/// A holiday calendar is formed of 2 components:
+///
+/// - `week_mask`: which defines the days of the week that are not general business days. In Western culture these
+///   are typically `[5, 6]` for Saturday and Sunday.
+/// - `holidays`: which defines specific dates that may be exceptions to the general working week, and cannot be
+///   business days.
+///
 #[pyclass]
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct HolCal {
@@ -16,6 +24,11 @@ pub struct HolCal {
 }
 
 impl HolCal {
+
+    /// Create a holiday calendar.
+    ///
+    /// `holidays` provide a vector of dates that cannot be business days. `week_mask` is a vector of days
+    /// (0=Mon,.., 6=Sun) that are excluded from the working week.
     pub fn new(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> Self {
         HolCal {
             holidays: IndexSet::from_iter(holidays),
@@ -24,33 +37,26 @@ impl HolCal {
     }
 }
 
-/// Struct for defining a holiday calendar which is the union of two or more other calendars.
-#[pyclass]
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct UnionCal {
-    calendars: Vec<HolCal>,
-}
-
-impl UnionCal {
-    pub fn new(calendars: Vec<HolCal>) -> Self {
-        UnionCal { calendars }
-    }
-}
-
 
 /// Struct for defining a holiday calendar which is the union of two or more other calendars,
 /// with the additional constraint of also ensuring settlement compliance with one or more
 /// other calendars.
+///
+/// When the union of a holiday calendar is observed the following are true:
+///
+/// - a weekday is such if it is a weekday in all calendars.
+/// - a holiday is such if it is a holiday in any calendar.
+/// - a business day is such if it is a business day in all calendars.
 #[pyclass]
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct SettleCal {
+pub struct UnionCal {
     calendars: Vec<HolCal>,
-    settle_calendars: Vec<HolCal>,
+    settlement_calendars: Option<Vec<HolCal>>,
 }
 
-impl SettleCal {
-    pub fn new(calendars: Vec<HolCal>, settle_calendars: Vec<HolCal>) -> Self {
-        SettleCal { calendars, settle_calendars }
+impl UnionCal {
+    pub fn new(calendars: Vec<HolCal>, settlement_calendars: Option<Vec<HolCal>>) -> Self {
+        UnionCal { calendars, settlement_calendars }
     }
 }
 
@@ -63,12 +69,20 @@ pub trait DateRoll {
     /// Returns whether the date is a specific holiday excluded from the regular working week.
     fn is_holiday(&self, date: &NaiveDateTime) -> bool;
 
-    /// Returns whether the date can settle transactions, even if it is a valid business day.
+    /// Returns whether the date is valid relative to an associated settlement calendar.
+    ///
+    /// If the holiday calendar object has no associated settlement calendar this should return `true`
+    /// for any date.
     fn is_settlement(&self, date: &NaiveDateTime) -> bool;
 
     /// Returns whether the date is a business day, i.e. part of the working week and not a holiday.
     fn is_bus_day(&self, date: &NaiveDateTime) -> bool {
         self.is_weekday(date) && !self.is_holiday(date)
+    }
+
+    /// Returns whether the date is not a business day, i.e. either not in working week or a specific holiday.
+    fn is_non_bus_day(&self, date: &NaiveDateTime) -> bool {
+        !self.is_bus_day(date)
     }
 
     /// Return the date, if a business day, or get the proceeding business date.
@@ -131,24 +145,11 @@ impl DateRoll for UnionCal {
         self.calendars.iter().any(|cal| cal.is_holiday(date))
     }
 
-    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
-        true
-    }
-
-}
-
-impl DateRoll for SettleCal {
-
-    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        self.calendars.iter().all(|cal| cal.is_weekday(date))
-    }
-
-    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.calendars.iter().any(|cal| cal.is_holiday(date))
-    }
-
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        !self.settle_calendars.iter().any(|cal| cal.is_holiday(date))
+        match &self.settlement_calendars {
+            None => true,
+            Some(cals) => !cals.iter().any(|cal| cal.is_holiday(date))
+        }
     }
 
 }
@@ -226,6 +227,17 @@ mod tests {
     }
 
     #[test]
+    fn test_is_non_business_day() {
+        let cal = fixture_hol_cal();
+        let hol = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let no_hol = NaiveDateTime::parse_from_str("2015-09-10 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        let saturday = NaiveDateTime::parse_from_str("2024-01-06 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
+        assert!(cal.is_non_bus_day(&hol));  // Monday in Hol list
+        assert!(!cal.is_non_bus_day(&no_hol));  //Thursday
+        assert!(cal.is_non_bus_day(&saturday));  // Saturday
+    }
+
+    #[test]
     fn test_next_bus_day() {
         let cal = fixture_hol_cal();
         let hol = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
@@ -287,7 +299,7 @@ mod tests {
     fn test_union_cal() {
         let cal1 = fixture_hol_cal();
         let cal2 = fixture_hol_cal2();
-        let ucal = UnionCal::new(vec![cal1, cal2]);
+        let ucal = UnionCal::new(vec![cal1, cal2], None);
 
         let sat = NaiveDateTime::parse_from_str("2015-09-05 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
         let next = ucal.next_bus_day(&sat);
@@ -295,14 +307,14 @@ mod tests {
     }
 
     #[test]
-    fn test_settle_cal() {
+    fn test_union_cal_with_settle() {
         let hols = vec![
             NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
             NaiveDateTime::parse_from_str("2015-09-09 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
         ];
-        let settlecal = HolCal::new(hols, vec![5, 6]);
+        let scal = HolCal::new(hols, vec![5, 6]);
         let holcal = HolCal::new(vec![], vec![5,6]);
-        let cal = SettleCal::new(vec![holcal], vec![settlecal]);
+        let cal = UnionCal::new(vec![holcal], vec![scal].into());
 
 
         let mon = NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();

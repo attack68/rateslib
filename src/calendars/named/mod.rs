@@ -1,6 +1,7 @@
 //! Provides static data for pre-existing named holiday calendars.
 //!
 
+pub mod all;
 pub mod bus;
 pub mod nyc;
 pub mod tgt;
@@ -18,6 +19,7 @@ use pyo3::exceptions::{PyValueError};
 
 fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
     let hmap: HashMap<&str, &[u8]> = HashMap::from([
+        ("all", all::WEEKMASK),
         ("bus", bus::WEEKMASK),
         ("nyc", nyc::WEEKMASK),
         ("tgt", tgt::WEEKMASK),
@@ -35,6 +37,7 @@ fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
 
 fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
     let hmap: HashMap<&str, &[&str]> = HashMap::from([
+        ("all", all::HOLIDAYS),
         ("bus", bus::HOLIDAYS),
         ("nyc", nyc::HOLIDAYS),
         ("tgt", tgt::HOLIDAYS),
@@ -50,6 +53,15 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
     }
 }
 
+/// Return a static `HolCal` specified by a named identifier.
+///
+/// For available 3-digit names see `named` module documentation.
+///
+/// # Examples
+///
+/// ```rust
+/// let ldn_cal = get_calendar_by_name("ldn")?;
+/// ```
 pub fn get_calendar_by_name(name: &str) -> Result<HolCal, PyErr> {
     Ok(HolCal::new(get_holidays_by_name(name)?, get_weekmask_by_name(name)?))
 }
@@ -77,6 +89,12 @@ mod tests {
         let result = get_calendar_by_name("bus").unwrap();
         let expected = HolCal::new(vec![], vec![5, 6]);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_all() {
+        let cal = get_calendar_by_name("all").unwrap();
+        assert!(cal.is_bus_day(&NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
     }
 
     #[test]
