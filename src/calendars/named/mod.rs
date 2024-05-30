@@ -11,7 +11,7 @@ pub mod osl;
 pub mod zur;
 pub mod tro;
 
-use crate::calendars::calendar::HolCal;
+use crate::calendars::calendar::Cal;
 use std::collections::HashMap;
 use chrono::NaiveDateTime;
 use pyo3::{PyErr};
@@ -53,7 +53,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
     }
 }
 
-/// Return a static `HolCal` specified by a named identifier.
+/// Return a static `Cal` specified by a named identifier.
 ///
 /// For available 3-digit names see `named` module documentation.
 ///
@@ -62,8 +62,8 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 /// ```rust
 /// let ldn_cal = get_calendar_by_name("ldn")?;
 /// ```
-pub fn get_calendar_by_name(name: &str) -> Result<HolCal, PyErr> {
-    Ok(HolCal::new(get_holidays_by_name(name)?, get_weekmask_by_name(name)?))
+pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
+    Ok(Cal::new(get_holidays_by_name(name)?, get_weekmask_by_name(name)?))
 }
 
 // UNIT TESTS
@@ -85,9 +85,9 @@ mod tests {
     }
 
     #[test]
-    fn test_get_holcal() {
+    fn test_get_cal() {
         let result = get_calendar_by_name("bus").unwrap();
-        let expected = HolCal::new(vec![], vec![5, 6]);
+        let expected = Cal::new(vec![], vec![5, 6]);
         assert_eq!(result, expected);
     }
 
