@@ -261,29 +261,30 @@ pub trait DateRoll {
         self.adjust(&new_date, modifier, settlement)
     }
 
-    /// Add a given number of business days to a `date` with the result adjusted to a business day that may or may
-    /// not allow `settlement`.
-    ///
-    /// *Note*: When adding a positive number of business days the only sensible modifier is
-    /// `Modifier::F` and when subtracting business days it is `Modifier::P`.
+    /// Add a given number of months to a `date`, factoring a `roll` day, with the result adjusted
+    /// to a business day that may or may not allow `settlement`.
     fn add_months(&self, date: &NaiveDateTime, months: i32, modifier: &Modifier, roll: &RollDay, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
-        let month_i = i32::try_from(date.month()).unwrap();
-        let yr_roll = (month_i + months - 1).div_euclid(12_i32);
-        let mut month = u32::try_from((month_i + months) % 12).unwrap();
-        month = if month == 0 {12} else {month};
+        let yr_roll = (months.abs() / 12) * months.signum();
+        let rem_months = months - yr_roll * 12;
+        let mut new_month = (i32::try_from(date.month()).unwrap() + rem_months) % 12;
+        new_month = if month == 0 {12} else {month};  // convert 0 to december
+
         match roll {
             RollDay::Unspecified => self.add_months(date, months, modifier, &RollDay::Int(date.day()), settlement),
             _ =>  {
-                let new_date = get_roll(date.year() + yr_roll, month, roll).unwrap();
+                let new_date = get_roll(date.year() + yr_roll, new_month, roll).unwrap();
                 self.adjust(&new_date, modifier, settlement)
             }
         }
     }
 
-    /// Adjust a date under a date roll modifier, either to a business day enforcing settlement or a business day that
-    /// may not allow settlement.
+    /// Adjust a date under a date roll `modifier`, either to a business day enforcing `settlement` or a
+    /// business day that may not allow settlement.
+    ///
+    /// *Note*: if the `modifier` is *'Act'*, then a business day may not be returned and the `settlement` flag
+    /// is disregarded - it is ambiguous in this case whether to move forward or backward datewise.
     fn adjust(&self, date: &NaiveDateTime, modifier: &Modifier, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
@@ -418,6 +419,7 @@ pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calendars::named::get_calendar_by_name;
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![
@@ -654,6 +656,22 @@ mod tests {
 
         let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, false);
         assert_eq!(spot, ndt(2023, 6, 19));
+    }
+
+    #[test]
+    fn test_add_months_num_months() {
+        let cal = get_calendar_by_name("all").unwrap();
+        let date = ndt(2000, 1, 1);
+        assert_eq!(cal.add_months(&date, 37, &Modifier::Act, &RollDay::Unspecified, true), ndt(2003, 2, 1));
+
+        let date = ndt(2000, 1, 1);
+        assert_eq!(cal.add_months(&date, -37, &Modifier::Act, &RollDay::Unspecified, true), ndt(1996, 12, 1));
+
+        let date = ndt(2000, 12, 1);
+        assert_eq!(cal.add_months(&date, 37, &Modifier::Act, &RollDay::Unspecified, true), ndt(2004, 1, 1));
+
+        let date = ndt(2000, 12, 1);
+        assert_eq!(cal.add_months(&date, -37, &Modifier::Act, &RollDay::Unspecified, true), ndt(1997, 11, 1));
     }
 
 }
