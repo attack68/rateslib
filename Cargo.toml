@@ -1,10 +1,10 @@
 [package]
-name = "rateslibrs"
-version = "1.2.0"
+name = "rateslib"
+version = "1.2.1"
 edition = "2021"
 
 [lib]
-name = "rateslibrs"
+name = "rateslib"
 path = "src/lib.rs"
 #crate-type = ["rlib"]
 #crate-type = ["cdylib"]  # for pyO3
@@ -14,7 +14,7 @@ crate-type = ["lib"]
 
 [dependencies]
 #pyo3 = { version = "0.20.3", features = ["abi3-py39", "extension-module"] }
-#chrono = "0.4.0"
+chrono = "0.4.38"
 pyo3 = "0.21"
 ndarray = "0.15.6"
 indexmap = "1.9.3"
@@ -33,7 +33,8 @@ statrs = "0.16"
 # multiple-pymethods = ["pyo3/multiple-pymethods"]
 abi3-py39 = ["pyo3/abi3-py39"]
 extension-module = ["pyo3/extension-module"]
-default = ["extension-module", "abi3-py39"]
+chrono = ["pyo3/chrono"]
+default = ["extension-module", "abi3-py39", "chrono"]
 # -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
 [dev-dependencies]
