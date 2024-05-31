@@ -12,7 +12,19 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
-1.2.0 (not released)
+1.3.0 (Not released)
+***********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Bug
+     - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
+
+1.2.2 (31st May 2024)
 **********************
 
 This version uses **Rust** bindings. See :ref:`getting started <pricing-doc>`
@@ -30,14 +42,25 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
      - The modules ``rateslib.dual`` and ``rateslib.splines`` have been ported to **Rust**
        instead of Python to improve calculation times.
    * - Splines
-     - New methods :meth:`~rateslib.splines.ppev_single_dual`,
-       :meth:`~rateslib.splines.ppev_single_dual2`, :meth:`~rateslib.splines.ppdnev_single_dual`,
-       and :meth:`~rateslib.splines.ppdnev_single_dual2` have been added to ensure correct
-       handling of AD with regards to both x-axis and y-axis variables. See
+     - New methods :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual`,
+       :meth:`~rateslib.splines.PPSplineF64.ppev_single_dual2`,
+       :meth:`~rateslib.splines.PPSplineF64.ppdnev_single_dual`,
+       and :meth:`~rateslib.splines.PPSplineF64.ppdnev_single_dual2` have been added to
+       ensure correct handling of AD with regards to both x-axis and y-axis variables. See
        :ref:`section on using AD with splines <splines-ad-doc>`
    * - Splines
      - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
        to use based on the AD sensitivities of the given `x` value.
+   * - Instruments
+     - :red:`Breaking Changes!` Amend :class:`~rateslib.instruments.FXExchange` to **remove** the
+       arguments ``currency`` and ``leg2_currency``
+       in favour of using ``pair`` which is consistent with the new *FX Volatility* naming convention.
+       Also **reverse** the ``notional`` so that a +1mm EURUSD transaction is considered as a purchase of
+       EUR and a sale of USD.
+   * - Instruments
+     - :class:`~rateslib.instruments.FXSwap` allows the dominant ``pair`` argument, consistent with other *FX*
+       instruments to define the currencies. ``currency`` and ``leg2_currency`` are still currently permissible if
+       ``pair`` is omitted.
    * - Instruments
      - Basic *FX Volatility Instruments* have been added in **beta** status, including
        :class:`~rateslib.instruments.FXCall`, :class:`~rateslib.instruments.FXPut`,
@@ -46,9 +69,11 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
        and :class:`~rateslib.instruments.FXOptionStrat`.
        See :ref:`user guide section <fx-volatility-doc>` for more information.
    * - FX Volatility
-     - A new pricing component :class:`~rateslib.fx_volatility.FXDeltaVolSmile` has been added
+     - New pricing components :class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
+       :class:`~rateslib.fx_volatility.FXDeltaVolSurface`
+       have been added
        to allow pricing of single expiry *FX Options* with a *Smile* interpolated over a *Delta*
-       axis.
+       axis. See :ref:`FX volatility construction <c-fx-smile-doc>`.
    * - AD
      - Added :meth:`~rateslib.dual.dual_norm_pdf` for AD safe standard normal probability density.
    * - AD

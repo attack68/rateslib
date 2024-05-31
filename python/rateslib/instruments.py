@@ -1059,49 +1059,38 @@ class FXExchange(Sensitivities, BaseMixin):
     ----------
     settlement : datetime
         The date of the currency exchange.
-    currency : str
-        The currency of the cashflow for which ``notional`` is applicable (3-digit code).
-    leg2_currency : str
-        The currency of the cashflow on the alternate *Leg*.
+    pair: str
+        The curreny pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
     fx_rate : float, optional
         The FX rate used to derive the notional exchange on *Leg2*.
     notional : float
-        The cashflow amount for the initial currency.
+        The cashflow amount of the LHS currency.
     curves : Curve, LineCurve, str or list of such, optional
-        A single :class:`~rateslib.curves.Curve`,
-        :class:`~rateslib.curves.LineCurve` or id or a
-        list of such. A list defines the following curves in the order:
-
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg1``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg2``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+        For *FXExchange* only discounting curves are required in each currency and not rate forecasting curves.
+        The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
     def __init__(
         self,
         settlement: datetime,
-        currency: str,
-        leg2_currency: str,
+        pair: str,
         fx_rate: Union[float, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         self.settlement = settlement
-        self.pair = f"{currency.lower()}{leg2_currency.lower()}"
+        self.pair = pair.lower()
         self.leg1 = Cashflow(
-            notional=defaults.notional if notional is NoInput.blank else notional,
-            currency=currency.lower(),
+            notional=-defaults.notional if notional is NoInput.blank else -notional,
+            currency=self.pair[0:3],
             payment=settlement,
             stub_type="Exchange",
             rate=NoInput(0),
         )
         self.leg2 = Cashflow(
             notional=1.0,  # will be determined by setting fx_rate
-            currency=leg2_currency.lower(),
+            currency=self.pair[3:6],
             payment=settlement,
             stub_type="Exchange",
             rate=fx_rate,
@@ -7722,6 +7711,10 @@ class FXSwap(XCS):
     ----------
     args : dict
         Required positional args to :class:`XCS`.
+    pair : str, optional
+        The FX pair, e.g. "eurusd" as 3-digit ISO codes. If not given, fallsback to the base implementation of
+        *XCS* which defines separate inputs as ``currency`` and ``leg2_currency``. If overspecified, ``pair`` will
+        dominate.
     fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
@@ -7828,10 +7821,9 @@ class FXSwap(XCS):
        fxs = FXSwap(
            effective=dt(2022, 1, 18),
            termination=dt(2022, 4, 19),
+           pair="usdeur",
            calendar="nyc",
-           currency="usd",
            notional=1000000,
-           leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
        )
 
@@ -7858,10 +7850,9 @@ class FXSwap(XCS):
        fxs = FXSwap(
            effective=dt(2022, 1, 18),
            termination=dt(2022, 4, 19),
+           pair="usdeur",
            calendar="nyc",
-           currency="usd",
            notional=1000000,
-           leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
            fx_fixings=0.90,
            split_notional=1001500,
@@ -7941,12 +7932,17 @@ class FXSwap(XCS):
     def __init__(
         self,
         *args,
+        pair: Union[str, NoInput] = NoInput(0),
         fx_fixings: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         points: Union[float, NoInput] = NoInput(0),
         split_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._parse_split_flag(fx_fixings, points, split_notional)
+        currencies = {}
+        if isinstance(pair, str):
+            # TODO for version 2.0 should look to deprecate 'currency' and 'leg2_currency' as allowable inputs.
+            currencies = {"currency": pair.lower()[0:3], "leg2_currency": pair.lower()[3:6]}
 
         kwargs_overrides = dict(  # specific args for FXSwap passed to the Base XCS
             fixed=True,
@@ -7958,7 +7954,7 @@ class FXSwap(XCS):
             leg2_fixed_rate=NoInput(0),
             fx_fixings=fx_fixings,
         )
-        super().__init__(*args, **{**kwargs, **kwargs_overrides})
+        super().__init__(*args, **{**kwargs, **kwargs_overrides, **currencies})
 
         self.kwargs["split_notional"] = split_notional
         self._set_split_notional(curve=None, at_init=True)

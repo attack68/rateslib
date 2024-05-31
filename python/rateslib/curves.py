@@ -30,7 +30,7 @@ from rateslib.calendars import (
     CalInput,
     _DCF1d,
 )
-from rateslibrs import index_left_f64
+from rateslib.rateslibrs import index_left_f64
 
 from typing import TYPE_CHECKING
 
