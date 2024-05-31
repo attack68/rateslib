@@ -14,7 +14,7 @@ from rateslib.dual import (
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
 from rateslib.solver import newton_1dim
-from rateslibrs import index_left_f64
+from rateslib.rateslibrs import index_left_f64
 from uuid import uuid4
 import numpy as np
 from typing import Union
@@ -827,6 +827,41 @@ class FXDeltaVolSmile:
 
 
 class FXDeltaVolSurface:
+    r"""
+    Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different expiries.
+
+    Parameters
+    ----------
+    delta_indexes: list[float]
+        Axis values representing the delta indexes on each cross-sectional *Smile*.
+    expiries: list[datetime]
+        Datetimes representing the expiries of each cross-sectional *Smile*, in ascending order.
+    node_values: 2d-shape of float, Dual, Dual2
+        An array of values representing each node value on each cross-sectional *Smile*. Should be an array of size:
+        (length of ``expiries``, length of ``delta_indexes``).
+    eval_date: datetime
+        Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
+    delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+        The type of delta calculation that is used as the *Smiles* definition to obtain a delta index which
+        is referenced by the node keys.
+    id: str, optional
+        The unique identifier to label the *Surface* and its variables.
+    ad: int, optional
+        Sets the automatic differentiation order. Defines whether to convert node
+        values to float, :class:`~rateslib.dual.Dual` or
+        :class:`~rateslib.dual.Dual2`. It is advised against
+        using this setting directly. It is mainly used internally.
+
+    Notes
+    -----
+    See :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for a description of delta indexes and *Smile* construction.
+
+    Interpolation along the expiry axis occurs by performing total linear variance interpolation for each *delta
+    index* and then dynamically constructing a *Smile* with the usual cubic interpolation.
+
+    See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
+
+    """
 
     _ini_solve = 0
 

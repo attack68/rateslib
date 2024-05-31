@@ -1204,6 +1204,15 @@ class TestZCS:
         expected = 105226.66099084
         assert abs(result - expected) < 1e-7
 
+    def test_zcs_raise_frequency(self):
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'."):
+            zcs = ZCS(
+                effective=dt(2022, 1, 5),
+                termination="10Y",
+                modifier='mf',
+                frequency="Z",
+                fixed_rate=4.22566695954813,
+            )
 
 class TestZCIS:
     def test_leg2_index_base(self, curve):
@@ -2177,6 +2186,33 @@ class TestFXSwap:
         result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
         assert abs(result-expected) < 1e-10
         assert np.isclose(result.dual, expected.dual)
+
+    def test_fxswap_pair_arg(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxs = FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            pair="usdnok",
+            payment_lag=0,
+            notional=1e6,
+        )
+        expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
+        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
+        assert abs(result-expected) < 1e-10
+        assert np.isclose(result.dual, expected.dual)
+
+    def test_currency_arg_pair_overlap(self):
+        fxs = FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            pair="usdnok",
+            currency="jpy",
+        )
+        assert fxs.leg1.currency == "usd"
+
 
     def test_fxswap_npv(self, curve, curve2):
         fxf = FXForwards(

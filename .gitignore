@@ -139,6 +139,12 @@ dmypy.json
 
 # scractch files
 scratch.py
+scratch1.py
+scratch2.py
+scratch3.py
+scratch4.py
+scratch5.py
+scratch6.py
 
 .idea/
 /*.ipynb
