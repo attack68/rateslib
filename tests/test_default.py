@@ -9,7 +9,7 @@ from rateslib import dt
 
 
 def test_version():
-    assert __version__ == "1.2.0"
+    assert __version__ == "1.2.1"
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])

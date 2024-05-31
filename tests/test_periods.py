@@ -2504,6 +2504,40 @@ class TestFXOption:
                 fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
             )
 
+    @pytest.mark.parametrize("delta_type", ["forward", "spot"])
+    def test_analytic_gamma_fwd_diff(self, delta_type, fxfo):
+        # test not suitable for pa because of the assumption of a fixed premium amount
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 3, 16),
+            notional=20e6,
+            strike=1.101,
+            delta_type=delta_type,
+        )
+        base = fxc.analytic_greeks(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9
+        )
+        f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
+        f_t = fxfo.rate("eurusd", dt(2023, 3, 20))
+        fxfo.fx_rates.update({"eurusd": 1.0615001})
+        fxfo.update()
+        f_d2 = fxfo.rate("eurusd", dt(2023, 6, 20))
+        f_t2 = fxfo.rate("eurusd", dt(2023, 3, 20))
+        base_1 = fxc.analytic_greeks(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9
+        )
+        denomn = (f_d2 - f_d) if "forward" in delta_type else (f_t2 - f_t)
+        fwd_diff = -(base["delta"] - base_1["delta"]) / denomn
+        assert abs(base["gamma"] - fwd_diff) < 1e-5  # BBG validation gives 33775.78 $
+
     def test_analytic_vega(self, fxfo):
         fxc = FXCallPeriod(
             pair="eurusd",
