@@ -134,6 +134,28 @@ from rateslib.instruments import (
     FXBrokerFly,
 )
 
+Instruments = [
+    Value,
+    Bill,
+    FixedRateBond,
+    IndexFixedRateBond,
+    FloatRateNote,
+    BondFuture,
+    IRS,
+    STIRFuture,
+    IIRS,
+    ZCS,
+    ZCIS,
+    FRA,
+    SBS,
+    FXSwap,
+    FXExchange,
+    XCS,
+    Spread,
+    Fly,
+    Portfolio,
+]
+
 # module level doc-string
 __doc__ = """
 RatesLib - An efficient and interconnected fixed income library for Python

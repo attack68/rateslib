@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal
 import numpy as np
 
 import context
-from rateslib import defaults, default_context
+from rateslib import defaults, default_context, Instruments
 from rateslib.default import NoInput
 from rateslib.instruments import (
     FixedRateBond,
@@ -3014,8 +3014,23 @@ class TestSpec:
         assert xcs.kwargs["currency"] == "eur"
         assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
         assert xcs.kwargs["payment_lag"] == 5
-        assert xcs.kwargs["leg2_payment_lag"] == 2
-        assert xcs.kwargs["leg2_calendar"] == "tgt,nyc"
+        assert xcs.kwargs["leg2_payment_lag"] == 5
+        assert xcs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
+
+    def test_fxs(self):
+        fxs = FXSwap(
+            effective=dt(2022, 1, 1),
+            termination="3m",
+            spec="eurusd_fxs",
+            payment_lag=5,
+            calendar="ldn,tgt,nyc",
+        )
+        assert fxs.kwargs["convention"] == "act360"
+        assert fxs.kwargs["currency"] == "eur"
+        assert fxs.kwargs["calendar"] == "ldn,tgt,nyc"
+        assert fxs.kwargs["payment_lag"] == 5
+        assert fxs.kwargs["leg2_payment_lag"] == 5
+        assert fxs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
 
 
 @pytest.mark.parametrize("inst, expected", [
@@ -4276,3 +4291,12 @@ class TestVolValue:
         vv = VolValue(0.25, vol="string_id")
         with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
             vv.rate()
+
+
+@pytest.mark.parametrize("Inst", [Inst for Inst in Instruments])
+def test_examples(Inst):
+    # test an example function is written for the Instrument class
+    try:
+        getattr(Inst, "example", None)()
+    except TypeError:  # NoneType is not callable
+        assert False

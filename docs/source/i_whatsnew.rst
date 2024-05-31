@@ -52,6 +52,11 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
      - Added :meth:`~rateslib.splines.evaluate` for automatically handling which *ppdnev* method
        to use based on the AD sensitivities of the given `x` value.
    * - Instruments
+     - Add a class method: :meth:`~rateslib.instruments.IRS.example` to each *Instrument* to
+       provide a more intuitive way to initialise.
+   * - Instruments
+     - Relabel the specification `sek_iirs` as `sek_iirs3`. :red:`Breaking change!`
+   * - Instruments
      - :red:`Breaking Changes!` Amend :class:`~rateslib.instruments.FXExchange` to **remove** the
        arguments ``currency`` and ``leg2_currency``
        in favour of using ``pair`` which is consistent with the new *FX Volatility* naming convention.
@@ -139,7 +144,7 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
    * - Feature
      - Description
    * - Bug
-     - :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
+     - FRA :meth:`~rateslib.instruments.FRA.cashflows` now correctly identifies the DF at cash
        settled payment date.
    * - Bug
      - :meth:`~rateslib.legs.FloatLeg.fixings_table` now generates exact results (not in approximate mode) when RFR
