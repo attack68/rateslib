@@ -44,9 +44,9 @@
 //! determination and allows Tuesday 20th June 2023 since the US holiday is on the Monday.
 //!
 //! ```rust
-//! let date = ndt(2023, 6, 16);
+//! let date = ndt(2023, 6, 16);  // Friday 16th June 2023
 //! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
-//! // Tuesday 20th June 2023, ignoring the US holiday.
+//! // Tuesday 20th June 2023, ignoring the US holiday on Monday.
 //! ```
 //!
 //! On the other hand as measured from Thursday 15th June 2023 the spot cannot be on the Monday
@@ -55,10 +55,11 @@
 //! ```rust
 //! let date = ndt(2023, 6, 15);
 //! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
-//! // Tuesday 20th June 2023, enforcing no US holiday settlement.
+//! // Tuesday 20th June 2023, enforcing no settlement on US holiday.
 //! ```
 //!
-//! If `settlement` is not enforced spot can be set as the Monday for the EU calendar.
+//! If `settlement` is not enforced spot can be set as the Monday for this calendar, since it is
+//! not a European holiday.
 //!
 //! ```rust
 //! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, false);
@@ -165,6 +166,8 @@ pub trait DateRoll {
     }
 
     /// Return the date, if a business day that can be settled, or the proceeding date that is such.
+    ///
+    /// If the calendar has no associated settlement calendar this is identical to `next_bus_day`.
     fn next_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
         let mut new_date = self.next_bus_day(date);
         while !self.is_settlement(&new_date) {
@@ -183,6 +186,8 @@ pub trait DateRoll {
     }
 
     /// Return the date, if a business day that can be settled, or the preceding date that is such.
+    ///
+    /// If the calendar has no associated settlement calendar this is identical to `prev_bus_day`.
     fn prev_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
         let mut new_date = self.prev_bus_day(date);
         while !self.is_settlement(&new_date) {
@@ -316,7 +321,7 @@ pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, 
         RollDay::Int(day) => Ok(get_roll_by_day(year, month, *day)),
         RollDay::EoM => Ok(get_roll_by_day(year, month, 31)),
         RollDay::SoM => Ok(get_roll_by_day(year, month, 1)),
-        RollDay::IMM => Err(PyValueError::new_err("Not Implemented.")),
+        RollDay::IMM => Ok(get_imm(year, month)),
         RollDay::Unspecified => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
     }
 }
@@ -333,6 +338,19 @@ fn get_roll_by_day(year: i32, month: u32, day: u32) -> NaiveDateTime {
                 panic!("Unexpected error in `get_roll_by_day`")
             }
         }
+    }
+}
+
+/// Return an IMM date (third Wednesday) for given month and year.
+pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
+    match ndt(year, month, 1).weekday() {
+        Weekday::Mon => ndt(year, month, 17),
+        Weekday::Tue => ndt(year, month, 16),
+        Weekday::Wed => ndt(year, month, 15),
+        Weekday::Thu => ndt(year, month, 21),
+        Weekday::Fri => ndt(year, month, 20),
+        Weekday::Sat => ndt(year, month, 19),
+        Weekday::Sun => ndt(year, month, 18),
     }
 }
 
@@ -731,8 +749,9 @@ mod tests {
             (RollDay::Int(21), ndt(1996, 12, 21)),
             (RollDay::EoM, ndt(1996, 12, 31)),
             (RollDay::SoM, ndt(1996, 12, 1)),
+            (RollDay::IMM, ndt(1996, 12, 18)),
          ];
-         for i in 0..4 {
+         for i in 0..5 {
              assert_eq!(
                  cal.add_months(&ndt(1998, 3, 7), -15, &Modifier::Act, &roll[i].0, true),
                  roll[i].1
