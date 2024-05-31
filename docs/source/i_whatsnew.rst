@@ -12,7 +12,7 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
-1.2.0 (27th May 2024)
+1.2.2 (31st May 2024)
 **********************
 
 This version uses **Rust** bindings. See :ref:`getting started <pricing-doc>`

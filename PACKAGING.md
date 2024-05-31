@@ -5,7 +5,7 @@ On "main":
 1) Update the whatsnew with the target release date.
 2) Add a new entry to the switcher.json in main:docs/source/static, pushing stable to next version.
 3) Change the badges.json file is there is anything to add, e.g. versions.
-4) Bump the "version" in pyproject.toml, and __init__ __version__ and check the dependencies.
+4) Bump the "version" in pyproject.toml, cargo.toml, and __init__ __version__ and check the dependencies.
 5) Checks should be OK in github actions but perform a local double check.
 
 Checks:
@@ -27,7 +27,7 @@ On "release branch":
 
 4) Commit and Push the branch.
 5) Run `cargo test --lib --no-default-features`
-6) Change the Cargo.toml file for abi3-py39 features.
+6) Change the Cargo.toml file for abi3-py39 features, and comment out the benchmark code (otherwise source distribution will not run)
 
 Pre Rust extension Build:
 $ pip install build twine
