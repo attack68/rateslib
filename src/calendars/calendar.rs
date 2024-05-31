@@ -266,15 +266,28 @@ pub trait DateRoll {
     fn add_months(&self, date: &NaiveDateTime, months: i32, modifier: &Modifier, roll: &RollDay, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
-        let yr_roll = (months.abs() / 12) * months.signum();
+        // convert months to a set of years and remainder months
+        let mut yr_roll = (months.abs() / 12) * months.signum();
         let rem_months = months - yr_roll * 12;
-        let mut new_month = (i32::try_from(date.month()).unwrap() + rem_months) % 12;
-        new_month = if month == 0 {12} else {month};  // convert 0 to december
 
+        // determine the new month
+        let mut new_month = i32::try_from(date.month()).unwrap() + rem_months;
+        if new_month <= 0 {
+            yr_roll -= 1;
+            new_month = new_month.rem_euclid(12);
+        } else if new_month >= 13 {
+            yr_roll += 1;
+            new_month = new_month.rem_euclid(12);
+        }
+        if new_month == 0 { new_month = 12; }
+
+        println!("{},{},{}", months, yr_roll, new_month);
+
+        // perform the date roll
         match roll {
             RollDay::Unspecified => self.add_months(date, months, modifier, &RollDay::Int(date.day()), settlement),
             _ =>  {
-                let new_date = get_roll(date.year() + yr_roll, new_month, roll).unwrap();
+                let new_date = get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), roll).unwrap();
                 self.adjust(&new_date, modifier, settlement)
             }
         }
@@ -659,19 +672,107 @@ mod tests {
     }
 
     #[test]
-    fn test_add_months_num_months() {
+    fn test_add_37_months() {
         let cal = get_calendar_by_name("all").unwrap();
-        let date = ndt(2000, 1, 1);
-        assert_eq!(cal.add_months(&date, 37, &Modifier::Act, &RollDay::Unspecified, true), ndt(2003, 2, 1));
 
-        let date = ndt(2000, 1, 1);
-        assert_eq!(cal.add_months(&date, -37, &Modifier::Act, &RollDay::Unspecified, true), ndt(1996, 12, 1));
-
-        let date = ndt(2000, 12, 1);
-        assert_eq!(cal.add_months(&date, 37, &Modifier::Act, &RollDay::Unspecified, true), ndt(2004, 1, 1));
-
-        let date = ndt(2000, 12, 1);
-        assert_eq!(cal.add_months(&date, -37, &Modifier::Act, &RollDay::Unspecified, true), ndt(1997, 11, 1));
+        let dates = vec![
+            (ndt(2000, 1, 1), ndt(2003, 2, 1)),
+            (ndt(2000, 2, 1), ndt(2003, 3, 1)),
+            (ndt(2000, 3, 1), ndt(2003, 4, 1)),
+            (ndt(2000, 4, 1), ndt(2003, 5, 1)),
+            (ndt(2000, 5, 1), ndt(2003, 6, 1)),
+            (ndt(2000, 6, 1), ndt(2003, 7, 1)),
+            (ndt(2000, 7, 1), ndt(2003, 8, 1)),
+            (ndt(2000, 8, 1), ndt(2003, 9, 1)),
+            (ndt(2000, 9, 1), ndt(2003, 10, 1)),
+            (ndt(2000, 10, 1), ndt(2003, 11, 1)),
+            (ndt(2000, 11, 1), ndt(2003, 12, 1)),
+            (ndt(2000, 12, 1), ndt(2004, 1, 1)),
+        ];
+        for i in 0..12 {
+               assert_eq!(
+                   cal.add_months(&dates[i].0, 37, &Modifier::Act, &RollDay::Unspecified, true),
+                   dates[i].1
+               )
+        }
     }
 
+    #[test]
+    fn test_sub_37_months() {
+        let cal = get_calendar_by_name("all").unwrap();
+
+        let dates = vec![
+            (ndt(2000, 1, 1), ndt(1996, 12, 1)),
+            (ndt(2000, 2, 1), ndt(1997, 1, 1)),
+            (ndt(2000, 3, 1), ndt(1997, 2, 1)),
+            (ndt(2000, 4, 1), ndt(1997, 3, 1)),
+            (ndt(2000, 5, 1), ndt(1997, 4, 1)),
+            (ndt(2000, 6, 1), ndt(1997, 5, 1)),
+            (ndt(2000, 7, 1), ndt(1997, 6, 1)),
+            (ndt(2000, 8, 1), ndt(1997, 7, 1)),
+            (ndt(2000, 9, 1), ndt(1997, 8, 1)),
+            (ndt(2000, 10, 1),ndt(1997, 9, 1)),
+            (ndt(2000, 11, 1), ndt(1997, 10, 1)),
+            (ndt(2000, 12, 1), ndt(1997, 11, 1)),
+        ];
+        for i in 0..12 {
+               assert_eq!(
+                   cal.add_months(&dates[i].0, -37, &Modifier::Act, &RollDay::Unspecified, true),
+                   dates[i].1
+               )
+        }
+    }
+
+    #[test]
+    fn test_add_months_roll() {
+         let cal = get_calendar_by_name("all").unwrap();
+         let roll = vec![
+            (RollDay::Unspecified, ndt(1996, 12, 7)),
+            (RollDay::Int(21), ndt(1996, 12, 21)),
+            (RollDay::EoM, ndt(1996, 12, 31)),
+            (RollDay::SoM, ndt(1996, 12, 1)),
+         ];
+         for i in 0..4 {
+             assert_eq!(
+                 cal.add_months(&ndt(1998, 3, 7), -15, &Modifier::Act, &roll[i].0, true),
+                 roll[i].1
+             );
+         }
+    }
+
+    #[test]
+    fn test_add_months_modifier() {
+         let cal = get_calendar_by_name("bus").unwrap();
+         let modi = vec![
+            (Modifier::Act, ndt(2023, 9, 30)),  // Saturday
+            (Modifier::F, ndt(2023, 10, 2)),  // Monday
+            (Modifier::ModF, ndt(2023, 9, 29)), // Friday
+            (Modifier::P, ndt(2023, 9, 29)),  // Friday
+            (Modifier::ModP, ndt(2023, 9, 29)),  // Friday
+         ];
+         for i in 0..4 {
+             assert_eq!(
+                 cal.add_months(&ndt(2023, 8, 31), 1, &modi[i].0, &RollDay::Unspecified, true),
+                 modi[i].1
+             );
+         }
+    }
+
+    #[test]
+    fn test_add_months_modifier_p() {
+         let cal = get_calendar_by_name("bus").unwrap();
+         let modi = vec![
+            (Modifier::Act, ndt(2023, 7, 1)),  // Saturday
+            (Modifier::F, ndt(2023, 7, 3)),  // Monday
+            (Modifier::ModF, ndt(2023, 7, 3)), // Monday
+            (Modifier::P, ndt(2023, 6, 30)),  // Friday
+            (Modifier::ModP, ndt(2023, 7, 3)),  // Monday
+         ];
+         for i in 0..4 {
+             assert_eq!(
+                 cal.add_months(&ndt(2023, 8, 1), -1, &modi[i].0, &RollDay::Unspecified, true),
+                 modi[i].1
+             );
+         }
+    }
 }
