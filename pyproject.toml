@@ -9,6 +9,8 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
+module-name = "rateslib.rateslibrs"
+python-source = "python"
 bindings = "pyo3"
 compatibility = "linux"
 # rustc --print target-list
@@ -16,7 +18,7 @@ compatibility = "linux"
 
 [project]
 name = "rateslib"
-version = "1.2.0"
+version = "1.2.1"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
