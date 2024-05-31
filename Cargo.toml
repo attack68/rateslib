@@ -1,10 +1,11 @@
 [package]
-name = "rateslibrs"
-version = "1.2.0"
+name = "rateslib"
+version = "1.2.1"
 edition = "2021"
+exclude = [".github/*", "benches/*", "notebooks/*", ".readthedocs.yaml",]
 
 [lib]
-name = "rateslibrs"
+name = "rateslib"
 path = "src/lib.rs"
 #crate-type = ["rlib"]
 #crate-type = ["cdylib"]  # for pyO3

@@ -14,7 +14,7 @@ from rateslib.dual import (
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput
 from rateslib.solver import newton_1dim
-from rateslibrs import index_left_f64
+from rateslib.rateslibrs import index_left_f64
 from uuid import uuid4
 import numpy as np
 from typing import Union
@@ -859,7 +859,7 @@ class FXDeltaVolSurface:
     Interpolation along the expiry axis occurs by performing total linear variance interpolation for each *delta
     index* and then dynamically constructing a *Smile* with the usual cubic interpolation.
 
-    See :ref:`constructing FX volatility surfaces <c-fx-smile-do>` for more details.
+    See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
 
     """
 
