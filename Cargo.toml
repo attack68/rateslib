@@ -30,12 +30,14 @@ statrs = "0.16"
 #version = "0.21"
 
 [features]
-# py03 = ["pyo3/abi3-py39"]
 # multiple-pymethods = ["pyo3/multiple-pymethods"]
 abi3-py39 = ["pyo3/abi3-py39"]
-extension-module = ["pyo3/extension-module"]
 chrono = ["pyo3/chrono"]
-default = ["extension-module", "abi3-py39", "chrono"]
+default = ["abi3-py39", "chrono"]
+# 'extension-module' has been added to 'features' of [tool.maturin] in pyproject.toml
+#extension-module = ["pyo3/extension-module"]
+#default = ["extension-module", "abi3-py39", "chrono"]
+
 # -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
 [dev-dependencies]

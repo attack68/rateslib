@@ -1,7 +1,7 @@
 use pyo3::exceptions::PyValueError;
 use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier};
 use crate::calendars::named::get_calendar_by_name;
-use chrono::prelude::*;
+use chrono::NaiveDateTime;
 use pyo3::prelude::*;
 
 #[pymethods]
