@@ -1,5 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier};
+use crate::calendars::named::get_calendar_by_name;
 use chrono::prelude::*;
 use pyo3::prelude::*;
 
@@ -75,4 +76,10 @@ impl UnionCal {
             _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
         }
     }
+}
+
+#[pyfunction]
+#[pyo3(name = "get_named_calendar")]
+pub fn get_calendar_by_name_py(name: &str) -> PyResult<Cal> {
+    get_calendar_by_name(name)
 }
