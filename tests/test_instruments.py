@@ -1204,6 +1204,15 @@ class TestZCS:
         expected = 105226.66099084
         assert abs(result - expected) < 1e-7
 
+    def test_zcs_raise_frequency(self):
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'."):
+            zcs = ZCS(
+                effective=dt(2022, 1, 5),
+                termination="10Y",
+                modifier='mf',
+                frequency="Z",
+                fixed_rate=4.22566695954813,
+            )
 
 class TestZCIS:
     def test_leg2_index_base(self, curve):

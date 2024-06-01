@@ -18,7 +18,7 @@ compatibility = "linux"
 
 [project]
 name = "rateslib"
-version = "1.2.1"
+version = "1.2.2"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
