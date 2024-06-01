@@ -22,3 +22,16 @@ class TestCal:
         assert simple_cal.is_bus_day(dt(2015, 9, 8))
         assert not simple_union.is_bus_day(dt(2015, 9, 7))
         assert simple_union.is_bus_day(dt(2015, 9, 8))
+
+    def test_add_days(self, simple_cal):
+        expected = dt(2015, 9, 8)
+        result = simple_cal.add_days(dt(2015, 9, 4), 1, "F", True)
+        assert result == expected
+
+        expected = dt(2015, 9, 6)
+        result = simple_cal.add_days(dt(2015, 9, 5), 1, "NONE", True)
+        assert result == expected
+
+    def test_add_days_raises(self, simple_cal):
+        with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
+            simple_cal.add_days(dt(2015, 9, 5), 1, "bad", True)
