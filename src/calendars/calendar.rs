@@ -315,45 +315,6 @@ pub trait DateRoll {
 
 }
 
-/// Return a specific roll date given the `month`, `year` and `roll`.
-pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
-    match roll {
-        RollDay::Int(day) => Ok(get_roll_by_day(year, month, *day)),
-        RollDay::EoM => Ok(get_roll_by_day(year, month, 31)),
-        RollDay::SoM => Ok(get_roll_by_day(year, month, 1)),
-        RollDay::IMM => Ok(get_imm(year, month)),
-        RollDay::Unspecified => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
-    }
-}
-
-/// Return a specific roll date given the `month`, `year` and `roll`.
-fn get_roll_by_day(year: i32, month: u32, day: u32) -> NaiveDateTime {
-    let d = NaiveDate::from_ymd_opt(year, month, day);
-    match d {
-        Some(date) => NaiveDateTime::new(date, NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
-        None => {
-            if day > 28 {
-                get_roll_by_day(year, month, day - 1)
-            } else {
-                panic!("Unexpected error in `get_roll_by_day`")
-            }
-        }
-    }
-}
-
-/// Return an IMM date (third Wednesday) for given month and year.
-pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
-    match ndt(year, month, 1).weekday() {
-        Weekday::Mon => ndt(year, month, 17),
-        Weekday::Tue => ndt(year, month, 16),
-        Weekday::Wed => ndt(year, month, 15),
-        Weekday::Thu => ndt(year, month, 21),
-        Weekday::Fri => ndt(year, month, 20),
-        Weekday::Sat => ndt(year, month, 19),
-        Weekday::Sun => ndt(year, month, 18),
-    }
-}
-
 impl DateRoll for Cal {
 
     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
@@ -444,6 +405,45 @@ fn adjust_without_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier:
 /// Panics if date values are invalid.
 pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
     NaiveDate::from_ymd_opt(year, month, day).expect("`year`, `month` `day` are invalid.").and_hms_opt(0,0,0).unwrap()
+}
+
+/// Return a specific roll date given the `month`, `year` and `roll`.
+pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
+    match roll {
+        RollDay::Int(day) => Ok(get_roll_by_day(year, month, *day)),
+        RollDay::EoM => Ok(get_roll_by_day(year, month, 31)),
+        RollDay::SoM => Ok(get_roll_by_day(year, month, 1)),
+        RollDay::IMM => Ok(get_imm(year, month)),
+        RollDay::Unspecified => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
+    }
+}
+
+/// Return a specific roll date given the `month`, `year` and `roll`.
+fn get_roll_by_day(year: i32, month: u32, day: u32) -> NaiveDateTime {
+    let d = NaiveDate::from_ymd_opt(year, month, day);
+    match d {
+        Some(date) => NaiveDateTime::new(date, NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+        None => {
+            if day > 28 {
+                get_roll_by_day(year, month, day - 1)
+            } else {
+                panic!("Unexpected error in `get_roll_by_day`")
+            }
+        }
+    }
+}
+
+/// Return an IMM date (third Wednesday) for given month and year.
+pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
+    match ndt(year, month, 1).weekday() {
+        Weekday::Mon => ndt(year, month, 17),
+        Weekday::Tue => ndt(year, month, 16),
+        Weekday::Wed => ndt(year, month, 15),
+        Weekday::Thu => ndt(year, month, 21),
+        Weekday::Fri => ndt(year, month, 20),
+        Weekday::Sat => ndt(year, month, 19),
+        Weekday::Sun => ndt(year, month, 18),
+    }
 }
 
 // UNIT TESTS
