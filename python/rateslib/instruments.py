@@ -2527,13 +2527,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             The numerical :class:`Solver` that constructs ``Curves`` from calibrating
             instruments.
         fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
+            Not used by *FixedRateBond* rate. Output is in local currency.
         base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+            Not used by *FixedRateBond* rate. Output is in local currency.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
             "dirty_price", "ytm"}
