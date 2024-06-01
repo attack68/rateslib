@@ -1,4 +1,4 @@
-//! Define the parameters for a Zurich business day calendar.
+//! Define a Zurich business day calendar, aligned with SARON publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const HOLIDAYS: &'static [&str] = &[

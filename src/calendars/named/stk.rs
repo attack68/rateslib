@@ -1,4 +1,4 @@
-//! Define the parameters for a Stockholm business day calendar.
+//! Define a Stockholm business day calendar, aligned with SWESTR publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const HOLIDAYS: &'static [&str] = &[

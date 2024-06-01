@@ -1,4 +1,4 @@
-//! Define the parameters for a London business day holiday calendar.
+//! Define a London business day holiday calendar, aligned with SONIA publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const HOLIDAYS: &'static [&str] = &[
