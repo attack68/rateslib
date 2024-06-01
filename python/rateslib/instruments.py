@@ -50,6 +50,7 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     FXCallPeriod,
     FXPutPeriod,
+    _maybe_local
 )
 from rateslib.legs import (
     FixedLeg,
@@ -1755,8 +1756,6 @@ class BondMixin:
         self,
         curve: Union[Curve, LineCurve],
         disc_curve: Curve,
-        fx: Union[float, FXRates, FXForwards, NoInput],
-        base: Union[str, NoInput],
         settlement: datetime,
         projection: datetime,
     ):
@@ -1798,7 +1797,7 @@ class BondMixin:
         initial node date of the ``disc_curve``.
         """
         self._set_base_index_if_none(curve)
-        npv = self.leg1.npv(curve, disc_curve, fx, base)
+        npv = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0))
 
         # now must systematically deduct any cashflow between the initial node date
         # and the settlement date, including the cashflow after settlement if ex_div.
@@ -1815,11 +1814,11 @@ class BondMixin:
 
         for period_idx in range(initial_idx, settle_idx):
             # deduct coupon period
-            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
+            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
 
         if self.ex_div(settlement):
             # deduct coupon after settlement which is also unpaid
-            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
+            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
 
         if projection is NoInput.blank:
             return npv
@@ -1885,12 +1884,9 @@ class BondMixin:
             None,
             self.leg1.schedule.calendar,
         )
-        base_ = self.leg1.currency if local else base
-        npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, NoInput(0))
-        if local:
-            return {self.leg1.currency: npv}
-        else:
-            return npv
+
+        npv = self._npv_local(curves[0], curves[1], settlement, NoInput(0))
+        return _maybe_local(npv, local, self.leg1.currency, fx_, base_)
 
     def analytic_delta(
         self,
@@ -2531,13 +2527,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             The numerical :class:`Solver` that constructs ``Curves`` from calibrating
             instruments.
         fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
+            Not used by *FixedRateBond* rate. Output is in local currency.
         base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+            Not used by *FixedRateBond* rate. Output is in local currency.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
             "dirty_price", "ytm"}
@@ -2564,7 +2556,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
+            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
@@ -3100,7 +3092,7 @@ class IndexFixedRateBond(FixedRateBond):
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
+            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             index_dirty_price = npv * 100 / -self.leg1.notional
             index_ratio = self.index_ratio(settlement, curves[0])
@@ -3983,7 +3975,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
+            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 

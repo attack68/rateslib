@@ -23,6 +23,10 @@ email contact through **rateslib@gmail.com**.
      - Description
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
+   * - Bug
+     - :meth:`~rateslib.instruments.FixedRateBond.rate` method of a *FixedRateBond* now correctly
+       returns the local currency price or yield-to-maturity without being wrongly converted by a
+       ``base`` FX rate, if an FX object is also supplied to the pricing formula.
 
 1.2.2 (31st May 2024)
 **********************
