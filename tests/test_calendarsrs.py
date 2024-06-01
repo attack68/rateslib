@@ -42,23 +42,22 @@ class TestCal:
             simple_union.add_days(dt(2015, 9, 5), 1, "bad", True)
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
-    def test_add_bus_days(self, simple_cal, simple_union, cal):
+    @pytest.mark.parametrize("start, days, mod, expected", [
+        (dt(2015, 9, 4), 0, "F", dt(2015, 9, 4)),
+        (dt(2015, 9, 4), 0, "P", dt(2015, 9, 4)),
+        (dt(2015, 9, 4), 1, "F", dt(2015, 9, 8)),
+        (dt(2015, 9, 8), -1, "P", dt(2015, 9, 4)),
+        (dt(2015, 9, 5), 0, "P", dt(2015, 9, 4)),
+        (dt(2015, 9, 5), 0, "F", dt(2015, 9, 8)),
+        (dt(2015, 9, 4), -1, "P", dt(2015, 9, 3)),
+        (dt(2015, 9, 8), 1, "F", dt(2015, 9, 9)),
+        (dt(2015, 9, 5), -1, "P", dt(2015, 9, 3)),
+        (dt(2015, 9, 5), 1, "F", dt(2015, 9, 9)),
+    ])
+    def test_add_bus_days(self, simple_cal, simple_union, cal, start, days, mod, expected):
         cal = simple_cal if cal == "basic" else simple_union
 
-        expected = dt(2015, 9, 8)
-        result = cal.add_bus_days(dt(2015, 9, 5), 0, "F", True)
-        assert result == expected
-
-        expected = dt(2015, 9, 9)
-        result = cal.add_bus_days(dt(2015, 9, 4), 1, "F", True)
-        assert result == expected
-
-        expected = dt(2015, 9, 10)
-        result = cal.add_bus_days(dt(2015, 9, 4), 2, "F", True)
-        assert result == expected
-
-        expected = dt(2015, 9, 6)
-        result = cal.add_bus_days(dt(2015, 9, 5), 1, "NONE", True)
+        result = cal.add_bus_days(start, days, mod, True)
         assert result == expected
 
     def test_add_bus_days_raises(self, simple_cal, simple_union):
