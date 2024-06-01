@@ -23,15 +23,47 @@ class TestCal:
         assert not simple_union.is_bus_day(dt(2015, 9, 7))
         assert simple_union.is_bus_day(dt(2015, 9, 8))
 
-    def test_add_days(self, simple_cal):
+    @pytest.mark.parametrize("cal", ["basic", "union"])
+    def test_add_days(self, simple_cal, simple_union, cal):
+        cal = simple_cal if cal == "basic" else simple_union
         expected = dt(2015, 9, 8)
-        result = simple_cal.add_days(dt(2015, 9, 4), 1, "F", True)
+        result = cal.add_days(dt(2015, 9, 4), 2, "F", True)
         assert result == expected
 
         expected = dt(2015, 9, 6)
-        result = simple_cal.add_days(dt(2015, 9, 5), 1, "NONE", True)
+        result = cal.add_days(dt(2015, 9, 5), 1, "NONE", True)
         assert result == expected
 
-    def test_add_days_raises(self, simple_cal):
+    def test_add_days_raises(self, simple_cal, simple_union):
         with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
             simple_cal.add_days(dt(2015, 9, 5), 1, "bad", True)
+
+        with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
+            simple_union.add_days(dt(2015, 9, 5), 1, "bad", True)
+
+    @pytest.mark.parametrize("cal", ["basic", "union"])
+    def test_add_bus_days(self, simple_cal, simple_union, cal):
+        cal = simple_cal if cal == "basic" else simple_union
+
+        expected = dt(2015, 9, 8)
+        result = cal.add_bus_days(dt(2015, 9, 5), 0, "F", True)
+        assert result == expected
+
+        expected = dt(2015, 9, 9)
+        result = cal.add_bus_days(dt(2015, 9, 4), 1, "F", True)
+        assert result == expected
+
+        expected = dt(2015, 9, 10)
+        result = cal.add_bus_days(dt(2015, 9, 4), 2, "F", True)
+        assert result == expected
+
+        expected = dt(2015, 9, 6)
+        result = cal.add_bus_days(dt(2015, 9, 5), 1, "NONE", True)
+        assert result == expected
+
+    def test_add_bus_days_raises(self, simple_cal, simple_union):
+        with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
+            simple_cal.add_bus_days(dt(2015, 9, 5), 1, "bad", True)
+
+        with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
+            simple_union.add_bus_days(dt(2015, 9, 5), 1, "bad", True)
