@@ -69,7 +69,6 @@
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use std::collections::{HashSet};
-use num_traits::ops::euclid;
 use chrono::{Days, Weekday};
 use pyo3::{pyclass, PyErr};
 use pyo3::exceptions::PyValueError;
@@ -158,7 +157,7 @@ pub trait DateRoll {
 
     /// Return the date, if a business day, or get the proceeding business date.
     fn next_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let mut new_date = date.clone();
+        let mut new_date = *date;
         while !self.is_bus_day(&new_date) {
             new_date = new_date + Days::new(1);
         }
@@ -178,7 +177,7 @@ pub trait DateRoll {
 
     /// Return the date, if a business day, or get the preceding business date.
     fn prev_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let mut new_date = date.clone();
+        let mut new_date = *date;
         while !self.is_bus_day(&new_date) {
             new_date = new_date - Days::new(1);
         }
@@ -233,12 +232,11 @@ pub trait DateRoll {
     fn add_days(&self, date: &NaiveDateTime, days: i8, modifier: &Modifier, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
-        let new_date;
-        if days < 0 {
-            new_date = *date - Days::new(u64::try_from(-days).unwrap())
+        let new_date = if days < 0 {
+            *date - Days::new(u64::try_from(-days).unwrap())
         } else {
-            new_date = *date + Days::new(u64::try_from(days).unwrap())
-        }
+            *date + Days::new(u64::try_from(days).unwrap())
+        };
         self.adjust(&new_date, modifier, settlement)
     }
 
@@ -250,7 +248,7 @@ pub trait DateRoll {
     fn add_bus_days(&self, date: &NaiveDateTime, days: i8, modifier: &Modifier, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
-        let mut new_date = date.clone();
+        let mut new_date = *date;
         let mut counter: i8 = 0;
         if days < 0 {  // then we subtract business days
             while counter > days {
@@ -382,7 +380,7 @@ pub enum RollDay {
 
 fn adjust_with_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
     match modifier {
-        Modifier::Act => date.clone(),
+        Modifier::Act => *date,
         Modifier::F => cal.next_settled_bus_day(date),
         Modifier::P => cal.prev_settled_bus_day(date),
         Modifier::ModF => cal.mod_next_settled_bus_day(date),
@@ -392,7 +390,7 @@ fn adjust_with_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &M
 
 fn adjust_without_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
     match modifier {
-        Modifier::Act => date.clone(),
+        Modifier::Act => *date,
         Modifier::F => cal.next_bus_day(date),
         Modifier::P => cal.prev_bus_day(date),
         Modifier::ModF => cal.mod_next_bus_day(date),
