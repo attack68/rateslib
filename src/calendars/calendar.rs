@@ -250,7 +250,7 @@ pub trait DateRoll {
             return self.add_bus_days(date, days, settlement).unwrap()
         }
         if days < 0 {
-            self.add_bus_days(&self.roll_backward_bus_day(date), days - 1, settlement).unwrap()
+            self.add_bus_days(&self.roll_backward_bus_day(date), days + 1, settlement).unwrap()
         } else {
             self.add_bus_days(&self.roll_forward_bus_day(date), days - 1, settlement).unwrap()
         }
@@ -598,7 +598,10 @@ mod tests {
     fn test_lag() {
         let cal = fixture_hol_cal();
         let result = cal.lag(&ndt(2015, 9, 7), 1, true);
-        assert_eq!(result, ndt(2015, 9, 8))
+        assert_eq!(result, ndt(2015, 9, 8));
+
+        let result = cal.lag(&ndt(2025, 2, 15), -1, true);
+        assert_eq!(result, ndt(2025, 2, 14))
     }
 
     fn fixture_hol_cal2() -> Cal {
