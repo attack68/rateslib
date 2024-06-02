@@ -50,6 +50,11 @@ impl Cal {
         }
     }
 
+    #[pyo3(name = "lag")]
+    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
+        self.lag(&date, days, settlement)
+    }
+
     #[pyo3(name = "bus_date_range")]
     fn bus_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
         self.bus_date_range(&start, &end)
@@ -100,6 +105,11 @@ impl UnionCal {
             "NONE" | "none" => Ok(self.roll(&date, &Modifier::Act, settlement)),
             _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
         }
+    }
+
+    #[pyo3(name = "lag")]
+    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
+        self.lag(&date, days, settlement)
     }
 
     #[pyo3(name = "bus_date_range")]

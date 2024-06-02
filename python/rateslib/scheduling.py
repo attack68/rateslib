@@ -529,12 +529,8 @@ class Schedule:
     def _attribute_schedules(self):
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
-        self.pschedule = [  # TODO calendar.lag
-            self.calendar.add_bus_days(
-                date=self.calendar.roll(dt, modifier="F", settlement=False),
-                days=self.payment_lag,
-                settlement=True,  # payments must be settleable
-            )
+        self.pschedule = [
+            self.calendar.lag(dt, self.payment_lag, settlement=True)
             for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)

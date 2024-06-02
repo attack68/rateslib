@@ -282,12 +282,17 @@ class BaseLeg(metaclass=ABCMeta):
             self.periods.append(
                 Cashflow(
                     self.notional - self.amortization * (self.schedule.n_periods - 1),
-                    add_tenor(
+                    self.schedule.calendar.lag(
                         self.schedule.aschedule[-1],
-                        f"{self.payment_lag_exchange}B",
-                        "NONE",
-                        self.schedule.calendar,
+                        self.payment_lag_exchange,
+                        True
                     ),
+                    # add_tenor(
+                    #     self.schedule.aschedule[-1],
+                    #     f"{self.payment_lag_exchange}B",
+                    #     "NONE",
+                    #     self.schedule.calendar,
+                    # ),
                     self.currency,
                     "Exchange",
                 )
@@ -1881,11 +1886,10 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
             self.periods.append(
                 IndexCashflow(
                     notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
-                    payment=add_tenor(
+                    payment=self.schedule.calendar.lag(
                         self.schedule.aschedule[-1],
-                        f"{self.payment_lag_exchange}B",
-                        "NONE",
-                        self.schedule.calendar,
+                        self.payment_lag_exchange,
+                        True
                     ),
                     currency=self.currency,
                     stub_type="Exchange",

@@ -573,7 +573,7 @@ mod tests {
     }
 
     #[test]
-    fn test_adjust_with_settlement() {
+    fn test_roll_with_settlement() {
         let cal = fixture_hol_cal();
         let non_bus = NaiveDateTime::parse_from_str("2024-03-30 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
 
@@ -592,6 +592,13 @@ mod tests {
         let non_bus = NaiveDateTime::parse_from_str("2024-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
         let res = roll_with_settlement(&non_bus, &cal, &Modifier::ModP);
         assert_eq!(res, NaiveDateTime::parse_from_str("2024-12-02 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+    }
+
+    #[test]
+    fn test_lag() {
+        let cal = fixture_hol_cal();
+        let result = cal.lag(&ndt(2015, 9, 7), 1, true);
+        assert_eq!(result, ndt(2015, 9, 8))
     }
 
     fn fixture_hol_cal2() -> Cal {
