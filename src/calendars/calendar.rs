@@ -248,7 +248,7 @@ pub trait DateRoll {
     fn add_bus_days(&self, date: &NaiveDateTime, days: i8, modifier: &Modifier, settlement: bool) -> NaiveDateTime
     where Self: Sized
     {
-        let mut new_date = *date;
+        let mut new_date = adjust_without_settlement(date, self, modifier);
         let mut counter: i8 = 0;
         if days < 0 {  // then we subtract business days
             while counter > days {

@@ -13,6 +13,7 @@ module-name = "rateslib.rateslibrs"
 python-source = "python"
 bindings = "pyo3"
 compatibility = "linux"
+features = ["pyo3/extension-module"]
 # rustc --print target-list
 # https://doc.rust-lang.org/rustc/platform-support.html
 

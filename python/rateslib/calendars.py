@@ -631,6 +631,21 @@ def get_calendar(
 
     return ret if kind else ret[0]
 
+from rateslib.rateslibrs import Cal, UnionCal, get_named_calendar
+
+
+def get_calendar_rs(calendar):
+    if isinstance(calendar, (Cal, UnionCal)):
+        return calendar
+    elif isinstance(calendar, str):
+        calendars = calendar.lower().split(",")
+        if len(calendars) == 1:  # only one named calendar is found
+            return get_named_calendar(calendar)
+        else:
+            cals = [get_named_calendar(_) for _ in calendars]
+            return UnionCal(cals, None)
+    raise ValueError("`calendar` input not valid")
+
 
 def _is_holiday(date: datetime, calendar: CustomBusinessDay):
     """

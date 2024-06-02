@@ -22,6 +22,7 @@ use curves::interpolation_py::{index_left_f64};
 
 pub mod calendars;
 use calendars::calendar::{Cal, UnionCal};
+use calendars::calendar_py::get_calendar_by_name_py;
 
 #[pymodule]
 fn rateslibrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -46,6 +47,7 @@ fn rateslibrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Calendars
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
+    m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;
 
     Ok(())
 }
