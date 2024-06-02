@@ -7,7 +7,7 @@ from datetime import datetime as dt
 
 import context
 from rateslib.default import Defaults, NoInput
-from rateslib.calendars import create_calendar
+from rateslib.calendars import create_calendar, Cal
 from rateslib.scheduling import (
     _check_unadjusted_regular_swap,
     _check_regular_swap,
@@ -29,8 +29,7 @@ from rateslib.scheduling import (
 
 @pytest.fixture
 def cal_():
-    rules = [Holiday("New Year", month=1, day=3)]
-    return create_calendar(rules=rules)
+    return Cal([dt(_, 1, 3) for _ in range(1970, 2200)], [5, 6])
 
 
 @pytest.mark.parametrize(

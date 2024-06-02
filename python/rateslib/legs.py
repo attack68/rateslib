@@ -232,7 +232,7 @@ class BaseLeg(metaclass=ABCMeta):
                     add_tenor(
                         self.schedule.aschedule[0],
                         f"{self.payment_lag_exchange}B",
-                        None,
+                        "NONE",
                         self.schedule.calendar,
                     ),
                     self.currency,
@@ -285,7 +285,7 @@ class BaseLeg(metaclass=ABCMeta):
                     add_tenor(
                         self.schedule.aschedule[-1],
                         f"{self.payment_lag_exchange}B",
-                        None,
+                        "NONE",
                         self.schedule.calendar,
                     ),
                     self.currency,
@@ -1884,7 +1884,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                     payment=add_tenor(
                         self.schedule.aschedule[-1],
                         f"{self.payment_lag_exchange}B",
-                        None,
+                        "NONE",
                         self.schedule.calendar,
                     ),
                     currency=self.currency,

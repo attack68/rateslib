@@ -30,7 +30,7 @@ from pandas import DataFrame, date_range, Series, NA, isna, notna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday, CalInput
+from rateslib.calendars import add_tenor, dcf, _get_eom, CalInput
 from rateslib.curves import (
     Curve,
     LineCurve,
@@ -1688,9 +1688,9 @@ class FloatPeriod(BasePeriod):
             return start_obs, end_obs, start_dcf, end_dcf
 
         # dates of the fixing observation period
-        obs_dates = Series(date_range(start=start_obs, end=end_obs, freq=curve.calendar))
+        obs_dates = Series(curve.calendar.bus_date_range(start=start_obs, end=end_obs))
         # dates for the dcf weight for each observation towards the calculation
-        dcf_dates = Series(date_range(start=start_dcf, end=end_dcf, freq=curve.calendar))
+        dcf_dates = Series(curve.calendar.bus_date_range(start=start_dcf, end=end_dcf))
         if len(dcf_dates) != len(obs_dates):
             # this might only be true with lookback when obs dates are adjusted
             # but DCF dates are not, and if starting on holiday causes problems.
@@ -1699,9 +1699,9 @@ class FloatPeriod(BasePeriod):
                 "This is usually the result of a 'rfr_lookback' Period which does "
                 "not adhere to the holiday calendar of the `curve`.\n"
                 f"start date: {self.start.strftime('%d-%m-%Y')} is curve holiday? "
-                f"{_is_holiday(self.start, curve.calendar)}\n"
+                f"{curve.calendar.is_non_bus_day(self.start)}\n"
                 f"end date: {self.end.strftime('%d-%m-%Y')} is curve holiday? "
-                f"{_is_holiday(self.end, curve.calendar)}\n"
+                f"{curve.calendar.is_non_bus_day(self.end)}\n"
             )
 
         return obs_dates, dcf_dates

@@ -10,7 +10,6 @@ from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.calendars import (
     get_calendar,
-    _is_holiday,
     _is_eom_cal,
     add_tenor,
     _add_months,
@@ -530,8 +529,12 @@ class Schedule:
     def _attribute_schedules(self):
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
-        self.pschedule = [
-            add_tenor(dt, f"{self.payment_lag}B", "NONE", self.calendar, NoInput(0))
+        self.pschedule = [  # TODO calendar.lag
+            self.calendar.add_bus_days(
+                date=self.calendar.roll(dt, modifier="F", settlement=False),
+                days=self.payment_lag,
+                settlement=True,  # payments must be settleable
+            )
             for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
@@ -887,16 +890,8 @@ def _is_invalid_very_short_stub(
     window.
     """
     # _ = date_range(start=date1, end=date2, freq=calendar)
-    if _is_holiday(date_to_modify, calendar):
-        date1_ = add_tenor(date_to_modify, "1b", modifier, calendar)
-    else:
-        date1_ = date_to_modify
-
-    if _is_holiday(date_fixed, calendar):
-        date2_ = add_tenor(date_fixed, "1b", modifier, calendar)
-    else:
-        date2_ = date_fixed
-
+    date1_ = calendar.roll(date_to_modify, modifier, settlement=True)
+    date2_ = calendar.roll(date_fixed, modifier, settlement=True)
     if date1_ == date2_:
         return True  # date range created by stubs is too small and is invalid
     return False
@@ -1349,18 +1344,18 @@ def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: Custom
     list : of valid unadjusted dates
     """
     unadj_dates = [date]
-    if _is_holiday(date, cal):
+    if cal.is_non_bus_day(date):
         return unadj_dates  # no other unadjusted date can adjust to a holiday.
     for days in range(1, 20):
         possible_unadjusted_date = date + timedelta(days=days)
-        if not _is_holiday(possible_unadjusted_date, cal):
-            break  # if not a holiday no later date will adjust back to date.
+        if cal.is_bus_day(possible_unadjusted_date):
+            break  # if a business day, no later date will adjust back to date.
         if date == _adjust_date(possible_unadjusted_date, modifier, cal):
             unadj_dates.append(possible_unadjusted_date)
     for days in range(1, 20):
         possible_unadjusted_date = date - timedelta(days=days)
-        if not _is_holiday(possible_unadjusted_date, cal):
-            break  # if not a holiday no previous date will adjust back to date.
+        if cal.is_bus_day(possible_unadjusted_date):
+            break  # if a business day, no previous date will adjust back to date.
         if date == _adjust_date(possible_unadjusted_date, modifier, cal):
             unadj_dates.append(possible_unadjusted_date)
     return unadj_dates

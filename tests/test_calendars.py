@@ -3,10 +3,10 @@ from pandas.tseries.holiday import Holiday
 from datetime import datetime as dt
 
 import context
+from rateslib.rateslibrs import Cal
 from rateslib.default import NoInput
 from rateslib.calendars import (
     create_calendar,
-    _is_holiday,
     dcf,
     get_calendar,
     add_tenor,
@@ -23,8 +23,7 @@ from rateslib.calendars import (
 
 @pytest.fixture
 def cal_():
-    rules = [Holiday("New Year", month=1, day=3)]
-    return create_calendar(rules=rules)
+    return Cal([dt(_, 1, 3) for _ in range(1970, 2200)], [5,6])
 
 
 @pytest.mark.parametrize(
@@ -37,14 +36,15 @@ def cal_():
         (dt(2022, 1, 5), False),  # wed
     ],
 )
-def test_is_holiday(date, expected, cal_):
-    result = _is_holiday(date, cal_)
+def test_is_non_bus_day(date, expected, cal_):
+    result = cal_.is_non_bus_day(date)
     assert result == expected
 
 
-def test_is_holiday_raises():
-    with pytest.raises(ValueError):
-        _ = _is_holiday(dt(2022, 1, 1), None)
+def test_is_non_bus_day_raises():
+    obj = "not a cal object"
+    with pytest.raises(AttributeError):
+        obj._is_non_bus_day(dt(2022, 1, 1))
 
 
 @pytest.mark.parametrize(
@@ -61,29 +61,29 @@ def test_is_holiday_raises():
     ],
 )
 def test_cal_no_hols(date):
-    cal_no_hols = create_calendar([], "Mon Tue Wed Thu Fri Sat Sun")
-    assert not _is_holiday(date, cal_no_hols)
+    cal_no_hols = create_calendar([], [])
+    assert not cal_no_hols.is_non_bus_day(date)
 
 
 def test_named_cal():
     ldn_cal = get_calendar("ldn")
-    assert _is_holiday(dt(2022, 1, 1), ldn_cal)
-    assert not _is_holiday(dt(2022, 1, 5), ldn_cal)
+    assert ldn_cal.is_non_bus_day(dt(2022, 1, 1))
+    assert ldn_cal.is_bus_day(dt(2022, 1, 5))
 
 
 def test_multiple_named_cal():
     ldn_cal = get_calendar("ldn")
     stk_cal = get_calendar("stk")
 
-    assert _is_holiday(dt(2023, 1, 2), ldn_cal)
-    assert not _is_holiday(dt(2023, 1, 2), stk_cal)
+    assert ldn_cal.is_non_bus_day(dt(2023, 1, 2))
+    assert stk_cal.is_bus_day(dt(2023, 1, 2))
 
-    assert not _is_holiday(dt(2023, 1, 6), ldn_cal)
-    assert _is_holiday(dt(2023, 1, 6), stk_cal)
+    assert ldn_cal.is_bus_day(dt(2023, 1, 6))
+    assert stk_cal.is_non_bus_day(dt(2023, 1, 6))
 
     merged_cal = get_calendar("LDN,stk")
-    assert _is_holiday(dt(2023, 1, 2), merged_cal)
-    assert _is_holiday(dt(2023, 1, 6), merged_cal)
+    assert merged_cal.is_non_bus_day(dt(2023, 1, 2))
+    assert merged_cal.is_non_bus_day(dt(2023, 1, 6))
 
 
 def test_add_tenor_raises():
