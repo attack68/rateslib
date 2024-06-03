@@ -21,7 +21,7 @@ from rateslib.dual import Dual, Dual2, gradient
 from rateslib.calendars import get_calendar
 from rateslib.solver import Solver
 from rateslib.instruments import IRS
-from rateslibrs import index_left_f64
+from rateslib.rateslibrs import index_left_f64
 
 
 @pytest.fixture()

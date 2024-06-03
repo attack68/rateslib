@@ -12,7 +12,23 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
-1.2.0 (27th May 2024)
+1.3.0 (Not released)
+***********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Bug
+     - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
+   * - Bug
+     - :meth:`~rateslib.instruments.FixedRateBond.rate` method of a *FixedRateBond* now correctly
+       returns the local currency price or yield-to-maturity without being wrongly converted by a
+       ``base`` FX rate, if an FX object is also supplied to the pricing formula.
+
+1.2.2 (31st May 2024)
 **********************
 
 This version uses **Rust** bindings. See :ref:`getting started <pricing-doc>`

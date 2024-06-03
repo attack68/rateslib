@@ -1,4 +1,4 @@
-from rateslibrs import (
+from rateslib.rateslibrs import (
     PPSplineF64,
     PPSplineDual,
     PPSplineDual2,

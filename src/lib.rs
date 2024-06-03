@@ -20,8 +20,13 @@ use splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2, bsplev_single
 pub mod curves;
 use curves::interpolation_py::{index_left_f64};
 
+pub mod calendars;
+use calendars::calendar::{Cal, UnionCal};
+use calendars::calendar_py::get_calendar_by_name_py;
+
 #[pymodule]
 fn rateslibrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Automatic Differentiation
     m.add_class::<Dual>()?;
     m.add_class::<Dual2>()?;
     m.add_function(wrap_pyfunction!(dsolve1_py, m)?)?;
@@ -29,12 +34,20 @@ fn rateslibrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fdsolve1_py, m)?)?;
     m.add_function(wrap_pyfunction!(fdsolve2_py, m)?)?;
 
+    // Splines
     m.add_class::<PPSplineF64>()?;
     m.add_class::<PPSplineDual>()?;
     m.add_class::<PPSplineDual2>()?;
     m.add_function(wrap_pyfunction!(bsplev_single, m)?)?;
     m.add_function(wrap_pyfunction!(bspldnev_single, m)?)?;
 
+    // Curves
     m.add_function(wrap_pyfunction!(index_left_f64, m)?)?;
+
+    // Calendars
+    m.add_class::<Cal>()?;
+    m.add_class::<UnionCal>()?;
+    m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;
+
     Ok(())
 }

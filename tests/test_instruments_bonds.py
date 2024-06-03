@@ -18,7 +18,7 @@ from rateslib.instruments import (
 from rateslib.dual import Dual, Dual2
 from rateslib.calendars import dcf, get_calendar
 from rateslib.curves import Curve, IndexCurve, LineCurve
-from rateslib.fx import FXRates
+from rateslib.fx import FXRates, FXForwards
 from rateslib.solver import Solver
 
 
@@ -46,6 +46,18 @@ def curve2():
 
 
 class TestFixedRateBond:
+
+    def test_metric_ytm_no_fx(self):
+        # GH 193
+        usd = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        gbp = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        fxf = FXForwards(
+            fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
+        )
+        expected = FixedRateBond(dt(2000, 1, 1), "10y", spec="ukt", fixed_rate=2.0).rate(curves=gbp, metric="ytm")
+        result = FixedRateBond(dt(2000, 1, 1), "10y", spec="ukt", fixed_rate=2.0).rate(curves=gbp, metric="ytm", fx=fxf)
+        assert abs(result - expected) < 1e-9
 
     def test_accrued_in_text(self):
         bond = FixedRateBond(
@@ -549,7 +561,7 @@ class TestFixedRateBond:
             notional=-100,
             settle=0,
         )
-        result = gilt._npv_local(NoInput(0), curve, NoInput(0), NoInput(0), dt(2010, 11, 27), dt(2010, 11, 25))
+        result = gilt._npv_local(NoInput(0), curve, dt(2010, 11, 27), dt(2010, 11, 25))
         expected = 109.229489312983  # npv should match associated test
         assert abs(result - expected) < 1e-6
 
@@ -952,7 +964,7 @@ class TestIndexFixedRateBond:
             index_lag=3,
             index_method="daily",
         )
-        result = gilt._npv_local(index_curve, curve, NoInput(0), NoInput(0), dt(2010, 11, 27), dt(2010, 11, 25))
+        result = gilt._npv_local(index_curve, curve, dt(2010, 11, 27), dt(2010, 11, 25))
         expected = 109.229489312983 * 2.0  # npv should match associated test
         assert abs(result - expected) < 1e-6
 

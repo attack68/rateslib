@@ -1392,6 +1392,12 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
     def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_rate = fixed_rate
+        if self.schedule.frequency == "Z":
+            raise ValueError(
+                "`frequency` for a ZeroFixedLeg should not be 'Z'. The Leg is zero frequency by "
+                "construction. Set the `frequency` equal to the compounding frequency of the "
+                "expressed fixed rate, e.g. 'S' for semi-annual compounding."
+            )
 
     def _set_periods(self):
         self.periods = [
