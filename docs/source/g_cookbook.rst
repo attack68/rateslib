@@ -16,6 +16,13 @@ into any one category.
     z_turns.rst
     z_quantlib.rst
 
+**FX Volatility Surface Building**
+
+.. toctree::
+    :titlesonly:
+
+    z_eurusd_surface.ipynb
+
 **Instrument Pricing**
 
 .. toctree::
