@@ -60,3 +60,8 @@ class TestCal:
     def test_add_bus_days_raises(self, simple_cal, simple_union):
         with pytest.raises(ValueError, match="Cannot add business days"):
             simple_cal.add_bus_days(dt(2015, 9, 5), 1, True)
+
+    def test_pickle(self, simple_cal):
+        import pickle
+        pickled_cal = pickle.dumps(simple_cal)
+        unpickled_cal = pickle.loads(pickled_cal)

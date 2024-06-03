@@ -72,6 +72,7 @@ use std::collections::{HashSet};
 use chrono::{Days, Weekday};
 use pyo3::{pyclass, PyErr};
 use pyo3::exceptions::PyValueError;
+use serde::{Serialize, Deserialize};
 
 /// Define a single, business day calendar.
 ///
@@ -82,11 +83,11 @@ use pyo3::exceptions::PyValueError;
 /// - `holidays`: which defines specific dates that may be exceptions to the general working week, and cannot be
 ///   business days.
 ///
-#[pyclass]
-#[derive(Clone, Default, Debug, PartialEq)]
+#[pyclass(module = "rateslib.rateslibrs")]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cal {
-    holidays: IndexSet<NaiveDateTime>,
-    week_mask: HashSet<Weekday>,
+    pub(crate) holidays: IndexSet<NaiveDateTime>,
+    pub(crate) week_mask: HashSet<Weekday>,
 }
 
 impl Cal {

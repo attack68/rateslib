@@ -23,7 +23,7 @@ from rateslib.calendars import (
 
 @pytest.fixture
 def cal_():
-    return Cal([dt(_, 1, 3) for _ in range(1970, 2200)], [5,6])
+    return Cal([dt(_, 1, 3) for _ in range(1970, 2200)], [5, 6])
 
 
 @pytest.mark.parametrize(

@@ -1,8 +1,10 @@
 use pyo3::exceptions::PyValueError;
 use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier};
 use crate::calendars::named::get_calendar_by_name;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime};
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use bincode::{serialize, deserialize};
 
 #[pymethods]
 impl Cal {
@@ -59,6 +61,21 @@ impl Cal {
     fn bus_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
         self.bus_date_range(&start, &end)
     }
+
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
+        Ok((
+            self.clone().holidays.into_iter().collect(),
+            self.clone().week_mask.into_iter().map(|x| x.num_days_from_monday() as u8).collect()
+        ))
+    }
+
 }
 
 #[pymethods]
