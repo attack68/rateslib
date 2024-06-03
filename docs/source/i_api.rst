@@ -37,6 +37,7 @@ Defaults
    :no-heading:
    :no-inheritance-diagram:
    :skip: plot
+   :skip: plot3d
    :skip: datetime
    :skip: Enum
 
@@ -50,6 +51,7 @@ Calendars
    :skip: next_monday_or_tuesday
    :skip: nearest_workday
    :skip: sunday_to_monday
+   :skip: get_calendar_rs
 
 Scheduling
 ===========
