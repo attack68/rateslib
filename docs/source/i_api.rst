@@ -360,4 +360,4 @@ Cookbook
     z_bondctd.rst
     z_fixings.rst
     z_quantlib.rst
-
+    z_eurusd_surface.ipynb
