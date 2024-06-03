@@ -867,11 +867,11 @@ class FXDeltaVolSurface:
 
     def __init__(
         self,
-        delta_indexes: Union[list, NoInput] = NoInput(0),
-        expiries: Union[list, NoInput] = NoInput(0),
-        node_values: Union[list, NoInput] = NoInput(0),
-        eval_date: Union[datetime, NoInput] = NoInput(0),
-        delta_type: Union[str, NoInput] = NoInput(0),
+        delta_indexes: Union[list, NoInput],
+        expiries: Union[list, NoInput],
+        node_values: Union[list, NoInput],
+        eval_date: Union[datetime, NoInput],
+        delta_type: Union[str, NoInput],
         id: Union[str, NoInput] = NoInput(0),
         ad: int = 0,
     ):
