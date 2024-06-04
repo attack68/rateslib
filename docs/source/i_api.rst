@@ -47,10 +47,6 @@ Calendars
 .. automodapi:: rateslib.calendars
    :no-heading:
    :skip: floor
-   :skip: next_monday
-   :skip: next_monday_or_tuesday
-   :skip: nearest_workday
-   :skip: sunday_to_monday
    :skip: get_calendar_rs
 
 Scheduling
@@ -157,7 +153,6 @@ Curves
    :skip: plot
    :skip: uuid4
    :skip: Any
-   :skip: CustomBusinessDay
    :skip: Dual
    :skip: Dual2
    :skip: PPSplineF64
@@ -165,7 +160,6 @@ Curves
    :skip: PPSplineDual2
    :skip: datetime
    :skip: timedelta
-   :skip: Holiday
    :skip: comb
    :skip: index_left_f64
 
