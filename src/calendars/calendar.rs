@@ -118,11 +118,11 @@ impl Cal {
 /// A business day is defined as allowing settlement relative to an associated calendar if:
 ///
 /// - the date in question is also a business day in the associated settlement calendar.
-#[pyclass]
-#[derive(Clone, Default, Debug, PartialEq)]
+#[pyclass(module = "rateslib.rateslibrs")]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnionCal {
-    calendars: Vec<Cal>,
-    settlement_calendars: Option<Vec<Cal>>,
+   pub(crate) calendars: Vec<Cal>,
+   pub(crate) settlement_calendars: Option<Vec<Cal>>,
 }
 
 impl UnionCal {

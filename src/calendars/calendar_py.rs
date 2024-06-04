@@ -133,6 +133,17 @@ impl UnionCal {
     fn bus_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
         self.bus_date_range(&start, &end)
     }
+
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
+        Ok((self.calendars.clone(), self.settlement_calendars.clone()))
+    }
 }
 
 #[pyfunction]
