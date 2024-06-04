@@ -98,21 +98,9 @@ impl UnionCal {
 
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
-
         let mut set = self.calendars.iter().fold(IndexSet::new(), |acc, x| IndexSet::from_iter(acc.union(&x.holidays).cloned()));
         set.sort();
         Ok(Vec::from_iter(set.into_iter()))
-
-//         match self.calendars.len() {
-//             0 => Ok(Vec::new()),
-//             _ => {
-//                 let mut holidays = self.calendars[0].holidays.clone();
-//                 for i in 1..self.calendars.len() {
-//                     holidays = IndexSet::from_iter(holidays.union(&self.calendars[i].holidays).cloned());
-//                 }
-//                 Ok(Vec::from_iter(holidays.into_iter()))
-//             }
-//         }
     }
 
     #[getter]

@@ -1148,6 +1148,7 @@ class Curve(_Serialize):
 
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
+        # x = self.calendar.bus_date_range(start=left_, end=right_)
         rates = [self.rate(_, tenor) for _ in x]
         if not difference:
             y = [rates]
