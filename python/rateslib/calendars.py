@@ -470,6 +470,7 @@ def add_tenor(
     modifier: str,
     calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
+    settlement = True,
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
@@ -495,6 +496,8 @@ def add_tenor(
     roll : str, int, optional
         This is only required if the tenor is given in months or years. Ensures the tenor period
         associates with a schedule's roll day.
+    settlement : bool, optional
+        Whether to enforce the settlement with an associated settlement calendar.
 
     Returns
     -------
@@ -531,7 +534,8 @@ def add_tenor(
     if "D" in tenor:
         return _add_days(start, int(tenor[:-1]), modifier, calendar)
     elif "B" in tenor:
-        return _add_business_days(start, int(tenor[:-1]), modifier, calendar)
+        cal_ = get_calendar(calendar)
+        return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
         return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, roll)
     elif "M" in tenor:
@@ -540,18 +544,6 @@ def add_tenor(
         return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
-
-
-def _add_business_days(
-    start: datetime,
-    business_days: int,
-    modifier: str,
-    cal: CalInput,
-    settlement: bool = True,
-) -> datetime:
-    """add a given number of business days to an input date"""
-    cal_: CalTypes = get_calendar(cal)  # type: ignore[assignment]
-    return cal_.add_bus_days(start, business_days, settlement)
 
 
 def _add_months(

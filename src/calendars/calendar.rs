@@ -66,6 +66,7 @@
 //! // Monday 19th June 2023, ignoring the US holiday settlement requirement.
 //! ```
 
+use std::cmp::Ordering;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use std::collections::{HashSet};
@@ -250,10 +251,10 @@ pub trait DateRoll {
         if self.is_bus_day(date) {
             return self.add_bus_days(date, days, settlement).unwrap()
         }
-        if days < 0 {
-            self.add_bus_days(&self.roll_backward_bus_day(date), days + 1, settlement).unwrap()
-        } else {
-            self.add_bus_days(&self.roll_forward_bus_day(date), days - 1, settlement).unwrap()
+        match days.cmp(&0_i8) {
+            Ordering::Equal => self.roll_forward_bus_day(date),
+            Ordering::Less => self.add_bus_days(&self.roll_backward_bus_day(date), days + 1, settlement).unwrap(),
+            Ordering::Greater => self.add_bus_days(&self.roll_forward_bus_day(date), days - 1, settlement).unwrap()
         }
     }
 
@@ -602,7 +603,10 @@ mod tests {
         assert_eq!(result, ndt(2015, 9, 8));
 
         let result = cal.lag(&ndt(2025, 2, 15), -1, true);
-        assert_eq!(result, ndt(2025, 2, 14))
+        assert_eq!(result, ndt(2025, 2, 14));
+
+        let result = cal.lag(&ndt(2015, 9, 7), 0, true);
+        assert_eq!(result, ndt(2015, 9, 8))
     }
 
     fn fixture_hol_cal2() -> Cal {

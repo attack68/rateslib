@@ -51,6 +51,18 @@ impl Cal {
         self.add_bus_days(&date, days, settlement)
     }
 
+    #[pyo3(name = "add_months")]
+    fn add_months_py(&self, date: NaiveDateTime, months: i32, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
+        match modifier {
+            "F" | "f" => Ok(self.add_months(&date, months, &Modifier::F, roll, settlement)),
+            "MF" | "mf" => Ok(self.add_months(&date, months, &Modifier::ModF, roll, settlement)),
+            "P" | "p" => Ok(self.add_months(&date, months, &Modifier::P, roll, settlement)),
+            "MP" | "mp" => Ok(self.add_months(&date, months, &Modifier::ModP, roll, settlement)),
+            "NONE" | "none" => Ok(self.add_months(&date, months, &Modifier::Act, roll, settlement)),
+            _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
+        }
+    }
+
     #[pyo3(name = "roll")]
     fn roll_py(&self, date: NaiveDateTime, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
         match modifier {
