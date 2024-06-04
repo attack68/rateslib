@@ -10,7 +10,10 @@ def simple_cal():
 @pytest.fixture()
 def simple_union(simple_cal):
     return UnionCal([simple_cal], None)
-
+@pytest.fixture()
+def multi_union(simple_cal):
+    add_cal = Cal([dt(2015, 9, 3), dt(2015, 9, 8)], [5, 6])
+    return UnionCal([simple_cal, add_cal], None)
 
 class TestCal:
 
@@ -70,3 +73,11 @@ class TestCal:
         import pickle
         pickled_cal = pickle.dumps(simple_union)
         pickle.loads(pickled_cal)
+
+    @pytest.mark.parametrize("cal, exp", [
+        ("basic", [dt(2015, 9, 5), dt(2015, 9, 7)]),
+        ("union", [dt(2015, 9, 3), dt(2015, 9, 5), dt(2015, 9, 7), dt(2015, 9, 8)]),
+    ])
+    def test_holidays(self, cal, exp, simple_cal, multi_union):
+        cal = simple_cal if cal == "basic" else multi_union
+        assert cal.holidays == exp

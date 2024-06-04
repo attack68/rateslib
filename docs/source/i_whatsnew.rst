@@ -21,6 +21,12 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Calendars
+     - The `pandas` holiday and calendar system has been removed in favour of a rust implementation for
+       calendar objects: :class:`~rateslib.calendars.Cal` and :class:`~rateslib.calendars.UnionCal`.
+   * - Calendars
+     - :red:`Breaking Change!` The :meth:`~rateslib.calendars.create_calendar` methods is deprecated and
+       modified to accept different input arguments.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
    * - Bug

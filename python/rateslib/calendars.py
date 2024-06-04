@@ -31,36 +31,26 @@ CALENDARS: Dict[str, CalTypes] = {
 # TODO: edit the example on create calendar, or move to `Cal`
 
 
-def create_calendar(rules: list, weekmask: Optional[str] = None) -> Cal:
+def create_calendar(rules: list, week_mask: Optional[str] = None) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
 
     .. warning::
 
-       This function is deprecated
+       This function is deprecated. Create a :class:`~rateslib.calendars.Cal` object instead.
 
     Parameters
     ----------
     rules : list[datetime]
         A list of specific holiday dates.
-    weekmask : list[int], optional
+    week_mask : list[int], optional
         Set of days excluded from the working week. [5,6] is Saturday and Sunday.
 
     Returns
     --------
     Cal
-
-    Examples
-    --------
-    .. ipython:: python
-
-       Sinai_Liberation_Day = dt(2024, 4, 25)
-       pyramid_builder = create_calendar(rules=[TutsBday], weekmask="Tue Wed Thu Fri Sat Sun")
-       construction_days = date_range(dt(1999, 6, 25), dt(1999, 7, 5), freq=pyramid_builder)
-       construction_days
-
     """
-    weekmask = [5, 6] if weekmask is None else weekmask
+    weekmask = [5, 6] if week_mask is None else week_mask
     return Cal(rules, weekmask)
 
 
@@ -72,8 +62,7 @@ def get_calendar(
 
     Parameters
     ----------
-    calendar : str, None, or CustomBusinessDay
-        If `None` a blank calendar is returned containing no holidays.
+    calendar : str, Cal, UnionCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
     kind : bool
@@ -82,7 +71,7 @@ def get_calendar(
 
     Returns
     -------
-    CustomBusinessDay or tuple
+    Cal, UnionCal or tuple
 
     Notes
     -----
@@ -90,7 +79,8 @@ def get_calendar(
     The following named calendars are available and have been back tested against the
     publication of RFR indexes in the relevant geography.
 
-    - *"bus"*: business days, excluding only weekends.
+    - *"all"*: Every day is defined as business day including weekends.
+    - *"bus"*: Regular weekdays are defined as business days. Saturdays and Sunday are non-business days.
     - *"tgt"*: Target for Europe's ESTR.
     - *"osl"*: Oslo for Norway's NOWA.
     - *"zur"*: Zurich for Switzerland's SARON.
@@ -399,8 +389,8 @@ def get_calendar(
     .. ipython:: python
 
        gbp_cal = get_calendar("ldn")
-       gbp_cal.calendar.holidays
-       dt(2022, 1, 1) + 5 * gbp_cal
+       gbp_cal.holidays
+       gbp_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(gbp_cal)
 
     Calendars can be combined from the pre-existing names using comma separation.
@@ -408,7 +398,7 @@ def get_calendar(
     .. ipython:: python
 
        gbp_and_nyc_cal = get_calendar("ldn,nyc")
-       gbp_and_nyc_cal.calendar.holidays
+       gbp_and_nyc_cal.holidays
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.

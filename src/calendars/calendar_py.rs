@@ -1,6 +1,7 @@
 use pyo3::exceptions::PyValueError;
 use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier};
 use crate::calendars::named::get_calendar_by_name;
+use indexmap::set::IndexSet;
 use chrono::{NaiveDateTime};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -11,6 +12,16 @@ impl Cal {
     #[new]
     fn new_py(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> PyResult<Self> {
         Ok(Cal::new(holidays, week_mask))
+    }
+
+    #[getter]
+    fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
+        Ok(self.holidays.clone().into_iter().collect())
+    }
+
+    #[getter]
+    fn week_mask(&self) -> PyResult<Vec<u8>> {
+        Ok(self.week_mask.clone().into_iter().map(|x| x.num_days_from_monday() as u8).collect())
     }
 
     #[pyo3(name = "is_bus_day")]
@@ -83,6 +94,30 @@ impl UnionCal {
     #[new]
     fn new_py(calendars: Vec<Cal>, settlement_calendars: Option<Vec<Cal>>) -> PyResult<Self> {
         Ok(UnionCal::new(calendars, settlement_calendars))
+    }
+
+    #[getter]
+    fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
+
+        let mut set = self.calendars.iter().fold(IndexSet::new(), |acc, x| IndexSet::from_iter(acc.union(&x.holidays).cloned()));
+        set.sort();
+        Ok(Vec::from_iter(set.into_iter()))
+
+//         match self.calendars.len() {
+//             0 => Ok(Vec::new()),
+//             _ => {
+//                 let mut holidays = self.calendars[0].holidays.clone();
+//                 for i in 1..self.calendars.len() {
+//                     holidays = IndexSet::from_iter(holidays.union(&self.calendars[i].holidays).cloned());
+//                 }
+//                 Ok(Vec::from_iter(holidays.into_iter()))
+//             }
+//         }
+    }
+
+    #[getter]
+    fn week_mask(&self) -> PyResult<Vec<u8>> {
+        panic!("not implemented")
     }
 
     #[pyo3(name = "is_bus_day")]
