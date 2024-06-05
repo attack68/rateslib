@@ -357,6 +357,7 @@ def test_curve_interp_raises():
     with pytest.raises(ValueError, match=err):
         curve[dt(2022, 1, 15)]
 
+
 def test_curve_sorted_nodes_raises():
     err = 'Curve node dates are not sorted or contain duplicates.'
     with pytest.raises(ValueError, match=err):
@@ -367,7 +368,8 @@ def test_curve_sorted_nodes_raises():
             },
             id='curve',
         )
-        
+
+
 def test_interp_raises():
     interp = 'linea'  # Wrongly spelled interpolation method
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
@@ -1566,8 +1568,8 @@ class TestPlotCurve:
     def test_plot_curve_right(self, curve, right):
         fig, ax, lines = curve.plot("1d", right=right)
         result = lines[0].get_data()
-        assert result[0][-1] == dt(2022, 3, 2)
-        assert abs(result[1][-1].real - 12.008005336896055) < 1e-6
+        assert result[0][-1] == dt(2022, 3, 3)
+        assert abs(result[1][-1].real - 12.012012012015738) < 1e-6
         plt.close("all")
 
     def test_plot_curve_right_raise(self, curve):

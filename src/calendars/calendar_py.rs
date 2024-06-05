@@ -63,6 +63,11 @@ impl Cal {
         self.bus_date_range(&start, &end)
     }
 
+    #[pyo3(name = "cal_date_range")]
+    fn cal_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
+        self.cal_date_range(&start, &end)
+    }
+
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
         *self = deserialize(state.as_bytes()).unwrap();
         Ok(())
@@ -139,6 +144,11 @@ impl UnionCal {
     #[pyo3(name = "bus_date_range")]
     fn bus_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
         self.bus_date_range(&start, &end)
+    }
+
+    #[pyo3(name = "cal_date_range")]
+    fn cal_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
+        self.cal_date_range(&start, &end)
     }
 
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {

@@ -1030,7 +1030,7 @@ class FloatPeriod(BasePeriod):
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
-        fixing_date = add_tenor(self.start, f"-{self.method_param}B", NoInput(0), calendar)
+        fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
         def _rate(c: Union[Curve, LineCurve, IndexCurve], tenor):
             if c._base_type == "dfs":
