@@ -77,7 +77,6 @@ class TestCal:
         result = cal.add_months(start, months, Modifier.F, RollDay.Unspecified(), True)
         assert result == expected
 
-
     def test_pickle_cal(self, simple_cal):
         import pickle
         pickled_cal = pickle.dumps(simple_cal)

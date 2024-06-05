@@ -82,11 +82,8 @@ class _Serialize:
             container.update(
                 {
                     "calendar": {
-                        "weekmask": self.calendar.weekmask,
-                        "holidays": [
-                            d.item().strftime("%Y-%m-%d")
-                            for d in self.calendar.holidays  # numpy/pandas timestamp to py
-                        ],
+                        "weekmask": self.calendar.week_mask,
+                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
                     }
                 }
             )
@@ -115,16 +112,12 @@ class _Serialize:
 
         if serial["calendar_type"] == "custom":
             # must load and construct a custom holiday calendar from serial dates
-            raise NotImplementedError("calendar serialisation under review.")
-            # def parse(d: datetime):
-            #     return Holiday("", year=d.year, month=d.month, day=d.day)
-            #
-            # dates = [
-            #     parse(datetime.strptime(d, "%Y-%m-%d")) for d in serial["calendar"]["holidays"]
-            # ]
-            # serial["calendar"] = create_calendar(
-            #     rules=dates, weekmask=serial["calendar"]["weekmask"]
-            # )
+            dates = [
+                datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]
+            ]
+            serial["calendar"] = create_calendar(
+                rules=dates, week_mask=serial["calendar"]["weekmask"]
+            )
 
         if serial["t"] is not None:
             serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]

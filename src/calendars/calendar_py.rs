@@ -76,6 +76,9 @@ impl Cal {
             self.clone().week_mask.into_iter().map(|x| x.num_days_from_monday() as u8).collect()
         ))
     }
+    pub fn __eq__(&self, other: Cal) -> bool {
+        *self == other
+    }
 
 }
 
@@ -147,6 +150,9 @@ impl UnionCal {
     }
     pub fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
+    }
+    pub fn __eq__(&self, other: UnionCal) -> bool {
+        *self == other
     }
 }
 

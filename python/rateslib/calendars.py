@@ -429,6 +429,7 @@ def _get_modifier(modifier: str) -> Modifier:
     except KeyError:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 
+
 def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     if isinstance(roll, str):
         return {
@@ -439,6 +440,7 @@ def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     elif isinstance(roll, int):
         return RollDay.Int(roll)
     return RollDay.Unspecified()
+
 
 def _adjust_date(
     date: datetime,
@@ -480,7 +482,7 @@ def add_tenor(
     modifier: str,
     calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
-    settlement = True,
+    settlement: bool = True,
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
@@ -543,7 +545,7 @@ def add_tenor(
     tenor = tenor.upper()
     cal_ = get_calendar(calendar)
     if "D" in tenor:
-        return _add_days(start, int(tenor[:-1]), modifier, calendar)
+        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier), settlement)
     elif "B" in tenor:
         return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
@@ -552,9 +554,10 @@ def add_tenor(
     elif "M" in tenor:
         return cal_.add_months(start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement)
     elif "W" in tenor:
-        return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
+        return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier), settlement)
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
+
 
 def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
     if isinstance(roll, str):
@@ -570,16 +573,6 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
         except ValueError:  # day is out of range for month, i.e. 30 or 31
             date = _get_eom(month, year)
     return date
-
-
-def _add_days(
-    start: datetime,
-    days: int,
-    modifier: str,
-    cal: CalInput,
-) -> datetime:
-    end = start + timedelta(days=days)
-    return _adjust_date(end, modifier, cal)
 
 
 def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
