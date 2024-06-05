@@ -1179,11 +1179,9 @@ class Curve(_Serialize):
         effective,
         termination,
         modifier=NoInput(0),
-        float_spread=None,
-        spread_compound_method=None,
     ):
         try:
-            rate = self.rate(effective, termination, modifier, float_spread, spread_compound_method)
+            rate = self.rate(effective, termination, modifier)
         except Exception as e:
             raise e
         return rate
@@ -2096,6 +2094,7 @@ class CompositeCurve(IndexCurve):
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
         self.calendar = curves[0].calendar
+        self.modifier = curves[0].modifier
         self._base_type = curves[0]._base_type
         if self._base_type == "dfs":
             self.modifier = curves[0].modifier

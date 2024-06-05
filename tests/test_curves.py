@@ -1631,3 +1631,10 @@ class TestPlotCurve:
             i_curve.plot_index(left=2.0)
         with pytest.raises(ValueError, match="`right` must be supplied as"):
             i_curve.plot_index(right=2.0)
+
+    def test_composite_curve_plot(self):
+        curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 1): 0.95}, modifier="MF", calendar="bus")
+        curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 1): 0.97}, modifier="MF", calendar="bus")
+        cc = CompositeCurve(curves=[curve1, curve2])
+        cc.plot("1m")
+
