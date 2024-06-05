@@ -287,12 +287,6 @@ class BaseLeg(metaclass=ABCMeta):
                         self.payment_lag_exchange,
                         True
                     ),
-                    # add_tenor(
-                    #     self.schedule.aschedule[-1],
-                    #     f"{self.payment_lag_exchange}B",
-                    #     "NONE",
-                    #     self.schedule.calendar,
-                    # ),
                     self.currency,
                     "Exchange",
                 )

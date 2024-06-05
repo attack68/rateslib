@@ -1281,13 +1281,6 @@ class BondMixin:
             -self.kwargs['ex_div'],
             True
         )
-
-        # add_tenor(
-        #     self.leg1.schedule.uschedule[prev_a_idx + 1],
-        #     f"{-self.kwargs['ex_div']}B",
-        #     NoInput(0),  # modifier not required for business day tenor
-        #     self.leg1.schedule.calendar,
-        # )
         if self.calc_mode in []:  # currently no identified calc_modes
             return True if settlement >= ex_div_date else False  # pragma: no cover
         else:
@@ -2559,12 +2552,6 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                     self.kwargs['settle'],
                     True,
                 )
-                # settlement = add_tenor(
-                #     curves[1].node_dates[0],
-                #     f"{self.kwargs['settle']}B",
-                #     "none",
-                #     self.leg1.schedule.calendar,
-                # )
             else:
                 settlement = forward_settlement
             npv = self._npv_local(curves[0], curves[1], settlement, settlement)
