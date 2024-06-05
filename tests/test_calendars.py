@@ -3,7 +3,7 @@ from pandas.tseries.holiday import Holiday
 from datetime import datetime as dt
 
 import context
-from rateslib.rateslibrs import Cal
+from rateslib.rs import Cal
 from rateslib.default import NoInput
 from rateslib.calendars import (
     create_calendar,

@@ -25,7 +25,7 @@ use calendars::calendar::{Cal, UnionCal, Modifier, RollDay};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 #[pymodule]
-fn rateslibrs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Automatic Differentiation
     m.add_class::<Dual>()?;
     m.add_class::<Dual2>()?;

@@ -28,7 +28,7 @@ from rateslib.calendars import (
     CalInput,
     _DCF1d,
 )
-from rateslib.rateslibrs import index_left_f64
+from rateslib.rs import index_left_f64
 
 from typing import TYPE_CHECKING
 

@@ -1,4 +1,4 @@
-from rateslib.rateslibrs import (
+from rateslib.rs import (
     Dual,
     Dual2,
     _dsolve1,

@@ -6,7 +6,7 @@ import warnings
 
 from pandas.tseries.offsets import CustomBusinessDay, Day
 from rateslib.default import NoInput
-from rateslib.rateslibrs import Cal, UnionCal, get_named_calendar, RollDay, Modifier
+from rateslib.rs import Cal, UnionCal, get_named_calendar, RollDay, Modifier
 
 CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]

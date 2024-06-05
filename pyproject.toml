@@ -9,7 +9,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-module-name = "rateslib.rateslibrs"
+module-name = "rateslib.rs"
 python-source = "python"
 bindings = "pyo3"
 compatibility = "linux"
