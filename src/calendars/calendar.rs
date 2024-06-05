@@ -335,7 +335,7 @@ pub trait DateRoll {
 
         // perform the date roll
         match roll {
-            RollDay::Unspecified => self.add_months(date, months, modifier, &RollDay::Int(date.day()), settlement),
+            RollDay::Unspecified{} => self.add_months(date, months, modifier, &RollDay::Int{day: date.day()}, settlement),
             _ =>  {
                 let new_date = get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), roll).unwrap();
                 self.roll(&new_date, modifier, settlement)
@@ -394,6 +394,7 @@ impl DateRoll for UnionCal {
 }
 
 /// Enum defining the rule to adjust a non-business day to a business day.
+#[pyclass(module = "rateslib.rateslibrs")]
 #[derive(Copy, Clone)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.
@@ -409,18 +410,50 @@ pub enum Modifier {
 }
 
 /// Enum defining the roll day.
+#[pyclass(module = "rateslib.rateslibrs")]
 #[derive(Copy, Clone)]
 pub enum RollDay {
     /// Inherit the day of the input date as the roll.
-    Unspecified,
+    Unspecified{},
     /// A day of the month in [1, 31].
-    Int(u32),
+    Int{ day: u32},
+    // One = 1,
+    // Two = 2,
+    // Three = 3,
+    // Four = 4,
+    // Five = 5,
+    // Six = 6,
+    // Seven = 7,
+    // Eight = 8,
+    // Nine = 9,
+    // Ten = 10,
+    // Eleven = 11,
+    // Twelve = 12,
+    // Thirteen = 13,
+    // Fourteen = 14,
+    // Fifteen = 15,
+    // Sixteen = 16,
+    // Seventeen = 17,
+    // Eighteen = 18,
+    // Nineteen = 19,
+    // Twenty = 20,
+    // TwentyOne = 21,
+    // TwentyTwo = 22,
+    // TwentyThree = 23,
+    // TwentyFour = 24,
+    // TwentyFive = 25,
+    // TwentySix = 26,
+    // TwentySeven = 27,
+    // TwentyEight = 28,
+    // TwentyNine = 29,
+    // Thirty = 30,
+    // ThirtyOne = 31,
     /// The last day of the month (semantically equivalent to 31).
-    EoM,
+    EoM{},
     /// The first day of the month (semantically equivalent to 1).
-    SoM,
+    SoM{},
     /// The third Wednesday of the month.
-    IMM,
+    IMM{},
 }
 
 fn roll_with_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
@@ -453,11 +486,11 @@ pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
 /// Return a specific roll date given the `month`, `year` and `roll`.
 pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
     match roll {
-        RollDay::Int(day) => Ok(get_roll_by_day(year, month, *day)),
-        RollDay::EoM => Ok(get_roll_by_day(year, month, 31)),
-        RollDay::SoM => Ok(get_roll_by_day(year, month, 1)),
-        RollDay::IMM => Ok(get_imm(year, month)),
-        RollDay::Unspecified => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
+        RollDay::Int{day: val} => Ok(get_roll_by_day(year, month, *val)),
+        RollDay::EoM{} => Ok(get_roll_by_day(year, month, 31)),
+        RollDay::SoM{} => Ok(get_roll_by_day(year, month, 1)),
+        RollDay::IMM{} => Ok(get_imm(year, month)),
+        RollDay::Unspecified{} => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
     }
 }
 
@@ -765,7 +798,7 @@ mod tests {
         ];
         for i in 0..12 {
                assert_eq!(
-                   cal.add_months(&dates[i].0, 37, &Modifier::Act, &RollDay::Unspecified, true),
+                   cal.add_months(&dates[i].0, 37, &Modifier::Act, &RollDay::Unspecified{}, true),
                    dates[i].1
                )
         }
@@ -791,7 +824,7 @@ mod tests {
         ];
         for i in 0..12 {
                assert_eq!(
-                   cal.add_months(&dates[i].0, -37, &Modifier::Act, &RollDay::Unspecified, true),
+                   cal.add_months(&dates[i].0, -37, &Modifier::Act, &RollDay::Unspecified{}, true),
                    dates[i].1
                )
         }
@@ -801,11 +834,11 @@ mod tests {
     fn test_add_months_roll() {
          let cal = get_calendar_by_name("all").unwrap();
          let roll = vec![
-            (RollDay::Unspecified, ndt(1996, 12, 7)),
-            (RollDay::Int(21), ndt(1996, 12, 21)),
-            (RollDay::EoM, ndt(1996, 12, 31)),
-            (RollDay::SoM, ndt(1996, 12, 1)),
-            (RollDay::IMM, ndt(1996, 12, 18)),
+            (RollDay::Unspecified{}, ndt(1996, 12, 7)),
+            (RollDay::Int{day:21}, ndt(1996, 12, 21)),
+            (RollDay::EoM{}, ndt(1996, 12, 31)),
+            (RollDay::SoM{}, ndt(1996, 12, 1)),
+            (RollDay::IMM{}, ndt(1996, 12, 18)),
          ];
          for i in 0..5 {
              assert_eq!(
@@ -827,7 +860,7 @@ mod tests {
          ];
          for i in 0..4 {
              assert_eq!(
-                 cal.add_months(&ndt(2023, 8, 31), 1, &modi[i].0, &RollDay::Unspecified, true),
+                 cal.add_months(&ndt(2023, 8, 31), 1, &modi[i].0, &RollDay::Unspecified{}, true),
                  modi[i].1
              );
          }
@@ -845,7 +878,7 @@ mod tests {
          ];
          for i in 0..4 {
              assert_eq!(
-                 cal.add_months(&ndt(2023, 8, 1), -1, &modi[i].0, &RollDay::Unspecified, true),
+                 cal.add_months(&ndt(2023, 8, 1), -1, &modi[i].0, &RollDay::Unspecified{}, true),
                  modi[i].1
              );
          }

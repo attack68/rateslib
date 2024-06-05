@@ -1,5 +1,5 @@
 use pyo3::exceptions::PyValueError;
-use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier};
+use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier, RollDay};
 use crate::calendars::named::get_calendar_by_name;
 use indexmap::set::IndexSet;
 use chrono::{NaiveDateTime};
@@ -52,15 +52,8 @@ impl Cal {
     }
 
     #[pyo3(name = "add_months")]
-    fn add_months_py(&self, date: NaiveDateTime, months: i32, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
-        match modifier {
-            "F" | "f" => Ok(self.add_months(&date, months, &Modifier::F, roll, settlement)),
-            "MF" | "mf" => Ok(self.add_months(&date, months, &Modifier::ModF, roll, settlement)),
-            "P" | "p" => Ok(self.add_months(&date, months, &Modifier::P, roll, settlement)),
-            "MP" | "mp" => Ok(self.add_months(&date, months, &Modifier::ModP, roll, settlement)),
-            "NONE" | "none" => Ok(self.add_months(&date, months, &Modifier::Act, roll, settlement)),
-            _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
-        }
+    fn add_months_py(&self, date: NaiveDateTime, months: i32, modifier: Modifier, roll: RollDay, settlement: bool) -> PyResult<NaiveDateTime> {
+        Ok(self.add_months(&date, months, &modifier, &roll, settlement))
     }
 
     #[pyo3(name = "roll")]
