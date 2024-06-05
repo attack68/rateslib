@@ -943,7 +943,7 @@ class FXDeltaVolSurface:
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
         if expiry == self.expiries[0]:
             return self.smiles[0]
-        elif abs(expiry_posix - self.expiries_posix[e_idx+1]) < 1e-10:
+        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
             return self.smiles[e_idx+1]
         elif expiry_posix > self.expiries_posix[-1]:
@@ -977,7 +977,7 @@ class FXDeltaVolSurface:
         else:
             _ = FXDeltaVolSmile(
                 nodes={
-                    k: self.t_var_interp(self.eval_posix, self.expiries_posix[e_idx], vol1, self.expiries_posix[e_idx+1], vol2, expiry_posix)
+                    k: self._t_var_interp(self.eval_posix, self.expiries_posix[e_idx], vol1, self.expiries_posix[e_idx+1], vol2, expiry_posix)
                     for k, vol1, vol2 in zip(
                         self.delta_indexes,
                         self.smiles[e_idx].nodes.values(),
@@ -993,7 +993,7 @@ class FXDeltaVolSurface:
             return _
 
     @staticmethod
-    def t_var_interp(eval_posix, ep1, vol1, ep2, vol2, ep_t):
+    def _t_var_interp(eval_posix, ep1, vol1, ep2, vol2, ep_t):
         """
         Return the volatility of an intermediate timestamp via total linear variance interpolation.
 
