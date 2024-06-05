@@ -941,9 +941,11 @@ class FXDeltaVolSurface:
         """
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
-        if abs(expiry_posix - self.expiries_posix[e_idx]) < 1e-15:
+        if expiry == self.expiries[0]:
+            return self.smiles[0]
+        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            return self.smiles[e_idx]
+            return self.smiles[e_idx+1]
         elif expiry_posix > self.expiries_posix[-1]:
             # use the data from the last smile
             _ = FXDeltaVolSmile(
@@ -973,38 +975,9 @@ class FXDeltaVolSurface:
             )
             return _
         else:
-            def t_var_interp(ep1, vol1, ep2, vol2, ep_t):
-                """
-                Return the volatility of an intermediate timestamp via total linear variance interpolation.
-
-                Parameters
-                ----------
-                ep1: float
-                    The left side expiry in posix timestamp.
-                vol1: float, Dual, Dual2
-                    The left side vol value.
-                ep2: float
-                    The right side expiry in posix timestamp.
-                vol2: float, Dual, Dual2
-                    The right side vol value.
-                ep_t: float
-                    The posix timestamp for the interpolated time value.
-
-                Returns
-                -------
-                float, Dual, Dual2
-                """
-                # 86400 posix seconds per day
-                # 31536000 posix seconds per 365 day year
-                t_var_1 = (ep1 - self.eval_posix) * vol1 **2
-                t_var_2 = (ep2 - self.eval_posix) * vol2 **2
-                _ = t_var_1 + (t_var_2 - t_var_1) * (ep_t - ep1) / (ep2 - ep1)
-                _ /= (ep_t - self.eval_posix)
-                return _ ** 0.5
-
             _ = FXDeltaVolSmile(
                 nodes={
-                    k: t_var_interp(self.expiries_posix[e_idx], vol1, self.expiries_posix[e_idx+1], vol2, expiry_posix)
+                    k: self._t_var_interp(self.eval_posix, self.expiries_posix[e_idx], vol1, self.expiries_posix[e_idx+1], vol2, expiry_posix)
                     for k, vol1, vol2 in zip(
                         self.delta_indexes,
                         self.smiles[e_idx].nodes.values(),
@@ -1018,6 +991,38 @@ class FXDeltaVolSurface:
                 id=self.smiles[e_idx].id + "_" + self.smiles[e_idx+1].id + "_intp"
             )
             return _
+
+    @staticmethod
+    def _t_var_interp(eval_posix, ep1, vol1, ep2, vol2, ep_t):
+        """
+        Return the volatility of an intermediate timestamp via total linear variance interpolation.
+
+        Parameters
+        ----------
+        eval_posix: float
+            The posix timestamp of the eval date of the smile.
+        ep1: float
+            The left side expiry in posix timestamp.
+        vol1: float, Dual, Dual2
+            The left side vol value.
+        ep2: float
+            The right side expiry in posix timestamp.
+        vol2: float, Dual, Dual2
+            The right side vol value.
+        ep_t: float
+            The posix timestamp for the interpolated time value.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        # 86400 posix seconds per day
+        # 31536000 posix seconds per 365 day year
+        t_var_1 = (ep1 - eval_posix) * vol1 ** 2
+        t_var_2 = (ep2 - eval_posix) * vol2 ** 2
+        _ = t_var_1 + (t_var_2 - t_var_1) * (ep_t - ep1) / (ep2 - ep1)
+        _ /= (ep_t - eval_posix)
+        return _ ** 0.5
 
     def get_from_strike(
         self,
