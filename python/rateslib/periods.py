@@ -1104,10 +1104,8 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve.rate(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
-            start = curve.calendar.lag(self.start, -self.method_param, True)
-            # start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end = curve.calendar.lag(self.end, -self.method_param, True)
-            # end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
+            end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
             return curve.rate(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
@@ -1675,10 +1673,8 @@ class FloatPeriod(BasePeriod):
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = start_obs, end_obs
         elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
-            start_obs = curve.calendar.lag(self.start, -self.method_param, True)
-            # start_obs = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end_obs = curve.calendar.lag(self.end, -self.method_param, True)
-            # end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            start_obs = curve.calendar.lag(self.start, -self.method_param, settlement=False)
+            end_obs = curve.calendar.lag(self.end, -self.method_param, settlement=False)
             start_dcf, end_dcf = self.start, self.end
         else:
             raise NotImplementedError(
