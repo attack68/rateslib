@@ -331,8 +331,6 @@ pub trait DateRoll {
         }
         if new_month == 0 { new_month = 12; }
 
-        println!("{},{},{}", months, yr_roll, new_month);
-
         // perform the date roll
         match roll {
             RollDay::Unspecified{} => self.add_months(date, months, modifier, &RollDay::Int{day: date.day()}, settlement),

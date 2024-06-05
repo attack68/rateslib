@@ -4,6 +4,7 @@ from rateslib.calendars import _get_modifier
 from rateslib.rateslibrs import Cal, UnionCal, Modifier, RollDay
 from datetime import datetime as dt
 
+
 @pytest.fixture()
 def simple_cal():
     return Cal([dt(2015, 9, 5), dt(2015, 9, 7)], [5, 6])  # Saturday and Monday
@@ -65,6 +66,17 @@ class TestCal:
     def test_add_bus_days_raises(self, simple_cal, simple_union):
         with pytest.raises(ValueError, match="Cannot add business days"):
             simple_cal.add_bus_days(dt(2015, 9, 5), 1, True)
+
+    @pytest.mark.parametrize("cal", ["basic", "union"])
+    @pytest.mark.parametrize("start, months, expected", [
+        (dt(2015, 9, 4), 2, dt(2015, 11, 4)),
+        (dt(2015, 9, 4), 36, dt(2018, 9, 4)),
+    ])
+    def test_add_months(self, cal, simple_cal, simple_union, start, months, expected):
+        cal = simple_cal if cal == "basic" else simple_union
+        result = cal.add_months(start, months, Modifier.F, RollDay.Unspecified(), True)
+        assert result == expected
+
 
     def test_pickle_cal(self, simple_cal):
         import pickle
