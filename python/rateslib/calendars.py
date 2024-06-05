@@ -6,7 +6,7 @@ import warnings
 
 from pandas.tseries.offsets import CustomBusinessDay, Day
 from rateslib.default import NoInput
-from rateslib.rateslibrs import Cal, UnionCal, get_named_calendar
+from rateslib.rateslibrs import Cal, UnionCal, get_named_calendar, RollDay, Modifier
 
 CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]
@@ -417,6 +417,27 @@ def get_calendar(
     return ret if kind else ret[0]
 
 
+def _get_modifier(modifier: str) -> Modifier:
+    return {
+        "F": Modifier.F,
+        "MF": Modifier.ModF,
+        "P": Modifier.P,
+        "MP": Modifier.ModP,
+        "NONE": Modifier.Act
+    }[modifier.upper()]
+
+def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
+    if isinstance(roll, str):
+        return {
+            "EOM": RollDay.EoM(),
+            "SOM": RollDay.SoM(),
+            "IMM": RollDay.IMM(),
+        }[roll.upper()]
+    elif isinstance(roll, int):
+        return RollDay.Int(roll)
+    return RollDay.Unspecified()
+
+
 def get_calendar_rs(calendar):
     if isinstance(calendar, (Cal, UnionCal)):
         return calendar
@@ -531,36 +552,20 @@ def add_tenor(
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
     """
     tenor = tenor.upper()
+    cal_ = get_calendar(calendar)
     if "D" in tenor:
         return _add_days(start, int(tenor[:-1]), modifier, calendar)
     elif "B" in tenor:
-        cal_ = get_calendar(calendar)
         return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
-        return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, roll)
+        months = int(float(tenor[:-1]) * 12)
+        return cal_.add_months(start, months, _get_modifier(modifier), _get_rollday(roll), settlement)
     elif "M" in tenor:
-        return _add_months(start, int(tenor[:-1]), modifier, calendar, roll)
+        return cal_.add_months(start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement)
     elif "W" in tenor:
         return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
-
-
-def _add_months(
-    start: datetime,
-    months: int,
-    modifier: str,
-    cal: CalInput,
-    roll: Union[str, int, NoInput],
-) -> datetime:
-    """add a given number of months to an input date"""
-    year_roll = floor((start.month + months - 1) / 12)
-    month = (start.month + months) % 12
-    month = 12 if month == 0 else month
-    roll = start.day if roll is NoInput.blank else roll
-    end = _get_roll(month, start.year + year_roll, roll)
-    return _adjust_date(end, modifier, cal)
-
 
 def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
     if isinstance(roll, str):
@@ -910,6 +915,7 @@ def _dcf_actacticma(
             frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
 
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
             fwd_end_0, fwd_end_1, fraction = start, start, -1.0
             while (
@@ -917,8 +923,8 @@ def _dcf_actacticma(
             ):  # Handle Long Stubs which require repeated periods, and Zero frequencies.
                 fwd_end_0 = fwd_end_1
                 fraction += 1.0
-                fwd_end_1 = _add_months(
-                    start, (int(fraction) + 1) * frequency_months, "NONE", calendar, roll
+                fwd_end_1 = cal_.add_months(
+                    start, (int(fraction) + 1) * frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
                 )
 
             fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
@@ -930,8 +936,8 @@ def _dcf_actacticma(
             ):  # Handle Long Stubs which require repeated periods, and Zero frequencies.
                 prev_start_0 = prev_start_1
                 fraction += 1.0
-                prev_start_1 = _add_months(
-                    end, -(int(fraction) + 1) * frequency_months, "NONE", calendar, roll
+                prev_start_1 = cal_.add_months(
+                    end, -(int(fraction) + 1) * frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
                 )
 
             fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
@@ -961,8 +967,9 @@ def _dcf_actacticma_stub365f(
         return frequency_months / 12.0
     else:
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
+            fwd_end = cal_.add_months(start, frequency_months, _get_modifier("NONE"), _get_rollday(roll), False)
             r = (end - start).days
             s = (fwd_end - start).days
             if end > fwd_end:  # stub is LONG
@@ -975,7 +982,7 @@ def _dcf_actacticma_stub365f(
                     d_ = frequency_months / 12 - (s - r) / 365.0
 
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
+            prev_start = cal_.add_months(end, -frequency_months, _get_modifier("NONE"), _get_rollday(roll), False)
             r = (end - start).days
             s = (end - prev_start).days
             if start < prev_start:  # stub is LONG
