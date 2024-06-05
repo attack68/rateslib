@@ -1,4 +1,3 @@
-use pyo3::exceptions::PyValueError;
 use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier, RollDay};
 use crate::calendars::named::get_calendar_by_name;
 use indexmap::set::IndexSet;
@@ -35,15 +34,8 @@ impl Cal {
     }
 
     #[pyo3(name = "add_days")]
-    fn add_days_py(&self, date: NaiveDateTime, days: i8, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
-        match modifier {
-            "F" | "f" => Ok(self.add_days(&date, days, &Modifier::F, settlement)),
-            "MF" | "mf" => Ok(self.add_days(&date, days, &Modifier::ModF, settlement)),
-            "P" | "p" => Ok(self.add_days(&date, days, &Modifier::P, settlement)),
-            "MP" | "mp" => Ok(self.add_days(&date, days, &Modifier::ModP, settlement)),
-            "NONE" | "none" => Ok(self.add_days(&date, days, &Modifier::Act, settlement)),
-            _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
-        }
+    fn add_days_py(&self, date: NaiveDateTime, days: i8, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+        Ok(self.add_days(&date, days, &modifier, settlement))
     }
 
     #[pyo3(name = "add_bus_days")]
@@ -57,15 +49,8 @@ impl Cal {
     }
 
     #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
-        match modifier {
-            "F" | "f" => Ok(self.roll(&date, &Modifier::F, settlement)),
-            "MF" | "mf" => Ok(self.roll(&date, &Modifier::ModF, settlement)),
-            "P" | "p" => Ok(self.roll(&date, &Modifier::P, settlement)),
-            "MP" | "mp" => Ok(self.roll(&date, &Modifier::ModP, settlement)),
-            "NONE" | "none" => Ok(self.roll(&date, &Modifier::Act, settlement)),
-            _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
-        }
+    fn roll_py(&self, date: NaiveDateTime, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+        Ok(self.roll(&date, &modifier, settlement))
     }
 
     #[pyo3(name = "lag")]
@@ -124,15 +109,8 @@ impl UnionCal {
     }
 
     #[pyo3(name = "add_days")]
-    fn add_days_py(&self, date: NaiveDateTime, days: i8, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
-        match modifier {
-            "F" | "f" => Ok(self.add_days(&date, days, &Modifier::F, settlement)),
-            "MF" | "mf" => Ok(self.add_days(&date, days, &Modifier::ModF, settlement)),
-            "P" | "p" => Ok(self.add_days(&date, days, &Modifier::P, settlement)),
-            "MP" | "mp" => Ok(self.add_days(&date, days, &Modifier::ModP, settlement)),
-            "NONE" | "none" => Ok(self.add_days(&date, days, &Modifier::Act, settlement)),
-            _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
-        }
+    fn add_days_py(&self, date: NaiveDateTime, days: i8, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+        Ok(self.add_days(&date, days, &modifier, settlement))
     }
 
     #[pyo3(name = "add_bus_days")]
@@ -141,15 +119,8 @@ impl UnionCal {
     }
 
     #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, modifier: &str, settlement: bool) -> PyResult<NaiveDateTime> {
-        match modifier {
-            "F" | "f" => Ok(self.roll(&date, &Modifier::F, settlement)),
-            "MF" | "mf" => Ok(self.roll(&date, &Modifier::ModF, settlement)),
-            "P" | "p" => Ok(self.roll(&date, &Modifier::P, settlement)),
-            "MP" | "mp" => Ok(self.roll(&date, &Modifier::ModP, settlement)),
-            "NONE" | "none" => Ok(self.roll(&date, &Modifier::Act, settlement)),
-            _ => Err(PyValueError::new_err("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}."))
-        }
+    fn roll_py(&self, date: NaiveDateTime, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+        Ok(self.roll(&date, &modifier, settlement))
     }
 
     #[pyo3(name = "lag")]

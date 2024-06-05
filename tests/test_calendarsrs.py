@@ -1,19 +1,24 @@
 import pytest
 import context
-from rateslib.rateslibrs import Cal, UnionCal
+from rateslib.calendars import _get_modifier
+from rateslib.rateslibrs import Cal, UnionCal, Modifier, RollDay
 from datetime import datetime as dt
 
 @pytest.fixture()
 def simple_cal():
     return Cal([dt(2015, 9, 5), dt(2015, 9, 7)], [5, 6])  # Saturday and Monday
 
+
 @pytest.fixture()
 def simple_union(simple_cal):
     return UnionCal([simple_cal], None)
+
+
 @pytest.fixture()
 def multi_union(simple_cal):
     add_cal = Cal([dt(2015, 9, 3), dt(2015, 9, 8)], [5, 6])
     return UnionCal([simple_cal, add_cal], None)
+
 
 class TestCal:
 
@@ -31,19 +36,16 @@ class TestCal:
     def test_add_days(self, simple_cal, simple_union, cal):
         cal = simple_cal if cal == "basic" else simple_union
         expected = dt(2015, 9, 8)
-        result = cal.add_days(dt(2015, 9, 4), 2, "F", True)
+        result = cal.add_days(dt(2015, 9, 4), 2, Modifier.F, True)
         assert result == expected
 
         expected = dt(2015, 9, 6)
-        result = cal.add_days(dt(2015, 9, 5), 1, "NONE", True)
+        result = cal.add_days(dt(2015, 9, 5), 1, Modifier.Act, True)
         assert result == expected
 
-    def test_add_days_raises(self, simple_cal, simple_union):
+    def test_get_modifier_raises(self, simple_cal, simple_union):
         with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
-            simple_cal.add_days(dt(2015, 9, 5), 1, "bad", True)
-
-        with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
-            simple_union.add_days(dt(2015, 9, 5), 1, "bad", True)
+            _get_modifier("bad")
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
     @pytest.mark.parametrize("start, days, expected", [

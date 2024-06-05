@@ -418,13 +418,16 @@ def get_calendar(
 
 
 def _get_modifier(modifier: str) -> Modifier:
-    return {
-        "F": Modifier.F,
-        "MF": Modifier.ModF,
-        "P": Modifier.P,
-        "MP": Modifier.ModP,
-        "NONE": Modifier.Act
-    }[modifier.upper()]
+    try:
+        return {
+            "F": Modifier.F,
+            "MF": Modifier.ModF,
+            "P": Modifier.P,
+            "MP": Modifier.ModP,
+            "NONE": Modifier.Act
+        }[modifier.upper()]
+    except KeyError:
+        raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 
 def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     if isinstance(roll, str):
@@ -436,7 +439,6 @@ def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     elif isinstance(roll, int):
         return RollDay.Int(roll)
     return RollDay.Unspecified()
-
 
 def _adjust_date(
     date: datetime,
@@ -465,7 +467,7 @@ def _adjust_date(
     """
     cal_ = get_calendar(calendar)
     modifier = modifier.upper()
-    return cal_.roll(date, modifier, settlement)
+    return cal_.roll(date, _get_modifier(modifier), settlement)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
