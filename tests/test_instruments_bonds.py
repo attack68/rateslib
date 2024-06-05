@@ -1524,7 +1524,7 @@ class TestFloatRateNote:
     def test_float_rate_bond_forward_prices(self, metric, spd, exp):
         fixings = Series(
             data=2.0,
-            index=date_range(start=dt(2007, 1, 1), end=dt(2010, 2, 28), freq=get_calendar("bus"))
+            index=get_calendar("bus").bus_date_range(start=dt(2007, 1, 1), end=dt(2010, 2, 26))
         )
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),

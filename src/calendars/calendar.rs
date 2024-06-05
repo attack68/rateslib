@@ -16,7 +16,7 @@
 //!
 //! ```rust
 //! let date = ndt(2017, 4, 28);  // Friday 28th April 2017
-//! let spot = ldn.add_bus_days(&date, 2, &Modifier::F, true);
+//! let spot = ldn.add_bus_days(&date, 2, true)?;
 //! // Wednesday 3rd May 2017, observing the holiday.
 //! ```
 //!
@@ -26,7 +26,7 @@
 //!
 //! ```rust
 //! let ldn_tky = UnionCal::new(vec![ldn, tky], None);
-//! let spot = ldn_tky.add_bus_days(&date, 2, &Modifier::F, true);
+//! let spot = ldn_tky.add_bus_days(&date, 2, true)?;
 //! // Monday 8th May 2017, observing all holidays.
 //! ```
 //!
@@ -45,7 +45,7 @@
 //!
 //! ```rust
 //! let date = ndt(2023, 6, 16);  // Friday 16th June 2023
-//! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+//! let spot = tgt__nyc.add_bus_days(&date, 2, true)?;
 //! // Tuesday 20th June 2023, ignoring the US holiday on Monday.
 //! ```
 //!
@@ -53,8 +53,8 @@
 //! when `settlement` is enforced over the US calendar.
 //!
 //! ```rust
-//! let date = ndt(2023, 6, 15);
-//! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+//! let date = ndt(2023, 6, 15);  // Thursday 15th June 2023
+//! let spot = tgt__nyc.add_bus_days(&date, 2, true)?;
 //! // Tuesday 20th June 2023, enforcing no settlement on US holiday.
 //! ```
 //!
@@ -62,16 +62,18 @@
 //! not a European holiday.
 //!
 //! ```rust
-//! let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, false);
+//! let spot = tgt__nyc.add_bus_days(&date, 2, false)?;
 //! // Monday 19th June 2023, ignoring the US holiday settlement requirement.
 //! ```
 
+use std::cmp::Ordering;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use std::collections::{HashSet};
 use chrono::{Days, Weekday};
 use pyo3::{pyclass, PyErr};
 use pyo3::exceptions::PyValueError;
+use serde::{Serialize, Deserialize};
 
 /// Define a single, business day calendar.
 ///
@@ -82,11 +84,11 @@ use pyo3::exceptions::PyValueError;
 /// - `holidays`: which defines specific dates that may be exceptions to the general working week, and cannot be
 ///   business days.
 ///
-#[pyclass]
-#[derive(Clone, Default, Debug, PartialEq)]
+#[pyclass(module = "rateslib.rateslibrs")]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cal {
-    holidays: IndexSet<NaiveDateTime>,
-    week_mask: HashSet<Weekday>,
+    pub(crate) holidays: IndexSet<NaiveDateTime>,
+    pub(crate) week_mask: HashSet<Weekday>,
 }
 
 impl Cal {
@@ -117,11 +119,11 @@ impl Cal {
 /// A business day is defined as allowing settlement relative to an associated calendar if:
 ///
 /// - the date in question is also a business day in the associated settlement calendar.
-#[pyclass]
-#[derive(Clone, Default, Debug, PartialEq)]
+#[pyclass(module = "rateslib.rateslibrs")]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnionCal {
-    calendars: Vec<Cal>,
-    settlement_calendars: Option<Vec<Cal>>,
+   pub(crate) calendars: Vec<Cal>,
+   pub(crate) settlement_calendars: Option<Vec<Cal>>,
 }
 
 impl UnionCal {
@@ -155,28 +157,15 @@ pub trait DateRoll {
         !self.is_bus_day(date)
     }
 
-    /// Return the date, if a business day, or get the proceeding business date.
-    fn next_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+    /// Return the `date`, if a business day, or get the next business date after `date`.
+    fn roll_forward_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
         let mut new_date = *date;
-        while !self.is_bus_day(&new_date) {
-            new_date = new_date + Days::new(1);
-        }
+        while !self.is_bus_day(&new_date) { new_date = new_date + Days::new(1); }
         new_date
     }
 
-    /// Return the date, if a business day that can be settled, or the proceeding date that is such.
-    ///
-    /// If the calendar has no associated settlement calendar this is identical to `next_bus_day`.
-    fn next_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let mut new_date = self.next_bus_day(date);
-        while !self.is_settlement(&new_date) {
-            new_date = self.next_bus_day(&(new_date + Days::new(1)));
-        }
-        new_date
-    }
-
-    /// Return the date, if a business day, or get the preceding business date.
-    fn prev_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+    /// Return the `date`, if a business day, or get the business day preceding `date`.
+    fn roll_backward_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
         let mut new_date = *date;
         while !self.is_bus_day(&new_date) {
             new_date = new_date - Days::new(1);
@@ -184,43 +173,89 @@ pub trait DateRoll {
         new_date
     }
 
-    /// Return the date, if a business day that can be settled, or the preceding date that is such.
+    /// Return the `date`, if a business day, or get the proceeding business date, without rolling
+    /// into a new month.
+    fn roll_mod_forward_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+        let new_date = self.roll_forward_bus_day(date);
+        if new_date.month() != date.month() { self.roll_backward_bus_day(date) } else { new_date }
+    }
+
+    /// Return the `date`, if a business day, or get the proceeding business date, without rolling
+    /// into a new month.
+    fn roll_mod_backward_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+        let new_date = self.roll_backward_bus_day(date);
+        if new_date.month() != date.month() { self.roll_forward_bus_day(date) } else { new_date }
+    }
+
+    /// Return the date, if a business day that can be settled, or the proceeding date that is such.
     ///
-    /// If the calendar has no associated settlement calendar this is identical to `prev_bus_day`.
-    fn prev_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let mut new_date = self.prev_bus_day(date);
+    /// If the calendar has no associated settlement calendar this is identical to `roll_forward_bus_day`.
+    fn roll_forward_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+        let mut new_date = self.roll_forward_bus_day(date);
         while !self.is_settlement(&new_date) {
-            new_date = self.prev_bus_day(&(new_date - Days::new(1)));
+            new_date = self.roll_forward_bus_day(&(new_date + Days::new(1)));
         }
         new_date
     }
 
-    /// Return the date, if a business day, or get the proceeding business date, without rolling
-    /// into a new month.
-    fn mod_next_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let new_date = self.next_bus_day(date);
-        if new_date.month() != date.month() { self.prev_bus_day(date) } else { new_date }
+    /// Return the date, if a business day that can be settled, or the preceding date that is such.
+    ///
+    /// If the calendar has no associated settlement calendar this is identical to `roll_backward_bus_day`.
+    fn roll_backward_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+        let mut new_date = self.roll_backward_bus_day(date);
+        while !self.is_settlement(&new_date) {
+            new_date = self.roll_backward_bus_day(&(new_date - Days::new(1)));
+        }
+        new_date
     }
 
-    /// Return the date, if a business day that can be settled, or get the proceeding
+
+    /// Return the `date`, if a business day that can be settled, or get the proceeding
     /// such date, without rolling into a new month.
-    fn mod_next_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let new_date = self.next_settled_bus_day(date);
-        if new_date.month() != date.month() { self.prev_settled_bus_day(date) } else { new_date }
+    fn roll_forward_mod_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+        let new_date = self.roll_forward_settled_bus_day(date);
+        if new_date.month() != date.month() { self.roll_backward_settled_bus_day(date) } else { new_date }
     }
 
-    /// Return the date, if a business day, or get the proceeding business date, without rolling
+    /// Return the `date`, if a business day that can be settled, or get the preceding such date, without rolling
     /// into a new month.
-    fn mod_prev_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let new_date = self.prev_bus_day(date);
-        if new_date.month() != date.month() { self.next_bus_day(date) } else { new_date }
+    fn roll_backward_mod_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
+        let new_date = self.roll_backward_settled_bus_day(date);
+        if new_date.month() != date.month() { self.roll_forward_settled_bus_day(date) } else { new_date }
     }
 
-    /// Return the date, if a business day that can be settled, or get the preceding such date, without rolling
-    /// into a new month.
-    fn mod_prev_settled_bus_day(&self, date: &NaiveDateTime) -> NaiveDateTime {
-        let new_date = self.prev_settled_bus_day(date);
-        if new_date.month() != date.month() { self.next_settled_bus_day(date) } else { new_date }
+    /// Adjust a date under a date roll `modifier`, either to a business day enforcing `settlement` or a
+    /// business day that may not allow settlement.
+    ///
+    /// *Note*: if the `modifier` is *'Act'*, then a business day may not be returned and the `settlement` flag
+    /// is disregarded - it is ambiguous in this case whether to move forward or backward datewise.
+    fn roll(&self, date: &NaiveDateTime, modifier: &Modifier, settlement: bool) -> NaiveDateTime
+    where Self: Sized
+    {
+        if settlement {
+            roll_with_settlement(date, self, modifier)
+        } else {
+            roll_without_settlement(date, self, modifier)
+        }
+    }
+
+    /// Adjust a date by a number of business days, under lag rules.
+    ///
+    /// *Note*: if the number of business days is **zero** a non-business day will be rolled
+    /// **forwards**.
+    ///
+    /// *Note*: if the given `date` is a non-business date adding or subtracting 1 business
+    /// day is equivalent to the rolling forwards or backwards, respectively.
+    fn lag(&self, date: &NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime
+    {
+        if self.is_bus_day(date) {
+            return self.add_bus_days(date, days, settlement).unwrap()
+        }
+        match days.cmp(&0_i8) {
+            Ordering::Equal => self.roll_forward_bus_day(date),
+            Ordering::Less => self.add_bus_days(&self.roll_backward_bus_day(date), days + 1, settlement).unwrap(),
+            Ordering::Greater => self.add_bus_days(&self.roll_forward_bus_day(date), days - 1, settlement).unwrap()
+        }
     }
 
     /// Add a given number of calendar days to a `date` with the result adjusted to a business day that may or may not
@@ -237,7 +272,7 @@ pub trait DateRoll {
         } else {
             *date + Days::new(u64::try_from(days).unwrap())
         };
-        self.adjust(&new_date, modifier, settlement)
+        self.roll(&new_date, modifier, settlement)
     }
 
     /// Add a given number of business days to a `date` with the result adjusted to a business day that may or may
@@ -245,23 +280,35 @@ pub trait DateRoll {
     ///
     /// *Note*: When adding a positive number of business days the only sensible modifier is
     /// `Modifier::F` and when subtracting business days it is `Modifier::P`.
-    fn add_bus_days(&self, date: &NaiveDateTime, days: i8, modifier: &Modifier, settlement: bool) -> NaiveDateTime
-    where Self: Sized
+    fn add_bus_days(&self, date: &NaiveDateTime, days: i8, settlement: bool) -> Result<NaiveDateTime, PyErr>
     {
-        let mut new_date = adjust_without_settlement(date, self, modifier);
+        if self.is_non_bus_day(date) {
+            return Err(PyValueError::new_err("Cannot add business days to an input `date` that is not a business day."))
+        }
+        let mut new_date = *date;
         let mut counter: i8 = 0;
         if days < 0 {  // then we subtract business days
             while counter > days {
-                new_date = self.prev_bus_day(&(new_date - Days::new(1)));
+                new_date = self.roll_backward_bus_day(&(new_date - Days::new(1)));
                 counter -= 1;
             }
         } else {  // add business days
             while counter < days {
-                new_date = self.next_bus_day(&(new_date + Days::new(1)));
+                new_date = self.roll_forward_bus_day(&(new_date + Days::new(1)));
                 counter += 1;
             }
         }
-        self.adjust(&new_date, modifier, settlement)
+
+        if !settlement {
+            Ok(new_date)
+        } else {
+            if days < 0 {
+                Ok(self.roll_backward_settled_bus_day(&new_date))
+            } else {
+                Ok(self.roll_forward_settled_bus_day(&new_date))
+            }
+        }
+
     }
 
     /// Add a given number of months to a `date`, factoring a `roll` day, with the result adjusted
@@ -284,31 +331,27 @@ pub trait DateRoll {
         }
         if new_month == 0 { new_month = 12; }
 
-        println!("{},{},{}", months, yr_roll, new_month);
-
         // perform the date roll
         match roll {
-            RollDay::Unspecified => self.add_months(date, months, modifier, &RollDay::Int(date.day()), settlement),
+            RollDay::Unspecified{} => self.add_months(date, months, modifier, &RollDay::Int{day: date.day()}, settlement),
             _ =>  {
                 let new_date = get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), roll).unwrap();
-                self.adjust(&new_date, modifier, settlement)
+                self.roll(&new_date, modifier, settlement)
             }
         }
     }
 
-    /// Adjust a date under a date roll `modifier`, either to a business day enforcing `settlement` or a
-    /// business day that may not allow settlement.
-    ///
-    /// *Note*: if the `modifier` is *'Act'*, then a business day may not be returned and the `settlement` flag
-    /// is disregarded - it is ambiguous in this case whether to move forward or backward datewise.
-    fn adjust(&self, date: &NaiveDateTime, modifier: &Modifier, settlement: bool) -> NaiveDateTime
-    where Self: Sized
-    {
-        if settlement {
-            adjust_with_settlement(date, self, modifier)
-        } else {
-            adjust_without_settlement(date, self, modifier)
+    fn bus_date_range(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> Result<Vec<NaiveDateTime>, PyErr> {
+        if self.is_non_bus_day(start) || self.is_non_bus_day(end) {
+            return Err(PyValueError::new_err("`start` and `end` for a calendar `bus_date_range` must both be valid business days"))
         }
+        let mut vec = Vec::new();
+        let mut sample_date = *start;
+        while sample_date <= *end {
+            vec.push(sample_date);
+            sample_date = self.add_bus_days(&sample_date, 1, false)?;
+        }
+        Ok(vec)
     }
 
 }
@@ -349,6 +392,7 @@ impl DateRoll for UnionCal {
 }
 
 /// Enum defining the rule to adjust a non-business day to a business day.
+#[pyclass(module = "rateslib.rateslibrs")]
 #[derive(Copy, Clone)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.
@@ -364,37 +408,69 @@ pub enum Modifier {
 }
 
 /// Enum defining the roll day.
+#[pyclass(module = "rateslib.rateslibrs")]
 #[derive(Copy, Clone)]
 pub enum RollDay {
     /// Inherit the day of the input date as the roll.
-    Unspecified,
+    Unspecified{},
     /// A day of the month in [1, 31].
-    Int(u32),
+    Int{ day: u32},
+    // One = 1,
+    // Two = 2,
+    // Three = 3,
+    // Four = 4,
+    // Five = 5,
+    // Six = 6,
+    // Seven = 7,
+    // Eight = 8,
+    // Nine = 9,
+    // Ten = 10,
+    // Eleven = 11,
+    // Twelve = 12,
+    // Thirteen = 13,
+    // Fourteen = 14,
+    // Fifteen = 15,
+    // Sixteen = 16,
+    // Seventeen = 17,
+    // Eighteen = 18,
+    // Nineteen = 19,
+    // Twenty = 20,
+    // TwentyOne = 21,
+    // TwentyTwo = 22,
+    // TwentyThree = 23,
+    // TwentyFour = 24,
+    // TwentyFive = 25,
+    // TwentySix = 26,
+    // TwentySeven = 27,
+    // TwentyEight = 28,
+    // TwentyNine = 29,
+    // Thirty = 30,
+    // ThirtyOne = 31,
     /// The last day of the month (semantically equivalent to 31).
-    EoM,
+    EoM{},
     /// The first day of the month (semantically equivalent to 1).
-    SoM,
+    SoM{},
     /// The third Wednesday of the month.
-    IMM,
+    IMM{},
 }
 
-fn adjust_with_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
+fn roll_with_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
     match modifier {
         Modifier::Act => *date,
-        Modifier::F => cal.next_settled_bus_day(date),
-        Modifier::P => cal.prev_settled_bus_day(date),
-        Modifier::ModF => cal.mod_next_settled_bus_day(date),
-        Modifier::ModP => cal.mod_prev_settled_bus_day(date),
+        Modifier::F => cal.roll_forward_settled_bus_day(date),
+        Modifier::P => cal.roll_backward_settled_bus_day(date),
+        Modifier::ModF => cal.roll_forward_mod_settled_bus_day(date),
+        Modifier::ModP => cal.roll_backward_mod_settled_bus_day(date),
     }
 }
 
-fn adjust_without_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
+fn roll_without_settlement(date: &NaiveDateTime, cal: &dyn DateRoll, modifier: &Modifier) -> NaiveDateTime {
     match modifier {
         Modifier::Act => *date,
-        Modifier::F => cal.next_bus_day(date),
-        Modifier::P => cal.prev_bus_day(date),
-        Modifier::ModF => cal.mod_next_bus_day(date),
-        Modifier::ModP => cal.mod_prev_bus_day(date),
+        Modifier::F => cal.roll_forward_bus_day(date),
+        Modifier::P => cal.roll_backward_bus_day(date),
+        Modifier::ModF => cal.roll_mod_forward_bus_day(date),
+        Modifier::ModP => cal.roll_mod_backward_bus_day(date),
     }
 }
 
@@ -408,11 +484,11 @@ pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
 /// Return a specific roll date given the `month`, `year` and `roll`.
 pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
     match roll {
-        RollDay::Int(day) => Ok(get_roll_by_day(year, month, *day)),
-        RollDay::EoM => Ok(get_roll_by_day(year, month, 31)),
-        RollDay::SoM => Ok(get_roll_by_day(year, month, 1)),
-        RollDay::IMM => Ok(get_imm(year, month)),
-        RollDay::Unspecified => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
+        RollDay::Int{day: val} => Ok(get_roll_by_day(year, month, *val)),
+        RollDay::EoM{} => Ok(get_roll_by_day(year, month, 31)),
+        RollDay::SoM{} => Ok(get_roll_by_day(year, month, 1)),
+        RollDay::IMM{} => Ok(get_imm(year, month)),
+        RollDay::Unspecified{} => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
     }
 }
 
@@ -451,10 +527,7 @@ mod tests {
     use crate::calendars::named::get_calendar_by_name;
 
     fn fixture_hol_cal() -> Cal {
-        let hols = vec![
-            NaiveDateTime::parse_from_str("2015-09-05 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),  // saturday
-            NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),  // monday
-        ];
+        let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
         Cal::new(hols, vec![5, 6])
     }
 
@@ -505,53 +578,66 @@ mod tests {
     }
 
     #[test]
-    fn test_next_bus_day() {
+    fn test_roll_forward_bus_day() {
         let cal = fixture_hol_cal();
         let hol = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = cal.next_bus_day(&hol);
+        let next = cal.roll_forward_bus_day(&hol);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
         let sat = NaiveDateTime::parse_from_str("2015-09-05 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = cal.next_bus_day(&sat);
+        let next = cal.roll_forward_bus_day(&sat);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
         let fri = NaiveDateTime::parse_from_str("2015-09-04 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = cal.next_bus_day(&fri);
+        let next = cal.roll_forward_bus_day(&fri);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-04 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap())
     }
 
     #[test]
-    fn test_prev_bus_day() {
+    fn test_roll_backward_bus_day() {
         let cal = fixture_hol_cal();
         let hol = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let prev = cal.prev_bus_day(&hol);
+        let prev = cal.roll_backward_bus_day(&hol);
         assert_eq!(prev, NaiveDateTime::parse_from_str("2015-09-04 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
         let fri = NaiveDateTime::parse_from_str("2015-09-04 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = cal.prev_bus_day(&fri);
+        let next = cal.roll_backward_bus_day(&fri);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-04 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap())
     }
 
     #[test]
-    fn test_adjust_with_settlement() {
+    fn test_roll_with_settlement() {
         let cal = fixture_hol_cal();
         let non_bus = NaiveDateTime::parse_from_str("2024-03-30 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
 
-        let res = adjust_with_settlement(&non_bus, &cal, &Modifier::F);
+        let res = roll_with_settlement(&non_bus, &cal, &Modifier::F);
         assert_eq!(res, NaiveDateTime::parse_from_str("2024-04-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
-        let res = adjust_with_settlement(&non_bus, &cal, &Modifier::P);
+        let res = roll_with_settlement(&non_bus, &cal, &Modifier::P);
         assert_eq!(res, NaiveDateTime::parse_from_str("2024-03-29 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
-        let res = adjust_with_settlement(&non_bus, &cal, &Modifier::ModF);
+        let res = roll_with_settlement(&non_bus, &cal, &Modifier::ModF);
         assert_eq!(res, NaiveDateTime::parse_from_str("2024-03-29 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
-        let res = adjust_with_settlement(&non_bus, &cal, &Modifier::Act);
+        let res = roll_with_settlement(&non_bus, &cal, &Modifier::Act);
         assert_eq!(res, NaiveDateTime::parse_from_str("2024-03-30 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
 
         let non_bus = NaiveDateTime::parse_from_str("2024-12-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let res = adjust_with_settlement(&non_bus, &cal, &Modifier::ModP);
+        let res = roll_with_settlement(&non_bus, &cal, &Modifier::ModP);
         assert_eq!(res, NaiveDateTime::parse_from_str("2024-12-02 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+    }
+
+    #[test]
+    fn test_lag() {
+        let cal = fixture_hol_cal();
+        let result = cal.lag(&ndt(2015, 9, 7), 1, true);
+        assert_eq!(result, ndt(2015, 9, 8));
+
+        let result = cal.lag(&ndt(2025, 2, 15), -1, true);
+        assert_eq!(result, ndt(2025, 2, 14));
+
+        let result = cal.lag(&ndt(2015, 9, 7), 0, true);
+        assert_eq!(result, ndt(2015, 9, 8))
     }
 
     fn fixture_hol_cal2() -> Cal {
@@ -569,7 +655,7 @@ mod tests {
         let ucal = UnionCal::new(vec![cal1, cal2], None);
 
         let sat = NaiveDateTime::parse_from_str("2015-09-05 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = ucal.next_bus_day(&sat);
+        let next = ucal.roll_forward_bus_day(&sat);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-10 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
     }
 
@@ -585,7 +671,7 @@ mod tests {
 
 
         let mon = NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = ucal.next_bus_day(&mon);
+        let next = ucal.roll_forward_bus_day(&mon);
         assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
     }
 
@@ -625,36 +711,39 @@ mod tests {
 
     #[test]
     fn test_add_bus_days() {
-        let hols = vec![
-            NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
-            NaiveDateTime::parse_from_str("2015-09-10 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
-        ];
-        let settle = vec![
-            NaiveDateTime::parse_from_str("2015-09-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
-        ];
+        let hols = vec![ndt(2015, 9, 8), ndt(2015, 9, 10)];
+        let settle = vec![ndt(2015, 9, 11)];
+
         let hcal = Cal::new(hols, vec![5, 6]);
         let scal = Cal::new(settle, vec![5,6]);
         let cal = UnionCal::new(vec![hcal], vec![scal].into());
 
         // without settlement constraint 11th is a valid forward roll date
-        let mon = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = cal.add_bus_days(&mon, 2, &Modifier::F, false);
-        assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+        let mon = ndt(2015, 9, 7);
+        let next = cal.add_bus_days(&mon, 2, false).unwrap();
+        assert_eq!(next, ndt(2015, 9, 11));
 
         // with settlement constraint 11th is invalid. Pushed to 14th over weekend.-
-        let mon = NaiveDateTime::parse_from_str("2015-09-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let next = cal.add_bus_days(&mon, 2, &Modifier::F, true);
-        assert_eq!(next, NaiveDateTime::parse_from_str("2015-09-14 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+        let next = cal.add_bus_days(&mon, 2,  true).unwrap();
+        assert_eq!(next, ndt(2015, 9, 14));
 
         // without settlement constraint 11th is a valid previous roll date
-        let tue = NaiveDateTime::parse_from_str("2015-09-15 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let prev = cal.add_bus_days(&tue, -2, &Modifier::P, false);
-        assert_eq!(prev, NaiveDateTime::parse_from_str("2015-09-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+        let tue = ndt(2015, 9, 15);
+        let prev = cal.add_bus_days(&tue, -2,  false).unwrap();
+        assert_eq!(prev, ndt(2015, 9, 11));
 
         // with settlement constraint 11th is invalid. Pushed to 9th over holiday.
-        let tue = NaiveDateTime::parse_from_str("2015-09-15 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap();
-        let prev = cal.add_bus_days(&tue, -2, &Modifier::P, true);
-        assert_eq!(prev, NaiveDateTime::parse_from_str("2015-09-09 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap());
+        let prev = cal.add_bus_days(&tue, -2,  true).unwrap();
+        assert_eq!(prev, ndt(2015, 9, 9));
+    }
+
+    #[test]
+    fn test_add_bus_days_error() {
+        let cal = fixture_hol_cal();
+        match cal.add_bus_days(&ndt(2015, 9, 7), 3, true) {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
     }
 
     #[test]
@@ -663,11 +752,11 @@ mod tests {
         let tky = Cal::new(vec![ndt(2017, 5, 3), ndt(2017, 5, 4), ndt(2017, 5, 5)], vec![5, 6]);
 
         let date = ndt(2017, 4, 28);  // Friday 28th April 2017
-        let spot = ldn.add_bus_days(&date, 2, &Modifier::F, true);
+        let spot = ldn.add_bus_days(&date, 2,  true).unwrap();
         assert_eq!(spot, ndt(2017, 5, 3));
 
         let ldn_tky = UnionCal::new(vec![ldn, tky], None);
-        let spot = ldn_tky.add_bus_days(&date, 2, &Modifier::F, true);
+        let spot = ldn_tky.add_bus_days(&date, 2,  true).unwrap();
         assert_eq!(spot, ndt(2017, 5, 8));
 
 
@@ -676,14 +765,14 @@ mod tests {
         let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
 
         let date = ndt(2023, 6, 16);
-        let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+        let spot = tgt__nyc.add_bus_days(&date, 2,  true).unwrap();
         assert_eq!(spot, ndt(2023, 6, 20));
 
         let date = ndt(2023, 6, 15);
-        let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, true);
+        let spot = tgt__nyc.add_bus_days(&date, 2,  true).unwrap();
         assert_eq!(spot, ndt(2023, 6, 20));
 
-        let spot = tgt__nyc.add_bus_days(&date, 2, &Modifier::F, false);
+        let spot = tgt__nyc.add_bus_days(&date, 2,  false).unwrap();
         assert_eq!(spot, ndt(2023, 6, 19));
     }
 
@@ -707,7 +796,7 @@ mod tests {
         ];
         for i in 0..12 {
                assert_eq!(
-                   cal.add_months(&dates[i].0, 37, &Modifier::Act, &RollDay::Unspecified, true),
+                   cal.add_months(&dates[i].0, 37, &Modifier::Act, &RollDay::Unspecified{}, true),
                    dates[i].1
                )
         }
@@ -733,7 +822,7 @@ mod tests {
         ];
         for i in 0..12 {
                assert_eq!(
-                   cal.add_months(&dates[i].0, -37, &Modifier::Act, &RollDay::Unspecified, true),
+                   cal.add_months(&dates[i].0, -37, &Modifier::Act, &RollDay::Unspecified{}, true),
                    dates[i].1
                )
         }
@@ -743,11 +832,11 @@ mod tests {
     fn test_add_months_roll() {
          let cal = get_calendar_by_name("all").unwrap();
          let roll = vec![
-            (RollDay::Unspecified, ndt(1996, 12, 7)),
-            (RollDay::Int(21), ndt(1996, 12, 21)),
-            (RollDay::EoM, ndt(1996, 12, 31)),
-            (RollDay::SoM, ndt(1996, 12, 1)),
-            (RollDay::IMM, ndt(1996, 12, 18)),
+            (RollDay::Unspecified{}, ndt(1996, 12, 7)),
+            (RollDay::Int{day:21}, ndt(1996, 12, 21)),
+            (RollDay::EoM{}, ndt(1996, 12, 31)),
+            (RollDay::SoM{}, ndt(1996, 12, 1)),
+            (RollDay::IMM{}, ndt(1996, 12, 18)),
          ];
          for i in 0..5 {
              assert_eq!(
@@ -769,7 +858,7 @@ mod tests {
          ];
          for i in 0..4 {
              assert_eq!(
-                 cal.add_months(&ndt(2023, 8, 31), 1, &modi[i].0, &RollDay::Unspecified, true),
+                 cal.add_months(&ndt(2023, 8, 31), 1, &modi[i].0, &RollDay::Unspecified{}, true),
                  modi[i].1
              );
          }
@@ -787,7 +876,7 @@ mod tests {
          ];
          for i in 0..4 {
              assert_eq!(
-                 cal.add_months(&ndt(2023, 8, 1), -1, &modi[i].0, &RollDay::Unspecified, true),
+                 cal.add_months(&ndt(2023, 8, 1), -1, &modi[i].0, &RollDay::Unspecified{}, true),
                  modi[i].1
              );
          }

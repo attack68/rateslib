@@ -1276,11 +1276,10 @@ class BondMixin:
             len(self.leg1.schedule.uschedule),
             settlement,
         )
-        ex_div_date = add_tenor(
+        ex_div_date = self.leg1.schedule.calendar.lag(
             self.leg1.schedule.uschedule[prev_a_idx + 1],
-            f"{-self.kwargs['ex_div']}B",
-            NoInput(0),  # modifier not required for business day tenor
-            self.leg1.schedule.calendar,
+            -self.kwargs['ex_div'],
+            True
         )
         if self.calc_mode in []:  # currently no identified calc_modes
             return True if settlement >= ex_div_date else False  # pragma: no cover
@@ -2548,11 +2547,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
             if forward_settlement is NoInput.blank:
-                settlement = add_tenor(
+                settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    f"{self.kwargs['settle']}B",
-                    "none",
-                    self.leg1.schedule.calendar,
+                    self.kwargs['settle'],
+                    True,
                 )
             else:
                 settlement = forward_settlement

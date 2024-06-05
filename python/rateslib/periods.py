@@ -30,7 +30,7 @@ from pandas import DataFrame, date_range, Series, NA, isna, notna
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday, CalInput
+from rateslib.calendars import add_tenor, dcf, _get_eom, CalInput
 from rateslib.curves import (
     Curve,
     LineCurve,
@@ -1104,8 +1104,8 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve.rate(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
-            start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
+            end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
             return curve.rate(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
@@ -1673,8 +1673,8 @@ class FloatPeriod(BasePeriod):
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = start_obs, end_obs
         elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
-            start_obs = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            start_obs = curve.calendar.lag(self.start, -self.method_param, settlement=False)
+            end_obs = curve.calendar.lag(self.end, -self.method_param, settlement=False)
             start_dcf, end_dcf = self.start, self.end
         else:
             raise NotImplementedError(
@@ -1688,21 +1688,26 @@ class FloatPeriod(BasePeriod):
             return start_obs, end_obs, start_dcf, end_dcf
 
         # dates of the fixing observation period
-        obs_dates = Series(date_range(start=start_obs, end=end_obs, freq=curve.calendar))
+        obs_dates = Series(curve.calendar.bus_date_range(start=start_obs, end=end_obs))
         # dates for the dcf weight for each observation towards the calculation
-        dcf_dates = Series(date_range(start=start_dcf, end=end_dcf, freq=curve.calendar))
-        if len(dcf_dates) != len(obs_dates):
-            # this might only be true with lookback when obs dates are adjusted
-            # but DCF dates are not, and if starting on holiday causes problems.
-            raise ValueError(
-                "RFR Observation and Accrual DCF dates do not align.\n"
-                "This is usually the result of a 'rfr_lookback' Period which does "
-                "not adhere to the holiday calendar of the `curve`.\n"
-                f"start date: {self.start.strftime('%d-%m-%Y')} is curve holiday? "
-                f"{_is_holiday(self.start, curve.calendar)}\n"
-                f"end date: {self.end.strftime('%d-%m-%Y')} is curve holiday? "
-                f"{_is_holiday(self.end, curve.calendar)}\n"
-            )
+        msg = (
+            "RFR Observation and Accrual DCF dates do not align.\n"
+            "This is usually the result of a 'rfr_lookback' Period which does "
+            "not adhere to the holiday calendar of the `curve`.\n"
+            f"start date: {self.start.strftime('%d-%m-%Y')} is curve holiday? "
+            f"{curve.calendar.is_non_bus_day(self.start)}\n"
+            f"end date: {self.end.strftime('%d-%m-%Y')} is curve holiday? "
+            f"{curve.calendar.is_non_bus_day(self.end)}\n"
+        )
+        try:
+            dcf_dates = Series(curve.calendar.bus_date_range(start=start_dcf, end=end_dcf))
+        except ValueError:
+            raise ValueError(msg)
+        else:
+            if len(dcf_dates) != len(obs_dates):
+                # this might only be true with lookback when obs dates are adjusted
+                # but DCF dates are not, and if starting on holiday causes problems.
+                raise ValueError(msg)
 
         return obs_dates, dcf_dates
 

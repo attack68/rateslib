@@ -12,8 +12,6 @@ from datetime import datetime, timedelta
 from pytz import UTC
 from typing import Optional, Union, Callable, Any
 import numpy as np
-from pandas.tseries.offsets import CustomBusinessDay
-from pandas.tseries.holiday import Holiday
 from uuid import uuid4
 import warnings
 import json
@@ -84,11 +82,8 @@ class _Serialize:
             container.update(
                 {
                     "calendar": {
-                        "weekmask": self.calendar.weekmask,
-                        "holidays": [
-                            d.item().strftime("%Y-%m-%d")
-                            for d in self.calendar.holidays  # numpy/pandas timestamp to py
-                        ],
+                        "weekmask": self.calendar.week_mask,
+                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
                     }
                 }
             )
@@ -117,14 +112,11 @@ class _Serialize:
 
         if serial["calendar_type"] == "custom":
             # must load and construct a custom holiday calendar from serial dates
-            def parse(d: datetime):
-                return Holiday("", year=d.year, month=d.month, day=d.day)
-
             dates = [
-                parse(datetime.strptime(d, "%Y-%m-%d")) for d in serial["calendar"]["holidays"]
+                datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]
             ]
             serial["calendar"] = create_calendar(
-                rules=dates, weekmask=serial["calendar"]["weekmask"]
+                rules=dates, week_mask=serial["calendar"]["weekmask"]
             )
 
         if serial["t"] is not None:
@@ -303,7 +295,7 @@ class Curve(_Serialize):
         id: Union[str, NoInput] = NoInput(0),
         convention: Union[str, NoInput] = NoInput(0),
         modifier: Union[str, NoInput] = NoInput(0),
-        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        calendar: CalInput = NoInput(0),
         ad: int = 0,
         **kwargs,
     ):
@@ -403,7 +395,7 @@ class Curve(_Serialize):
         effective: datetime,
         termination: Union[datetime, str],
         modifier: Union[str, bool, NoInput] = NoInput(0),
-        # calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
+        # calendar: CalInput = NoInput(0),
         # convention: Optional[str] = None,
         float_spread: float = None,  # TODO: NoInput
         spread_compound_method: str = None,
@@ -1149,6 +1141,7 @@ class Curve(_Serialize):
 
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
+        # x = self.calendar.bus_date_range(start=left_, end=right_)
         rates = [self.rate(_, tenor) for _ in x]
         if not difference:
             y = [rates]

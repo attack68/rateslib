@@ -4,279 +4,65 @@ from datetime import datetime, timedelta
 import calendar as calendar_mod
 import warnings
 
-from dateutil.relativedelta import MO, TH, FR
-
-from pandas.tseries.holiday import (
-    AbstractHolidayCalendar,
-    Holiday,
-    next_monday,
-    next_monday_or_tuesday,
-    sunday_to_monday,
-    nearest_workday,
-)
-from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from pandas.tseries.offsets import CustomBusinessDay, Day
 from rateslib.default import NoInput
+from rateslib.rateslibrs import Cal, UnionCal, get_named_calendar, RollDay, Modifier
 
-CalInput = Union[CustomBusinessDay, str, NoInput]
+CalTypes = Union[Cal, UnionCal]
+CalInput = Union[CalTypes, str, NoInput]
 
-# Generic holidays
-Epiphany = Holiday("Epiphany", month=1, day=6)
-MaundyThursday = Holiday("Maundy Thursday", month=1, day=1, offset=[Easter(), Day(-3)])
-GoodFriday = Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)])
-EasterMonday = Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)])
-AscentionDay = Holiday("Ascention Day", month=1, day=1, offset=[Easter(), Day(39)])
-Pentecost = Holiday("PenteCost", month=1, day=1, offset=[Easter(), Day(49)])
-WhitMonday = Holiday("Whit Monday", month=1, day=1, offset=[Easter(), Day(50)])
-ChristmasEve = Holiday("Christmas Eve", month=12, day=24)
-ChristmasDay = Holiday("Christmas Day", month=12, day=25)
-ChristmasDayHoliday = Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday)
-ChristmasDayNearestHoliday = Holiday(
-    "Christmas Day Sunday Holiday", month=12, day=25, observance=nearest_workday
-)
-BoxingDay = Holiday("Boxing Day", month=12, day=26)
-BoxingDayHoliday = Holiday(
-    "Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday
-)
-NewYearsEve = Holiday("New Year's Eve", month=12, day=31)
-NewYearsDay = Holiday("New Year's Day", month=1, day=1)
-NewYearsDayHoliday = Holiday("New Year's Day Holiday", month=1, day=1, observance=next_monday)
-NewYearsDaySundayHoliday = Holiday(
-    "New Year's Day Holiday", month=1, day=1, observance=sunday_to_monday
-)
-Berchtoldstag = Holiday("Berchtoldstag", month=1, day=2)
-
-# US based
-USMartinLutherKingJr = Holiday(
-    "Dr. Martin Luther King Jr.",
-    start_date=datetime(1986, 1, 1),
-    month=1,
-    day=1,
-    offset=DateOffset(weekday=MO(3)),  # type: ignore[arg-type]
-)
-USPresidentsDay = Holiday("US President" "s Day", month=2, day=1, offset=DateOffset(weekday=MO(3)))  # type: ignore[arg-type]
-USMemorialDay = Holiday("US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1)))  # type: ignore[arg-type]
-USJuneteenthSundayHoliday = Holiday(
-    "Juneteenth Independence Day",
-    start_date=datetime(2022, 1, 1),
-    month=6,
-    day=19,
-    observance=sunday_to_monday,
-)
-USIndependenceDayHoliday = Holiday(
-    "US Independence Day", month=7, day=4, observance=nearest_workday
-)
-USLabourDay = Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
-USColumbusDay = Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
-USVeteransDaySundayHoliday = Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday)
-USThanksgivingDay = Holiday("US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4)))  # type: ignore[arg-type]
-
-# Canada based
-FamilyDay = USPresidentsDay
-VictoriaDay = Holiday("Victoria Day", month=5, day=24, offset=DateOffset(weekday=MO(-1)))  # type: ignore[arg-type]
-CivicHoliday = Holiday("Civic Holiday", month=8, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
-CADLabourDay = Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1)))  # type: ignore[arg-type]
-CADThanksgiving = Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2)))  # type: ignore[arg-type]
-Rememberance = Holiday("Rememberance", month=11, day=11, observance=next_monday)
-NationalTruth = Holiday(
-    "National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1)
-)
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-# UK based
-UKEarlyMayBankHoliday = Holiday(
-    "UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1))  # type: ignore[arg-type]
-)
-UKSpringBankPre2022 = Holiday(
-    "UK Spring Bank Holiday pre 2022",
-    end_date=datetime(2022, 5, 1),
-    month=5,
-    day=31,
-    offset=DateOffset(weekday=MO(-1)),
-)
-UKSpringBankPost2022 = Holiday(
-    "UK Spring Bank Holiday post 2022",
-    start_date=datetime(2022, 7, 1),
-    month=5,
-    day=31,
-    offset=DateOffset(weekday=MO(-1)),
-)
-UKSpringBankHoliday = Holiday(
-    "UK Spring Bank Holiday", month=5, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
-)
-UKSummerBankHoliday = Holiday(
-    "UK Summer Bank Holiday", month=8, day=31, offset=DateOffset(weekday=MO(-1))  # type: ignore[arg-type]
-)
-
-# EUR based
-EULabourDay = Holiday("EU Labour Day", month=5, day=1)
-SENational = Holiday("Sweden National Day", month=6, day=6)
-CHNational = Holiday("Swiss National Day", month=8, day=1)
-CADNational = Holiday("Canada Day", month=7, day=1, observance=next_monday)
-MidsummerFriday = Holiday("Swedish Midsummer", month=6, day=25, offset=DateOffset(weekday=FR(-1)))  # type: ignore[arg-type]
-NOConstitutionDay = Holiday("NO Constitution Day", month=5, day=17)
-
-CALENDAR_RULES: Dict[str, list[Any]] = {
-    "bus": [],
-    "tgt": [
-        NewYearsDay,
-        GoodFriday,
-        EasterMonday,
-        EULabourDay,
-        ChristmasDay,
-        BoxingDay,
-    ],
-    "ldn": [
-        NewYearsDayHoliday,
-        GoodFriday,
-        EasterMonday,
-        UKEarlyMayBankHoliday,
-        UKSpringBankPre2022,
-        Holiday("Queen Jubilee Thu", year=2022, month=6, day=2),
-        Holiday("Queen Jubilee Fri", year=2022, month=6, day=3),
-        Holiday("Queen Funeral", year=2022, month=9, day=19),
-        UKSpringBankPost2022,
-        Holiday("King Charles III Coronation", year=2023, month=5, day=8),
-        UKSummerBankHoliday,
-        ChristmasDayHoliday,
-        BoxingDayHoliday,
-    ],
-    "nyc": [
-        NewYearsDaySundayHoliday,
-        USMartinLutherKingJr,
-        USPresidentsDay,
-        GoodFriday,
-        USMemorialDay,
-        USJuneteenthSundayHoliday,
-        USIndependenceDayHoliday,
-        USLabourDay,
-        USColumbusDay,
-        USVeteransDaySundayHoliday,
-        USThanksgivingDay,
-        ChristmasDayNearestHoliday,
-        Holiday("GHW Bush Funeral", year=2018, month=12, day=5),
-    ],
-    "stk": [
-        NewYearsDay,
-        Epiphany,
-        GoodFriday,
-        EasterMonday,
-        EULabourDay,
-        AscentionDay,
-        SENational,
-        MidsummerFriday,
-        ChristmasEve,
-        ChristmasDay,
-        BoxingDay,
-        NewYearsEve,
-    ],
-    "osl": [
-        NewYearsDay,
-        MaundyThursday,
-        GoodFriday,
-        EasterMonday,
-        EULabourDay,
-        NOConstitutionDay,
-        AscentionDay,
-        WhitMonday,
-        ChristmasEve,
-        ChristmasDay,
-        BoxingDay,
-    ],
-    "zur": [
-        NewYearsDay,
-        Berchtoldstag,
-        GoodFriday,
-        EasterMonday,
-        EULabourDay,
-        AscentionDay,
-        WhitMonday,
-        CHNational,
-        # ChristmasEve,
-        ChristmasDay,
-        BoxingDay,
-        # NewYearsEve,
-    ],
-    "tro": [
-        NewYearsDayHoliday,
-        FamilyDay,
-        GoodFriday,
-        VictoriaDay,
-        CADNational,
-        CivicHoliday,
-        CADLabourDay,
-        NationalTruth,
-        CADThanksgiving,
-        Rememberance,
-        ChristmasDayHoliday,
-        BoxingDayHoliday,
-    ],
+CALENDARS: Dict[str, CalTypes] = {
+    "all": get_named_calendar("all"),
+    "bus": get_named_calendar("bus"),
+    "tgt": get_named_calendar("tgt"),
+    "ldn": get_named_calendar("ldn"),
+    "nyc": get_named_calendar("nyc"),
+    "stk": get_named_calendar("stk"),
+    "osl": get_named_calendar("osl"),
+    "zur": get_named_calendar("zur"),
+    "tro": get_named_calendar("tro"),
 }
 
+# TODO: edit the docs for create_calendar to link to `Cal` on deprecation
+# TODO: edit the example on create calendar, or move to `Cal`
 
-def create_calendar(rules: list, weekmask: Optional[str] = None) -> CustomBusinessDay:
+
+def create_calendar(rules: list, week_mask: Optional[str] = None) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
 
+    .. warning::
+
+       This function is deprecated. Create a :class:`~rateslib.calendars.Cal` object instead.
+
     Parameters
     ----------
-    rules : list[Holiday]
-        A list of specific holiday dates defined by the
-        ``pandas.tseries.holiday.Holiday`` class.
-    weekmask : str, optional
-        Set of days as business days. Defaults to *"Mon Tue Wed Thu Fri"*.
+    rules : list[datetime]
+        A list of specific holiday dates.
+    week_mask : list[int], optional
+        Set of days excluded from the working week. [5,6] is Saturday and Sunday.
 
     Returns
     --------
-    CustomBusinessDay
-
-    Examples
-    --------
-    .. ipython:: python
-
-       from pandas.tseries.holiday import Holiday
-       from pandas import date_range
-       TutsBday = Holiday("Tutankhamum Birthday", month=7, day=2)
-       pyramid_builder = create_calendar(rules=[TutsBday], weekmask="Tue Wed Thu Fri Sat Sun")
-       construction_days = date_range(dt(1999, 6, 25), dt(1999, 7, 5), freq=pyramid_builder)
-       construction_days
-
+    Cal
     """
-    weekmask = "Mon Tue Wed Thu Fri" if weekmask is None else weekmask
-    return CustomBusinessDay(  # type: ignore[call-arg]
-        calendar=AbstractHolidayCalendar(rules=rules),
-        weekmask=weekmask,
-    )
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-CALENDARS: Dict[str, CustomBusinessDay] = {
-    "bus": create_calendar(rules=CALENDAR_RULES["bus"], weekmask="Mon Tue Wed Thu Fri"),
-    "tgt": create_calendar(rules=CALENDAR_RULES["tgt"], weekmask="Mon Tue Wed Thu Fri"),
-    "ldn": create_calendar(rules=CALENDAR_RULES["ldn"], weekmask="Mon Tue Wed Thu Fri"),
-    "nyc": create_calendar(rules=CALENDAR_RULES["nyc"], weekmask="Mon Tue Wed Thu Fri"),
-    "stk": create_calendar(rules=CALENDAR_RULES["stk"], weekmask="Mon Tue Wed Thu Fri"),
-    "osl": create_calendar(rules=CALENDAR_RULES["osl"], weekmask="Mon Tue Wed Thu Fri"),
-    "zur": create_calendar(rules=CALENDAR_RULES["zur"], weekmask="Mon Tue Wed Thu Fri"),
-    "tro": create_calendar(rules=CALENDAR_RULES["tro"], weekmask="Mon Tue Wed Thu Fri"),
-}
+    weekmask = [5, 6] if week_mask is None else week_mask
+    return Cal(rules, weekmask)
 
 
 def get_calendar(
     calendar: CalInput, kind: bool = False
-) -> Union[CustomBusinessDay, tuple[CustomBusinessDay, str]]:
+) -> Union[CalTypes, tuple[CalTypes, str]]:
     """
     Returns a calendar object either from an available set or a user defined input.
 
     Parameters
     ----------
-    calendar : str, None, or CustomBusinessDay
-        If `None` a blank calendar is returned containing no holidays.
+    calendar : str, Cal, UnionCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
     kind : bool
@@ -285,7 +71,7 @@ def get_calendar(
 
     Returns
     -------
-    CustomBusinessDay or tuple
+    Cal, UnionCal or tuple
 
     Notes
     -----
@@ -293,7 +79,8 @@ def get_calendar(
     The following named calendars are available and have been back tested against the
     publication of RFR indexes in the relevant geography.
 
-    - *"bus"*: business days, excluding only weekends.
+    - *"all"*: Every day is defined as business day including weekends.
+    - *"bus"*: Regular weekdays are defined as business days. Saturdays and Sunday are non-business days.
     - *"tgt"*: Target for Europe's ESTR.
     - *"osl"*: Oslo for Norway's NOWA.
     - *"zur"*: Zurich for Switzerland's SARON.
@@ -602,8 +389,8 @@ def get_calendar(
     .. ipython:: python
 
        gbp_cal = get_calendar("ldn")
-       gbp_cal.calendar.holidays
-       dt(2022, 1, 1) + 5 * gbp_cal
+       gbp_cal.holidays
+       gbp_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(gbp_cal)
 
     Calendars can be combined from the pre-existing names using comma separation.
@@ -611,67 +398,55 @@ def get_calendar(
     .. ipython:: python
 
        gbp_and_nyc_cal = get_calendar("ldn,nyc")
-       gbp_and_nyc_cal.calendar.holidays
+       gbp_and_nyc_cal.holidays
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.
     if calendar is NoInput.blank:
-        ret = (create_calendar([], weekmask="Mon Tue Wed Thu Fri Sat Sun"), "null")
+        ret = CALENDARS["all"], "null"
     elif isinstance(calendar, str):
         calendars = calendar.lower().split(",")
         if len(calendars) == 1:  # only one named calendar is found
-            ret = (CALENDARS[calendars[0]], "named")
+            ret = CALENDARS[calendars[0]], "named"
         else:
-            rules_: list[Any] = []
-            for c in calendars:
-                rules_.extend(CALENDAR_RULES[c])
-            ret = (create_calendar(rules_, weekmask="Mon Tue Wed Thu Fri"), "named")
-    else:  # calendar is a HolidayCalendar object
-        ret = (calendar, "custom")
+            cals = [CALENDARS[_] for _ in calendars]
+            ret = UnionCal(cals, None), "named"
+    else:  # calendar is a Calendar object type
+        ret = calendar, "custom"
 
     return ret if kind else ret[0]
 
-from rateslib.rateslibrs import Cal, UnionCal, get_named_calendar
+
+def _get_modifier(modifier: str) -> Modifier:
+    try:
+        return {
+            "F": Modifier.F,
+            "MF": Modifier.ModF,
+            "P": Modifier.P,
+            "MP": Modifier.ModP,
+            "NONE": Modifier.Act
+        }[modifier.upper()]
+    except KeyError:
+        raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 
 
-def get_calendar_rs(calendar):
-    if isinstance(calendar, (Cal, UnionCal)):
-        return calendar
-    elif isinstance(calendar, str):
-        calendars = calendar.lower().split(",")
-        if len(calendars) == 1:  # only one named calendar is found
-            return get_named_calendar(calendar)
-        else:
-            cals = [get_named_calendar(_) for _ in calendars]
-            return UnionCal(cals, None)
-    raise ValueError("`calendar` input not valid")
-
-
-def _is_holiday(date: datetime, calendar: CustomBusinessDay):
-    """
-    Test whether a given date is a holiday in the given calendar
-
-    Parameters
-    ----------
-    date : Datetime
-        Date to test.
-    calendar : Calendar of CustomBusinessDay type
-        The holiday calendar to test against.
-
-    Returns
-    -------
-    bool
-    """
-    if not isinstance(calendar, CustomBusinessDay):
-        raise ValueError("`calendar` must be a `CustomBusinessDay` calendar type.")
-    else:
-        return not (date + 0 * calendar == date)
+def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
+    if isinstance(roll, str):
+        return {
+            "EOM": RollDay.EoM(),
+            "SOM": RollDay.SoM(),
+            "IMM": RollDay.IMM(),
+        }[roll.upper()]
+    elif isinstance(roll, int):
+        return RollDay.Int(roll)
+    return RollDay.Unspecified()
 
 
 def _adjust_date(
     date: datetime,
     modifier: str,
     calendar: CalInput,
+    settlement: bool = True,
 ) -> datetime:
     """
     Modify a date under specific rule.
@@ -685,27 +460,16 @@ def _adjust_date(
     calendar : calendar, optional
         The holiday calendar object to use. Required only if `modifier` is not *'NONE'*.
         If not given a calendar is created where every day including weekends is valid.
+    settlement : bool
+        Whether to also enforce the associated settlement calendar.
 
     Returns
     -------
     datetime
     """
+    cal_ = get_calendar(calendar)
     modifier = modifier.upper()
-    if modifier == "NONE":
-        return date
-
-    if modifier not in ["F", "MF", "P", "MP"]:
-        raise ValueError("`modifier` must be in {'NONE', 'F', 'MF', 'P', 'MP'}")
-
-    (adj_op, mod_op) = (
-        ("rollforward", "rollback") if "F" in modifier else ("rollback", "rollforward")
-    )
-    calendar_: CustomBusinessDay = get_calendar(calendar)  # type: ignore[assignment]
-    adjusted_date = getattr(calendar_, adj_op)(date)
-    if adjusted_date.month != date.month and "M" in modifier:
-        adjusted_date = getattr(calendar_, mod_op)(date)
-    return adjusted_date.to_pydatetime()
-
+    return cal_.roll(date, _get_modifier(modifier), settlement)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -718,6 +482,7 @@ def add_tenor(
     modifier: str,
     calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
+    settlement: bool = True,
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
@@ -743,6 +508,8 @@ def add_tenor(
     roll : str, int, optional
         This is only required if the tenor is given in months or years. Ensures the tenor period
         associates with a schedule's roll day.
+    settlement : bool, optional
+        Whether to enforce the settlement with an associated settlement calendar.
 
     Returns
     -------
@@ -776,45 +543,20 @@ def add_tenor(
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
     """
     tenor = tenor.upper()
+    cal_ = get_calendar(calendar)
     if "D" in tenor:
-        return _add_days(start, int(tenor[:-1]), modifier, calendar)
+        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier), settlement)
     elif "B" in tenor:
-        return _add_business_days(start, int(tenor[:-1]), modifier, calendar)
+        return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
-        return _add_months(start, int(float(tenor[:-1]) * 12), modifier, calendar, roll)
+        months = int(float(tenor[:-1]) * 12)
+        return cal_.add_months(start, months, _get_modifier(modifier), _get_rollday(roll), settlement)
     elif "M" in tenor:
-        return _add_months(start, int(tenor[:-1]), modifier, calendar, roll)
+        return cal_.add_months(start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement)
     elif "W" in tenor:
-        return _add_days(start, int(tenor[:-1]) * 7, modifier, calendar)
+        return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier), settlement)
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
-
-
-def _add_business_days(
-    start: datetime,
-    business_days: int,
-    modifier: str,
-    cal: CalInput,
-) -> datetime:
-    """add a given number of business days to an input date"""
-    calendar_: CustomBusinessDay = get_calendar(cal)  # type: ignore[assignment]
-    return (start + business_days * calendar_).to_pydatetime()  # type: ignore[attr-defined]
-
-
-def _add_months(
-    start: datetime,
-    months: int,
-    modifier: str,
-    cal: CalInput,
-    roll: Union[str, int, NoInput],
-) -> datetime:
-    """add a given number of months to an input date"""
-    year_roll = floor((start.month + months - 1) / 12)
-    month = (start.month + months) % 12
-    month = 12 if month == 0 else month
-    roll = start.day if roll is NoInput.blank else roll
-    end = _get_roll(month, start.year + year_roll, roll)
-    return _adjust_date(end, modifier, cal)
 
 
 def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
@@ -831,16 +573,6 @@ def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
         except ValueError:  # day is out of range for month, i.e. 30 or 31
             date = _get_eom(month, year)
     return date
-
-
-def _add_days(
-    start: datetime,
-    days: int,
-    modifier: str,
-    cal: CalInput,
-) -> datetime:
-    end = start + timedelta(days=days)
-    return _adjust_date(end, modifier, cal)
 
 
 def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
@@ -1165,6 +897,7 @@ def _dcf_actacticma(
             frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
 
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
             fwd_end_0, fwd_end_1, fraction = start, start, -1.0
             while (
@@ -1172,8 +905,8 @@ def _dcf_actacticma(
             ):  # Handle Long Stubs which require repeated periods, and Zero frequencies.
                 fwd_end_0 = fwd_end_1
                 fraction += 1.0
-                fwd_end_1 = _add_months(
-                    start, (int(fraction) + 1) * frequency_months, "NONE", calendar, roll
+                fwd_end_1 = cal_.add_months(
+                    start, (int(fraction) + 1) * frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
                 )
 
             fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
@@ -1185,8 +918,8 @@ def _dcf_actacticma(
             ):  # Handle Long Stubs which require repeated periods, and Zero frequencies.
                 prev_start_0 = prev_start_1
                 fraction += 1.0
-                prev_start_1 = _add_months(
-                    end, -(int(fraction) + 1) * frequency_months, "NONE", calendar, roll
+                prev_start_1 = cal_.add_months(
+                    end, -(int(fraction) + 1) * frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
                 )
 
             fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
@@ -1216,8 +949,9 @@ def _dcf_actacticma_stub365f(
         return frequency_months / 12.0
     else:
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
+        cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
-            fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
+            fwd_end = cal_.add_months(start, frequency_months, _get_modifier("NONE"), _get_rollday(roll), False)
             r = (end - start).days
             s = (fwd_end - start).days
             if end > fwd_end:  # stub is LONG
@@ -1230,7 +964,7 @@ def _dcf_actacticma_stub365f(
                     d_ = frequency_months / 12 - (s - r) / 365.0
 
         else:  # stub is a FRONT stub
-            prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
+            prev_start = cal_.add_months(end, -frequency_months, _get_modifier("NONE"), _get_rollday(roll), False)
             r = (end - start).days
             s = (end - prev_start).days
             if start < prev_start:  # stub is LONG
