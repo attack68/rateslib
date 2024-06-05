@@ -438,19 +438,6 @@ def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     return RollDay.Unspecified()
 
 
-def get_calendar_rs(calendar):
-    if isinstance(calendar, (Cal, UnionCal)):
-        return calendar
-    elif isinstance(calendar, str):
-        calendars = calendar.lower().split(",")
-        if len(calendars) == 1:  # only one named calendar is found
-            return get_named_calendar(calendar)
-        else:
-            cals = [get_named_calendar(_) for _ in calendars]
-            return UnionCal(cals, None)
-    raise ValueError("`calendar` input not valid")
-
-
 def _adjust_date(
     date: datetime,
     modifier: str,
