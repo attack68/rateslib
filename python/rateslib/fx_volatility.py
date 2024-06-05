@@ -14,7 +14,7 @@ from rateslib.dual import (
 from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
 from rateslib.default import plot, NoInput, plot3d
 from rateslib.solver import newton_1dim
-from rateslib.rateslibrs import index_left_f64
+from rateslib.rs import index_left_f64
 from uuid import uuid4
 import numpy as np
 from typing import Union

@@ -84,7 +84,7 @@ use serde::{Serialize, Deserialize};
 /// - `holidays`: which defines specific dates that may be exceptions to the general working week, and cannot be
 ///   business days.
 ///
-#[pyclass(module = "rateslib.rateslibrs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cal {
     pub(crate) holidays: IndexSet<NaiveDateTime>,
@@ -119,7 +119,7 @@ impl Cal {
 /// A business day is defined as allowing settlement relative to an associated calendar if:
 ///
 /// - the date in question is also a business day in the associated settlement calendar.
-#[pyclass(module = "rateslib.rateslibrs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnionCal {
    pub(crate) calendars: Vec<Cal>,

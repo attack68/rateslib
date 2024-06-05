@@ -1,7 +1,7 @@
 import pytest
 import context
 from rateslib.calendars import _get_modifier
-from rateslib.rateslibrs import Cal, UnionCal, Modifier, RollDay
+from rateslib.rs import Cal, UnionCal, Modifier, RollDay
 from datetime import datetime as dt
 
 
