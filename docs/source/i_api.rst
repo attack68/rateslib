@@ -44,6 +44,21 @@ Defaults
 Calendars
 ==========
 
+Classes
+^^^^^^^
+
+.. autosummary::
+   ~rateslib.calendars.Cal
+   ~rateslib.calendars.UnionCal
+
+.. toctree::
+    :maxdepth: 0
+    :titlesonly:
+    :hidden:
+
+    api/rateslib.calendars.Cal.rst
+    api/rateslib.calendars.UnionCal.rst
+
 .. automodapi:: rateslib.calendars
    :no-heading:
 
