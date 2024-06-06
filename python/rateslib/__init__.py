@@ -51,7 +51,7 @@ class default_context(ContextDecorator):
 
 from rateslib.dual import Dual, Dual2, dual_log, dual_exp, dual_solve
 
-from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
+from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, Cal, UnionCal
 
 from rateslib.splines import (
     bsplev_single,
@@ -171,6 +171,8 @@ __all__ = [
     "get_calendar",
     "add_tenor",
     "dcf",
+    "Cal",
+    "UnionCal",
     # scheduling.py
     "Schedule",
     # curves.py

@@ -13,7 +13,7 @@
    :param days: Number of business days to add.
    :type days: int
 
-   :param settlement: If *True*, also enforce adherence to an associated settlement calendar.
+   :param settlement: Enforce an associated settlement calendar, if *True* and if one exists.
    :type settlement: bool
 
    :rtype: datetime

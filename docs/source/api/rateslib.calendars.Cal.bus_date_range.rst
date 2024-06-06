@@ -3,14 +3,14 @@
 
 .. .. currentmodule:: rateslib.calendars
 
-.. py:method:: Cal.bus_date_range(date, days)
+.. py:method:: Cal.bus_date_range(start, end)
 
-   Return a business date separated by `days` from input `date`.
+   Return a list of business dates in a range.
 
-   :param date: The original business date. Raise if a non-business date is given.
-   :type other: datetime
+   :param start: The start date of the range, inclusive.
+   :type start: datetime
 
-   :param days: Number of business days to add.
-   :type days: int
+   :param end: The end date of the range, inclusive.
+   :type end: datetime
 
-   :rtype: datetime
+   :rtype: list of datetime
