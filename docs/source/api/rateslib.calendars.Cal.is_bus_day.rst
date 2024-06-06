@@ -8,6 +8,6 @@
    Return whether the `date` is a business day.
 
    :param date: Date to test.
-   :type other: datetime
+   :type date: datetime
 
    :rtype: bool

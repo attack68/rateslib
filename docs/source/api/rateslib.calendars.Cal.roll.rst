@@ -3,14 +3,18 @@
 
 .. .. currentmodule:: rateslib.calendars
 
-.. py:method:: Cal.roll(date, days)
+.. py:method:: Cal.roll(date, modifier, settlement)
 
-   Return a business date separated by `days` from input `date`.
+   Adjust a non-business date to a business date under a specific modification rule.
 
-   :param date: The original business date. Raise if a non-business date is given.
-   :type other: datetime
+   :param date: The date to adjust.
+   :type date: datetime
 
-   :param days: Number of business days to add.
-   :type days: int
+   :param modifier: The modification rule.
+   :type modifier: Modifier
 
    :rtype: datetime
+
+   .. rubric:: Notes
+
+   An input business date will be returned unchanged.

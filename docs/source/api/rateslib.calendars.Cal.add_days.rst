@@ -16,7 +16,7 @@
    :param modifier: The rule to use to roll resultant non-business days.
    :type modifier: Modifier
 
-   :param settlement: If the calendar object contains an associated settlement calendar ensure the resultant date can settle transactions, if *True*.
+   :param settlement: Enforce an associated settlement calendar, if *True* and if one exists.
    :type settlement: bool
 
    :rtype: datetime
