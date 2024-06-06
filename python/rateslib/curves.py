@@ -27,6 +27,7 @@ from rateslib.calendars import (
     dcf,
     CalInput,
     _DCF1d,
+    Modifier,
 )
 from rateslib.rs import index_left_f64
 
@@ -1018,7 +1019,7 @@ class Curve(_Serialize):
                "1d",
                comparators=[rolled_curve, rolled_curve2],
                labels=["orig", "rolled", "rolled2"],
-               right=dt(2026, 7, 1),
+               right=dt(2026, 6, 30),
            )
 
         .. plot::
@@ -1162,7 +1163,12 @@ class Curve(_Serialize):
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
         if right is NoInput.blank:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + upper_tenor, "P", self.calendar)
+            # pre-adjust the end date to enforce business date.
+            right_: datetime = add_tenor(
+                self.calendar.roll(self.node_dates[-1], Modifier.P, False),
+                "-" + upper_tenor, "P",
+                self.calendar
+            )
         elif isinstance(right, str):
             right_ = add_tenor(self.node_dates[0], right, "P", NoInput(0))
         elif isinstance(right, datetime):
@@ -1182,8 +1188,8 @@ class Curve(_Serialize):
     ):
         try:
             rate = self.rate(effective, termination, modifier)
-        except Exception as e:
-            raise e
+        except ValueError as e:
+            return None
         return rate
 
     def _plot_fx(

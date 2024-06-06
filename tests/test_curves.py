@@ -1638,3 +1638,53 @@ class TestPlotCurve:
         cc = CompositeCurve(curves=[curve1, curve2])
         cc.plot("1m")
 
+    def test_plot_a_rolled_spline_curve(self):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.988,
+                dt(2024, 1, 1): 0.975,
+                dt(2025, 1, 1): 0.965,
+                dt(2026, 1, 1): 0.955,
+                dt(2027, 1, 1): 0.9475
+            },
+            t=[
+                dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            ],
+        )
+        rolled_curve = curve.roll("6m")
+        rolled_curve2 = curve.roll("-6m")
+        curve.plot(
+            "1d",
+            comparators=[rolled_curve, rolled_curve2],
+            labels=["orig", "rolled", "rolled2"],
+            right=dt(2026, 6, 30),
+        )
+        usd_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 7, 1): 0.98,
+                dt(2023, 1, 1): 0.95
+            },
+            calendar="nyc",
+            id="sofr",
+        )
+        usd_args = dict(
+            effective=dt(2022, 1, 1),
+            spec="usd_irs",
+            curves="sofr"
+        )
+        solver = Solver(
+            curves=[usd_curve],
+            instruments=[
+                IRS(**usd_args, termination="6M"),
+                IRS(**usd_args, termination="1Y"),
+            ],
+            s=[4.35, 4.85],
+            instrument_labels=["6M", "1Y"],
+            id="us_rates"
+        )
+        usd_curve.plot("1b", labels=["SOFR o/n"])

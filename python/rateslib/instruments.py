@@ -1877,13 +1877,11 @@ class BondMixin:
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        settlement = add_tenor(
+        settlement = self.leg1.schedule.calendar.lag(
             curves[1].node_dates[0],
-            f"{self.kwargs['settle']}B",
-            None,
-            self.leg1.schedule.calendar,
+            self.kwargs['settle'],
+            True
         )
-
         npv = self._npv_local(curves[0], curves[1], settlement, NoInput(0))
         return _maybe_local(npv, local, self.leg1.currency, fx_, base_)
 

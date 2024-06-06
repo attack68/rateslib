@@ -21,18 +21,6 @@ Cal
    .. seealso::
       :class:`~rateslib.calendars.UnionCal`: Calendar object designed to merge calendars under financial date rules.
 
-   .. rubric:: Examples
-
-   .. ipython:: python
-
-      from rateslib.dual import Dual, gradient
-      def func(x, y):
-          return 5 * x**2 + 10 * y**3
-
-      x = Dual(1.0, ["x"], [])
-      y = Dual(1.0, ["y"], [])
-      gradient(func(x,y), ["x", "y"])
-
    .. rubric:: Methods Summary
 
    .. include:: rateslib.calendars.Cal.add_days.rst
