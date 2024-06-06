@@ -26,9 +26,9 @@ from rateslib.calendars import (
     add_tenor,
     dcf,
     CalInput,
-    _DCF1d,
-    Modifier,
 )
+from rateslib.calendars.dcfs import _DCF1d
+from rateslib.calendars.rs import Modifier
 from rateslib.rs import index_left_f64
 
 from typing import TYPE_CHECKING

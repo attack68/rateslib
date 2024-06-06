@@ -46,7 +46,6 @@ Calendars
 
 .. automodapi:: rateslib.calendars
    :no-heading:
-   :skip: floor
 
 Scheduling
 ===========
