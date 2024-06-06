@@ -48,7 +48,7 @@ is available in the :meth:`~rateslib.calendars.get_calendar` method:
 
 .. ipython:: python
 
-   from rateslib.calendars import CALENDARS
+   from rateslib.calendars.rs import CALENDARS
    print(CALENDARS.keys())
 
 .. ipython:: python

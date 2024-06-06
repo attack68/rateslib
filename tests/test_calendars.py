@@ -1,5 +1,4 @@
 import pytest
-from pandas.tseries.holiday import Holiday
 from datetime import datetime as dt
 
 import context
@@ -17,8 +16,8 @@ from rateslib.calendars import (
     _is_som,
     _get_imm,
     _get_years_and_months,
-    _dcf_actacticma,
 )
+from rateslib.calendars.dcfs import _dcf_actacticma
 
 
 @pytest.fixture
