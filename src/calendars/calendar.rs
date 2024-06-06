@@ -341,6 +341,7 @@ pub trait DateRoll {
         }
     }
 
+    /// Return a vector of business dates between a start and end, inclusive.
     fn bus_date_range(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> Result<Vec<NaiveDateTime>, PyErr> {
         if self.is_non_bus_day(start) || self.is_non_bus_day(end) {
             return Err(PyValueError::new_err("`start` and `end` for a calendar `bus_date_range` must both be valid business days"))
@@ -350,6 +351,17 @@ pub trait DateRoll {
         while sample_date <= *end {
             vec.push(sample_date);
             sample_date = self.add_bus_days(&sample_date, 1, false)?;
+        }
+        Ok(vec)
+    }
+
+    /// Return a vector of calendar dates between a start and end, inclusive
+    fn cal_date_range(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> Result<Vec<NaiveDateTime>, PyErr> {
+        let mut vec = Vec::new();
+        let mut sample_date = *start;
+        while sample_date <= *end {
+            vec.push(sample_date);
+            sample_date = sample_date + Days::new(1);
         }
         Ok(vec)
     }

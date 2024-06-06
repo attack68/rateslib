@@ -100,9 +100,10 @@ historical *FloatPeriods* in the absence of real data.
 
    from pandas import Series, date_range
    from rateslib.calendars import get_calendar
+   nyc = get_calendar("nyc")
    fixings = Series(
        data=2.5,
-       index=date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14), freq=get_calendar("nyc")),
+       index=nyc.bus_date_range(start=dt(2022, 1, 3), end=dt(2022, 4, 14)),
    )
    irs = IRS(
        effective=dt(2022, 2, 4),

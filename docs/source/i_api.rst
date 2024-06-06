@@ -47,7 +47,6 @@ Calendars
 .. automodapi:: rateslib.calendars
    :no-heading:
    :skip: floor
-   :skip: get_calendar_rs
 
 Scheduling
 ===========
@@ -142,6 +141,7 @@ Curves
    :inherited-members:
    :no-inheritance-diagram:
    :skip: NoInput
+   :skip: Modifier
    :skip: set_order_convert
    :skip: add_tenor
    :skip: create_calendar

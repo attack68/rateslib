@@ -27,6 +27,7 @@ from rateslib.calendars import (
     dcf,
     CalInput,
     _DCF1d,
+    Modifier,
 )
 from rateslib.rs import index_left_f64
 
@@ -320,7 +321,7 @@ class Curve(_Serialize):
 
         # Parameters for the rate derivation
         self.convention = defaults.convention if convention is NoInput.blank else convention
-        self.modifier = defaults.modifier if modifier is NoInput.blank else modifier
+        self.modifier = defaults.modifier if modifier is NoInput.blank else modifier.upper()
         self.calendar, self.calendar_type = get_calendar(calendar, kind=True)
         if self.calendar_type == "named":
             self.calendar_type = f"named: {calendar.lower()}"
@@ -1018,7 +1019,7 @@ class Curve(_Serialize):
                "1d",
                comparators=[rolled_curve, rolled_curve2],
                labels=["orig", "rolled", "rolled2"],
-               right=dt(2026, 7, 1),
+               right=dt(2026, 6, 30),
            )
 
         .. plot::
@@ -1121,39 +1122,75 @@ class Curve(_Serialize):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
+        upper_tenor = tenor.upper()
+        x, y = self._plot_rates(upper_tenor, left, right)
+        y_ = [y] if not difference else []
+        for i, comparator in enumerate(comparators):
+            if difference:
+                y_.append([self._plot_diff(_x, tenor, _y, comparator) for _x, _y in zip(x, y)])
+            else:
+                pm_ = comparator._plot_modifier(tenor)
+                y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
+
+        return plot(x, y_, labels)
+
+    def _plot_diff(self, date, tenor, rate, comparator):
+        rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
+        return (rate2 - rate) if rate2 is not None else None
+
+    def _plot_modifier(self, upper_tenor):
+        """If tenor is in days do not allow modified for plot purposes"""
+        if "B" in upper_tenor or "D" in upper_tenor or "W" in upper_tenor:
+            if "F" in self.modifier:
+                return "F"
+            elif "P" in self.modifier:
+                return "P"
+        return self.modifier
+
+    def _plot_rates(
+        self,
+        upper_tenor: str,
+        left: Union[datetime, str, NoInput] = NoInput(0),
+        right: Union[datetime, str, NoInput] = NoInput(0),
+    ):
         if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
-            left_ = add_tenor(self.node_dates[0], left, "NONE", NoInput(0))
+            left_ = add_tenor(self.node_dates[0], left, "F", self.calendar)
         elif isinstance(left, datetime):
             left_ = left
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
         if right is NoInput.blank:
-            right_: datetime = add_tenor(self.node_dates[-1], "-" + tenor, "NONE", NoInput(0))
+            # pre-adjust the end date to enforce business date.
+            right_: datetime = add_tenor(
+                self.calendar.roll(self.node_dates[-1], Modifier.P, False),
+                "-" + upper_tenor, "P",
+                self.calendar
+            )
         elif isinstance(right, str):
-            right_ = add_tenor(self.node_dates[0], right, "NONE", NoInput(0))
+            right_ = add_tenor(self.node_dates[0], right, "P", NoInput(0))
         elif isinstance(right, datetime):
             right_ = right
         else:
             raise ValueError("`right` must be supplied as datetime or tenor string.")
 
-        points: int = (right_ - left_).days
-        x = [left_ + timedelta(days=i) for i in range(points)]
-        # x = self.calendar.bus_date_range(start=left_, end=right_)
-        rates = [self.rate(_, tenor) for _ in x]
-        if not difference:
-            y = [rates]
-            if comparators is not None:
-                for comparator in comparators:
-                    y.append([comparator.rate(_, tenor) for _ in x])
-        elif difference and len(comparators) > 0:
-            y = []
-            for comparator in comparators:
-                diff = [comparator.rate(_, tenor) - rates[i] for i, _ in enumerate(x)]
-                y.append(diff)
-        return plot(x, y, labels)
+        dates = self.calendar.cal_date_range(start=left_, end=right_)
+        rates = [self._plot_rate(_, upper_tenor, self._plot_modifier(upper_tenor)) for _ in dates]
+        return dates, rates
+
+    def _plot_rate(
+        self,
+        effective,
+        termination,
+        modifier=NoInput(0),
+    ):
+        try:
+            rate = self.rate(effective, termination, modifier)
+        except ValueError as e:
+            return None
+        return rate
 
     def _plot_fx(
         self,
@@ -2063,6 +2100,7 @@ class CompositeCurve(IndexCurve):
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
         self.calendar = curves[0].calendar
+        self.modifier = curves[0].modifier
         self._base_type = curves[0]._base_type
         if self._base_type == "dfs":
             self.modifier = curves[0].modifier

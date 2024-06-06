@@ -482,7 +482,7 @@ def add_tenor(
     modifier: str,
     calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
-    settlement: bool = True,
+    settlement: bool = False,
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
@@ -492,7 +492,7 @@ def add_tenor(
        Note this function does not validate the ``roll`` input, but expects it to be correct.
        This can be used to correctly replicate a schedule under a given roll day. For example
        a modified 29th May +3M will default to 29th Aug, but can be made to match
-       31 Aug with *'eom'* rolls.
+       31 Aug with *'eom'* *roll*, or 30th Aug with 30 *roll*.
 
     Parameters
     ----------
@@ -509,7 +509,8 @@ def add_tenor(
         This is only required if the tenor is given in months or years. Ensures the tenor period
         associates with a schedule's roll day.
     settlement : bool, optional
-        Whether to enforce the settlement with an associated settlement calendar.
+        Whether to enforce the settlement with an associated settlement calendar. If there is
+        no associated settlement calendar this will have no effect.
 
     Returns
     -------
