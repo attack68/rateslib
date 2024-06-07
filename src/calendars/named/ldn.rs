@@ -6,8 +6,8 @@ pub const RULES: &'static [&str] = &[
     "Fri before Easter (Easter Friday)",
     "Mon after Easter (Easter Monday)",
     "May 1st Mon (May Bank)",
-    "July last Mon (Summer Bank)",
-    "Aug last Mon (2nd Summer Bank)",
+    "July last Mon (Jul Bank)",
+    "Aug last Mon (Aug Bank)",
     "Dec 25: Sat,Sun->Mon (Christmas)",
     "Dec 26: Sat->Mon,Sun->Tue (Boxing Day)",
 ];
