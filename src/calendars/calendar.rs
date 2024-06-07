@@ -89,6 +89,7 @@ use serde::{Serialize, Deserialize};
 pub struct Cal {
     pub(crate) holidays: IndexSet<NaiveDateTime>,
     pub(crate) week_mask: HashSet<Weekday>,
+    pub(crate) rules: Vec<&str>,
 }
 
 impl Cal {
@@ -97,10 +98,11 @@ impl Cal {
     ///
     /// `holidays` provide a vector of dates that cannot be business days. `week_mask` is a vector of days
     /// (0=Mon,.., 6=Sun) that are excluded from the working week.
-    pub fn new(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> Self {
+    pub fn new(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>, rules: Vec<&str>) -> Self {
         Cal {
             holidays: IndexSet::from_iter(holidays),
             week_mask: HashSet::from_iter(week_mask.into_iter().map(|v| Weekday::try_from(v).unwrap())),
+            rules: rules,
         }
     }
 }
