@@ -87,18 +87,24 @@ def get_calendar(
     Examples
     --------
     .. ipython:: python
+       :suppress:
 
-       gbp_cal = get_calendar("ldn")
-       gbp_cal.holidays
-       gbp_cal.add_bus_days(dt(2023, 1, 3), 5, True)
-       type(gbp_cal)
+       from rateslib import get_calendar
+
+    .. ipython:: python
+
+       tgt_cal = get_calendar("tgt")
+       tgt_cal.holidays[300:312]
+       tgt_cal.add_bus_days(dt(2023, 1, 3), 5, True)
+       type(tgt_cal)
+       print(tgt_cal.rules)
 
     Calendars can be combined from the pre-existing names using comma separation.
 
     .. ipython:: python
 
-       gbp_and_nyc_cal = get_calendar("ldn,nyc")
-       gbp_and_nyc_cal.holidays
+       tgt_and_nyc_cal = get_calendar("tgt,nyc")
+       tgt_and_nyc_cal.holidays[300:312]
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.
