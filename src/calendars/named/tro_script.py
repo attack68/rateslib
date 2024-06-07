@@ -19,7 +19,7 @@ RULES = [
     Holiday("CAD Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1))),
     Holiday("CAD Thanksgiving", month=10, day=1, offset=DateOffset(weekday=MO(2))),
     Holiday("Canada Day", month=7, day=1, observance=next_monday),
-    Holiday("Rememberance", month=11, day=11, observance=next_monday),
+    Holiday("Remembrance", month=11, day=11, observance=next_monday),
     Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1)),
     Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday),
     Holiday("Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday),
