@@ -2,9 +2,9 @@ import pytest
 from datetime import datetime as dt
 
 import context
-from rateslib.rs import Cal
 from rateslib.default import NoInput
 from rateslib.calendars import (
+    Cal,
     create_calendar,
     dcf,
     get_calendar,
@@ -18,6 +18,9 @@ from rateslib.calendars import (
     _get_years_and_months,
 )
 from rateslib.calendars.dcfs import _dcf_actacticma
+from rateslib.curves import Curve
+from rateslib.instruments import IRS
+from rateslib import defaults
 
 
 @pytest.fixture
@@ -423,4 +426,16 @@ def test_act_act_icma_z_freq(s, e, t, exp):
         calendar=NoInput(0),
     )
     assert abs(result-exp)<1e-6
+
+
+def test_calendar_aligns_with_fixings_tyo():
+    curve = Curve(
+        {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
+        calendar="tyo",
+    )
+    fixings = defaults.fixings["jpy_rfr"]
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A",
+                 leg2_fixings=fixings, calendar="tyo"
+    )
+    irs.rate(curve)
 
