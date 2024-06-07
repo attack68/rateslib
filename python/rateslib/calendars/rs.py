@@ -41,6 +41,7 @@ CALENDARS: dict[str, CalTypes] = {
     "osl": get_named_calendar("osl"),
     "zur": get_named_calendar("zur"),
     "tro": get_named_calendar("tro"),
+    "tyo": get_named_calendar("tyo"),
 }
 
 

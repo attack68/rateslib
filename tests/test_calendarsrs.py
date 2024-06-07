@@ -1,6 +1,6 @@
 import pytest
 import context
-from rateslib.calendars import _get_modifier
+from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.rs import Cal, UnionCal, Modifier, RollDay
 from datetime import datetime as dt
 
@@ -94,3 +94,7 @@ class TestCal:
     def test_holidays(self, cal, exp, simple_cal, multi_union):
         cal = simple_cal if cal == "basic" else multi_union
         assert cal.holidays == exp
+
+    def test_tyo_cal(self):
+        tokyo = get_calendar("tyo")
+        assert tokyo.holidays[0] == dt(1970,1,1)
