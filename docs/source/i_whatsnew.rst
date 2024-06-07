@@ -27,6 +27,8 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - :red:`Breaking Change!` The :meth:`~rateslib.calendars.create_calendar` methods is deprecated and
        modified to accept different input arguments.
+   * - Calendars
+     - The tokyo calendar *'tyo'* has been added to align with TONA publication.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
    * - Bug
