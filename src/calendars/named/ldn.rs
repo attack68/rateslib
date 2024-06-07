@@ -8,8 +8,8 @@ pub const RULES: &'static [&str] = &[
     "May 1st Mon (May Bank)",
     "July last Mon (Summer Bank)",
     "Aug last Mon (2nd Summer Bank)",
-    "Dec 25: Sat,Sun->Mon",
-    "Dec 26: Sat->Mon,Sun->Tue",
+    "Dec 25: Sat,Sun->Mon (Christmas)",
+    "Dec 26: Sat->Mon,Sun->Tue (Boxing Day)",
 ];
 pub const HOLIDAYS: &'static [&str] = &[
     "1970-01-01 00:00:00",
