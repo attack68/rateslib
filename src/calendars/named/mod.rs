@@ -10,6 +10,7 @@ pub mod stk;
 pub mod osl;
 pub mod zur;
 pub mod tro;
+pub mod tyo;
 
 use crate::calendars::calendar::Cal;
 use std::collections::HashMap;
@@ -27,7 +28,8 @@ fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("stk", stk::WEEKMASK),
         ("osl", osl::WEEKMASK),
         ("zur", zur::WEEKMASK),
-        ("tro", zur::WEEKMASK),
+        ("tro", tro::WEEKMASK),
+        ("tyo", tyo::WEEKMASK)
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
@@ -46,10 +48,30 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
         ("osl", osl::HOLIDAYS),
         ("zur", zur::HOLIDAYS),
         ("tro", tro::HOLIDAYS),
+        ("tyo", tyo::HOLIDAYS),
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
         Some(value) => Ok(value.iter().map(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%d %H:%M:%S").unwrap()).collect())
+    }
+}
+
+fn get_rules_by_name(name: &str) -> Result<Vec<&str>, PyErr> {
+    let hmap: HashMap<&str, &[&str]> = HashMap::from([
+        ("all", all::RULES),
+        ("bus", bus::RULES),
+        ("nyc", nyc::RULES),
+        ("tgt", tgt::RULES),
+        ("ldn", ldn::RULES),
+        ("stk", stk::RULES),
+        ("osl", osl::RULES),
+        ("zur", zur::RULES),
+        ("tro", tro::RULES),
+        ("tyo", tyo::RULES),
+    ]);
+    match hmap.get(name) {
+        None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
+        Some(value) => Ok(value.to_vec())
     }
 }
 
