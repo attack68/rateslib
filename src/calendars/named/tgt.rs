@@ -3,8 +3,8 @@
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
 pub const RULES: &'static [&str] = &[
     "Jan 1 (New Year)",
-    "c.1 Apr (Good Friday)",
-    "c.4 Apr (Easter Monday)",
+    "Fri before Easter (Good Friday)",
+    "Mon after Easter (Easter Monday)",
     "May 1 (EU Labour)",
     "Dec 25 (Christmas)",
     "Dec 26 (Boxing Day)"
