@@ -11,7 +11,7 @@ pub const RULES: &'static [&str] = &[
     "50 days after Easter (Whit Monday)",
     "Aug 1 (National)",
     "Dec 25 (Christmas)",
-    "Dec 26 (Boxing)"
+    "Dec 26 (Boxing)",
 ];
 pub const HOLIDAYS: &'static [&str] = &[
     "1970-01-01 00:00:00",
