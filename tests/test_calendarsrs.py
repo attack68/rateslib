@@ -95,6 +95,10 @@ class TestCal:
         cal = simple_cal if cal == "basic" else multi_union
         assert cal.holidays == exp
 
+    def test_rules(self):
+        rules = get_calendar("tyo").rules
+        assert rules[:10] == "Jan 1 (New"
+
     def test_tyo_cal(self):
         tokyo = get_calendar("tyo")
         assert tokyo.holidays[0] == dt(1970,1,1)
