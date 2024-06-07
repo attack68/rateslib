@@ -429,6 +429,9 @@ def test_act_act_icma_z_freq(s, e, t, exp):
 
 
 def test_calendar_aligns_with_fixings_tyo():
+    # using this test in a regular way, and with "-W error" for error on warn ensures that:
+    #  - Curve cal is a business  day and fixings cal has no fixing: is a warn
+    #  - Curve cal is not a busienss day and fixings cal has a fixing: errors
     curve = Curve(
         {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
         calendar="tyo",
