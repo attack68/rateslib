@@ -11,10 +11,10 @@ pub const RULES: &'static [&str] = &[
     "Jul 4: Sat->Fri, Sun->Mon (Independence)",
     "Sep 1st Mon (Labour)",
     "Oct 2nd Mon (Columbus)",
-    "Nov 11: Sun->Mon (Veteran's)"
+    "Nov 11: Sun->Mon (Veteran's)",
     "Nov 4th Thu (Thanksgiving)",
     "Dec 25: Sat->Fri,Sun->Mon (Christmas)",
-    "Note: Special additional dates."
+    "Note: Special additional dates.",
 ];
 pub const HOLIDAYS: &'static [&str] = &[
     "1970-01-01 00:00:00",
