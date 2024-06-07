@@ -11,7 +11,7 @@ from pandas.tseries.offsets import CustomBusinessDay, DateOffset
 
 def sunday_to_monday_or_tuesday(dt: datetime) -> datetime:
     """
-    Used for Children's Day
+    Used for Greenery Day
     If holiday falls on Sunday, use following Monday instead;
     if holiday falls on Monday, use the following Tuesday;
     """
