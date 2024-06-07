@@ -1,7 +1,7 @@
 //! Define a London business day holiday calendar, aligned with SONIA publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
-pub const RULES: &'static [&str] = [];
+pub const RULES: &'static [&str] = &[];
 pub const HOLIDAYS: &'static [&str] = &[
     "1970-01-01 00:00:00",
     "1970-03-27 00:00:00",

@@ -1,7 +1,7 @@
 //! Define a Tokyo business day calendar, aligned with TONA publication.
 
 pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
-pub const RULES: &'static [&str] = [
+pub const RULES: &'static [&str] = &[
     "Jan 1 (New Year)",
     "Jan 2 (New Year)",
     "Jan 3 (New Year)",

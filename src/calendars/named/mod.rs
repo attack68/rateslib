@@ -162,6 +162,12 @@ mod tests {
     }
 
     #[test]
+    fn test_tyo() {
+        let cal = get_calendar_by_name("tyo").unwrap();
+        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-1-3 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+    }
+
+    #[test]
     fn test_get_calendar_error() {
         match get_calendar_by_name("badname") {
             Ok(val) => assert!(false),
