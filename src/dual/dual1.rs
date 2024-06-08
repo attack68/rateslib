@@ -155,18 +155,17 @@ impl Vars for Dual {
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
-        let dual_: Array1<f64>;
         let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
-        match match_val {
-            VarsState::EquivByArc | VarsState::EquivByVal => dual_ = self.dual.clone(),
+        let dual_: Array1<f64> = match match_val {
+            VarsState::EquivByArc | VarsState::EquivByVal => self.dual.clone(),
             _ => {
                 let lookup_or_zero = |v| match self.vars.get_index_of(v) {
                     Some(idx) => self.dual[idx],
                     None => 0.0_f64,
                 };
-                dual_ = Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect());
+                Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect())
             }
-        }
+        };
         Self {
             real: self.real,
             vars: Arc::clone(arc_vars),
@@ -195,10 +194,7 @@ pub trait Gradient1: Vars {
                     .map(|x| self.vars().get_index_of(x))
                     .enumerate()
                 {
-                    match index {
-                        Some(value) => dual_[i] = self.dual()[value],
-                        None => {}
-                    }
+                    if let Some(value) = index { dual_[i] = self.dual()[value] }
                 }
                 dual_
             }

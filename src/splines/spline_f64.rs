@@ -176,12 +176,7 @@ where
         assert!(t.len() > 1);
         assert!(zip(&t[1..], &t[..(t.len() - 1)]).all(|(a, b)| a >= b));
         let n = t.len() - k;
-        let c_;
-        match c {
-            Some(v) => c_ = Some(Array1::from_vec(v)),
-            None => c_ = None,
-        }
-
+        let c_ = c.map(Array1::from_vec);
         PPSpline { k, t, n, c: c_ }
     }
 
@@ -215,8 +210,8 @@ where
 
     pub fn csolve(
         &mut self,
-        tau: &Vec<f64>,
-        y: &Vec<T>,
+        tau: &[f64],
+        y: &[T],
         left_n: usize,
         right_n: usize,
         allow_lsq: bool,
@@ -232,7 +227,7 @@ where
             ));
         }
         let b: Array2<f64> = self.bsplmatrix(tau, left_n, right_n);
-        let ya: Array1<T> = Array1::from_vec(y.clone());
+        let ya: Array1<T> = Array1::from_vec(y.to_owned());
         let c: Array1<T> = fdsolve(&b.view(), &ya.view(), allow_lsq);
         self.c = Some(c);
         Ok(())
@@ -242,13 +237,13 @@ where
     //     x.iter().map(|v| bsplev_single_f64(v, *i, self.k(), self.t(), None)).collect()
     // }
 
-    pub fn bspldnev(&self, x: &Vec<f64>, i: &usize, m: &usize) -> Vec<f64> {
+    pub fn bspldnev(&self, x: &[f64], i: &usize, m: &usize) -> Vec<f64> {
         x.iter()
             .map(|v| bspldnev_single_f64(v, *i, self.k(), self.t(), *m, None))
             .collect()
     }
 
-    pub fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
+    pub fn bsplmatrix(&self, tau: &[f64], left_n: usize, right_n: usize) -> Array2<f64> {
         let mut b = Array2::zeros((tau.len(), self.n));
         for i in 0..self.n {
             b[[0, i]] = bspldnev_single_f64(&tau[0], i, &self.k, &self.t, left_n, None);
