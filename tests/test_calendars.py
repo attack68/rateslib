@@ -460,7 +460,7 @@ def test_book_example2():
     result2 = cal2.add_bus_days(dt(2009, 11, 10), 2, True)
     assert result == dt(2009, 11, 12)
     assert result2 == dt(2009, 11, 13)
-    
+
     # test that the us settlement is honoured
     result = cal.add_bus_days(dt(2009, 11, 9), 2, True)
     result2 = cal.add_bus_days(dt(2009, 11, 9), 2, False)
