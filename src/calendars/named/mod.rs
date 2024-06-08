@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn test_get_cal() {
         let result = get_calendar_by_name("bus").unwrap();
-        let expected = Cal::new(vec![], vec![5, 6], vec![]);
+        let expected = Cal::new(vec![], vec![5, 6]);
         assert_eq!(result, expected);
     }
 

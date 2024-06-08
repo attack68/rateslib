@@ -767,7 +767,7 @@ mod tests {
     #[test]
     fn test_docstring() {
         let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);  // UK Monday 1st May Bank Holiday
-        let tky = Cal::new(vec![ndt(2017, 5, 3), ndt(2017, 5, 4), ndt(2017, 5, 5)], vec![5, 6], vec![]);
+        let tky = Cal::new(vec![ndt(2017, 5, 3), ndt(2017, 5, 4), ndt(2017, 5, 5)], vec![5, 6]);
 
         let date = ndt(2017, 4, 28);  // Friday 28th April 2017
         let spot = ldn.add_bus_days(&date, 2,  true).unwrap();
