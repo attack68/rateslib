@@ -450,3 +450,21 @@ def test_book_example():
     assert res == dt(2001, 3, 30, 0, 0)
     res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn", roll=29)
     assert res == dt(2001, 3, 29, 0, 0)
+
+
+def test_book_example2():
+    cal = get_calendar("tgt|nyc")
+    cal2 = get_calendar("tgt,nyc")
+    # 11th Nov 09 is a US holiday: test that the holiday is ignored in the settlement cal
+    result = cal.add_bus_days(dt(2009, 11, 10), 2, True)
+    result2 = cal2.add_bus_days(dt(2009, 11, 10), 2, True)
+    assert result == dt(2009, 11, 12)
+    assert result2 == dt(2009, 11, 13)
+    
+    # test that the us settlement is honoured
+    result = cal.add_bus_days(dt(2009, 11, 9), 2, True)
+    result2 = cal.add_bus_days(dt(2009, 11, 9), 2, False)
+    assert result == dt(2009, 11, 12)
+    assert result2 == dt(2009, 11, 11)
+
+

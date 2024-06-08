@@ -459,7 +459,7 @@ impl DateRoll for UnionCal {
 }
 
 /// Enum defining the rule to adjust a non-business day to a business day.
-#[pyclass(module = "rateslib.rateslibrs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.
@@ -475,7 +475,7 @@ pub enum Modifier {
 }
 
 /// Enum defining the roll day.
-#[pyclass(module = "rateslib.rateslibrs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum RollDay {
     /// Inherit the day of the input date as the roll.

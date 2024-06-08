@@ -106,12 +106,22 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     if calendar is NoInput.blank:
         ret = CALENDARS["all"], "null"
     elif isinstance(calendar, str):
-        calendars = calendar.lower().split(",")
-        if len(calendars) == 1:  # only one named calendar is found
-            ret = CALENDARS[calendars[0]], "named"
-        else:
+        vectors = calendar.split("|")
+        if len(vectors) == 1:
+            calendars = vectors[0].lower().split(",")
+            if len(calendars) == 1:  # only one named calendar is found
+                ret = CALENDARS[calendars[0]], "named"
+            else:
+                cals = [CALENDARS[_] for _ in calendars]
+                ret = UnionCal(cals, None), "named"
+        elif len(vectors) == 2:
+            calendars = vectors[0].lower().split(",")
             cals = [CALENDARS[_] for _ in calendars]
-            ret = UnionCal(cals, None), "named"
+            settlement_calendars = vectors[1].lower().split(",")
+            sets = [CALENDARS[_] for _ in settlement_calendars]
+            ret = UnionCal(cals, sets), "named"
+        else:
+            raise ValueError("Pipe operator can only be used once in input, e.g. 'tgt|nyc'.")
     else:  # calendar is a Calendar object type
         ret = calendar, "custom"
 
