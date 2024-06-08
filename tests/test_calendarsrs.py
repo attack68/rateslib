@@ -101,4 +101,4 @@ class TestCal:
 
     def test_tyo_cal(self):
         tokyo = get_calendar("tyo")
-        assert tokyo.holidays[0] == dt(1970,1,1)
+        assert tokyo.holidays[0] == dt(1970, 1, 1)
