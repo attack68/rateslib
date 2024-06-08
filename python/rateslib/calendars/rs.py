@@ -121,7 +121,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
             sets = [CALENDARS[_] for _ in settlement_calendars]
             ret = UnionCal(cals, sets), "named"
         else:
-            raise ValueError("Pipe operator can only be used once in input, e.g. 'tgt|nyc'.")
+            raise ValueError("Pipe separator can only be used once in input, e.g. 'tgt|nyc'.")
     else:  # calendar is a Calendar object type
         ret = calendar, "custom"
 

@@ -468,3 +468,9 @@ def test_book_example2():
     assert result2 == dt(2009, 11, 11)
 
 
+def test_pipe_vectors():
+    get_calendar("tgt,stk|nyc,osl")
+
+def test_pipe_raises():
+    with pytest.raises(ValueError, match="Pipe separator can only be used once"):
+        get_calendar("tgt|nyc|stk")
