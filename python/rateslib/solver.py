@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Callable
-from itertools import combinations
-from uuid import uuid4
-from time import time
-import numpy as np
 import warnings
-from pandas import DataFrame, MultiIndex, concat, Series
+from itertools import combinations
+from time import time
+from typing import Callable, Optional, Union
+from uuid import uuid4
+
+import numpy as np
+from pandas import DataFrame, MultiIndex, Series, concat
 
 from rateslib import defaults
+from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
-from rateslib.curves import CompositeCurve, ProxyCurve, MultiCsaCurve
-from rateslib.fx import FXRates, FXForwards
-
+from rateslib.fx import FXForwards, FXRates
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

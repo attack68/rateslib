@@ -20,57 +20,41 @@
    )
 """
 
-from abc import abstractmethod, ABCMeta
-from datetime import datetime, timedelta
-from typing import Optional, Union
 import abc
 import warnings
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
 from functools import partial
+from typing import Optional, Union
+
+import numpy as np
+from pandas import DataFrame, MultiIndex, Series, concat, isna
+# from scipy.optimize import brentq
+from pandas.tseries.offsets import CustomBusinessDay
+
+from rateslib import defaults
+from rateslib.calendars import (_get_years_and_months, add_tenor, dcf,
+                                get_calendar)
+from rateslib.curves import (Curve, IndexCurve, LineCurve, average_rate,
+                             index_left)
+from rateslib.default import NoInput, _drb, plot
+from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
+from rateslib.fx import FXForwards, FXRates, forward_fx
+from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
+from rateslib.legs import (FixedLeg, FixedLegMtm, FloatLeg, FloatLegMtm,
+                           IndexFixedLeg, ZeroFixedLeg, ZeroFloatLeg,
+                           ZeroIndexLeg)
+from rateslib.periods import (Cashflow, FloatPeriod, FXCallPeriod, FXPutPeriod,
+                              IndexMixin, _disc_from_curve,
+                              _disc_maybe_from_curve, _get_fx_and_base,
+                              _maybe_local)
+from rateslib.solver import Solver, quadratic_eqn
 
 # from math import sqrt
 
-import numpy as np
 
-# from scipy.optimize import brentq
-from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, concat, Series, MultiIndex, isna
 
-from rateslib import defaults
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
-from rateslib.default import NoInput, plot, _drb
 
-from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
-from rateslib.solver import Solver, quadratic_eqn
-from rateslib.periods import (
-    Cashflow,
-    FloatPeriod,
-    _get_fx_and_base,
-    IndexMixin,
-    _disc_from_curve,
-    _disc_maybe_from_curve,
-    FXCallPeriod,
-    FXPutPeriod,
-    _maybe_local,
-)
-from rateslib.legs import (
-    FixedLeg,
-    FloatLeg,
-    FloatLegMtm,
-    FixedLegMtm,
-    ZeroFloatLeg,
-    ZeroFixedLeg,
-    ZeroIndexLeg,
-    IndexFixedLeg,
-)
-from rateslib.dual import (
-    Dual,
-    Dual2,
-    DualTypes,
-    dual_log,
-    gradient,
-)
-from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -9824,8 +9808,8 @@ class Portfolio(Sensitivities):
                 curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
             )
 
-        from multiprocessing import Pool
         from functools import partial
+        from multiprocessing import Pool
 
         func = partial(
             _instrument_npv,

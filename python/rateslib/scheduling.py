@@ -1,26 +1,17 @@
-from typing import Optional, Union, Any
 import calendar as calendar_mod
-from itertools import product
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from itertools import product
+from typing import Any, Optional, Union
+
 from pandas import DataFrame
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
+from rateslib.calendars import (_adjust_date, _get_modifier, _get_roll,
+                                _get_rollday, _is_eom, _is_eom_cal, _is_imm,
+                                _is_som, add_tenor, get_calendar)
 from rateslib.default import NoInput
-from rateslib.calendars import (
-    get_calendar,
-    _is_eom_cal,
-    add_tenor,
-    _adjust_date,
-    _is_eom,
-    _is_imm,
-    _is_som,
-    _get_roll,
-    _get_modifier,
-    _get_rollday,
-)
-
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

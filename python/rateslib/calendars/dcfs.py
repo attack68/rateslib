@@ -1,9 +1,11 @@
-from datetime import datetime
-from typing import Union
-from rateslib.default import NoInput
-from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 import calendar as calendar_mod
 import warnings
+from datetime import datetime
+from typing import Union
+
+from rateslib.calendars.rs import (CalInput, _get_modifier, _get_rollday,
+                                   get_calendar)
+from rateslib.default import NoInput
 
 
 def _dcf_act365f(start: datetime, end: datetime, *args):

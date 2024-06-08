@@ -1,27 +1,20 @@
 from __future__ import annotations  # type hinting
 
-from rateslib.dual import (
-    set_order_convert,
-    dual_exp,
-    dual_inv_norm_cdf,
-    DualTypes,
-    dual_norm_cdf,
-    dual_log,
-    dual_norm_pdf,
-    Dual,
-    Dual2,
-)
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
-from rateslib.default import plot, NoInput, plot3d
-from rateslib.solver import newton_1dim
-from rateslib.rs import index_left_f64
-from uuid import uuid4
-import numpy as np
-from typing import Union
 from datetime import datetime
+from typing import Union
+from uuid import uuid4
+
+import numpy as np
 from pandas import DataFrame
 from pytz import UTC
-from rateslib.default import _drb
+
+from rateslib.default import NoInput, _drb, plot, plot3d
+from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_inv_norm_cdf,
+                           dual_log, dual_norm_cdf, dual_norm_pdf,
+                           set_order_convert)
+from rateslib.rs import index_left_f64
+from rateslib.solver import newton_1dim
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 # class FXMoneyVolSmile:
 #

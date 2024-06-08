@@ -18,36 +18,27 @@
    )
 """
 
-from abc import abstractmethod, ABCMeta
-from datetime import datetime
-from typing import Optional, Union
 import abc
 import warnings
+from abc import ABCMeta, abstractmethod
+from datetime import datetime
+from typing import Optional, Union
 
 import pandas as pd
-from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, Series
+from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.default import NoInput
 from rateslib.calendars import add_tenor
-from rateslib.scheduling import Schedule
 from rateslib.curves import Curve, IndexCurve
-from rateslib.periods import (
-    IndexFixedPeriod,
-    FixedPeriod,
-    FloatPeriod,
-    Cashflow,
-    IndexCashflow,
-    IndexMixin,
-    _validate_float_args,
-    _get_fx_and_base,
-    _disc_from_curve,
-    _disc_maybe_from_curve,
-)
-from rateslib.dual import Dual, Dual2, set_order, DualTypes, gradient
+from rateslib.default import NoInput
+from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
 from rateslib.fx import FXForwards, FXRates
-
+from rateslib.periods import (Cashflow, FixedPeriod, FloatPeriod,
+                              IndexCashflow, IndexFixedPeriod, IndexMixin,
+                              _disc_from_curve, _disc_maybe_from_curve,
+                              _get_fx_and_base, _validate_float_args)
+from rateslib.scheduling import Schedule
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

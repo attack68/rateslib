@@ -1,8 +1,9 @@
-from typing import Optional, Union
-import numpy as np
-from functools import partial
 import math
+from functools import partial
 from statistics import NormalDist
+from typing import Optional, Union
+
+import numpy as np
 
 DUAL_CORE_PY = False
 
@@ -11,17 +12,8 @@ if DUAL_CORE_PY:
 else:
     from rateslib.dual.dualrs import Dual, Dual2
 
-from rateslib.dual.dual import (
-    _dsolve,
-    FLOATS,
-    INTS,
-)
-from rateslib.dual.dualrs import (
-    _dsolve1,
-    _dsolve2,
-    _fdsolve1,
-    _fdsolve2,
-)
+from rateslib.dual.dual import FLOATS, INTS, _dsolve
+from rateslib.dual.dualrs import _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 DualTypes = Union[float, Dual, Dual2]
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

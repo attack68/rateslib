@@ -8,30 +8,26 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from pytz import UTC
-from typing import Optional, Union, Callable, Any
-import numpy as np
-from uuid import uuid4
-import warnings
 import json
-from math import floor, comb
+import warnings
+from datetime import datetime, timedelta
+from math import comb, floor
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from uuid import uuid4
+
+import numpy as np
+from pytz import UTC
+
 from rateslib import defaults
-from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert, DualTypes, Dual2
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
-from rateslib.default import plot, NoInput
-from rateslib.calendars import (
-    create_calendar,
-    get_calendar,
-    add_tenor,
-    dcf,
-    CalInput,
-)
+from rateslib.calendars import (CalInput, add_tenor, create_calendar, dcf,
+                                get_calendar)
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
+from rateslib.default import NoInput, plot
+from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_log,
+                           set_order_convert)
 from rateslib.rs import index_left_f64
-
-from typing import TYPE_CHECKING
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover

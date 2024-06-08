@@ -49,90 +49,28 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.dual import Dual, Dual2, dual_log, dual_exp, dual_solve
-
-from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf, Cal, UnionCal
-
-from rateslib.splines import (
-    bsplev_single,
-    bspldnev_single,
-    PPSpline,
-    PPSplineF64,
-    PPSplineDual,
-    PPSplineDual2,
-)
-
-from rateslib.scheduling import Schedule
-
-from rateslib.curves import (
-    Curve,
-    LineCurve,
-    interpolate,
-    index_left,
-    IndexCurve,
-    CompositeCurve,
-    ProxyCurve,
-)
-
+from rateslib.calendars import (Cal, UnionCal, add_tenor, create_calendar, dcf,
+                                get_calendar)
+from rateslib.curves import (CompositeCurve, Curve, IndexCurve, LineCurve,
+                             ProxyCurve, index_left, interpolate)
+from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve
+from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
-
-from rateslib.fx import (
-    FXRates,
-    FXForwards,
-)
-
+from rateslib.instruments import (FRA, IIRS, IRS, SBS, XCS, ZCIS, ZCS, Bill,
+                                  BondFuture, FixedRateBond, FloatRateNote,
+                                  Fly, FXBrokerFly, FXCall, FXExchange, FXPut,
+                                  FXRiskReversal, FXStraddle, FXStrangle,
+                                  FXSwap, IndexFixedRateBond, Portfolio,
+                                  Spread, STIRFuture, Value, VolValue)
+from rateslib.legs import (CustomLeg, FixedLeg, FixedLegMtm, FloatLeg,
+                           FloatLegMtm, IndexFixedLeg, ZeroFixedLeg,
+                           ZeroFloatLeg, ZeroIndexLeg)
+from rateslib.periods import (Cashflow, FixedPeriod, FloatPeriod, FXCallPeriod,
+                              FXPutPeriod, IndexCashflow, IndexFixedPeriod)
+from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
-
-from rateslib.periods import (
-    FixedPeriod,
-    FloatPeriod,
-    Cashflow,
-    IndexFixedPeriod,
-    IndexCashflow,
-    FXPutPeriod,
-    FXCallPeriod,
-)
-
-from rateslib.legs import (
-    FixedLeg,
-    FixedLegMtm,
-    FloatLeg,
-    FloatLegMtm,
-    ZeroFloatLeg,
-    ZeroFixedLeg,
-    ZeroIndexLeg,
-    IndexFixedLeg,
-    CustomLeg,
-)
-
-from rateslib.instruments import (
-    Value,
-    VolValue,
-    Bill,
-    FixedRateBond,
-    IndexFixedRateBond,
-    FloatRateNote,
-    BondFuture,
-    IRS,
-    STIRFuture,
-    IIRS,
-    ZCS,
-    ZCIS,
-    FRA,
-    SBS,
-    FXSwap,
-    FXExchange,
-    XCS,
-    Spread,
-    Fly,
-    Portfolio,
-    FXCall,
-    FXPut,
-    FXRiskReversal,
-    FXStraddle,
-    FXStrangle,
-    FXBrokerFly,
-)
+from rateslib.splines import (PPSpline, PPSplineDual, PPSplineDual2,
+                              PPSplineF64, bspldnev_single, bsplev_single)
 
 # module level doc-string
 __doc__ = """
