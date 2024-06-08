@@ -1,11 +1,11 @@
-use crate::splines::spline_f64::{PPSpline, bsplev_single_f64, bspldnev_single_f64};
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
-use crate::dual::dual_py::{DualsOrF64};
+use crate::dual::dual_py::DualsOrF64;
+use crate::splines::spline_f64::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
+use pyo3::prelude::*;
 
 // use numpy::{PyArray1, ToPyArray, PyArrayMethods};
 // use ndarray::Array1;
@@ -143,13 +143,25 @@ create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
 
-
 #[pyfunction]
-pub fn bsplev_single(x: f64, i: usize, k: usize, t: Vec<f64>, org_k: Option<usize>) -> PyResult<f64> {
+pub fn bsplev_single(
+    x: f64,
+    i: usize,
+    k: usize,
+    t: Vec<f64>,
+    org_k: Option<usize>,
+) -> PyResult<f64> {
     Ok(bsplev_single_f64(&x, i, &k, &t, org_k))
 }
 
 #[pyfunction]
-pub fn bspldnev_single(x: f64, i: usize, k: usize, t: Vec<f64>, m: usize, org_k: Option<usize>) -> PyResult<f64> {
+pub fn bspldnev_single(
+    x: f64,
+    i: usize,
+    k: usize,
+    t: Vec<f64>,
+    m: usize,
+    org_k: Option<usize>,
+) -> PyResult<f64> {
     Ok(bspldnev_single_f64(&x, i, &k, &t, m, org_k))
 }

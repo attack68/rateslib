@@ -1,9 +1,11 @@
-from math import isclose
-from abc import abstractmethod, ABCMeta
-from typing import Optional
-from statistics import NormalDist
 import math
+from abc import ABCMeta, abstractmethod
+from math import isclose
+from statistics import NormalDist
+from typing import Optional
+
 import numpy as np
+
 from rateslib.default import NoInput
 
 PRECISION = 1e-14

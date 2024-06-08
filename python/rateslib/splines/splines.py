@@ -6,10 +6,11 @@
    from datetime import datetime as dt
 """
 
-import numpy as np
-from rateslib.dual import dual_solve
 from datetime import timedelta
 
+import numpy as np
+
+from rateslib.dual import dual_solve
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

@@ -17,51 +17,29 @@
        interpolation="log_linear",
    )
 """
-from abc import abstractmethod, ABCMeta
-from datetime import datetime
-from typing import Optional, Union
 import warnings
+from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from math import comb, log
+from typing import Optional, Union
 
 import numpy as np
 
-# from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, date_range, Series, NA, isna, notna
+from pandas import NA, DataFrame, Series, isna, notna
 
 from rateslib import defaults
+from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
+from rateslib.curves import (CompositeCurve, Curve, IndexCurve, LineCurve,
+                             average_rate, index_left)
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, dcf, _get_eom, CalInput
-from rateslib.curves import (
-    Curve,
-    LineCurve,
-    IndexCurve,
-    average_rate,
-    CompositeCurve,
-    index_left,
-)
-from rateslib.fx_volatility import (
-    FXDeltaVolSmile,
-    FXDeltaVolSurface,
-    _black76,
-    _delta_type_constants,
-    _d_plus_min_u,
-    FXVols,
-    FXVolObj,
-)
-from rateslib.splines import evaluate
-from rateslib.dual import (
-    Dual,
-    Dual2,
-    DualTypes,
-    dual_norm_cdf,
-    dual_norm_pdf,
-    dual_exp,
-    dual_log,
-    dual_inv_norm_cdf,
-    gradient,
-)
+from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_inv_norm_cdf,
+                           dual_log, dual_norm_cdf, dual_norm_pdf, gradient)
 from rateslib.fx import FXForwards, FXRates
-from rateslib.solver import newton_ndim, newton_1dim
+from rateslib.fx_volatility import (FXDeltaVolSmile, FXDeltaVolSurface,
+                                    FXVolObj, FXVols, _black76, _d_plus_min_u,
+                                    _delta_type_constants)
+from rateslib.solver import newton_1dim, newton_ndim
+from rateslib.splines import evaluate
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2734,7 +2712,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, FXVolObj):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_deli, w_spot, self.expiry)
+            _, vol_, _ = vol.get_from_strike(
+                self.strike, self.phi, f_d, w_deli, w_spot, self.expiry
+            )
         else:
             vol_ = vol
         vol_ /= 100.0

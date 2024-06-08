@@ -1,6 +1,6 @@
 //! Define an Oslo business day calendar, aligned with NOWA publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
+pub const WEEKMASK: &'static [u8] = &[5, 6]; // Saturday and Sunday weekend
 pub const RULES: &'static [&str] = &[
     "Jan 1 (New Year)",
     "Thu before Easter (Maundy Thursday)",

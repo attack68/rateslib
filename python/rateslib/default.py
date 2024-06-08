@@ -1,10 +1,12 @@
-import numpy as np
-from pandas import read_csv
-import pandas
 import os
-from enum import Enum
-from packaging import version
 from datetime import datetime
+from enum import Enum
+
+import numpy as np
+import pandas
+from packaging import version
+from pandas import read_csv
+
 from rateslib._spec_loader import INSTRUMENT_SPECS
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -287,8 +289,8 @@ Miscellaneous:\n
 
 
 def plot(x, y: list, labels=[]):
-    import matplotlib.pyplot as plt  # type: ignore[import]
     import matplotlib.dates as mdates  # type: ignore[import]
+    import matplotlib.pyplot as plt  # type: ignore[import]
 
     fig, ax = plt.subplots(1, 1)
     lines = []
@@ -314,6 +316,7 @@ def plot(x, y: list, labels=[]):
 def plot3d(x, y, z, labels=[]):
     import matplotlib.pyplot as plt  # type: ignore[import]
     from matplotlib import cm  # type: ignore[import]
+
     # import matplotlib.dates as mdates  # type: ignore[import]
 
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})

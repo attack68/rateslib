@@ -1,13 +1,13 @@
 //! Define a European Target holiday calendar, aligned with ESTR publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
+pub const WEEKMASK: &'static [u8] = &[5, 6]; // Saturday and Sunday weekend
 pub const RULES: &'static [&str] = &[
     "Jan 1 (New Year)",
     "Fri before Easter (Good Friday)",
     "Mon after Easter (Easter Monday)",
     "May 1 (EU Labour)",
     "Dec 25 (Christmas)",
-    "Dec 26 (Boxing Day)"
+    "Dec 26 (Boxing Day)",
 ];
 pub const HOLIDAYS: &'static [&str] = &[
     "1970-01-01 00:00:00",

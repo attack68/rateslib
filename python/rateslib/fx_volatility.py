@@ -1,27 +1,20 @@
 from __future__ import annotations  # type hinting
 
-from rateslib.dual import (
-    set_order_convert,
-    dual_exp,
-    dual_inv_norm_cdf,
-    DualTypes,
-    dual_norm_cdf,
-    dual_log,
-    dual_norm_pdf,
-    Dual,
-    Dual2,
-)
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2, evaluate
-from rateslib.default import plot, NoInput, plot3d
-from rateslib.solver import newton_1dim
-from rateslib.rs import index_left_f64
-from uuid import uuid4
-import numpy as np
-from typing import Union
 from datetime import datetime
+from typing import Union
+from uuid import uuid4
+
+import numpy as np
 from pandas import DataFrame
 from pytz import UTC
-from rateslib.default import _drb
+
+from rateslib.default import NoInput, _drb, plot, plot3d
+from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_inv_norm_cdf,
+                           dual_log, dual_norm_cdf, dual_norm_pdf,
+                           set_order_convert)
+from rateslib.rs import index_left_f64
+from rateslib.solver import newton_1dim
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 # class FXMoneyVolSmile:
 #
@@ -322,7 +315,7 @@ class FXDeltaVolSmile:
         f: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        expiry: Union[datetime, NoInput(0)] = NoInput(0)
+        expiry: Union[datetime, NoInput(0)] = NoInput(0),
     ) -> tuple:
         """
         Given an option strike return associated delta and vol values.
@@ -883,22 +876,19 @@ class FXDeltaVolSurface:
         self.expiries_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
         for idx in range(1, len(self.expiries)):
             if self.expiries[idx - 1] >= self.expiries[idx]:
-                raise ValueError(
-                    "Surface `expiries` are not sorted or contain duplicates.\n"
-                )
+                raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
         self.delta_indexes = delta_indexes
         self.delta_type = _validate_delta_type(delta_type)
         self.smiles = [
             FXDeltaVolSmile(
-                nodes={
-                    k: v for k, v in zip(self.delta_indexes, node_values[i, :])
-                },
+                nodes={k: v for k, v in zip(self.delta_indexes, node_values[i, :])},
                 expiry=expiry,
                 eval_date=self.eval_date,
                 delta_type=self.delta_type,
                 id=f"{self.id}_{i}_",
-            ) for i, expiry in enumerate(self.expiries)
+            )
+            for i, expiry in enumerate(self.expiries)
         ]
         self.n = len(self.expiries) * len(self.delta_indexes)
 
@@ -913,7 +903,7 @@ class FXDeltaVolSurface:
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
-            self.smiles[i]._set_node_vector(vector[i*m:i*m+m], ad)
+            self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -945,18 +935,16 @@ class FXDeltaVolSurface:
             return self.smiles[0]
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            return self.smiles[e_idx+1]
+            return self.smiles[e_idx + 1]
         elif expiry_posix > self.expiries_posix[-1]:
             # use the data from the last smile
             _ = FXDeltaVolSmile(
-                nodes={
-                    k: v for k, v in zip(self.delta_indexes, self.smiles[-1].nodes.values())
-                },
+                nodes={k: v for k, v in zip(self.delta_indexes, self.smiles[-1].nodes.values())},
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
                 delta_type=self.delta_type,
-                id=self.smiles[-1].id + "_ext"
+                id=self.smiles[-1].id + "_ext",
             )
             return _
         elif expiry <= self.eval_date:
@@ -964,31 +952,36 @@ class FXDeltaVolSurface:
         elif expiry_posix < self.expiries_posix[0]:
             # use the data from the first smile
             _ = FXDeltaVolSmile(
-                nodes={
-                    k: v for k, v in zip(self.delta_indexes, self.smiles[0].nodes.values())
-                },
+                nodes={k: v for k, v in zip(self.delta_indexes, self.smiles[0].nodes.values())},
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
                 delta_type=self.delta_type,
-                id=self.smiles[-1].id + "_ext"
+                id=self.smiles[-1].id + "_ext",
             )
             return _
         else:
             _ = FXDeltaVolSmile(
                 nodes={
-                    k: self._t_var_interp(self.eval_posix, self.expiries_posix[e_idx], vol1, self.expiries_posix[e_idx+1], vol2, expiry_posix)
+                    k: self._t_var_interp(
+                        self.eval_posix,
+                        self.expiries_posix[e_idx],
+                        vol1,
+                        self.expiries_posix[e_idx + 1],
+                        vol2,
+                        expiry_posix,
+                    )
                     for k, vol1, vol2 in zip(
                         self.delta_indexes,
                         self.smiles[e_idx].nodes.values(),
-                        self.smiles[e_idx+1].nodes.values()
+                        self.smiles[e_idx + 1].nodes.values(),
                     )
                 },
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
                 delta_type=self.delta_type,
-                id=self.smiles[e_idx].id + "_" + self.smiles[e_idx+1].id + "_intp"
+                id=self.smiles[e_idx].id + "_" + self.smiles[e_idx + 1].id + "_intp",
             )
             return _
 
@@ -1018,11 +1011,11 @@ class FXDeltaVolSurface:
         """
         # 86400 posix seconds per day
         # 31536000 posix seconds per 365 day year
-        t_var_1 = (ep1 - eval_posix) * vol1 ** 2
-        t_var_2 = (ep2 - eval_posix) * vol2 ** 2
+        t_var_1 = (ep1 - eval_posix) * vol1**2
+        t_var_2 = (ep2 - eval_posix) * vol2**2
         _ = t_var_1 + (t_var_2 - t_var_1) * (ep_t - ep1) / (ep2 - ep1)
-        _ /= (ep_t - eval_posix)
-        return _ ** 0.5
+        _ /= ep_t - eval_posix
+        return _**0.5
 
     def get_from_strike(
         self,
@@ -1031,7 +1024,7 @@ class FXDeltaVolSurface:
         f: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        expiry: Union[datetime, NoInput(0)] = NoInput(0)
+        expiry: Union[datetime, NoInput(0)] = NoInput(0),
     ) -> tuple:
         """
         Given an option strike and expiry return associated delta and vol values.
@@ -1062,9 +1055,7 @@ class FXDeltaVolSurface:
         ``k``.
         """
         if expiry is NoInput.blank:
-            raise ValueError(
-                "`expiry` required to get cross-section of FXDeltaVolSurface."
-            )
+            raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
         smile = self.get_smile(expiry)
         return smile.get_from_strike(k, phi, f, w_deli, w_spot, expiry)
 
@@ -1079,9 +1070,8 @@ class FXDeltaVolSurface:
         plot_upper_bound = max([_.plot_upper_bound for _ in self.smiles])
         deltas = np.linspace(0.0, plot_upper_bound, 20)
         vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
-        expiries = [(_ - self.eval_posix)/(365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
+        expiries = [(_ - self.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
         return plot3d(deltas, expiries, vols)
-
 
 
 def _validate_delta_type(delta_type: str):

@@ -1,6 +1,7 @@
 from typing import Union
+
 from rateslib.default import NoInput
-from rateslib.rs import Cal, UnionCal, get_named_calendar, RollDay, Modifier
+from rateslib.rs import Cal, Modifier, RollDay, UnionCal, get_named_calendar
 
 CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]
@@ -25,7 +26,7 @@ def _get_modifier(modifier: str) -> Modifier:
             "MF": Modifier.ModF,
             "P": Modifier.P,
             "MP": Modifier.ModP,
-            "NONE": Modifier.Act
+            "NONE": Modifier.Act,
         }[modifier.upper()]
     except KeyError:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
@@ -45,9 +46,7 @@ CALENDARS: dict[str, CalTypes] = {
 }
 
 
-def get_calendar(
-    calendar: CalInput, kind: bool = False
-) -> Union[CalTypes, tuple[CalTypes, str]]:
+def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tuple[CalTypes, str]]:
     """
     Returns a calendar object either from an available set or a user defined input.
 
