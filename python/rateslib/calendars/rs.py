@@ -80,6 +80,16 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     - *"tro"*: Toronto for Canada's CORRA.
     - *"tyo"*: Tokyo for Japan's TONA.
 
+    Combined calendars can be created with comma separated input, e.g. *"tgt,nyc"*. This would
+    be the typical calendar assigned to a cross-currency derivative such as a EUR/USD
+    cross-currency swap.
+
+    For short-dated, FX instrument date calculations a concept known as an
+    **associated settlement calendars** is introduced. This uses a secondary calendar to determine
+    if a calculated date is a valid settlement day, but it is not used in the determination
+    of tenor dates. For a EURUSD FX instrument the appropriate calendar combination is *"tgt|nyc"*.
+    For a GBPEUR FX instrument the appropriate calendar combination is *"ldn,tgt|nyc"*.
+
     Examples
     --------
     .. ipython:: python
