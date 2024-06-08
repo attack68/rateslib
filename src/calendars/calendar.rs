@@ -345,12 +345,10 @@ pub trait DateRoll {
 
         if !settlement {
             Ok(new_date)
+        } else if days < 0 {
+            Ok(self.roll_backward_settled_bus_day(&new_date))
         } else {
-            if days < 0 {
-                Ok(self.roll_backward_settled_bus_day(&new_date))
-            } else {
-                Ok(self.roll_forward_settled_bus_day(&new_date))
-            }
+            Ok(self.roll_forward_settled_bus_day(&new_date))
         }
     }
 

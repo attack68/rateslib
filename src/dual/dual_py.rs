@@ -356,7 +356,7 @@ impl Dual2 {
 
     #[pyo3(name = "ptr_eq")]
     fn ptr_eq_py(&self, other: &Dual2) -> PyResult<bool> {
-        Ok(self.ptr_eq(&other))
+        Ok(self.ptr_eq(other))
     }
 
     fn __repr__(&self) -> PyResult<String> {

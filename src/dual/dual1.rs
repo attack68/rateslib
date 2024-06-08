@@ -117,7 +117,7 @@ where
         Self: Sized,
     {
         let comb_vars = Arc::new(IndexSet::from_iter(
-            self.vars().union(&other.vars()).map(|x| x.clone()),
+            self.vars().union(other.vars()).cloned(),
         ));
         (
             self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
@@ -156,7 +156,7 @@ impl Vars for Dual {
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
         let dual_: Array1<f64>;
-        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
+        let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
         match match_val {
             VarsState::EquivByArc | VarsState::EquivByVal => dual_ = self.dual.clone(),
             _ => {
@@ -330,7 +330,7 @@ impl Dual {
 
     /// Get the real component value of the struct.
     pub fn real(&self) -> f64 {
-        self.real.clone()
+        self.real
     }
 }
 

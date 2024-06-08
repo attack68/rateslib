@@ -51,7 +51,7 @@ impl Vars for Dual2 {
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
         let dual_: Array1<f64>;
         let mut dual2_: Array2<f64> = Array2::zeros((arc_vars.len(), arc_vars.len()));
-        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
+        let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
         match match_val {
             VarsState::EquivByArc | VarsState::EquivByVal => {
                 dual_ = self.dual.clone();
