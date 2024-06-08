@@ -25,7 +25,7 @@ def _get_modifier(modifier: str) -> Modifier:
             "MF": Modifier.ModF,
             "P": Modifier.P,
             "MP": Modifier.ModP,
-            "NONE": Modifier.Act
+            "NONE": Modifier.Act,
         }[modifier.upper()]
     except KeyError:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
@@ -45,9 +45,7 @@ CALENDARS: dict[str, CalTypes] = {
 }
 
 
-def get_calendar(
-    calendar: CalInput, kind: bool = False
-) -> Union[CalTypes, tuple[CalTypes, str]]:
+def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tuple[CalTypes, str]]:
     """
     Returns a calendar object either from an available set or a user defined input.
 

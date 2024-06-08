@@ -7,7 +7,7 @@ from rateslib.calendars.rs import (
     Cal,
     _get_modifier,
     _get_rollday,
-    get_calendar
+    get_calendar,
 )
 from rateslib.default import NoInput
 from rateslib.calendars.dcfs import _DCF
@@ -230,9 +230,13 @@ def add_tenor(
         return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
         months = int(float(tenor[:-1]) * 12)
-        return cal_.add_months(start, months, _get_modifier(modifier), _get_rollday(roll), settlement)
+        return cal_.add_months(
+            start, months, _get_modifier(modifier), _get_rollday(roll), settlement
+        )
     elif "M" in tenor:
-        return cal_.add_months(start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement)
+        return cal_.add_months(
+            start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement
+        )
     elif "W" in tenor:
         return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier), settlement)
     else:

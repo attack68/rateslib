@@ -314,6 +314,7 @@ def plot(x, y: list, labels=[]):
 def plot3d(x, y, z, labels=[]):
     import matplotlib.pyplot as plt  # type: ignore[import]
     from matplotlib import cm  # type: ignore[import]
+
     # import matplotlib.dates as mdates  # type: ignore[import]
 
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})

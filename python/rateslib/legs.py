@@ -283,9 +283,7 @@ class BaseLeg(metaclass=ABCMeta):
                 Cashflow(
                     self.notional - self.amortization * (self.schedule.n_periods - 1),
                     self.schedule.calendar.lag(
-                        self.schedule.aschedule[-1],
-                        self.payment_lag_exchange,
-                        True
+                        self.schedule.aschedule[-1], self.payment_lag_exchange, True
                     ),
                     self.currency,
                     "Exchange",
@@ -1881,9 +1879,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                 IndexCashflow(
                     notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
                     payment=self.schedule.calendar.lag(
-                        self.schedule.aschedule[-1],
-                        self.payment_lag_exchange,
-                        True
+                        self.schedule.aschedule[-1], self.payment_lag_exchange, True
                     ),
                     currency=self.currency,
                     stub_type="Exchange",

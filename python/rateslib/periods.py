@@ -2734,7 +2734,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, FXVolObj):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_deli, w_spot, self.expiry)
+            _, vol_, _ = vol.get_from_strike(
+                self.strike, self.phi, f_d, w_deli, w_spot, self.expiry
+            )
         else:
             vol_ = vol
         vol_ /= 100.0

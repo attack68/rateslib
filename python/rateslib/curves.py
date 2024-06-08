@@ -113,9 +113,7 @@ class _Serialize:
 
         if serial["calendar_type"] == "custom":
             # must load and construct a custom holiday calendar from serial dates
-            dates = [
-                datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]
-            ]
+            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
             serial["calendar"] = create_calendar(
                 rules=dates, week_mask=serial["calendar"]["weekmask"]
             )
@@ -1166,8 +1164,9 @@ class Curve(_Serialize):
             # pre-adjust the end date to enforce business date.
             right_: datetime = add_tenor(
                 self.calendar.roll(self.node_dates[-1], Modifier.P, False),
-                "-" + upper_tenor, "P",
-                self.calendar
+                "-" + upper_tenor,
+                "P",
+                self.calendar,
             )
         elif isinstance(right, str):
             right_ = add_tenor(self.node_dates[0], right, "P", NoInput(0))
@@ -1248,7 +1247,7 @@ class Curve(_Serialize):
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
-        return np.array(list(self.nodes.values())[self._ini_solve:])
+        return np.array(list(self.nodes.values())[self._ini_solve :])
 
     def _get_node_vars(self):
         """Get the variable names of elements updated by a Solver"""

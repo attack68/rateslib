@@ -107,7 +107,11 @@ def _dcf_actacticma(
                 fwd_end_0 = fwd_end_1
                 fraction += 1.0
                 fwd_end_1 = cal_.add_months(
-                    start, (int(fraction) + 1) * frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+                    start,
+                    (int(fraction) + 1) * frequency_months,
+                    _get_modifier("NONE"),
+                    _get_rollday(roll),
+                    False,
                 )
 
             fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
@@ -120,7 +124,11 @@ def _dcf_actacticma(
                 prev_start_0 = prev_start_1
                 fraction += 1.0
                 prev_start_1 = cal_.add_months(
-                    end, -(int(fraction) + 1) * frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+                    end,
+                    -(int(fraction) + 1) * frequency_months,
+                    _get_modifier("NONE"),
+                    _get_rollday(roll),
+                    False,
                 )
 
             fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
@@ -152,7 +160,9 @@ def _dcf_actacticma_stub365f(
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
-            fwd_end = cal_.add_months(start, frequency_months, _get_modifier("NONE"), _get_rollday(roll), False)
+            fwd_end = cal_.add_months(
+                start, frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+            )
             r = (end - start).days
             s = (fwd_end - start).days
             if end > fwd_end:  # stub is LONG
@@ -165,7 +175,9 @@ def _dcf_actacticma_stub365f(
                     d_ = frequency_months / 12 - (s - r) / 365.0
 
         else:  # stub is a FRONT stub
-            prev_start = cal_.add_months(end, -frequency_months, _get_modifier("NONE"), _get_rollday(roll), False)
+            prev_start = cal_.add_months(
+                end, -frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+            )
             r = (end - start).days
             s = (end - prev_start).days
             if start < prev_start:  # stub is LONG

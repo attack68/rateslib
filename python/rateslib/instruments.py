@@ -50,7 +50,7 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     FXCallPeriod,
     FXPutPeriod,
-    _maybe_local
+    _maybe_local,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -1277,9 +1277,7 @@ class BondMixin:
             settlement,
         )
         ex_div_date = self.leg1.schedule.calendar.lag(
-            self.leg1.schedule.uschedule[prev_a_idx + 1],
-            -self.kwargs['ex_div'],
-            True
+            self.leg1.schedule.uschedule[prev_a_idx + 1], -self.kwargs["ex_div"], True
         )
         if self.calc_mode in []:  # currently no identified calc_modes
             return True if settlement >= ex_div_date else False  # pragma: no cover
@@ -1878,9 +1876,7 @@ class BondMixin:
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
         settlement = self.leg1.schedule.calendar.lag(
-            curves[1].node_dates[0],
-            self.kwargs['settle'],
-            True
+            curves[1].node_dates[0], self.kwargs["settle"], True
         )
         npv = self._npv_local(curves[0], curves[1], settlement, NoInput(0))
         return _maybe_local(npv, local, self.leg1.currency, fx_, base_)
@@ -2547,7 +2543,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             if forward_settlement is NoInput.blank:
                 settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    self.kwargs['settle'],
+                    self.kwargs["settle"],
                     True,
                 )
             else:
@@ -8308,10 +8304,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     f=self._pricing["f_d"],
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    expiry=self.kwargs["expiry"]
+                    expiry=self.kwargs["expiry"],
                 )
             else:
-                self._pricing["vol"] = vol._get_index(self._pricing["delta_index"], self.kwargs["expiry"])
+                self._pricing["vol"] = vol._get_index(
+                    self._pricing["delta_index"], self.kwargs["expiry"]
+                )
 
     def _set_premium(
         self,
@@ -10087,6 +10085,3 @@ def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.upper()
     return val
-
-
-

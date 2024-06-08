@@ -531,8 +531,7 @@ class Schedule:
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
-            self.calendar.lag(dt, self.payment_lag, settlement=True)
-            for dt in self.aschedule
+            self.calendar.lag(dt, self.payment_lag, settlement=True) for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
         if self.front_stub is not NoInput(0):
@@ -1202,7 +1201,13 @@ def _get_unadjusted_short_stub_date(
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = cal_.add_months(ueffective, frequency_months * direction, _get_modifier("NONE"), _get_rollday(roll), False)
+                _ = cal_.add_months(
+                    ueffective,
+                    frequency_months * direction,
+                    _get_modifier("NONE"),
+                    _get_rollday(roll),
+                    False,
+                )
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = ueffective
@@ -1211,7 +1216,13 @@ def _get_unadjusted_short_stub_date(
         else:  # stub_side == "BACK"
             comparison = _get_roll(utermination.month, utermination.year, roll)
             if utermination.day < comparison.day:
-                _ = cal_.add_months(utermination, frequency_months * direction, _get_modifier("NONE"), _get_rollday(roll), False)
+                _ = cal_.add_months(
+                    utermination,
+                    frequency_months * direction,
+                    _get_modifier("NONE"),
+                    _get_rollday(roll),
+                    False,
+                )
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = utermination
@@ -1219,7 +1230,13 @@ def _get_unadjusted_short_stub_date(
 
     else:
         for month_offset in range(1, 12):
-            stub_date = cal_.add_months(stub_side_dt, month_offset * direction, _get_modifier("NONE"), _get_rollday(roll), False)
+            stub_date = cal_.add_months(
+                stub_side_dt,
+                month_offset * direction,
+                _get_modifier("NONE"),
+                _get_rollday(roll),
+                False,
+            )
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
         # _ = _get_roll(stub_date.month, stub_date.year, roll)
@@ -1314,7 +1331,13 @@ def _generate_regular_schedule_unadjusted(
     yield _
     cal_ = get_calendar(NoInput(0))
     for i in range(int(n_periods)):
-        _ = cal_.add_months(_, defaults.frequency_months[frequency], _get_modifier("NONE"), _get_rollday(roll), False)
+        _ = cal_.add_months(
+            _,
+            defaults.frequency_months[frequency],
+            _get_modifier("NONE"),
+            _get_rollday(roll),
+            False,
+        )
         # _ = _get_roll(_.month, _.year, roll)
         yield _
 
