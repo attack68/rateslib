@@ -56,24 +56,24 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
     }
 }
 
-// fn get_rules_by_name(name: &str) -> Result<Vec<&str>, PyErr> {
-//     let hmap: HashMap<&str, &[&str]> = HashMap::from([
-//         ("all", all::RULES),
-//         ("bus", bus::RULES),
-//         ("nyc", nyc::RULES),
-//         ("tgt", tgt::RULES),
-//         ("ldn", ldn::RULES),
-//         ("stk", stk::RULES),
-//         ("osl", osl::RULES),
-//         ("zur", zur::RULES),
-//         ("tro", tro::RULES),
-//         ("tyo", tyo::RULES),
-//     ]);
-//     match hmap.get(name) {
-//         None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
-//         Some(value) => Ok(value.to_vec())
-//     }
-// }
+fn get_rules_by_name(name: &str) -> Result<Vec<&str>, PyErr> {
+    let hmap: HashMap<&str, &[&str]> = HashMap::from([
+        ("all", all::RULES),
+        ("bus", bus::RULES),
+        ("nyc", nyc::RULES),
+        ("tgt", tgt::RULES),
+        ("ldn", ldn::RULES),
+        ("stk", stk::RULES),
+        ("osl", osl::RULES),
+        ("zur", zur::RULES),
+        ("tro", tro::RULES),
+        ("tyo", tyo::RULES),
+    ]);
+    match hmap.get(name) {
+        None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
+        Some(value) => Ok(value.to_vec())
+    }
+}
 
 /// Return a static `Cal` specified by a named identifier.
 ///
@@ -85,7 +85,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 /// let ldn_cal = get_calendar_by_name("ldn")?;
 /// ```
 pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
-    Ok(Cal::new(get_holidays_by_name(name)?, get_weekmask_by_name(name)?))
+    Ok(Cal::new(get_holidays_by_name(name)?, get_weekmask_by_name(name)?, get_rules_by_name(name)?))
 }
 
 // UNIT TESTS
@@ -107,9 +107,15 @@ mod tests {
     }
 
     #[test]
+    fn test_get_rules() {
+        let result = get_rules_by_name("bus").unwrap();
+        assert_eq!(result, Vec::<&str>::new());
+    }
+
+    #[test]
     fn test_get_cal() {
         let result = get_calendar_by_name("bus").unwrap();
-        let expected = Cal::new(vec![], vec![5, 6]);
+        let expected = Cal::new(vec![], vec![5, 6], vec![]);
         assert_eq!(result, expected);
     }
 
