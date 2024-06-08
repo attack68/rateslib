@@ -79,6 +79,35 @@ This requires a list of ``holidays`` and a ``week_mask``.
    custom_cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
 
 
+Calendar combinations
+**********************
+
+Custom calendar combinations can be constructed with the :class:`~rateslib.calendars.UnionCal`
+class. It requires a list of *Cal* objects to form the union of non-business dates,
+and another, secondary list, of associated ``settlement_calendars``, to validate
+calculated dates against.
+
+Combined calendars can also be constructed automatically with string parsing.
+Comma separation forms a union of calendars. For example the appropriate calendar
+for a EUR/USD cross-currency swap is *"tgt,nyc"* for TARGET and New York.
+
+The appropriate holiday calendar to use for a EURUSD FX instrument, such as spot
+determination is *"tgt|nyc"*, which performs date manipulation under a TARGET calendar
+but enforces associated settlement against the New York calendar.
+
+.. ipython:: python
+
+   # Combined calendar with no associated settlement calendar
+   tgt_nyc = get_calendar("tgt,nyc")
+   tgt_nyc.is_bus_day(dt(2009, 11, 11))
+   tgt_nyc.is_settlement(dt(2009, 11, 11))
+
+   # TARGET calendar enforcing New York settlement
+   tgt_nyc_settle = get_calendar("tgt|nyc")
+   tgt_nyc_settle.is_bus_day(dt(2009, 11, 11))
+   tgt_nyc_settle.is_settlement(dt(2009, 11, 11))
+
+
 Day count fractions (DCFs)
 **************************
 

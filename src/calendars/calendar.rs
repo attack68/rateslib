@@ -452,15 +452,14 @@ impl DateRoll for UnionCal {
     }
 
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        match &self.settlement_calendars {
-            None => true,
-            Some(cals) => !cals.iter().any(|cal| cal.is_holiday(date)),
-        }
+        self.settlement_calendars.as_ref().map_or(
+            true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date))
+        )
     }
 }
 
 /// Enum defining the rule to adjust a non-business day to a business day.
-#[pyclass(module = "rateslib.rateslibrs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.
@@ -476,7 +475,7 @@ pub enum Modifier {
 }
 
 /// Enum defining the roll day.
-#[pyclass(module = "rateslib.rateslibrs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum RollDay {
     /// Inherit the day of the input date as the roll.
@@ -869,6 +868,23 @@ mod tests {
     }
 
     #[test]
+    fn test_add_bus_days_with_settlement() {
+        let cal = Cal::new(vec![ndt(2024, 6, 5)], vec![5,6]);
+        let settle = Cal::new(vec![ndt(2024, 6, 4), ndt(2024, 6, 6)], vec![5,6]);
+        let union = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        let result = union.add_bus_days(&ndt(2024, 6, 4), 1, false).unwrap();
+        assert_eq!(result, ndt(2024, 6, 6)); //
+        let result = union.add_bus_days(&ndt(2024, 6, 4), 1, true).unwrap();
+        assert_eq!(result, ndt(2024, 6, 7)); //
+
+        let result = union.add_bus_days(&ndt(2024, 6, 6), -1, false).unwrap();
+        assert_eq!(result, ndt(2024, 6, 4)); //
+        let result = union.add_bus_days(&ndt(2024, 6, 6), -1, true).unwrap();
+        assert_eq!(result, ndt(2024, 6, 3)); //
+    }
+
+    #[test]
     fn test_docstring() {
         let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]); // UK Monday 1st May Bank Holiday
         let tky = Cal::new(
@@ -1029,4 +1045,5 @@ mod tests {
             );
         }
     }
+
 }

@@ -28,6 +28,9 @@ email contact through **rateslib@gmail.com**.
      - :red:`Breaking Change!` The :meth:`~rateslib.calendars.create_calendar` methods is deprecated and
        modified to accept different input arguments.
    * - Calendars
+     - Calendar string parsing has been enhanced to allow associated settlement calendars, and
+       automatic creation of a :class:`~rateslib.calendars.UnionCal` object. E.g. *"tgt,ldn|nyc"*.
+   * - Calendars
      - The tokyo calendar *'tyo'* has been added to align with TONA publication.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".

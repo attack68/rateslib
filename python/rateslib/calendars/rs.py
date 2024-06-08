@@ -80,6 +80,16 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     - *"tro"*: Toronto for Canada's CORRA.
     - *"tyo"*: Tokyo for Japan's TONA.
 
+    Combined calendars can be created with comma separated input, e.g. *"tgt,nyc"*. This would
+    be the typical calendar assigned to a cross-currency derivative such as a EUR/USD
+    cross-currency swap.
+
+    For short-dated, FX instrument date calculations a concept known as an
+    **associated settlement calendars** is introduced. This uses a secondary calendar to determine
+    if a calculated date is a valid settlement day, but it is not used in the determination
+    of tenor dates. For a EURUSD FX instrument the appropriate calendar combination is *"tgt|nyc"*.
+    For a GBPEUR FX instrument the appropriate calendar combination is *"ldn,tgt|nyc"*.
+
     Examples
     --------
     .. ipython:: python
@@ -106,12 +116,22 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     if calendar is NoInput.blank:
         ret = CALENDARS["all"], "null"
     elif isinstance(calendar, str):
-        calendars = calendar.lower().split(",")
-        if len(calendars) == 1:  # only one named calendar is found
-            ret = CALENDARS[calendars[0]], "named"
-        else:
+        vectors = calendar.split("|")
+        if len(vectors) == 1:
+            calendars = vectors[0].lower().split(",")
+            if len(calendars) == 1:  # only one named calendar is found
+                ret = CALENDARS[calendars[0]], "named"
+            else:
+                cals = [CALENDARS[_] for _ in calendars]
+                ret = UnionCal(cals, None), "named"
+        elif len(vectors) == 2:
+            calendars = vectors[0].lower().split(",")
             cals = [CALENDARS[_] for _ in calendars]
-            ret = UnionCal(cals, None), "named"
+            settlement_calendars = vectors[1].lower().split(",")
+            sets = [CALENDARS[_] for _ in settlement_calendars]
+            ret = UnionCal(cals, sets), "named"
+        else:
+            raise ValueError("Pipe separator can only be used once in input, e.g. 'tgt|nyc'.")
     else:  # calendar is a Calendar object type
         ret = calendar, "custom"
 

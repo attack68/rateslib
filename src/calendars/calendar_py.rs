@@ -43,6 +43,11 @@ impl Cal {
         self.is_non_bus_day(&date)
     }
 
+    #[pyo3(name = "is_settlement")]
+    fn is_settlement_py(&self, date: NaiveDateTime) -> bool {
+        self.is_settlement(&date)
+    }
+
     #[pyo3(name = "add_days")]
     fn add_days_py(
         &self,
@@ -160,6 +165,11 @@ impl UnionCal {
     #[pyo3(name = "is_non_bus_day")]
     fn is_non_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_non_bus_day(&date)
+    }
+
+    #[pyo3(name = "is_settlement")]
+    fn is_settlement_py(&self, date: NaiveDateTime) -> bool {
+        self.is_settlement(&date)
     }
 
     #[pyo3(name = "add_days")]

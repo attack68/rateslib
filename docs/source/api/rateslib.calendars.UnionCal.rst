@@ -30,6 +30,7 @@ UnionCal
    .. include:: rateslib.calendars.UnionCal.cal_date_range.rst
    .. include:: rateslib.calendars.UnionCal.is_bus_day.rst
    .. include:: rateslib.calendars.UnionCal.is_non_bus_day.rst
+   .. include:: rateslib.calendars.UnionCal.is_settlement.rst
    .. include:: rateslib.calendars.UnionCal.lag.rst
    .. include:: rateslib.calendars.UnionCal.roll.rst
 
