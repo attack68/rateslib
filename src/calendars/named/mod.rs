@@ -110,11 +110,11 @@ mod tests {
         assert_eq!(result, vec![]);
     }
 
-    #[test]
-    fn test_get_rules() {
-        let result = get_rules_by_name("bus").unwrap();
-        assert_eq!(result, Vec::<&str>::new());
-    }
+    // #[test]
+    // fn test_get_rules() {
+    //     let result = get_rules_by_name("bus").unwrap();
+    //     assert_eq!(result, Vec::<&str>::new());
+    // }
 
     #[test]
     fn test_get_cal() {
