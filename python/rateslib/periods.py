@@ -24,8 +24,8 @@ from math import comb, log
 from typing import Optional, Union
 
 import numpy as np
-# from pandas.tseries.offsets import CustomBusinessDay
-from pandas import NA, DataFrame, Series, date_range, isna, notna
+
+from pandas import NA, DataFrame, Series, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
