@@ -117,7 +117,7 @@ where
         Self: Sized,
     {
         let comb_vars = Arc::new(IndexSet::from_iter(
-            self.vars().union(&other.vars()).map(|x| x.clone()),
+            self.vars().union(other.vars()).cloned(),
         ));
         (
             self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
@@ -155,18 +155,17 @@ impl Vars for Dual {
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
     fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
-        let dual_: Array1<f64>;
-        let match_val = state.unwrap_or_else(|| self.vars_cmp(&arc_vars));
-        match match_val {
-            VarsState::EquivByArc | VarsState::EquivByVal => dual_ = self.dual.clone(),
+        let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
+        let dual_: Array1<f64> = match match_val {
+            VarsState::EquivByArc | VarsState::EquivByVal => self.dual.clone(),
             _ => {
                 let lookup_or_zero = |v| match self.vars.get_index_of(v) {
                     Some(idx) => self.dual[idx],
                     None => 0.0_f64,
                 };
-                dual_ = Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect());
+                Array1::from_vec(arc_vars.iter().map(lookup_or_zero).collect())
             }
-        }
+        };
         Self {
             real: self.real,
             vars: Arc::clone(arc_vars),
@@ -195,10 +194,7 @@ pub trait Gradient1: Vars {
                     .map(|x| self.vars().get_index_of(x))
                     .enumerate()
                 {
-                    match index {
-                        Some(value) => dual_[i] = self.dual()[value],
-                        None => {}
-                    }
+                    if let Some(value) = index { dual_[i] = self.dual()[value] }
                 }
                 dual_
             }
@@ -330,7 +326,7 @@ impl Dual {
 
     /// Get the real component value of the struct.
     pub fn real(&self) -> f64 {
-        self.real.clone()
+        self.real
     }
 }
 
@@ -1196,30 +1192,30 @@ mod tests {
     #[test]
     fn vars_cmp_profile() {
         // Setup
-        let VARS = 500_usize;
+        let vars = 500_usize;
         let x = Dual::try_new(
             1.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (1..=VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (1..=vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let y = Dual::try_new(
             1.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (1..=VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (1..=vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let z = Dual::new_from(&x, 1.0, Vec::new());
         let u = Dual::try_new(
             1.5,
-            (1..VARS).map(|x| x.to_string()).collect(),
-            (1..VARS).map(|x| x as f64).collect(),
+            (1..vars).map(|x| x.to_string()).collect(),
+            (1..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let s = Dual::try_new(
             1.5,
-            (0..(VARS - 1)).map(|x| x.to_string()).collect(), // 2..Vars+1 13us  0..Vars-1  48ns
-            (1..VARS).map(|x| x as f64).collect(),
+            (0..(vars - 1)).map(|x| x.to_string()).collect(), // 2..Vars+1 13us  0..Vars-1  48ns
+            (1..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
 
@@ -1275,30 +1271,30 @@ mod tests {
     #[test]
     fn to_union_vars_profile() {
         // Setup
-        let VARS = 500_usize;
+        let vars = 500_usize;
         let x = Dual::try_new(
             1.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (0..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let y = Dual::try_new(
             1.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (0..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let z = Dual::new_from(&x, 1.0, Vec::new());
         let u = Dual::try_new(
             1.5,
-            (1..VARS).map(|x| x.to_string()).collect(),
-            (1..VARS).map(|x| x as f64).collect(),
+            (1..vars).map(|x| x.to_string()).collect(),
+            (1..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let s = Dual::try_new(
             1.5,
-            (0..(VARS - 1)).map(|x| x.to_string()).collect(),
-            (0..(VARS - 1)).map(|x| x as f64).collect(),
+            (0..(vars - 1)).map(|x| x.to_string()).collect(),
+            (0..(vars - 1)).map(|x| x as f64).collect(),
         )
         .unwrap();
 
@@ -1363,11 +1359,11 @@ mod tests {
             &(&(a + b) * &(c / d)) - a
         }
 
-        let VARS = 500_usize;
+        let vars = 500_usize;
         let a = Dual::try_new(
             1.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (0..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         // let b = Dual::new(
@@ -1388,22 +1384,22 @@ mod tests {
         let b = Dual::try_new_from(
             &a,
             3.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (0..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let c = Dual::try_new_from(
             &a,
             5.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (0..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
         let d = Dual::try_new_from(
             &a,
             6.5,
-            (1..=VARS).map(|x| x.to_string()).collect(),
-            (0..VARS).map(|x| x as f64).collect(),
+            (1..=vars).map(|x| x.to_string()).collect(),
+            (0..vars).map(|x| x as f64).collect(),
         )
         .unwrap();
 
@@ -1413,7 +1409,7 @@ mod tests {
         {
             for _i in 0..1000 {
                 // Arc::ptr_eq(&x.vars, &y.vars);
-                let x = four_ops(&a, &b, &c, &d);
+                let _x = four_ops(&a, &b, &c, &d);
             }
         }
         let elapsed = now.elapsed();

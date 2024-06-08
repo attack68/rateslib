@@ -86,7 +86,7 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppev<'py>(&'py self, x: Vec<f64>) -> PyResult<Vec<$type>> {
+            pub fn ppev(&self, x: Vec<f64>) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, 0)).collect();
                 Ok(out)
             }
@@ -115,16 +115,16 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppdnev<'py>(&'py self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
+            pub fn ppdnev(&self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
                 Ok(out)
             }
 
-            pub fn bsplev<'py>(&'py self, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
+            pub fn bsplev(&self, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &0))
             }
 
-            pub fn bspldnev<'py>(&'py self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
+            pub fn bspldnev(&self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &m))
             }
 

@@ -366,10 +366,10 @@ mod tests {
     use crate::dual::dual1::{Dual, Vars};
     use std::sync::Arc;
 
-    fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
-        // used rather than equality for float numbers
-        (a - b).abs() < abs_tol.unwrap_or(1e-8)
-    }
+    // fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
+    //     // used rather than equality for float numbers
+    //     (a - b).abs() < abs_tol.unwrap_or(1e-8)
+    // }
 
     #[test]
     fn argabsmx_i32() {

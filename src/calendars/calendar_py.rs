@@ -144,7 +144,7 @@ impl UnionCal {
             IndexSet::from_iter(acc.union(&x.holidays).cloned())
         });
         set.sort();
-        Ok(Vec::from_iter(set.into_iter()))
+        Ok(Vec::from_iter(set))
     }
 
     #[getter]

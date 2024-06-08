@@ -345,12 +345,10 @@ pub trait DateRoll {
 
         if !settlement {
             Ok(new_date)
+        } else if days < 0 {
+            Ok(self.roll_backward_settled_bus_day(&new_date))
         } else {
-            if days < 0 {
-                Ok(self.roll_backward_settled_bus_day(&new_date))
-            } else {
-                Ok(self.roll_forward_settled_bus_day(&new_date))
-            }
+            Ok(self.roll_forward_settled_bus_day(&new_date))
         }
     }
 
@@ -893,17 +891,17 @@ mod tests {
 
         let tgt = Cal::new(vec![], vec![5, 6]);
         let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]); // Juneteenth Holiday
-        let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
+        let tgt_nyc = UnionCal::new(vec![tgt], vec![nyc].into());
 
         let date = ndt(2023, 6, 16);
-        let spot = tgt__nyc.add_bus_days(&date, 2, true).unwrap();
+        let spot = tgt_nyc.add_bus_days(&date, 2, true).unwrap();
         assert_eq!(spot, ndt(2023, 6, 20));
 
         let date = ndt(2023, 6, 15);
-        let spot = tgt__nyc.add_bus_days(&date, 2, true).unwrap();
+        let spot = tgt_nyc.add_bus_days(&date, 2, true).unwrap();
         assert_eq!(spot, ndt(2023, 6, 20));
 
-        let spot = tgt__nyc.add_bus_days(&date, 2, false).unwrap();
+        let spot = tgt_nyc.add_bus_days(&date, 2, false).unwrap();
         assert_eq!(spot, ndt(2023, 6, 19));
     }
 

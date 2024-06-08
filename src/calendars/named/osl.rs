@@ -1,7 +1,7 @@
 //! Define an Oslo business day calendar, aligned with NOWA publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &'static [&str] = &[
+pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
+pub const RULES: &[&str] = &[
     "Jan 1 (New Year)",
     "Thu before Easter (Maundy Thursday)",
     "Fri before Easter (Good Friday)",
@@ -14,7 +14,7 @@ pub const RULES: &'static [&str] = &[
     "Dec 25 (Christmas)",
     "Dec 26 (Boxing Day)",
 ];
-pub const HOLIDAYS: &'static [&str] = &[
+pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-03-26 00:00:00",
     "1970-03-27 00:00:00",
