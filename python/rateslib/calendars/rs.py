@@ -81,9 +81,6 @@ def get_calendar(
     - *"tro"*: Toronto for Canada's CORRA.
     - *"tyo"*: Tokyo for Japan's TONA.
 
-    The list of generic holiday rules for a ``Cal`` object
-    are displayed in the ``rules`` attribute.
-
     Examples
     --------
     .. ipython:: python
@@ -97,7 +94,6 @@ def get_calendar(
        tgt_cal.holidays[300:312]
        tgt_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(tgt_cal)
-       print(tgt_cal.rules)
 
     Calendars can be combined from the pre-existing names using comma separation.
 
