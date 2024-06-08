@@ -442,3 +442,11 @@ def test_calendar_aligns_with_fixings_tyo():
     )
     irs.rate(curve)
 
+
+def test_book_example():
+    res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn")
+    assert res == dt(2001, 3, 28, 0, 0)
+    res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn", roll=31)
+    assert res == dt(2001, 3, 30, 0, 0)
+    res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn", roll=29)
+    assert res == dt(2001, 3, 29, 0, 0)
