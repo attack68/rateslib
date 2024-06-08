@@ -537,7 +537,7 @@ mod tests {
 
     #[test]
     fn ppspline_new() {
-        let pps: PPSpline<f64> = PPSpline::new(
+        let _pps: PPSpline<f64> = PPSpline::new(
             4,
             vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.],
             None,
@@ -564,7 +564,7 @@ mod tests {
         let tau = vec![0., 1., 3., 4.];
         let val = vec![0., 0., 2., 2.];
         let mut pps: PPSpline<f64> = PPSpline::new(4, t, None);
-        pps.csolve(&tau, &val, 0, 0, false);
+        let _ = pps.csolve(&tau, &val, 0, 0, false);
         let expected = vec![0., -1.11111111, 3.111111111111, 2.0];
         let v: Vec<bool> = pps
             .c
@@ -585,7 +585,7 @@ mod tests {
         let d1 = Dual::one();
         let val = vec![0. * &d1, 0. * &d1, 2. * &d1, 2. * &d1];
         let mut pps = PPSpline::new(4, t, None);
-        pps.csolve(&tau, &val, 0, 0, false);
+        let _ = pps.csolve(&tau, &val, 0, 0, false);
         let expected = vec![0. * &d1, -1.11111111 * &d1, 3.111111111111 * &d1, 2.0 * &d1];
         let v: Vec<bool> = pps
             .c
@@ -625,6 +625,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn backwards_definition() {
-        let mut pp1 = PPSpline::<f64>::new(4, vec![3., 3., 3., 3., 2., 1., 1., 1., 1.], None);
+        let _pp1 = PPSpline::<f64>::new(4, vec![3., 3., 3., 3., 2., 1., 1., 1., 1.], None);
     }
 }

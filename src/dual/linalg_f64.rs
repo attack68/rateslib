@@ -177,16 +177,16 @@ mod tests {
     use crate::dual::dual1::{Dual, Vars};
     use std::sync::Arc;
 
-    fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
-        // used rather than equality for float numbers
-        (a - b).abs() < abs_tol.unwrap_or(1e-8)
-    }
+    // fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
+    //     // used rather than equality for float numbers
+    //     (a - b).abs() < abs_tol.unwrap_or(1e-8)
+    // }
 
     #[test]
     fn outer_prod() {
         let a = arr1(&[1.0, 2.0]);
         let b = arr1(&[2.0, 1.0, 3.0]);
-        let mut c = fouter11_(&a.view(), &b.view());
+        let c = fouter11_(&a.view(), &b.view());
         let result = arr2(&[[2., 1., 3.], [4., 2., 6.]]);
         assert_eq!(result, c)
     }

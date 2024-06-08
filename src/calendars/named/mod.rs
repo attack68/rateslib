@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn test_get_calendar_error() {
         match get_calendar_by_name("badname") {
-            Ok(val) => assert!(false),
+            Ok(_) => assert!(false),
             Err(_) => assert!(true),
         }
     }
