@@ -89,7 +89,7 @@ use serde::{Serialize, Deserialize};
 pub struct Cal {
     pub(crate) holidays: IndexSet<NaiveDateTime>,
     pub(crate) week_mask: HashSet<Weekday>,
-    pub(crate) rules: Vec<String>,
+    // pub(crate) meta: Vec<String>,
 }
 
 impl Cal {
@@ -98,11 +98,15 @@ impl Cal {
     ///
     /// `holidays` provide a vector of dates that cannot be business days. `week_mask` is a vector of days
     /// (0=Mon,.., 6=Sun) that are excluded from the working week.
-    pub fn new(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>, rules: Vec<&str>) -> Self {
+    pub fn new(
+        holidays: Vec<NaiveDateTime>,
+        week_mask: Vec<u8>,
+        // rules: Vec<&str>
+    ) -> Self {
         Cal {
             holidays: IndexSet::from_iter(holidays),
             week_mask: HashSet::from_iter(week_mask.into_iter().map(|v| Weekday::try_from(v).unwrap())),
-            rules: rules.into_iter().map(|x| x.to_string()).collect(),
+            // meta: rules.into_iter().map(|x| x.to_string()).collect(),
         }
     }
 }
@@ -542,7 +546,7 @@ mod tests {
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
-        Cal::new(hols, vec![5, 6], vec![])
+        Cal::new(hols, vec![5, 6])
     }
 
     #[test]
@@ -659,7 +663,7 @@ mod tests {
             NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
             NaiveDateTime::parse_from_str("2015-09-09 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
         ];
-        Cal::new(hols, vec![5, 6], vec![])
+        Cal::new(hols, vec![5, 6])
     }
 
     #[test]
@@ -679,8 +683,8 @@ mod tests {
             NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
             NaiveDateTime::parse_from_str("2015-09-09 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
         ];
-        let scal = Cal::new(hols, vec![5, 6], vec![]);
-        let cal = Cal::new(vec![], vec![5,6], vec![]);
+        let scal = Cal::new(hols, vec![5, 6]);
+        let cal = Cal::new(vec![], vec![5,6]);
         let ucal = UnionCal::new(vec![cal], vec![scal].into());
 
 
@@ -698,8 +702,8 @@ mod tests {
         let settle = vec![
             NaiveDateTime::parse_from_str("2015-09-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
         ];
-        let hcal = Cal::new(hols, vec![5, 6], vec![]);
-        let scal = Cal::new(settle, vec![5,6], vec![]);
+        let hcal = Cal::new(hols, vec![5, 6]);
+        let scal = Cal::new(settle, vec![5,6]);
         let cal = UnionCal::new(vec![hcal], vec![scal].into());
 
         // without settlement constraint 11th is a valid forward roll date
@@ -728,8 +732,8 @@ mod tests {
         let hols = vec![ndt(2015, 9, 8), ndt(2015, 9, 10)];
         let settle = vec![ndt(2015, 9, 11)];
 
-        let hcal = Cal::new(hols, vec![5, 6], vec![]);
-        let scal = Cal::new(settle, vec![5,6], vec![]);
+        let hcal = Cal::new(hols, vec![5, 6]);
+        let scal = Cal::new(settle, vec![5,6]);
         let cal = UnionCal::new(vec![hcal], vec![scal].into());
 
         // without settlement constraint 11th is a valid forward roll date
@@ -762,7 +766,7 @@ mod tests {
 
     #[test]
     fn test_docstring() {
-        let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6], vec![]);  // UK Monday 1st May Bank Holiday
+        let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);  // UK Monday 1st May Bank Holiday
         let tky = Cal::new(vec![ndt(2017, 5, 3), ndt(2017, 5, 4), ndt(2017, 5, 5)], vec![5, 6], vec![]);
 
         let date = ndt(2017, 4, 28);  // Friday 28th April 2017
@@ -774,8 +778,8 @@ mod tests {
         assert_eq!(spot, ndt(2017, 5, 8));
 
 
-        let tgt = Cal::new(vec![], vec![5, 6], vec![]);
-        let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6], vec![]);  // Juneteenth Holiday
+        let tgt = Cal::new(vec![], vec![5, 6]);
+        let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
         let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
 
         let date = ndt(2023, 6, 16);

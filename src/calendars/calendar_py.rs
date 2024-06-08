@@ -10,7 +10,7 @@ use bincode::{serialize, deserialize};
 impl Cal {
     #[new]
     fn new_py(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> PyResult<Self> {
-        Ok(Cal::new(holidays, week_mask, vec![]))
+        Ok(Cal::new(holidays, week_mask))
     }
 
     #[getter]
@@ -23,10 +23,10 @@ impl Cal {
         Ok(self.week_mask.clone().into_iter().map(|x| x.num_days_from_monday() as u8).collect())
     }
 
-    #[getter]
-    fn rules(&self) -> PyResult<String> {
-        Ok(self.rules.join(",\n"))
-    }
+    // #[getter]
+    // fn rules(&self) -> PyResult<String> {
+    //     Ok(self.meta.join(",\n"))
+    // }
 
     #[pyo3(name = "is_bus_day")]
     fn is_bus_day_py(&self, date: NaiveDateTime) -> bool {
