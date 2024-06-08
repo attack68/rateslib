@@ -365,6 +365,12 @@ pub trait DateRoll {
     where
         Self: Sized,
     {
+        // refactor roll day
+        let roll_ = match roll {
+            RollDay::Unspecified {} => RollDay::Int { day: date.day() },
+            _ => *roll,
+        };
+
         // convert months to a set of years and remainder months
         let mut yr_roll = (months.abs() / 12) * months.signum();
         let rem_months = months - yr_roll * 12;
@@ -383,20 +389,9 @@ pub trait DateRoll {
         }
 
         // perform the date roll
-        match roll {
-            RollDay::Unspecified {} => self.add_months(
-                date,
-                months,
-                modifier,
-                &RollDay::Int { day: date.day() },
-                settlement,
-            ),
-            _ => {
-                let new_date =
-                    get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), roll).unwrap();
-                self.roll(&new_date, modifier, settlement)
-            }
-        }
+        let new_date =
+            get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), &roll_).unwrap();
+        self.roll(&new_date, modifier, settlement)
     }
 
     /// Return a vector of business dates between a start and end, inclusive.
