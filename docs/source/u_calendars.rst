@@ -95,6 +95,18 @@ The appropriate holiday calendar to use for a EURUSD FX instrument, such as spot
 determination is *"tgt|nyc"*, which performs date manipulation under a TARGET calendar
 but enforces associated settlement against the New York calendar.
 
+.. ipython:: python
+
+   # Combined calendar with no associated settlement calendar
+   tgt_nyc = get_calendar("tgt,nyc")
+   tgt_nyc.is_bus_day(dt(2009, 11, 11))
+   tgt_nyc.is_settlement(dt(2009, 11, 11))
+
+   # TARGET calendar enforcing New York settlement
+   tgt_nyc_settle = get_calendar("tgt|nyc")
+   tgt_nyc_settle.is_bus_day(dt(2009, 11, 11))
+   tgt_nyc_settle.is_settlement(dt(2009, 11, 11))
+
 
 Day count fractions (DCFs)
 **************************
