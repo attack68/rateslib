@@ -1,6 +1,6 @@
 //! Define a Toronto business day calendar, aligned with CORRA publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
+pub const WEEKMASK: &'static [u8] = &[5, 6]; // Saturday and Sunday weekend
 pub const RULES: &'static [&str] = &[
     "Jan 1: Sat,Sun->Mon (New Year)",
     "Feb 3rd Mon (Family)",
@@ -2736,5 +2736,5 @@ pub const HOLIDAYS: &'static [&str] = &[
     "2200-10-13 00:00:00",
     "2200-11-11 00:00:00",
     "2200-12-25 00:00:00",
-    "2200-12-26 00:00:00"
+    "2200-12-26 00:00:00",
 ];

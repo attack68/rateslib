@@ -1,10 +1,10 @@
-use crate::calendars::calendar::{Cal, UnionCal, DateRoll, Modifier, RollDay};
+use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
 use crate::calendars::named::get_calendar_by_name;
+use bincode::{deserialize, serialize};
+use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
-use chrono::{NaiveDateTime};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use bincode::{serialize, deserialize};
 
 #[pymethods]
 impl Cal {
@@ -20,7 +20,12 @@ impl Cal {
 
     #[getter]
     fn week_mask(&self) -> PyResult<Vec<u8>> {
-        Ok(self.week_mask.clone().into_iter().map(|x| x.num_days_from_monday() as u8).collect())
+        Ok(self
+            .week_mask
+            .clone()
+            .into_iter()
+            .map(|x| x.num_days_from_monday() as u8)
+            .collect())
     }
 
     // #[getter]
@@ -39,22 +44,45 @@ impl Cal {
     }
 
     #[pyo3(name = "add_days")]
-    fn add_days_py(&self, date: NaiveDateTime, days: i8, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn add_days_py(
+        &self,
+        date: NaiveDateTime,
+        days: i8,
+        modifier: Modifier,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         Ok(self.add_days(&date, days, &modifier, settlement))
     }
 
     #[pyo3(name = "add_bus_days")]
-    fn add_bus_days_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn add_bus_days_py(
+        &self,
+        date: NaiveDateTime,
+        days: i8,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
     }
 
     #[pyo3(name = "add_months")]
-    fn add_months_py(&self, date: NaiveDateTime, months: i32, modifier: Modifier, roll: RollDay, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn add_months_py(
+        &self,
+        date: NaiveDateTime,
+        months: i32,
+        modifier: Modifier,
+        roll: RollDay,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         Ok(self.add_months(&date, months, &modifier, &roll, settlement))
     }
 
     #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn roll_py(
+        &self,
+        date: NaiveDateTime,
+        modifier: Modifier,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         Ok(self.roll(&date, &modifier, settlement))
     }
 
@@ -64,12 +92,20 @@ impl Cal {
     }
 
     #[pyo3(name = "bus_date_range")]
-    fn bus_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
+    fn bus_date_range_py(
+        &self,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+    ) -> PyResult<Vec<NaiveDateTime>> {
         self.bus_date_range(&start, &end)
     }
 
     #[pyo3(name = "cal_date_range")]
-    fn cal_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
+    fn cal_date_range_py(
+        &self,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+    ) -> PyResult<Vec<NaiveDateTime>> {
         self.cal_date_range(&start, &end)
     }
 
@@ -83,13 +119,16 @@ impl Cal {
     pub fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
             self.clone().holidays.into_iter().collect(),
-            self.clone().week_mask.into_iter().map(|x| x.num_days_from_monday() as u8).collect()
+            self.clone()
+                .week_mask
+                .into_iter()
+                .map(|x| x.num_days_from_monday() as u8)
+                .collect(),
         ))
     }
     pub fn __eq__(&self, other: Cal) -> bool {
         *self == other
     }
-
 }
 
 #[pymethods]
@@ -101,7 +140,9 @@ impl UnionCal {
 
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
-        let mut set = self.calendars.iter().fold(IndexSet::new(), |acc, x| IndexSet::from_iter(acc.union(&x.holidays).cloned()));
+        let mut set = self.calendars.iter().fold(IndexSet::new(), |acc, x| {
+            IndexSet::from_iter(acc.union(&x.holidays).cloned())
+        });
         set.sort();
         Ok(Vec::from_iter(set.into_iter()))
     }
@@ -122,22 +163,45 @@ impl UnionCal {
     }
 
     #[pyo3(name = "add_days")]
-    fn add_days_py(&self, date: NaiveDateTime, days: i8, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn add_days_py(
+        &self,
+        date: NaiveDateTime,
+        days: i8,
+        modifier: Modifier,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         Ok(self.add_days(&date, days, &modifier, settlement))
     }
 
     #[pyo3(name = "add_bus_days")]
-    fn add_bus_days_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn add_bus_days_py(
+        &self,
+        date: NaiveDateTime,
+        days: i8,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
     }
 
     #[pyo3(name = "add_months")]
-    fn add_months_py(&self, date: NaiveDateTime, months: i32, modifier: Modifier, roll: RollDay, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn add_months_py(
+        &self,
+        date: NaiveDateTime,
+        months: i32,
+        modifier: Modifier,
+        roll: RollDay,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         Ok(self.add_months(&date, months, &modifier, &roll, settlement))
     }
 
     #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, modifier: Modifier, settlement: bool) -> PyResult<NaiveDateTime> {
+    fn roll_py(
+        &self,
+        date: NaiveDateTime,
+        modifier: Modifier,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
         Ok(self.roll(&date, &modifier, settlement))
     }
 
@@ -147,12 +211,20 @@ impl UnionCal {
     }
 
     #[pyo3(name = "bus_date_range")]
-    fn bus_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
+    fn bus_date_range_py(
+        &self,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+    ) -> PyResult<Vec<NaiveDateTime>> {
         self.bus_date_range(&start, &end)
     }
 
     #[pyo3(name = "cal_date_range")]
-    fn cal_date_range_py(&self, start: NaiveDateTime, end: NaiveDateTime) -> PyResult<Vec<NaiveDateTime>> {
+    fn cal_date_range_py(
+        &self,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+    ) -> PyResult<Vec<NaiveDateTime>> {
         self.cal_date_range(&start, &end)
     }
 

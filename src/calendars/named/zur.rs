@@ -1,6 +1,6 @@
 //! Define a Zurich business day calendar, aligned with SARON publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
+pub const WEEKMASK: &'static [u8] = &[5, 6]; // Saturday and Sunday weekend
 pub const RULES: &'static [&str] = &[
     "Jan 1 (New Year)",
     "Jan 2 (Berchtoldstag)",
@@ -2323,5 +2323,5 @@ pub const HOLIDAYS: &'static [&str] = &[
     "2200-05-26 00:00:00",
     "2200-08-01 00:00:00",
     "2200-12-25 00:00:00",
-    "2200-12-26 00:00:00"
+    "2200-12-26 00:00:00",
 ];

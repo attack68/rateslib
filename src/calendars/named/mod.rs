@@ -3,20 +3,20 @@
 
 pub mod all;
 pub mod bus;
-pub mod nyc;
-pub mod tgt;
 pub mod ldn;
-pub mod stk;
+pub mod nyc;
 pub mod osl;
-pub mod zur;
+pub mod stk;
+pub mod tgt;
 pub mod tro;
 pub mod tyo;
+pub mod zur;
 
 use crate::calendars::calendar::Cal;
-use std::collections::HashMap;
 use chrono::NaiveDateTime;
-use pyo3::{PyErr};
-use pyo3::exceptions::{PyValueError};
+use pyo3::exceptions::PyValueError;
+use pyo3::PyErr;
+use std::collections::HashMap;
 
 fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
     let hmap: HashMap<&str, &[u8]> = HashMap::from([
@@ -29,11 +29,14 @@ fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("osl", osl::WEEKMASK),
         ("zur", zur::WEEKMASK),
         ("tro", tro::WEEKMASK),
-        ("tyo", tyo::WEEKMASK)
+        ("tyo", tyo::WEEKMASK),
     ]);
     match hmap.get(name) {
-        None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
-        Some(value) => Ok(value.to_vec())
+        None => Err(PyValueError::new_err(format!(
+            "'{}' is not found in list of existing calendars.",
+            name
+        ))),
+        Some(value) => Ok(value.to_vec()),
     }
 }
 
@@ -51,8 +54,14 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
         ("tyo", tyo::HOLIDAYS),
     ]);
     match hmap.get(name) {
-        None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
-        Some(value) => Ok(value.iter().map(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%d %H:%M:%S").unwrap()).collect())
+        None => Err(PyValueError::new_err(format!(
+            "'{}' is not found in list of existing calendars.",
+            name
+        ))),
+        Some(value) => Ok(value
+            .iter()
+            .map(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%d %H:%M:%S").unwrap())
+            .collect()),
     }
 }
 
@@ -101,7 +110,7 @@ mod tests {
     #[test]
     fn test_get_weekmask() {
         let result = get_weekmask_by_name("bus").unwrap();
-        assert_eq!(result, vec![5,6]);
+        assert_eq!(result, vec![5, 6]);
     }
 
     #[test]
@@ -126,55 +135,73 @@ mod tests {
     #[test]
     fn test_all() {
         let cal = get_calendar_by_name("all").unwrap();
-        assert!(cal.is_bus_day(&NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_bus_day(
+            &NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_nyc() {
         let cal = get_calendar_by_name("nyc").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_tgt() {
         let cal = get_calendar_by_name("tgt").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-05-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-05-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_ldn() {
         let cal = get_calendar_by_name("ldn").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-08-26 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-08-26 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_stk() {
         let cal = get_calendar_by_name("stk").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-06-06 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-06-06 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_osl() {
         let cal = get_calendar_by_name("osl").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-05-17 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-05-17 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_zur() {
         let cal = get_calendar_by_name("zur").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-08-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-08-01 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_tro() {
         let cal = get_calendar_by_name("tro").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-09-30 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-09-30 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
     fn test_tyo() {
         let cal = get_calendar_by_name("tyo").unwrap();
-        assert!(cal.is_holiday(&NaiveDateTime::parse_from_str("2024-1-3 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()));
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-1-3 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
     }
 
     #[test]
@@ -184,5 +211,4 @@ mod tests {
             Err(_) => assert!(true),
         }
     }
-
 }

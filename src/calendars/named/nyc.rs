@@ -1,6 +1,6 @@
 //! Define a New York business day calendar, aligned with SOFR publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
+pub const WEEKMASK: &'static [u8] = &[5, 6]; // Saturday and Sunday weekend
 pub const RULES: &'static [&str] = &[
     "Jan 1: Sun->Mon (New Year)",
     "Jan 3rd Mon (Martin Luther King Jr.)",

@@ -1,21 +1,21 @@
-use crate::dual::linalg_f64::{fdmul11_, fdsolve, fouter11_};
-use crate::dual::linalg::{dmul11_};
 use crate::dual::dual1::{Dual, Gradient1};
 use crate::dual::dual2::{Dual2, Gradient2};
+use crate::dual::linalg::dmul11_;
+use crate::dual::linalg_f64::{fdmul11_, fdsolve, fouter11_};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
-use std::iter::Sum;
-use std::iter::zip;
-use std::ops::{Mul, Sub};
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::PyErr;
-use pyo3::exceptions::{PyValueError, PyTypeError};
+use std::iter::zip;
+use std::iter::Sum;
+use std::ops::{Mul, Sub};
 
 pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
 
     // Short circuit (positivity and support property)
-    if *x < t[i] || *x > t[i+k] {
-        return 0.0_f64
+    if *x < t[i] || *x > t[i + k] {
+        return 0.0_f64;
     }
 
     // Right side end point support
@@ -44,17 +44,30 @@ pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Opti
     }
 }
 
-pub fn bsplev_single_dual(x: &Dual, i:usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> Dual {
+pub fn bsplev_single_dual(
+    x: &Dual,
+    i: usize,
+    k: &usize,
+    t: &Vec<f64>,
+    org_k: Option<usize>,
+) -> Dual {
     let b_f64 = bsplev_single_f64(&x.real(), i, k, t, org_k);
     let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, 1, org_k);
     Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
 }
 
-pub fn bsplev_single_dual2(x: &Dual2, i:usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> Dual2 {
+pub fn bsplev_single_dual2(
+    x: &Dual2,
+    i: usize,
+    k: &usize,
+    t: &Vec<f64>,
+    org_k: Option<usize>,
+) -> Dual2 {
     let b_f64 = bsplev_single_f64(&x.real(), i, k, t, org_k);
     let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, 1, org_k);
     let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, 2, org_k);
-    let dual2 = dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
+    let dual2 =
+        dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
     Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
@@ -97,23 +110,37 @@ pub fn bspldnev_single_f64(
     r
 }
 
-pub fn bspldnev_single_dual(x: &Dual, i:usize, k: &usize, t: &Vec<f64>, m: usize, org_k: Option<usize>) -> Dual {
+pub fn bspldnev_single_dual(
+    x: &Dual,
+    i: usize,
+    k: &usize,
+    t: &Vec<f64>,
+    m: usize,
+    org_k: Option<usize>,
+) -> Dual {
     let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m, org_k);
-    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+1, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m + 1, org_k);
     Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
 }
 
-pub fn bspldnev_single_dual2(x: &Dual2, i:usize, k: &usize, t: &Vec<f64>, m: usize, org_k: Option<usize>) -> Dual2 {
-    let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m,org_k);
-    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+1, org_k);
-    let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, m+2, org_k);
-    let dual2 = dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
+pub fn bspldnev_single_dual2(
+    x: &Dual2,
+    i: usize,
+    k: &usize,
+    t: &Vec<f64>,
+    m: usize,
+    org_k: Option<usize>,
+) -> Dual2 {
+    let b_f64 = bspldnev_single_f64(&x.real(), i, k, t, m, org_k);
+    let dbdx_f64 = bspldnev_single_f64(&x.real(), i, k, t, m + 1, org_k);
+    let d2bdx2_f64 = bspldnev_single_f64(&x.real(), i, k, t, m + 2, org_k);
+    let dual2 =
+        dbdx_f64 * x.dual2() + 0.5 * d2bdx2_f64 * fouter11_(&x.dual().view(), &x.dual().view());
     Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
 #[derive(Clone)]
-pub struct PPSpline<T>
-{
+pub struct PPSpline<T> {
     k: usize,
     t: Vec<f64>,
     c: Option<Array1<T>>,
@@ -147,15 +174,15 @@ where
     pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<T>>) -> Self {
         // t is given and is non-decreasing
         assert!(t.len() > 1);
-        assert!(zip(&t[1..], &t[..(t.len()-1)]).all(|(a, b)| a >= b));
+        assert!(zip(&t[1..], &t[..(t.len() - 1)]).all(|(a, b)| a >= b));
         let n = t.len() - k;
         let c_;
         match c {
-            Some(v) => {c_ = Some(Array1::from_vec(v))},
-            None => {c_ = None}
+            Some(v) => c_ = Some(Array1::from_vec(v)),
+            None => c_ = None,
         }
 
-        PPSpline { k, t, n, c: c_}
+        PPSpline { k, t, n, c: c_ }
     }
 
     // pub fn ppev_single(&self, x: &f64) -> T {
@@ -193,17 +220,16 @@ where
         left_n: usize,
         right_n: usize,
         allow_lsq: bool,
-    ) -> Result<(), PyErr>
-    {
+    ) -> Result<(), PyErr> {
         if tau.len() != self.n && !(allow_lsq && tau.len() > self.n) {
             return Err(PyValueError::new_err(
-                "`csolve` cannot complete if length of `tau` < n or `allow_lsq` is false."
-            ))
+                "`csolve` cannot complete if length of `tau` < n or `allow_lsq` is false.",
+            ));
         }
         if tau.len() != y.len() {
             return Err(PyValueError::new_err(
-                "`tau` and `y` must have the same length."
-            ))
+                "`tau` and `y` must have the same length.",
+            ));
         }
         let b: Array2<f64> = self.bsplmatrix(tau, left_n, right_n);
         let ya: Array1<T> = Array1::from_vec(y.clone());
@@ -217,7 +243,9 @@ where
     // }
 
     pub fn bspldnev(&self, x: &Vec<f64>, i: &usize, m: &usize) -> Vec<f64> {
-        x.iter().map(|v| bspldnev_single_f64(v, *i, self.k(), self.t(), *m, None)).collect()
+        x.iter()
+            .map(|v| bspldnev_single_f64(v, *i, self.k(), self.t(), *m, None))
+            .collect()
     }
 
     pub fn bsplmatrix(&self, tau: &Vec<f64>, left_n: usize, right_n: usize) -> Array2<f64> {
@@ -234,8 +262,7 @@ where
     }
 }
 
-impl PPSpline<f64>
-{
+impl PPSpline<f64> {
     // pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
     //     let b: Array1<Dual> = Array1::from_vec(
     //         (0..self.n)
@@ -263,30 +290,33 @@ impl PPSpline<f64>
     pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
         let b: Array1<Dual> = Array1::from_vec(
             (0..self.n)
-                .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m,None))
+                .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m, None))
                 .collect(),
         );
         match &self.c {
             Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
-            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+            None => Err(PyValueError::new_err(
+                "Must call `csolve` before evaluating PPSpline.",
+            )),
         }
     }
 
     pub fn ppdnev_single_dual2(&self, x: &Dual2, m: usize) -> Result<Dual2, PyErr> {
         let b: Array1<Dual2> = Array1::from_vec(
-        (0..self.n)
-            .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m,None))
-            .collect(),
+            (0..self.n)
+                .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m, None))
+                .collect(),
         );
         match &self.c {
             Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
-            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+            None => Err(PyValueError::new_err(
+                "Must call `csolve` before evaluating PPSpline.",
+            )),
         }
     }
 }
 
-impl PPSpline<Dual>
-{
+impl PPSpline<Dual> {
     // pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
     //     let b: Array1<Dual> = Array1::from_vec(
     //     (0..self.n)
@@ -304,25 +334,27 @@ impl PPSpline<Dual>
     // }
 
     pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
-        Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
+        Err(PyTypeError::new_err(
+            "Cannot index with type `Dual2` on PPSpline<Dual>`.",
+        ))
     }
 
     pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
         let b: Array1<Dual> = Array1::from_vec(
-        (0..self.n)
-            .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m,None))
-            .collect(),
+            (0..self.n)
+                .map(|i| bspldnev_single_dual(x, i, &self.k, &self.t, m, None))
+                .collect(),
         );
         match &self.c {
             Some(c) => Ok(dmul11_(&c.view(), &b.view())),
-            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+            None => Err(PyValueError::new_err(
+                "Must call `csolve` before evaluating PPSpline.",
+            )),
         }
     }
-
 }
 
-impl PPSpline<Dual2>
-{
+impl PPSpline<Dual2> {
     // pub fn ppev_single_dual(&self, _x: &Dual) -> Result<Dual, PyErr> {
     //     Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
     // }
@@ -340,40 +372,44 @@ impl PPSpline<Dual2>
     // }
 
     pub fn ppdnev_single_dual(&self, _x: &Dual, _m: usize) -> Result<Dual, PyErr> {
-        Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
+        Err(PyTypeError::new_err(
+            "Cannot index with type `Dual` on PPSpline<Dual2>.",
+        ))
     }
 
     pub fn ppdnev_single_dual2(&self, x: &Dual2, m: usize) -> Result<Dual2, PyErr> {
         let b: Array1<Dual2> = Array1::from_vec(
-        (0..self.n)
-            .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m,None))
-            .collect(),
+            (0..self.n)
+                .map(|i| bspldnev_single_dual2(x, i, &self.k, &self.t, m, None))
+                .collect(),
         );
         match &self.c {
             Some(c) => Ok(dmul11_(&c.view(), &b.view())),
-            None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
+            None => Err(PyValueError::new_err(
+                "Must call `csolve` before evaluating PPSpline.",
+            )),
         }
     }
-
 }
 
 use std::cmp::PartialEq;
 
 impl<T> PartialEq for PPSpline<T>
-where T: PartialEq,
+where
+    T: PartialEq,
 {
     /// Equality of `PPSpline` if
 
     fn eq(&self, other: &Self) -> bool {
         if self.k != other.k || self.n != other.n {
-            return false
+            return false;
         }
         if !self.t.eq(&other.t) {
-            return false
+            return false;
         }
         match (&self.c, &other.c) {
             (Some(c1), Some(c2)) => c1.eq(&c2),
-            _ => false // if any c is None then false
+            _ => false, // if any c is None then false
         }
     }
 }
@@ -387,8 +423,8 @@ where T: PartialEq,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dual::dual1::Dual;
     use ndarray::{arr1, arr2};
-    use crate::dual::dual1::{Dual};
     use num_traits::One;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
@@ -501,8 +537,11 @@ mod tests {
 
     #[test]
     fn ppspline_new() {
-        let pps: PPSpline<f64> =
-            PPSpline::new(4, vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.], None);
+        let pps: PPSpline<f64> = PPSpline::new(
+            4,
+            vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.],
+            None,
+        );
     }
 
     #[test]
@@ -575,11 +614,11 @@ mod tests {
 
     #[test]
     fn partialeq_() {
-        let pp1 = PPSpline::<f64>::new(2, vec![1.,1., 2., 2.], None);
-        let pp2 = PPSpline::<f64>::new(2, vec![1.,1., 2., 2.], None);
+        let pp1 = PPSpline::<f64>::new(2, vec![1., 1., 2., 2.], None);
+        let pp2 = PPSpline::<f64>::new(2, vec![1., 1., 2., 2.], None);
         assert!(pp1 != pp2);
-        let pp1 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
-        let pp2 = PPSpline::new(2, vec![1.,1., 2., 2.], Some(vec![1.5, 0.2]));
+        let pp1 = PPSpline::new(2, vec![1., 1., 2., 2.], Some(vec![1.5, 0.2]));
+        let pp2 = PPSpline::new(2, vec![1., 1., 2., 2.], Some(vec![1.5, 0.2]));
         assert!(pp1 == pp2);
     }
 
@@ -588,5 +627,4 @@ mod tests {
     fn backwards_definition() {
         let mut pp1 = PPSpline::<f64>::new(4, vec![3., 3., 3., 3., 2., 1., 1., 1., 1.], None);
     }
-
 }

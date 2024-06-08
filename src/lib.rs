@@ -1,6 +1,5 @@
 //! This is the documentation for rateslib-rs
 
-
 #[cfg(test)]
 mod tests;
 
@@ -15,13 +14,15 @@ use dual::dual2::Dual2;
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 
 pub mod splines;
-use splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2, bsplev_single, bspldnev_single};
+use splines::spline_py::{
+    bspldnev_single, bsplev_single, PPSplineDual, PPSplineDual2, PPSplineF64,
+};
 
 pub mod curves;
-use curves::interpolation_py::{index_left_f64};
+use curves::interpolation_py::index_left_f64;
 
 pub mod calendars;
-use calendars::calendar::{Cal, UnionCal, Modifier, RollDay};
+use calendars::calendar::{Cal, Modifier, RollDay, UnionCal};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 #[pymodule]
