@@ -1246,6 +1246,21 @@ class TestBill:
         result = bill.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
+    def test_with_fx_supplied(self):
+        usd = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        gbp = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        fxf = FXForwards(
+            fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
+        )
+        result = (
+            Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(curves=gbp, metric="discount_rate")
+        )
+        result2 = (
+            Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(curves=gbp, metric="discount_rate", fx=fxf)
+        )
+        assert result == result2
+
 
 class TestFloatRateNote:
     @pytest.mark.parametrize(
