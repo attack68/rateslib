@@ -1,5 +1,10 @@
 .. _defaults-doc:
 
+.. ipython:: python
+   :suppress:
+
+   from rateslib import *
+
 Defaults
 ===========
 
@@ -14,18 +19,17 @@ example a cross-currency basis swap (:class:`~rateslib.instruments.XCS`) has aro
 possible arguments to initialise the swap with), argument management is a key part of the
 :ref:`design philosophy<pillars-doc>` of *rateslib*.
 
-The easiest way to construct conventional instruments is to use the ``spec`` argument (detailed
-below)
+The easiest way to construct conventional instruments is to use the ``spec`` argument.
+A number of market conventions have already been pre-added to
+*rateslib*, and if defining an *Instrument* that allows the ``spec`` (specification) argument
+a host of arguments will be pre-populated. The table below outlines all of the existing
+``spec`` arguments.
 
-.. ipython:: python
+.. warning::
 
-   from rateslib import XCS, dt
-   xcs = XCS(
-       effective=dt(2022, 1, 1),
-       termination="10Y",
-       spec="gbpusd_xcs"
-   )
-   xcs.kwargs
+   When using the ``spec`` argument, arguments for *leg2* which might normally inherit
+   from *leg1* might be defined specifically, and will no longer inherit. If overwriting
+   an instrument that has been directly specified, ensure to overwrite both legs.
 
 .. list-table::
    :widths: 10 10 10 10 10 10 10 10 10 10
@@ -63,8 +67,18 @@ below)
      -
    * - GBP
      - :ref:`ldn <spec-gbp-ldn>`
-     -
+     - :ref:`gbp_irs <spec-gbp-irs>`
      - :ref:`gbp_gb <spec-gbp-gb>`
+     -
+     -
+     -
+     -
+     -
+     -
+   * - CHF
+     - :ref:`zur <spec-chf-zur>`
+     - :ref:`chf_irs <spec-chf-irs>`
+     -
      -
      -
      -
@@ -78,18 +92,10 @@ below)
     :maxdepth: 0
     :titlesonly:
 
-    spec/usd_nyc.rst
-    spec/eur_tgt.rst
-    spec/gbp_ldn.rst
-    spec/usd_irs.rst
-    spec/usd_gb.rst
-    spec/usd_gbb.rst
-    spec/eur_irs.rst
-    spec/eur_irs3.rst
-    spec/eur_irs6.rst
-    spec/gbp_gb.rst
-
-
+    spec/calendars.rst
+    spec/irs.rst
+    spec/fixedratebond.rst
+    spec/bill.rst
 
 
 The NoInput argument
@@ -170,50 +176,3 @@ These values can also be set:
    irs.leg1.currency  # <- uses new default value
 
    defaults.reset_defaults()  # <- reverse the changes.
-
-Market conventions and the ``spec`` argument
---------------------------------------------
-
-To provide maximal flexibility a number of market conventions have already been pre-added to
-*rateslib*. For an *Instrument* that allows the ``spec`` (specification) argument a host of
-arguments will be pre-populated. The list of instrument specifications defined can
-be seen by printing as below.
-Note that some of these are aliases, for example *"sofr"* and *"usd_irs"* are the same, as are
-*"usd_gb"* and *"ust"*.
-
-.. ipython:: python
-
-   print(defaults.spec.keys())
-
-The individual parameters of an instrument can then be seen, as below for an example USD SOFR IRS,
-with:
-
-.. ipython:: python
-
-   defaults.spec["usd_irs"]
-
-.. warning::
-
-   When using the ``spec`` argument, arguments which might normally inherit might be defined
-   specifically, and will no longer inherit. If overwriting an instrument that has been directly
-   specified, ensure to overwrite both legs.
-
-We can change the frequency on the XCS defined in the initial example. Since ``leg2_frequency``
-was explicitly defined by the ``spec`` then it will no longer inherit.
-
-.. ipython:: python
-
-   xcs = XCS(
-       effective=dt(2022, 1, 1),
-       termination="10Y",
-       frequency="S",
-       spec="gbpusd_xcs",
-   )  # `leg2_frequency` will NOT be inherited as "S", it will be "Q" as defined by the `spec`
-   xcs.kwargs
-
-Values that are shown here as *NoInput* are populated when the individual legs are
-instantiated and the values will then be set by default. For example we have that,
-
-.. ipython:: python
-
-   xcs.leg1.schedule.roll

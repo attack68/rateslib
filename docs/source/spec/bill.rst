@@ -1,8 +1,15 @@
+
+*****
+Bill
+*****
+
+USD
+********
+
 .. _spec-usd-gbb:
 
-********
-USD GBB
-********
+Government Bill
+----------------
 
 Aliases: **"ustb"**
 
