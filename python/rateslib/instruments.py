@@ -3236,10 +3236,25 @@ class Bill(FixedRateBond):
 
     """
 
+    _calc_mode_price_funcs = {  # associated default pricing functions with spec
+        NoInput(0): "_price_discount",
+        "ustb": "_price_discount",
+        "uktb": "_price_simple",
+        "sgbb": "_price_simple",
+    }
+
+    _calc_mode_ytm_map = {
+        NoInput(0): "usd_gb",
+        "ustb": "usd_gb",
+        "uktb": "gbp_gb",
+        "sgbb": "sek_gb",
+    }
+
     def __init__(
         self,
         effective: Union[datetime, NoInput] = NoInput(0),
         termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[str, NoInput] = NoInput(0),
         modifier: Union[str, None, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         payment_lag: Union[int, NoInput] = NoInput(0),
@@ -3274,6 +3289,7 @@ class Bill(FixedRateBond):
             calc_mode=calc_mode,
             spec=spec,
         )
+        self.kwargs["frequency"] = frequency
 
     @property
     def dcf(self):
@@ -3410,15 +3426,10 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        price_funcs = {
-            NoInput(0): self._price_discount,
-            "sgbb": self._price_simple,
-            "uktb": self._price_simple,
-            "ustb": self._price_discount,
-        }
         if not isinstance(calc_mode, str):
             calc_mode = self.calc_mode
-        return price_funcs[calc_mode](rate, settlement)
+        price_func = getattr(self, self._calc_mode_price_funcs[calc_mode])
+        return price_func(rate, settlement)
 
     def _price_discount(self, rate: DualTypes, settlement: datetime):
         dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
@@ -3459,18 +3470,18 @@ class Bill(FixedRateBond):
         This method calculates by constructing a :class:`~rateslib.instruments.FixedRateBond`
         with a regular 0% coupon measured from the termination date of the bill.
         """
-        spec_map = {
-            NoInput(0): "usd_gb",
-            "ustb": "usd_gb",
-            "uktb": "gbp_gb",
-            "sgbb": "sek_gb",
-        }
+
         if isinstance(calc_mode, str):
             calc_mode = calc_mode.lower()
         else:
             calc_mode = self.calc_mode
-        spec_kwargs = defaults.spec[spec_map[calc_mode]]
-        frequency_months = defaults.frequency_months[spec_kwargs["frequency"].upper()]
+
+        if self.kwargs["frequency"] is NoInput.blank:
+            freq = defaults.spec[self._calc_mode_ytm_map[calc_mode]]["frequency"]
+        else:
+            freq = self.kwargs["frequency"]
+
+        frequency_months = defaults.frequency_months[freq.upper()]
         quasi_start = self.leg1.schedule.termination
         while quasi_start > settlement:
             quasi_start = add_tenor(
@@ -3480,7 +3491,7 @@ class Bill(FixedRateBond):
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=spec_map[calc_mode],
+            spec=self._calc_mode_ytm_map[calc_mode],
         )
         return equiv_bond.ytm(price, settlement)
 
