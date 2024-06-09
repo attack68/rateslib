@@ -1219,6 +1219,20 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class BondMixin:
+
+    _acc_frac_mode_map = {
+        NoInput(0): "_acc_lin_days",
+        "ukg": "_acc_lin_days",
+        "uktb": "_acc_lin_days",
+        "ust": "_acc_lin_days_long_split",
+        "ust_31bii": "_acc_lin_days_long_split",
+        "ustb": "_acc_lin_days",
+        "sgb": "_acc_30e360",
+        "sgbb": "_acc_lin_days",
+        "cadgb": "_acc_act365_1y_stub",
+        "cadgb-ytm": "_acc_lin_days",
+    }
+
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -1295,20 +1309,9 @@ class BondMixin:
 
         Branches to a calculation based on the bond `calc_mode`.
         """
-        acc_frac_funcs = {
-            NoInput(0): self._acc_lin_days,
-            "ukg": self._acc_lin_days,
-            "uktb": self._acc_lin_days,
-            "ust": self._acc_lin_days_long_split,
-            "ust_31bii": self._acc_lin_days_long_split,
-            "ustb": self._acc_lin_days,
-            "sgb": self._acc_30e360,
-            "sgbb": self._acc_lin_days,
-            "cadgb": self._acc_act365_1y_stub,
-            "cadgb-ytm": self._acc_lin_days,
-        }
         try:
-            return acc_frac_funcs[calc_mode](settlement, acc_idx)
+            func = getattr(self, self._acc_frac_mode_map[calc_mode])
+            return func(settlement, acc_idx)
         except KeyError:
             raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
 
