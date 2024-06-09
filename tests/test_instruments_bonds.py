@@ -1081,6 +1081,25 @@ class TestIndexFixedRateBond:
         expected = 0.065
         assert (result - expected) < 1e-2
 
+    def test_rate_with_fx_is_same(self):
+        usd = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        gbp = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        gbpi = IndexCurve(nodes={dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.95}, index_base=100.0)
+        fxf = FXForwards(
+            fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
+        )
+        result = (
+            IndexFixedRateBond(dt(2000, 1, 1), "5y", index_base=100.5, spec="ukti",
+                               fixed_rate=1.0).rate(curves=[gbpi, gbp], metric="clean_price")
+        )
+        result2 = (
+            IndexFixedRateBond(dt(2000, 1, 1), "5y", index_base=100.5, spec="ukti",
+                               fixed_rate=1.0).rate(curves=[gbpi, gbp], metric="clean_price",
+                                                    fx=fxf)
+        )
+        assert result == result2
+
 
 class TestBill:
     def test_bill_discount_rate(self):
@@ -1245,6 +1264,21 @@ class TestBill:
         curve_z = curve.shift(result, composite=False)
         result = bill.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
+
+    def test_with_fx_supplied(self):
+        usd = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        gbp = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
+        fxf = FXForwards(
+            fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
+        )
+        result = (
+            Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(curves=gbp, metric="discount_rate")
+        )
+        result2 = (
+            Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(curves=gbp, metric="discount_rate", fx=fxf)
+        )
+        assert result == result2
 
 
 class TestFloatRateNote:
