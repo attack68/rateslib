@@ -27,6 +27,71 @@ below)
    )
    xcs.kwargs
 
+.. list-table::
+   :widths: 10 10 10 10 10 10 10 10 10 10
+   :header-rows: 1
+
+   * - Currency
+     - Calendar
+     - IRS
+     - FixedRateBond
+     - XCS
+     - Bill
+     - IndexFixedRateBond
+     - SBS
+     - ZCS
+     - ZCIS
+   * - USD
+     - :ref:`nyc <spec-usd-nyc>`
+     - :ref:`usd_irs <spec-usd-irs>`
+     - :ref:`usd_gb <spec-usd-gb>`
+     -
+     - :ref:`usd_gbb <spec-usd-gbb>`
+     -
+     -
+     -
+     -
+   * - EUR
+     - :ref:`tgt <spec-eur-tgt>`
+     - :ref:`eur_irs <spec-eur-irs>`, :ref:`eur_irs3 <spec-eur-irs3>`, :ref:`eur_irs6 <spec-eur-irs6>`
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+   * - GBP
+     - :ref:`ldn <spec-gbp-ldn>`
+     -
+     - :ref:`gbp_gb <spec-gbp-gb>`
+     -
+     -
+     -
+     -
+     -
+     -
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 0
+    :titlesonly:
+
+    spec/usd_nyc.rst
+    spec/eur_tgt.rst
+    spec/gbp_ldn.rst
+    spec/usd_irs.rst
+    spec/usd_gb.rst
+    spec/usd_gbb.rst
+    spec/eur_irs.rst
+    spec/eur_irs3.rst
+    spec/eur_irs6.rst
+    spec/gbp_gb.rst
+
+
+
+
 The NoInput argument
 *********************
 
