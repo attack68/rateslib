@@ -1878,11 +1878,10 @@ class BondMixin:
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
         disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
-        settlement = add_tenor(
+        settlement = self.leg1.schedule.calendar.lag(
             disc_curve_.node_dates[0],
-            f"{self.kwargs['settle']}B",
-            None,
-            self.leg1.schedule.calendar,
+            self.kwargs['settle'],
+            True,
         )
         a_delta = self.leg1.analytic_delta(curve, disc_curve_, fx, base)
         if self.ex_div(settlement):
@@ -1943,11 +1942,10 @@ class BondMixin:
         if settlement is NoInput.blank and curves[1] is NoInput.blank:
             settlement = self.leg1.schedule.effective
         elif settlement is NoInput.blank:
-            settlement = add_tenor(
+            settlement = self.leg1.schedule.calendar.lag(
                 curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
+                self.kwargs['settle'],
+                True,
             )
         cashflows = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
         if self.ex_div(settlement):
@@ -3060,11 +3058,10 @@ class IndexFixedRateBond(FixedRateBond):
             "index_dirty_price",
         ]:
             if forward_settlement is NoInput.blank:
-                settlement = add_tenor(
+                settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    f"{self.kwargs['settle']}B",
-                    None,
-                    self.leg1.schedule.calendar,
+                    self.kwargs['settle'],
+                    True,
                 )
             else:
                 settlement = forward_settlement
@@ -3327,11 +3324,10 @@ class Bill(FixedRateBond):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        settlement = add_tenor(
+        settlement = self.leg1.schedule.calendar.lag(
             curves[1].node_dates[0],
-            f"{self.kwargs['settle']}B",
-            None,
-            self.leg1.schedule.calendar,
+            self.kwargs['settle'],
+            True,
         )
         # scale price to par 100 and make a fwd adjustment according to curve
         price = (
@@ -3943,11 +3939,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "spread"]:
             if forward_settlement is NoInput.blank:
-                settlement = add_tenor(
+                settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    f"{self.kwargs['settle']}B",
-                    None,
-                    self.leg1.schedule.calendar,
+                    self.kwargs['settle'],
+                    True
                 )
             else:
                 settlement = forward_settlement
@@ -4406,11 +4401,10 @@ class BondFuture(Sensitivities):
         delivery = self.delivery[1] if delivery is NoInput.blank else delivery
 
         # build a curve for pricing
-        today = add_tenor(
+        today = self.basket[0].leg1.schedule.calendar.lag(
             settlement,
-            f"-{self.basket[0].kwargs['settle']}B",
-            None,
-            self.basket[0].leg1.schedule.calendar,
+            -self.basket[0].kwargs['settle'],
+            False,
         )
         unsorted_nodes = {
             today: 1.0,
@@ -8157,23 +8151,19 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if isinstance(self.kwargs["delivery_lag"], datetime):
             self.kwargs["delivery"] = self.kwargs["delivery_lag"]
         else:
-            self.kwargs["delivery"] = add_tenor(
+            self.kwargs["delivery"] = get_calendar(self.kwargs["calendar"]).lag(
                 self.kwargs["expiry"],
-                f"{self.kwargs['delivery_lag']}b",
-                "F",
-                self.kwargs["calendar"],
-                NoInput(0),
+                self.kwargs['delivery_lag'],
+                True,
             )
 
         if isinstance(self.kwargs["payment_lag"], datetime):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
         else:
-            self.kwargs["payment"] = add_tenor(
+            self.kwargs["payment"] = get_calendar(self.kwargs["calendar"]).lag(
                 self.kwargs["expiry"],
-                f"{self.kwargs['payment_lag']}b",
-                "F",
-                self.kwargs["calendar"],
-                NoInput(0),
+                self.kwargs['payment_lag'],
+                True,
             )
 
         if self.kwargs["premium_ccy"] not in [
