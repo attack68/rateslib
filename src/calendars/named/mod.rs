@@ -23,6 +23,7 @@ fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("all", all::WEEKMASK),
         ("bus", bus::WEEKMASK),
         ("nyc", nyc::WEEKMASK),
+        ("fed", nyc::WEEKMASK),
         ("tgt", tgt::WEEKMASK),
         ("ldn", ldn::WEEKMASK),
         ("stk", stk::WEEKMASK),
@@ -45,6 +46,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
         ("all", all::HOLIDAYS),
         ("bus", bus::HOLIDAYS),
         ("nyc", nyc::HOLIDAYS),
+        ("fed", nyc::HOLIDAYS),
         ("tgt", tgt::HOLIDAYS),
         ("ldn", ldn::HOLIDAYS),
         ("stk", stk::HOLIDAYS),
@@ -70,6 +72,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 //         ("all", all::RULES),
 //         ("bus", bus::RULES),
 //         ("nyc", nyc::RULES),
+//         ("fed", nyc::RULES),
 //         ("tgt", tgt::RULES),
 //         ("ldn", ldn::RULES),
 //         ("stk", stk::RULES),
@@ -201,6 +204,14 @@ mod tests {
         let cal = get_calendar_by_name("tyo").unwrap();
         assert!(cal.is_holiday(
             &NaiveDateTime::parse_from_str("2024-1-3 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
+    }
+
+    #[test]
+    fn test_fed() {
+        let cal = get_calendar_by_name("fed").unwrap();
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
         ));
     }
 

@@ -38,6 +38,7 @@ CALENDARS: dict[str, CalTypes] = {
     "tgt": get_named_calendar("tgt"),
     "ldn": get_named_calendar("ldn"),
     "nyc": get_named_calendar("nyc"),
+    "fed": get_named_calendar("fed"),
     "stk": get_named_calendar("stk"),
     "osl": get_named_calendar("osl"),
     "zur": get_named_calendar("zur"),
@@ -75,6 +76,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     - *"osl"*: Oslo for Norway's NOWA.
     - *"zur"*: Zurich for Switzerland's SARON.
     - *"nyc"*: New York City for US's SOFR.
+    - *"fed"*: Similar to *"nyc"* but omitting Good Friday.
     - *"ldn"*: London for UK's SONIA.
     - *"stk"*: Stockholm for Sweden's SWESTR.
     - *"tro"*: Toronto for Canada's CORRA.
