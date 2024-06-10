@@ -1214,6 +1214,9 @@ class FXExchange(Sensitivities, BaseMixin):
         """
         return super().gamma(*args, **kwargs)
 
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`analytic_delta` for FXExchange not defined.")
+
 
 # Securities
 
