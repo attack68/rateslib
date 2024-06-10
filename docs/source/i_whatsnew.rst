@@ -31,7 +31,8 @@ email contact through **rateslib@gmail.com**.
      - Calendar string parsing has been enhanced to allow associated settlement calendars, and
        automatic creation of a :class:`~rateslib.calendars.UnionCal` object. E.g. *"tgt,ldn|nyc"*.
    * - Calendars
-     - The tokyo calendar *'tyo'* has been added to align with TONA publication.
+     - The tokyo calendar *'tyo'* has been added to align with TONA publication. The FED calendar *'fed'* has also been
+       added.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
    * - Bug
