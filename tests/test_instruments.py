@@ -1353,6 +1353,14 @@ class TestFXExchange:
         expected = 100000.0 / 1.30
         assert abs(result - expected) < 1e-8
 
+    def test_no_defined_analytic_delta(self):
+        with pytest.raises(NotImplementedError):
+            FXExchange(
+                settlement=dt(2022, 3, 1),
+                pair="eurusd",
+                fx_rate=1.2080131682341035,
+            ).analytic_delta()
+
 
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
