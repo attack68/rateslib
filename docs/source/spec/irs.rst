@@ -58,6 +58,15 @@ ESTR
    defaults.spec["eur_irs6"]
    IRS(dt(2000, 1, 1), "10y", spec="eur_irs6").kwargs
 
+.. _spec-eur-irs1:
+
+1m Euribor
+-----------
+
+.. ipython:: python
+
+   defaults.spec["eur_irs1"]
+   IRS(dt(2000, 1, 1), "10y", spec="eur_irs1").kwargs
 
 GBP
 *****
@@ -84,3 +93,65 @@ SARON
 
    defaults.spec["chf_irs"]
    IRS(dt(2000, 1, 1), "10y", spec="chf_irs").kwargs
+
+SEK
+*****
+
+.. _spec-sek-irs:
+
+SWESTR
+------
+
+.. ipython:: python
+
+   defaults.spec["sek_irs"]
+   IRS(dt(2000, 1, 1), "10y", spec="sek_irs").kwargs
+
+.. _spec-sek-irs3:
+
+3m Stibor
+----------
+
+.. ipython:: python
+
+   defaults.spec["sek_irs3"]
+   IRS(dt(2000, 1, 1), "10y", spec="sek_irs3").kwargs
+
+NOK
+*****
+
+.. _spec-nok-irs:
+
+NOWA
+------
+
+.. ipython:: python
+
+   defaults.spec["nok_irs"]
+   IRS(dt(2000, 1, 1), "10y", spec="nok_irs").kwargs
+
+.. _spec-nok-irs3:
+
+3m Nibor
+---------
+
+.. ipython:: python
+
+   defaults.spec["nok_irs3"]
+   IRS(dt(2000, 1, 1), "10y", spec="nok_irs3").kwargs
+
+.. _spec-nok-irs6:
+
+6m Nibor
+----------
+
+.. ipython:: python
+
+   defaults.spec["nok_irs6"]
+   IRS(dt(2000, 1, 1), "10y", spec="nok_irs6").kwargs
+
+CAD
+*****
+
+JPY
+*****

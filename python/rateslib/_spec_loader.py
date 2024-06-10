@@ -105,6 +105,7 @@ if DEVELOPMENT:
         "eur_fra6": _get_kwargs("eur_fra6"),
         "sek_fra3": _get_kwargs("sek_fra3"),
         "eur_sbs36": _get_kwargs("eur_sbs36"),  # SBS
+        "nok_sbs36": _get_kwargs("nok_sbs36"),
         "eurusd_xcs": _get_kwargs("eurusd_xcs"),  # XCS
         "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
         "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),

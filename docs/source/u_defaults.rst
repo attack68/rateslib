@@ -31,34 +31,41 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    from *leg1* might be defined specifically, and will no longer inherit. If overwriting
    an instrument that has been directly specified, ensure to overwrite both legs.
 
+**Derivatives**
+
 .. list-table::
-   :widths: 10 10 10 10 10 10 10 10 10 10
    :header-rows: 1
 
    * - Currency
      - Calendar
      - IRS
-     - FixedRateBond
      - XCS
-     - Bill
-     - IndexFixedRateBond
+     - FRA
      - SBS
+     - STIRFuture
      - ZCS
      - ZCIS
+     - IIRS
+     - FXSwap
+     - FXOption
    * - USD
      - :ref:`nyc <spec-usd-nyc>`
      - :ref:`usd_irs <spec-usd-irs>`
-     - :ref:`usd_gb <spec-usd-gb>`
      -
-     - :ref:`usd_gbb <spec-usd-gbb>`
+     - -
+     -
+     -
+     -
      -
      -
      -
      -
    * - EUR
      - :ref:`tgt <spec-eur-tgt>`
-     - :ref:`eur_irs <spec-eur-irs>`, :ref:`eur_irs3 <spec-eur-irs3>`, :ref:`eur_irs6 <spec-eur-irs6>`
+     - :ref:`eur_irs <spec-eur-irs>`, :ref:`eur_irs3 <spec-eur-irs3>`, :ref:`eur_irs6 <spec-eur-irs6>`, :ref:`eur_irs1 <spec-eur-irs1>`
      -
+     -
+     - :ref:`eur_sbs36 <spec-eur-sbs36>`
      -
      -
      -
@@ -68,7 +75,9 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    * - GBP
      - :ref:`ldn <spec-gbp-ldn>`
      - :ref:`gbp_irs <spec-gbp-irs>`
-     - :ref:`gbp_gb <spec-gbp-gb>`
+     -
+     - -
+     -
      -
      -
      -
@@ -79,13 +88,62 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`zur <spec-chf-zur>`
      - :ref:`chf_irs <spec-chf-irs>`
      -
+     - -
      -
      -
      -
      -
      -
      -
-
+     -
+   * - SEK
+     - :ref:`stk <spec-sek-stk>`
+     - :ref:`sek_irs <spec-sek-irs>`, :ref:`sek_irs3 <spec-sek-irs3>`
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+   * - NOK
+     - :ref:`osl <spec-nok-osl>`
+     - :ref:`nok_irs <spec-nok-irs>`, :ref:`nok_irs3 <spec-nok-irs3>`, :ref:`nok_irs6 <spec-nok-irs6>`
+     -
+     -
+     - :ref:`nok_sbs36 <spec-nok-sbs36>`
+     -
+     -
+     -
+     -
+     -
+     -
+   * - CAD
+     - :ref:`tro <spec-cad-tro>`
+     -
+     -
+     - -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+   * - JPY
+     - :ref:`tyo <spec-jpy-tyo>`
+     -
+     -
+     - -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
 
 .. toctree::
     :hidden:
@@ -94,6 +152,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
 
     spec/calendars.rst
     spec/irs.rst
+    spec/sbs.rst
     spec/fixedratebond.rst
     spec/bill.rst
 
