@@ -55,3 +55,16 @@ GBP/EUR
 
    defaults.spec["gbpeur_xcs"]
    XCS(dt(2000, 1, 1), "10y", spec="gbpeur_xcs").kwargs
+
+JPY
+*****
+
+.. _spec-jpyusd-xcs:
+
+JPY/USD
+---------
+
+.. ipython:: python
+
+   defaults.spec["jpyusd_xcs"]
+   XCS(dt(2000, 1, 1), "10y", spec="jpyusd_xcs").kwargs
