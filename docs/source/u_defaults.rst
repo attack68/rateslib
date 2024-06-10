@@ -35,6 +35,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
 
 .. list-table::
    :header-rows: 1
+   :class: scrollwide
 
    * - Currency
      - Calendar
@@ -50,7 +51,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - FXOption
    * - USD
      - :ref:`nyc <spec-usd-nyc>`, :ref:`fed <spec-usd-fed>`
-     - :ref:`usd_irs <spec-usd-irs>`
+     - :ref:`usd_irs <spec-usd-irs>`, :ref:`usd_irs_lt_2y <spec-usd-irs-lt-2y>`
      -
      - -
      - -
@@ -144,6 +145,34 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+
+**Securities**
+
+.. list-table::
+   :header-rows: 1
+   :class: scrollwide
+
+   * - Currency
+     - FixedRateBond
+     - Bill
+     - IndexFixedRateBond
+     - FloatRateNote
+   * - USD
+     - :ref:`usd_gb <spec-usd-gb>`
+     - :ref:`usd_gbb <spec-usd-gbb>`
+     -
+     -
+   * - EUR
+     -
+     -
+     -
+     -
+   * - GBP
+     - :ref:`gbp_gb <spec-gbp-gb>`
+     -
+     -
+     -
+
 
 .. toctree::
     :hidden:
