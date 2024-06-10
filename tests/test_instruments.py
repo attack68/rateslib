@@ -2857,7 +2857,7 @@ class TestSpec:
             fixed_rate=2.0
         )
         assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "act360"
+        assert irs.kwargs["leg2_convention"] == "30e360"
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
 
@@ -2869,7 +2869,7 @@ class TestSpec:
             convention="30e360",
         )
         assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "act360"
+        assert irs.kwargs["leg2_convention"] == "30e360"
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["roll"] == "imm"
 
@@ -2879,11 +2879,14 @@ class TestSpec:
             termination="1Y",
             spec="eur_sbs36",
             convention="30e360",
+            frequency="A"
         )
         assert inst.kwargs["convention"] == "30e360"
-        assert inst.kwargs["leg2_convention"] == "act360"
+        assert inst.kwargs["leg2_convention"] == "30e360"
         assert inst.kwargs["currency"] == "eur"
         assert inst.kwargs["fixing_method"] == "ibor"
+        assert inst.kwargs["frequency"] == "A"
+        assert inst.kwargs["leg2_frequency"] == "s"
 
     def test_zcis(self):
         inst = ZCIS(
@@ -3014,8 +3017,8 @@ class TestSpec:
         assert xcs.kwargs["currency"] == "eur"
         assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
         assert xcs.kwargs["payment_lag"] == 5
-        assert xcs.kwargs["leg2_payment_lag"] == 2
-        assert xcs.kwargs["leg2_calendar"] == "tgt,nyc"
+        assert xcs.kwargs["leg2_payment_lag"] == 5
+        assert xcs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
 
 
 @pytest.mark.parametrize("inst, expected", [

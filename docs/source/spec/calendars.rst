@@ -1,0 +1,17 @@
+
+***************
+Calendars
+***************
+
+.. toctree::
+    :maxdepth: 0
+    :titlesonly:
+
+    calendars/usd_nyc.rst
+    calendars/eur_tgt.rst
+    calendars/gbp_ldn.rst
+    calendars/chf_zur.rst
+    calendars/sek_stk.rst
+    calendars/nok_osl.rst
+    calendars/cad_tro.rst
+    calendars/jpy_tyo.rst
