@@ -24,6 +24,15 @@ Aliases: **"sofr"**.
    defaults.spec["usd_irs"]
    IRS(dt(2000, 1, 1), "10y", spec="usd_irs").kwargs
 
+.. _spec-usd-irs-lt-2y:
+
+SOFR with tenor less than 2y
+-------------------------------
+
+.. ipython:: python
+
+   defaults.spec["usd_irs_lt_2y"]
+   IRS(dt(2000, 1, 1), "18m", spec="usd_irs_lt_2y").kwargs
 
 EUR
 *****
@@ -153,5 +162,35 @@ NOWA
 CAD
 *****
 
+.. _spec-cad-irs:
+
+CORRA
+----------
+
+.. ipython:: python
+
+   defaults.spec["cad_irs"]
+   IRS(dt(2000, 1, 1), "10y", spec="cad_irs").kwargs
+
+.. _spec-cad-irs-le-1y:
+
+CORRA with tenor less than or equal to 1Y
+-------------------------------------------
+
+.. ipython:: python
+
+   defaults.spec["cad_irs_le_1y"]
+   IRS(dt(2000, 1, 1), "9m", spec="cad_irs_le_1y").kwargs
+
 JPY
 *****
+
+.. _spec-jpy-irs:
+
+TONA
+----------
+
+.. ipython:: python
+
+   defaults.spec["jpy_irs"]
+   IRS(dt(2000, 1, 1), "10y", spec="jpy_irs").kwargs

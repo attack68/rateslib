@@ -85,3 +85,14 @@ div.tutorial span{
   color: red;
   font-style: italic;
 }
+
+table.scrollwide {
+  display: block;
+  width: 648px;
+  /*background-color: #E0;*/
+  overflow: auto;
+}
+table.scrollwide td {
+  white-space: normal;
+  max-width:96px;
+}
