@@ -1225,15 +1225,40 @@ class BondMixin:
 
     _acc_frac_mode_map = {
         NoInput(0): "_acc_lin_days",
-        "ukg": "_acc_lin_days",
+        "gbp_gb": "_acc_lin_days",
+        "usd_gb": "_acc_lin_days_long_split",  # street method
+        "usd_gb_tsy": "_acc_lin_days_long_split",  # treasury method
+        "sek_gb": "_acc_30e360",
+        "cad_gb": "_acc_act365_1y_stub",  # calculation for real settlement
+        "cad_gb_ytm": "_acc_lin_days",  # alt. calculation used in YTM calculations
+
+        # deprecated aliases
+        "ukg": "_acc_lin_days",  # 'gbp_gb'
+        "ust": "_acc_lin_days_long_split",  # 'usd_gb'
+        "ust_31bii": "_acc_lin_days_long_split",  # 'usd_gb_tsy'
+        "sgb": "_acc_30e360",  # 'sek_gb'
+        "cadgb": "_acc_act365_1y_stub",  # 'cad_gb'
+
+        # bill modes
         "uktb": "_acc_lin_days",
-        "ust": "_acc_lin_days_long_split",
-        "ust_31bii": "_acc_lin_days_long_split",
         "ustb": "_acc_lin_days",
-        "sgb": "_acc_30e360",
         "sgbb": "_acc_lin_days",
-        "cadgb": "_acc_act365_1y_stub",
-        "cadgb-ytm": "_acc_lin_days",
+    }
+
+    _price_from_ytm_alias = {
+        NoInput(0): NoInput(0),
+        "gbp_gb": "gbp_gb",
+        "usd_gb": "usd_gb",
+        "usd_gb_tsy": "usd_gb_tsy",
+        "sek_gb": "sek_gb",
+        "cad_gb": "cad_gb",
+
+        # deprecated aliases
+        "ukg": "gbp_gb",
+        "ust": "usd_gb",
+        "ust_31bii": "usd_gb_tsy",
+        "sgb": "sek_gb",
+        "cadgb": "cad_gb",
     }
 
     def _set_base_index_if_none(self, curve: IndexCurve):
@@ -1564,15 +1589,16 @@ class BondMixin:
         # fmt: off
         price_from_ytm_funcs = {
             NoInput(0): partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode=NoInput(0)),
-            "ukg": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ukg"),
-            "ust": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
-            "ust_31bii": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
-            "sgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
-            "cadgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cadgb-ytm"),
+            "gbp_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="gbp_gb"),
+            "usd_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="usd_gb"),
+            "usd_gb_tsy": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="usd_gb"),
+            "sek_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sek_gb"),
+            "cad_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cad_gb_ytm"),
         }
         # fmt: on
         try:
-            return price_from_ytm_funcs[calc_mode](ytm, settlement, dirty)
+            calc_mode_clean = self._price_from_ytm_alias[calc_mode]
+            return price_from_ytm_funcs[calc_mode_clean](ytm, settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
