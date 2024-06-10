@@ -53,7 +53,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`usd_irs <spec-usd-irs>`
      -
      - -
-     -
+     - -
      -
      -
      -
@@ -64,7 +64,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`tgt <spec-eur-tgt>`
      - :ref:`eur_irs <spec-eur-irs>`, :ref:`eur_irs3 <spec-eur-irs3>`, :ref:`eur_irs6 <spec-eur-irs6>`, :ref:`eur_irs1 <spec-eur-irs1>`
      -
-     -
+     - :ref:`eur_fra3 <spec-eur-fra3>`, :ref:`eur_fra6 <spec-eur-fra6>`, :ref:`eur_fra1 <spec-eur-fra1>`
      - :ref:`eur_sbs36 <spec-eur-sbs36>`
      -
      -
@@ -77,7 +77,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`gbp_irs <spec-gbp-irs>`
      -
      - -
-     -
+     - -
      -
      -
      -
@@ -89,7 +89,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`chf_irs <spec-chf-irs>`
      -
      - -
-     -
+     - -
      -
      -
      -
@@ -100,7 +100,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`stk <spec-sek-stk>`
      - :ref:`sek_irs <spec-sek-irs>`, :ref:`sek_irs3 <spec-sek-irs3>`
      -
-     -
+     - :ref:`sek_fra3 <spec-sek-fra3>`
      -
      -
      -
@@ -112,7 +112,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`osl <spec-nok-osl>`
      - :ref:`nok_irs <spec-nok-irs>`, :ref:`nok_irs3 <spec-nok-irs3>`, :ref:`nok_irs6 <spec-nok-irs6>`
      -
-     -
+     - :ref:`nok_fra3 <spec-nok-fra3>`, :ref:`nok_fra6 <spec-nok-fra6>`
      - :ref:`nok_sbs36 <spec-nok-sbs36>`
      -
      -
@@ -125,7 +125,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      - -
-     -
+     - -
      -
      -
      -
@@ -137,7 +137,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      - -
-     -
+     - -
      -
      -
      -
@@ -153,6 +153,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/calendars.rst
     spec/irs.rst
     spec/sbs.rst
+    spec/fra.rst
     spec/fixedratebond.rst
     spec/bill.rst
 
