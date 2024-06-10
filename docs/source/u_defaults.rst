@@ -63,7 +63,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    * - EUR
      - :ref:`tgt <spec-eur-tgt>`
      - :ref:`eur_irs <spec-eur-irs>`, :ref:`eur_irs3 <spec-eur-irs3>`, :ref:`eur_irs6 <spec-eur-irs6>`, :ref:`eur_irs1 <spec-eur-irs1>`
-     -
+     - :ref:`eurusd_xcs <spec-eurusd-xcs>`, :ref:`eurgbp_xcs <spec-eurgbp-xcs>`
      - :ref:`eur_fra3 <spec-eur-fra3>`, :ref:`eur_fra6 <spec-eur-fra6>`, :ref:`eur_fra1 <spec-eur-fra1>`
      - :ref:`eur_sbs36 <spec-eur-sbs36>`
      -
@@ -75,7 +75,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    * - GBP
      - :ref:`ldn <spec-gbp-ldn>`
      - :ref:`gbp_irs <spec-gbp-irs>`
-     -
+     - :ref:`gbpusd_xcs <spec-gbpusd-xcs>`, :ref:`gbpeur_xcs <spec-gbpeur-xcs>`
      - -
      - -
      -
@@ -122,7 +122,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - CAD
      - :ref:`tro <spec-cad-tro>`
-     -
+     - :ref:`cad_irs <spec-cad-irs>`, :ref:`cad_irs_le_1y <spec-cad-irs-le-1y>`
      -
      - -
      - -
@@ -134,7 +134,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - JPY
      - :ref:`tyo <spec-jpy-tyo>`
-     -
+     - :ref:`jpy_irs <spec-jpy-irs>`
      -
      - -
      - -
@@ -152,6 +152,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
 
     spec/calendars.rst
     spec/irs.rst
+    spec/xcs.rst
     spec/sbs.rst
     spec/fra.rst
     spec/fixedratebond.rst
