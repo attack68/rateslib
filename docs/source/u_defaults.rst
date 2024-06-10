@@ -49,7 +49,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - FXSwap
      - FXOption
    * - USD
-     - :ref:`nyc <spec-usd-nyc>`
+     - :ref:`nyc <spec-usd-nyc>`, :ref:`fed <spec-usd-fed>`
      - :ref:`usd_irs <spec-usd-irs>`
      -
      - -
