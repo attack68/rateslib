@@ -403,14 +403,24 @@ class TestFixedRateBond:
 
     ## German gov bonds comparison with BBG and official bundesbank publications.
 
-    def test_de_gb(self):
-        FixedRateBond(
+    @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
+        (dt(2024, 1, 10), 105.0, 1.208836, 0.321311),  # BBG BXT ticket data
+        (dt(2024, 6, 12), 97.180, 2.66368627, 1.204918),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
+    ])
+    def test_de_gb(self, set, price, exp_ytm, exp_acc):
+        frb = FixedRateBond(  # ISIN DE0001102622
             effective=dt(2022, 10, 20),
             termination=dt(2029, 11, 15),
             stub="LONGFRONT",
             fixed_rate=2.1,
             spec="de_gb",
         )
+        result = frb.ytm(price=price, settlement=set)
+        assert abs(result - exp_ytm) < 1e-6
+
+        result = frb.accrued(settlement=set)
+        assert abs(result - exp_acc) < 1e-6
+
 
     # General Method Coverage
 

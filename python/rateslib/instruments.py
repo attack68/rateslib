@@ -1253,7 +1253,7 @@ class BondMixin:
         "usd_gb_tsy": "usd_gb_tsy",
         "sek_gb": "sek_gb",
         "cad_gb": "cad_gb",
-        "de_gb": "de_gbp",
+        "de_gb": "de_gb",
 
         # deprecated aliases
         "ukg": "gbp_gb",
