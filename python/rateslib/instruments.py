@@ -1224,23 +1224,6 @@ class FXExchange(Sensitivities, BaseMixin):
 
 class BondMixin(_BondConventions):
 
-    _price_from_ytm_alias = {
-        NoInput(0): NoInput(0),
-        "gbp_gb": "gbp_gb",
-        "usd_gb": "usd_gb",
-        "usd_gb_tsy": "usd_gb_tsy",
-        "sek_gb": "sek_gb",
-        "cad_gb": "cad_gb",
-        "de_gb": "de_gb",
-
-        # deprecated aliases
-        "ukg": "gbp_gb",
-        "ust": "usd_gb",
-        "ust_31bii": "usd_gb_tsy",
-        "sgb": "sek_gb",
-        "cadgb": "cad_gb",
-    }
-
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
