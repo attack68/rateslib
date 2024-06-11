@@ -297,7 +297,6 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _usd_gbb(self):
         """Mode used for US T-Bills"""
         return {
-            **self._usd_gb,
             "accrual": self._acc_linear_proportion_by_days,
             "price_type": self._price_discount,
             "ytm_clone": "usd_gb",
@@ -307,7 +306,6 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _sek_gbb(self):
         """Mode used for Swedish T-Bills"""
         return {
-            **self._sek_gb,
             "accrual": self._acc_linear_proportion_by_days,
             "price_type": self._price_simple,
             "ytm_clone": "sek_gb",
@@ -317,7 +315,6 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _gbp_gbb(self):
         """Mode used for UK T-Bills"""
         return {
-            **self._gbp_gb,
             "accrual": self._acc_linear_proportion_by_days,
             "price_type": self._price_simple,
             "ytm_clone": "gbp_gb",
