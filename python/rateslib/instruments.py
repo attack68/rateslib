@@ -1290,39 +1290,14 @@ class BondMixin(_BondConventions):
         else:
             return True if settlement > ex_div_date else False
 
-    def _acc_index(self, settlement: datetime):
-        """
-        Get the coupon period index for that which the settlement date fall within.
-        Uses unadjusted dates.
-        """
-        _ = index_left(
-            self.leg1.schedule.uschedule,
-            len(self.leg1.schedule.uschedule),
-            settlement,
-        )
-        return _
-
-    def _accrued(self, settlement: datetime, calc_mode: Union[str, NoInput]):
-        acc_idx = self._acc_index(settlement)
-        frac = self._accrued_frac(settlement, calc_mode, acc_idx)
+    def _accrued(self, settlement: datetime, func: callable):
+        """func is the specific accrued function associated with the bond ``calc_mode``"""
+        acc_idx = self._period_index(settlement)
+        frac = func(settlement, acc_idx)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period
         _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
         return frac * _ / -self.leg1.notional * 100
-
-    def _accrued_frac(self, settlement: datetime, calc_mode: Union[str, NoInput], acc_idx: int):
-        """
-        Return the accrual fraction of period between last coupon and settlement and
-        coupon period left index.
-
-        Branches to a calculation based on the bond `calc_mode`.
-        """
-        try:
-            func = getattr(self, f"_{calc_mode}")["accrual_mode"]
-            # func = getattr(self, self._acc_frac_mode_map[calc_mode])
-            return func(settlement, acc_idx)
-        except KeyError:
-            raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
 
     def _generic_ytm(
         self,
@@ -1332,17 +1307,17 @@ class BondMixin(_BondConventions):
         f1: callable,
         f2: callable,
         f3: callable,
-        accrual_calc_mode: Union[str, NoInput],
+        accrual: callable,
     ):
         """
         Refer to supplementary material.
         """
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        acc_idx = self._acc_index(settlement)
+        acc_idx = self._period_index(settlement)
 
         v2 = f2(ytm, f, settlement, acc_idx)
-        v1 = f1(ytm, f, settlement, acc_idx, v2, accrual_calc_mode)
-        v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual_calc_mode)
+        v1 = f1(ytm, f, settlement, acc_idx, v2, accrual)
+        v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d = 0
@@ -1371,14 +1346,7 @@ class BondMixin(_BondConventions):
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.notional * 100
 
-        return p if dirty else p - self._accrued(settlement, accrual_calc_mode)
-
-    def _v2_1y_simple(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
-        """
-        The default method for a single regular period discounted in the regular portion of bond.
-        Implies compounding at the same frequency as the coupons.
-        """
-        return 1 / (1 + ytm / (100 * f))
+        return p if dirty else p - self._accrued(settlement, accrual)
 
     def _price_from_ytm(
         self,
@@ -1391,20 +1359,18 @@ class BondMixin(_BondConventions):
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        # fmt: off
-        price_from_ytm_funcs = {
-            NoInput(0): partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode=NoInput(0)),
-            "gbp_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="gbp_gb"),
-            "usd_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="usd_gb"),
-            "usd_gb_tsy": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="usd_gb"),
-            "sek_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sek_gb"),
-            "cad_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cad_gb_ytm"),
-            "de_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="de_gb"),
-        }
-        # fmt: on
+        calc_mode = _drb("default", calc_mode)
         try:
-            calc_mode_clean = self._price_from_ytm_alias[calc_mode]
-            return price_from_ytm_funcs[calc_mode_clean](ytm, settlement, dirty)
+            method = getattr(self, f"_{calc_mode}")
+            accrual = method.get("ytm_accrual", method.get("accrual"))
+            func = partial(
+                self._generic_ytm,
+                f1=method["v1"],
+                f2=method["v2"],
+                f3=method["v3"],
+                accrual=accrual
+            )
+            return func(ytm, settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
@@ -2313,7 +2279,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """
-        return self._accrued(settlement, self.calc_mode)
+        return self._accrued(settlement, getattr(self, f"_{self.calc_mode}")["accrual"])
 
     def rate(
         self,
@@ -3074,20 +3040,6 @@ class Bill(FixedRateBond):
 
     """
 
-    _calc_mode_price_funcs = {  # associated default pricing functions with spec
-        NoInput(0): "_price_discount",
-        "ustb": "_price_discount",
-        "uktb": "_price_simple",
-        "sgbb": "_price_simple",
-    }
-
-    _calc_mode_ytm_map = {
-        NoInput(0): "usd_gb",
-        "ustb": "usd_gb",
-        "uktb": "gbp_gb",
-        "sgbb": "sek_gb",
-    }
-
     def __init__(
         self,
         effective: Union[datetime, NoInput] = NoInput(0),
@@ -3214,7 +3166,8 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -3232,7 +3185,8 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
 
@@ -3266,15 +3220,17 @@ class Bill(FixedRateBond):
         """
         if not isinstance(calc_mode, str):
             calc_mode = self.calc_mode
-        price_func = getattr(self, self._calc_mode_price_funcs[calc_mode])
+        price_func = getattr(self, f"_{calc_mode}")["price_type"]
         return price_func(rate, settlement)
 
     def _price_discount(self, rate: DualTypes, settlement: datetime):
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime):
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
     def ytm(
@@ -3315,7 +3271,7 @@ class Bill(FixedRateBond):
             calc_mode = self.calc_mode
 
         if self.kwargs["frequency"] is NoInput.blank:
-            freq = defaults.spec[self._calc_mode_ytm_map[calc_mode]]["frequency"]
+            freq = defaults.spec[getattr(self, f"_{calc_mode}")["ytm_clone"]]["frequency"]
         else:
             freq = self.kwargs["frequency"]
 
@@ -3329,7 +3285,7 @@ class Bill(FixedRateBond):
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=self._calc_mode_ytm_map[calc_mode],
+            spec=getattr(self, f"_{calc_mode}")["ytm_clone"],
         )
         return equiv_bond.ytm(price, settlement)
 
@@ -3681,8 +3637,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
            frn.accrued(dt(2000, 6, 4))
         """
         if self.leg1.fixing_method == "ibor":
-            acc_idx = self._acc_index(settlement)
-            frac = self._accrued_frac(settlement, self.calc_mode, acc_idx)
+            acc_idx = self._period_index(settlement)
+            frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 

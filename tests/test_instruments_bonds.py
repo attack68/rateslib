@@ -371,7 +371,7 @@ class TestFixedRateBond:
             modifier="NONE",
             convention="ActActICMA_STUB365f",
             frequency="S",
-            calc_mode="cadgb",
+            calc_mode="cad_gb",
             roll=1,
             stub="FRONT",
             ex_div=1,

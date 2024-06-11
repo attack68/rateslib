@@ -6,9 +6,36 @@ from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
 from rateslib.calendars import add_tenor, dcf
+from rateslib.curves import index_left
 
 
 class _AccruedAndYTMMethods:
+
+    def _period_index(self, settlement: datetime):
+        """
+        Get the coupon period index for that which the settlement date fall within.
+        Uses unadjusted dates.
+        """
+        _ = index_left(
+            self.leg1.schedule.uschedule,
+            len(self.leg1.schedule.uschedule),
+            settlement,
+        )
+        return _
+
+    def _accrued_fraction(self, settlement: datetime, calc_mode: Union[str, NoInput], acc_idx: int):
+        """
+        Return the accrual fraction of period between last coupon and settlement and
+        coupon period left index.
+
+        Branches to a calculation based on the bond `calc_mode`.
+        """
+        try:
+            func = getattr(self, f"_{calc_mode}")["accrual_mode"]
+            # func = getattr(self, self._acc_frac_mode_map[calc_mode])
+            return func(settlement, acc_idx)
+        except KeyError:
+            raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
 
     def _acc_linear_proportion_by_days(self, settlement: datetime, acc_idx: int, *args):
         """
@@ -98,14 +125,14 @@ class _AccruedAndYTMMethods:
             _ = f * r.days / 365.0
         return _
 
-    def _v1_comp(
+    def _v1_compounded_by_remaining_accrual_fraction(
         self,
         ytm: DualTypes,
         f: int,
         settlement: datetime,
         acc_idx: int,
         v: DualTypes,
-        accrual_calc_mode: Union[str, NoInput],
+        accrual: callable,
         *args,
     ):
         """
@@ -115,7 +142,7 @@ class _AccruedAndYTMMethods:
 
         Method: compounds "v" by the accrual fraction of the period.
         """
-        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
+        acc_frac = accrual(settlement, acc_idx)
         if self.leg1.periods[acc_idx].stub:
             # If it is a stub then the remaining fraction must be scaled by the relative size of the
             # stub period compared with a regular period.
@@ -132,7 +159,7 @@ class _AccruedAndYTMMethods:
         settlement: datetime,
         acc_idx: int,
         v: DualTypes,
-        accrual_calc_mode: Union[str, NoInput],
+        accrual: callable,
         *args,
     ):
         """
@@ -140,7 +167,7 @@ class _AccruedAndYTMMethods:
 
         If the stub period is long, then discount the regular part of the stub with the regular discount param ``v``.
         """
-        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
+        acc_frac = accrual(settlement, acc_idx)
         if self.leg1.periods[acc_idx].stub:
             # is a stub so must account for discounting in a different way.
             fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
@@ -209,8 +236,8 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _gbp_gb(self):
         """Mode used for UK Gilts"""
         return {
-            "accrual_mode": self._acc_linear_proportion_by_days,
-            "v1": self._v1_comp,
+            "accrual": self._acc_linear_proportion_by_days,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
@@ -219,8 +246,8 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _usd_gb(self):
         """Street convention for US Treasuries"""
         return {
-            "accrual_mode": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_comp,
+            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
@@ -229,7 +256,7 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _usd_gb_tsy(self):
         """Treasury convention for US Treasuries"""
         return {
-            "accrual_mode": self._acc_linear_proportion_by_days_long_stub_split,
+            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
             "v1": self._v1_simple,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
@@ -239,8 +266,8 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _sek_gb(self):
         """Mode used for Swedish GBs."""
         return {
-            "accrual_mode": self._acc_30e360,
-            "v1": self._v1_comp,
+            "accrual": self._acc_30e360,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_30e360_u_simple,
         }
@@ -249,9 +276,9 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _cad_gb(self):
         """Mode used for Canadian GBs."""
         return {
-            "accrual_mode": self._acc_act365_with_1y_and_stub_adjustment,
-            "accrual_mode_ytm": self._acc_linear_proportion_by_days,
-            "v1": self._v1_comp,
+            "accrual": self._acc_act365_with_1y_and_stub_adjustment,
+            "ytm_accrual": self._acc_linear_proportion_by_days,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_30e360_u_simple,
         }
@@ -260,11 +287,43 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _de_gb(self):
         """Mode used for German GBs."""
         return {
-            "accrual_mode": self._acc_linear_proportion_by_days,
-            "v1": self._v1_comp,
+            "accrual": self._acc_linear_proportion_by_days,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
+
+    @property
+    def _usd_gbb(self):
+        """Mode used for US T-Bills"""
+        return {
+            **self._usd_gb,
+            "accrual": self._acc_linear_proportion_by_days,
+            "price_type": self._price_discount,
+            "ytm_clone": "usd_gb",
+        }
+
+    @property
+    def _sek_gbb(self):
+        """Mode used for Swedish T-Bills"""
+        return {
+            **self._sek_gb,
+            "accrual": self._acc_linear_proportion_by_days,
+            "price_type": self._price_simple,
+            "ytm_clone": "sek_gb",
+        }
+
+    @property
+    def _gbp_gbb(self):
+        """Mode used for UK T-Bills"""
+        return {
+            **self._gbp_gb,
+            "accrual": self._acc_linear_proportion_by_days,
+            "price_type": self._price_simple,
+            "ytm_clone": "gbp_gb",
+        }
+
+    ### Deprecated Aliases
 
     @property
     def _ukg(self):
@@ -275,6 +334,11 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _ust(self):
         """deprecated alias"""
         return self._usd_gb
+
+    @property
+    def _ustb(self):
+        """deprecated alias"""
+        return self._usd_gbb
 
     @property
     def _ust_31bii(self):
@@ -290,3 +354,13 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _cadgb(self):
         """deprecated alias"""
         return self._cad_gb
+
+    @property
+    def _sgbb(self):
+        """deprecated alias"""
+        return self._sek_gbb
+
+    @property
+    def _uktb(self):
+        """deprecated alias"""
+        return self._gbp_gbb
