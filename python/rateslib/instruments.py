@@ -1231,6 +1231,7 @@ class BondMixin:
         "sek_gb": "_acc_30e360",
         "cad_gb": "_acc_act365_1y_stub",  # calculation for real settlement
         "cad_gb_ytm": "_acc_lin_days",  # alt. calculation used in YTM calculations
+        "de_gb": "_acc_lin_days",
 
         # deprecated aliases
         "ukg": "_acc_lin_days",  # 'gbp_gb'
@@ -1252,6 +1253,7 @@ class BondMixin:
         "usd_gb_tsy": "usd_gb_tsy",
         "sek_gb": "sek_gb",
         "cad_gb": "cad_gb",
+        "de_gb": "de_gbp",
 
         # deprecated aliases
         "ukg": "gbp_gb",
@@ -1345,7 +1347,7 @@ class BondMixin:
 
     def _acc_lin_days(self, settlement: datetime, acc_idx: int, *args):
         """
-        Method uses a linear proportion of days between payments to allocate accrued interest.
+        Method uses a linear proportion of actual days between payments to allocate accrued interest.
         Measures between unadjusted coupon dates.
         This is a general method, used for example by [UK Gilts].
         """
@@ -1594,6 +1596,7 @@ class BondMixin:
             "usd_gb_tsy": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="usd_gb"),
             "sek_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sek_gb"),
             "cad_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cad_gb_ytm"),
+            "de_gb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="de_gb"),
         }
         # fmt: on
         try:

@@ -401,6 +401,17 @@ class TestFixedRateBond:
         assert abs(result - 100.00) < 1e-5
         assert abs(stub_cash + 7828.77) < 1e-2
 
+    ## German gov bonds comparison with BBG and official bundesbank publications.
+
+    def test_de_gb(self):
+        FixedRateBond(
+            effective=dt(2022, 10, 20),
+            termination=dt(2029, 11, 15),
+            stub="LONGFRONT",
+            fixed_rate=2.1,
+            spec="de_gb",
+        )
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self):
