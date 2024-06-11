@@ -162,6 +162,11 @@ class _AccruedAndYTMMethods:
         accrual: callable,
         *args,
     ):
+        """
+        Uses regular fractional compounding except if it is last period, when simple money-mkt
+        yield is used instead.
+        Introduced for German Bunds.
+        """
         if acc_idx == self.leg1.schedule.n_periods - 1:
             # then settlement is in last period use simple interest.
             return self._v1_simple(
