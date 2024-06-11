@@ -10,7 +10,7 @@ from rateslib.calendars import add_tenor, dcf
 
 class _AccruedAndYTMMethods:
 
-    def _acc_lin_days(self, settlement: datetime, acc_idx: int, *args):
+    def _acc_linear_proportion_by_days(self, settlement: datetime, acc_idx: int, *args):
         """
         Return the fraction of an accrual period between start and settlement.
 
@@ -23,7 +23,7 @@ class _AccruedAndYTMMethods:
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
         return r / s
 
-    def _acc_lin_days_long_split(self, settlement: datetime, acc_idx: int, *args):
+    def _acc_linear_proportion_by_days_long_stub_split(self, settlement: datetime, acc_idx: int, *args):
         """
         For long stub periods this splits the accrued interest into two components.
         Otherwise, returns the regular linear proportion.
@@ -64,7 +64,7 @@ class _AccruedAndYTMMethods:
                     _ = r_ / s_ + (s - r) / s
                     return _ / (self.leg1.periods[acc_idx].dcf * f)
 
-        return self._acc_lin_days(settlement, acc_idx, *args)
+        return self._acc_linear_proportion_by_days(settlement, acc_idx, *args)
 
     def _acc_30e360(self, settlement: datetime, acc_idx: int, *args):
         """
@@ -77,7 +77,7 @@ class _AccruedAndYTMMethods:
         _ = 1 - _
         return _
 
-    def _acc_act365_1y_stub(self, settlement: datetime, acc_idx: int, *args):
+    def _acc_act365_with_1y_and_stub_adjustment(self, settlement: datetime, acc_idx: int, *args):
         """
         Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
         Measures between unadjusted date and settlement.
@@ -86,7 +86,7 @@ class _AccruedAndYTMMethods:
         [this is primarily designed for Canadian Government Bonds]
         """
         if self.leg1.periods[acc_idx].stub:
-            return self._acc_lin_days(settlement, acc_idx)
+            return self._acc_linear_proportion_by_days(settlement, acc_idx)
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
@@ -209,7 +209,7 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _gbp_gb(self):
         """Mode used for UK Gilts"""
         return {
-            "accrual_mode": self._acc_lin_days,
+            "accrual_mode": self._acc_linear_proportion_by_days,
             "v1": self._v1_comp,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
@@ -219,7 +219,7 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _usd_gb(self):
         """Street convention for US Treasuries"""
         return {
-            "accrual_mode": self._acc_lin_days_long_split,
+            "accrual_mode": self._acc_linear_proportion_by_days_long_stub_split,
             "v1": self._v1_comp,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
@@ -229,7 +229,7 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _usd_gb_tsy(self):
         """Treasury convention for US Treasuries"""
         return {
-            "accrual_mode": self._acc_lin_days_long_split,
+            "accrual_mode": self._acc_linear_proportion_by_days_long_stub_split,
             "v1": self._v1_simple,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
@@ -249,8 +249,8 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _cad_gb(self):
         """Mode used for Canadian GBs."""
         return {
-            "accrual_mode": self._acc_act365_1y_stub,
-            "accrual_mode_ytm": self._acc_lin_days,
+            "accrual_mode": self._acc_act365_with_1y_and_stub_adjustment,
+            "accrual_mode_ytm": self._acc_linear_proportion_by_days,
             "v1": self._v1_comp,
             "v2": self._v2_,
             "v3": self._v3_30e360_u_simple,
@@ -260,7 +260,7 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _de_gb(self):
         """Mode used for German GBs."""
         return {
-            "accrual_mode": self._acc_lin_days,
+            "accrual_mode": self._acc_linear_proportion_by_days,
             "v1": self._v1_comp,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,

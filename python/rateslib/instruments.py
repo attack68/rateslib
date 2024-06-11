@@ -1224,29 +1224,6 @@ class FXExchange(Sensitivities, BaseMixin):
 
 class BondMixin(_BondConventions):
 
-    _acc_frac_mode_map = {
-        NoInput(0): "_acc_lin_days",
-        "gbp_gb": "_acc_lin_days",
-        "usd_gb": "_acc_lin_days_long_split",  # street method
-        "usd_gb_tsy": "_acc_lin_days_long_split",  # treasury method
-        "sek_gb": "_acc_30e360",
-        "cad_gb": "_acc_act365_1y_stub",  # calculation for real settlement
-        "cad_gb_ytm": "_acc_lin_days",  # alt. calculation used in YTM calculations
-        "de_gb": "_acc_lin_days",
-
-        # deprecated aliases
-        "ukg": "_acc_lin_days",  # 'gbp_gb'
-        "ust": "_acc_lin_days_long_split",  # 'usd_gb'
-        "ust_31bii": "_acc_lin_days_long_split",  # 'usd_gb_tsy'
-        "sgb": "_acc_30e360",  # 'sek_gb'
-        "cadgb": "_acc_act365_1y_stub",  # 'cad_gb'
-
-        # bill modes
-        "uktb": "_acc_lin_days",
-        "ustb": "_acc_lin_days",
-        "sgbb": "_acc_lin_days",
-    }
-
     _price_from_ytm_alias = {
         NoInput(0): NoInput(0),
         "gbp_gb": "gbp_gb",
