@@ -425,6 +425,7 @@ class TestFixedRateBond:
         (dt(2024, 6, 12), 99.555, 3.5314195, 0.825137),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
     ])
     def test_de_gb(self, set, price, exp_ytm, exp_acc):
+        # tests the MoneyMarket simple yield for the final period.
         frb = FixedRateBond(  # ISIN DE0001102366
             effective=dt(2014, 8, 15),
             termination=dt(2024, 8, 15),
@@ -436,9 +437,6 @@ class TestFixedRateBond:
 
         result = frb.ytm(price=price, settlement=set)
         assert abs(result - exp_ytm) < 1e-6
-
-
-
 
     # General Method Coverage
 

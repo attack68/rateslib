@@ -152,7 +152,50 @@ class _AccruedAndYTMMethods:
             fd0 = 1 - acc_frac
         return v**fd0
 
+    def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
+        self,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v: DualTypes,
+        accrual: callable,
+        *args,
+    ):
+        if acc_idx == self.leg1.schedule.n_periods - 1:
+            # then settlement is in last period use simple interest.
+            return self._v1_simple(
+                ytm, f, settlement, acc_idx, v, accrual, *args
+            )
+        else:
+            return self._v1_compounded_by_remaining_accrual_fraction(
+                ytm, f, settlement, acc_idx, v, accrual, *args
+            )
+
     def _v1_simple(
+        self,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v: DualTypes,
+        accrual: callable,
+        *args,
+    ):
+        """
+        Use simple rates with a yield which matches the frequency of the coupon.
+        """
+        acc_frac = accrual(settlement, acc_idx)
+        if self.leg1.periods[acc_idx].stub:
+            # is a stub so must account for discounting in a different way.
+            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        else:
+            fd0 = 1 - acc_frac
+
+        v_ = 1 / (1 + fd0 * ytm / (100 * f))
+        return v_
+
+    def _v1_simple_1y_adjustment(
         self,
         ytm: DualTypes,
         f: int,
@@ -257,7 +300,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         """Treasury convention for US Treasuries"""
         return {
             "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_simple,
+            "v1": self._v1_simple_1y_adjustment,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
@@ -288,7 +331,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         """Mode used for German GBs."""
         return {
             "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
+            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
