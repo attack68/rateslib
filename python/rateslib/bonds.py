@@ -7,46 +7,8 @@ from rateslib.default import NoInput
 from rateslib.dual import DualTypes
 from rateslib.calendars import add_tenor, dcf
 
-class BondConventions:
-    """
-    Contains calculation conventions and specifies calculation modes for different bonds of different jurisdictions.
-    """
 
-    def _gbp_gb(self):
-        """Mode used for UK Gilts"""
-        return {
-            "accrual_mode": self._acc_lin_days,
-            "v1": self._v1_comp,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    def _usd_gb(self):
-        """Street convention for US Treasuries"""
-        return {
-            "accrual_mode": self._acc_lin_days_long_split,
-            "v1": self._v1_comp,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    def _usd_gb_tsy(self):
-        """Treasury convention for US Treasuries"""
-        return {
-            "accrual_mode": self._acc_lin_days_long_split,
-            "v1": self._v1_simple,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    def _sek_gb(self):
-        """Mode used for Swedish GBs."""
-        return {
-            "accrual_mode": self._acc_30e360,
-            "v1": self._v1_comp,
-            "v2": self._v2_,
-            "v3": self._v3_30e360_u_simple,
-        }
+class _AccruedAndYTMMethods:
 
     def _acc_lin_days(self, settlement: datetime, acc_idx: int, *args):
         """
@@ -113,6 +75,27 @@ class BondConventions:
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         _ = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
         _ = 1 - _
+        return _
+
+    def _acc_act365_1y_stub(self, settlement: datetime, acc_idx: int, *args):
+        """
+        Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
+        Measures between unadjusted date and settlement.
+        Special adjustment if number of days is greater than 365.
+        If the period is a stub reverts to a straight line interpolation
+        [this is primarily designed for Canadian Government Bonds]
+        """
+        if self.leg1.periods[acc_idx].stub:
+            return self._acc_lin_days(settlement, acc_idx)
+        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+        r = settlement - self.leg1.schedule.uschedule[acc_idx]
+        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
+        if r == s:
+            _ = 1.0  # then settlement falls on the coupon date
+        elif r.days > 365.0 / f:
+            _ = 1.0 - ((s - r).days * f) / 365.0  # counts remaining days
+        else:
+            _ = f * r.days / 365.0
         return _
 
     def _v1_comp(
@@ -215,3 +198,95 @@ class BondConventions:
         """
         d_ = dcf(self.leg1.periods[acc_idx].start, self.leg1.periods[acc_idx].end, "30E360")
         return 1 / (1 + d_ * ytm / 100)  # simple interest
+
+
+class _BondConventions(_AccruedAndYTMMethods):
+    """
+    Contains calculation conventions and specifies calculation modes for different bonds of different jurisdictions.
+    """
+
+    @property
+    def _gbp_gb(self):
+        """Mode used for UK Gilts"""
+        return {
+            "accrual_mode": self._acc_lin_days,
+            "v1": self._v1_comp,
+            "v2": self._v2_,
+            "v3": self._v3_dcf_comp,
+        }
+
+    @property
+    def _usd_gb(self):
+        """Street convention for US Treasuries"""
+        return {
+            "accrual_mode": self._acc_lin_days_long_split,
+            "v1": self._v1_comp,
+            "v2": self._v2_,
+            "v3": self._v3_dcf_comp,
+        }
+
+    @property
+    def _usd_gb_tsy(self):
+        """Treasury convention for US Treasuries"""
+        return {
+            "accrual_mode": self._acc_lin_days_long_split,
+            "v1": self._v1_simple,
+            "v2": self._v2_,
+            "v3": self._v3_dcf_comp,
+        }
+
+    @property
+    def _sek_gb(self):
+        """Mode used for Swedish GBs."""
+        return {
+            "accrual_mode": self._acc_30e360,
+            "v1": self._v1_comp,
+            "v2": self._v2_,
+            "v3": self._v3_30e360_u_simple,
+        }
+
+    @property
+    def _cad_gb(self):
+        """Mode used for Canadian GBs."""
+        return {
+            "accrual_mode": self._acc_act365_1y_stub,
+            "accrual_mode_ytm": self._acc_lin_days,
+            "v1": self._v1_comp,
+            "v2": self._v2_,
+            "v3": self._v3_30e360_u_simple,
+        }
+
+    @property
+    def _de_gb(self):
+        """Mode used for German GBs."""
+        return {
+            "accrual_mode": self._acc_lin_days,
+            "v1": self._v1_comp,
+            "v2": self._v2_,
+            "v3": self._v3_dcf_comp,
+        }
+
+    @property
+    def _ukg(self):
+        """deprecated alias"""
+        return self._gbp_gb
+
+    @property
+    def _ust(self):
+        """deprecated alias"""
+        return self._usd_gb
+
+    @property
+    def _ust_31bii(self):
+        """deprecated alias"""
+        return self._usd_gb_tsy
+
+    @property
+    def _sgb(self):
+        """deprecated alias"""
+        return self._sek_gb
+
+    @property
+    def _cadgb(self):
+        """deprecated alias"""
+        return self._cad_gb

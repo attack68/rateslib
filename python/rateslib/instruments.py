@@ -49,7 +49,7 @@ from rateslib.periods import (Cashflow, FloatPeriod, FXCallPeriod, FXPutPeriod,
                               _disc_maybe_from_curve, _get_fx_and_base,
                               _maybe_local)
 from rateslib.solver import Solver, quadratic_eqn
-from rateslib.bonds import BondConventions
+from rateslib.bonds import _BondConventions
 
 # from math import sqrt
 
@@ -1222,7 +1222,7 @@ class FXExchange(Sensitivities, BaseMixin):
 # Securities
 
 
-class BondMixin(BondConventions):
+class BondMixin(_BondConventions):
 
     _acc_frac_mode_map = {
         NoInput(0): "_acc_lin_days",
@@ -1341,35 +1341,11 @@ class BondMixin(BondConventions):
         Branches to a calculation based on the bond `calc_mode`.
         """
         try:
-            func = getattr(self, self._acc_frac_mode_map[calc_mode])
+            func = getattr(self, f"_{calc_mode}")["accrual_mode"]
+            # func = getattr(self, self._acc_frac_mode_map[calc_mode])
             return func(settlement, acc_idx)
         except KeyError:
             raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
-
-
-
-
-
-    def _acc_act365_1y_stub(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
-        Measures between unadjusted date and settlement.
-        Special adjustment if number of days is greater than 365.
-        If the period is a stub reverts to a straight line interpolation
-        [this is primarily designed for Canadian Government Bonds]
-        """
-        if self.leg1.periods[acc_idx].stub:
-            return self._acc_lin_days(settlement, acc_idx)
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        r = settlement - self.leg1.schedule.uschedule[acc_idx]
-        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        if r == s:
-            _ = 1.0  # then settlement falls on the coupon date
-        elif r.days > 365.0 / f:
-            _ = 1.0 - ((s - r).days * f) / 365.0  # counts remaining days
-        else:
-            _ = f * r.days / 365.0
-        return _
 
     def _generic_ytm(
         self,
@@ -1420,20 +1396,12 @@ class BondMixin(BondConventions):
 
         return p if dirty else p - self._accrued(settlement, accrual_calc_mode)
 
-
-
     def _v2_1y_simple(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
         """
         The default method for a single regular period discounted in the regular portion of bond.
         Implies compounding at the same frequency as the coupons.
         """
         return 1 / (1 + ytm / (100 * f))
-
-
-
-
-
-
 
     def _price_from_ytm(
         self,
