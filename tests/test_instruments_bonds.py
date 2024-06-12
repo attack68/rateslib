@@ -404,8 +404,11 @@ class TestFixedRateBond:
     ## German gov bonds comparison with BBG and official bundesbank publications.
 
     @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
-        (dt(2024, 1, 10), 105.0, 1.208836, 0.321311),  # BBG BXT ticket data
-        (dt(2024, 6, 12), 97.180, 2.66368627, 1.204918),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
+       (dt(2024, 1, 10), 105.0, 1.208836, 0.321311),  # BBG BXT ticket data
+       (dt(2024, 6, 12), 97.180, 2.66368627, 1.204918),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
+       (dt(2022, 12, 20), 99.31, 2.208075, 0.350959),  # BBG BXT ticket data
+       # (dt(2022, 12, 20), 99.31, 2.20804175, 0.3452055),  # Bundesbank official data: see link above (accrual is unexplained and does not match systems)
+       (dt(2023, 11, 2), 97.04, 2.636708016, 2.174795),  # Bundesbank official data: see link above (agrees with BXT)
     ])
     def test_de_gb(self, set, price, exp_ytm, exp_acc):
         frb = FixedRateBond(  # ISIN DE0001102622
@@ -415,16 +418,16 @@ class TestFixedRateBond:
             fixed_rate=2.1,
             spec="de_gb",
         )
-        result = frb.ytm(price=price, settlement=set)
-        assert abs(result - exp_ytm) < 1e-6
-
         result = frb.accrued(settlement=set)
         assert abs(result - exp_acc) < 1e-6
+
+        result = frb.ytm(price=price, settlement=set)
+        assert abs(result - exp_ytm) < 1e-6
 
     @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
         (dt(2024, 6, 12), 99.555, 3.5314195, 0.825137),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
     ])
-    def test_de_gb(self, set, price, exp_ytm, exp_acc):
+    def test_de_gb_mm(self, set, price, exp_ytm, exp_acc):
         # tests the MoneyMarket simple yield for the final period.
         frb = FixedRateBond(  # ISIN DE0001102366
             effective=dt(2014, 8, 15),
@@ -1163,7 +1166,6 @@ class TestBill:
             calc_mode="ustb",
         )
         # this YTM is equivalent to the FixedRateBond ytm with coupon of 0.0
-
         result = bill.ytm(99.937778, dt(2004, 1, 22))
 
         # TODO this does not match US treasury example because the method is different
