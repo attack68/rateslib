@@ -1214,6 +1214,7 @@ class TestZCS:
                 fixed_rate=4.22566695954813,
             )
 
+
 class TestZCIS:
     def test_leg2_index_base(self, curve):
         i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
@@ -2974,10 +2975,10 @@ class TestSpec:
         bill = Bill(
             effective=dt(2022, 1, 1),
             termination="3m",
-            spec="ustb",
+            spec="us_gbb",
             convention="act365f",
         )
-        assert bill.calc_mode == "ustb"
+        assert bill.calc_mode == "us_gbb"
         assert bill.kwargs["convention"] == "act365f"
         assert bill.kwargs["currency"] == "usd"
         assert bill.kwargs["fixed_rate"] == 0.0

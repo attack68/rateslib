@@ -158,17 +158,42 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - IndexFixedRateBond
      - FloatRateNote
    * - USD
-     - :ref:`usd_gb <spec-usd-gb>`
-     - :ref:`usd_gbb <spec-usd-gbb>`
+     - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`
+     - :ref:`us_gbb <spec-usd-gbb>`
      -
      -
    * - EUR
-     -
+     - :ref:`de_gb <spec-de-gb>`
      -
      -
      -
    * - GBP
-     - :ref:`gbp_gb <spec-gbp-gb>`
+     - :ref:`uk_gb <spec-uk-gb>`
+     -
+     -
+     -
+   * - CHF
+     -
+     -
+     -
+     -
+   * - SEK
+     - :ref:`se_gb <spec-se-gb>`
+     -
+     -
+     -
+   * - NOK
+     -
+     -
+     -
+     -
+   * - CAD
+     - :ref:`ca_gb <spec-ca-gb>`
+     -
+     -
+     -
+   * - JPY
+     -
      -
      -
      -
