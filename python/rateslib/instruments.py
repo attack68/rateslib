@@ -1346,6 +1346,7 @@ class BondMixin(_BondConventions):
         try:
             method = getattr(self, f"_{calc_mode}")
             accrual = method.get("ytm_accrual", method.get("accrual"))
+            # ytm_frequency = method.get("ytm_frequency", lambda x: x)
             func = partial(
                 self._generic_ytm,
                 f1=method["v1"],
@@ -1354,6 +1355,7 @@ class BondMixin(_BondConventions):
                 accrual=accrual
             )
             return func(ytm, settlement, dirty)
+            # return func(ytm_frequency(ytm), settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
@@ -1918,8 +1920,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
     - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
     - *"ca_gb"*: Canadian Government Bond DMO convention. (deprecated alias *"cadgb"*)
-    - *"de_gb"*: German Government Bond ICMA convention.
-    - *"fr_gb"*: French Government Bond ICMA convention.
+    - *"de_gb"*: German Government Bond (Bunds/Bobls) ICMA convention.
+    - *"fr_gb"*: French Government Bond (OAT) ICMA convention.
+    - *"it_gb"*: Italian Government Bond (BTP) ICMA convention.
 
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided

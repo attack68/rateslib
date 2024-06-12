@@ -236,6 +236,12 @@ class _AccruedAndYTMMethods:
         """
         return 1 / (1 + ytm / (100 * f))
 
+    def _v2_annual(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
+        """
+        ytm is expressed annually but coupon payments are on another frequency
+        """
+        return (1 / (1 + ytm / 100)) ** (1 / f)
+
     def _v3_dcf_comp(
         self,
         ytm: DualTypes,
@@ -273,6 +279,10 @@ class _AccruedAndYTMMethods:
         """
         d_ = dcf(self.leg1.periods[acc_idx].start, self.leg1.periods[acc_idx].end, "30E360")
         return 1 / (1 + d_ * ytm / 100)  # simple interest
+
+    def _ytm_a_to_s(self, ytm):
+        """convert an annual ytm to a semi-annual ytm. designed initially for BTPs"""
+        return ((1+ytm/100)**0.5-1)*200.0
 
 
 class _BondConventions(_AccruedAndYTMMethods):
@@ -360,6 +370,17 @@ class _BondConventions(_AccruedAndYTMMethods):
             "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
+        }
+
+    @property
+    def _it_gb(self):
+        """Mode used for Italian BTPs."""
+        return {
+            "accrual": self._acc_linear_proportion_by_days,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
+            "v2": self._v2_annual,
+            "v3": self._v3_dcf_comp,
+            # "ytm_frequency": self._ytm_a_to_s,
         }
 
     # Bills

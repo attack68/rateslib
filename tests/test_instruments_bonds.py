@@ -460,6 +460,27 @@ class TestFixedRateBond:
         result = frb.ytm(price=price, settlement=set)
         assert abs(result - exp_ytm) < 1e-6
 
+    ## Italian BTP
+
+    @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
+       (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
+       # (dt(2033, 3, 15), 99.65, 6.86252, 1.628730),  # BBG BXT ticket data
+       # (dt(2032, 11, 1), 99.00, 6.42970, 0.0),  # BBG BXT ticket data
+    ])
+    def test_it_gb(self, set, price, exp_ytm, exp_acc):
+        frb = FixedRateBond(  # ISIN IT0005518128
+            effective=dt(2022, 11, 1),
+            termination=dt(2033, 5, 1),
+            fixed_rate=4.4,
+            spec="it_gb",
+        )
+        result = frb.accrued(settlement=set)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.ytm(price=price, settlement=set)
+
+        assert abs(result - exp_ytm) < 1e-6
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self):
