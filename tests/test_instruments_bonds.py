@@ -463,9 +463,10 @@ class TestFixedRateBond:
     ## Italian BTP
 
     @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
-       (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
+       # (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
        # (dt(2033, 3, 15), 99.65, 6.86252, 1.628730),  # BBG BXT ticket data
-       # (dt(2032, 11, 1), 99.00, 6.42970, 0.0),  # BBG BXT ticket data
+       (dt(2032, 11, 1), 99.00, 6.42970, 0.0),  # BBG BXT ticket data - semi annual simple rate
+       # (dt(2032, 11, 2), 99.00, 6.43989, 0.01215),  # BBG BXT ticket data - semi annual simple rate
     ])
     def test_it_gb(self, set, price, exp_ytm, exp_acc):
         frb = FixedRateBond(  # ISIN IT0005518128

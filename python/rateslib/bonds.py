@@ -168,6 +168,8 @@ class _AccruedAndYTMMethods:
         Introduced for German Bunds.
         """
         if acc_idx == self.leg1.schedule.n_periods - 1:
+                # or \
+                # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
             # then settlement is in last period use simple interest.
             return self._v1_simple(
                 ytm, f, settlement, acc_idx, v, accrual, *args
@@ -229,14 +231,14 @@ class _AccruedAndYTMMethods:
 
         return v_
 
-    def _v2_(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
+    def _v2_(self, ytm: DualTypes, f: int, *args):
         """
         Default method for a single regular period discounted in the regular portion of bond.
         Implies compounding at the same frequency as the coupons.
         """
         return 1 / (1 + ytm / (100 * f))
 
-    def _v2_annual(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
+    def _v2_annual(self, ytm: DualTypes, f: int, *args):
         """
         ytm is expressed annually but coupon payments are on another frequency
         """
@@ -279,6 +281,19 @@ class _AccruedAndYTMMethods:
         """
         d_ = dcf(self.leg1.periods[acc_idx].start, self.leg1.periods[acc_idx].end, "30E360")
         return 1 / (1 + d_ * ytm / 100)  # simple interest
+
+    def _v3_simple(
+        self,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v: DualTypes,
+        accrual: callable,
+        *args,
+    ):
+        v_ = 1 / (1 + self.leg1.periods[-2].dcf * ytm / 100.0)
+        return v_
 
     def _ytm_a_to_s(self, ytm):
         """convert an annual ytm to a semi-annual ytm. designed initially for BTPs"""
@@ -377,9 +392,9 @@ class _BondConventions(_AccruedAndYTMMethods):
         """Mode used for Italian BTPs."""
         return {
             "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
+            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
             "v2": self._v2_annual,
-            "v3": self._v3_dcf_comp,
+            "v3": self._v3_simple,
             # "ytm_frequency": self._ytm_a_to_s,
         }
 
