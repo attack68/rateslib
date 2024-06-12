@@ -25,7 +25,8 @@ email contact through **rateslib@gmail.com**.
      - ``calc_mode`` of :class:`~rateslib.instruments.FixedRateBond` has been refactored to allow more standardised
        names. The existing modes are deprecated and will be removed in v2.0.
    * - Instruments
-     - ``spec`` *"de_gb"* added to :class:`~rateslib.instruments.FixedRateBond` to allow German government bonds.
+     - ``spec`` *"de_gb"* and *"fr_gb"* added to :class:`~rateslib.instruments.FixedRateBond`
+       to quickly create German government, and French government bonds.
    * - Calendars
      - The `pandas` holiday and calendar system has been removed in favour of a rust implementation for
        calendar objects: :class:`~rateslib.calendars.Cal` and :class:`~rateslib.calendars.UnionCal`.
