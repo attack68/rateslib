@@ -1922,12 +1922,6 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     Calc modes
 
-    - "ukg": UK Gilt convention. Accrued is linearly proportioned, as are stub periods. Stub yields
-      are compounded.
-    - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
-      proportioning only in the segregated short stub part.
-    - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
-      31-B-ii). Otherwise referred to as the 'Treasury' method.
     - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
       using 30e360, also for back stubs.
     - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
@@ -2044,22 +2038,22 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usGd = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=True)
 
        data = DataFrame(data=[
-               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "sgb", s1c, s1d],
-               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "ukg", uk11c, uk11d],
-               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "ukg", uk12c, uk12d],
-               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "ukg", uk13c, uk13d],
-               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "ukg", uk14c, uk14d],
-               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "ukg", uk21c, uk21d],
-               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "ukg", uk22c, uk22d],
-               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "ukg", uk23c, uk23d],
-               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "ukg", uk24c, uk24d],
-               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust_31bii", usAc, usAd],
-               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust_31bii", usBc, usBd],
-               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust_31bii", usCc, usCd],
-               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust_31bii", usDc, usDd],
-               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust_31bii", usEc, usEd],
-               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust_31bii", usFc, usFd],
-               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust_31bii", usGc, usGd],
+               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "se_gb", s1c, s1d],
+               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "uk_gb", uk11c, uk11d],
+               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "uk_gb", uk12c, uk12d],
+               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "uk_gb", uk13c, uk13d],
+               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "uk_gb", uk14c, uk14d],
+               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "uk_gb", uk21c, uk21d],
+               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "uk_gb", uk22c, uk22d],
+               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "uk_gb", uk23c, uk23d],
+               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "uk_gb", uk24c, uk24d],
+               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "us_gb_tsy", usAc, usAd],
+               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "us_gb_tsy", usBc, usBd],
+               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "us_gb_tsy", usCc, usCd],
+               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "us_gb_tsy", usDc, usDd],
+               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "us_gb_tsy", usEc, usEd],
+               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "us_gb_tsy", usFc, usFd],
+               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "us_gb_tsy", usGc, usGd],
            ],
            columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
        )

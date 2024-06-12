@@ -10,28 +10,40 @@ FixedRateBond
 USD
 ****
 
-.. _spec-usd-gb:
+.. _spec-us-gb:
 
 Government Bonds
 ------------------
 
 Aliases: **"ust"**
 
+Uses Street convention. Similar to *"uk_gb"* except long stub periods have linear
+proportioning only in the segregated short stub part.
+
 .. ipython:: python
 
    defaults.spec["usd_gb"]
    FixedRateBond(dt(2000, 1, 1), "10y", spec="usd_gb", fixed_rate=2.5).kwargs
 
+US Treasury convention. Reprices examples in federal documents: Section 31-B-ii).
 
-GBP
+.. ipython:: python
+
+   defaults.spec["usd_gb_tsy"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="usd_gb_tsy", fixed_rate=2.5).kwargs
+
+EUR
 ********
 
-.. _spec-gbp-gb:
+.. _spec-de-gb:
 
 Government Bonds
 -----------------
 
-Aliases: **"ukt"** and **"gilt"**
+**Germany**
+
+Uses ICMA conventions. Similar to *"uk_gb"*, except in the last period simple interest rate and
+money-market yield is used.
 
 .. ipython:: python
    :suppress:
@@ -40,5 +52,28 @@ Aliases: **"ukt"** and **"gilt"**
 
 .. ipython:: python
 
-   defaults.spec["gbp_gb"]
-   FixedRateBond(dt(2000, 1, 1), "10y", spec="gbp_gb", fixed_rate=2.5).kwargs
+   defaults.spec["de_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="de_gb", fixed_rate=2.5).kwargs
+
+GBP
+********
+
+.. _spec-uk-gb:
+
+Government Bonds
+-----------------
+
+Aliases: **"ukt"** and **"gilt"**
+
+Calculations performed with the DMO method. Accrued is on ActAct linearly proportioned basis.
+Yield is compounded in all periods including any front and back stubs.
+
+.. ipython:: python
+   :suppress:
+
+   from rateslib import *
+
+.. ipython:: python
+
+   defaults.spec["uk_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="uk_gb", fixed_rate=2.5).kwargs
