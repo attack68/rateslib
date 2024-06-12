@@ -50,6 +50,17 @@ money-market yield is used.
    defaults.spec["de_gb"]
    FixedRateBond(dt(2000, 1, 1), "10y", spec="de_gb", fixed_rate=2.5).kwargs
 
+.. _spec-fr-gb:
+
+**France**
+
+Uses ICMA conventions. Similar to *"uk_gb"*.
+
+.. ipython:: python
+
+   defaults.spec["fr_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="fr_gb", fixed_rate=2.5).kwargs
+
 GBP
 ********
 
