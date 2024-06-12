@@ -278,7 +278,18 @@ class _AccruedAndYTMMethods:
 class _BondConventions(_AccruedAndYTMMethods):
     """
     Contains calculation conventions and specifies calculation modes for different bonds of different jurisdictions.
+
+    For FixedRateBonds the conventions are as follows:
+
+    {
+        "accrual": callable that returns a fraction of a period to determine accrued interest.
+        "v1": discounting function for the first cashflow of a bond.
+        "v2": discounting function for intermediate cashflows of a bond.
+        "v3": discounting function for the last cashflow of a bond.
+    }
     """
+
+    # FixedRateBonds
 
     @property
     def _gbp_gb(self):
@@ -340,6 +351,8 @@ class _BondConventions(_AccruedAndYTMMethods):
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
+
+    # Bills
 
     @property
     def _usd_gbb(self):
