@@ -163,7 +163,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
    * - EUR
-     - :ref:`de_gb <spec-de-gb>`
+     - :ref:`de_gb <spec-de-gb>`, :ref:`fr_gb <spec-fr-gb>`
      -
      -
      -

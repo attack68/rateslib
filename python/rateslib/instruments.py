@@ -1917,8 +1917,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - *"us_gb_tsy"*: US Treasury Bond Treasury convention. (deprecated alias *"ust_31bii"*)
     - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
     - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
-    - *"ca_gb"*: Canadian Government Bond DMO convention. (deprcated alias *"cadgb"*)
+    - *"ca_gb"*: Canadian Government Bond DMO convention. (deprecated alias *"cadgb"*)
     - *"de_gb"*: German Government Bond ICMA convention.
+    - *"fr_gb"*: French Government Bond ICMA convention.
 
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided

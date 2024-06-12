@@ -352,6 +352,16 @@ class _BondConventions(_AccruedAndYTMMethods):
             "v3": self._v3_dcf_comp,
         }
 
+    @property
+    def _fr_gb(self):
+        """Mode used for French OATs."""
+        return {
+            "accrual": self._acc_linear_proportion_by_days,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
+            "v2": self._v2_,
+            "v3": self._v3_dcf_comp,
+        }
+
     # Bills
 
     @property
