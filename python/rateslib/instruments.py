@@ -1907,11 +1907,20 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     **Calculation Modes**
 
-    The ``calc_mode`` parameter allows the calculation for yield-to-maturity and accrued interest
+    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and **accrued interest**
     to branch depending upon the particular convention of different bonds.
 
     The following modes are currently available with a brief description of its particular
     action:
+
+    - *"us_gb"*: US Treasury Bond Street convention  (deprecated alias *"ust"*)
+    - *"us_gb_tsy"*: US Treasury Bond Treasury convention. (deprecated alias *"ust_31bii"*)
+    - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
+    - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
+    - *"ca_gb"*: Canadian Government Bond DMO convention. (deprcated alias *"cadgb"*)
+    - *"de_gb"*: German Government Bond ICMA convention.
+
+    Calc modes
 
     - "ukg": UK Gilt convention. Accrued is linearly proportioned, as are stub periods. Stub yields
       are compounded.
@@ -1934,7 +1943,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        sgb = FixedRateBond(
            effective=dt(2022, 3, 30), termination=dt(2039, 3, 30),
-           frequency="A", convention="ActActICMA", calc_mode="SGB",
+           frequency="A", convention="ActActICMA", calc_mode="se_gb",
            fixed_rate=3.5, calendar="stk"
        )
        s1c = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=False)
@@ -1942,7 +1951,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        uk1 = FixedRateBond(
            effective=dt(1995, 1, 1), termination=dt(2015, 12, 7),
-           frequency="S", convention="ActActICMA", calc_mode="UKG",
+           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
            fixed_rate=8.0, calendar="ldn", ex_div=7,
        )
        uk11c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=False)
@@ -1956,7 +1965,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        uk2 = FixedRateBond(
            effective=dt(1998, 11, 26), termination=dt(2004, 11, 26),
-           frequency="S", convention="ActActICMA", calc_mode="UKG",
+           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
            fixed_rate=6.75, calendar="ldn", ex_div=7,
        )
        uk21c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=False)
@@ -1970,7 +1979,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usA = FixedRateBond(
            effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=8.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -1979,7 +1988,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usB = FixedRateBond(
            effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -1989,7 +1998,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usC = FixedRateBond(
            effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
            front_stub=dt(1990, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -1998,7 +2007,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usD = FixedRateBond(
            effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=9.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2008,7 +2017,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usE = FixedRateBond(
            effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
            front_stub=dt(1986, 2, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=10.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2017,7 +2026,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usF = FixedRateBond(
            effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=10.50, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2027,7 +2036,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usG = FixedRateBond(
            effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
            front_stub=dt(1989, 6, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=9.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2904,11 +2913,7 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-        calc_mode : str in {"ukg", "ust", "sgb"}
-        A calculation mode for dealing with bonds that are in short stub or accrual
-        periods. All modes give the same value for YTM at issue date for regular
-        bonds but differ slightly for bonds with stubs or with accrued.
-    calc_mode : str in {"ukg", "ust", "sgb"}
+    calc_mode : str
         A calculation mode for dealing with bonds that are in short stub or accrual
         periods. All modes give the same value for YTM at issue date for regular
         bonds but differ slightly for bonds with stubs or with accrued.
@@ -2953,7 +2958,7 @@ class Bill(FixedRateBond):
            settle=1,
            notional=-1e6,  # negative notional receives fixed, i.e. buys a bill
            curves="bill_curve",
-           calc_mode="ustb",
+           calc_mode="us_gbb",
        )
        bill.ex_div(dt(2004, 1, 22))
        bill.price(rate=0.80, settlement=dt(2004, 1, 22))
