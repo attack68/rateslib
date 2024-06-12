@@ -22,8 +22,8 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Instruments
-     - ``calc_mode`` of :class:`~rateslib.instruments.FixedRateBond` has been refactors to allow more standardised
-       names. The existing modes have been deprecated and will be removed in v2.0.
+     - ``calc_mode`` of :class:`~rateslib.instruments.FixedRateBond` has been refactored to allow more standardised
+       names. The existing modes are deprecated and will be removed in v2.0.
    * - Instruments
      - ``spec`` *"de_gb"* added to :class:`~rateslib.instruments.FixedRateBond` to allow German government bonds.
    * - Calendars

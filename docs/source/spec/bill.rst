@@ -20,5 +20,5 @@ Aliases: **"ustb"**
 
 .. ipython:: python
 
-   defaults.spec["usd_gbb"]
-   Bill(dt(2000, 1, 1), "3m", spec="usd_gbb").kwargs
+   defaults.spec["us_gbb"]
+   Bill(dt(2000, 1, 1), "3m", spec="us_gbb").kwargs
