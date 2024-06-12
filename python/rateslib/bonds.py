@@ -292,7 +292,7 @@ class _BondConventions(_AccruedAndYTMMethods):
     # FixedRateBonds
 
     @property
-    def _gbp_gb(self):
+    def _uk_gb(self):
         """Mode used for UK Gilts"""
         return {
             "accrual": self._acc_linear_proportion_by_days,
@@ -302,7 +302,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         }
 
     @property
-    def _usd_gb(self):
+    def _us_gb(self):
         """Street convention for US Treasuries"""
         return {
             "accrual": self._acc_linear_proportion_by_days_long_stub_split,
@@ -312,7 +312,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         }
 
     @property
-    def _usd_gb_tsy(self):
+    def _us_gb_tsy(self):
         """Treasury convention for US Treasuries"""
         return {
             "accrual": self._acc_linear_proportion_by_days_long_stub_split,
@@ -322,7 +322,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         }
 
     @property
-    def _sek_gb(self):
+    def _se_gb(self):
         """Mode used for Swedish GBs."""
         return {
             "accrual": self._acc_30e360,
@@ -332,7 +332,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         }
 
     @property
-    def _cad_gb(self):
+    def _ca_gb(self):
         """Mode used for Canadian GBs."""
         return {
             "accrual": self._acc_act365_with_1y_and_stub_adjustment,
@@ -355,30 +355,30 @@ class _BondConventions(_AccruedAndYTMMethods):
     # Bills
 
     @property
-    def _usd_gbb(self):
+    def _us_gbb(self):
         """Mode used for US T-Bills"""
         return {
             "accrual": self._acc_linear_proportion_by_days,
             "price_type": self._price_discount,
-            "ytm_clone": "usd_gb",
+            "ytm_clone": "us_gb",
         }
 
     @property
-    def _sek_gbb(self):
+    def _se_gbb(self):
         """Mode used for Swedish T-Bills"""
         return {
             "accrual": self._acc_linear_proportion_by_days,
             "price_type": self._price_simple,
-            "ytm_clone": "sek_gb",
+            "ytm_clone": "se_gb",
         }
 
     @property
-    def _gbp_gbb(self):
+    def _uk_gbb(self):
         """Mode used for UK T-Bills"""
         return {
             "accrual": self._acc_linear_proportion_by_days,
             "price_type": self._price_simple,
-            "ytm_clone": "gbp_gb",
+            "ytm_clone": "uk_gb",
         }
 
     ### Deprecated Aliases
@@ -386,39 +386,39 @@ class _BondConventions(_AccruedAndYTMMethods):
     @property
     def _ukg(self):
         """deprecated alias"""
-        return self._gbp_gb
+        return self._uk_gb
 
     @property
     def _ust(self):
         """deprecated alias"""
-        return self._usd_gb
+        return self._us_gb
 
     @property
     def _ustb(self):
         """deprecated alias"""
-        return self._usd_gbb
+        return self._us_gbb
 
     @property
     def _ust_31bii(self):
         """deprecated alias"""
-        return self._usd_gb_tsy
+        return self._us_gb_tsy
 
     @property
     def _sgb(self):
         """deprecated alias"""
-        return self._sek_gb
+        return self._se_gb
 
     @property
     def _cadgb(self):
         """deprecated alias"""
-        return self._cad_gb
+        return self._ca_gb
 
     @property
     def _sgbb(self):
         """deprecated alias"""
-        return self._sek_gbb
+        return self._se_gbb
 
     @property
     def _uktb(self):
         """deprecated alias"""
-        return self._gbp_gbb
+        return self._uk_gbb
