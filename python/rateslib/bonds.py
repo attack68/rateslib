@@ -357,7 +357,7 @@ class _BondConventions(_AccruedAndYTMMethods):
         """Mode used for French OATs."""
         return {
             "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+            "v1": self._v1_compounded_by_remaining_accrual_fraction,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
         }
