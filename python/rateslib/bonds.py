@@ -179,6 +179,23 @@ class _AccruedAndYTMMethods:
                 ytm, f, settlement, acc_idx, v, accrual, *args
             )
 
+    def _v1_comp_stub_act365f(
+        self,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v: DualTypes,
+        accrual: callable,
+        *args,
+    ):
+        """Compounds the yield. In a stub period the act365f DCF is used"""
+        if not self.leg1.periods[acc_idx].stub:
+            return self._v1_compounded_by_remaining_accrual_fraction(ytm, f, settlement, acc_idx, v, accrual, *args)
+        else:
+            fd0 = dcf(settlement, self.leg1.schedule.uschedule[acc_idx+1], "Act365F")
+            return v**fd0
+
     def _v1_simple(
         self,
         ytm: DualTypes,
@@ -396,6 +413,17 @@ class _BondConventions(_AccruedAndYTMMethods):
             "v2": self._v2_annual,
             "v3": self._v3_dcf_comp,
             # "ytm_frequency": self._ytm_a_to_s,
+        }
+
+    @property
+    def _no_gb(self):
+        """Mode used for Norwegian GBs."""
+        return {
+            "accrual": self._acc_act365_with_1y_and_stub_adjustment,
+            # "ytm_accrual": self._acc_linear_proportion_by_days,
+            "v1": self._v1_comp_stub_act365f,
+            "v2": self._v2_,
+            "v3": self._v3_dcf_comp,
         }
 
     # Bills
