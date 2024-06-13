@@ -409,6 +409,7 @@ class TestFixedRateBond:
        (dt(2022, 12, 20), 99.31, 2.208075, 0.350959),  # BBG BXT ticket data
        # (dt(2022, 12, 20), 99.31, 2.20804175, 0.3452055),  # Bundesbank official data: see link above (accrual is unexplained and does not match systems)
        (dt(2023, 11, 2), 97.04, 2.636708016, 2.174795),  # Bundesbank official data: see link above (agrees with BXT)
+       (dt(2028, 11, 15), 97.5, 4.717949, 0.0)  # YAS
     ])
     def test_de_gb(self, set, price, exp_ytm, exp_acc):
         frb = FixedRateBond(  # ISIN DE0001102622
@@ -445,6 +446,7 @@ class TestFixedRateBond:
 
     @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
        (dt(2024, 6, 14), 101.0, 2.886581, 1.655738),  # BBG BXT ticket data
+       (dt(2033, 11, 25), 99.75, 3.258145, 0.0),  # YAS
        (dt(2034, 6, 13), 101.0, 0.769200, 1.643836),  # BBG BXT ticket data
     ])
     def test_fr_gb(self, set, price, exp_ytm, exp_acc):
@@ -463,10 +465,11 @@ class TestFixedRateBond:
     ## Italian BTP
 
     @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
-       # (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
-       # (dt(2033, 3, 15), 99.65, 6.86252, 1.628730),  # BBG BXT ticket data
-       (dt(2032, 11, 1), 99.00, 6.42970, 0.0),  # BBG BXT ticket data - semi annual simple rate
-       # (dt(2032, 11, 2), 99.00, 6.43989, 0.01215),  # BBG BXT ticket data - semi annual simple rate
+       (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
+       (dt(2033, 3, 15), 99.65, 7.006149, 1.628730),  # BBG YAS Yield - Last coupon simple rate
+       (dt(2032, 11, 1), 99.00, 6.569126, 0.0),  # BBG YAS Yield - Annualised
+       (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield - Last coupon simple rate
+       (dt(2033, 4, 29), 99.97, 9.623617, 2.175690),  # Test accrual upto adjusted payment date
     ])
     def test_it_gb(self, set, price, exp_ytm, exp_acc):
         frb = FixedRateBond(  # ISIN IT0005518128
@@ -479,7 +482,6 @@ class TestFixedRateBond:
         assert abs(result - exp_acc) < 5e-6
 
         result = frb.ytm(price=price, settlement=set)
-
         assert abs(result - exp_ytm) < 1e-6
 
     # General Method Coverage
