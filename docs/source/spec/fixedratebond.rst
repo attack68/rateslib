@@ -61,6 +61,28 @@ Uses ICMA conventions. Similar to *"uk_gb"*.
    defaults.spec["fr_gb"]
    FixedRateBond(dt(2000, 1, 1), "10y", spec="fr_gb", fixed_rate=2.5).kwargs
 
+.. _spec-it-gb:
+
+**Italy**
+
+Coupons are semi-annual but yield convention is annual yield. In last coupon period simple yield is applied.
+
+.. ipython:: python
+
+   defaults.spec["it_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="it_gb", fixed_rate=2.5).kwargs
+
+.. _spec-nl-gb:
+
+**Netherlands**
+
+Street convention is used, except when the bond is in the final coupon period simple interest yield is used.
+
+.. ipython:: python
+
+   defaults.spec["nl_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="nl_gb", fixed_rate=2.5).kwargs
+
 GBP
 ********
 
@@ -98,6 +120,21 @@ Calculation performed with Swedish DMO method, using 30e360 for accrued calculat
    defaults.spec["se_gb"]
    FixedRateBond(dt(2000, 1, 1), "10y", spec="se_gb", fixed_rate=2.5).kwargs
 
+NOK
+****
+
+.. _spec-no-gb:
+
+Government Bonds
+----------------
+
+Using annualised yield calculation under ICMA compounding convention. Stub periods use ACT365 day fraction.
+Accrual is calculated with ACT365F.
+
+.. ipython:: python
+
+   defaults.spec["no_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="no_gb", fixed_rate=2.5).kwargs
 
 CAD
 ****

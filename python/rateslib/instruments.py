@@ -1918,8 +1918,11 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
     - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
     - *"ca_gb"*: Canadian Government Bond DMO convention. (deprecated alias *"cadgb"*)
-    - *"de_gb"*: German Government Bond ICMA convention.
-    - *"fr_gb"*: French Government Bond ICMA convention.
+    - *"de_gb"*: German Government Bond (Bunds/Bobls) ICMA convention.
+    - *"fr_gb"*: French Government Bond (OAT) ICMA convention.
+    - *"it_gb"*: Italian Government Bond (BTP) ICMA convention.
+    - *"nl_gb"*: Dutch Government Bond ICMA convention.
+    - *"no_gb"*: Norwegian Government Bond DMO convention.
 
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided
