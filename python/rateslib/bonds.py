@@ -315,7 +315,8 @@ class _AccruedAndYTMMethods:
 
 class _BondConventions(_AccruedAndYTMMethods):
     """
-    Contains calculation conventions and specifies calculation modes for different bonds of different jurisdictions.
+    Contains calculation conventions and specifies calculation modes for different bonds
+    of different jurisdictions.
 
     For FixedRateBonds the conventions are as follows:
 

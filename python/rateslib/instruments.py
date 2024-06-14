@@ -1346,7 +1346,6 @@ class BondMixin(_BondConventions):
         try:
             method = getattr(self, f"_{calc_mode}")
             accrual = method.get("ytm_accrual", method.get("accrual"))
-            # ytm_frequency = method.get("ytm_frequency", lambda x: x)
             func = partial(
                 self._generic_ytm,
                 f1=method["v1"],
@@ -1355,7 +1354,6 @@ class BondMixin(_BondConventions):
                 accrual=accrual
             )
             return func(ytm, settlement, dirty)
-            # return func(ytm_frequency(ytm), settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
