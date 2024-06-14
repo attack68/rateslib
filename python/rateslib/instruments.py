@@ -1921,6 +1921,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     - *"de_gb"*: German Government Bond (Bunds/Bobls) ICMA convention.
     - *"fr_gb"*: French Government Bond (OAT) ICMA convention.
     - *"it_gb"*: Italian Government Bond (BTP) ICMA convention.
+    - *"nl_gb"*: Dutch Government Bond ICMA convention.
+    - *"no_gb"*: Norwegian Government Bond DMO convention.
 
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided
