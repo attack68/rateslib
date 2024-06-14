@@ -473,7 +473,6 @@ class TestFixedRateBond:
     ])
     def test_it_gb(self, set, price, exp_ytm, exp_acc):
         # TODO: it is unclear how date modifications affect the pricing of BTPs require offical source docs.
-
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),

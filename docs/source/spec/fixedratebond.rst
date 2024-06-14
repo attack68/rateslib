@@ -74,7 +74,7 @@ Coupons are semi-annual but yield convention is annual yield. In last coupon per
 
 .. _spec-nl-gb:
 
-**Nedtherlands**
+**Netherlands**
 
 Street convention is used, except when the bond is in the final coupon period simple interest yield is used.
 
