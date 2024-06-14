@@ -312,10 +312,6 @@ class _AccruedAndYTMMethods:
         v_ = 1 / (1 + self.leg1.periods[-2].dcf * ytm / 100.0)
         return v_
 
-    def _ytm_a_to_s(self, ytm):
-        """convert an annual ytm to a semi-annual ytm. designed initially for BTPs"""
-        return ((1+ytm/100)**0.5-1)*200.0
-
 
 class _BondConventions(_AccruedAndYTMMethods):
     """
