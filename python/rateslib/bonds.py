@@ -408,7 +408,6 @@ class _BondConventions(_AccruedAndYTMMethods):
             "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
             "v2": self._v2_annual,
             "v3": self._v3_dcf_comp,
-            # "ytm_frequency": self._ytm_a_to_s,
         }
 
     @property
@@ -416,7 +415,6 @@ class _BondConventions(_AccruedAndYTMMethods):
         """Mode used for Norwegian GBs."""
         return {
             "accrual": self._acc_act365_with_1y_and_stub_adjustment,
-            # "ytm_accrual": self._acc_linear_proportion_by_days,
             "v1": self._v1_comp_stub_act365f,
             "v2": self._v2_,
             "v3": self._v3_dcf_comp,
