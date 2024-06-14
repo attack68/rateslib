@@ -72,6 +72,17 @@ Coupons are semi-annual but yield convention is annual yield. In last coupon per
    defaults.spec["it_gb"]
    FixedRateBond(dt(2000, 1, 1), "10y", spec="it_gb", fixed_rate=2.5).kwargs
 
+.. _spec-nl-gb:
+
+**Nedtherlands**
+
+Street convention is used, except when the bond is in the final coupon period simple interest yield is used.
+
+.. ipython:: python
+
+   defaults.spec["nl_gb"]
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="nl_gb", fixed_rate=2.5).kwargs
+
 GBP
 ********
 

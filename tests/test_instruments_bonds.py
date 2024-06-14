@@ -506,6 +506,28 @@ class TestFixedRateBond:
         result = frb.ytm(price=price, settlement=set)
         assert abs(result - exp_ytm) < 1e-5
 
+    ## Dutch
+
+    @pytest.mark.parametrize("set, price, exp_ytm, exp_acc", [
+       (dt(2025, 6, 10), 98.0, 2.751162, 2.260274),  # YAS Coupon aligned
+       (dt(2033, 7, 15), 99.8, 2.705411, 0.0),  # Last period
+       (dt(2033, 7, 18), 99.9, 2.602897, 0.020548),  # Middle Last period
+       (dt(2024, 2, 8), 99.0, 2.611616, 0.0),  # Start of bond
+       (dt(2024, 3, 13), 99.0, 2.612194, 0.232240),  # Mid stub period
+    ])
+    def test_nl_gb(self, set, price, exp_ytm, exp_acc):
+        frb = FixedRateBond(  # ISIN NL0015001XZ6
+            effective=dt(2024, 2, 8),
+            termination=dt(2034, 7, 15),
+            fixed_rate=2.5,
+            spec="nl_gb",
+        )
+        result = frb.accrued(settlement=set)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.ytm(price=price, settlement=set)
+        assert abs(result - exp_ytm) < 1e-5
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self):
