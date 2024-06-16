@@ -25,7 +25,7 @@ email contact through **rateslib@gmail.com**.
      - ``calc_mode`` of :class:`~rateslib.instruments.FixedRateBond` has been refactored to allow more standardised
        names. The existing modes are deprecated and will be removed in v2.0.
    * - Instruments
-     - ``spec`` *"de_gb"*, *"fr_gb"*, *"it_gb"*, *"no_gb"* and *"nl_gb",
+     - ``spec`` *"de_gb"*, *"fr_gb"*, *"it_gb"*, *"no_gb"* and *"nl_gb"*,
        added to :class:`~rateslib.instruments.FixedRateBond` to quickly create German, French,
        Italian, Norwegian and Dutch government bonds.
    * - Calendars
