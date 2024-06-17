@@ -1,5 +1,6 @@
-import pandas as pd
 import os
+
+import pandas as pd
 from packaging import version
 
 DEVELOPMENT = True
@@ -87,61 +88,21 @@ if DEVELOPMENT:
             d["leg2_roll"] = _map_str_int(d["leg2_roll"])
         return d
 
-    INSTRUMENT_SPECS = {
-        "usd_irs": _get_kwargs("usd_irs"),  # IRS
-        "gbp_irs": _get_kwargs("gbp_irs"),
-        "eur_irs": _get_kwargs("eur_irs"),
-        "eur_irs3": _get_kwargs("eur_irs3"),
-        "eur_irs6": _get_kwargs("eur_irs6"),
-        "eur_irs1": _get_kwargs("eur_irs1"),
-        "sek_irs": _get_kwargs("sek_irs"),
-        "sek_irs3": _get_kwargs("sek_irs3"),
-        "nok_irs": _get_kwargs("nok_irs"),
-        "nok_irs3": _get_kwargs("nok_irs3"),
-        "nok_irs6": _get_kwargs("nok_irs6"),
-        "chf_irs": _get_kwargs("chf_irs"),
-        "eur_fra3": _get_kwargs("eur_fra3"),  # FRA
-        "eur_fra6": _get_kwargs("eur_fra6"),
-        "sek_fra3": _get_kwargs("sek_fra3"),
-        "eur_sbs36": _get_kwargs("eur_sbs36"),  # SBS
-        "eurusd_xcs": _get_kwargs("eurusd_xcs"),  # XCS
-        "gbpusd_xcs": _get_kwargs("gbpusd_xcs"),
-        "eurgbp_xcs": _get_kwargs("eurgbp_xcs"),
-        "eur_zcis": _get_kwargs("eur_zcis"),  # ZCIS
-        "gbp_zcis": _get_kwargs("gbp_zcis"),
-        "usd_zcis": _get_kwargs("usd_zcis"),
-        "gbp_zcs": _get_kwargs("gbp_zcs"),  # ZCS
-        "sek_iirs": _get_kwargs("sek_iirs"),  # IIRS
-        "usd_gb": _get_kwargs("usd_gb"),  # FRB
-        "usd_gbb": _get_kwargs("usd_gbb"),
-        "gbp_gb": _get_kwargs("gbp_gb"),
-        "gbp_gbi": _get_kwargs("gbp_gbi"),
-        "cad_gb": _get_kwargs("cad_gb"),
-        "sek_gb": _get_kwargs("sek_gb"),
-        "sek_gbb": _get_kwargs("sek_gbb"),
-        "usd_frn5": _get_kwargs("usd_frn5"),  # FRN
-        "usd_stir": _get_kwargs("usd_stir"),  # STIR Futures
-        "usd_stir1": _get_kwargs("usd_stir1"),
-        "eur_stir": _get_kwargs("eur_stir"),
-        "eur_stir1": _get_kwargs("eur_stir1"),
-        "eur_stir3": _get_kwargs("eur_stir3"),
-        "gbp_stir": _get_kwargs("gbp_stir"),
-        "test": _get_kwargs("test"),  # TEST
-    }
+    INSTRUMENT_SPECS = {k: _get_kwargs(k) for k in df.columns[4:]}
 
     # add some aliases
 
     INSTRUMENT_SPECS = {
         **INSTRUMENT_SPECS,
         "sofr": INSTRUMENT_SPECS["usd_irs"],
-        "ust": INSTRUMENT_SPECS["usd_gb"],
-        "ustb": INSTRUMENT_SPECS["usd_gbb"],
-        "ukt": INSTRUMENT_SPECS["gbp_gb"],
+        "ust": INSTRUMENT_SPECS["us_gb"],
+        "ustb": INSTRUMENT_SPECS["us_gbb"],
+        "ukt": INSTRUMENT_SPECS["uk_gb"],
+        "gilt": INSTRUMENT_SPECS["uk_gb"],
+        "cadgb": INSTRUMENT_SPECS["ca_gb"],
+        "sgb": INSTRUMENT_SPECS["se_gb"],
+        "sgbb": INSTRUMENT_SPECS["se_gbb"],
         "ukti": INSTRUMENT_SPECS["gbp_gbi"],
-        "gilt": INSTRUMENT_SPECS["gbp_gb"],
-        "cadgb": INSTRUMENT_SPECS["cad_gb"],
-        "sgb": INSTRUMENT_SPECS["sek_gb"],
-        "sgbb": INSTRUMENT_SPECS["sek_gbb"],
         "sofr3mf": INSTRUMENT_SPECS["usd_stir"],
         "sofr1mf": INSTRUMENT_SPECS["usd_stir1"],
         "sonia3mf": INSTRUMENT_SPECS["gbp_stir"],

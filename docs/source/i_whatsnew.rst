@@ -21,8 +21,31 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Instruments
+     - ``calc_mode`` of :class:`~rateslib.instruments.FixedRateBond` has been refactored to allow more standardised
+       names. The existing modes are deprecated and will be removed in v2.0.
+   * - Instruments
+     - ``spec`` *"de_gb"*, *"fr_gb"*, *"it_gb"*, *"no_gb"* and *"nl_gb"*,
+       added to :class:`~rateslib.instruments.FixedRateBond` to quickly create German, French,
+       Italian, Norwegian and Dutch government bonds.
+   * - Calendars
+     - The `pandas` holiday and calendar system has been removed in favour of a rust implementation for
+       calendar objects: :class:`~rateslib.calendars.Cal` and :class:`~rateslib.calendars.UnionCal`.
+   * - Calendars
+     - :red:`Breaking Change!` The :meth:`~rateslib.calendars.create_calendar` methods is deprecated and
+       modified to accept different input arguments.
+   * - Calendars
+     - Calendar string parsing has been enhanced to allow associated settlement calendars, and
+       automatic creation of a :class:`~rateslib.calendars.UnionCal` object. E.g. *"tgt,ldn|nyc"*.
+   * - Calendars
+     - The Tokyo calendar *'tyo'* has been added to align with TONA publication. The FED calendar *'fed'* has also been
+       added. The Sydney calendar *"syd"* has been added to align with AONIA publication.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
+   * - Bug
+     - :meth:`~rateslib.instruments.FixedRateBond.rate` method of a *FixedRateBond* now correctly
+       returns the local currency price or yield-to-maturity without being wrongly converted by a
+       ``base`` FX rate, if an FX object is also supplied to the pricing formula.
 
 1.2.2 (31st May 2024)
 **********************

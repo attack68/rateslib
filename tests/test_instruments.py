@@ -1214,6 +1214,7 @@ class TestZCS:
                 fixed_rate=4.22566695954813,
             )
 
+
 class TestZCIS:
     def test_leg2_index_base(self, curve):
         i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
@@ -1352,6 +1353,14 @@ class TestFXExchange:
         result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="eur")
         expected = 100000.0 / 1.30
         assert abs(result - expected) < 1e-8
+
+    def test_no_defined_analytic_delta(self):
+        with pytest.raises(NotImplementedError):
+            FXExchange(
+                settlement=dt(2022, 3, 1),
+                pair="eurusd",
+                fx_rate=1.2080131682341035,
+            ).analytic_delta()
 
 
 # test the commented out FXSwap variant
@@ -2857,7 +2866,7 @@ class TestSpec:
             fixed_rate=2.0
         )
         assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "act360"
+        assert irs.kwargs["leg2_convention"] == "30e360"
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
 
@@ -2869,7 +2878,7 @@ class TestSpec:
             convention="30e360",
         )
         assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "act360"
+        assert irs.kwargs["leg2_convention"] == "30e360"
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["roll"] == "imm"
 
@@ -2879,11 +2888,14 @@ class TestSpec:
             termination="1Y",
             spec="eur_sbs36",
             convention="30e360",
+            frequency="A"
         )
         assert inst.kwargs["convention"] == "30e360"
-        assert inst.kwargs["leg2_convention"] == "act360"
+        assert inst.kwargs["leg2_convention"] == "30e360"
         assert inst.kwargs["currency"] == "eur"
         assert inst.kwargs["fixing_method"] == "ibor"
+        assert inst.kwargs["frequency"] == "A"
+        assert inst.kwargs["leg2_frequency"] == "s"
 
     def test_zcis(self):
         inst = ZCIS(
@@ -2963,10 +2975,10 @@ class TestSpec:
         bill = Bill(
             effective=dt(2022, 1, 1),
             termination="3m",
-            spec="ustb",
+            spec="us_gbb",
             convention="act365f",
         )
-        assert bill.calc_mode == "ustb"
+        assert bill.calc_mode == "us_gbb"
         assert bill.kwargs["convention"] == "act365f"
         assert bill.kwargs["currency"] == "usd"
         assert bill.kwargs["fixed_rate"] == 0.0
@@ -3014,8 +3026,8 @@ class TestSpec:
         assert xcs.kwargs["currency"] == "eur"
         assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
         assert xcs.kwargs["payment_lag"] == 5
-        assert xcs.kwargs["leg2_payment_lag"] == 2
-        assert xcs.kwargs["leg2_calendar"] == "tgt,nyc"
+        assert xcs.kwargs["leg2_payment_lag"] == 5
+        assert xcs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
 
 
 @pytest.mark.parametrize("inst, expected", [

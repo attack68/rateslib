@@ -1,19 +1,19 @@
+import json
+import math
+import warnings
+from datetime import datetime, timedelta
+from itertools import product
 from typing import Optional, Union
+
 import numpy as np
 from pandas import DataFrame, Series
 from pandas.tseries.offsets import CustomBusinessDay
-from itertools import product
-import warnings
-from datetime import timedelta, datetime
-import json
-import math
 
 from rateslib import defaults
-from rateslib.default import NoInput
-from rateslib.dual import Dual, dual_solve, set_order, DualTypes, gradient
-from rateslib.default import plot
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, LineCurve, ProxyCurve, MultiCsaCurve
+from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
+from rateslib.default import NoInput, plot
+from rateslib.dual import Dual, DualTypes, dual_solve, gradient, set_order
 
 """
 .. ipython:: python

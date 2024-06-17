@@ -12,16 +12,19 @@ Calendars
 
 The ``rateslib.calendars`` module generates holiday calendars so that
 business days are well defined.
-It is built upon the ``pandas`` holiday calendars methods, which are themselves
-extensions of ``numpy`` data structures.
 
 Summary
 *******
 
+Classes
+--------
+.. autosummary::
+   rateslib.calendars.Cal
+   rateslib.calendars.UnionCal
+
 Methods
 -------
 .. autosummary::
-   rateslib.calendars.create_calendar
    rateslib.calendars.get_calendar
    rateslib.calendars.add_tenor
    rateslib.calendars.dcf
@@ -45,15 +48,15 @@ is available in the :meth:`~rateslib.calendars.get_calendar` method:
 
 .. ipython:: python
 
-   from rateslib.calendars import CALENDARS
+   from rateslib.calendars.rs import CALENDARS
    print(CALENDARS.keys())
 
 .. ipython:: python
 
    ldn_cal = get_calendar("ldn")
-   date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9), freq=ldn_cal)
+   ldn_cal.bus_date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9))
    stk_cal = get_calendar("stk")
-   date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9), freq=stk_cal)
+   stk_cal.bus_date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9))
 
 Available calendars can also be **combined** if a comma separator is used in the
 argument, which acts as an AND operator for business days and an OR operator for
@@ -62,28 +65,48 @@ holidays. This is useful for multi-currency derivatives.
 .. ipython:: python
 
    ldn_stk_cal = get_calendar("ldn,stk")
-   date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9), freq=ldn_stk_cal)
+   ldn_stk_cal.bus_date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9))
 
 Creating a custom calendar
 **************************
 
-The :meth:`~rateslib.calendars.create_calendar` method is provided to allow
-a user to create their
-own custom calendar defined by a weekmask and specific holidays. For example,
-suppose one wanted to create a holiday calendar that included weekends and
-Christmas every year and New Year's Day rolled forward to a monday if it
-happened to fall on a weekend. The approach is as follows,
+Custom calendars are directly constructed from the :class:`~rateslib.calendars.Cal` class.
+This requires a list of ``holidays`` and a ``week_mask``.
 
 .. ipython:: python
 
-   from pandas import date_range
-   from pandas.tseries.holiday import Holiday, next_monday
-   holidays = [
-       Holiday("Christmas", month=12, day=25),
-       Holiday("New Year's", month=1, day=1, observance=next_monday),
-   ]
-   custom_cal = create_calendar(holidays, "Mon Tue Wed Thu Fri")
-   date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 5), freq=custom_cal)
+   custom_cal = Cal([dt(2023, 12, 25), dt(2023, 12, 26), dt(2024, 1, 1)], [5, 6])
+   custom_cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
+
+
+Calendar combinations
+**********************
+
+Custom calendar combinations can be constructed with the :class:`~rateslib.calendars.UnionCal`
+class. It requires a list of *Cal* objects to form the union of non-business dates,
+and another, secondary list, of associated ``settlement_calendars``, to validate
+calculated dates against.
+
+Combined calendars can also be constructed automatically with string parsing.
+Comma separation forms a union of calendars. For example the appropriate calendar
+for a EUR/USD cross-currency swap is *"tgt,nyc"* for TARGET and New York.
+
+The appropriate holiday calendar to use for a EURUSD FX instrument, such as spot
+determination is *"tgt|nyc"*, which performs date manipulation under a TARGET calendar
+but enforces associated settlement against the New York calendar.
+
+.. ipython:: python
+
+   # Combined calendar with no associated settlement calendar
+   tgt_nyc = get_calendar("tgt,nyc")
+   tgt_nyc.is_bus_day(dt(2009, 11, 11))
+   tgt_nyc.is_settlement(dt(2009, 11, 11))
+
+   # TARGET calendar enforcing New York settlement
+   tgt_nyc_settle = get_calendar("tgt|nyc")
+   tgt_nyc_settle.is_bus_day(dt(2009, 11, 11))
+   tgt_nyc_settle.is_settlement(dt(2009, 11, 11))
+
 
 Day count fractions (DCFs)
 **************************

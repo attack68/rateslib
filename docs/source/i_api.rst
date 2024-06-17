@@ -37,19 +37,30 @@ Defaults
    :no-heading:
    :no-inheritance-diagram:
    :skip: plot
+   :skip: plot3d
    :skip: datetime
    :skip: Enum
 
 Calendars
 ==========
 
+Classes
+^^^^^^^
+
+.. autosummary::
+   ~rateslib.calendars.Cal
+   ~rateslib.calendars.UnionCal
+
+.. toctree::
+    :maxdepth: 0
+    :titlesonly:
+    :hidden:
+
+    api/rateslib.calendars.Cal.rst
+    api/rateslib.calendars.UnionCal.rst
+
 .. automodapi:: rateslib.calendars
    :no-heading:
-   :skip: floor
-   :skip: next_monday
-   :skip: next_monday_or_tuesday
-   :skip: nearest_workday
-   :skip: sunday_to_monday
 
 Scheduling
 ===========
@@ -144,6 +155,7 @@ Curves
    :inherited-members:
    :no-inheritance-diagram:
    :skip: NoInput
+   :skip: Modifier
    :skip: set_order_convert
    :skip: add_tenor
    :skip: create_calendar
@@ -155,7 +167,6 @@ Curves
    :skip: plot
    :skip: uuid4
    :skip: Any
-   :skip: CustomBusinessDay
    :skip: Dual
    :skip: Dual2
    :skip: PPSplineF64
@@ -163,7 +174,6 @@ Curves
    :skip: PPSplineDual2
    :skip: datetime
    :skip: timedelta
-   :skip: Holiday
    :skip: comb
    :skip: index_left_f64
 
@@ -281,6 +291,7 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :no-inheritance-diagram:
    :skip: NoInput
    :skip: IndexCurve
    :skip: IndexFixedLeg
@@ -321,6 +332,12 @@ Instruments
    :skip: FXDeltaVolSmile
    :skip: FXPutPeriod
 
+Class Inheritance Diagram
+--------------------------
+
+.. automod-diagram:: rateslib.instruments
+    :parts: 1
+
 Solver
 =======
 
@@ -360,4 +377,4 @@ Cookbook
     z_bondctd.rst
     z_fixings.rst
     z_quantlib.rst
-
+    z_eurusd_surface.ipynb

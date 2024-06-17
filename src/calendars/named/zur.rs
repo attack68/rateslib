@@ -1,7 +1,19 @@
-//! Define the parameters for a Zurich business day calendar.
+//! Define a Zurich business day calendar, aligned with SARON publication.
 
-pub const WEEKMASK: &'static [u8] = &[5, 6];  // Saturday and Sunday weekend
-pub const HOLIDAYS: &'static [&str] = &[
+pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
+pub const RULES: &[&str] = &[
+    "Jan 1 (New Year)",
+    "Jan 2 (Berchtoldstag)",
+    "Fri before Easter (Easter Friday)",
+    "Mon after Easter (Easter Monday)",
+    "May 1 (Labour)",
+    "39 days after Easter (Ascention)",
+    "50 days after Easter (Whit Monday)",
+    "Aug 1 (National)",
+    "Dec 25 (Christmas)",
+    "Dec 26 (Boxing)",
+];
+pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-01-02 00:00:00",
     "1970-03-27 00:00:00",
@@ -2311,5 +2323,5 @@ pub const HOLIDAYS: &'static [&str] = &[
     "2200-05-26 00:00:00",
     "2200-08-01 00:00:00",
     "2200-12-25 00:00:00",
-    "2200-12-26 00:00:00"
+    "2200-12-26 00:00:00",
 ];
