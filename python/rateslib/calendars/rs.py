@@ -82,6 +82,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     - *"stk"*: Stockholm for Sweden's SWESTR.
     - *"tro"*: Toronto for Canada's CORRA.
     - *"tyo"*: Tokyo for Japan's TONA.
+    - *"syd"*: Sydney for Australia's AONIA.
 
     Combined calendars can be created with comma separated input, e.g. *"tgt,nyc"*. This would
     be the typical calendar assigned to a cross-currency derivative such as a EUR/USD
