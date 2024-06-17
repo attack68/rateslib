@@ -443,6 +443,21 @@ def test_calendar_aligns_with_fixings_tyo():
     irs.rate(curve)
 
 
+def test_calendar_aligns_with_fixings_syd():
+    # using this test in a regular way, and with "-W error" for error on warn ensures that:
+    #  - Curve cal is a business  day and fixings cal has no fixing: is a warn
+    #  - Curve cal is not a business day and fixings cal has a fixing: errors
+    curve = Curve(
+        {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
+        calendar="syd",
+    )
+    fixings = defaults.fixings["aud_rfr"]
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A",
+                 leg2_fixings=fixings, calendar="syd"
+    )
+    irs.rate(curve)
+
+
 def test_book_example():
     res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn")
     assert res == dt(2001, 3, 28, 0, 0)
