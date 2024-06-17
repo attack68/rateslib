@@ -291,6 +291,7 @@ Instruments
 .. automodapi:: rateslib.instruments
    :no-heading:
    :inherited-members:
+   :no-inheritance-diagram:
    :skip: NoInput
    :skip: IndexCurve
    :skip: IndexFixedLeg
@@ -330,6 +331,12 @@ Instruments
    :skip: FXCallPeriod
    :skip: FXDeltaVolSmile
    :skip: FXPutPeriod
+
+Class Inheritance Diagram
+--------------------------
+
+.. automod-diagram:: rateslib.instruments
+    :parts: 1
 
 Solver
 =======

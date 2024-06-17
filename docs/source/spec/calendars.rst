@@ -16,3 +16,4 @@ Calendars
     calendars/nok_osl.rst
     calendars/cad_tro.rst
     calendars/jpy_tyo.rst
+    calendars/aud_syd.rst
