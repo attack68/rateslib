@@ -231,7 +231,7 @@ mod tests {
     fn test_syd() {
         let cal = get_calendar_by_name("syd").unwrap();
         assert!(cal.is_holiday(
-            &NaiveDateTime::parse_from_str("2024-11-11 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+            &NaiveDateTime::parse_from_str("2022-09-22 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
         ));
     }
 }
