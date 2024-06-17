@@ -2019,7 +2019,7 @@ class IndexMixin(metaclass=ABCMeta):
                         return i_fixings[adj_date]
                     except KeyError:
                         s = i_fixings.copy()
-                        s.loc[adj_date] = np.NaN  # type: ignore[call-overload]
+                        s.loc[adj_date] = np.nan  # type: ignore[call-overload]
                         _ = s.sort_index().interpolate("time")[adj_date]
                         return _
             else:
