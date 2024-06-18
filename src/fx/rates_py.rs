@@ -17,6 +17,12 @@ impl FXRate {
     }
 
     #[getter]
+    #[pyo3(name = "ad")]
+    fn ad_py(&self) -> PyResult<u8> {
+        Ok(self.ad)
+    }
+
+    #[getter]
     #[pyo3(name = "settlement")]
     fn settlement_py(&self) -> PyResult<Option<NaiveDateTime>> {
         Ok(self.settlement)
