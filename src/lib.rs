@@ -26,6 +26,7 @@ use calendars::calendar::{Cal, Modifier, RollDay, UnionCal};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 pub mod fx;
+use fx::rates::FXRate;
 
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -53,6 +54,9 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Modifier>()?;
     m.add_class::<RollDay>()?;
     m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;
+
+    // FX
+    m.add_class::<FXRate>()?;
 
     Ok(())
 }

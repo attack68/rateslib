@@ -4,6 +4,7 @@ use crate::dual::dual1::{Dual, Gradient1, MathFuncs, Vars};
 use crate::dual::dual2::{Dual2, Gradient2};
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::types::PyFloat;
 use pyo3::prelude::*;
 use std::sync::Arc;
 // use pyo3::types::PyFloat;
@@ -27,6 +28,16 @@ pub enum DualsOrF64 {
     Dual(Dual),
     Dual2(Dual2),
     F64(f64),
+}
+
+impl IntoPy<PyObject> for DualsOrF64 {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            DualsOrF64::F64(f) => PyFloat::new_bound(py, f).to_object(py),
+            DualsOrF64::Dual(d) => Py::new(py, d).unwrap().to_object(py),
+            DualsOrF64::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
+        }
+    }
 }
 
 // https://github.com/PyO3/pyo3/discussions/3911
