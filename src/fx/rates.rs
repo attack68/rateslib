@@ -5,9 +5,9 @@ use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
 use ndarray::{Array1, Array2};
-use num_traits::identities::{One, Zero};
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, PyErr};
+use num_traits::identities::One;
+// use pyo3::exceptions::PyValueError;
+use pyo3::pyclass;
 use std::fmt;
 
 /// Struct to define a currency.
@@ -92,7 +92,7 @@ impl FXRates {
         // 4. No Dual2 data types are provided as input
 
         // 1.
-        assert!(fx_rates.len() > 0);
+        assert!(!fx_rates.is_empty());
 
         let mut currencies: IndexSet<Ccy> = IndexSet::with_capacity(fx_rates.len() + 1_usize);
         for fxr in fx_rates.iter() {
@@ -148,11 +148,11 @@ impl FXRates {
         let x = dsolve(&a.view(), &b.view(), false);
 
         FXRates {
-            fx_rates: fx_rates,
+            fx_rates,
             fx_array: x,
-            currencies: currencies,
+            currencies,
             // pairs: pairs,
-            base: base,
+            base,
             // settlement: None,
         }
     }
