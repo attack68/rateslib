@@ -1,19 +1,19 @@
 use crate::dual::dual1::Dual;
 use crate::dual::dual_py::DualsOrF64;
-use num_traits::identities::{One, Zero};
 use crate::dual::linalg::dsolve;
+use chrono::prelude::*;
 use indexmap::set::IndexSet;
-use ndarray::{Array1, Array2};
-use std::fmt;
 use internment::Intern;
+use ndarray::{Array1, Array2};
+use num_traits::identities::{One, Zero};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
-use chrono::prelude::*;
+use std::fmt;
 
 /// Struct to define a currency.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ccy {
-    name: Intern<String>
+    name: Intern<String>,
 }
 
 impl Ccy {
@@ -21,13 +21,15 @@ impl Ccy {
     pub fn new(name: &str) -> Self {
         let ccy: String = name.to_string().to_lowercase();
         assert!(ccy.len() == 3);
-        Ccy {name: Intern::new(ccy)}
+        Ccy {
+            name: Intern::new(ccy),
+        }
     }
 }
 
 /// Struct to define a currency cross.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FXPair (Ccy, Ccy);
+pub struct FXPair(Ccy, Ccy);
 
 impl FXPair {
     /// Constructs a new `FXCross`, as a combination of two constructed `Ccy`s. Panics if currencies are the same.
@@ -62,22 +64,26 @@ impl FXRate {
             DualsOrF64::Dual(_) => 1_u8,
             DualsOrF64::Dual2(_) => 2_u8,
         };
-        FXRate {pair: FXPair::new(lhs, rhs), rate, settlement, ad}
+        FXRate {
+            pair: FXPair::new(lhs, rhs),
+            rate,
+            settlement,
+            ad,
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct FXRates {
-    fx_rates : Vec<FXRate>,
+    fx_rates: Vec<FXRate>,
     currencies: IndexSet<Ccy>,
-    fx_array : Array1<Dual>,
+    fx_array: Array1<Dual>,
     // pairs : Vec<(Ccy, Ccy)>,
-    base : Ccy,
+    base: Ccy,
     // settlement : Option<NaiveDateTime>,
 }
 
 impl FXRates {
-
     pub fn new(fx_rates: Vec<FXRate>, base: Option<Ccy>) -> Self {
         // Validations:
         // 1. fx_rates is non-zero length
@@ -111,9 +117,9 @@ impl FXRates {
 
         // aggregate information from FXPairs
         // let pairs: Vec<(Ccy, Ccy)> = fx_rates.iter().map(|fxp| fxp.pair).collect();
-//         let variables: Vec<String> = fx_rates.iter().map(
-//                 |fxp| "fx_".to_string() + &fxp.pair.0.to_string() + &fxp.pair.1.to_string()
-//             ).collect();
+        //         let variables: Vec<String> = fx_rates.iter().map(
+        //                 |fxp| "fx_".to_string() + &fxp.pair.0.to_string() + &fxp.pair.1.to_string()
+        //             ).collect();
 
         let base = base.unwrap_or(currencies[0]);
 
@@ -125,16 +131,18 @@ impl FXRates {
         for (i, fxr) in fx_rates.iter().enumerate() {
             let dom_idx = currencies.get_index_of(&(fxr.pair.0)).expect("pre checked");
             let for_idx = currencies.get_index_of(&(fxr.pair.1)).expect("pre checked");
-            a[[i+1, dom_idx]] = -1.0 * Dual::one();
+            a[[i + 1, dom_idx]] = -1.0 * Dual::one();
             match &fxr.rate {
                 DualsOrF64::F64(f) => {
                     let var = "fx_".to_string() + &format!("{}", fxr.pair).to_string();
-                    a[[i+1, for_idx]] = 1.0 / Dual::new(*f, vec![var]);
-                },
+                    a[[i + 1, for_idx]] = 1.0 / Dual::new(*f, vec![var]);
+                }
                 DualsOrF64::Dual(d) => {
-                    a[[i+1, for_idx]] = 1.0 / d;
-                },
-                _ => panic!("`FXRates` must be constructed with FXRate of float or Dual types only.")
+                    a[[i + 1, for_idx]] = 1.0 / d;
+                }
+                _ => {
+                    panic!("`FXRates` must be constructed with FXRate of float or Dual types only.")
+                }
             }
         }
         let x = dsolve(&a.view(), &b.view(), false);
@@ -191,7 +199,7 @@ mod tests {
             vec![
                 FXRate::new("eur", "usd", DualsOrF64::F64(1.08), None),
                 FXRate::new("usd", "jpy", DualsOrF64::F64(110.0), None),
-                ],
+            ],
             None,
         );
 
