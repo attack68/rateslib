@@ -1,10 +1,11 @@
 use crate::dual::dual1::Dual;
+use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
-use crate::dual::linalg::dsolve;
+use crate::dual::linalg::{dsolve, douter11_};
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2, arr1};
 use num_traits::identities::One;
 // use pyo3::exceptions::PyValueError;
 use pyo3::pyclass;
@@ -74,12 +75,27 @@ impl FXRate {
 }
 
 #[derive(Debug, Clone)]
+enum FXVector {
+    Dual(Array1<Dual>),
+    Dual2(Array1<Dual2>)
+}
+
+
+#[derive(Debug, Clone)]
+enum FXArray {
+    Dual(Array2<Dual>),
+    Dual2(Array2<Dual2>),
+}
+
+#[derive(Debug, Clone)]
 pub struct FXRates {
     fx_rates: Vec<FXRate>,
     currencies: IndexSet<Ccy>,
-    fx_array: Array1<Dual>,
+    fx_vector: FXVector,
+    fx_array: FXArray,
     // pairs : Vec<(Ccy, Ccy)>,
     base: Ccy,
+    ad: u8,
     // settlement : Option<NaiveDateTime>,
 }
 
@@ -146,13 +162,17 @@ impl FXRates {
             }
         }
         let x = dsolve(&a.view(), &b.view(), false);
+        let y = Array1::from_iter(x.iter().map(|x| 1_f64 / x));
+        let z = douter11_(&x.view(), &y.view());
 
         FXRates {
             fx_rates,
-            fx_array: x,
+            fx_vector: FXVector::Dual(x),
+            fx_array: FXArray::Dual(z),
             currencies,
             // pairs: pairs,
             base,
+            ad: 1_u8,
             // settlement: None,
         }
     }

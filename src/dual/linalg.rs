@@ -11,6 +11,22 @@ use std::ops::{Div, Mul, Sub};
 
 // Tensor ops
 
+/// Outer product of two 1d-arrays containing generic objects.
+pub fn douter11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> Array2<T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+    T: Sum,
+{
+    Array1::from_vec(
+        a.iter()
+            .cartesian_product(b.iter())
+            .map(|(x, y)| x * y)
+            .collect(),
+    )
+    .into_shape((a.len(), b.len()))
+    .expect("Pre checked dimensions")
+}
+
 /// Inner product between two 1d-arrays.
 pub fn dmul11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> T
 where
