@@ -194,7 +194,9 @@ pub trait Gradient1: Vars {
                     .map(|x| self.vars().get_index_of(x))
                     .enumerate()
                 {
-                    if let Some(value) = index { dual_[i] = self.dual()[value] }
+                    if let Some(value) = index {
+                        dual_[i] = self.dual()[value]
+                    }
                 }
                 dual_
             }

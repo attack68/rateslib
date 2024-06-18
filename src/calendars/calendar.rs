@@ -452,9 +452,9 @@ impl DateRoll for UnionCal {
     }
 
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        self.settlement_calendars.as_ref().map_or(
-            true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date))
-        )
+        self.settlement_calendars
+            .as_ref()
+            .map_or(true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date)))
     }
 }
 
@@ -869,8 +869,8 @@ mod tests {
 
     #[test]
     fn test_add_bus_days_with_settlement() {
-        let cal = Cal::new(vec![ndt(2024, 6, 5)], vec![5,6]);
-        let settle = Cal::new(vec![ndt(2024, 6, 4), ndt(2024, 6, 6)], vec![5,6]);
+        let cal = Cal::new(vec![ndt(2024, 6, 5)], vec![5, 6]);
+        let settle = Cal::new(vec![ndt(2024, 6, 4), ndt(2024, 6, 6)], vec![5, 6]);
         let union = UnionCal::new(vec![cal], Some(vec![settle]));
 
         let result = union.add_bus_days(&ndt(2024, 6, 4), 1, false).unwrap();
@@ -1045,5 +1045,4 @@ mod tests {
             );
         }
     }
-
 }
