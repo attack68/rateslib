@@ -2,7 +2,7 @@ import context
 import pytest
 from datetime import datetime as dt
 
-from rateslib.rs import FXRate, Dual, Dual2
+from rateslib.rs import FXRate, Dual, Dual2, FXRates
 
 
 @pytest.mark.parametrize("val", [0.99, Dual(0.99, ["x"], []), Dual2(0.99, ["x"], [], [])])
@@ -11,6 +11,11 @@ def test_fx_rate_creation(val):
     assert fxr.rate == val
     assert fxr.pair == "usdeur"
     assert fxr.settlement == dt(2001, 1, 1)
+
+def test_fx_rates_creation():
+    fxr = FXRates({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1), None)
+    assert fxr.rate == val
+
 
 
 

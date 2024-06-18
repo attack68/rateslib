@@ -87,20 +87,21 @@ enum FXArray {
     Dual2(Array2<Dual2>),
 }
 
+#[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Clone)]
 pub struct FXRates {
     fx_rates: Vec<FXRate>,
     currencies: IndexSet<Ccy>,
     fx_vector: FXVector,
     fx_array: FXArray,
-    // pairs : Vec<(Ccy, Ccy)>,
     base: Ccy,
     ad: u8,
     // settlement : Option<NaiveDateTime>,
+    // pairs : Vec<(Ccy, Ccy)>,
 }
 
 impl FXRates {
-    pub fn new(fx_rates: Vec<FXRate>, base: Option<Ccy>) -> Self {
+    pub fn new(fx_rates: Vec<FXRate>, settlement: NaiveDateTime, base: Option<Ccy>) -> Self {
         // Validations:
         // 1. fx_rates is non-zero length
         // 2. currencies are not under or over overspecified
@@ -125,8 +126,7 @@ impl FXRates {
         }
 
         // 3.
-        let s = fx_rates[0].settlement;
-        assert!(&fx_rates[1..].iter().all(|d| d.settlement == s));
+        assert!(&fx_rates.iter().all(|d| d.settlement.map_or(true, |v| v == settlement )));
 
         // 4.
         assert!(!fx_rates.iter().any(|v| v.ad == 2_u8));
@@ -181,6 +181,7 @@ impl FXRates {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calendars::calendar::ndt;
 
     #[test]
     fn ccy_creation() {
@@ -220,6 +221,7 @@ mod tests {
                 FXRate::new("eur", "usd", DualsOrF64::F64(1.08), None),
                 FXRate::new("usd", "jpy", DualsOrF64::F64(110.0), None),
             ],
+            ndt(2004, 1, 1),
             None,
         );
 
