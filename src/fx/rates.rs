@@ -27,9 +27,7 @@ impl Ccy {
 
 /// Struct to define a currency cross.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FXPair {
-    name: (Ccy, Ccy)
-}
+pub struct FXPair (Ccy, Ccy);
 
 impl FXPair {
     /// Constructs a new `FXCross`, as a combination of two constructed `Ccy`s. Panics if currencies are the same.
@@ -37,13 +35,13 @@ impl FXPair {
         let lhs_ = Ccy::new(lhs);
         let rhs_ = Ccy::new(rhs);
         assert_ne!(lhs_, rhs_);
-        FXPair { name: (lhs_, rhs_) }
+        FXPair(lhs_, rhs_)
     }
 }
 
 impl fmt::Display for FXPair {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.name.0.name, self.name.1.name)
+        write!(f, "{}{}", self.0.name, self.1.name)
     }
 }
 
@@ -92,8 +90,8 @@ impl FXRates {
 
         let mut currencies: IndexSet<Ccy> = IndexSet::with_capacity(fx_rates.len() + 1_usize);
         for fxr in fx_rates.iter() {
-            currencies.insert(fxr.pair.name.0);
-            currencies.insert(fxr.pair.name.1);
+            currencies.insert(fxr.pair.0);
+            currencies.insert(fxr.pair.1);
         }
         let q = currencies.len();
 
@@ -125,8 +123,8 @@ impl FXRates {
         b[0] = Dual::one();
 
         for (i, fxr) in fx_rates.iter().enumerate() {
-            let dom_idx = currencies.get_index_of(&(fxr.pair.name.0)).expect("pre checked");
-            let for_idx = currencies.get_index_of(&(fxr.pair.name.1)).expect("pre checked");
+            let dom_idx = currencies.get_index_of(&(fxr.pair.0)).expect("pre checked");
+            let for_idx = currencies.get_index_of(&(fxr.pair.1)).expect("pre checked");
             a[[i+1, dom_idx]] = -1.0 * Dual::one();
             match &fxr.rate {
                 DualsOrF64::F64(f) => {
