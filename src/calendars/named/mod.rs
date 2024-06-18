@@ -7,11 +7,11 @@ pub mod ldn;
 pub mod nyc;
 pub mod osl;
 pub mod stk;
+pub mod syd;
 pub mod tgt;
 pub mod tro;
 pub mod tyo;
 pub mod zur;
-pub mod syd;
 
 use crate::calendars::calendar::Cal;
 use chrono::NaiveDateTime;
