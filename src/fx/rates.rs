@@ -4,14 +4,14 @@
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
-use crate::dual::linalg::{dsolve, douter11_};
+use crate::dual::linalg::{douter11_, dsolve};
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
-use ndarray::{Array1, Array2, arr1};
+use ndarray::{Array1, Array2};
 use num_traits::identities::One;
-// use pyo3::exceptions::PyValueError;
-use pyo3::pyclass;
+use pyo3::exceptions::PyValueError;
+use pyo3::{pyclass, PyErr};
 use std::fmt;
 
 /// Struct to define a currency.
@@ -28,12 +28,16 @@ impl Ccy {
     /// to lowercase to promote performant equality between "USD" and "usd".
     ///
     /// Panics if `name` is not 3 bytes in length.
-    pub fn new(name: &str) -> Self {
+    pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let ccy: String = name.to_string().to_lowercase();
-        assert!(ccy.len() == 3);
-        Ccy {
-            name: Intern::new(ccy),
+        if ccy.len() != 3 {
+            return Err(PyValueError::new_err(
+                "`Ccy` must be 3 ascii character in length, e.g. 'usd'.",
+            ));
         }
+        Ok(Ccy {
+            name: Intern::new(ccy),
+        })
     }
 }
 
@@ -42,12 +46,16 @@ impl Ccy {
 pub struct FXPair(Ccy, Ccy);
 
 impl FXPair {
-    /// Constructs a new `FXCross`, as a combination of two constructed `Ccy`s. Panics if currencies are the same.
-    pub fn new(lhs: &str, rhs: &str) -> Self {
-        let lhs_ = Ccy::new(lhs);
-        let rhs_ = Ccy::new(rhs);
-        assert_ne!(lhs_, rhs_);
-        FXPair(lhs_, rhs_)
+    /// Constructs a new `FXCross`, as a combination of two distinct `Ccy`s.
+    pub fn try_new(lhs: &str, rhs: &str) -> Result<Self, PyErr> {
+        let lhs_ = Ccy::try_new(lhs)?;
+        let rhs_ = Ccy::try_new(rhs)?;
+        if lhs_ == rhs_ {
+            return Err(PyValueError::new_err(
+                "`FXPair` must be created from two distinct currencies, not same.",
+            ));
+        }
+        Ok(FXPair(lhs_, rhs_))
     }
 }
 
@@ -68,27 +76,31 @@ pub struct FXRate {
 }
 
 impl FXRate {
-    pub fn new(lhs: &str, rhs: &str, rate: DualsOrF64, settlement: Option<NaiveDateTime>) -> Self {
+    pub fn try_new(
+        lhs: &str,
+        rhs: &str,
+        rate: DualsOrF64,
+        settlement: Option<NaiveDateTime>,
+    ) -> Result<Self, PyErr> {
         let ad = match rate {
             DualsOrF64::F64(_) => 0_u8,
             DualsOrF64::Dual(_) => 1_u8,
             DualsOrF64::Dual2(_) => 2_u8,
         };
-        FXRate {
-            pair: FXPair::new(lhs, rhs),
+        Ok(FXRate {
+            pair: FXPair::try_new(lhs, rhs)?,
             rate,
             settlement,
             ad,
-        }
+        })
     }
 }
 
 #[derive(Debug, Clone)]
-enum FXVector {
+pub enum FXVector {
     Dual(Array1<Dual>),
-    Dual2(Array1<Dual2>)
+    Dual2(Array1<Dual2>),
 }
-
 
 #[derive(Debug, Clone)]
 enum FXArray {
@@ -99,18 +111,22 @@ enum FXArray {
 #[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Clone)]
 pub struct FXRates {
-    fx_rates: Vec<FXRate>,
+    pub(crate) fx_rates: Vec<FXRate>,
     currencies: IndexSet<Ccy>,
-    fx_vector: FXVector,
+    pub(crate) fx_vector: FXVector,
     fx_array: FXArray,
     base: Ccy,
-    ad: u8,
+    pub(crate) ad: u8,
     // settlement : Option<NaiveDateTime>,
     // pairs : Vec<(Ccy, Ccy)>,
 }
 
 impl FXRates {
-    pub fn new(fx_rates: Vec<FXRate>, settlement: NaiveDateTime, base: Option<Ccy>) -> Self {
+    pub fn try_new(
+        fx_rates: Vec<FXRate>,
+        settlement: NaiveDateTime,
+        base: Option<Ccy>,
+    ) -> Result<Self, PyErr> {
         // Validations:
         // 1. fx_rates is non-zero length
         // 2. currencies are not under or over overspecified
@@ -118,7 +134,11 @@ impl FXRates {
         // 4. No Dual2 data types are provided as input
 
         // 1.
-        assert!(!fx_rates.is_empty());
+        if fx_rates.is_empty() {
+            return Err(PyValueError::new_err(
+                "`fx_rates` must contain at least on fx rate.",
+            ));
+        }
 
         let mut currencies: IndexSet<Ccy> = IndexSet::with_capacity(fx_rates.len() + 1_usize);
         for fxr in fx_rates.iter() {
@@ -129,16 +149,20 @@ impl FXRates {
 
         // 2.
         if q > (fx_rates.len() + 1) {
-            panic!("`fx_rates` is underspecified. {q}")
+            return Err(PyValueError::new_err("`fx_rates` is underspecified."));
         } else if q < (fx_rates.len() + 1) {
-            panic!("`fx_rates` is overspecified.")
+            return Err(PyValueError::new_err("`fx_rates` is overspecified."));
         }
 
         // 3.
-        assert!(&fx_rates.iter().all(|d| d.settlement.map_or(true, |v| v == settlement )));
-
-        // 4.
-        assert!(!fx_rates.iter().any(|v| v.ad == 2_u8));
+        if !(&fx_rates
+            .iter()
+            .all(|d| d.settlement.map_or(true, |v| v == settlement)))
+        {
+            return Err(PyValueError::new_err(
+                "`fx_rates` must have consistent `settlement` dates across all rates.",
+            ));
+        }
 
         // aggregate information from FXPairs
         // let pairs: Vec<(Ccy, Ccy)> = fx_rates.iter().map(|fxp| fxp.pair).collect();
@@ -166,7 +190,10 @@ impl FXRates {
                     a[[i + 1, for_idx]] = 1.0 / d;
                 }
                 _ => {
-                    panic!("`FXRates` must be constructed with FXRate of float or Dual types only.")
+                    // 4. (validation)
+                    return Err(PyValueError::new_err(
+                        "`fx_rates` cannot be constructed with rates as Dual2 data types.",
+                    ))
                 }
             }
         }
@@ -174,7 +201,7 @@ impl FXRates {
         let y = Array1::from_iter(x.iter().map(|x| 1_f64 / x));
         let z = douter11_(&x.view(), &y.view());
 
-        FXRates {
+        Ok(FXRates {
             fx_rates,
             fx_vector: FXVector::Dual(x),
             fx_array: FXArray::Dual(z),
@@ -183,7 +210,7 @@ impl FXRates {
             base,
             ad: 1_u8,
             // settlement: None,
-        }
+        })
     }
 }
 
@@ -194,47 +221,48 @@ mod tests {
 
     #[test]
     fn ccy_creation() {
-        let a = Ccy::new("usd");
-        let b = Ccy::new("USD");
+        let a = Ccy::try_new("usd").unwrap();
+        let b = Ccy::try_new("USD").unwrap();
         assert_eq!(a, b)
     }
 
     #[test]
-    #[should_panic]
-    fn ccy_failure() {
-        Ccy::new("four");
+    fn ccy_creation_error() {
+        match Ccy::try_new("FOUR") {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
     }
 
     #[test]
     fn pair_creation() {
-        let a = FXPair::new("usd", "eur");
-        let b = FXPair::new("USD", "EUR");
+        let a = FXPair::try_new("usd", "eur").unwrap();
+        let b = FXPair::try_new("USD", "EUR").unwrap();
         assert_eq!(a, b)
     }
 
     #[test]
-    #[should_panic]
-    fn pair_failure() {
-        FXPair::new("usd", "USD");
+    fn pair_creation_error() {
+        match FXPair::try_new("usd", "USD") {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
     }
 
     #[test]
     fn rate_creation() {
-        FXRate::new("usd", "eur", DualsOrF64::F64(1.20), None);
+        FXRate::try_new("usd", "eur", DualsOrF64::F64(1.20), None).unwrap();
     }
 
     #[test]
     fn fxrates_new() {
-        let fxr = FXRates::new(
+        FXRates::try_new(
             vec![
-                FXRate::new("eur", "usd", DualsOrF64::F64(1.08), None),
-                FXRate::new("usd", "jpy", DualsOrF64::F64(110.0), None),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
             ],
             ndt(2004, 1, 1),
             None,
-        );
-
-        println!("{:?}", fxr);
-        assert!(1 == 2);
+        ).unwrap();
     }
 }

@@ -1,16 +1,16 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
 use crate::dual::dual_py::DualsOrF64;
-use crate::fx::rates::{FXRate, FXRates, Ccy};
-use std::collections::HashMap;
+use crate::fx::rates::{Ccy, FXRate, FXRates, FXVector};
 use chrono::prelude::*;
 use pyo3::prelude::*;
+use std::collections::HashMap;
 
 #[pymethods]
 impl Ccy {
     #[new]
     fn new_py(name: &str) -> PyResult<Self> {
-        Ccy::new(name)
+        Ok(Ccy::try_new(name)?)
     }
 }
 
@@ -23,7 +23,7 @@ impl FXRate {
         rate: DualsOrF64,
         settlement: Option<NaiveDateTime>,
     ) -> PyResult<Self> {
-        Ok(FXRate::new(lhs, rhs, rate, settlement))
+        Ok(FXRate::try_new(lhs, rhs, rate, settlement)?)
     }
 
     #[getter]
@@ -49,6 +49,14 @@ impl FXRate {
     fn pair_py(&self) -> PyResult<String> {
         Ok(format!("{}", self.pair))
     }
+
+    fn __repr__(&self) -> PyResult<String> {
+        match &self.rate {
+            DualsOrF64::F64(f) => Ok(format!("<FXRate: '{}' {}>", self.pair, f)),
+            DualsOrF64::Dual(d) => Ok(format!("<FXRate: '{}' <Dual: {}, ..>>", self.pair, d.real())),
+            DualsOrF64::Dual2(d) => Ok(format!("<FXRate: '{}' <Dual2: {}, ..>>", self.pair, d.real()))
+        }
+    }
 }
 
 #[pymethods]
@@ -59,32 +67,54 @@ impl FXRates {
         settlement: NaiveDateTime,
         base: Option<String>,
     ) -> PyResult<Self> {
-        let base_ = base.map_or(None,|v| Some(Ccy::new(&v)));
-        let fx_rates_: Vec<FXRate> = fx_rates.into_iter().map(|(k,v)| FXRate::new(&k[..3], &k[3..], v, Some(settlement))).collect();
-        Ok(FXRates::new(fx_rates_, settlement, base_))
+        let base_ = match base {
+            None => None,
+            Some(v) => Some(Ccy::try_new(&v)?),
+        };
+        let fx_rates_ = fx_rates
+            .into_iter()
+            .map(|(k, v)| FXRate::try_new(&k[..3], &k[3..], v, Some(settlement)))
+            .collect::<Result<Vec<_>, _>>()?;
+        FXRates::try_new(fx_rates_, settlement, base_)
     }
-//
-//     #[getter]
-//     #[pyo3(name = "rate")]
-//     fn rate_py(&self) -> PyResult<DualsOrF64> {
-//         Ok(self.rate.clone())
-//     }
-//
-//     #[getter]
-//     #[pyo3(name = "ad")]
-//     fn ad_py(&self) -> PyResult<u8> {
-//         Ok(self.ad)
-//     }
-//
-//     #[getter]
-//     #[pyo3(name = "settlement")]
-//     fn settlement_py(&self) -> PyResult<Option<NaiveDateTime>> {
-//         Ok(self.settlement)
-//     }
-//
-//     #[getter]
-//     #[pyo3(name = "pair")]
-//     fn pair_py(&self) -> PyResult<String> {
-//         Ok(format!("{}", self.pair))
-//     }
+
+    #[getter]
+    #[pyo3(name = "fx_rates")]
+    fn fx_rates_py(&self) -> PyResult<Vec<FXRate>> {
+        Ok(self.fx_rates.clone())
+    }
+
+    #[getter]
+    #[pyo3(name = "ad")]
+    fn ad_py(&self) -> PyResult<u8> {
+        Ok(self.ad)
+    }
+
+    #[getter]
+    #[pyo3(name = "fx_vector")]
+    fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
+        match &self.fx_vector {
+            FXVector::Dual(arr) => Ok(arr.iter().map(|d| DualsOrF64::Dual(d.clone())).collect()),
+            FXVector::Dual2(arr) => Ok(arr.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect()),
+        }
+    }
+
+    //
+    //     #[getter]
+    //     #[pyo3(name = "ad")]
+    //     fn ad_py(&self) -> PyResult<u8> {
+    //         Ok(self.ad)
+    //     }
+    //
+    //     #[getter]
+    //     #[pyo3(name = "settlement")]
+    //     fn settlement_py(&self) -> PyResult<Option<NaiveDateTime>> {
+    //         Ok(self.settlement)
+    //     }
+    //
+    //     #[getter]
+    //     #[pyo3(name = "pair")]
+    //     fn pair_py(&self) -> PyResult<String> {
+    //         Ok(format!("{}", self.pair))
+    //     }
 }
