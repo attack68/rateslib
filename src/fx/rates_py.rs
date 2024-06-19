@@ -1,8 +1,18 @@
+//! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
+
 use crate::dual::dual_py::DualsOrF64;
 use crate::fx::rates::{FXRate, FXRates, Ccy};
 use std::collections::HashMap;
 use chrono::prelude::*;
 use pyo3::prelude::*;
+
+#[pymethods]
+impl Ccy {
+    #[new]
+    fn new_py(name: &str) -> PyResult<Self> {
+        Ccy::new(name)
+    }
+}
 
 #[pymethods]
 impl FXRate {

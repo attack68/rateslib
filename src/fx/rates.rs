@@ -1,3 +1,6 @@
+//! Create objects related to the management and valuation of monetary amounts in different
+//! currencies, measured at different settlement dates in time.
+
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
@@ -12,13 +15,19 @@ use pyo3::pyclass;
 use std::fmt;
 
 /// Struct to define a currency.
+#[pyclass]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ccy {
     name: Intern<String>,
 }
 
 impl Ccy {
-    /// Constructs a new `Ccy`, with `name` converted to lowercase. Panics if not 3-digit.
+    /// Constructs a new `Ccy`.
+    ///
+    /// Use **only** 3-ascii names. e.g. *"usd"*, aligned with ISO representation. `name` is converted
+    /// to lowercase to promote performant equality between "USD" and "usd".
+    ///
+    /// Panics if `name` is not 3 bytes in length.
     pub fn new(name: &str) -> Self {
         let ccy: String = name.to_string().to_lowercase();
         assert!(ccy.len() == 3);
