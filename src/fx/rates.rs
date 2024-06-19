@@ -117,6 +117,7 @@ pub enum FXArray {
     Dual2(Array2<Dual2>),
 }
 
+/// Struct to define a global FX market with multiple currencies.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Clone)]
 pub struct FXRates {
