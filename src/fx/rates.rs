@@ -125,7 +125,7 @@ pub struct FXRates {
     pub(crate) currencies: IndexSet<Ccy>,
     pub(crate) fx_vector: FXVector,
     pub(crate) fx_array: FXArray,
-    base: Ccy,
+    pub(crate) base: Ccy,
     pub(crate) ad: u8,
     // settlement : Option<NaiveDateTime>,
     // pairs : Vec<(Ccy, Ccy)>,
@@ -223,12 +223,16 @@ impl FXRates {
         })
     }
 
+    pub fn get_ccy_index(&self, currency: &Ccy) -> Option<usize> {
+        self.currencies.get_index_of(currency)
+    }
+
     pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<DualsOrF64> {
         let dom_idx = self.currencies.get_index_of(lhs)?;
         let for_idx = self.currencies.get_index_of(rhs)?;
-        match &self.fx_vector {
-            FXVector::Dual(arr) => Some(DualsOrF64::Dual(&arr[for_idx] / &arr[dom_idx])),
-            FXVector::Dual2(arr) => Some(DualsOrF64::Dual2(&arr[for_idx] / &arr[dom_idx])),
+        match &self.fx_array {
+            FXArray::Dual(arr) => Some(DualsOrF64::Dual(arr[[dom_idx, for_idx]].clone())),
+            FXArray::Dual2(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
         }
     }
 }

@@ -76,21 +76,29 @@ impl FXRate {
 
 #[pymethods]
 impl FXRates {
+    // #[new]
+    // fn new_py(
+    //     fx_rates: HashMap<String, DualsOrF64>,
+    //     settlement: NaiveDateTime,
+    //     base: Option<String>,
+    // ) -> PyResult<Self> {
+    //     let base_ = match base {
+    //         None => None,
+    //         Some(v) => Some(Ccy::try_new(&v)?),
+    //     };
+    //     let fx_rates_ = fx_rates
+    //         .into_iter()
+    //         .map(|(k, v)| FXRate::try_new(&k[..3], &k[3..], v, Some(settlement)))
+    //         .collect::<Result<Vec<_>, _>>()?;
+    //     FXRates::try_new(fx_rates_, settlement, base_)
+    // }
     #[new]
     fn new_py(
-        fx_rates: HashMap<String, DualsOrF64>,
+        fx_rates: Vec<FXRate>,
         settlement: NaiveDateTime,
-        base: Option<String>,
+        base: Option<Ccy>,
     ) -> PyResult<Self> {
-        let base_ = match base {
-            None => None,
-            Some(v) => Some(Ccy::try_new(&v)?),
-        };
-        let fx_rates_ = fx_rates
-            .into_iter()
-            .map(|(k, v)| FXRate::try_new(&k[..3], &k[3..], v, Some(settlement)))
-            .collect::<Result<Vec<_>, _>>()?;
-        FXRates::try_new(fx_rates_, settlement, base_)
+        FXRates::try_new(fx_rates, settlement, base)
     }
 
     #[getter]
@@ -131,6 +139,15 @@ impl FXRates {
                 arr.lanes(Axis(0)).into_iter().map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect()).collect()
             ),
         }
+    }
+
+    #[pyo3(name = "get_ccy_index")]
+    fn get_ccy_index_py(&self, currency: Ccy) -> Option<usize> {
+        self.get_ccy_index(&currency)
+    }
+    #[pyo3(name = "rate")]
+    fn rate_py(&self, lhs: &Ccy, rhs: &Ccy) -> PyResult<Option<DualsOrF64>> {
+        Ok(self.rate(lhs, rhs))
     }
 
     //

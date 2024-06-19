@@ -4,6 +4,7 @@ from datetime import datetime as dt
 
 from rateslib.rs import FXRate, Dual, Dual2, FXRates, Ccy
 from rateslib import FXRates as FXRatesPy
+from rateslib.fxdev import FXRates as FXRatesRs
 
 
 def test_ccy_creation():
@@ -21,7 +22,7 @@ def test_fx_rate_creation(val):
 
 
 def test_fx_rates_creation():
-    fxrrs = FXRates({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
+    fxrrs = FXRatesRs({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
     fxrpy = FXRatesPy({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
     pass
 
