@@ -1,16 +1,31 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
 use crate::dual::dual_py::DualsOrF64;
-use crate::fx::rates::{Ccy, FXRate, FXRates, FXVector};
+use crate::fx::rates::{Ccy, FXRate, FXRates, FXVector, FXArray};
 use chrono::prelude::*;
 use pyo3::prelude::*;
 use std::collections::HashMap;
+use ndarray::Axis;
 
 #[pymethods]
 impl Ccy {
     #[new]
     fn new_py(name: &str) -> PyResult<Self> {
         Ok(Ccy::try_new(name)?)
+    }
+
+    #[getter]
+    #[pyo3(name = "name")]
+    fn name_py(&self) -> PyResult<String> {
+        Ok(self.name.to_string())
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("<Ccy: '{}'>", self.name))
+    }
+
+    fn __eq__(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }
 
@@ -85,6 +100,12 @@ impl FXRates {
     }
 
     #[getter]
+    #[pyo3(name = "currencies")]
+    fn currencies_py(&self) -> PyResult<Vec<Ccy>> {
+        Ok(Vec::from_iter(self.currencies.iter().cloned()))
+    }
+
+    #[getter]
     #[pyo3(name = "ad")]
     fn ad_py(&self) -> PyResult<u8> {
         Ok(self.ad)
@@ -96,6 +117,19 @@ impl FXRates {
         match &self.fx_vector {
             FXVector::Dual(arr) => Ok(arr.iter().map(|d| DualsOrF64::Dual(d.clone())).collect()),
             FXVector::Dual2(arr) => Ok(arr.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect()),
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "fx_array")]
+    fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
+        match &self.fx_array {
+            FXArray::Dual(arr) => Ok(
+                arr.lanes(Axis(0)).into_iter().map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect()).collect()
+            ),
+            FXArray::Dual2(arr) => Ok(
+                arr.lanes(Axis(0)).into_iter().map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect()).collect()
+            ),
         }
     }
 

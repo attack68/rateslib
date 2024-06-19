@@ -15,10 +15,10 @@ use pyo3::{pyclass, PyErr};
 use std::fmt;
 
 /// Struct to define a currency.
-#[pyclass]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ccy {
-    name: Intern<String>,
+    pub(crate) name: Intern<String>,
 }
 
 impl Ccy {
@@ -102,8 +102,17 @@ pub enum FXVector {
     Dual2(Array1<Dual2>),
 }
 
+// impl for FXVector {
+//     fn get_index(&self, index: usize) -> DualsOrF64 {
+//         match self {
+//             FXVector::Dual(arr) => DualsOrF64::Dual(arr[index]),
+//             FXVector::Dual2(arr) => DualsOrF64::Dual2(arr[index]),
+//         }
+//     }
+// }
+
 #[derive(Debug, Clone)]
-enum FXArray {
+pub enum FXArray {
     Dual(Array2<Dual>),
     Dual2(Array2<Dual2>),
 }
@@ -112,9 +121,9 @@ enum FXArray {
 #[derive(Debug, Clone)]
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
-    currencies: IndexSet<Ccy>,
+    pub(crate) currencies: IndexSet<Ccy>,
     pub(crate) fx_vector: FXVector,
-    fx_array: FXArray,
+    pub(crate) fx_array: FXArray,
     base: Ccy,
     pub(crate) ad: u8,
     // settlement : Option<NaiveDateTime>,
@@ -212,6 +221,15 @@ impl FXRates {
             // settlement: None,
         })
     }
+
+    pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<DualsOrF64> {
+        let dom_idx = self.currencies.get_index_of(lhs)?;
+        let for_idx = self.currencies.get_index_of(rhs)?;
+        match &self.fx_vector {
+            FXVector::Dual(arr) => Some(DualsOrF64::Dual(&arr[for_idx] / &arr[dom_idx])),
+            FXVector::Dual2(arr) => Some(DualsOrF64::Dual2(&arr[for_idx] / &arr[dom_idx])),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -255,8 +273,8 @@ mod tests {
     }
 
     #[test]
-    fn fxrates_new() {
-        FXRates::try_new(
+    fn fxrates_rate() {
+        let fxr = FXRates::try_new(
             vec![
                 FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
                 FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
@@ -264,5 +282,9 @@ mod tests {
             ndt(2004, 1, 1),
             None,
         ).unwrap();
+
+        let fxv = fxr.rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap()).unwrap();
+        let exp = Dual::try_new(110.0, vec!["fx_eurusd".to_string(), "fx_usdjpy".to_string()], vec![0_f64, 1_f64]).unwrap();
+        assert_eq!(fxv, DualsOrF64::Dual(exp))
     }
 }
