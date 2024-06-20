@@ -4,7 +4,7 @@ use crate::dual::dual_py::DualsOrF64;
 use crate::fx::rates::{Ccy, FXRate, FXRates, FXVector, FXArray};
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use ndarray::Axis;
 
 #[pymethods]
@@ -117,6 +117,12 @@ impl FXRates {
     #[pyo3(name = "ad")]
     fn ad_py(&self) -> PyResult<u8> {
         Ok(self.ad)
+    }
+
+    #[getter]
+    #[pyo3(name = "base")]
+    fn base_py(&self) -> PyResult<Ccy> {
+        Ok(self.base)
     }
 
     #[getter]
