@@ -40,6 +40,9 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - The Tokyo calendar *'tyo'* has been added to align with TONA publication. The FED calendar *'fed'* has also been
        added. The Sydney calendar *"syd"* has been added to align with AONIA publication.
+   * - Calendars
+     - JSON serialisation/deserialisation of :class:`~rateslib.calendars.Cal`
+       and :class:`~rateslib.calendars.UnionCal` added for saving/loading from database or file.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
    * - Bug
