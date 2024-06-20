@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 pub trait JSON: Serialize + for<'a> Deserialize<'a> {
@@ -10,4 +10,3 @@ pub trait JSON: Serialize + for<'a> Deserialize<'a> {
         serde_json::from_str(json)
     }
 }
-

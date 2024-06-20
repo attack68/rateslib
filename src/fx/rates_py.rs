@@ -1,7 +1,7 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
 use crate::dual::dual_py::DualsOrF64;
-use crate::fx::rates::{Ccy, FXRate, FXRates, FXVector, FXArray};
+use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates, FXVector};
 use chrono::prelude::*;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
@@ -68,8 +68,16 @@ impl FXRate {
     fn __repr__(&self) -> PyResult<String> {
         match &self.rate {
             DualsOrF64::F64(f) => Ok(format!("<FXRate: '{}' {}>", self.pair, f)),
-            DualsOrF64::Dual(d) => Ok(format!("<FXRate: '{}' <Dual: {}, ..>>", self.pair, d.real())),
-            DualsOrF64::Dual2(d) => Ok(format!("<FXRate: '{}' <Dual2: {}, ..>>", self.pair, d.real()))
+            DualsOrF64::Dual(d) => Ok(format!(
+                "<FXRate: '{}' <Dual: {}, ..>>",
+                self.pair,
+                d.real()
+            )),
+            DualsOrF64::Dual2(d) => Ok(format!(
+                "<FXRate: '{}' <Dual2: {}, ..>>",
+                self.pair,
+                d.real()
+            )),
         }
     }
 }
@@ -138,12 +146,16 @@ impl FXRates {
     #[pyo3(name = "fx_array")]
     fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
         match &self.fx_array {
-            FXArray::Dual(arr) => Ok(
-                arr.lanes(Axis(0)).into_iter().map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect()).collect()
-            ),
-            FXArray::Dual2(arr) => Ok(
-                arr.lanes(Axis(0)).into_iter().map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect()).collect()
-            ),
+            FXArray::Dual(arr) => Ok(arr
+                .lanes(Axis(0))
+                .into_iter()
+                .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
+                .collect()),
+            FXArray::Dual2(arr) => Ok(arr
+                .lanes(Axis(0))
+                .into_iter()
+                .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
+                .collect()),
         }
     }
 

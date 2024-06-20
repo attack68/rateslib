@@ -1,12 +1,12 @@
 use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
-use crate::json::JSON;
 use crate::calendars::named::get_calendar_by_name;
+use crate::json::JSON;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyType};
-use pyo3::exceptions::PyValueError;
 
 #[pymethods]
 impl Cal {
@@ -140,7 +140,7 @@ impl Cal {
     fn to_json_py(&self) -> PyResult<String> {
         match self.to_json() {
             Ok(v) => Ok(v),
-            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON."))
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
         }
     }
 
@@ -149,7 +149,7 @@ impl Cal {
     fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<Cal> {
         match Cal::from_json(&json) {
             Ok(v) => Ok(v),
-            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e)))
+            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e))),
         }
     }
 
@@ -278,7 +278,7 @@ impl UnionCal {
     fn to_json_py(&self) -> PyResult<String> {
         match self.to_json() {
             Ok(v) => Ok(v),
-            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON."))
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
         }
     }
 
@@ -287,7 +287,7 @@ impl UnionCal {
     fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<UnionCal> {
         match UnionCal::from_json(&json) {
             Ok(v) => Ok(v),
-            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e)))
+            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e))),
         }
     }
 

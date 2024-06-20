@@ -4,11 +4,12 @@
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
-use crate::dual::linalg::{douter11_, dsolve};
+use crate::dual::linalg::{argabsmax, douter11_, dsolve};
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
-use ndarray::{Array1, Array2};
+use itertools::Itertools;
+use ndarray::{Array1, Array2, ArrayView2, Axis};
 use num_traits::identities::One;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
@@ -203,7 +204,7 @@ impl FXRates {
                     // 4. (validation)
                     return Err(PyValueError::new_err(
                         "`fx_rates` cannot be constructed with rates as Dual2 data types.",
-                    ))
+                    ));
                 }
             }
         }
@@ -221,6 +222,47 @@ impl FXRates {
             ad: 1_u8,
             // settlement: None,
         })
+    }
+
+    fn calculate_array(&self) {
+        // Setup node graph
+        let mut node_graph: Array2<i16> = Array2::eye(self.currencies.len());
+        for fxr in self.fx_rates.iter() {
+            let row = self.currencies.get_index_of(&fxr.pair.0).unwrap();
+            let col = self.currencies.get_index_of(&fxr.pair.1).unwrap();
+            node_graph[[row, col]] = 1_i16;
+            node_graph[[col, row]] = 1_i16;
+        }
+    }
+
+    fn discover_evaluation_node_and_populate(&self, mut node_graph: Array2<i16>, mut fx_array: Array2<T>) {
+        // discover the node with the most outgoing nodes
+        let v = Array1::from_vec(
+            node_graph
+                .lanes(Axis(0))
+                .into_iter()
+                .map(|row| row.iter().sum::<i16>())
+                .collect(),
+        );
+        let node = argabsmax(v.view());
+
+        // filter the node indices of the directly linked nodes to node
+        let linked_nodes = node_graph
+            .row(node)
+            .into_iter()
+            .zip(0_usize..)
+            .filter(|(v, i)| **v == 1_i16 && *i != node)
+            .map(|(v, i)| i);
+
+        // filter by combinations that are not already populated
+        let combinations_to_calculate = linked_nodes
+            .combinations(2)
+            .filter(|v| node_graph[[v[0], v[1]]] == 0_i16);
+
+        // calculate the combinations and mutate the input
+        for combination in combinations_to_calculate {
+            let value =
+        }
     }
 
     pub fn get_ccy_index(&self, currency: &Ccy) -> Option<usize> {
@@ -286,10 +328,18 @@ mod tests {
             ],
             ndt(2004, 1, 1),
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
-        let fxv = fxr.rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap()).unwrap();
-        let exp = Dual::try_new(110.0, vec!["fx_eurusd".to_string(), "fx_usdjpy".to_string()], vec![0_f64, 1_f64]).unwrap();
+        let fxv = fxr
+            .rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap())
+            .unwrap();
+        let exp = Dual::try_new(
+            110.0,
+            vec!["fx_eurusd".to_string(), "fx_usdjpy".to_string()],
+            vec![0_f64, 1_f64],
+        )
+        .unwrap();
         assert_eq!(fxv, DualsOrF64::Dual(exp))
     }
 }
