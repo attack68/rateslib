@@ -106,3 +106,21 @@ class TestCal:
     def test_fed_cal(self):
         cal = get_calendar("fed")
         assert cal.holidays[0] == dt(1970, 1, 1)
+
+    def test_json_round_trip(self, simple_cal):
+        json = simple_cal.to_json()
+        from_cal = Cal.from_json(json)
+        assert simple_cal == from_cal
+
+    def test_json_round_trip_union(self, multi_union):
+        json = multi_union.to_json()
+        from_cal = UnionCal.from_json(json)
+        assert multi_union == from_cal
+
+    def test_json_raises(self):
+        with pytest.raises(ValueError, match="JSON Parse Error: missing field `week_mask`"):
+            Cal.from_json('{"holidays":[]}')
+
+        with pytest.raises(ValueError, match="JSON Parse Error: missing field `calendars`"):
+            UnionCal.from_json('{"settlement_calendars":[]}')
+

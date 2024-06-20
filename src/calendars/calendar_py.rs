@@ -1,10 +1,12 @@
 use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
+use crate::json::JSON;
 use crate::calendars::named::get_calendar_by_name;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyType};
+use pyo3::exceptions::PyValueError;
 
 #[pymethods]
 impl Cal {
@@ -114,14 +116,15 @@ impl Cal {
         self.cal_date_range(&start, &end)
     }
 
-    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+    // Pickling
+    fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
         *self = deserialize(state.as_bytes()).unwrap();
         Ok(())
     }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
-    pub fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
+    fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
             self.clone().holidays.into_iter().collect(),
             self.clone()
@@ -131,7 +134,27 @@ impl Cal {
                 .collect(),
         ))
     }
-    pub fn __eq__(&self, other: Cal) -> bool {
+
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match self.to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON."))
+        }
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_json")]
+    fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<Cal> {
+        match Cal::from_json(&json) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e)))
+        }
+    }
+
+    // Equality
+    fn __eq__(&self, other: Cal) -> bool {
         *self == other
     }
 }
@@ -238,6 +261,7 @@ impl UnionCal {
         self.cal_date_range(&start, &end)
     }
 
+    // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
         *self = deserialize(state.as_bytes()).unwrap();
         Ok(())
@@ -248,6 +272,27 @@ impl UnionCal {
     pub fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
     }
+
+    // JSON
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match self.to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON."))
+        }
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_json")]
+    fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<UnionCal> {
+        match UnionCal::from_json(&json) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e)))
+        }
+    }
+
+    // Equality
     pub fn __eq__(&self, other: UnionCal) -> bool {
         *self == other
     }

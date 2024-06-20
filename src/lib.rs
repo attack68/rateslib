@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod tests;
 
+pub mod json;
+
 // type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 // type GenericResult<T> = Result<T, GenericError>;
 
