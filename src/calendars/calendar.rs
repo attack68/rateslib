@@ -66,6 +66,7 @@
 //! // Monday 19th June 2023, ignoring the US holiday settlement requirement.
 //! ```
 
+use crate::json::JSON;
 use chrono::prelude::*;
 use chrono::{Days, Weekday};
 use indexmap::set::IndexSet;
@@ -74,7 +75,6 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use crate::json::JSON;
 
 /// Define a single, business day calendar.
 ///

@@ -203,7 +203,7 @@ impl FXRates {
                     // 4. (validation)
                     return Err(PyValueError::new_err(
                         "`fx_rates` cannot be constructed with rates as Dual2 data types.",
-                    ))
+                    ));
                 }
             }
         }
@@ -286,10 +286,18 @@ mod tests {
             ],
             ndt(2004, 1, 1),
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
-        let fxv = fxr.rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap()).unwrap();
-        let exp = Dual::try_new(110.0, vec!["fx_eurusd".to_string(), "fx_usdjpy".to_string()], vec![0_f64, 1_f64]).unwrap();
+        let fxv = fxr
+            .rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap())
+            .unwrap();
+        let exp = Dual::try_new(
+            110.0,
+            vec!["fx_eurusd".to_string(), "fx_usdjpy".to_string()],
+            vec![0_f64, 1_f64],
+        )
+        .unwrap();
         assert_eq!(fxv, DualsOrF64::Dual(exp))
     }
 }
