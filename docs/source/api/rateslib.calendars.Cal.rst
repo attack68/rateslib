@@ -28,10 +28,12 @@ Cal
    .. include:: rateslib.calendars.Cal.add_months.rst
    .. include:: rateslib.calendars.Cal.bus_date_range.rst
    .. include:: rateslib.calendars.Cal.cal_date_range.rst
+   .. include:: rateslib.calendars.Cal.from_json.rst
    .. include:: rateslib.calendars.Cal.is_bus_day.rst
    .. include:: rateslib.calendars.Cal.is_non_bus_day.rst
    .. include:: rateslib.calendars.Cal.is_settlement.rst
    .. include:: rateslib.calendars.Cal.lag.rst
    .. include:: rateslib.calendars.Cal.roll.rst
+   .. include:: rateslib.calendars.Cal.to_json.rst
 
 
