@@ -274,7 +274,6 @@ impl UnionCal {
     }
 
     // JSON
-    // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
         match self.to_json() {
