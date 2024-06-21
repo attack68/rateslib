@@ -3558,6 +3558,63 @@ class TestFXOptions:
         assert abs(result["delta"] - expected[0]) < 1e-6
         assert abs(result["delta_eur"] - expected[1]) < 1e-6
 
+    def test_metric_and_period_metric_compatible(self):
+        # ensure that vol and pips_or_% can be interchanged
+
+        eur = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="tgt")
+        usd = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="nyc")
+        eurusd = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0})
+        fxr = FXRates({"eurusd": 1.0727}, settlement=dt(2024, 6, 24))
+        fxf = FXForwards(fx_rates=fxr, fx_curves={"eureur": eur, "eurusd": eurusd, "usdusd": usd})
+        pre_solver = Solver(
+            curves=[eur, usd, eurusd],
+            instruments=[
+                IRS(dt(2024, 6, 24), "3m", spec="eur_irs", curves=eur),
+                IRS(dt(2024, 6, 24), "3m", spec="usd_irs", curves=usd),
+                FXExchange(pair="eurusd", settlement=dt(2024, 9, 24),
+                           curves=[None, eurusd, None, usd]),
+            ],
+            s=[3.77, 5.51, 1.0775],
+            fx=fxf,
+        )
+
+        smile = FXDeltaVolSmile(
+            nodes={0.25: 5.0, 0.50: 5.0, 0.75: 5.0},
+            eval_date=dt(2024, 6, 20),
+            expiry=dt(2024, 9, 20),
+            delta_type="spot",
+        )
+        fx_args = dict(
+            expiry=dt(2024, 9, 20),
+            pair="eurusd",
+            delta_type="spot",
+            metric="vol",   # note how the option is pre-configured with a metric as "vol"
+            curves=[None, eurusd, None, usd],
+            vol=smile,
+            premium_ccy="eur",
+            delivery_lag=2,
+            payment_lag=2,
+        )
+        solver = Solver(
+            pre_solvers=[pre_solver],
+            curves=[smile],
+            instruments=[
+                FXPut(strike=1.0504, **fx_args),
+                FXCall(strike=1.0728, **fx_args),
+                FXCall(strike=1.0998, **fx_args)
+            ],
+            s=[7.621, 6.60, 6.12],
+            fx=fxf,
+        )
+
+        result = FXCall(strike=1.0728, **fx_args).rate(metric="pips_or_%", solver=solver)
+        expected = 1.543289 # % of EUR notional
+        assert abs(result-expected) < 1e-6
+
+        result = FXCall(strike=1.0728, **fx_args).rate(solver=solver)  # should default to "vol"
+        expected = 6.60 # vol points
+        assert abs(result-expected) < 1e-6
+
 
 class TestRiskReversal:
     @pytest.mark.parametrize("metric, expected", [
