@@ -7958,14 +7958,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 f"currency pair: '{self.kwargs['pair']}'."
             )
         elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-            self.kwargs["metric_period"] = (
-                "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
-            )
+            self.kwargs["metric_period"] = "pips"
             self.kwargs["delta_adjustment"] = ""
         else:
-            self.kwargs["metric_period"] = (
-                "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
-            )
+            self.kwargs["metric_period"] = "percent"
             self.kwargs["delta_adjustment"] = "_pa"
 
         # nothing to inherit or negate.
