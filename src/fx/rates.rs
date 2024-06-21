@@ -235,7 +235,7 @@ impl FXRates {
         }
     }
 
-    fn discover_evaluation_node_and_populate(&self, mut node_graph: Array2<i16>, mut fx_array: Array2<T>) {
+    fn discover_evaluation_node_and_populate(&self, mut node_graph: Array2<i16>, mut fx_array: FXArray) {
         // discover the node with the most outgoing nodes
         let v = Array1::from_vec(
             node_graph
@@ -247,21 +247,35 @@ impl FXRates {
         let node = argabsmax(v.view());
 
         // filter the node indices of the directly linked nodes to node
-        let linked_nodes = node_graph
-            .row(node)
+        let binding = node_graph.clone().row(node);
+        let linked_nodes = binding
             .into_iter()
             .zip(0_usize..)
             .filter(|(v, i)| **v == 1_i16 && *i != node)
             .map(|(v, i)| i);
 
         // filter by combinations that are not already populated
+        let node_view = node_graph.view();
         let combinations_to_calculate = linked_nodes
             .combinations(2)
-            .filter(|v| node_graph[[v[0], v[1]]] == 0_i16);
+            .filter(|v| node_view[[v[0], v[1]]] == 0_i16);
 
         // calculate the combinations and mutate the input
-        for combination in combinations_to_calculate {
-            let value =
+        match fx_array {
+            FXArray::Dual(arr) => {
+                for c in combinations_to_calculate {
+                    let value = &arr[[c[0], node]] / &arr[[node, c[1]]];
+                    node_graph[[c[0], c[1]]] = 1_i16;
+                    node_graph[[c[1], c[0]]] = 1_i16;
+                }
+            }
+            FXArray::Dual2(arr) => {
+                for c in combinations_to_calculate {
+                    let value = &arr[[c[0], node]] / &arr[[node, c[1]]];
+                    node_graph[[c[0], c[1]]] = 1_i16;
+                    node_graph[[c[1], c[0]]] = 1_i16;
+                }
+            }
         }
     }
 
