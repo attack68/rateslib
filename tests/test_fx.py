@@ -29,6 +29,11 @@ def test_ill_constrained(fx_rates):
         FXRates(fx_rates)
 
 
+def test_avoid_recursion_error():
+    pairs = ['jpymxp', 'usdnok', 'usdgbp', 'audmxp', 'gbpsek', 'eurnok', 'eursek']
+    FXRates({k: 1.2 for k in pairs})
+
+
 def test_rates():
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     assert fxr.currencies == {"usd": 0, "eur": 1, "gbp": 2}
