@@ -49,6 +49,11 @@ email contact through **rateslib@gmail.com**.
      - :meth:`~rateslib.instruments.FixedRateBond.rate` method of a *FixedRateBond* now correctly
        returns the local currency price or yield-to-maturity without being wrongly converted by a
        ``base`` FX rate, if an FX object is also supplied to the pricing formula.
+   * - Bug
+     - :class:`~rateslib.instruments.FXOption` initialised with ``metric`` no longer
+       raises if an alternate dynamic ``metric`` is requested as override in the
+       :meth:`~rateslib.instruments.FXOption.rate` method.
+
 
 1.2.2 (31st May 2024)
 **********************
