@@ -175,18 +175,10 @@ impl FXRates {
             ));
         }
 
-        // aggregate information from FXPairs
-        // let pairs: Vec<(Ccy, Ccy)> = fx_rates.iter().map(|fxp| fxp.pair).collect();
-        //         let variables: Vec<String> = fx_rates.iter().map(
-        //                 |fxp| "fx_".to_string() + &fxp.pair.0.to_string() + &fxp.pair.1.to_string()
-        //             ).collect();
-
         let base = base.unwrap_or(currencies[0]);
 
         let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
-        FXRates::_populate_remaining_arrays(fx_array.view_mut(), edges.view_mut(), HashSet::new());
-
-        // let fx_vector = fx_array.row(currencies.get_index_of(&base).unwrap());
+        let _ = FXRates::_populate_remaining_arrays(fx_array.view_mut(), edges.view_mut(), HashSet::new());
 
         Ok(FXRates {
             fx_rates,
@@ -251,16 +243,7 @@ impl FXRates {
             node = argabsmax(row_edges.view());
             row_edges[node] = 0_i16;
 
-            // filter the node indices of the directly linked nodes to node
-            // let linked_nodes = &edges
-            //     .row(node)
-            //     .into_iter()
-            //     .zip(0_usize..)
-            //     .filter(|(v, i)| **v == 1_i16 && *i != node)
-            //     .map(|(v, i)| i);
-
             // filter by combinations that are not already populated
-            // let node_view = node_graph.view();
             combinations_ = edges
                 .row(node)
                 .iter()
