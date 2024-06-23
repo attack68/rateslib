@@ -4,13 +4,12 @@
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
-use crate::dual::linalg::{argabsmax, douter11_, dsolve};
+use crate::dual::linalg::{argabsmax};
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
 use itertools::Itertools;
-use ndarray::{Array1, Array2, ArrayView2, ArrayViewMut2, Axis, arr2};
-use num_traits::identities::One;
+use ndarray::{Array1, Array2, ArrayViewMut2, Axis};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::collections::HashSet;
@@ -267,7 +266,7 @@ impl FXRates {
                 .iter()
                 .zip(0_usize..)
                 .filter(|(v, i)| **v == 1_i16 && *i != node)
-                .map(|(v, i)| i)
+                .map(|(_v, i)| i)
                 .combinations(2)
                 .filter(|v| edges[[v[0], v[1]]] == 0_i16)
                 .collect()
@@ -299,74 +298,6 @@ impl FXRates {
         }
     }
 
-    fn calculate_array(&self) {
-        // Setup node graph
-        let mut node_graph: Array2<i16> = Array2::eye(self.currencies.len());
-        for fxr in self.fx_rates.iter() {
-            let row = self.currencies.get_index_of(&fxr.pair.0).unwrap();
-            let col = self.currencies.get_index_of(&fxr.pair.1).unwrap();
-            node_graph[[row, col]] = 1_i16;
-            node_graph[[col, row]] = 1_i16;
-        }
-    }
-
-    fn discover_evaluation_node_and_populate(
-        &self,
-        node_graph: Array2<i16>,
-        fx_array: FXArray,
-    ) -> (Array2<i16>, FXArray) {
-        // discover the node with the most outgoing nodes
-        let v = Array1::from_vec(
-            node_graph
-                .lanes(Axis(0))
-                .into_iter()
-                .map(|row| row.iter().sum::<i16>())
-                .collect(),
-        );
-        let node = argabsmax(v.view());
-
-        // filter the node indices of the directly linked nodes to node
-        let linked_nodes = node_graph
-            .row(node)
-            .into_iter()
-            .zip(0_usize..)
-            .filter(|(v, i)| **v == 1_i16 && *i != node)
-            .map(|(v, i)| i);
-
-        // filter by combinations that are not already populated
-        // let node_view = node_graph.view();
-        let combinations_to_calculate = linked_nodes
-            .combinations(2)
-            .filter(|v| node_graph[[v[0], v[1]]] == 0_i16);
-
-        // calculate the combinations and mutate the input
-        let mut output_node_graph = node_graph.clone();
-        match fx_array {
-            FXArray::Dual(arr) => {
-                let mut output_values = arr.clone();
-                for c in combinations_to_calculate {
-                    output_node_graph[[c[0], c[1]]] = 1_i16;
-                    output_node_graph[[c[1], c[0]]] = 1_i16;
-                    let value = &arr[[c[0], node]] / &arr[[node, c[1]]];
-                    output_values[[c[0], c[1]]] = value.clone();
-                    output_values[[c[1], c[0]]] = 1_f64 / value;
-                }
-                (output_node_graph, FXArray::Dual(output_values))
-            }
-            FXArray::Dual2(arr) => {
-                let mut output_values = arr.clone();
-                for c in combinations_to_calculate {
-                    output_node_graph[[c[0], c[1]]] = 1_i16;
-                    output_node_graph[[c[1], c[0]]] = 1_i16;
-                    let value = &arr[[c[0], node]] / &arr[[node, c[1]]];
-                    output_values[[c[0], c[1]]] = value.clone();
-                    output_values[[c[1], c[0]]] = 1_f64 / value;
-                }
-                (output_node_graph, FXArray::Dual2(output_values))
-            }
-        }
-    }
-
     pub fn get_ccy_index(&self, currency: &Ccy) -> Option<usize> {
         self.currencies.get_index_of(currency)
     }
@@ -388,6 +319,7 @@ impl FXRates {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::arr2;
     use crate::calendars::calendar::ndt;
     use num_traits::Signed;
 
