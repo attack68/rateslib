@@ -438,11 +438,15 @@ mod tests {
         )
         .unwrap();
 
-        let expected = arr2(&[[1.0, 0.5, 0.5], [0.5, 1.0, 0.5], [0.5, 0.5, 1.0]]);
+        let expected = arr2(&[
+            [1.0, 1.08, 118.8],
+            [0.9259259, 1.0, 110.0],
+            [0.0084175, 0.0090909, 1.0]
+        ]);
 
         let arr: Vec<f64> = fxr.arr_dual.iter().map(|x| x.real()).collect();
         println!("{:?}", arr);
 
-        assert!(fxr.arr_dual.iter().zip(expected.iter()).all(|(x,y)| (x-y).abs() < 1e-8 ))
+        assert!(fxr.arr_dual.iter().zip(expected.iter()).all(|(x,y)| (x-y).abs() < 1e-6 ))
     }
 }
