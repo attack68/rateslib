@@ -165,7 +165,8 @@ class FXRates:
         self.fx_vector = self.fx_array[base_idx, :]
 
     def _populate_initial_arrays(self):
-        self.fx_array = np.eye(self.q, dtype="object")
+        self.fx_array = np.zeros((self.q, self.q), dtype="object")
+        np.fill_diagonal(self.fx_array, Dual(1.0, [], []))
         self.edges = np.eye(self.q, dtype=bool)
         for i, pi in enumerate(self.pairs_indices):
             self.edges[pi[0], pi[1]] = True

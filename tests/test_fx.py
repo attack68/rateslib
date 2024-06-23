@@ -31,7 +31,8 @@ def test_ill_constrained(fx_rates):
 
 def test_avoid_recursion_error():
     pairs = ['jpymxp', 'usdnok', 'usdgbp', 'audmxp', 'gbpsek', 'eurnok', 'eursek']
-    FXRates({k: 1.2 for k in pairs})
+    with pytest.raises(ValueError, match="FX Array cannot be solved. There are degenerate"):
+        FXRates({k: 1.2 for k in pairs})
 
 
 def test_rates():
