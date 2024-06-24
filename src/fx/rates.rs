@@ -4,14 +4,15 @@
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
-use crate::dual::linalg::{douter11_, dsolve};
+use crate::dual::linalg::{argabsmax};
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
-use ndarray::{Array1, Array2};
-use num_traits::identities::One;
+use itertools::Itertools;
+use ndarray::{Array1, Array2, ArrayViewMut2, Axis};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
+use std::collections::HashSet;
 use std::fmt;
 
 /// Struct to define a currency.
@@ -123,8 +124,8 @@ pub enum FXArray {
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
-    pub(crate) fx_vector: FXVector,
-    pub(crate) fx_array: FXArray,
+    pub(crate) arr_dual: Array2<Dual>,
+    pub(crate) arr_dual2: Option<Array2<Dual2>>,
     pub(crate) base: Ccy,
     pub(crate) ad: u8,
     // settlement : Option<NaiveDateTime>,
@@ -174,53 +175,110 @@ impl FXRates {
             ));
         }
 
-        // aggregate information from FXPairs
-        // let pairs: Vec<(Ccy, Ccy)> = fx_rates.iter().map(|fxp| fxp.pair).collect();
-        //         let variables: Vec<String> = fx_rates.iter().map(
-        //                 |fxp| "fx_".to_string() + &fxp.pair.0.to_string() + &fxp.pair.1.to_string()
-        //             ).collect();
-
         let base = base.unwrap_or(currencies[0]);
 
-        let mut a: Array2<Dual> = Array2::zeros((q, q));
-        a[[0, 0]] = Dual::one();
-        let mut b: Array1<Dual> = Array1::zeros(q);
-        b[0] = Dual::one();
-
-        for (i, fxr) in fx_rates.iter().enumerate() {
-            let dom_idx = currencies.get_index_of(&(fxr.pair.0)).expect("pre checked");
-            let for_idx = currencies.get_index_of(&(fxr.pair.1)).expect("pre checked");
-            a[[i + 1, dom_idx]] = -1.0 * Dual::one();
-            match &fxr.rate {
-                DualsOrF64::F64(f) => {
-                    let var = "fx_".to_string() + &format!("{}", fxr.pair).to_string();
-                    a[[i + 1, for_idx]] = 1.0 / Dual::new(*f, vec![var]);
-                }
-                DualsOrF64::Dual(d) => {
-                    a[[i + 1, for_idx]] = 1.0 / d;
-                }
-                _ => {
-                    // 4. (validation)
-                    return Err(PyValueError::new_err(
-                        "`fx_rates` cannot be constructed with rates as Dual2 data types.",
-                    ));
-                }
-            }
-        }
-        let x = dsolve(&a.view(), &b.view(), false);
-        let y = Array1::from_iter(x.iter().map(|x| 1_f64 / x));
-        let z = douter11_(&x.view(), &y.view());
+        let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
+        let _ = FXRates::_populate_remaining_arrays(fx_array.view_mut(), edges.view_mut(), HashSet::new());
 
         Ok(FXRates {
             fx_rates,
-            fx_vector: FXVector::Dual(x),
-            fx_array: FXArray::Dual(z),
+            arr_dual: fx_array,
+            arr_dual2: None,
             currencies,
-            // pairs: pairs,
             base,
             ad: 1_u8,
-            // settlement: None,
         })
+    }
+
+    fn _populate_initial_arrays(
+        currencies: &IndexSet<Ccy>,
+        fx_rates: &Vec<FXRate>,
+    ) -> (Array2<Dual>, Array2<i16>) {
+        let mut fx_array: Array2<Dual> = Array2::eye(currencies.len());
+        let mut edges: Array2<i16> = Array2::eye(currencies.len());
+        for fxr in fx_rates.iter() {
+            let row = currencies.get_index_of(&fxr.pair.0).unwrap();
+            let col = currencies.get_index_of(&fxr.pair.1).unwrap();
+            edges[[row, col]] = 1_i16;
+            edges[[col, row]] = 1_i16;
+            match &fxr.rate {
+                DualsOrF64::F64(f) => {
+                    fx_array[[row, col]] = Dual::new(*f, vec!["fx_".to_string() + &format!("{}", fxr.pair)]);
+                    fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
+                },
+                DualsOrF64::Dual(d) => {
+                    fx_array[[row, col]] = d.clone();
+                    fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
+                },
+                DualsOrF64::Dual2(_) => panic!("cannot construct from dual2 rates")
+            }
+        }
+        (fx_array, edges)
+    }
+
+    fn _populate_remaining_arrays(
+        mut fx_array: ArrayViewMut2<Dual>,
+        mut edges: ArrayViewMut2<i16>,
+        mut prev_value: HashSet<usize>,
+    ) -> Result<bool, PyErr> {
+        if prev_value.len() == edges.len_of(Axis(0)) {
+            return Err(PyValueError::new_err(
+                "FX Array cannot be solved. There are degenerate FX rate pairs.\n\
+                For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
+            ));
+        }
+        if edges.sum() == (edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16 {
+            return Ok(true); // all edges and values have already been populated.
+        }
+        let mut row_edges = edges.sum_axis(Axis(1));
+
+
+        let mut node: usize = edges.len_of(Axis(1)) + 1_usize;
+        let mut combinations_: Vec<Vec<usize>> = Vec::new();
+        let mut start_flag = true;
+        while start_flag || prev_value.contains(&node) {
+            start_flag = false;
+
+            // find node with most outgoing edges
+            node = argabsmax(row_edges.view());
+            row_edges[node] = 0_i16;
+
+            // filter by combinations that are not already populated
+            combinations_ = edges
+                .row(node)
+                .iter()
+                .zip(0_usize..)
+                .filter(|(v, i)| **v == 1_i16 && *i != node)
+                .map(|(_v, i)| i)
+                .combinations(2)
+                .filter(|v| edges[[v[0], v[1]]] == 0_i16)
+                .collect()
+            ;
+        }
+
+        let mut counter: i16 = 0;
+        for c in combinations_ {
+            counter += 1_i16;
+            edges[[c[0], c[1]]] = 1_i16;
+            edges[[c[1], c[0]]] = 1_i16;
+            fx_array[[c[0], c[1]]] = &fx_array[[c[0], node]] * &fx_array[[node, c[1]]];
+            fx_array[[c[1], c[0]]] = 1.0_f64 / &fx_array[[c[0], c[1]]];
+        }
+
+        if counter == 0 {
+            prev_value.insert(node);
+            return FXRates::_populate_remaining_arrays(
+                fx_array.view_mut(),
+                edges.view_mut(),
+                prev_value,
+            );
+        } else {
+            return FXRates::_populate_remaining_arrays(
+                fx_array.view_mut(),
+                edges.view_mut(),
+                HashSet::from([node]),
+            );
+        }
     }
 
     pub fn get_ccy_index(&self, currency: &Ccy) -> Option<usize> {
@@ -230,9 +288,13 @@ impl FXRates {
     pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<DualsOrF64> {
         let dom_idx = self.currencies.get_index_of(lhs)?;
         let for_idx = self.currencies.get_index_of(rhs)?;
-        match &self.fx_array {
-            FXArray::Dual(arr) => Some(DualsOrF64::Dual(arr[[dom_idx, for_idx]].clone())),
-            FXArray::Dual2(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
+        match self.ad {
+            1 => Some(DualsOrF64::Dual(self.arr_dual[[dom_idx, for_idx]].clone())),
+            2 => match &self.arr_dual2 {
+                Some(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
+                None => None,
+            },
+            _ => None,
         }
     }
 }
@@ -240,7 +302,9 @@ impl FXRates {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::arr2;
     use crate::calendars::calendar::ndt;
+    use num_traits::Signed;
 
     #[test]
     fn ccy_creation() {
@@ -289,15 +353,15 @@ mod tests {
         )
         .unwrap();
 
-        let fxv = fxr
-            .rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap())
-            .unwrap();
-        let exp = Dual::try_new(
-            110.0,
-            vec!["fx_eurusd".to_string(), "fx_usdjpy".to_string()],
-            vec![0_f64, 1_f64],
-        )
-        .unwrap();
-        assert_eq!(fxv, DualsOrF64::Dual(exp))
+        let expected = arr2(&[
+            [1.0, 1.08, 118.8],
+            [0.9259259, 1.0, 110.0],
+            [0.0084175, 0.0090909, 1.0]
+        ]);
+
+        let arr: Vec<f64> = fxr.arr_dual.iter().map(|x| x.real()).collect();
+        println!("{:?}", arr);
+
+        assert!(fxr.arr_dual.iter().zip(expected.iter()).all(|(x,y)| (x-y).abs() < 1e-6 ))
     }
 }

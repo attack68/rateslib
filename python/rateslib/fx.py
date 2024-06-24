@@ -1,3 +1,4 @@
+import itertools
 import json
 import math
 import warnings
@@ -134,6 +135,7 @@ class FXRates:
                 list(dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]))
             )
         }
+        self.pairs_indices = [(self.currencies[k[:3]], self.currencies[k[3:]]) for k in self.pairs]
         self.currencies_list = list(self.currencies.keys())
         if base is NoInput.blank:
             if defaults.base_currency in self.currencies_list:
@@ -154,30 +156,54 @@ class FXRates:
                 f"{self.q - 1} FX pairs, not {len(self.pairs)}."
             )
 
-        # solve FX vector in linear system
-        A = np.zeros((self.q, self.q), dtype="object")
-        A[0, 0] = 1.0
-        b = np.zeros(self.q, dtype="object")
-        b[0] = 1.0
-        for i, pair in enumerate(self.pairs):
-            domestic_idx = self.currencies[pair[:3]]
-            foreign_idx = self.currencies[pair[3:]]
-            A[i + 1, domestic_idx] = -1.0
-            A[i + 1, foreign_idx] = 1 / self.fx_rates[pair]
-        try:
-            x = dual_solve(A, b[:, np.newaxis], types=(Dual, Dual))[:, 0]  # TODO: (Dual, float)
-        except ArithmeticError:
-            return self._solve_error()
-        if math.isnan(x[0].real):
-            return self._solve_error()
+        # create the edges and the fx array matrix from input data.
+        self._populate_initial_arrays()
+        # recursively solve all the remaining fx entries
+        self._populate_remaining_elements()
 
-        self.fx_vector = x
+        base_idx = self.currencies[self.base]
+        self.fx_vector = self.fx_array[base_idx, :]
 
-        # solve fx_rates array
-        self.fx_array = np.eye(self.q, dtype="object")
-        for i in range(self.q):
-            for j in range(i + 1, self.q):
-                self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
+    def _populate_initial_arrays(self):
+        self.fx_array = np.zeros((self.q, self.q), dtype="object")
+        np.fill_diagonal(self.fx_array, Dual(1.0, [], []))
+        self.edges = np.eye(self.q, dtype=bool)
+        for i, pi in enumerate(self.pairs_indices):
+            self.edges[pi[0], pi[1]] = True
+            self.edges[pi[1], pi[0]] = True
+            self.fx_array[pi[0], pi[1]] = self.fx_rates[self.pairs[i]]
+            self.fx_array[pi[1], pi[0]] = 1.0 / self.fx_array[pi[0], pi[1]]
+
+    def _populate_remaining_elements(self, prev_value=[]):
+        if len(prev_value) == self.q:
+            raise ValueError(
+                "FX Array cannot be solved. There are degenerate FX rate pairs.\n"
+                "For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy')."
+            )
+        if np.all(self.edges):
+            return None  # exit because all elements have been populated
+        row_edges = self.edges.sum(axis=1)
+        node = None
+        while node is None or node in prev_value:
+            node = np.argmax(row_edges)
+            row_edges[node] = 0
+            connected = np.array(range(self.q))[self.edges[node, :]]
+            connected = connected[connected != node]
+
+        combinations = itertools.combinations(connected, 2)
+        updates = 0
+        for c in combinations:
+            if self.edges[c[0], c[1]]:
+                continue  # edge already exists
+            updates += 1
+            self.edges[c[0], c[1]] = True
+            self.edges[c[1], c[0]] = True
+            self.fx_array[c[0], c[1]] = self.fx_array[c[0], node] * self.fx_array[node, c[1]]
+            self.fx_array[c[1], c[0]] = 1.0 / self.fx_array[c[0], c[1]]
+
+        if updates == 0:
+            return self._populate_remaining_elements(prev_value=prev_value+[node])
+        return self._populate_remaining_elements(prev_value=[node])
 
     def _solve_error(self):
         """
