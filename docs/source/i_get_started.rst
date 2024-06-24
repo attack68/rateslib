@@ -29,10 +29,11 @@ for performance. For most users this will not affect the installation of *ratesl
 computer architectures (e.g. Linux) Python wheels are not pre-built, and this means ``pip install rateslib`` will
 use the source distribution directly. In this case you must first
 `install Rust <https://www.rust-lang.org/tools/install>`_ so that the rust extensions
-can be compiled locally.
+can be compiled locally by the *pip* installer.
 
 **Additionally**, for versions less than 1.2.0, it can be installed via the community ``conda-forge`` channel
-available from `Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_
+available from `Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_, although these older versions are less
+performant and contain less features.
 
 .. code-block::
 
