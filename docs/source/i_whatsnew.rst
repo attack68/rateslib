@@ -43,6 +43,9 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - JSON serialisation/deserialisation of :class:`~rateslib.calendars.Cal`
        and :class:`~rateslib.calendars.UnionCal` added for saving/loading from database or file.
+   * - Performance
+     - Algorithm for :class:`~rateslib.fx.FXRates` generation is modified to improve the speed of instance
+       construction for a larger number of currencies.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
    * - Bug
