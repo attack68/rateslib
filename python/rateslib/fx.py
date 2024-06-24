@@ -1731,8 +1731,8 @@ def forward_fx(
     date: datetime,
     curve_domestic: Curve,
     curve_foreign: Curve,
-    fx_rate: Union[float, Dual],
-    fx_settlement: Optional[datetime] = None,
+    fx_rate: DualTypes,
+    fx_settlement: Union[datetime, NoInput] = NoInput(0),
 ) -> Dual:
     """
     Return a forward FX rate based on interest rate parity.
@@ -1810,11 +1810,11 @@ def forward_fx(
     """
     if date == fx_settlement:
         return fx_rate
-    elif date == curve_domestic.node_dates[0] and fx_settlement is None:
+    elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:
         return fx_rate
 
     _ = curve_domestic[date] / curve_foreign[date]
-    if fx_settlement is not None:
+    if fx_settlement is not NoInput.blank:
         _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
     # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
     _ *= fx_rate

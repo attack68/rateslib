@@ -1196,6 +1196,9 @@ class FXExchange(Sensitivities, BaseMixin):
         else:
             imm_fx = fx_
 
+        if imm_fx is NoInput.blank:
+            raise ValueError("`fx` must be supplied to price FXExchange object.\n"
+                             "Note: it can be attached to and then gotten from a Solver.")
         _ = forward_fx(self.settlement, curves[1], curves[3], imm_fx)
         return _
 
