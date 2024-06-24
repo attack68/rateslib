@@ -1014,7 +1014,7 @@ def test_forward_fx_immediate():
     result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, dt(2022, 1, 1))
     assert abs(result - 10.0) < 1e-6
 
-    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, None)
+    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0)
     assert abs(result - 10.0) < 1e-6
 
 

@@ -1362,6 +1362,21 @@ class TestFXExchange:
                 fx_rate=1.2080131682341035,
             ).analytic_delta()
 
+    def test_error_msg_for_no_fx(self):
+        eur = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="tgt")
+        usd = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="nyc")
+        eurusd = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0})
+        with pytest.raises(ValueError, match="`fx` must be supplied to price FXExchange"):
+            Solver(
+                curves=[eur, usd, eurusd],
+                instruments=[
+                    IRS(dt(2024, 6, 24), "3m", spec="eur_irs", curves=eur),
+                    IRS(dt(2024, 6, 24), "3m", spec="usd_irs", curves=usd),
+                    FXExchange(pair="eurusd", settlement=dt(2024, 9, 24), curves=[None, eurusd, None, usd]),
+                ],
+                s=[3.77, 5.51, 1.0775],
+            )
+
 
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
