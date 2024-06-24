@@ -9,8 +9,8 @@ use pyo3::types::{PyFloat, PyType};
 use std::sync::Arc;
 // use pyo3::types::PyFloat;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
-use crate::calendars::calendar::Cal;
-use crate::json::JSON;
+use crate::json::{JSON};
+use crate::json::json_py::Serialized;
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -297,18 +297,9 @@ impl Dual {
     // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match self.to_json() {
+        match Serialized::Dual(self.clone()).to_json() {
             Ok(v) => Ok(v),
-            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
-        }
-    }
-
-    #[classmethod]
-    #[pyo3(name = "from_json")]
-    fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<Dual> {
-        match Dual::from_json(&json) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e))),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Dual` to JSON.")),
         }
     }
 }
@@ -581,18 +572,9 @@ impl Dual2 {
     // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match self.to_json() {
+        match Serialized::Dual2(self.clone()).to_json() {
             Ok(v) => Ok(v),
-            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
-        }
-    }
-
-    #[classmethod]
-    #[pyo3(name = "from_json")]
-    fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<Dual2> {
-        match Dual2::from_json(&json) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e))),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Dual2` to JSON.")),
         }
     }
 

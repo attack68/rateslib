@@ -1,7 +1,9 @@
-use serde::{Deserialize, Serialize};
+pub mod json_py;
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
-pub trait JSON: Serialize + for<'a> Deserialize<'a> {
+pub trait JSON: Serialize + for<'de> Deserialize<'de> {
     fn to_json(&self) -> serde_json::Result<String> {
         serde_json::to_string(self)
     }

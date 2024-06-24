@@ -24,9 +24,8 @@ use std::sync::Arc;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::json::JSON;
 
-#[pyclass]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
     pub real: f64,
@@ -34,8 +33,6 @@ pub struct Dual2 {
     pub dual: Array1<f64>,
     pub dual2: Array2<f64>,
 }
-
-impl JSON for Dual2 {}
 
 impl Vars for Dual2 {
     /// Get a reference to the Arc pointer for the `IndexSet` containing the struct's variables.

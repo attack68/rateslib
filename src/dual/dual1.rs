@@ -20,18 +20,15 @@ use std::iter::Sum;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::json::JSON;
 
 /// Struct for defining a dual number data type supporting first order derivatives.
-#[pyclass]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
     real: f64,
     vars: Arc<IndexSet<String>>,
     dual: Array1<f64>,
 }
-
-impl JSON for Dual {}
 
 /// Enum defining the `vars` state of two dual number type structs, a LHS relative to a RHS.
 #[derive(Clone, Debug, PartialEq)]

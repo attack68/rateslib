@@ -4,6 +4,7 @@
 mod tests;
 
 pub mod json;
+use crate::json::json_py::from_json_py;
 
 // type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 // type GenericResult<T> = Result<T, GenericError>;
@@ -32,6 +33,9 @@ use fx::rates::{Ccy, FXRate, FXRates};
 
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // JSON
+    m.add_function(wrap_pyfunction!(from_json_py, m)?)?;
+
     // Automatic Differentiation
     m.add_class::<Dual>()?;
     m.add_class::<Dual2>()?;
