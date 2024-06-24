@@ -129,7 +129,7 @@ impl Cal {
 ///
 /// - the date in question is also a business day in the associated settlement calendar.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct UnionCal {
     pub(crate) calendars: Vec<Cal>,
     pub(crate) settlement_calendars: Option<Vec<Cal>>,
@@ -463,49 +463,36 @@ impl DateRoll for UnionCal {
     }
 }
 
-impl PartialEq<Cal> for UnionCal {
-    fn eq(&self, other: &Cal) -> bool {
-        match self.settlement_calendars {
-            Some(_) => false,
-            None => {
-                let bd1 = self.bus_date_range(
-                    &self.roll_backward_bus_day(&ndt(1970, 1, 1)),
-                    &self.roll_forward_bus_day(&ndt(2200, 12, 31))
-                ).unwrap();
-                let bd2 = other.bus_date_range(
-                    &other.roll_backward_bus_day(&ndt(1970, 1, 1)),
-                    &other.roll_forward_bus_day(&ndt(2200, 12, 31))
-                ).unwrap();
-                if bd1.len() != bd2.len() {
-                    false
-                } else {
-                    bd1.iter().zip(bd2.iter()).all(|(x,y)| x == y)
-                }
-            }
-        }
+impl<T> PartialEq<T> for UnionCal
+where
+    T: DateRoll,
+{
+    fn eq(&self, other: &T) -> bool {
+        let cd1 = self
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        let cd2 = other
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        cd1.iter().zip(cd2.iter()).all(|(x, y)| {
+            self.is_bus_day(&x) == other.is_bus_day(&x)
+                && self.is_settlement(&x) == other.is_settlement(&y)
+        })
     }
 }
 
 impl PartialEq<UnionCal> for Cal {
     fn eq(&self, other: &UnionCal) -> bool {
-        match other.settlement_calendars {
-            Some(_) => false,
-            None => {
-                let bd1 = self.bus_date_range(
-                    &self.roll_backward_bus_day(&ndt(1970, 1, 1)),
-                    &self.roll_forward_bus_day(&ndt(2200, 12, 31))
-                ).unwrap();
-                let bd2 = other.bus_date_range(
-                    &other.roll_backward_bus_day(&ndt(1970, 1, 1)),
-                    &other.roll_forward_bus_day(&ndt(2200, 12, 31))
-                ).unwrap();
-                if bd1.len() != bd2.len() {
-                    false
-                } else {
-                    bd1.iter().zip(bd2.iter()).all(|(x,y)| x == y)
-                }
-            }
-        }
+        let cd1 = self
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        let cd2 = other
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        cd1.iter().zip(cd2.iter()).all(|(x, y)| {
+            self.is_bus_day(&x) == other.is_bus_day(&x)
+                && self.is_settlement(&x) == other.is_settlement(&y)
+        })
     }
 }
 

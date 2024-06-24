@@ -4,7 +4,7 @@
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
-use crate::dual::linalg::{argabsmax};
+use crate::dual::linalg::argabsmax;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
@@ -178,7 +178,11 @@ impl FXRates {
         let base = base.unwrap_or(currencies[0]);
 
         let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
-        let _ = FXRates::_populate_remaining_arrays(fx_array.view_mut(), edges.view_mut(), HashSet::new());
+        let _ = FXRates::_populate_remaining_arrays(
+            fx_array.view_mut(),
+            edges.view_mut(),
+            HashSet::new(),
+        );
 
         Ok(FXRates {
             fx_rates,
@@ -203,14 +207,15 @@ impl FXRates {
             edges[[col, row]] = 1_i16;
             match &fxr.rate {
                 DualsOrF64::F64(f) => {
-                    fx_array[[row, col]] = Dual::new(*f, vec!["fx_".to_string() + &format!("{}", fxr.pair)]);
+                    fx_array[[row, col]] =
+                        Dual::new(*f, vec!["fx_".to_string() + &format!("{}", fxr.pair)]);
                     fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
-                },
+                }
                 DualsOrF64::Dual(d) => {
                     fx_array[[row, col]] = d.clone();
                     fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
-                },
-                DualsOrF64::Dual2(_) => panic!("cannot construct from dual2 rates")
+                }
+                DualsOrF64::Dual2(_) => panic!("cannot construct from dual2 rates"),
             }
         }
         (fx_array, edges)
@@ -232,7 +237,6 @@ impl FXRates {
         }
         let mut row_edges = edges.sum_axis(Axis(1));
 
-
         let mut node: usize = edges.len_of(Axis(1)) + 1_usize;
         let mut combinations_: Vec<Vec<usize>> = Vec::new();
         let mut start_flag = true;
@@ -252,8 +256,7 @@ impl FXRates {
                 .map(|(_v, i)| i)
                 .combinations(2)
                 .filter(|v| edges[[v[0], v[1]]] == 0_i16)
-                .collect()
-            ;
+                .collect();
         }
 
         let mut counter: i16 = 0;
@@ -302,8 +305,8 @@ impl FXRates {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
     use crate::calendars::calendar::ndt;
+    use ndarray::arr2;
     use num_traits::Signed;
 
     #[test]
@@ -356,12 +359,16 @@ mod tests {
         let expected = arr2(&[
             [1.0, 1.08, 118.8],
             [0.9259259, 1.0, 110.0],
-            [0.0084175, 0.0090909, 1.0]
+            [0.0084175, 0.0090909, 1.0],
         ]);
 
         let arr: Vec<f64> = fxr.arr_dual.iter().map(|x| x.real()).collect();
         println!("{:?}", arr);
 
-        assert!(fxr.arr_dual.iter().zip(expected.iter()).all(|(x,y)| (x-y).abs() < 1e-6 ))
+        assert!(fxr
+            .arr_dual
+            .iter()
+            .zip(expected.iter())
+            .all(|(x, y)| (x - y).abs() < 1e-6))
     }
 }

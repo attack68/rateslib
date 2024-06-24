@@ -8,6 +8,12 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyType};
 
+#[derive(Debug, Clone, PartialEq, FromPyObject)]
+pub enum Cals {
+    Cal(Cal),
+    UnionCal(UnionCal),
+}
+
 #[pymethods]
 impl Cal {
     #[new]
@@ -154,8 +160,11 @@ impl Cal {
     }
 
     // Equality
-    fn __eq__(&self, other: Cal) -> bool {
-        *self == other
+    fn __eq__(&self, other: Cals) -> bool {
+        match other {
+            Cals::UnionCal(c) => *self == c,
+            Cals::Cal(c) => *self == c,
+        }
     }
 }
 
@@ -292,8 +301,11 @@ impl UnionCal {
     }
 
     // Equality
-    pub fn __eq__(&self, other: UnionCal) -> bool {
-        *self == other
+    fn __eq__(&self, other: Cals) -> bool {
+        match other {
+            Cals::UnionCal(c) => *self == c,
+            Cals::Cal(c) => *self == c,
+        }
     }
 }
 

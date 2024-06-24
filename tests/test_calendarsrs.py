@@ -124,3 +124,36 @@ class TestCal:
         with pytest.raises(ValueError, match="JSON Parse Error: missing field `calendars`"):
             UnionCal.from_json('{"settlement_calendars":[]}')
 
+    @pytest.mark.parametrize(
+        "left, right, expected",
+        [
+            (Cal([], [5, 6]), Cal([], [5, 6]), True),
+            (Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 2)], [5, 6]), True),
+            (Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2007, 1, 2)], [5, 6]), False),
+            (Cal([], [4, 6]), Cal([], [5, 6]), False),
+            (UnionCal([Cal([], [5, 6])]), Cal([], [5, 6]), True),
+            (UnionCal([Cal([dt(2006, 1, 2)], [5, 6])]), Cal([], [5, 6]), False),
+            (
+                UnionCal([Cal([dt(2006, 1, 2)], [5, 6])]),
+                Cal([dt(2006, 1, 2)], [5, 6]),
+                True,
+            ),
+            (
+                UnionCal(
+                    [Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 3)], [5, 6])]
+                ),
+                Cal([dt(2006, 1, 2), dt(2006, 1, 3)], [5, 6]),
+                True,
+            ),
+            (
+                UnionCal(
+                    [Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 3)], [5, 6])]
+                ),
+                UnionCal([Cal([dt(2006, 1, 2), dt(2006, 1, 3)], [5, 6])]),
+                True,
+            ),
+        ],
+    )
+    def test_equality(self, left, right, expected):
+        assert (left == right) is expected
+        assert (right == left) is expected

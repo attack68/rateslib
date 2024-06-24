@@ -139,12 +139,25 @@ impl FXRates {
     fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
         let idx = self.currencies.get_index_of(&self.base).unwrap();
         match self.ad {
-            1 => Ok(self.arr_dual.row(idx).iter().map(|d| DualsOrF64::Dual(d.clone())).collect()),
+            1 => Ok(self
+                .arr_dual
+                .row(idx)
+                .iter()
+                .map(|d| DualsOrF64::Dual(d.clone()))
+                .collect()),
             2 => match &self.arr_dual2 {
-                Some(arr) => Ok(arr.row(idx).iter().map(|d| DualsOrF64::Dual2(d.clone())).collect()),
-                None => Err(PyValueError::new_err("FXRates object must have Dual2 type values."))
-            }
-            _ => Err(PyValueError::new_err("AD mode for FXRates must be in {1, 2}."))
+                Some(arr) => Ok(arr
+                    .row(idx)
+                    .iter()
+                    .map(|d| DualsOrF64::Dual2(d.clone()))
+                    .collect()),
+                None => Err(PyValueError::new_err(
+                    "FXRates object must have Dual2 type values.",
+                )),
+            },
+            _ => Err(PyValueError::new_err(
+                "AD mode for FXRates must be in {1, 2}.",
+            )),
         }
     }
 
@@ -152,22 +165,25 @@ impl FXRates {
     #[pyo3(name = "fx_array")]
     fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
         match &self.ad {
-            1 => Ok(self.arr_dual
+            1 => Ok(self
+                .arr_dual
                 .lanes(Axis(0))
                 .into_iter()
                 .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
-                .collect()
-            ),
+                .collect()),
             2 => match &self.arr_dual2 {
                 Some(arr) => Ok(arr
                     .lanes(Axis(0))
                     .into_iter()
                     .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
-                    .collect()
-                ),
-                None => Err(PyValueError::new_err("FXRates object must have Dual2 type values."))
-            }
-            _ => Err(PyValueError::new_err("AD mode for FXRates must be in {1, 2}.")),
+                    .collect()),
+                None => Err(PyValueError::new_err(
+                    "FXRates object must have Dual2 type values.",
+                )),
+            },
+            _ => Err(PyValueError::new_err(
+                "AD mode for FXRates must be in {1, 2}.",
+            )),
         }
     }
 
