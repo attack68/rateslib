@@ -5,10 +5,12 @@ use crate::dual::dual2::{Dual2, Gradient2};
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyFloat;
+use pyo3::types::{PyFloat, PyType};
 use std::sync::Arc;
 // use pyo3::types::PyFloat;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use crate::calendars::calendar::Cal;
+use crate::json::JSON;
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -291,6 +293,24 @@ impl Dual {
     fn __float__(&self) -> f64 {
         self.real()
     }
+
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match self.to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
+        }
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_json")]
+    fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<Dual> {
+        match Dual::from_json(&json) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e))),
+        }
+    }
 }
 
 #[pymethods]
@@ -557,4 +577,23 @@ impl Dual2 {
     fn __float__(&self) -> f64 {
         self.real
     }
+
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match self.to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
+        }
+    }
+
+    #[classmethod]
+    #[pyo3(name = "from_json")]
+    fn from_json_py(_cls: &Bound<'_, PyType>, json: String) -> PyResult<Dual2> {
+        match Dual2::from_json(&json) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(PyValueError::new_err(format!("JSON Parse Error: {}", e))),
+        }
+    }
+
 }
