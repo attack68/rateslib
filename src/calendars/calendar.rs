@@ -463,6 +463,52 @@ impl DateRoll for UnionCal {
     }
 }
 
+impl PartialEq<Cal> for UnionCal {
+    fn eq(&self, other: &Cal) -> bool {
+        match self.settlement_calendars {
+            Some(_) => false,
+            None => {
+                let bd1 = self.bus_date_range(
+                    &self.roll_backward_bus_day(&ndt(1970, 1, 1)),
+                    &self.roll_forward_bus_day(&ndt(2200, 12, 31))
+                ).unwrap();
+                let bd2 = other.bus_date_range(
+                    &other.roll_backward_bus_day(&ndt(1970, 1, 1)),
+                    &other.roll_forward_bus_day(&ndt(2200, 12, 31))
+                ).unwrap();
+                if bd1.len() != bd2.len() {
+                    false
+                } else {
+                    bd1.iter().zip(bd2.iter()).all(|(x,y)| x == y)
+                }
+            }
+        }
+    }
+}
+
+impl PartialEq<UnionCal> for Cal {
+    fn eq(&self, other: &UnionCal) -> bool {
+        match other.settlement_calendars {
+            Some(_) => false,
+            None => {
+                let bd1 = self.bus_date_range(
+                    &self.roll_backward_bus_day(&ndt(1970, 1, 1)),
+                    &self.roll_forward_bus_day(&ndt(2200, 12, 31))
+                ).unwrap();
+                let bd2 = other.bus_date_range(
+                    &other.roll_backward_bus_day(&ndt(1970, 1, 1)),
+                    &other.roll_forward_bus_day(&ndt(2200, 12, 31))
+                ).unwrap();
+                if bd1.len() != bd2.len() {
+                    false
+                } else {
+                    bd1.iter().zip(bd2.iter()).all(|(x,y)| x == y)
+                }
+            }
+        }
+    }
+}
+
 /// Enum defining the rule to adjust a non-business day to a business day.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
@@ -1070,5 +1116,21 @@ mod tests {
         let js = ucal.to_json().unwrap();
         let ucal2 = UnionCal::from_json(&js).unwrap();
         assert_eq!(ucal, ucal2);
+    }
+
+    #[test]
+    fn test_cross_equality() {
+        let cal = fixture_hol_cal();
+        let ucal = UnionCal::new(vec![cal.clone()], None);
+        assert_eq!(cal, ucal);
+        assert_eq!(ucal, cal);
+
+        let ucals = UnionCal::new(vec![cal.clone()], vec![cal.clone()].into());
+        assert_ne!(cal, ucals);
+        assert_ne!(ucals, cal);
+
+        let cal2 = fixture_hol_cal2();
+        assert_ne!(cal2, ucal);
+        assert_ne!(ucal, cal2);
     }
 }
