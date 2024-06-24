@@ -129,7 +129,7 @@ impl Cal {
 ///
 /// - the date in question is also a business day in the associated settlement calendar.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct UnionCal {
     pub(crate) calendars: Vec<Cal>,
     pub(crate) settlement_calendars: Option<Vec<Cal>>,
@@ -460,6 +460,39 @@ impl DateRoll for UnionCal {
         self.settlement_calendars
             .as_ref()
             .map_or(true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date)))
+    }
+}
+
+impl<T> PartialEq<T> for UnionCal
+where
+    T: DateRoll,
+{
+    fn eq(&self, other: &T) -> bool {
+        let cd1 = self
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        let cd2 = other
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        cd1.iter().zip(cd2.iter()).all(|(x, y)| {
+            self.is_bus_day(&x) == other.is_bus_day(&x)
+                && self.is_settlement(&x) == other.is_settlement(&y)
+        })
+    }
+}
+
+impl PartialEq<UnionCal> for Cal {
+    fn eq(&self, other: &UnionCal) -> bool {
+        let cd1 = self
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        let cd2 = other
+            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
+            .unwrap();
+        cd1.iter().zip(cd2.iter()).all(|(x, y)| {
+            self.is_bus_day(&x) == other.is_bus_day(&x)
+                && self.is_settlement(&x) == other.is_settlement(&y)
+        })
     }
 }
 
@@ -1070,5 +1103,21 @@ mod tests {
         let js = ucal.to_json().unwrap();
         let ucal2 = UnionCal::from_json(&js).unwrap();
         assert_eq!(ucal, ucal2);
+    }
+
+    #[test]
+    fn test_cross_equality() {
+        let cal = fixture_hol_cal();
+        let ucal = UnionCal::new(vec![cal.clone()], None);
+        assert_eq!(cal, ucal);
+        assert_eq!(ucal, cal);
+
+        let ucals = UnionCal::new(vec![cal.clone()], vec![cal.clone()].into());
+        assert_ne!(cal, ucals);
+        assert_ne!(ucals, cal);
+
+        let cal2 = fixture_hol_cal2();
+        assert_ne!(cal2, ucal);
+        assert_ne!(ucal, cal2);
     }
 }
