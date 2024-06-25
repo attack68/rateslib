@@ -5,7 +5,7 @@ use crate::dual::dual2::{Dual2, Gradient2};
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyFloat, PyType};
+use pyo3::types::PyFloat;
 use std::sync::Arc;
 // use pyo3::types::PyFloat;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};

@@ -40,6 +40,8 @@ Defaults
    :skip: plot3d
    :skip: datetime
    :skip: Enum
+   :skip: from_json_rs
+   :skip: read_csv
 
 Calendars
 ==========

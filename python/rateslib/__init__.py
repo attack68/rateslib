@@ -71,6 +71,7 @@ from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
 from rateslib.splines import (PPSpline, PPSplineDual, PPSplineDual2,
                               PPSplineF64, bspldnev_single, bsplev_single)
+from rateslib.rs import from_json
 
 # module level doc-string
 __doc__ = """
@@ -91,6 +92,7 @@ __all__ = [
     "dt",
     "defaults",
     "NoInput",
+    "from_json",
     # dual.py
     "Dual",
     "Dual2",

@@ -1,6 +1,6 @@
 pub mod json_py;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 pub trait JSON: Serialize + for<'de> Deserialize<'de> {

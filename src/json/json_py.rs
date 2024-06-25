@@ -1,13 +1,10 @@
 use pyo3::exceptions::PyValueError;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json;
+use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
-use pyo3::types::PyFloat;
 use pyo3::conversion::ToPyObject;
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::calendars::calendar::{Cal, UnionCal};
-use crate::dual::dual_py::DualsOrF64;
 use crate::json::JSON;
 
 #[derive(Serialize, Deserialize, FromPyObject)]
