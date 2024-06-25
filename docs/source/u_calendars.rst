@@ -48,8 +48,8 @@ is available in the :meth:`~rateslib.calendars.get_calendar` method:
 
 .. ipython:: python
 
-   from rateslib.calendars.rs import CALENDARS
-   print(CALENDARS.keys())
+   from rateslib import defaults
+   print(defaults.calendars.keys())
 
 .. ipython:: python
 
@@ -107,6 +107,33 @@ but enforces associated settlement against the New York calendar.
    tgt_nyc_settle.is_bus_day(dt(2009, 11, 11))
    tgt_nyc_settle.is_settlement(dt(2009, 11, 11))
 
+
+Adding Custom Calendars to Defaults
+**************************************
+
+Custom calendars can be added to the ``defaults`` object and this allows the
+:meth:`~rateslib.calendars.get_calendar` method to access it via string representation
+in *Instrument* instantiation or or in other methods such as :meth:`~rateslib.calendars.add_tenor`.
+
+Suppose we create a custom calendar which allows only Wednesdays to be business days.
+We can then use this calendar to derive IMM dates in a month, although this is
+not the most efficient way of doing this it is just shown for example purposes.
+
+.. ipython:: python
+
+   cal = Cal([], [0, 1, 3, 4, 5, 6])
+   defaults.calendars["wednesdays"] = cal
+
+   # The IMM date in March 2025 is..
+   add_tenor(dt(2025, 3, 15), "0d", calendar="wednesdays", modifier="F")
+
+Whenever the ``calendar`` argument is required for a method the string *'wednesdays'* could
+now be freely used and would refer back to this object.
+
+.. ipython:: python
+   :suppress:
+
+   defaults.reset_defaults()
 
 Day count fractions (DCFs)
 **************************

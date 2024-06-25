@@ -110,145 +110,147 @@ class Defaults:
        print(defaults.print())
 
     """
+    def __init__(self):
+        # Scheduling
+        self.stub = "SHORTFRONT"
+        self.stub_length = "SHORT"
+        self.eval_mode = "swaps_align"
+        self.modifier = "MF"
+        self.calendars = {
+            "all": get_named_calendar("all"),
+            "bus": get_named_calendar("bus"),
+            "tgt": get_named_calendar("tgt"),
+            "ldn": get_named_calendar("ldn"),
+            "nyc": get_named_calendar("nyc"),
+            "fed": get_named_calendar("fed"),
+            "stk": get_named_calendar("stk"),
+            "osl": get_named_calendar("osl"),
+            "zur": get_named_calendar("zur"),
+            "tro": get_named_calendar("tro"),
+            "tyo": get_named_calendar("tyo"),
+            "syd": get_named_calendar("syd"),
+        }
+        self.frequency_months = {
+            "M": 1,
+            "B": 2,
+            "Q": 3,
+            "T": 4,
+            "S": 6,
+            "A": 12,
+            "Z": 1e8,
+        }
+        self.eom = False
 
-    # Scheduling
-    stub = "SHORTFRONT"
-    stub_length = "SHORT"
-    eval_mode = "swaps_align"
-    modifier = "MF"
-    calendars = {
-        "all": get_named_calendar("all"),
-        "bus": get_named_calendar("bus"),
-        "tgt": get_named_calendar("tgt"),
-        "ldn": get_named_calendar("ldn"),
-        "nyc": get_named_calendar("nyc"),
-        "fed": get_named_calendar("fed"),
-        "stk": get_named_calendar("stk"),
-        "osl": get_named_calendar("osl"),
-        "zur": get_named_calendar("zur"),
-        "tro": get_named_calendar("tro"),
-        "tyo": get_named_calendar("tyo"),
-        "syd": get_named_calendar("syd"),
-    }
-    frequency_months = {
-        "M": 1,
-        "B": 2,
-        "Q": 3,
-        "T": 4,
-        "S": 6,
-        "A": 12,
-        "Z": 1e8,
-    }
-    eom = False
+        # Instrument parameterisation
 
-    # Instrument parameterisation
+        self.convention = "ACT360"
+        self.notional = 1.0e6
+        self.index_lag = 3
+        self.index_method = "daily"
+        self.payment_lag = 2
+        self.payment_lag_exchange = 0
+        self.payment_lag_specific = {
+            "IRS": 2,
+            "STIRFuture": 0,
+            "IIRS": 2,
+            "ZCS": 2,
+            "ZCIS": 0,
+            "FXSwap": 0,
+            "SBS": 2,
+            "Swap": 2,
+            "XCS": 2,
+            "FixedRateBond": 0,
+            "IndexFixedRateBond": 0,
+            "FloatRateNote": 0,
+            "Bill": 0,
+            "FRA": 0,
+        }
+        self.fixing_method = "rfr_payment_delay"
+        self.fixing_method_param = {
+            "rfr_payment_delay": 0,  # no observation shift - use payment_delay param
+            "rfr_observation_shift": 2,
+            "rfr_lockout": 2,
+            "rfr_lookback": 2,
+            "rfr_payment_delay_avg": 0,  # no observation shift - use payment_delay param
+            "rfr_observation_shift_avg": 2,
+            "rfr_lockout_avg": 2,
+            "rfr_lookback_avg": 2,
+            "ibor": 2,
+        }
+        self.spread_compound_method = "none_simple"
+        self.base_currency = "usd"
 
-    convention = "ACT360"
-    notional = 1.0e6
-    index_lag = 3
-    index_method = "daily"
-    payment_lag = 2
-    payment_lag_exchange = 0
-    payment_lag_specific = {
-        "IRS": 2,
-        "STIRFuture": 0,
-        "IIRS": 2,
-        "ZCS": 2,
-        "ZCIS": 0,
-        "FXSwap": 0,
-        "SBS": 2,
-        "Swap": 2,
-        "XCS": 2,
-        "FixedRateBond": 0,
-        "IndexFixedRateBond": 0,
-        "FloatRateNote": 0,
-        "Bill": 0,
-        "FRA": 0,
-    }
-    fixing_method = "rfr_payment_delay"
-    fixing_method_param = {
-        "rfr_payment_delay": 0,  # no observation shift - use payment_delay param
-        "rfr_observation_shift": 2,
-        "rfr_lockout": 2,
-        "rfr_lookback": 2,
-        "rfr_payment_delay_avg": 0,  # no observation shift - use payment_delay param
-        "rfr_observation_shift_avg": 2,
-        "rfr_lockout_avg": 2,
-        "rfr_lookback_avg": 2,
-        "ibor": 2,
-    }
-    spread_compound_method = "none_simple"
-    base_currency = "usd"
+        self.fx_delivery_lag = 2
+        self.fx_delta_type = "spot"
+        self.fx_option_metric = "pips"
 
-    fx_delivery_lag = 2
-    fx_delta_type = "spot"
-    fx_option_metric = "pips"
+        # Curves
 
-    # Curves
+        self.interpolation = {
+            "Curve": "log_linear",
+            "LineCurve": "linear",
+            "IndexCurve": "linear_index",
+        }
+        self.endpoints = "natural"
+        # fmt: off
+        self.multi_csa_steps = [
+           2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
+           169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
+           1808, 1821, 1824, 1825,
+        ]
+        # fmt: on
 
-    interpolation = {
-        "Curve": "log_linear",
-        "LineCurve": "linear",
-        "IndexCurve": "linear_index",
-    }
-    endpoints = "natural"
-    # fmt: off
-    multi_csa_steps = [
-       2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
-       169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
-       1808, 1821, 1824, 1825,
-    ]
-    # fmt: on
+        # Solver
 
-    # Solver
+        self.tag = "v"
+        self.algorithm = "levenberg_marquardt"
+        self.curve_not_in_solver = "ignore"
+        self.ini_lambda = (1000.0, 0.25, 2.0)
 
-    tag = "v"
-    algorithm = "levenberg_marquardt"
-    curve_not_in_solver = "ignore"
-    ini_lambda = (1000.0, 0.25, 2.0)
+        # bonds
+        self.calc_mode = "ukg"
+        self.settle = 1
+        self.ex_div = 1
+        self.calc_mode_futures = "ytm"
 
-    # bonds
-    calc_mode = "ukg"
-    settle = 1
-    ex_div = 1
-    calc_mode_futures = "ytm"
+        # misc
 
-    # misc
+        self.pool = 1
+        self.no_fx_fixings_for_xcs = "warn"
+        self.headers = {
+            "type": "Type",
+            "stub_type": "Period",
+            "u_acc_start": "Unadj Acc Start",
+            "u_acc_end": "Unadj Acc End",
+            "a_acc_start": "Acc Start",
+            "a_acc_end": "Acc End",
+            "payment": "Payment",
+            "convention": "Convention",
+            "dcf": "DCF",
+            "df": "DF",
+            "notional": "Notional",
+            "currency": "Ccy",
+            "rate": "Rate",
+            "spread": "Spread",
+            "npv": "NPV",
+            "cashflow": "Cashflow",
+            "fx": "FX Rate",
+            "npv_fx": "NPV Ccy",
+            "real_cashflow": "Real Cashflow",
+            "index_value": "Index Val",
+            "index_ratio": "Index Ratio",
+            "index_base": "Index Base",
+            "collateral": "Collateral",
+        }
 
-    pool = 1
-    no_fx_fixings_for_xcs = "warn"
-    headers = {
-        "type": "Type",
-        "stub_type": "Period",
-        "u_acc_start": "Unadj Acc Start",
-        "u_acc_end": "Unadj Acc End",
-        "a_acc_start": "Acc Start",
-        "a_acc_end": "Acc End",
-        "payment": "Payment",
-        "convention": "Convention",
-        "dcf": "DCF",
-        "df": "DF",
-        "notional": "Notional",
-        "currency": "Ccy",
-        "rate": "Rate",
-        "spread": "Spread",
-        "npv": "NPV",
-        "cashflow": "Cashflow",
-        "fx": "FX Rate",
-        "npv_fx": "NPV Ccy",
-        "real_cashflow": "Real Cashflow",
-        "index_value": "Index Val",
-        "index_ratio": "Index Ratio",
-        "index_base": "Index Base",
-        "collateral": "Collateral",
-    }
+        # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+        # Commercial use of this code, and/or copying and redistribution is prohibited.
+        # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+        # fixings data
+        self.fixings = Fixings()
 
-    # fixings data
-    fixings = Fixings()
+        self.spec = INSTRUMENT_SPECS
 
     def reset_defaults(self):
         """
@@ -264,8 +266,6 @@ class Defaults:
         base = Defaults()
         for attr in [_ for _ in dir(self) if "__" != _[:2]]:
             setattr(self, attr, getattr(base, attr))
-
-    spec = INSTRUMENT_SPECS
 
     def print(self):
         """
