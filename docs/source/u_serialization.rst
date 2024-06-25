@@ -5,6 +5,8 @@
 
    from rateslib import from_json
    from rateslib.dual import Dual, Dual2
+   from rateslib.calendars import Cal, UnionCal
+   from datetime import datetime as dt
 
 ****************************
 Serialization
@@ -60,3 +62,20 @@ objects.
    dual2 = Dual2(3.141, ["x", "y"], [1.0, 0.0], [])
    dual2.to_json()
    from_json(dual2.to_json())
+
+Calendars
+-----------
+
+Calendar serialization is useful for saving and loading custom calendar objects.
+
+.. ipython:: python
+
+   # create a `Cal` with two holidays and general weekends
+   cal = Cal([dt(2023, 1, 2), dt(2023, 1, 3)], [5,6])
+   cal.to_json()
+
+   # create an identical calendar to `cal` (in business day terms), by unionising calendars
+   ucal = UnionCal([Cal([dt(2023, 1, 2)], [5,6]), Cal([dt(2023, 1, 3)], [])])
+   ucal.to_json()
+
+   from_json(cal.to_json()) == from_json(ucal.to_json())
