@@ -9,6 +9,7 @@ from pandas import read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.rs import from_json as from_json_rs
+from rateslib.rs import get_named_calendar
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -115,7 +116,20 @@ class Defaults:
     stub_length = "SHORT"
     eval_mode = "swaps_align"
     modifier = "MF"
-    # calendar = BusinessDay()
+    calendars = {
+        "all": get_named_calendar("all"),
+        "bus": get_named_calendar("bus"),
+        "tgt": get_named_calendar("tgt"),
+        "ldn": get_named_calendar("ldn"),
+        "nyc": get_named_calendar("nyc"),
+        "fed": get_named_calendar("fed"),
+        "stk": get_named_calendar("stk"),
+        "osl": get_named_calendar("osl"),
+        "zur": get_named_calendar("zur"),
+        "tro": get_named_calendar("tro"),
+        "tyo": get_named_calendar("tyo"),
+        "syd": get_named_calendar("syd"),
+    }
     frequency_months = {
         "M": 1,
         "B": 2,
