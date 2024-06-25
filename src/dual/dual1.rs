@@ -19,10 +19,11 @@ use std::f64::consts::PI;
 use std::iter::Sum;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 
 /// Struct for defining a dual number data type supporting first order derivatives.
-#[pyclass]
-#[derive(Clone, Default, Debug)]
+#[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
     real: f64,
     vars: Arc<IndexSet<String>>,

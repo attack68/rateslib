@@ -9,6 +9,8 @@ use pyo3::types::PyFloat;
 use std::sync::Arc;
 // use pyo3::types::PyFloat;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use crate::json::{JSON};
+use crate::json::json_py::Serialized;
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -291,6 +293,15 @@ impl Dual {
     fn __float__(&self) -> f64 {
         self.real()
     }
+
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match Serialized::Dual(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Dual` to JSON.")),
+        }
+    }
 }
 
 #[pymethods]
@@ -557,4 +568,14 @@ impl Dual2 {
     fn __float__(&self) -> f64 {
         self.real
     }
+
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match Serialized::Dual2(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Dual2` to JSON.")),
+        }
+    }
+
 }

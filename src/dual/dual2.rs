@@ -23,9 +23,10 @@ use std::sync::Arc;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[pyclass]
-#[derive(Clone, Default, Debug)]
+#[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
     pub real: f64,
     pub vars: Arc<IndexSet<String>>,

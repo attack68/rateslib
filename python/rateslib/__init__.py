@@ -12,7 +12,7 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.default import Defaults, NoInput
+from rateslib.default import Defaults, NoInput, from_json
 
 defaults = Defaults()
 
@@ -91,6 +91,7 @@ __all__ = [
     "dt",
     "defaults",
     "NoInput",
+    "from_json",
     # dual.py
     "Dual",
     "Dual2",
