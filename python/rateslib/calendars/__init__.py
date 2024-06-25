@@ -98,6 +98,8 @@ def dcf(
     - `"ActActICMA"`, `"ActActISMA"`, `"ActActBond"`, `"ActActICMA_stub365f"`: Returns a fraction
       relevant to the frequency of the schedule if a regular period. If a stub then projects
       a regular period and returns a fraction of that period.
+    - `"Bus252"`: Business days between start and end divided by 252. If business days, `start` is
+      included whilst `end` is excluded.
 
     Further information can be found in the
     :download:`2006 ISDA definitions <_static/2006_isda_definitions.pdf>` and

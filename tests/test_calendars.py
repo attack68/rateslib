@@ -280,6 +280,7 @@ def test_is_eom_som(date, expected):
         (dt(2022, 1, 1), dt(2022, 1, 1), "ACTACT", 0.0),
         (dt(2022, 1, 1), dt(2023, 1, 31), "1+", 1.0),
         (dt(2022, 1, 1), dt(2024, 2, 28), "1+", 2 + 1 / 12),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "BUS252", 0.35714285714285715),
     ],
 )
 def test_dcf(start, end, conv, expected):
@@ -394,6 +395,28 @@ def test_dcf_special(start, end, conv, expected, freq_m, term, stub):
 def test_dcf_raises(conv, freq_m, term, stub):
     with pytest.raises(ValueError):
         _ = dcf(dt(2022, 1, 1), dt(2022, 4, 1), conv, term, freq_m, stub)
+
+
+@pytest.mark.parametrize("start, end, expected", [
+    (dt(2000, 1, 1), dt(2000, 1, 4), 1.0 / 252.0),
+    (dt(2000, 1, 2), dt(2000, 1, 4), 1.0 / 252.0),
+    (dt(2000, 1, 2), dt(2000, 1, 5), 2.0 / 252.0),
+    (dt(2000, 1, 1), dt(2000, 1, 5), 2.0 / 252.0),
+    (dt(2000, 1, 3), dt(2000, 1, 5), 1.0 / 252.0),
+    (dt(2000, 1, 3), dt(2000, 1, 4), 0.0 / 252.0),
+    (dt(2000, 1, 4), dt(2000, 1, 5), 1.0 / 252.0),
+    (dt(2000, 1, 5), dt(2000, 1, 6), 0.0 / 252.0),
+    (dt(2000, 1, 5), dt(2000, 1, 5), 0.0 / 252.0),
+])
+def test_bus252(start, end, expected):
+    cal = Cal([
+        dt(2000, 1, 1),
+        dt(2000, 1, 3),
+        dt(2000, 1, 5),
+        dt(2000, 1, 6),
+
+    ], [])
+    assert dcf(start, end, "BUS252", calendar=cal) == expected
 
 
 @pytest.mark.parametrize(

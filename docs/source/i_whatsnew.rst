@@ -43,6 +43,8 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - JSON serialisation/deserialisation of :class:`~rateslib.calendars.Cal`
        and :class:`~rateslib.calendars.UnionCal` added for saving/loading from database or file.
+   * - Calendars
+     - The new DCF method *'Bus252'* is added to allow Brazilian type calculations.
    * - Dual
      - JSON serialisation/deserialisation of :class:`~rateslib.dual.Dual`
        and :class:`~rateslib.dual.Dual2` added for saving/loading from database or file.
