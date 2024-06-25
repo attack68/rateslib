@@ -13,13 +13,13 @@ use num_traits::identities::{One, Zero};
 use num_traits::{Num, Pow, Signed};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
+use serde::{Deserialize, Serialize};
 use statrs::distribution::{ContinuousCDF, Normal};
 use std::cmp::{Ordering, PartialEq};
 use std::f64::consts::PI;
 use std::iter::Sum;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
 
 /// Struct for defining a dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]

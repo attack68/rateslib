@@ -2,6 +2,7 @@ import pytest
 import context
 from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.rs import Cal, UnionCal, Modifier, RollDay
+from rateslib.default import from_json
 from datetime import datetime as dt
 
 
@@ -109,20 +110,20 @@ class TestCal:
 
     def test_json_round_trip(self, simple_cal):
         json = simple_cal.to_json()
-        from_cal = Cal.from_json(json)
+        from_cal = from_json(json)
         assert simple_cal == from_cal
 
     def test_json_round_trip_union(self, multi_union):
         json = multi_union.to_json()
-        from_cal = UnionCal.from_json(json)
+        from_cal = from_json(json)
         assert multi_union == from_cal
 
     def test_json_raises(self):
-        with pytest.raises(ValueError, match="JSON Parse Error: missing field `week_mask`"):
-            Cal.from_json('{"holidays":[]}')
+        with pytest.raises(ValueError, match="Could not create Class or Struct from given JSON"):
+            from_json('{"Cal":{"holidays":[]}}')
 
-        with pytest.raises(ValueError, match="JSON Parse Error: missing field `calendars`"):
-            UnionCal.from_json('{"settlement_calendars":[]}')
+        with pytest.raises(ValueError, match="Could not create Class or Struct from given JSON"):
+            from_json('{"UnionCal":{"settlement_calendars":[]}}')
 
     @pytest.mark.parametrize(
         "left, right, expected",

@@ -1,11 +1,11 @@
-use pyo3::exceptions::PyValueError;
-use serde::{Deserialize, Serialize};
-use pyo3::prelude::*;
-use pyo3::conversion::ToPyObject;
+use crate::calendars::calendar::{Cal, UnionCal};
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
-use crate::calendars::calendar::{Cal, UnionCal};
 use crate::json::JSON;
+use pyo3::conversion::ToPyObject;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, FromPyObject)]
 pub enum Serialized {
@@ -28,13 +28,15 @@ impl IntoPy<PyObject> for Serialized {
 
 impl JSON for Serialized {}
 
-
 #[pyfunction]
 #[pyo3(name = "from_json")]
 pub fn from_json_py(_py: Python<'_>, json: &str) -> PyResult<Serialized> {
     match Serialized::from_json(json) {
         Ok(v) => Ok(v),
-        Err(e) => Err(PyValueError::new_err(format!("Could not create Class or Struct from given JSON.\n{}", e))),
+        Err(e) => Err(PyValueError::new_err(format!(
+            "Could not create Class or Struct from given JSON.\n{}",
+            e
+        ))),
     }
 }
 
@@ -52,7 +54,7 @@ mod tests {
         let y = Serialized::from_json(&json).unwrap();
         match y {
             Serialized::Dual(d) => assert_eq!(x, d),
-            _ => assert!(false)
+            _ => assert!(false),
         }
     }
 }
