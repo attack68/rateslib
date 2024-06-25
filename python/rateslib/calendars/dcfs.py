@@ -202,6 +202,51 @@ def _dcf_1plus(start: datetime, end: datetime, *args):
     return end.year - start.year + (end.month - start.month) / 12.0
 
 
+def _dcf_bus252(
+    start: datetime,
+    end: datetime,
+    termination: Union[datetime, NoInput],
+    frequency_months: Union[int, NoInput],
+    stub: Union[bool, NoInput],
+    roll: Union[str, int, NoInput],
+    calendar: CalInput,
+):
+    """
+    Counts the number of business days in a range and divides by 252
+    [designed for Brazilian interest rate swaps]
+
+    Start will be included if it is a business day
+    If start is not a business day it will be rolled and then included.
+
+    End will not be included if it is a business day
+    The rolled end will be included if end is not a business day
+    """
+    if end < start:
+        raise ValueError("Cannot return negative DCF for `end` before `start`.")
+    elif end == start:
+        return 0.0
+
+    cal_ = get_calendar(calendar)
+    start_ = cal_.roll(start, _get_modifier("F"), False)
+    end_ = cal_.roll(end, _get_modifier("P"), False)
+    subtract = -1.0 if end_ == end else 0.0
+    if start_ == end_:
+        if start_ > start and end_ < end:
+            # then logically there is one b.d. between the non-business start and non-business end
+            return 1.0 / 252.0
+        elif end_ < end:
+            # then the business start is permitted to the calculation until the non-business end
+            return 1.0 / 252.0
+        elif start_ > start:
+            # then the business end is not permitted to have occurred and non-business start does not count
+            return 0.0
+    elif start_ > end_:
+        # there are no business days in between start and end
+        return 0.0
+    dr = cal_.bus_date_range(start_, end_)
+    return (len(dr)+subtract) / 252.0
+
+
 _DCF = {
     "ACT365F": _dcf_act365f,
     "ACT365F+": _dcf_act365fplus,
@@ -220,6 +265,7 @@ _DCF = {
     "ACTACTBOND": _dcf_actacticma,
     "1": _dcf_1,
     "1+": _dcf_1plus,
+    "BUS252": _dcf_bus252,
 }
 
 _DCF1d = {
@@ -240,6 +286,7 @@ _DCF1d = {
     "ACTACTBOND": 1.0 / 365.25,
     "1": None,
     "1+": None,
+    "BUS252": 1.0/252,
 }
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
