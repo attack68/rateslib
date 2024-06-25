@@ -12,7 +12,7 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.default import Defaults, NoInput
+from rateslib.default import Defaults, NoInput, from_json
 
 defaults = Defaults()
 
@@ -71,7 +71,6 @@ from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
 from rateslib.splines import (PPSpline, PPSplineDual, PPSplineDual2,
                               PPSplineF64, bspldnev_single, bsplev_single)
-from rateslib.rs import from_json
 
 # module level doc-string
 __doc__ = """
