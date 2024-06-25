@@ -59,6 +59,9 @@ email contact through **rateslib@gmail.com**.
      - :class:`~rateslib.instruments.FXOption` initialised with ``metric`` no longer
        raises if an alternate dynamic ``metric`` is requested as override in the
        :meth:`~rateslib.instruments.FXOption.rate` method.
+   * - Bug
+     - Setting and resetting some types of values (namely by-reference stored values) of the ``defaults`` object
+       is no longer ineffective.
    * - Errors
      - Improved messages when missing `fx` objects for pricing :class:`~rateslib.instruments.FXExchange`.
 
