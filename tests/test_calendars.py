@@ -486,6 +486,14 @@ def test_book_example2():
 def test_pipe_vectors():
     get_calendar("tgt,stk|nyc,osl")
 
+
 def test_pipe_raises():
     with pytest.raises(ValueError, match="Pipe separator can only be used once"):
         get_calendar("tgt|nyc|stk")
+
+
+def test_add_and_get_custom_calendar():
+    cal = Cal([dt(2023, 1, 2)], [5, 6])
+    defaults.calendars["custom"] = cal
+    result = get_calendar("custom")
+    assert result == cal

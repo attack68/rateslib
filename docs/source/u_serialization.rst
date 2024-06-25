@@ -39,7 +39,7 @@ transparent and provides a defined data structure.
 The key method used for this purpose is:
 
 .. autosummary::
-   rateslib.from_json
+   rateslib.default.from_json
 
 Objects in Scope
 ******************
@@ -78,4 +78,5 @@ Calendar serialization is useful for saving and loading custom calendar objects.
    ucal = UnionCal([Cal([dt(2023, 1, 2)], [5,6]), Cal([dt(2023, 1, 3)], [])])
    ucal.to_json()
 
+   # these two objects have the same business and settlement days..
    from_json(cal.to_json()) == from_json(ucal.to_json())

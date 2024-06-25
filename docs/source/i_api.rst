@@ -42,6 +42,7 @@ Defaults
    :skip: Enum
    :skip: from_json_rs
    :skip: read_csv
+   :skip: get_named_calendar
 
 Calendars
 ==========

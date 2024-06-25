@@ -1,7 +1,8 @@
 from typing import Union
 
+from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Cal, Modifier, RollDay, UnionCal, get_named_calendar
+from rateslib.rs import Cal, Modifier, RollDay, UnionCal
 
 CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]
@@ -30,22 +31,6 @@ def _get_modifier(modifier: str) -> Modifier:
         }[modifier.upper()]
     except KeyError:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
-
-
-CALENDARS: dict[str, CalTypes] = {
-    "all": get_named_calendar("all"),
-    "bus": get_named_calendar("bus"),
-    "tgt": get_named_calendar("tgt"),
-    "ldn": get_named_calendar("ldn"),
-    "nyc": get_named_calendar("nyc"),
-    "fed": get_named_calendar("fed"),
-    "stk": get_named_calendar("stk"),
-    "osl": get_named_calendar("osl"),
-    "zur": get_named_calendar("zur"),
-    "tro": get_named_calendar("tro"),
-    "tyo": get_named_calendar("tyo"),
-    "syd": get_named_calendar("syd"),
-}
 
 
 def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tuple[CalTypes, str]]:
@@ -118,21 +103,21 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     """
     # TODO: rename calendars or make a more generalist statement about their names.
     if calendar is NoInput.blank:
-        ret = CALENDARS["all"], "null"
+        ret = defaults.calendars["all"], "null"
     elif isinstance(calendar, str):
         vectors = calendar.split("|")
         if len(vectors) == 1:
             calendars = vectors[0].lower().split(",")
             if len(calendars) == 1:  # only one named calendar is found
-                ret = CALENDARS[calendars[0]], "named"
+                ret = defaults.calendars[calendars[0]], "named"
             else:
-                cals = [CALENDARS[_] for _ in calendars]
+                cals = [defaults.calendars[_] for _ in calendars]
                 ret = UnionCal(cals, None), "named"
         elif len(vectors) == 2:
             calendars = vectors[0].lower().split(",")
-            cals = [CALENDARS[_] for _ in calendars]
+            cals = [defaults.calendars[_] for _ in calendars]
             settlement_calendars = vectors[1].lower().split(",")
-            sets = [CALENDARS[_] for _ in settlement_calendars]
+            sets = [defaults.calendars[_] for _ in settlement_calendars]
             ret = UnionCal(cals, sets), "named"
         else:
             raise ValueError("Pipe separator can only be used once in input, e.g. 'tgt|nyc'.")
