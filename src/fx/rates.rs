@@ -74,7 +74,6 @@ pub struct FXRate {
     pub(crate) pair: FXPair,
     pub(crate) rate: DualsOrF64,
     pub(crate) settlement: Option<NaiveDateTime>,
-    pub(crate) ad: u8,
 }
 
 impl FXRate {
@@ -84,16 +83,10 @@ impl FXRate {
         rate: DualsOrF64,
         settlement: Option<NaiveDateTime>,
     ) -> Result<Self, PyErr> {
-        let ad = match rate {
-            DualsOrF64::F64(_) => 0_u8,
-            DualsOrF64::Dual(_) => 1_u8,
-            DualsOrF64::Dual2(_) => 2_u8,
-        };
         Ok(FXRate {
             pair: FXPair::try_new(lhs, rhs)?,
             rate,
             settlement,
-            ad,
         })
     }
 }
@@ -113,11 +106,11 @@ pub enum FXVector {
 //     }
 // }
 
-#[derive(Debug, Clone)]
-pub enum FXArray {
-    Dual(Array2<Dual>),
-    Dual2(Array2<Dual2>),
-}
+// #[derive(Debug, Clone)]
+// pub enum FXArray {
+//     Dual(Array2<Dual>),
+//     Dual2(Array2<Dual2>),
+// }
 
 /// Struct to define a global FX market with multiple currencies.
 #[pyclass(module = "rateslib.rs")]
@@ -127,8 +120,6 @@ pub struct FXRates {
     pub(crate) currencies: IndexSet<Ccy>,
     pub(crate) arr_dual: Array2<Dual>,
     pub(crate) arr_dual2: Option<Array2<Dual2>>,
-    pub(crate) base: Ccy,
-    pub(crate) ad: u8,
     // settlement : Option<NaiveDateTime>,
     // pairs : Vec<(Ccy, Ccy)>,
 }
@@ -153,6 +144,9 @@ impl FXRates {
         }
 
         let mut currencies: IndexSet<Ccy> = IndexSet::with_capacity(fx_rates.len() + 1_usize);
+        if let Some(ccy) = base {
+            currencies.insert(ccy);
+        }
         for fxr in fx_rates.iter() {
             currencies.insert(fxr.pair.0);
             currencies.insert(fxr.pair.1);
@@ -176,8 +170,6 @@ impl FXRates {
             ));
         }
 
-        let base = base.unwrap_or(currencies[0]);
-
         let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
         let _ = FXRates::_populate_remaining_arrays(
             fx_array.view_mut(),
@@ -190,8 +182,6 @@ impl FXRates {
             arr_dual: fx_array,
             arr_dual2: None,
             currencies,
-            base,
-            ad: 1_u8,
         })
     }
 

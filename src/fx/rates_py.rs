@@ -50,8 +50,12 @@ impl FXRate {
 
     #[getter]
     #[pyo3(name = "ad")]
-    fn ad_py(&self) -> PyResult<u8> {
-        Ok(self.ad)
+    fn ad_py(&self) -> u8 {
+        match self.rate {
+            DualsOrF64::F64(_) => 0,
+            DualsOrF64::Dual(_) => 1,
+            DualsOrF64::Dual2(_) => 2,
+        }
     }
 
     #[getter]
@@ -131,23 +135,22 @@ impl FXRates {
     #[getter]
     #[pyo3(name = "base")]
     fn base_py(&self) -> PyResult<Ccy> {
-        Ok(self.base)
+        Ok(self.currencies[0])
     }
 
     #[getter]
     #[pyo3(name = "fx_vector")]
     fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
-        let idx = self.currencies.get_index_of(&self.base).unwrap();
         match self.ad {
             1 => Ok(self
                 .arr_dual
-                .row(idx)
+                .row(0)
                 .iter()
                 .map(|d| DualsOrF64::Dual(d.clone()))
                 .collect()),
             2 => match &self.arr_dual2 {
                 Some(arr) => Ok(arr
-                    .row(idx)
+                    .row(0)
                     .iter()
                     .map(|d| DualsOrF64::Dual2(d.clone()))
                     .collect()),
