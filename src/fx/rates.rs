@@ -106,11 +106,12 @@ pub enum FXVector {
 //     }
 // }
 
-// #[derive(Debug, Clone)]
-// pub enum FXArray {
-//     Dual(Array2<Dual>),
-//     Dual2(Array2<Dual2>),
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FXArray {
+    F64(Array2<f64>),
+    Dual(Array2<Dual>),
+    Dual2(Array2<Dual2>),
+}
 
 /// Struct to define a global FX market with multiple currencies.
 #[pyclass(module = "rateslib.rs")]
@@ -118,10 +119,7 @@ pub enum FXVector {
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
-    pub(crate) arr_dual: Array2<Dual>,
-    pub(crate) arr_dual2: Option<Array2<Dual2>>,
-    // settlement : Option<NaiveDateTime>,
-    // pairs : Vec<(Ccy, Ccy)>,
+    pub(crate) fx_array: FXArray,
 }
 
 impl FXRates {
@@ -179,8 +177,7 @@ impl FXRates {
 
         Ok(FXRates {
             fx_rates,
-            arr_dual: fx_array,
-            arr_dual2: None,
+            fx_array: FXArray::Dual(fx_array),
             currencies,
         })
     }
@@ -282,13 +279,10 @@ impl FXRates {
     pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<DualsOrF64> {
         let dom_idx = self.currencies.get_index_of(lhs)?;
         let for_idx = self.currencies.get_index_of(rhs)?;
-        match self.ad {
-            1 => Some(DualsOrF64::Dual(self.arr_dual[[dom_idx, for_idx]].clone())),
-            2 => match &self.arr_dual2 {
-                Some(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
-                None => None,
-            },
-            _ => None,
+        match &self.fx_array {
+            FXArray::F64(arr) => Some(DualsOrF64::F64(arr[[dom_idx, for_idx]].clone())),
+            FXArray::Dual(arr) => Some(DualsOrF64::Dual(arr[[dom_idx, for_idx]].clone())),
+            FXArray::Dual2(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
         }
     }
 }
@@ -353,11 +347,13 @@ mod tests {
             [0.0084175, 0.0090909, 1.0],
         ]);
 
-        let arr: Vec<f64> = fxr.arr_dual.iter().map(|x| x.real()).collect();
+        let arr: Vec<f64> = match fxr.fx_array {
+            FXArray::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
+            _ => panic!("unreachable"),
+        };
         println!("{:?}", arr);
 
-        assert!(fxr
-            .arr_dual
+        assert!(arr
             .iter()
             .zip(expected.iter())
             .all(|(x, y)| (x - y).abs() < 1e-6))

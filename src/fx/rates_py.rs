@@ -1,12 +1,13 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
 use crate::dual::dual_py::DualsOrF64;
-use crate::fx::rates::{Ccy, FXRate, FXRates};
+use crate::fx::rates::{Ccy, FXRate, FXRates, FXArray};
 use chrono::prelude::*;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
 use ndarray::Axis;
 use pyo3::exceptions::PyValueError;
+use pyo3::types::PyFloat;
 
 #[pymethods]
 impl Ccy {
@@ -29,6 +30,38 @@ impl Ccy {
         self.name == other.name
     }
 }
+
+
+// impl IntoPy<PyObject> for FXArray {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         match self {
+//             FXArray::F64(arr) => {
+//                 let v: Vec<Vec<f64>> = arr
+//                     .lanes(Axis(0))
+//                     .into_iter()
+//                     .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
+//                     .collect();
+//                 Py::new(py, v).unwrap().to_object(py)
+//             },
+//             FXArray::Dual(arr) => {
+//                 let v: Vec<Vec<DualsOrF64>> = arr
+//                     .lanes(Axis(0))
+//                     .into_iter()
+//                     .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
+//                     .collect();
+//                 Py::new(py, v).unwrap().to_object(py)
+//             },
+//             FXArray::Dual2(arr) => {
+//                 let v: Vec<Vec<DualsOrF64>> = arr
+//                     .lanes(Axis(0))
+//                     .into_iter()
+//                     .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
+//                     .collect();
+//                 Py::new(py, v).unwrap().to_object(py)
+//             },
+//         }
+//     }
+// }
 
 #[pymethods]
 impl FXRate {
@@ -129,7 +162,11 @@ impl FXRates {
     #[getter]
     #[pyo3(name = "ad")]
     fn ad_py(&self) -> PyResult<u8> {
-        Ok(self.ad)
+        match &self.fx_array {
+            FXArray::F64(_) => Ok(0),
+            FXArray::Dual(_) => Ok(1),
+            FXArray::Dual2(_) => Ok(2),
+        }
     }
 
     #[getter]
@@ -141,52 +178,38 @@ impl FXRates {
     #[getter]
     #[pyo3(name = "fx_vector")]
     fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
-        match self.ad {
-            1 => Ok(self
-                .arr_dual
-                .row(0)
-                .iter()
-                .map(|d| DualsOrF64::Dual(d.clone()))
-                .collect()),
-            2 => match &self.arr_dual2 {
-                Some(arr) => Ok(arr
-                    .row(0)
-                    .iter()
-                    .map(|d| DualsOrF64::Dual2(d.clone()))
-                    .collect()),
-                None => Err(PyValueError::new_err(
-                    "FXRates object must have Dual2 type values.",
-                )),
-            },
-            _ => Err(PyValueError::new_err(
-                "AD mode for FXRates must be in {1, 2}.",
-            )),
+        match &self.fx_array {
+            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::F64(x.clone())).collect()),
+            FXArray::Dual(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::Dual(x.clone())).collect()),
+            FXArray::Dual2(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::Dual2(x.clone())).collect()),
         }
     }
 
     #[getter]
     #[pyo3(name = "fx_array")]
     fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
-        match &self.ad {
-            1 => Ok(self
-                .arr_dual
-                .lanes(Axis(0))
-                .into_iter()
-                .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
-                .collect()),
-            2 => match &self.arr_dual2 {
-                Some(arr) => Ok(arr
-                    .lanes(Axis(0))
+        match &self.fx_array {
+            FXArray::F64(arr) => {
+                Ok(arr
+                    .lanes(Axis(1))
+                    .into_iter()
+                    .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
+                    .collect())
+            },
+            FXArray::Dual(arr) => {
+                Ok(arr
+                    .lanes(Axis(1))
+                    .into_iter()
+                    .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
+                    .collect())
+            },
+            FXArray::Dual2(arr) => {
+                Ok(arr
+                    .lanes(Axis(1))
                     .into_iter()
                     .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
-                    .collect()),
-                None => Err(PyValueError::new_err(
-                    "FXRates object must have Dual2 type values.",
-                )),
+                    .collect())
             },
-            _ => Err(PyValueError::new_err(
-                "AD mode for FXRates must be in {1, 2}.",
-            )),
         }
     }
 
