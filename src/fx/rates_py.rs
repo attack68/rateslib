@@ -31,38 +31,6 @@ impl Ccy {
     }
 }
 
-
-// impl IntoPy<PyObject> for FXArray {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         match self {
-//             FXArray::F64(arr) => {
-//                 let v: Vec<Vec<f64>> = arr
-//                     .lanes(Axis(0))
-//                     .into_iter()
-//                     .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
-//                     .collect();
-//                 Py::new(py, v).unwrap().to_object(py)
-//             },
-//             FXArray::Dual(arr) => {
-//                 let v: Vec<Vec<DualsOrF64>> = arr
-//                     .lanes(Axis(0))
-//                     .into_iter()
-//                     .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
-//                     .collect();
-//                 Py::new(py, v).unwrap().to_object(py)
-//             },
-//             FXArray::Dual2(arr) => {
-//                 let v: Vec<Vec<DualsOrF64>> = arr
-//                     .lanes(Axis(0))
-//                     .into_iter()
-//                     .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
-//                     .collect();
-//                 Py::new(py, v).unwrap().to_object(py)
-//             },
-//         }
-//     }
-// }
-
 #[pymethods]
 impl FXRate {
     #[new]
