@@ -6,8 +6,11 @@ use chrono::prelude::*;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
 use ndarray::Axis;
+use pyo3::exceptions::PyValueError;
+use crate::json::json_py::Serialized;
 // use pyo3::exceptions::PyValueError;
 // use pyo3::types::PyFloat;
+use crate::json::JSON;
 
 #[pymethods]
 impl Ccy {
@@ -190,22 +193,12 @@ impl FXRates {
         Ok(self.rate(lhs, rhs))
     }
 
-    //
-    //     #[getter]
-    //     #[pyo3(name = "ad")]
-    //     fn ad_py(&self) -> PyResult<u8> {
-    //         Ok(self.ad)
-    //     }
-    //
-    //     #[getter]
-    //     #[pyo3(name = "settlement")]
-    //     fn settlement_py(&self) -> PyResult<Option<NaiveDateTime>> {
-    //         Ok(self.settlement)
-    //     }
-    //
-    //     #[getter]
-    //     #[pyo3(name = "pair")]
-    //     fn pair_py(&self) -> PyResult<String> {
-    //         Ok(format!("{}", self.pair))
-    //     }
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match Serialized::FXRates(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `UnionCal` to JSON.")),
+        }
+    }
 }

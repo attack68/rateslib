@@ -2,6 +2,7 @@ import context
 import pytest
 from datetime import datetime as dt
 
+from rateslib.json import from_json
 from rateslib.rs import FXRate, Dual, Dual2, FXRates, Ccy
 from rateslib import FXRates as FXRatesPy
 from rateslib.fxdev import FXRates as FXRatesRs
@@ -25,6 +26,12 @@ def test_fx_rates_creation():
     fxrrs = FXRatesRs({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
     fxrpy = FXRatesPy({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
     pass
+
+def test_json_round_trip():
+    fxr = FXRatesRs({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
+    json = fxr.to_json()
+    fxr2 = from_json(json)
+    assert fxr == fxr2
 
 
 

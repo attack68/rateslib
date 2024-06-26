@@ -2,7 +2,7 @@ import pytest
 import context
 from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.rs import Cal, UnionCal, Modifier, RollDay
-from rateslib.default import from_json
+from rateslib.json import from_json
 from datetime import datetime as dt
 
 

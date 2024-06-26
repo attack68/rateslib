@@ -5,6 +5,7 @@ use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
 use crate::dual::linalg::argabsmax;
+use crate::json::JSON;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
@@ -286,6 +287,8 @@ impl FXRates {
         }
     }
 }
+
+impl JSON for FXRates {}
 
 #[cfg(test)]
 mod tests {

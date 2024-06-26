@@ -8,28 +8,11 @@ from packaging import version
 from pandas import read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.rs import from_json as from_json_rs
 from rateslib.rs import get_named_calendar
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-def from_json(json: str):
-    """
-    Create an object from JSON string.
-
-    Parameters
-    ----------
-    json: str
-        JSON string in appropriate format to construct the class.
-
-    Returns
-    -------
-    Object
-    """
-    return from_json_rs(json)
 
 
 class NoInput(Enum):
