@@ -344,3 +344,7 @@ def plot3d(x, y, z, labels=[]):
 def _drb(default, possible_blank):
     """(D)efault (r)eplaces (b)lank"""
     return default if possible_blank is NoInput.blank else possible_blank
+
+
+def _make_py_json(json, class_name):
+    return f'{{"Py_{class_name}":' + json + '}'

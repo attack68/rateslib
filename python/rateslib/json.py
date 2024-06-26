@@ -1,5 +1,4 @@
 from rateslib.rs import from_json as from_json_rs
-from rateslib import FXRates
 
 def from_json(json: str):
     """
@@ -19,7 +18,3 @@ def from_json(json: str):
         parsed_json = json[7+len(class_name):-2]
         return locals()[class_name](json_obj=from_json_rs(parsed_json))
     return from_json_rs(json)
-
-
-def _make_py_json(json, class_name):
-    return f'{{"Py_{class_name}":' + json + '}'
