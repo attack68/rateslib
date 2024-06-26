@@ -14,26 +14,13 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::collections::HashSet;
 use std::fmt;
-use std::ops::Deref;
-use serde::ser::{Serialize, Serializer, SerializeStruct};
-use serde::de::{Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Struct to define a currency.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Ccy {
     pub(crate) name: Intern<String>,
-}
-
-impl Serialize for Ccy {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("Ccy", 1)?;
-        state.serialize_field("name", &self.name.deref())?;
-        state.end()
-    }
 }
 
 impl Ccy {
@@ -57,7 +44,7 @@ impl Ccy {
 }
 
 /// Struct to define a currency cross.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FXPair(Ccy, Ccy);
 
 impl FXPair {
@@ -82,7 +69,7 @@ impl fmt::Display for FXPair {
 
 /// Struct to define an FXRate via FXCross, rate and settlement info.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FXRate {
     pub(crate) pair: FXPair,
     pub(crate) rate: DualsOrF64,
@@ -134,7 +121,7 @@ pub enum FXArray {
 
 /// Struct to define a global FX market with multiple currencies.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
