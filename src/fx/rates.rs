@@ -14,12 +14,26 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::collections::HashSet;
 use std::fmt;
+use std::ops::Deref;
+use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::de::{Deserialize};
 
 /// Struct to define a currency.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ccy {
     pub(crate) name: Intern<String>,
+}
+
+impl Serialize for Ccy {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Ccy", 1)?;
+        state.serialize_field("name", &self.name.deref())?;
+        state.end()
+    }
 }
 
 impl Ccy {
