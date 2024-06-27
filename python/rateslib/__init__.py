@@ -12,7 +12,7 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.default import Defaults, NoInput, from_json
+from rateslib.default import Defaults, NoInput
 
 defaults = Defaults()
 
@@ -49,6 +49,7 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
+from rateslib.json import from_json
 from rateslib.calendars import (Cal, UnionCal, add_tenor, create_calendar, dcf,
                                 get_calendar)
 from rateslib.curves import (CompositeCurve, Curve, IndexCurve, LineCurve,

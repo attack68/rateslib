@@ -5,19 +5,21 @@ use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
 use crate::dual::dual_py::DualsOrF64;
 use crate::dual::linalg::argabsmax;
+use crate::json::JSON;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
 use itertools::Itertools;
-use ndarray::{Array1, Array2, ArrayViewMut2, Axis};
+use ndarray::{Array2, ArrayViewMut2, Axis};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::collections::HashSet;
 use std::fmt;
+use serde::{Deserialize, Serialize};
 
 /// Struct to define a currency.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Ccy {
     pub(crate) name: Intern<String>,
 }
@@ -43,7 +45,7 @@ impl Ccy {
 }
 
 /// Struct to define a currency cross.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FXPair(Ccy, Ccy);
 
 impl FXPair {
@@ -68,12 +70,11 @@ impl fmt::Display for FXPair {
 
 /// Struct to define an FXRate via FXCross, rate and settlement info.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FXRate {
     pub(crate) pair: FXPair,
     pub(crate) rate: DualsOrF64,
     pub(crate) settlement: Option<NaiveDateTime>,
-    pub(crate) ad: u8,
 }
 
 impl FXRate {
@@ -83,53 +84,28 @@ impl FXRate {
         rate: DualsOrF64,
         settlement: Option<NaiveDateTime>,
     ) -> Result<Self, PyErr> {
-        let ad = match rate {
-            DualsOrF64::F64(_) => 0_u8,
-            DualsOrF64::Dual(_) => 1_u8,
-            DualsOrF64::Dual2(_) => 2_u8,
-        };
         Ok(FXRate {
             pair: FXPair::try_new(lhs, rhs)?,
             rate,
             settlement,
-            ad,
         })
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum FXVector {
-    Dual(Array1<Dual>),
-    Dual2(Array1<Dual2>),
-}
-
-// impl for FXVector {
-//     fn get_index(&self, index: usize) -> DualsOrF64 {
-//         match self {
-//             FXVector::Dual(arr) => DualsOrF64::Dual(arr[index]),
-//             FXVector::Dual2(arr) => DualsOrF64::Dual2(arr[index]),
-//         }
-//     }
-// }
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FXArray {
+    F64(Array2<f64>),
     Dual(Array2<Dual>),
     Dual2(Array2<Dual2>),
 }
 
 /// Struct to define a global FX market with multiple currencies.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
-    pub(crate) arr_dual: Array2<Dual>,
-    pub(crate) arr_dual2: Option<Array2<Dual2>>,
-    pub(crate) base: Ccy,
-    pub(crate) ad: u8,
-    // settlement : Option<NaiveDateTime>,
-    // pairs : Vec<(Ccy, Ccy)>,
+    pub(crate) fx_array: FXArray,
 }
 
 impl FXRates {
@@ -152,6 +128,9 @@ impl FXRates {
         }
 
         let mut currencies: IndexSet<Ccy> = IndexSet::with_capacity(fx_rates.len() + 1_usize);
+        if let Some(ccy) = base {
+            currencies.insert(ccy);
+        }
         for fxr in fx_rates.iter() {
             currencies.insert(fxr.pair.0);
             currencies.insert(fxr.pair.1);
@@ -175,8 +154,6 @@ impl FXRates {
             ));
         }
 
-        let base = base.unwrap_or(currencies[0]);
-
         let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
         let _ = FXRates::_populate_remaining_arrays(
             fx_array.view_mut(),
@@ -186,11 +163,8 @@ impl FXRates {
 
         Ok(FXRates {
             fx_rates,
-            arr_dual: fx_array,
-            arr_dual2: None,
+            fx_array: FXArray::Dual(fx_array),
             currencies,
-            base,
-            ad: 1_u8,
         })
     }
 
@@ -291,16 +265,15 @@ impl FXRates {
     pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<DualsOrF64> {
         let dom_idx = self.currencies.get_index_of(lhs)?;
         let for_idx = self.currencies.get_index_of(rhs)?;
-        match self.ad {
-            1 => Some(DualsOrF64::Dual(self.arr_dual[[dom_idx, for_idx]].clone())),
-            2 => match &self.arr_dual2 {
-                Some(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
-                None => None,
-            },
-            _ => None,
+        match &self.fx_array {
+            FXArray::F64(arr) => Some(DualsOrF64::F64(arr[[dom_idx, for_idx]].clone())),
+            FXArray::Dual(arr) => Some(DualsOrF64::Dual(arr[[dom_idx, for_idx]].clone())),
+            FXArray::Dual2(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
         }
     }
 }
+
+impl JSON for FXRates {}
 
 #[cfg(test)]
 mod tests {
@@ -362,13 +335,40 @@ mod tests {
             [0.0084175, 0.0090909, 1.0],
         ]);
 
-        let arr: Vec<f64> = fxr.arr_dual.iter().map(|x| x.real()).collect();
+        let arr: Vec<f64> = match fxr.fx_array {
+            FXArray::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
+            _ => panic!("unreachable"),
+        };
         println!("{:?}", arr);
 
-        assert!(fxr
-            .arr_dual
+        assert!(arr
             .iter()
             .zip(expected.iter())
             .all(|(x, y)| (x - y).abs() < 1e-6))
+    }
+
+    #[test]
+    fn fxrates_eq() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        let fxr2 = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(fxr, fxr2)
     }
 }

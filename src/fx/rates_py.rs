@@ -1,12 +1,16 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
 use crate::dual::dual_py::DualsOrF64;
-use crate::fx::rates::{Ccy, FXRate, FXRates};
+use crate::fx::rates::{Ccy, FXRate, FXRates, FXArray};
 use chrono::prelude::*;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
 use ndarray::Axis;
 use pyo3::exceptions::PyValueError;
+use crate::json::json_py::Serialized;
+// use pyo3::exceptions::PyValueError;
+// use pyo3::types::PyFloat;
+use crate::json::JSON;
 
 #[pymethods]
 impl Ccy {
@@ -50,8 +54,12 @@ impl FXRate {
 
     #[getter]
     #[pyo3(name = "ad")]
-    fn ad_py(&self) -> PyResult<u8> {
-        Ok(self.ad)
+    fn ad_py(&self) -> u8 {
+        match self.rate {
+            DualsOrF64::F64(_) => 0,
+            DualsOrF64::Dual(_) => 1,
+            DualsOrF64::Dual2(_) => 2,
+        }
     }
 
     #[getter]
@@ -80,6 +88,10 @@ impl FXRate {
                 d.real()
             )),
         }
+    }
+
+    fn __eq__(&self, other: &Self) -> bool {
+        self == other
     }
 }
 
@@ -125,65 +137,54 @@ impl FXRates {
     #[getter]
     #[pyo3(name = "ad")]
     fn ad_py(&self) -> PyResult<u8> {
-        Ok(self.ad)
+        match &self.fx_array {
+            FXArray::F64(_) => Ok(0),
+            FXArray::Dual(_) => Ok(1),
+            FXArray::Dual2(_) => Ok(2),
+        }
     }
 
     #[getter]
     #[pyo3(name = "base")]
     fn base_py(&self) -> PyResult<Ccy> {
-        Ok(self.base)
+        Ok(self.currencies[0])
     }
 
     #[getter]
     #[pyo3(name = "fx_vector")]
     fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
-        let idx = self.currencies.get_index_of(&self.base).unwrap();
-        match self.ad {
-            1 => Ok(self
-                .arr_dual
-                .row(idx)
-                .iter()
-                .map(|d| DualsOrF64::Dual(d.clone()))
-                .collect()),
-            2 => match &self.arr_dual2 {
-                Some(arr) => Ok(arr
-                    .row(idx)
-                    .iter()
-                    .map(|d| DualsOrF64::Dual2(d.clone()))
-                    .collect()),
-                None => Err(PyValueError::new_err(
-                    "FXRates object must have Dual2 type values.",
-                )),
-            },
-            _ => Err(PyValueError::new_err(
-                "AD mode for FXRates must be in {1, 2}.",
-            )),
+        match &self.fx_array {
+            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::F64(x.clone())).collect()),
+            FXArray::Dual(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::Dual(x.clone())).collect()),
+            FXArray::Dual2(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::Dual2(x.clone())).collect()),
         }
     }
 
     #[getter]
     #[pyo3(name = "fx_array")]
     fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
-        match &self.ad {
-            1 => Ok(self
-                .arr_dual
-                .lanes(Axis(0))
-                .into_iter()
-                .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
-                .collect()),
-            2 => match &self.arr_dual2 {
-                Some(arr) => Ok(arr
-                    .lanes(Axis(0))
+        match &self.fx_array {
+            FXArray::F64(arr) => {
+                Ok(arr
+                    .lanes(Axis(1))
+                    .into_iter()
+                    .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
+                    .collect())
+            },
+            FXArray::Dual(arr) => {
+                Ok(arr
+                    .lanes(Axis(1))
+                    .into_iter()
+                    .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
+                    .collect())
+            },
+            FXArray::Dual2(arr) => {
+                Ok(arr
+                    .lanes(Axis(1))
                     .into_iter()
                     .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
-                    .collect()),
-                None => Err(PyValueError::new_err(
-                    "FXRates object must have Dual2 type values.",
-                )),
+                    .collect())
             },
-            _ => Err(PyValueError::new_err(
-                "AD mode for FXRates must be in {1, 2}.",
-            )),
         }
     }
 
@@ -196,22 +197,52 @@ impl FXRates {
         Ok(self.rate(lhs, rhs))
     }
 
-    //
-    //     #[getter]
-    //     #[pyo3(name = "ad")]
-    //     fn ad_py(&self) -> PyResult<u8> {
-    //         Ok(self.ad)
-    //     }
-    //
-    //     #[getter]
-    //     #[pyo3(name = "settlement")]
-    //     fn settlement_py(&self) -> PyResult<Option<NaiveDateTime>> {
-    //         Ok(self.settlement)
-    //     }
-    //
-    //     #[getter]
-    //     #[pyo3(name = "pair")]
-    //     fn pair_py(&self) -> PyResult<String> {
-    //         Ok(format!("{}", self.pair))
-    //     }
+    // JSON
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match Serialized::FXRates(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `UnionCal` to JSON.")),
+        }
+    }
+
+    // Equality
+    fn __eq__(&self, other: FXRates) -> bool {
+        println!("{:?}", self);
+        println!("{:?}", other);
+        self.eq(&other)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::calendars::calendar::ndt;
+    use num_traits::Signed;
+
+    #[test]
+    fn fxrates_eq() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        let fxr2 = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        assert!(fxr.__eq__(fxr2))
+    }
 }

@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::json::json_py::Serialized;
 use crate::json::JSON;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use serde::{Deserialize, Serialize};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -25,7 +26,7 @@ unsafe impl Element for Dual2 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject, Serialize, Deserialize)]
 pub enum DualsOrF64 {
     Dual(Dual),
     Dual2(Dual2),

@@ -1,6 +1,7 @@
 use crate::calendars::calendar::{Cal, UnionCal};
 use crate::dual::dual1::Dual;
 use crate::dual::dual2::Dual2;
+use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;
@@ -13,6 +14,7 @@ pub enum Serialized {
     Dual2(Dual2),
     Cal(Cal),
     UnionCal(UnionCal),
+    FXRates(FXRates),
 }
 
 impl IntoPy<PyObject> for Serialized {
@@ -22,6 +24,7 @@ impl IntoPy<PyObject> for Serialized {
             Serialized::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
             Serialized::Cal(v) => Py::new(py, v).unwrap().to_object(py),
             Serialized::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
+            Serialized::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
         }
     }
 }
