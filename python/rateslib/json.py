@@ -18,5 +18,5 @@ def from_json(json: str):
         class_name, parsed_json = json[8:json[8:].find('"')+8], json[6:-1]
         objs = globals()
         class_obj = objs[class_name]
-        return class_obj.__init_from_rs__(obj=from_json_rs(parsed_json))
+        return class_obj.__init_from_obj__(obj=from_json_rs(parsed_json))
     return from_json_rs(json)
