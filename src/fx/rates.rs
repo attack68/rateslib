@@ -287,6 +287,12 @@ impl FXRates {
     }
 
     pub fn update(&mut self, fx_rates: Vec<FXRate>) {
+        // validate that the input vector contains FX pairs that are already associated with the instance
+        assert!(fx_rates.iter().all(|v| self.fx_rates.iter().any(|x| x.pair == v.pair)));
+        let mut fx_rates_: Vec<FXRate> = self.fx_rates.clone();
+        for fxr in fx_rates.into_iter() {
+            for
+        }
 
     }
 }
