@@ -303,6 +303,12 @@ impl Dual {
             Err(_) => Err(PyValueError::new_err("Failed to serialize `Dual` to JSON.")),
         }
     }
+
+    // Conversion
+    #[pyo3(name = "to_dual2")]
+    fn to_dual2_py(&self) -> Dual2 {
+        self.clone().into()
+    }
 }
 
 #[pymethods]
@@ -579,5 +585,11 @@ impl Dual2 {
                 "Failed to serialize `Dual2` to JSON.",
             )),
         }
+    }
+
+    // Conversion
+    #[pyo3(name = "to_dual")]
+    fn to_dual_py(&self) -> Dual {
+        self.clone().into()
     }
 }

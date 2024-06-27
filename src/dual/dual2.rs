@@ -5,7 +5,7 @@
 //! gradient at that point. Mathematical operations are defined to give dual numbers
 //! the ability to combine.
 
-use crate::dual::dual1::{FieldOps, Gradient1, MathFuncs, Vars, VarsState};
+use crate::dual::dual1::{Dual, FieldOps, Gradient1, MathFuncs, Vars, VarsState};
 use crate::dual::linalg_f64::fouter11_;
 use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
@@ -28,10 +28,17 @@ use serde::{Deserialize, Serialize};
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
-    pub real: f64,
-    pub vars: Arc<IndexSet<String>>,
-    pub dual: Array1<f64>,
-    pub dual2: Array2<f64>,
+    pub(crate) real: f64,
+    pub(crate) vars: Arc<IndexSet<String>>,
+    pub(crate) dual: Array1<f64>,
+    pub(crate) dual2: Array2<f64>,
+}
+
+impl From<Dual> for Dual2 {
+    fn from(value: Dual) -> Self {
+        let n = value.dual.len_of(Axis(0));
+        Dual2 { real: value.real, vars: value.vars.clone(), dual: value.dual, dual2: Array2::zeros((n,n)) }
+    }
 }
 
 impl Vars for Dual2 {
@@ -678,6 +685,7 @@ mod tests {
     use super::*;
     use ndarray::arr2;
 
+
     #[test]
     fn clone_arc() {
         let d1 = Dual2::new(20.0, vec!["a".to_string()]);
@@ -1295,6 +1303,14 @@ mod tests {
         assert_eq!(result[1].dual, Array1::from_vec(vec![12., 14.]));
         assert_eq!(result[0].dual2, Array2::<f64>::zeros((2, 2)));
         assert_eq!(result[1].dual2, Array2::<f64>::zeros((2, 2)));
+    }
+
+    #[test]
+    fn from_dual() {
+        let d1 = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
+        let d2: Dual2 = d1.into();
+        let result = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()]);
+        assert_eq!(d2, result);
     }
 
     // #[test]
