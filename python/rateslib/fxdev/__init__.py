@@ -3,7 +3,7 @@ from rateslib.fxdev.rs import FXRate, Ccy
 from rateslib.dual import DualTypes
 from rateslib.default import NoInput, _make_py_json
 from datetime import datetime
-from typing import Union
+from typing import Union, Any
 
 
 class FXRates:
@@ -30,6 +30,11 @@ class FXRates:
     def __init_from_obj__(self):
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
         self._fx_array = None
+
+    def __eq__(self, other: Any):
+        if isinstance(other, FXRates):
+            return self.obj == other.obj
+        return False
 
     @property
     def fx_array(self):

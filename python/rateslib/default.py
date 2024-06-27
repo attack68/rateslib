@@ -347,4 +347,5 @@ def _drb(default, possible_blank):
 
 
 def _make_py_json(json, class_name):
-    return f'{{"Py_{class_name}":' + json + '}'
+    """Modifies the output JSON output for Python remodelled classes."""
+    return f'{{"Py":' + json + '}'

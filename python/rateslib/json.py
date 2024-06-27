@@ -14,9 +14,8 @@ def from_json(json: str):
     -------
     Object
     """
-    if json[:5] == '{"Py_':
-        class_name = json[5:json[5:].find('"')+5]
-        parsed_json = json[7+len(class_name):-1]
+    if json[:8] == '{"Py":{"':
+        class_name, parsed_json = json[8:json[8:].find('"')+8], json[6:-1]
         objs = globals()
         class_obj = objs[class_name]
         return class_obj.__init_from_rs__(obj=from_json_rs(parsed_json))

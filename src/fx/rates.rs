@@ -70,7 +70,7 @@ impl fmt::Display for FXPair {
 
 /// Struct to define an FXRate via FXCross, rate and settlement info.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FXRate {
     pub(crate) pair: FXPair,
     pub(crate) rate: DualsOrF64,
@@ -92,22 +92,7 @@ impl FXRate {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum FXVector {
-    Dual(Array1<Dual>),
-    Dual2(Array1<Dual2>),
-}
-
-// impl for FXVector {
-//     fn get_index(&self, index: usize) -> DualsOrF64 {
-//         match self {
-//             FXVector::Dual(arr) => DualsOrF64::Dual(arr[index]),
-//             FXVector::Dual2(arr) => DualsOrF64::Dual2(arr[index]),
-//         }
-//     }
-// }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FXArray {
     F64(Array2<f64>),
     Dual(Array2<Dual>),
@@ -116,7 +101,7 @@ pub enum FXArray {
 
 /// Struct to define a global FX market with multiple currencies.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
@@ -360,5 +345,30 @@ mod tests {
             .iter()
             .zip(expected.iter())
             .all(|(x, y)| (x - y).abs() < 1e-6))
+    }
+
+    #[test]
+    fn fxrates_eq() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        let fxr2 = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(fxr, fxr2)
     }
 }

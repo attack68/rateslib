@@ -89,6 +89,10 @@ impl FXRate {
             )),
         }
     }
+
+    fn __eq__(&self, other: &Self) -> bool {
+        self == other
+    }
 }
 
 #[pymethods]
@@ -200,5 +204,45 @@ impl FXRates {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err("Failed to serialize `UnionCal` to JSON.")),
         }
+    }
+
+    // Equality
+    fn __eq__(&self, other: FXRates) -> bool {
+        println!("{:?}", self);
+        println!("{:?}", other);
+        self.eq(&other)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::calendars::calendar::ndt;
+    use num_traits::Signed;
+
+    #[test]
+    fn fxrates_eq() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        let fxr2 = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            ndt(2004, 1, 1),
+            None,
+        )
+        .unwrap();
+
+        assert!(fxr.__eq__(fxr2))
     }
 }
