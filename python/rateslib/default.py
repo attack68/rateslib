@@ -347,5 +347,5 @@ def _drb(default, possible_blank):
 
 
 def _make_py_json(json, class_name):
-    """Modifies the output JSON output for Python remodelled classes."""
+    """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return f'{{"Py":' + json + '}'
