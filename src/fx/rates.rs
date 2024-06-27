@@ -285,6 +285,10 @@ impl FXRates {
             FXArray::Dual2(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
         }
     }
+
+    pub fn update(&mut self, fx_rates: Vec<FXRate>) {
+
+    }
 }
 
 impl JSON for FXRates {}

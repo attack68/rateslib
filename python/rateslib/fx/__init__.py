@@ -77,7 +77,7 @@ class FXRates:
 
     @property
     def base(self):
-        return self.obj.base
+        return self.obj.base.name
 
     @property
     def settlement(self):
@@ -94,6 +94,10 @@ class FXRates:
     @property
     def q(self):
         return len(self.obj.currencies)
+
+    @property
+    def pairs_settlement(self):
+        return {k: self.settlement for k in self.pairs}
 
     def rate(self, pair: str) -> DualTypes:
         """
@@ -119,6 +123,140 @@ class FXRates:
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
         # domi, fori = self.obj.get_ccy_index(Ccy(pair[:3])), self.obj.get_ccy_index(Ccy(pair[3:]))
         return self.fx_array[domi][fori]
+
+    def restate(self, pairs: list[str], keep_ad: bool = False):
+        """
+        Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
+
+        Parameters
+        ----------
+        pairs : list of str
+            The new currency pairs with which to define the ``FXRates`` class.
+        keep_ad : bool, optional
+            Keep the original derivative exposures defined by ``Dual``, instead
+            of redefinition. It is advised against setting this to *True*, it is mainly used
+            internally.
+
+        Returns
+        --------
+        FXRates
+
+        Notes
+        -----
+        This will redefine the pairs to which delta risks are expressed in ``Dual``
+        outputs.
+
+        If ``pairs`` match the existing object and ``keep_ad`` is
+        requested then the existing object is returned unchanged as new copy.
+
+        Examples
+        --------
+        Re-expressing an *FXRates* class with new majors, to which *Dual* sensitivities are
+        measured.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurgbp": 0.9, "gbpjpy": 125, "usdjpy": 100})
+           fxr.convert(100, "gbp", "usd")
+           fxr2 = fxr.restate(["eurusd", "gbpusd", "usdjpy"])
+           fxr2.convert(100, "gbp", "usd")
+
+        Extracting an *FXRates* subset from a larger object.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurgbp": 0.9, "gbpjpy": 125, "usdjpy": 100, "audusd": 0.85})
+           fxr2 = fxr.restate({"eurusd", "gbpusd"})
+           fxr2.rates_table()
+        """
+        if set(pairs) == set(self.pairs) and keep_ad:
+            return self.copy()  # no restate needed but return new instance
+
+        restated_fx_rates = FXRates(
+            {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
+            settlement=self.settlement,
+            base=self.base
+        )
+        return restated_fx_rates
+
+    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
+        """
+        Update all or some of the FX rates of the instance with new market data.
+
+        Parameters
+        ----------
+        fx_rates : dict, optional
+            Dict whose keys are 6-character domestic-foreign currency pairs and
+            which are present in FXRates.pairs, and whose
+            values are the relevant rates to update.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. It
+           is **best practice** to create objects and any associations and then use the
+           ``update`` methods to push new market data to them. Recreating objects with
+           new data will break object-oriented associations and possibly lead to
+           undetected market data based pricing errors.
+
+        Suppose an *FXRates* class has been instantiated and resides in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)
+
+        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
+        It can be updated with some new market data. This will preserve its memory id and
+        association with other objects (however, any linked objects should also be updated to
+        cascade new calculations).
+
+        .. ipython:: python
+
+           linked_obj = fxr
+           fxr.update({"eurusd": 1.06})
+           id(fxr)  # <- SAME as above
+           linked_obj.rate("eurusd")
+
+        Do **not** do the following because overwriting a variable name will not eliminate the
+        previous object from memory. Linked objects will still refer to the previous *FXRates*
+        class still in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
+           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
+           fxr.rate("usdnok")
+           fxr.update({"usdeur": 1.0})
+           fxr.rate("usdnok")
+        """
+        if fx_rates is NoInput.blank:
+            return None
+        fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
+        pairs = list(fx_rates_.keys())
+        if len(set(pairs).difference(set(self.pairs))) != 0:
+            raise ValueError("`fx_rates` must contain the same pairs as the instance on `update`.")
+        fx_rates_ = {
+            pair: float(self.fx_rates[pair]) if pair not in pairs else fx_rates_[pair]
+            for pair in self.pairs
+        }
+        _ = FXRates(fx_rates_, settlement=self.settlement, base=self.base)
+        for attr in ["fx_rates", "fx_vector", "fx_array"]:
+            setattr(self, attr, getattr(_, attr))
 
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "FXRates")
@@ -520,29 +658,6 @@ class FXRates:
 #         _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
 #         return _  # calculation is more efficient from a domestic pov than foreign
 #
-#     def rate(self, pair: str):
-#         """
-#         Return a specified FX rate for a given currency pair.
-#
-#         Parameters
-#         ----------
-#         pair : str
-#             The FX pair in usual domestic:foreign convention (6 digit code).
-#
-#         Returns
-#         -------
-#         Dual
-#
-#         Examples
-#         --------
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
-#            fxr.rate("eurgbp")
-#         """
-#         domestic, foreign = pair[:3].lower(), pair[3:].lower()
-#         return self.fx_array[self.currencies[domestic], self.currencies[foreign]]
 #
 #     def rates_table(self):
 #         """
@@ -558,84 +673,6 @@ class FXRates:
 #             columns=self.currencies_list,
 #         )
 #
-#     def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
-#         """
-#         Update all or some of the FX rates of the instance with new market data.
-#
-#         Parameters
-#         ----------
-#         fx_rates : dict, optional
-#             Dict whose keys are 6-character domestic-foreign currency pairs and
-#             which are present in FXRates.pairs, and whose
-#             values are the relevant rates to update.
-#
-#         Returns
-#         -------
-#         None
-#
-#         Notes
-#         -----
-#
-#         .. warning::
-#
-#            *Rateslib* is an object-oriented library that uses complex associations. It
-#            is **best practice** to create objects and any associations and then use the
-#            ``update`` methods to push new market data to them. Recreating objects with
-#            new data will break object-oriented associations and possibly lead to
-#            undetected market data based pricing errors.
-#
-#         Suppose an *FXRates* class has been instantiated and resides in memory.
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
-#            id(fxr)
-#
-#         This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
-#         It can be updated with some new market data. This will preserve its memory id and
-#         association with other objects (however, any linked objects should also be updated to
-#         cascade new calculations).
-#
-#         .. ipython:: python
-#
-#            linked_obj = fxr
-#            fxr.update({"eurusd": 1.06})
-#            id(fxr)  # <- SAME as above
-#            linked_obj.rate("eurusd")
-#
-#         Do **not** do the following because overwriting a variable name will not eliminate the
-#         previous object from memory. Linked objects will still refer to the previous *FXRates*
-#         class still in memory.
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-#            id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
-#            linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
-#
-#         Examples
-#         --------
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
-#            fxr.rate("usdnok")
-#            fxr.update({"usdeur": 1.0})
-#            fxr.rate("usdnok")
-#         """
-#         if fx_rates is NoInput.blank:
-#             return None
-#         fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
-#         pairs = list(fx_rates_.keys())
-#         if len(set(pairs).difference(set(self.pairs))) != 0:
-#             raise ValueError("`fx_rates` must contain the same pairs as the instance on `update`.")
-#         fx_rates_ = {
-#             pair: float(self.fx_rates[pair]) if pair not in pairs else fx_rates_[pair]
-#             for pair in self.pairs
-#         }
-#         _ = FXRates(fx_rates_, settlement=self.settlement, base=self.base)
-#         for attr in ["fx_rates", "fx_vector", "fx_array"]:
-#             setattr(self, attr, getattr(_, attr))
 #
 #     def _set_ad_order(self, order):
 #         """
