@@ -13,9 +13,9 @@ use itertools::Itertools;
 use ndarray::{Array2, ArrayViewMut2, Axis};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
-use serde::{Deserialize, Serialize};
 
 /// Struct to define a currency.
 #[pyclass(module = "rateslib.rs")]
@@ -109,10 +109,7 @@ pub struct FXRates {
 }
 
 impl FXRates {
-    pub fn try_new(
-        fx_rates: Vec<FXRate>,
-        base: Option<Ccy>,
-    ) -> Result<Self, PyErr> {
+    pub fn try_new(fx_rates: Vec<FXRate>, base: Option<Ccy>) -> Result<Self, PyErr> {
         // Validations:
         // 1. fx_rates is non-zero length
         // 2. currencies are not under or over overspecified
@@ -288,12 +285,30 @@ impl FXRates {
 
     pub fn update(&mut self, fx_rates: Vec<FXRate>) {
         // validate that the input vector contains FX pairs that are already associated with the instance
-        assert!(fx_rates.iter().all(|v| self.fx_rates.iter().any(|x| x.pair == v.pair)));
+        assert!(fx_rates
+            .iter()
+            .all(|v| self.fx_rates.iter().any(|x| x.pair == v.pair)));
         let mut fx_rates_: Vec<FXRate> = self.fx_rates.clone();
         for fxr in fx_rates.into_iter() {
-            for
+            let idx = fx_rates_
+                .iter()
+                .enumerate()
+                .fold(0_usize, |a, (i, v)| if fxr.eq(v) { i } else { a });
+            fx_rates_[idx] = fxr;
         }
+        let new_fxr = FXRates::try_new(fx_rates_, Some(self.currencies[0])).unwrap();
+        self.fx_rates = new_fxr.fx_rates.clone();
+        self.currencies = new_fxr.currencies.clone();
+        self.fx_array = new_fxr.fx_array.clone();
+    }
 
+    pub fn set_ad_order(&mut self, ad: usize) {
+        match (ad, &self.fx_array) {
+            (0, FXArray::F64(_)) | (1, FXArray::Dual(_)) | (2, FXArray::Dual2(_)) => {},
+            (1, FXArray::Dual2(arr)) => {},
+            (2, FXArray::Dual(arr)) => {}
+            _ => {}
+        }
     }
 }
 
@@ -304,7 +319,6 @@ mod tests {
     use super::*;
     use crate::calendars::calendar::ndt;
     use ndarray::arr2;
-    use num_traits::Signed;
 
     #[test]
     fn ccy_creation() {
@@ -345,8 +359,10 @@ mod tests {
     fn fxrates_rate() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
             ],
             None,
         )
@@ -392,4 +408,21 @@ mod tests {
 
         assert_eq!(fxr, fxr2)
     }
+
+    #[test]
+    fn fxrates_update() {
+        let mut fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+            ],
+            None,
+        ).unwrap();
+        fxr.update(vec![
+            FXRate::try_new("usd", "jpy", DualsOrF64::F64(120.0), None).unwrap()
+        ]);
+        println!("{:?}", fxr.fx_array);
+        assert!(false)
+    }
+
 }

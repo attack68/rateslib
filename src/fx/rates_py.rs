@@ -1,13 +1,13 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
 use crate::dual::dual_py::DualsOrF64;
-use crate::fx::rates::{Ccy, FXRate, FXRates, FXArray};
+use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates};
 use chrono::prelude::*;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
+use crate::json::json_py::Serialized;
 use ndarray::Axis;
 use pyo3::exceptions::PyValueError;
-use crate::json::json_py::Serialized;
 // use pyo3::exceptions::PyValueError;
 // use pyo3::types::PyFloat;
 use crate::json::JSON;
@@ -114,10 +114,7 @@ impl FXRates {
     //     FXRates::try_new(fx_rates_, settlement, base_)
     // }
     #[new]
-    fn new_py(
-        fx_rates: Vec<FXRate>,
-        base: Option<Ccy>,
-    ) -> PyResult<Self> {
+    fn new_py(fx_rates: Vec<FXRate>, base: Option<Ccy>) -> PyResult<Self> {
         FXRates::try_new(fx_rates, base)
     }
 
@@ -153,9 +150,21 @@ impl FXRates {
     #[pyo3(name = "fx_vector")]
     fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
         match &self.fx_array {
-            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::F64(x.clone())).collect()),
-            FXArray::Dual(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::Dual(x.clone())).collect()),
-            FXArray::Dual2(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::Dual2(x.clone())).collect()),
+            FXArray::F64(arr) => Ok(arr
+                .row(0)
+                .iter()
+                .map(|x| DualsOrF64::F64(x.clone()))
+                .collect()),
+            FXArray::Dual(arr) => Ok(arr
+                .row(0)
+                .iter()
+                .map(|x| DualsOrF64::Dual(x.clone()))
+                .collect()),
+            FXArray::Dual2(arr) => Ok(arr
+                .row(0)
+                .iter()
+                .map(|x| DualsOrF64::Dual2(x.clone()))
+                .collect()),
         }
     }
 
@@ -163,27 +172,21 @@ impl FXRates {
     #[pyo3(name = "fx_array")]
     fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
         match &self.fx_array {
-            FXArray::F64(arr) => {
-                Ok(arr
-                    .lanes(Axis(1))
-                    .into_iter()
-                    .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
-                    .collect())
-            },
-            FXArray::Dual(arr) => {
-                Ok(arr
-                    .lanes(Axis(1))
-                    .into_iter()
-                    .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
-                    .collect())
-            },
-            FXArray::Dual2(arr) => {
-                Ok(arr
-                    .lanes(Axis(1))
-                    .into_iter()
-                    .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
-                    .collect())
-            },
+            FXArray::F64(arr) => Ok(arr
+                .lanes(Axis(1))
+                .into_iter()
+                .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
+                .collect()),
+            FXArray::Dual(arr) => Ok(arr
+                .lanes(Axis(1))
+                .into_iter()
+                .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
+                .collect()),
+            FXArray::Dual2(arr) => Ok(arr
+                .lanes(Axis(1))
+                .into_iter()
+                .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
+                .collect()),
         }
     }
 
@@ -201,7 +204,9 @@ impl FXRates {
     fn to_json_py(&self) -> PyResult<String> {
         match Serialized::FXRates(self.clone()).to_json() {
             Ok(v) => Ok(v),
-            Err(_) => Err(PyValueError::new_err("Failed to serialize `UnionCal` to JSON.")),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `UnionCal` to JSON.",
+            )),
         }
     }
 
@@ -213,19 +218,19 @@ impl FXRates {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::calendars::calendar::ndt;
-    use num_traits::Signed;
 
     #[test]
     fn fxrates_eq() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
             ],
             None,
         )
@@ -233,8 +238,10 @@ mod tests {
 
         let fxr2 = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
             ],
             None,
         )
