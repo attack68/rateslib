@@ -111,7 +111,6 @@ pub struct FXRates {
 impl FXRates {
     pub fn try_new(
         fx_rates: Vec<FXRate>,
-        settlement: NaiveDateTime,
         base: Option<Ccy>,
     ) -> Result<Self, PyErr> {
         // Validations:
@@ -145,13 +144,28 @@ impl FXRates {
         }
 
         // 3.
-        if !(&fx_rates
-            .iter()
-            .all(|d| d.settlement.map_or(true, |v| v == settlement)))
-        {
-            return Err(PyValueError::new_err(
-                "`fx_rates` must have consistent `settlement` dates across all rates.",
-            ));
+        let settlement: Option<NaiveDateTime> = fx_rates[0].settlement;
+        match settlement {
+            Some(date) => {
+                if !(&fx_rates
+                    .iter()
+                    .all(|d| d.settlement.map_or(false, |v| v == date)))
+                {
+                    return Err(PyValueError::new_err(
+                        "`fx_rates` must have consistent `settlement` dates across all rates.",
+                    ));
+                }
+            }
+            None => {
+                if !(&fx_rates
+                    .iter()
+                    .all(|d| d.settlement.map_or(true, |_v| false)))
+                {
+                    return Err(PyValueError::new_err(
+                        "`fx_rates` must have consistent `settlement` dates across all rates.",
+                    ));
+                }
+            }
         }
 
         let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
@@ -321,10 +335,9 @@ mod tests {
     fn fxrates_rate() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
-            ndt(2004, 1, 1),
             None,
         )
         .unwrap();
@@ -354,7 +367,6 @@ mod tests {
                 FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
                 FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
             ],
-            ndt(2004, 1, 1),
             None,
         )
         .unwrap();
@@ -364,7 +376,6 @@ mod tests {
                 FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
                 FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
             ],
-            ndt(2004, 1, 1),
             None,
         )
         .unwrap();

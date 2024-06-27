@@ -116,10 +116,9 @@ impl FXRates {
     #[new]
     fn new_py(
         fx_rates: Vec<FXRate>,
-        settlement: NaiveDateTime,
         base: Option<Ccy>,
     ) -> PyResult<Self> {
-        FXRates::try_new(fx_rates, settlement, base)
+        FXRates::try_new(fx_rates, base)
     }
 
     #[getter]
@@ -225,20 +224,18 @@ mod tests {
     fn fxrates_eq() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
-            ndt(2004, 1, 1),
             None,
         )
         .unwrap();
 
         let fxr2 = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
-            ndt(2004, 1, 1),
             None,
         )
         .unwrap();
