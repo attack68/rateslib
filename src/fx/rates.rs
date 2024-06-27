@@ -293,7 +293,7 @@ impl FXRates {
             let idx = fx_rates_
                 .iter()
                 .enumerate()
-                .fold(0_usize, |a, (i, v)| if fxr.eq(v) { i } else { a });
+                .fold(0_usize, |a, (i, v)| if fxr.pair.eq(&v.pair) { i } else { a });
             fx_rates_[idx] = fxr;
         }
         let new_fxr = FXRates::try_new(fx_rates_, Some(self.currencies[0])).unwrap();
@@ -421,8 +421,22 @@ mod tests {
         fxr.update(vec![
             FXRate::try_new("usd", "jpy", DualsOrF64::F64(120.0), None).unwrap()
         ]);
-        println!("{:?}", fxr.fx_array);
-        assert!(false)
+        let rate = fxr.rate(
+            &Ccy::try_new("eur").unwrap(),
+            &Ccy::try_new("usd").unwrap()
+        ).unwrap();
+        match rate {
+            DualsOrF64::Dual(d) => assert_eq!(d.real, 1.08),
+            _ => panic!("failure")
+        };
+        let rate = fxr.rate(
+            &Ccy::try_new("usd").unwrap(),
+            &Ccy::try_new("jpy").unwrap()
+        ).unwrap();
+        match rate {
+            DualsOrF64::Dual(d) => assert_eq!(d.real, 120.0),
+            _ => panic!("failure")
+        }
     }
 
 }
