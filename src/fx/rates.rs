@@ -296,6 +296,7 @@ impl FXRates {
                 .fold(0_usize, |a, (i, v)| if fxr.pair.eq(&v.pair) { i } else { a });
             fx_rates_[idx] = fxr;
         }
+        println!("{:?}", fx_rates_);
         let new_fxr = FXRates::try_new(fx_rates_, Some(self.currencies[0])).unwrap();
         self.fx_rates = new_fxr.fx_rates.clone();
         self.currencies = new_fxr.currencies.clone();

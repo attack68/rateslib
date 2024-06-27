@@ -246,17 +246,10 @@ class FXRates:
         """
         if fx_rates is NoInput.blank:
             return None
-        fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
-        pairs = list(fx_rates_.keys())
-        if len(set(pairs).difference(set(self.pairs))) != 0:
-            raise ValueError("`fx_rates` must contain the same pairs as the instance on `update`.")
-        fx_rates_ = {
-            pair: float(self.fx_rates[pair]) if pair not in pairs else fx_rates_[pair]
-            for pair in self.pairs
-        }
-        _ = FXRates(fx_rates_, settlement=self.settlement, base=self.base)
-        for attr in ["fx_rates", "fx_vector", "fx_array"]:
-            setattr(self, attr, getattr(_, attr))
+
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
+        self.obj.update(fx_rates_)
+        self.__init_post_obj__()
 
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "FXRates")

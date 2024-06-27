@@ -194,9 +194,15 @@ impl FXRates {
     fn get_ccy_index_py(&self, currency: Ccy) -> Option<usize> {
         self.get_ccy_index(&currency)
     }
+
     #[pyo3(name = "rate")]
     fn rate_py(&self, lhs: &Ccy, rhs: &Ccy) -> PyResult<Option<DualsOrF64>> {
         Ok(self.rate(lhs, rhs))
+    }
+
+    #[pyo3(name = "update")]
+    fn update_py(&mut self, fx_rates: Vec<FXRate>) {
+        self.update(fx_rates)
     }
 
     // JSON
