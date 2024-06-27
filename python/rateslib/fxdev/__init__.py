@@ -17,17 +17,18 @@ class FXRates:
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
         base_ = None if base is NoInput(0) else Ccy(base)
         self.obj = FXRatesObj(fx_rates_, settlement, base_)
-        self.__init_from_obj__()
+        self.__init_post_obj__()
 
     @classmethod
-    def __init_from_rs__(cls, obj):
+    def __init_from_obj__(cls, obj):
+        """Construct the class instance from a given rust object which is wrapped."""
         # create a default instance and overwrite it
-        new_instance = cls({"usdeur": 1.0}, datetime(2000, 1, 1))
-        new_instance.obj = obj
-        new_instance.__init_from_obj__()
-        return new_instance
+        new = cls({"usdeur": 1.0}, datetime(2000, 1, 1))
+        new.obj = obj
+        new.__init_post_obj__()
+        return new
 
-    def __init_from_obj__(self):
+    def __init_post_obj__(self):
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
         self._fx_array = None
 
