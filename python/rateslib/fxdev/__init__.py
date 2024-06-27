@@ -13,15 +13,19 @@ class FXRates:
         fx_rates: dict[str, DualTypes],
         settlement: datetime,
         base: Union[str, NoInput] = NoInput(0),
-        json_obj: Union[FXRatesObj, NoInput] = NoInput(0),
     ):
-        if json_obj is not NoInput.blank:
-            self.obj = json_obj
-            self.__init_from_obj__()
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
         base_ = None if base is NoInput(0) else Ccy(base)
         self.obj = FXRatesObj(fx_rates_, settlement, base_)
         self.__init_from_obj__()
+
+    @classmethod
+    def __init_from_rs__(cls, obj):
+        # create a default instance and overwrite it
+        new_instance = cls({"usdeur": 1.0}, datetime(2000, 1, 1))
+        new_instance.obj = obj
+        new_instance.__init_from_obj__()
+        return new_instance
 
     def __init_from_obj__(self):
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
