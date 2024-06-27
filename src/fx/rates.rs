@@ -10,7 +10,7 @@ use chrono::prelude::*;
 use indexmap::set::IndexSet;
 use internment::Intern;
 use itertools::Itertools;
-use ndarray::{Array1, Array2, ArrayViewMut2, Axis};
+use ndarray::{Array2, ArrayViewMut2, Axis};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::collections::HashSet;
