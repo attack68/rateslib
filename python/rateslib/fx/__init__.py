@@ -121,7 +121,6 @@ class FXRates:
            fxr.rate("eurgbp")
         """
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
-        # domi, fori = self.obj.get_ccy_index(Ccy(pair[:3])), self.obj.get_ccy_index(Ccy(pair[3:]))
         return self.fx_array[domi][fori]
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
@@ -246,7 +245,6 @@ class FXRates:
         """
         if fx_rates is NoInput.blank:
             return None
-
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
         self.__init_post_obj__()
