@@ -280,7 +280,6 @@ mod tests {
     use super::*;
     use crate::calendars::calendar::ndt;
     use ndarray::arr2;
-    use num_traits::Signed;
 
     #[test]
     fn ccy_creation() {

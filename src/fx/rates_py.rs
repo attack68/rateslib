@@ -219,7 +219,6 @@ impl FXRates {
 mod tests {
     use super::*;
     use crate::calendars::calendar::ndt;
-    use num_traits::Signed;
 
     #[test]
     fn fxrates_eq() {

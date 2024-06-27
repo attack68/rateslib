@@ -38,9 +38,9 @@ def set_order(val, order):
     float, int, Dual or Dual2
     """
     if order == 2 and isinstance(val, Dual):
-        return Dual2(val.real, val.vars, val.dual.tolist(), [])
+        return val.to_dual2()
     elif order == 1 and isinstance(val, Dual2):
-        return Dual(val.real, val.vars, val.dual.tolist())
+        return val.to_dual()
     elif order == 0:
         return float(val)
     # otherwise:

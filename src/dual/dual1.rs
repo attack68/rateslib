@@ -20,14 +20,21 @@ use std::f64::consts::PI;
 use std::iter::Sum;
 use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
+use crate::dual::dual2::Dual2;
 
 /// Struct for defining a dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
-    real: f64,
-    vars: Arc<IndexSet<String>>,
-    dual: Array1<f64>,
+    pub(crate) real: f64,
+    pub(crate) vars: Arc<IndexSet<String>>,
+    pub(crate) dual: Array1<f64>,
+}
+
+impl From<Dual2> for Dual {
+    fn from(value: Dual2) -> Self {
+        Dual { real: value.real, vars: value.vars.clone(), dual: value.dual }
+    }
 }
 
 /// Enum defining the `vars` state of two dual number type structs, a LHS relative to a RHS.
@@ -667,6 +674,7 @@ impl FieldOps<f64> for f64 {}
 mod tests {
     use super::*;
     use std::time::Instant;
+    use crate::dual::dual2::Dual2;
 
     #[test]
     fn test_fieldops() {
@@ -1417,5 +1425,13 @@ mod tests {
         }
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.9?}", elapsed / 1000);
+    }
+
+    #[test]
+    fn into_dual2() {
+        let d2: Dual2 = Dual2::new(2.0, vec!["x".to_string(), "y".to_string()]);
+        let d1: Dual = d2.into();
+        let result = Dual::new(2.0, vec!["x".to_string(), "y".to_string()]);
+        assert_eq!(d1, result);
     }
 }
