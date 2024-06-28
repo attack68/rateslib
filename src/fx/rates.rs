@@ -165,8 +165,8 @@ impl FXRates {
             }
         }
 
-        let (mut fx_array, mut edges) = FXRates::_populate_initial_arrays(&currencies, &fx_rates);
-        let _ = FXRates::_populate_remaining_arrays(
+        let (mut fx_array, mut edges) = FXRates::_create_initial_arrays(&currencies, &fx_rates);
+        let _ = FXRates::_mut_arrays_remaining_elements(
             fx_array.view_mut(),
             edges.view_mut(),
             HashSet::new(),
@@ -179,7 +179,7 @@ impl FXRates {
         })
     }
 
-    fn _populate_initial_arrays(
+    fn _create_initial_arrays(
         currencies: &IndexSet<Ccy>,
         fx_rates: &Vec<FXRate>,
     ) -> (Array2<Dual>, Array2<i16>) {
@@ -206,7 +206,7 @@ impl FXRates {
         (fx_array, edges)
     }
 
-    fn _populate_remaining_arrays(
+    fn _mut_arrays_remaining_elements(
         mut fx_array: ArrayViewMut2<Dual>,
         mut edges: ArrayViewMut2<i16>,
         mut prev_value: HashSet<usize>,
@@ -255,13 +255,13 @@ impl FXRates {
 
         if counter == 0 {
             prev_value.insert(node);
-            return FXRates::_populate_remaining_arrays(
+            return FXRates::_mut_arrays_remaining_elements(
                 fx_array.view_mut(),
                 edges.view_mut(),
                 prev_value,
             );
         } else {
-            return FXRates::_populate_remaining_arrays(
+            return FXRates::_mut_arrays_remaining_elements(
                 fx_array.view_mut(),
                 edges.view_mut(),
                 HashSet::from([node]),
@@ -306,9 +306,76 @@ impl FXRates {
     pub fn set_ad_order(&mut self, ad: usize) {
         match (ad, &self.fx_array) {
             (0, FXArray::F64(_)) | (1, FXArray::Dual(_)) | (2, FXArray::Dual2(_)) => {},
-            (1, FXArray::Dual2(arr)) => {},
-            (2, FXArray::Dual(arr)) => {}
-            _ => {}
+            (1, FXArray::Dual2(arr)) => {
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::Dual(Array2::<Dual>::from_shape_vec((n,n), arr
+                    .clone()
+                    .into_iter()
+                    .map(|d| d.into())
+                    .collect())
+                    .unwrap()
+                );
+                self.fx_array = fx_array;
+            },
+            (2, FXArray::Dual(arr)) => {
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::Dual2(Array2::<Dual2>::from_shape_vec((n,n), arr
+                    .clone()
+                    .into_iter()
+                    .map(|d| d.into())
+                    .collect())
+                    .unwrap()
+                );
+                self.fx_array = fx_array;
+            },
+            (0, FXArray::Dual(arr)) => {
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::F64(Array2::<f64>::from_shape_vec((n,n), arr
+                    .clone()
+                    .into_iter()
+                    .map(|d| d.real)
+                    .collect())
+                    .unwrap()
+                );
+                self.fx_array = fx_array;
+            },
+            (0, FXArray::Dual2(arr)) => {
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::F64(Array2::<f64>::from_shape_vec((n,n), arr
+                    .clone()
+                    .into_iter()
+                    .map(|d| d.real)
+                    .collect())
+                    .unwrap()
+                );
+                self.fx_array = fx_array;
+            },
+            (1, FXArray::F64(_)) => {
+                let (mut fx_array, mut edges) = FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
+                let _ = FXRates::_mut_arrays_remaining_elements(
+                    fx_array.view_mut(),
+                    edges.view_mut(),
+                    HashSet::new(),
+                );
+                self.fx_array = FXArray::Dual(fx_array);
+            }
+            (2, FXArray::F64(_)) => {
+                let (mut fx_array, mut edges) = FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
+                let _ = FXRates::_mut_arrays_remaining_elements(
+                    fx_array.view_mut(),
+                    edges.view_mut(),
+                    HashSet::new(),
+                );
+                let n: usize = fx_array.len_of(Axis(0));
+                let fx_array2 = FXArray::Dual2(Array2::<Dual2>::from_shape_vec((n,n), fx_array
+                    .into_iter()
+                    .map(|d| d.into())
+                    .collect())
+                    .unwrap()
+                );
+                self.fx_array = fx_array2;
+            },
+            _ => panic!("unreachable pattern for AD: 0, 1, 2")
         }
     }
 }

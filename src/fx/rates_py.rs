@@ -205,6 +205,11 @@ impl FXRates {
         self.update(fx_rates)
     }
 
+    #[pyo3(name = "set_ad_order")]
+    fn set_ad_order_py(&mut self, ad: usize) {
+        self.set_ad_order(ad)
+    }
+
     // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
@@ -221,6 +226,10 @@ impl FXRates {
         println!("{:?}", self);
         println!("{:?}", other);
         self.eq(&other)
+    }
+
+    fn __copy__(&self) -> Self {
+        self.clone()
     }
 }
 

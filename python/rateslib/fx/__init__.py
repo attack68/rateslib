@@ -38,6 +38,82 @@ from typing import Union, Any
 
 
 class FXRates:
+    """
+    Object to store and calculate FX rates for a consistent settlement date.
+
+    Parameters
+    ----------
+    fx_rates : dict
+        Dict whose keys are 6-character domestic-foreign currency pairs, and whose
+        values are the relevant rates.
+    settlement : datetime, optional
+        The settlement date for the FX rates.
+    base : str, optional
+        The base currency (3-digit code). If not given defaults to either:
+
+        - the base currency defined in `defaults`, if it is present in the list of currencies,
+        - the first currency detected.
+
+    Notes
+    -----
+
+    .. note::
+       When this class uses ``Dual`` numbers to represent sensitivities of values to
+       certain FX rates the variable names are called `"fx_domfor"` where `"dom"`
+       is a domestic currency and `"for"` is a foreign currency. See the examples
+       contained in class methods for clarification.
+
+    Examples
+    --------
+    An FX rates market of *n* currencies is completely defined by *n-1*
+    independent FX pairs.
+
+    Below we define an FX rates market in 4 currencies with 3 FX pairs,
+
+    .. ipython:: python
+
+       fxr = FXRates({"eurusd": 1.1, "gbpusd": 1.25, "usdjpy": 100})
+       fxr.currencies
+       fxr.rate("gbpjpy")
+
+    Ill defined FX markets will raise ``ValueError`` and are either **overspecified**,
+
+    .. ipython:: python
+
+       try:
+           FXRates({"eurusd": 1.1, "gbpusd": 1.25, "usdjpy": 100, "gbpjpy": 125})
+       except ValueError as e:
+           print(e)
+
+    or are **underspecified**,
+
+    .. ipython:: python
+
+       try:
+           FXRates({"eurusd": 1.1, "gbpjpy": 125})
+       except ValueError as e:
+           print(e)
+
+    or use redundant, co-dependent information,
+
+    .. ipython:: python
+
+       try:
+           FXRates({"eurusd": 1.1, "usdeur": 0.90909, "gbpjpy": 125})
+       except ValueError as e:
+           print(e)
+
+    Attributes
+    ----------
+    pairs : list
+    settlement : datetime
+    currencies : dict
+    currencies_list : list
+    q : int
+    fx_rates : dict
+    fx_vector : ndarray
+    fx_array : ndarray
+    """
 
     def __init__(
         self,
@@ -47,7 +123,13 @@ class FXRates:
     ):
         settlement = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
-        base_ = None if base is NoInput(0) else Ccy(base)
+        if base is NoInput(0):
+            if defaults.base_currency.lower() in [k.lower() for k in fx_rates.keys()]:
+                base_ = Ccy(defaults.base_currency)
+            else:
+                base_ = None
+        else:
+            base_ = Ccy(base)
         self.obj = FXRatesObj(fx_rates_, base_)
         self.__init_post_obj__()
 
@@ -69,6 +151,14 @@ class FXRates:
             return self.obj == other.obj
         return False
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __copy__(self):
+        obj = FXRates.__init_from_obj__(self.obj.__copy__())
+        obj.__init_post_obj__()
+        return obj
+
     @property
     def fx_array(self):
         if self._fx_array is None:
@@ -88,12 +178,20 @@ class FXRates:
         return [fxr.pair for fxr in self.obj.fx_rates]
 
     @property
+    def fx_rates(self):
+        return {fxr.pair: fxr.rate for fxr in self.obj.fx_rates}
+
+    @property
     def currencies_list(self):
         return [ccy.name for ccy in self.obj.currencies]
 
     @property
     def q(self):
         return len(self.obj.currencies)
+
+    @property
+    def fx_vector(self):
+        return self.fx_array[0, :]
 
     @property
     def pairs_settlement(self):
@@ -169,7 +267,7 @@ class FXRates:
            fxr2.rates_table()
         """
         if set(pairs) == set(self.pairs) and keep_ad:
-            return self.copy()  # no restate needed but return new instance
+            return self.__copy__()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
             {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
@@ -249,206 +347,185 @@ class FXRates:
         self.obj.update(fx_rates_)
         self.__init_post_obj__()
 
+    def convert(
+        self,
+        value: Union[Dual, float],
+        domestic: str,
+        foreign: Union[str, NoInput] = NoInput(0),
+        on_error: str = "ignore",
+    ):
+        """
+        Convert an amount of a domestic currency into a foreign currency.
+
+        Parameters
+        ----------
+        value : float or Dual
+            The amount of the domestic currency to convert.
+        domestic : str
+            The domestic currency (3-digit code).
+        foreign : str, optional
+            The foreign currency to convert to (3-digit code). Uses instance
+            ``base`` if not given.
+        on_error : str in {"ignore", "warn", "raise"}
+            The action taken if either ``domestic`` or ``foreign`` are not contained
+            in the FX framework. `"ignore"` and `"warn"` will still return `None`.
+
+        Returns
+        -------
+        Dual or None
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdnok": 8.0})
+           fxr.convert(1000000, "nok", "usd")
+           fxr.convert(1000000, "nok", "inr")  # <- returns None, "inr" not in fxr.
+
+        """
+        foreign = self.base if foreign is NoInput.blank else foreign.lower()
+        domestic = domestic.lower()
+        for ccy in [domestic, foreign]:
+            if ccy not in self.currencies:
+                if on_error == "ignore":
+                    return None
+                elif on_error == "warn":
+                    warnings.warn(
+                        f"'{ccy}' not in FXRates.currencies: returning None.",
+                        UserWarning,
+                    )
+                    return None
+                else:
+                    raise ValueError(f"'{ccy}' not in FXRates.currencies.")
+
+        i, j = self.currencies[domestic.lower()], self.currencies[foreign.lower()]
+        return value * self.fx_array[i, j]
+
+    def convert_positions(
+        self,
+        array: Union[np.ndarray, list],
+        base: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Convert an array of currency cash positions into a single base currency.
+
+        Parameters
+        ----------
+        array : list, 1d ndarray of floats, or Series
+            The cash positions to simultaneously convert in the base currency. **Must**
+            be ordered by currency as defined in the attribute ``FXRates.currencies``.
+        base : str, optional
+            The currency to convert to (3-digit code). Uses instance ``base`` if not
+            given.
+
+        Returns
+        -------
+        Dual
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdnok": 8.0})
+           fxr.currencies
+           fxr.convert_positions([0, 1000000], "usd")
+        """
+        base = self.base if base is NoInput.blank else base.lower()
+        array_ = np.asarray(array)
+        j = self.currencies[base]
+        return np.sum(array_ * self.fx_array[:, j])
+
+    def positions(
+        self,
+        value,
+        base: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Convert a base value with FX rate sensitivities into an array of cash positions.
+
+        Parameters
+        ----------
+        value : float or Dual
+            The amount expressed in base currency to convert to cash positions.
+        base : str, optional
+            The base currency in which ``value`` is given (3-digit code). If not given
+            assumes the ``base`` of the object.
+
+        Returns
+        -------
+        Series
+
+        Examples
+        --------
+        .. ipython:: python
+
+           fxr = FXRates({"usdnok": 8.0})
+           fxr.positions(Dual(125000, ["fx_usdnok"], [-15625]), "usd")
+           fxr.positions(100, base="nok")
+
+        """
+        if isinstance(value, (float, int)):
+            value = Dual(value, [], [])
+        base = self.base if base is NoInput.blank else base.lower()
+        _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
+        for pair in value.vars:
+            if pair[:3] == "fx_":
+                delta = gradient(value, [pair])[0]
+                _ += self._get_positions_from_delta(delta, pair[3:], base)
+        return Series(_, index=self.currencies_list)
+
+    def _get_positions_from_delta(self, delta: float, pair: str, base: str):
+        """Return an array of cash positions determined from an FX pair delta risk."""
+        b_idx = self.currencies[base]
+        domestic, foreign = pair[:3], pair[3:]
+        d_idx, f_idx = self.currencies[domestic], self.currencies[foreign]
+        _ = np.zeros(self.q)
+
+        # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx, f_idx])**2
+        # _[f_idx] = f_val
+        # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
+        # return _
+        f_val = delta * float(self.fx_array[b_idx, f_idx])
+        _[d_idx] = f_val
+        _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
+        return _  # calculation is more efficient from a domestic pov than foreign
+
+    def rates_table(self):
+        """
+        Return a DataFrame of all FX rates in the object.
+
+        Returns
+        -------
+        DataFrame
+        """
+        return DataFrame(
+            np.vectorize(float)(self.fx_array),
+            index=self.currencies_list,
+            columns=self.currencies_list,
+        )
+
+    def _set_ad_order(self, order):
+        """
+        Change the node values to float, Dual or Dual2 based on input parameter.
+        """
+        self.obj.set_ad_order(order)
+        self.__init_post_obj__()
+
+    @property
+    def _ad(self):
+        return self.obj.ad
+
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "FXRates")
 
 
 # class FXRates:
-#     """
-#     Object to store and calculate FX rates for a consistent settlement date.
 #
-#     Parameters
-#     ----------
-#     fx_rates : dict
-#         Dict whose keys are 6-character domestic-foreign currency pairs, and whose
-#         values are the relevant rates.
-#     settlement : datetime, optional
-#         The settlement date for the FX rates.
-#     base : str, optional
-#         The base currency (3-digit code). If not given defaults to either:
+
 #
-#         - the base currency defined in `defaults`, if it is present in the list of currencies,
-#         - the first currency detected.
-#
-#     Notes
-#     -----
-#
-#     .. note::
-#        When this class uses ``Dual`` numbers to represent sensitivities of values to
-#        certain FX rates the variable names are called `"fx_domfor"` where `"dom"`
-#        is a domestic currency and `"for"` is a foreign currency. See the examples
-#        contained in class methods for clarification.
-#
-#     Examples
-#     --------
-#     An FX rates market of *n* currencies is completely defined by *n-1*
-#     independent FX pairs.
-#
-#     Below we define an FX rates market in 4 currencies with 3 FX pairs,
-#
-#     .. ipython:: python
-#
-#        fxr = FXRates({"eurusd": 1.1, "gbpusd": 1.25, "usdjpy": 100})
-#        fxr.currencies
-#        fxr.rate("gbpjpy")
-#
-#     Ill defined FX markets will raise ``ValueError`` and are either **overspecified**,
-#
-#     .. ipython:: python
-#
-#        try:
-#            FXRates({"eurusd": 1.1, "gbpusd": 1.25, "usdjpy": 100, "gbpjpy": 125})
-#        except ValueError as e:
-#            print(e)
-#
-#     or are **underspecified**,
-#
-#     .. ipython:: python
-#
-#        try:
-#            FXRates({"eurusd": 1.1, "gbpjpy": 125})
-#        except ValueError as e:
-#            print(e)
-#
-#     or use redundant, co-dependent information,
-#
-#     .. ipython:: python
-#
-#        try:
-#            FXRates({"eurusd": 1.1, "usdeur": 0.90909, "gbpjpy": 125})
-#        except ValueError as e:
-#            print(e)
-#
-#     Attributes
-#     ----------
-#     pairs : list
-#     settlement : datetime
-#     currencies : dict
-#     currencies_list : list
-#     q : int
-#     fx_rates : dict
-#     fx_vector : ndarray
-#     fx_array : ndarray
-#     """
-#
-#     def __init__(
-#         self,
-#         fx_rates: dict,
-#         settlement: Union[datetime, NoInput] = NoInput(0),
-#         base: Union[str, NoInput] = NoInput(0),
-#     ):
-#         self._ad = 1
-#         self.settlement = settlement
-#
-#         # covert all str to lowercase and values to Dual
-#         def _convert_dual(k, v):
-#             if isinstance(v, Dual):
-#                 return v
-#             return Dual(v, [f"fx_{k.lower()}"], [])
-#
-#         self.fx_rates = {k.lower(): _convert_dual(k, v) for k, v in fx_rates.items()}
-#
-#         # find currencies
-#         self.pairs = [k for k in self.fx_rates.keys()]
-#         self.pairs_settlement = {pair: settlement for pair in self.pairs}
-#         self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
-#         self.currencies = {
-#             k: i
-#             for i, k in enumerate(
-#                 list(dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]))
-#             )
-#         }
-#         self.pairs_indices = [(self.currencies[k[:3]], self.currencies[k[3:]]) for k in self.pairs]
-#         self.currencies_list = list(self.currencies.keys())
-#         if base is NoInput.blank:
-#             if defaults.base_currency in self.currencies_list:
-#                 self.base = defaults.base_currency
-#             else:
-#                 self.base = self.currencies_list[0]
-#         else:
-#             self.base = base.lower()
-#         self.q = len(self.currencies)
-#         if len(self.pairs) > (self.q - 1):
-#             raise ValueError(
-#                 f"`fx_rates` is overspecified: {self.q} currencies needs "
-#                 f"{self.q-1} FX pairs, not {len(self.pairs)}."
-#             )
-#         elif len(self.pairs) < (self.q - 1):
-#             raise ValueError(
-#                 f"`fx_rates` is underspecified: {self.q} currencies needs "
-#                 f"{self.q - 1} FX pairs, not {len(self.pairs)}."
-#             )
-#
-#         # create the edges and the fx array matrix from input data.
-#         self._populate_initial_arrays()
-#         # recursively solve all the remaining fx entries
-#         self._populate_remaining_elements()
-#
-#         base_idx = self.currencies[self.base]
-#         self.fx_vector = self.fx_array[base_idx, :]
-#
-#     def _populate_initial_arrays(self):
-#         self.fx_array = np.zeros((self.q, self.q), dtype="object")
-#         np.fill_diagonal(self.fx_array, Dual(1.0, [], []))
-#         self.edges = np.eye(self.q, dtype=bool)
-#         for i, pi in enumerate(self.pairs_indices):
-#             self.edges[pi[0], pi[1]] = True
-#             self.edges[pi[1], pi[0]] = True
-#             self.fx_array[pi[0], pi[1]] = self.fx_rates[self.pairs[i]]
-#             self.fx_array[pi[1], pi[0]] = 1.0 / self.fx_array[pi[0], pi[1]]
-#
-#     def _populate_remaining_elements(self, prev_value=[]):
-#         if len(prev_value) == self.q:
-#             raise ValueError(
-#                 "FX Array cannot be solved. There are degenerate FX rate pairs.\n"
-#                 "For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy')."
-#             )
-#         if np.all(self.edges):
-#             return None  # exit because all elements have been populated
-#         row_edges = self.edges.sum(axis=1)
-#         node = None
-#         while node is None or node in prev_value:
-#             node = np.argmax(row_edges)
-#             row_edges[node] = 0
-#             connected = np.array(range(self.q))[self.edges[node, :]]
-#             connected = connected[connected != node]
-#
-#         combinations = itertools.combinations(connected, 2)
-#         updates = 0
-#         for c in combinations:
-#             if self.edges[c[0], c[1]]:
-#                 continue  # edge already exists
-#             updates += 1
-#             self.edges[c[0], c[1]] = True
-#             self.edges[c[1], c[0]] = True
-#             self.fx_array[c[0], c[1]] = self.fx_array[c[0], node] * self.fx_array[node, c[1]]
-#             self.fx_array[c[1], c[0]] = 1.0 / self.fx_array[c[0], c[1]]
-#
-#         if updates == 0:
-#             return self._populate_remaining_elements(prev_value=prev_value+[node])
-#         return self._populate_remaining_elements(prev_value=[node])
-#
-#     def _solve_error(self):
-#         """
-#         Is called when `dual_solve` returns an ArithmeticError for partial
-#         pivoting fail. Used to indicate obvious errors to users for bad FX pairs.
-#         """
-#         reversed_pairs = [_[3:6] + _[:3] for _ in self.pairs]
-#         report = []
-#         for pair in self.pairs:
-#             if pair in reversed_pairs:
-#                 report.append(pair)
-#         if len(report) > 1:
-#             raise ValueError(
-#                 "FX rates cannot be solved because redundant information has been "
-#                 f"supplied.\nPairs and their reverse have been detected. "
-#                 f"Inspect '{','.join(report)}'"
-#             )
-#         else:
-#             # Do not yet know the conditions in which this will raise. TODO (low) find a way to test
-#             raise ArithmeticError(  # pragma: no cover
-#                 "The FX Matrix has failed to solve. Partial pivoting has failed."
-#             )
+
 #
 #     def restate(self, pairs: list[str], keep_ad: bool = False):
 #         """
@@ -504,276 +581,28 @@ class FXRates:
 #         )
 #         return restated_fx_rates
 #
-#     def convert(
-#         self,
-#         value: Union[Dual, float],
-#         domestic: str,
-#         foreign: Union[str, NoInput] = NoInput(0),
-#         on_error: str = "ignore",
-#     ):
-#         """
-#         Convert an amount of a domestic currency into a foreign currency.
+
 #
-#         Parameters
-#         ----------
-#         value : float or Dual
-#             The amount of the domestic currency to convert.
-#         domestic : str
-#             The domestic currency (3-digit code).
-#         foreign : str, optional
-#             The foreign currency to convert to (3-digit code). Uses instance
-#             ``base`` if not given.
-#         on_error : str in {"ignore", "warn", "raise"}
-#             The action taken if either ``domestic`` or ``foreign`` are not contained
-#             in the FX framework. `"ignore"` and `"warn"` will still return `None`.
+
 #
-#         Returns
-#         -------
-#         Dual or None
+
 #
-#         Examples
-#         --------
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"usdnok": 8.0})
-#            fxr.convert(1000000, "nok", "usd")
-#            fxr.convert(1000000, "nok", "inr")  # <- returns None, "inr" not in fxr.
-#
-#         """
-#         foreign = self.base if foreign is NoInput.blank else foreign.lower()
-#         domestic = domestic.lower()
-#         for ccy in [domestic, foreign]:
-#             if ccy not in self.currencies:
-#                 if on_error == "ignore":
-#                     return None
-#                 elif on_error == "warn":
-#                     warnings.warn(
-#                         f"'{ccy}' not in FXRates.currencies: returning None.",
-#                         UserWarning,
-#                     )
-#                     return None
-#                 else:
-#                     raise ValueError(f"'{ccy}' not in FXRates.currencies.")
-#
-#         i, j = self.currencies[domestic.lower()], self.currencies[foreign.lower()]
-#         return value * self.fx_array[i, j]
-#
-#     def convert_positions(
-#         self,
-#         array: Union[np.ndarray, list],
-#         base: Union[str, NoInput] = NoInput(0),
-#     ):
-#         """
-#         Convert an array of currency cash positions into a single base currency.
-#
-#         Parameters
-#         ----------
-#         array : list, 1d ndarray of floats, or Series
-#             The cash positions to simultaneously convert in the base currency. **Must**
-#             be ordered by currency as defined in the attribute ``FXRates.currencies``.
-#         base : str, optional
-#             The currency to convert to (3-digit code). Uses instance ``base`` if not
-#             given.
-#
-#         Returns
-#         -------
-#         Dual
-#
-#         Examples
-#         --------
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"usdnok": 8.0})
-#            fxr.currencies
-#            fxr.convert_positions([0, 1000000], "usd")
-#         """
-#         base = self.base if base is NoInput.blank else base.lower()
-#         array_ = np.asarray(array)
-#         j = self.currencies[base]
-#         return np.sum(array_ * self.fx_array[:, j])
-#
-#     def positions(
-#         self,
-#         value,
-#         base: Union[str, NoInput] = NoInput(0),
-#     ):
-#         """
-#         Convert a base value with FX rate sensitivities into an array of cash positions.
-#
-#         Parameters
-#         ----------
-#         value : float or Dual
-#             The amount expressed in base currency to convert to cash positions.
-#         base : str, optional
-#             The base currency in which ``value`` is given (3-digit code). If not given
-#             assumes the ``base`` of the object.
-#
-#         Returns
-#         -------
-#         Series
-#
-#         Examples
-#         --------
-#         .. ipython:: python
-#
-#            fxr = FXRates({"usdnok": 8.0})
-#            fxr.positions(Dual(125000, ["fx_usdnok"], [-15625]), "usd")
-#            fxr.positions(100, base="nok")
-#
-#         """
-#         if isinstance(value, (float, int)):
-#             value = Dual(value, [], [])
-#         base = self.base if base is NoInput.blank else base.lower()
-#         _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
-#         for pair in value.vars:
-#             if pair[:3] == "fx_":
-#                 delta = gradient(value, [pair])[0]
-#                 _ += self._get_positions_from_delta(delta, pair[3:], base)
-#         return Series(_, index=self.currencies_list)
-#
-#     def _get_positions_from_delta(self, delta: float, pair: str, base: str):
-#         """Return an array of cash positions determined from an FX pair delta risk."""
-#         b_idx = self.currencies[base]
-#         domestic, foreign = pair[:3], pair[3:]
-#         d_idx, f_idx = self.currencies[domestic], self.currencies[foreign]
-#         _ = np.zeros(self.q)
-#
-#         # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx, f_idx])**2
-#         # _[f_idx] = f_val
-#         # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
-#         # return _
-#         f_val = delta * float(self.fx_array[b_idx, f_idx])
-#         _[d_idx] = f_val
-#         _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
-#         return _  # calculation is more efficient from a domestic pov than foreign
+
 #
 #
-#     def rates_table(self):
-#         """
-#         Return a DataFrame of all FX rates in the object.
+
 #
-#         Returns
-#         -------
-#         DataFrame
-#         """
-#         return DataFrame(
-#             np.vectorize(float)(self.fx_array),
-#             index=self.currencies_list,
-#             columns=self.currencies_list,
-#         )
-#
-#
-#     def _set_ad_order(self, order):
-#         """
-#         Change the node values to float, Dual or Dual2 based on input parameter.
-#         """
-#         if order == getattr(self, "_ad", None):
-#             return None
-#         if order not in [0, 1, 2]:
-#             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
-#
-#         self._ad = order
-#         self.fx_vector = np.array([set_order(v, order) for v in self.fx_vector])
-#         x = self.fx_vector
-#         # solve fx_rates array
-#         self.fx_array = np.eye(self.q, dtype="object")
-#         for i in range(self.q):
-#             for j in range(i + 1, self.q):
-#                 self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
-#         for k, v in self.fx_rates.items():
-#             self.fx_rates[k] = set_order(v, order)
-#
-#         return None
-#
-#     def to_json(self):
-#         """
-#         Convert FXRates object to a JSON string.
-#
-#         This is usually a precursor to storing objects in a database, or transmitting
-#         via an API across platforms, e.g. webservers or to Excel, for example.
-#
-#         Returns
-#         -------
-#         str
-#
-#         Examples
-#         --------
-#         .. ipython:: python
-#
-#            fxr = FXRates({"eurusd": 1.05}, base="EUR")
-#            fxr.to_json()
-#
-#         """
-#         if self.settlement is NoInput.blank:
-#             settlement = None
-#         else:
-#             settlement = self.settlement.strftime("%Y-%m-%d")
-#         container = {
-#             "fx_rates": {k: float(v) for k, v in self.fx_rates.items()},
-#             "settlement": settlement,
-#             "base": self.base,
-#         }
-#         return json.dumps(container, default=str)
+
 #
 #     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 #     # Commercial use of this code, and/or copying and redistribution is prohibited.
 #     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 #
-#     @classmethod
-#     def from_json(cls, fx_rates, **kwargs):
-#         """
-#         Load an FXRates object from a JSON string.
+
 #
-#         This is usually required if a saved or transmitted object is to be recovered
-#         from a database or API.
+
 #
-#         Parameters
-#         ----------
-#         fx_rates : str
-#              The JSON string of the underlying FXRates object to be reconstructed.
-#
-#         Returns
-#         -------
-#         FXRates
-#
-#         Examples
-#         --------
-#         .. ipython:: python
-#
-#            json = '{"fx_rates": {"eurusd": 1.05}, "settlement": null, "base": "eur"}'
-#            fxr = FXRates.from_json(json)
-#            fxr.rates_table()
-#         """
-#         serial = json.loads(fx_rates)
-#         if isinstance(serial["settlement"], str):
-#             serial["settlement"] = datetime.strptime(serial["settlement"], "%Y-%m-%d")
-#         else:
-#             serial["settlement"] = NoInput(0)
-#         return FXRates(**{**serial, **kwargs})
-#
-#     def __eq__(self, other):
-#         """Test two FXRates are identical"""
-#         if type(self) is not type(other):
-#             return False
-#         for attr in [
-#             "pairs",
-#             "settlement",
-#             "currencies_list",
-#             "base",
-#         ]:
-#             if getattr(self, attr, None) != getattr(other, attr, None):
-#                 return False
-#         if not np.all(np.isclose(self.rates_table(), other.rates_table())):
-#             return False
-#         return True
-#
-#     def __ne__(self, other):
-#         return not self.__eq__(other)
-#
-#     def copy(self):
-#         return FXRates(fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base)
+
 
 
 class FXForwards:
