@@ -198,6 +198,10 @@ class FXRates:
     def pairs_settlement(self):
         return {k: self.settlement for k in self.pairs}
 
+    @property
+    def variables(self):
+        return tuple(f"fx_{pair}" for pair in self.pairs)
+
     def rate(self, pair: str) -> DualTypes:
         """
         Return a specified FX rate for a given currency pair.
