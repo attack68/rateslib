@@ -826,14 +826,19 @@ class FXForwards:
                 else:
                     # calculate additional FX rates from previous objects
                     # in the same settlement frame.
+                    overlapping_currencies = [
+                        ccy
+                        for ccy in fx_rates_obj.currencies_list
+                        if ccy in acyclic_fxf.currencies_list
+                    ]
                     pre_currencies = [
                         ccy
                         for ccy in acyclic_fxf.currencies_list
                         if ccy not in fx_rates_obj.currencies_list
                     ]
                     pre_rates = {
-                        f"{acyclic_fxf.base}{ccy}": acyclic_fxf.rate(
-                            f"{acyclic_fxf.base}{ccy}", fx_rates_obj.settlement
+                        f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
+                            f"{overlapping_currencies[0]}{ccy}", fx_rates_obj.settlement
                         )
                         for ccy in pre_currencies
                     }
