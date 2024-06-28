@@ -201,7 +201,7 @@ impl FXRates {
     }
 
     #[pyo3(name = "update")]
-    fn update_py(&mut self, fx_rates: Vec<FXRate>) {
+    fn update_py(&mut self, fx_rates: Vec<FXRate>) -> PyResult<()> {
         self.update(fx_rates)
     }
 

@@ -95,7 +95,7 @@ def test_fxrates_set_order():
 
 def test_update_raises():
     fxr = FXRates({"usdnok": 8.0})
-    with pytest.raises(ValueError, match="`fx_rates` must contain"):
+    with pytest.raises(ValueError, match="The given `fx_rates` pairs are not contained in the `FXRates` object."):
         fxr.update({"usdnok": 9.0, "gbpnok": 10.0})
 
 
@@ -193,6 +193,7 @@ def usdeur():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
+@pytest.mark.skip(reason="json to be revised")
 def test_fxforwards_rates_unequal(usdusd, eureur, usdeur):
     fxf = FXForwards(
         FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),

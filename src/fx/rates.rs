@@ -283,11 +283,15 @@ impl FXRates {
         }
     }
 
-    pub fn update(&mut self, fx_rates: Vec<FXRate>) {
+    pub fn update(&mut self, fx_rates: Vec<FXRate>) -> Result<(), PyErr> {
         // validate that the input vector contains FX pairs that are already associated with the instance
-        assert!(fx_rates
+        if !(fx_rates
             .iter()
-            .all(|v| self.fx_rates.iter().any(|x| x.pair == v.pair)));
+            .all(|v| self.fx_rates.iter().any(|x| x.pair == v.pair))) {
+            return Err(PyValueError::new_err(
+                "The given `fx_rates` pairs are not contained in the `FXRates` object."
+            ))
+        }
         let mut fx_rates_: Vec<FXRate> = self.fx_rates.clone();
         for fxr in fx_rates.into_iter() {
             let idx = fx_rates_
@@ -296,10 +300,11 @@ impl FXRates {
                 .fold(0_usize, |a, (i, v)| if fxr.pair.eq(&v.pair) { i } else { a });
             fx_rates_[idx] = fxr;
         }
-        let new_fxr = FXRates::try_new(fx_rates_, Some(self.currencies[0])).unwrap();
+        let new_fxr = FXRates::try_new(fx_rates_, Some(self.currencies[0]))?;
         self.fx_rates = new_fxr.fx_rates.clone();
         self.currencies = new_fxr.currencies.clone();
         self.fx_array = new_fxr.fx_array.clone();
+        Ok(())
     }
 
     pub fn set_ad_order(&mut self, ad: usize) {

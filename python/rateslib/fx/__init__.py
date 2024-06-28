@@ -124,7 +124,8 @@ class FXRates:
         settlement = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
         if base is NoInput(0):
-            if defaults.base_currency.lower() in [k.lower() for k in fx_rates.keys()]:
+            default_ccy = defaults.base_currency.lower()
+            if any([default_ccy in k.lower() for k in fx_rates.keys()]):
                 base_ = Ccy(defaults.base_currency)
             else:
                 base_ = None
@@ -520,90 +521,9 @@ class FXRates:
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "FXRates")
 
-
-# class FXRates:
-#
-
-#
-
-#
-#     def restate(self, pairs: list[str], keep_ad: bool = False):
-#         """
-#         Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
-#
-#         Parameters
-#         ----------
-#         pairs : list of str
-#             The new currency pairs with which to define the ``FXRates`` class.
-#         keep_ad : bool, optional
-#             Keep the original derivative exposures defined by ``Dual``, instead
-#             of redefinition. It is advised against setting this to *True*, it is mainly used
-#             internally.
-#
-#         Returns
-#         --------
-#         FXRates
-#
-#         Notes
-#         -----
-#         This will redefine the pairs to which delta risks are expressed in ``Dual``
-#         outputs.
-#
-#         If ``pairs`` match the existing object and ``keep_ad`` is
-#         requested then the existing object is returned unchanged as new copy.
-#
-#         Examples
-#         --------
-#         Re-expressing an *FXRates* class with new majors, to which *Dual* sensitivities are
-#         measured.
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"eurgbp": 0.9, "gbpjpy": 125, "usdjpy": 100})
-#            fxr.convert(100, "gbp", "usd")
-#            fxr2 = fxr.restate(["eurusd", "gbpusd", "usdjpy"])
-#            fxr2.convert(100, "gbp", "usd")
-#
-#         Extracting an *FXRates* subset from a larger object.
-#
-#         .. ipython:: python
-#
-#            fxr = FXRates({"eurgbp": 0.9, "gbpjpy": 125, "usdjpy": 100, "audusd": 0.85})
-#            fxr2 = fxr.restate({"eurusd", "gbpusd"})
-#            fxr2.rates_table()
-#         """
-#         if set(pairs) == set(self.pairs) and keep_ad:
-#             return self.copy()  # no restate needed but return new instance
-#
-#         restated_fx_rates = FXRates(
-#             {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
-#             self.settlement,
-#         )
-#         return restated_fx_rates
-#
-
-#
-
-#
-
-#
-
-#
-#
-
-#
-
-#
-#     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-#     # Commercial use of this code, and/or copying and redistribution is prohibited.
-#     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-#
-
-#
-
-#
-
-
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 class FXForwards:
     """
@@ -1021,7 +941,7 @@ class FXForwards:
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
                 settlement = self.fx_rates.settlement
-                if settlement is NoInput.blank:
+                if settlement is NoInput.blank or settlement is None:
                     raise ValueError(
                         "`fx_rates` as FXRates supplied to FXForwards must contain a "
                         "`settlement` argument."
