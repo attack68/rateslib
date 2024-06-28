@@ -64,6 +64,9 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Setting and resetting some types of values (namely by-reference stored values) of the ``defaults`` object
        is no longer ineffective.
+   * - Bug
+     - Solving acyclic *FXForwards* systems is now stable for all orderings of currencies, and does not depend
+       on a well chosen ``base`` currency.
    * - Errors
      - Improved messages when missing `fx` objects for pricing :class:`~rateslib.instruments.FXExchange`.
 
