@@ -832,8 +832,8 @@ class FXForwards:
                         if ccy not in fx_rates_obj.currencies_list
                     ]
                     pre_rates = {
-                        f"{fx_rates_obj.base}{ccy}": acyclic_fxf.rate(
-                            f"{fx_rates_obj.base}{ccy}", fx_rates_obj.settlement
+                        f"{acyclic_fxf.base}{ccy}": acyclic_fxf.rate(
+                            f"{acyclic_fxf.base}{ccy}", fx_rates_obj.settlement
                         )
                         for ccy in pre_currencies
                     }

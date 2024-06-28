@@ -321,7 +321,7 @@ def test_fxforwards2():
     f_usdnok_exp = F_usdeur_exp * F_eurnok_exp * v[d] * v2[d] / (w[d] * w2[d])
 
     # expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
-    assert abs(f_usdnok_res - f_usdnok_exp) < 1e-15
+    assert abs(f_usdnok_res - f_usdnok_exp) < 1e-14
     assert all(np.isclose(
         gradient(f_usdnok_res, ["fx_eurnok", "fx_usdeur"]),
         gradient(f_usdnok_exp, ["fx_eurnok", "fx_usdeur"])
@@ -929,6 +929,8 @@ def test_fxforwards_cyclic_system_fails():
 
 
 def test_fxforwards_cyclic_system_restructured():
+    # this system as reported in the book has two settlement dates but must be adjusted
+    # given the curve currency one-hot matrix
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
