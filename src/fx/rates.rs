@@ -135,9 +135,9 @@ impl FXRates {
 
         // 2.
         if q > (fx_rates.len() + 1) {
-            return Err(PyValueError::new_err("`fx_rates` is underspecified."));
+            return Err(PyValueError::new_err("FX Array cannot be solved. `fx_rates` is underspecified."));
         } else if q < (fx_rates.len() + 1) {
-            return Err(PyValueError::new_err("`fx_rates` is overspecified."));
+            return Err(PyValueError::new_err("FX Array cannot be solved. `fx_rates` is overspecified."));
         }
 
         // 3.
@@ -170,7 +170,7 @@ impl FXRates {
             fx_array.view_mut(),
             edges.view_mut(),
             HashSet::new(),
-        );
+        )?;
 
         Ok(FXRates {
             fx_rates,
@@ -217,7 +217,7 @@ impl FXRates {
                 For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
             ));
         }
-        if edges.sum() == (edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16 {
+        if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
             return Ok(true); // all edges and values have already been populated.
         }
         let mut row_edges = edges.sum_axis(Axis(1));
@@ -296,7 +296,6 @@ impl FXRates {
                 .fold(0_usize, |a, (i, v)| if fxr.pair.eq(&v.pair) { i } else { a });
             fx_rates_[idx] = fxr;
         }
-        println!("{:?}", fx_rates_);
         let new_fxr = FXRates::try_new(fx_rates_, Some(self.currencies[0])).unwrap();
         self.fx_rates = new_fxr.fx_rates.clone();
         self.currencies = new_fxr.currencies.clone();
@@ -404,14 +403,14 @@ mod tests {
     }
 
     #[test]
-    fn pair_creation() {
+    fn fxpair_creation() {
         let a = FXPair::try_new("usd", "eur").unwrap();
         let b = FXPair::try_new("USD", "EUR").unwrap();
         assert_eq!(a, b)
     }
 
     #[test]
-    fn pair_creation_error() {
+    fn fxpair_creation_error() {
         match FXPair::try_new("usd", "USD") {
             Ok(_) => assert!(false),
             Err(_) => assert!(true),
@@ -419,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn rate_creation() {
+    fn fxrate_creation() {
         FXRate::try_new("usd", "eur", DualsOrF64::F64(1.20), None).unwrap();
     }
 
@@ -446,12 +445,29 @@ mod tests {
             FXArray::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
             _ => panic!("unreachable"),
         };
-        println!("{:?}", arr);
-
         assert!(arr
             .iter()
             .zip(expected.iter())
             .all(|(x, y)| (x - y).abs() < 1e-6))
+    }
+
+    #[test]
+    fn fxrates_creation_error() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.0), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
+                FXRate::try_new("usd", "eur", DualsOrF64::F64(1.0), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
+                FXRate::try_new("sek", "nok", DualsOrF64::F64(1.0), Some(ndt(2004, 1, 1)))
+                    .unwrap(),
+            ],
+            None,
+        );
+        match fxr {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
     }
 
     #[test]

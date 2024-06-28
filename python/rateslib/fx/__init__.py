@@ -1026,7 +1026,7 @@ class FXForwards:
                 pair = f"{cash_ccy}{coll_ccy}"
                 fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
-        fx_rates_immediate = FXRates(fx_rates_immediate, self.immediate)
+        fx_rates_immediate = FXRates(fx_rates_immediate, self.immediate, self.base)
         return fx_rates_immediate.restate(self.fx_rates.pairs, keep_ad=True)
 
     def rate(

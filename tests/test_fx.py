@@ -25,7 +25,7 @@ from rateslib.default import NoInput
     ],
 )
 def test_ill_constrained(fx_rates):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="FX Array cannot be solved."):
         FXRates(fx_rates)
 
 
@@ -301,10 +301,31 @@ def test_fxforwards2():
         "nokeur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.978}),
     }
     fxf = FXForwards(fx_rates, fx_curves)
-    result = fxf.rate("usdnok", dt(2022, 8, 16))
-    expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
-    assert abs(result-expected) < 1e-15
-    assert all(np.isclose(gradient(result, ["fx_eurnok", "fx_usdeur"]), expected.dual))
+
+    # First check the Immediate rates are correct:
+    d = dt(2022, 1, 3)
+    v, w = fxf.curve("usd", "usd"), fxf.curve("eur", "usd")
+    F_usdeur_exp = Dual(0.9, ["fx_usdeur"], []) * w[d] / v[d]
+    F_usdeur_res = fxf.rate("usdeur", dt(2022, 1, 1))
+    assert abs(F_usdeur_exp - F_usdeur_res) < 1e-14
+
+    # And the other
+    v2, w2 = fxf.curve("eur", "eur"), fxf.curve("nok", "eur")
+    F_eurnok_exp = Dual(8.888889, ["fx_eurnok"], []) * w2[d] / v2[d]
+    F_eurnok_res = fxf.rate("eurnok", dt(2022, 1, 1))
+    assert abs(F_eurnok_exp - F_eurnok_res) < 1e-14
+
+    # Now we will look to evaluate a cross forward rate
+    d = dt(2022, 8, 16)
+    f_usdnok_res = fxf.rate("usdnok", dt(2022, 8, 16))
+    f_usdnok_exp = F_usdeur_exp * F_eurnok_exp * v[d] * v2[d] / (w[d] * w2[d])
+
+    # expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
+    assert abs(f_usdnok_res - f_usdnok_exp) < 1e-15
+    assert all(np.isclose(
+        gradient(f_usdnok_res, ["fx_eurnok", "fx_usdeur"]),
+        gradient(f_usdnok_exp, ["fx_eurnok", "fx_usdeur"])
+    ))
 
 
 def test_fxforwards_immediate():
@@ -660,7 +681,7 @@ def test_rate_path_immediate(settlement):
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
     noknok = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.997})
     nokeur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9965})
-    fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr = FXRates({"eurusd": 1.05, "usdnok": 8.0}, settlement=dt(2022, 1, 3), base="usd")
     fxf = FXForwards(
         fxr,
         {
