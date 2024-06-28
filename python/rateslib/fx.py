@@ -202,7 +202,7 @@ class FXRates:
             self.fx_array[c[1], c[0]] = 1.0 / self.fx_array[c[0], c[1]]
 
         if updates == 0:
-            return self._populate_remaining_elements(prev_value=prev_value+[node])
+            return self._populate_remaining_elements(prev_value=prev_value + [node])
         return self._populate_remaining_elements(prev_value=[node])
 
     def _solve_error(self):

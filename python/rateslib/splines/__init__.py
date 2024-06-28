@@ -3,8 +3,7 @@ from typing import Union
 from rateslib.dual import DUAL_CORE_PY, Dual, Dual2
 
 if DUAL_CORE_PY:
-    from rateslib.splines.splines import (PPSpline, bspldnev_single,
-                                          bsplev_single)
+    from rateslib.splines.splines import PPSpline, bspldnev_single, bsplev_single
 
     PPSplineF64 = PPSpline
     PPSplineDual = PPSpline

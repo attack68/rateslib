@@ -50,7 +50,9 @@ class _AccruedAndYTMMethods:
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
         return r / s
 
-    def _acc_linear_proportion_by_days_long_stub_split(self, settlement: datetime, acc_idx: int, *args):
+    def _acc_linear_proportion_by_days_long_stub_split(
+        self, settlement: datetime, acc_idx: int, *args
+    ):
         """
         For long stub periods this splits the accrued interest into two components.
         Otherwise, returns the regular linear proportion.
@@ -168,12 +170,10 @@ class _AccruedAndYTMMethods:
         Introduced for German Bunds.
         """
         if acc_idx == self.leg1.schedule.n_periods - 1:
-                # or \
-                # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+            # or \
+            # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
             # then settlement is in last period use simple interest.
-            return self._v1_simple(
-                ytm, f, settlement, acc_idx, v, accrual, *args
-            )
+            return self._v1_simple(ytm, f, settlement, acc_idx, v, accrual, *args)
         else:
             return self._v1_compounded_by_remaining_accrual_fraction(
                 ytm, f, settlement, acc_idx, v, accrual, *args
@@ -191,9 +191,11 @@ class _AccruedAndYTMMethods:
     ):
         """Compounds the yield. In a stub period the act365f DCF is used"""
         if not self.leg1.periods[acc_idx].stub:
-            return self._v1_compounded_by_remaining_accrual_fraction(ytm, f, settlement, acc_idx, v, accrual, *args)
+            return self._v1_compounded_by_remaining_accrual_fraction(
+                ytm, f, settlement, acc_idx, v, accrual, *args
+            )
         else:
-            fd0 = dcf(settlement, self.leg1.schedule.uschedule[acc_idx+1], "Act365F")
+            fd0 = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
             return v**fd0
 
     def _v1_simple(

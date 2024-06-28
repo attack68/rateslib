@@ -9,9 +9,17 @@ from pandas import DataFrame
 from pytz import UTC
 
 from rateslib.default import NoInput, _drb, plot, plot3d
-from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_inv_norm_cdf,
-                           dual_log, dual_norm_cdf, dual_norm_pdf,
-                           set_order_convert)
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    DualTypes,
+    dual_exp,
+    dual_inv_norm_cdf,
+    dual_log,
+    dual_norm_cdf,
+    dual_norm_pdf,
+    set_order_convert,
+)
 from rateslib.rs import index_left_f64
 from rateslib.solver import newton_1dim
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate

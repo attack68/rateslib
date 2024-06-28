@@ -34,10 +34,18 @@ from rateslib.curves import Curve, IndexCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
 from rateslib.fx import FXForwards, FXRates
-from rateslib.periods import (Cashflow, FixedPeriod, FloatPeriod,
-                              IndexCashflow, IndexFixedPeriod, IndexMixin,
-                              _disc_from_curve, _disc_maybe_from_curve,
-                              _get_fx_and_base, _validate_float_args)
+from rateslib.periods import (
+    Cashflow,
+    FixedPeriod,
+    FloatPeriod,
+    IndexCashflow,
+    IndexFixedPeriod,
+    IndexMixin,
+    _disc_from_curve,
+    _disc_maybe_from_curve,
+    _get_fx_and_base,
+    _validate_float_args,
+)
 from rateslib.scheduling import Schedule
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
