@@ -1,9 +1,10 @@
-from rateslib.fxdev.rs import FXRates as FXRatesObj
-from rateslib.fxdev.rs import FXRate, Ccy
-from rateslib.dual import DualTypes
-from rateslib.default import NoInput, _make_py_json
 from datetime import datetime
-from typing import Union, Any
+from typing import Any, Union
+
+from rateslib.default import NoInput, _make_py_json
+from rateslib.dual import DualTypes
+from rateslib.fxdev.rs import Ccy, FXRate
+from rateslib.fxdev.rs import FXRates as FXRatesObj
 
 
 class FXRates:

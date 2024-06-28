@@ -17,6 +17,11 @@ features = ["pyo3/extension-module"]
 # rustc --print target-list
 # https://doc.rust-lang.org/rustc/platform-support.html
 
+[tool.isort]
+profile = "black"
+line_length = 100
+src_paths = ["python", "tests"]
+
 [project]
 name = "rateslib"
 version = "1.3.0"

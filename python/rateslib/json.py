@@ -1,5 +1,5 @@
-from rateslib.rs import from_json as from_json_rs
 from rateslib.fxdev import FXRates
+from rateslib.rs import from_json as from_json_rs
 
 
 def from_json(json: str):

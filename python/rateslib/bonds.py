@@ -3,10 +3,10 @@ from datetime import datetime
 from typing import Union
 
 from rateslib import defaults
-from rateslib.default import NoInput
-from rateslib.dual import DualTypes
 from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import index_left
+from rateslib.default import NoInput
+from rateslib.dual import DualTypes
 
 
 class _AccruedAndYTMMethods:

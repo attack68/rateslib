@@ -49,7 +49,6 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.json import from_json
 from rateslib.calendars import Cal, UnionCal, add_tenor, create_calendar, dcf, get_calendar
 from rateslib.curves import (
     CompositeCurve,
@@ -91,6 +90,7 @@ from rateslib.instruments import (
     Value,
     VolValue,
 )
+from rateslib.json import from_json
 from rateslib.legs import (
     CustomLeg,
     FixedLeg,

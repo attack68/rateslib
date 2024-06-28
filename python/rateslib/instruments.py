@@ -34,6 +34,7 @@ from pandas import DataFrame, MultiIndex, Series, concat, isna
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
+from rateslib.bonds import _BondConventions
 from rateslib.calendars import _get_years_and_months, add_tenor, dcf, get_calendar
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb, plot
@@ -62,7 +63,6 @@ from rateslib.periods import (
     _maybe_local,
 )
 from rateslib.solver import Solver, quadratic_eqn
-from rateslib.bonds import _BondConventions
 
 # from math import sqrt
 
