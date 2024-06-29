@@ -8067,7 +8067,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             if self._pricing["delta_index"] is None:
                 self._pricing["delta_index"], self._pricing["vol"], _ = vol.get_from_strike(
                     k=self._pricing["k"],
-                    phi=self.periods[0].phi,
                     f=self._pricing["f_d"],
                     w_deli=w_deli,
                     w_spot=w_spot,
