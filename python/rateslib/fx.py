@@ -15,7 +15,7 @@ from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, plot, _make_py_json, _drb
 from rateslib.dual import Dual, DualTypes, dual_solve, gradient, set_order
-from rateslib.fx.rs import FXRates as FXRatesObj, FXRate, Ccy
+from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
 
 """
 .. ipython:: python
