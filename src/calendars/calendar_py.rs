@@ -279,7 +279,9 @@ impl UnionCal {
     fn to_json_py(&self) -> PyResult<String> {
         match Serialized::UnionCal(self.clone()).to_json() {
             Ok(v) => Ok(v),
-            Err(_) => Err(PyValueError::new_err("Failed to serialize `UnionCal` to JSON.")),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `UnionCal` to JSON.",
+            )),
         }
     }
 

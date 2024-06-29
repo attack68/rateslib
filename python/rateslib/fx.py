@@ -4,7 +4,7 @@ import math
 import warnings
 from datetime import datetime, timedelta
 from itertools import product
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -13,8 +13,9 @@ from pandas.tseries.offsets import CustomBusinessDay
 from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, plot
+from rateslib.default import NoInput, plot, _make_py_json, _drb
 from rateslib.dual import Dual, DualTypes, dual_solve, gradient, set_order
+from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
 
 """
 .. ipython:: python
@@ -110,122 +111,114 @@ class FXRates:
 
     def __init__(
         self,
-        fx_rates: dict,
+        fx_rates: dict[str, DualTypes],
         settlement: Union[datetime, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
     ):
-        self._ad = 1
-        self.settlement = settlement
-
-        # covert all str to lowercase and values to Dual
-        def _convert_dual(k, v):
-            if isinstance(v, Dual):
-                return v
-            return Dual(v, [f"fx_{k.lower()}"], [])
-
-        self.fx_rates = {k.lower(): _convert_dual(k, v) for k, v in fx_rates.items()}
-
-        # find currencies
-        self.pairs = [k for k in self.fx_rates.keys()]
-        self.pairs_settlement = {pair: settlement for pair in self.pairs}
-        self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
-        self.currencies = {
-            k: i
-            for i, k in enumerate(
-                list(dict.fromkeys([p[:3] for p in self.pairs] + [p[3:6] for p in self.pairs]))
-            )
-        }
-        self.pairs_indices = [(self.currencies[k[:3]], self.currencies[k[3:]]) for k in self.pairs]
-        self.currencies_list = list(self.currencies.keys())
-        if base is NoInput.blank:
-            if defaults.base_currency in self.currencies_list:
-                self.base = defaults.base_currency
+        settlement = _drb(None, settlement)
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
+        if base is NoInput(0):
+            default_ccy = defaults.base_currency.lower()
+            if any([default_ccy in k.lower() for k in fx_rates.keys()]):
+                base_ = Ccy(defaults.base_currency)
             else:
-                self.base = self.currencies_list[0]
+                base_ = None
         else:
-            self.base = base.lower()
-        self.q = len(self.currencies)
-        if len(self.pairs) > (self.q - 1):
-            raise ValueError(
-                f"`fx_rates` is overspecified: {self.q} currencies needs "
-                f"{self.q-1} FX pairs, not {len(self.pairs)}."
-            )
-        elif len(self.pairs) < (self.q - 1):
-            raise ValueError(
-                f"`fx_rates` is underspecified: {self.q} currencies needs "
-                f"{self.q - 1} FX pairs, not {len(self.pairs)}."
-            )
+            base_ = Ccy(base)
+        self.obj = FXRatesObj(fx_rates_, base_)
+        self.__init_post_obj__()
 
-        # create the edges and the fx array matrix from input data.
-        self._populate_initial_arrays()
-        # recursively solve all the remaining fx entries
-        self._populate_remaining_elements()
+    @classmethod
+    def __init_from_obj__(cls, obj):
+        """Construct the class instance from a given rust object which is wrapped."""
+        # create a default instance and overwrite it
+        new = cls({"usdeur": 1.0}, datetime(2000, 1, 1))
+        new.obj = obj
+        new.__init_post_obj__()
+        return new
 
-        base_idx = self.currencies[self.base]
-        self.fx_vector = self.fx_array[base_idx, :]
+    def __init_post_obj__(self):
+        self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
+        self._fx_array = None
 
-    def _populate_initial_arrays(self):
-        self.fx_array = np.zeros((self.q, self.q), dtype="object")
-        np.fill_diagonal(self.fx_array, Dual(1.0, [], []))
-        self.edges = np.eye(self.q, dtype=bool)
-        for i, pi in enumerate(self.pairs_indices):
-            self.edges[pi[0], pi[1]] = True
-            self.edges[pi[1], pi[0]] = True
-            self.fx_array[pi[0], pi[1]] = self.fx_rates[self.pairs[i]]
-            self.fx_array[pi[1], pi[0]] = 1.0 / self.fx_array[pi[0], pi[1]]
+    def __eq__(self, other: Any):
+        if isinstance(other, FXRates):
+            return self.obj == other.obj
+        return False
 
-    def _populate_remaining_elements(self, prev_value=[]):
-        if len(prev_value) == self.q:
-            raise ValueError(
-                "FX Array cannot be solved. There are degenerate FX rate pairs.\n"
-                "For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy')."
-            )
-        if np.all(self.edges):
-            return None  # exit because all elements have been populated
-        row_edges = self.edges.sum(axis=1)
-        node = None
-        while node is None or node in prev_value:
-            node = np.argmax(row_edges)
-            row_edges[node] = 0
-            connected = np.array(range(self.q))[self.edges[node, :]]
-            connected = connected[connected != node]
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
-        combinations = itertools.combinations(connected, 2)
-        updates = 0
-        for c in combinations:
-            if self.edges[c[0], c[1]]:
-                continue  # edge already exists
-            updates += 1
-            self.edges[c[0], c[1]] = True
-            self.edges[c[1], c[0]] = True
-            self.fx_array[c[0], c[1]] = self.fx_array[c[0], node] * self.fx_array[node, c[1]]
-            self.fx_array[c[1], c[0]] = 1.0 / self.fx_array[c[0], c[1]]
+    def __copy__(self):
+        obj = FXRates.__init_from_obj__(self.obj.__copy__())
+        obj.__init_post_obj__()
+        return obj
 
-        if updates == 0:
-            return self._populate_remaining_elements(prev_value=prev_value + [node])
-        return self._populate_remaining_elements(prev_value=[node])
+    @property
+    def fx_array(self):
+        if self._fx_array is None:
+            self._fx_array = np.array(self.obj.fx_array)
+        return self._fx_array
 
-    def _solve_error(self):
+    @property
+    def base(self):
+        return self.obj.base.name
+
+    @property
+    def settlement(self):
+        return self.obj.fx_rates[0].settlement
+
+    @property
+    def pairs(self):
+        return [fxr.pair for fxr in self.obj.fx_rates]
+
+    @property
+    def fx_rates(self):
+        return {fxr.pair: fxr.rate for fxr in self.obj.fx_rates}
+
+    @property
+    def currencies_list(self):
+        return [ccy.name for ccy in self.obj.currencies]
+
+    @property
+    def q(self):
+        return len(self.obj.currencies)
+
+    @property
+    def fx_vector(self):
+        return self.fx_array[0, :]
+
+    @property
+    def pairs_settlement(self):
+        return {k: self.settlement for k in self.pairs}
+
+    @property
+    def variables(self):
+        return tuple(f"fx_{pair}" for pair in self.pairs)
+
+    def rate(self, pair: str) -> DualTypes:
         """
-        Is called when `dual_solve` returns an ArithmeticError for partial
-        pivoting fail. Used to indicate obvious errors to users for bad FX pairs.
+        Return a specified FX rate for a given currency pair.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair in usual domestic:foreign convention (6 digit code).
+
+        Returns
+        -------
+        Dual
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+           fxr.rate("eurgbp")
         """
-        reversed_pairs = [_[3:6] + _[:3] for _ in self.pairs]
-        report = []
-        for pair in self.pairs:
-            if pair in reversed_pairs:
-                report.append(pair)
-        if len(report) > 1:
-            raise ValueError(
-                "FX rates cannot be solved because redundant information has been "
-                f"supplied.\nPairs and their reverse have been detected. "
-                f"Inspect '{','.join(report)}'"
-            )
-        else:
-            # Do not yet know the conditions in which this will raise. TODO (low) find a way to test
-            raise ArithmeticError(  # pragma: no cover
-                "The FX Matrix has failed to solve. Partial pivoting has failed."
-            )
+        domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
+        return self.fx_array[domi][fori]
 
     def restate(self, pairs: list[str], keep_ad: bool = False):
         """
@@ -273,13 +266,85 @@ class FXRates:
            fxr2.rates_table()
         """
         if set(pairs) == set(self.pairs) and keep_ad:
-            return self.copy()  # no restate needed but return new instance
+            return self.__copy__()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
             {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
-            self.settlement,
+            settlement=self.settlement,
+            base=self.base
         )
         return restated_fx_rates
+
+    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
+        """
+        Update all or some of the FX rates of the instance with new market data.
+
+        Parameters
+        ----------
+        fx_rates : dict, optional
+            Dict whose keys are 6-character domestic-foreign currency pairs and
+            which are present in FXRates.pairs, and whose
+            values are the relevant rates to update.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. It
+           is **best practice** to create objects and any associations and then use the
+           ``update`` methods to push new market data to them. Recreating objects with
+           new data will break object-oriented associations and possibly lead to
+           undetected market data based pricing errors.
+
+        Suppose an *FXRates* class has been instantiated and resides in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)
+
+        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
+        It can be updated with some new market data. This will preserve its memory id and
+        association with other objects (however, any linked objects should also be updated to
+        cascade new calculations).
+
+        .. ipython:: python
+
+           linked_obj = fxr
+           fxr.update({"eurusd": 1.06})
+           id(fxr)  # <- SAME as above
+           linked_obj.rate("eurusd")
+
+        Do **not** do the following because overwriting a variable name will not eliminate the
+        previous object from memory. Linked objects will still refer to the previous *FXRates*
+        class still in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
+           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
+           fxr.rate("usdnok")
+           fxr.update({"usdeur": 1.0})
+           fxr.rate("usdnok")
+        """
+        if fx_rates is NoInput.blank:
+            return None
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
+        self.obj.update(fx_rates_)
+        self.__init_post_obj__()
 
     def convert(
         self,
@@ -426,30 +491,6 @@ class FXRates:
         _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
         return _  # calculation is more efficient from a domestic pov than foreign
 
-    def rate(self, pair: str):
-        """
-        Return a specified FX rate for a given currency pair.
-
-        Parameters
-        ----------
-        pair : str
-            The FX pair in usual domestic:foreign convention (6 digit code).
-
-        Returns
-        -------
-        Dual
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
-           fxr.rate("eurgbp")
-        """
-        domestic, foreign = pair[:3].lower(), pair[3:].lower()
-        return self.fx_array[self.currencies[domestic], self.currencies[foreign]]
-
     def rates_table(self):
         """
         Return a DataFrame of all FX rates in the object.
@@ -464,195 +505,23 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
-        """
-        Update all or some of the FX rates of the instance with new market data.
-
-        Parameters
-        ----------
-        fx_rates : dict, optional
-            Dict whose keys are 6-character domestic-foreign currency pairs and
-            which are present in FXRates.pairs, and whose
-            values are the relevant rates to update.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-
-        .. warning::
-
-           *Rateslib* is an object-oriented library that uses complex associations. It
-           is **best practice** to create objects and any associations and then use the
-           ``update`` methods to push new market data to them. Recreating objects with
-           new data will break object-oriented associations and possibly lead to
-           undetected market data based pricing errors.
-
-        Suppose an *FXRates* class has been instantiated and resides in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)
-
-        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
-        It can be updated with some new market data. This will preserve its memory id and
-        association with other objects (however, any linked objects should also be updated to
-        cascade new calculations).
-
-        .. ipython:: python
-
-           linked_obj = fxr
-           fxr.update({"eurusd": 1.06})
-           id(fxr)  # <- SAME as above
-           linked_obj.rate("eurusd")
-
-        Do **not** do the following because overwriting a variable name will not eliminate the
-        previous object from memory. Linked objects will still refer to the previous *FXRates*
-        class still in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
-           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
-           fxr.rate("usdnok")
-           fxr.update({"usdeur": 1.0})
-           fxr.rate("usdnok")
-        """
-        if fx_rates is NoInput.blank:
-            return None
-        fx_rates_ = {k.lower(): v for k, v in fx_rates.items()}
-        pairs = list(fx_rates_.keys())
-        if len(set(pairs).difference(set(self.pairs))) != 0:
-            raise ValueError("`fx_rates` must contain the same pairs as the instance on `update`.")
-        fx_rates_ = {
-            pair: float(self.fx_rates[pair]) if pair not in pairs else fx_rates_[pair]
-            for pair in self.pairs
-        }
-        _ = FXRates(fx_rates_, settlement=self.settlement, base=self.base)
-        for attr in ["fx_rates", "fx_vector", "fx_array"]:
-            setattr(self, attr, getattr(_, attr))
-
     def _set_ad_order(self, order):
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
-        if order == getattr(self, "_ad", None):
-            return None
-        if order not in [0, 1, 2]:
-            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+        self.obj.set_ad_order(order)
+        self.__init_post_obj__()
 
-        self._ad = order
-        self.fx_vector = np.array([set_order(v, order) for v in self.fx_vector])
-        x = self.fx_vector
-        # solve fx_rates array
-        self.fx_array = np.eye(self.q, dtype="object")
-        for i in range(self.q):
-            for j in range(i + 1, self.q):
-                self.fx_array[i, j], self.fx_array[j, i] = x[j] / x[i], x[i] / x[j]
-        for k, v in self.fx_rates.items():
-            self.fx_rates[k] = set_order(v, order)
-
-        return None
+    @property
+    def _ad(self):
+        return self.obj.ad
 
     def to_json(self):
-        """
-        Convert FXRates object to a JSON string.
+        return _make_py_json(self.obj.to_json(), "FXRates")
 
-        This is usually a precursor to storing objects in a database, or transmitting
-        via an API across platforms, e.g. webservers or to Excel, for example.
-
-        Returns
-        -------
-        str
-
-        Examples
-        --------
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, base="EUR")
-           fxr.to_json()
-
-        """
-        if self.settlement is NoInput.blank:
-            settlement = None
-        else:
-            settlement = self.settlement.strftime("%Y-%m-%d")
-        container = {
-            "fx_rates": {k: float(v) for k, v in self.fx_rates.items()},
-            "settlement": settlement,
-            "base": self.base,
-        }
-        return json.dumps(container, default=str)
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    @classmethod
-    def from_json(cls, fx_rates, **kwargs):
-        """
-        Load an FXRates object from a JSON string.
-
-        This is usually required if a saved or transmitted object is to be recovered
-        from a database or API.
-
-        Parameters
-        ----------
-        fx_rates : str
-             The JSON string of the underlying FXRates object to be reconstructed.
-
-        Returns
-        -------
-        FXRates
-
-        Examples
-        --------
-        .. ipython:: python
-
-           json = '{"fx_rates": {"eurusd": 1.05}, "settlement": null, "base": "eur"}'
-           fxr = FXRates.from_json(json)
-           fxr.rates_table()
-        """
-        serial = json.loads(fx_rates)
-        if isinstance(serial["settlement"], str):
-            serial["settlement"] = datetime.strptime(serial["settlement"], "%Y-%m-%d")
-        else:
-            serial["settlement"] = NoInput(0)
-        return FXRates(**{**serial, **kwargs})
-
-    def __eq__(self, other):
-        """Test two FXRates are identical"""
-        if type(self) is not type(other):
-            return False
-        for attr in [
-            "pairs",
-            "settlement",
-            "currencies_list",
-            "base",
-        ]:
-            if getattr(self, attr, None) != getattr(other, attr, None):
-                return False
-        if not np.all(np.isclose(self.rates_table(), other.rates_table())):
-            return False
-        return True
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def copy(self):
-        return FXRates(fx_rates=self.fx_rates.copy(), settlement=self.settlement, base=self.base)
-
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 class FXForwards:
     """
@@ -1070,7 +939,7 @@ class FXForwards:
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
                 settlement = self.fx_rates.settlement
-                if settlement is NoInput.blank:
+                if settlement is NoInput.blank or settlement is None:
                     raise ValueError(
                         "`fx_rates` as FXRates supplied to FXForwards must contain a "
                         "`settlement` argument."

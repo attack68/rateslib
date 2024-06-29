@@ -3,9 +3,8 @@ import pytest
 from datetime import datetime as dt
 
 from rateslib.json import from_json
-from rateslib.rs import FXRate, Dual, Dual2, FXRates, Ccy
-from rateslib import FXRates as FXRatesPy
-from rateslib.fxdev import FXRates as FXRatesRs
+from rateslib.rs import FXRate, Dual, Dual2, Ccy
+from rateslib.fx import FXRates
 
 
 def test_ccy_creation():
@@ -22,21 +21,15 @@ def test_fx_rate_creation(val):
     assert fxr.settlement == dt(2001, 1, 1)
 
 
-def test_fx_rates_creation():
-    fxrrs = FXRatesRs({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
-    fxrpy = FXRatesPy({"usdeur": 1.02, "eurjpy": 100.5}, dt(2001, 1, 1))
-    pass
-
-
 def test_json_round_trip():
-    fxr = FXRatesRs({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
+    fxr = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
     json = fxr.to_json()
     fxr2 = from_json(json)
 
 
 def test_equality():
-    fxr = FXRatesRs({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
-    fxr2 = FXRatesRs({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
+    fxr = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
+    fxr2 = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
     assert fxr == fxr2
 
 
