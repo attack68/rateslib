@@ -2726,7 +2726,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         if isinstance(vol, FXVolObj):
             _, vol_, _ = vol.get_from_strike(
-                self.strike, self.phi, f_d, w_deli, w_spot, self.expiry
+                self.strike, f_d, w_deli, w_spot, self.expiry
             )
         else:
             vol_ = vol
@@ -3767,7 +3767,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
             _, vol_, _ = vol.get_from_strike(
-                self.strike, self.phi, f, disc_curve[self.delivery], disc_curve[spot], self.expiry
+                self.strike, f, disc_curve[self.delivery], disc_curve[spot], self.expiry
             )
         else:
             vol_ = vol

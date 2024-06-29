@@ -319,7 +319,6 @@ class FXDeltaVolSmile:
     def get_from_strike(
         self,
         k: DualTypes,
-        phi: float,
         f: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
@@ -332,8 +331,6 @@ class FXDeltaVolSmile:
         -----------
         k: float, Dual, Dual2
             The strike of the option.
-        phi: float
-            Whether the option is call (1.0) or a put (-1.0).
         f: float, Dual, Dual2
             The forward rate at delivery of the option.
         w_deli: DualTypes, optional
@@ -369,17 +366,17 @@ class FXDeltaVolSmile:
         # variables to capture fixed point sensitivity.
         def root(delta, u, sqrt_t, z_u, z_w, ad):
             # Function value
-            delta_index = self._delta_index_from_call_or_put_delta(delta, phi, z_w, u)
+            delta_index = -delta
             vol_ = self[delta_index] / 100.0
             vol_ = float(vol_) if ad == 0 else vol_
             vol_sqrt_t = sqrt_t * vol_
             d_plus_min = -dual_log(u) / vol_sqrt_t + eta * vol_sqrt_t
-            f0 = delta - z_w * z_u * phi * dual_norm_cdf(phi * d_plus_min)
+            f0 = delta + z_w * z_u * dual_norm_cdf(-d_plus_min)
             # Derivative
             dvol_ddelta = -1.0 * evaluate(self.spline, delta_index, 1) / 100.0
             dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
             dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + eta * sqrt_t)
-            f1 = 1 - z_w * z_u * dual_norm_pdf(phi * d_plus_min) * dd_ddelta
+            f1 = 1 - z_w * z_u * dual_norm_pdf(-d_plus_min) * dd_ddelta
             return f0, f1
 
         # Initial approximation is obtained through the closed form solution of the delta given
@@ -388,7 +385,7 @@ class FXDeltaVolSmile:
         d_plus_min = -dual_log(float(u)) / (
             avg_vol * float(self.t_expiry_sqrt)
         ) + eta * avg_vol * float(self.t_expiry_sqrt)
-        delta_0 = float(z_u) * phi * float(z_w) * dual_norm_cdf(phi * d_plus_min)
+        delta_0 = -float(z_u) * float(z_w) * dual_norm_cdf(-d_plus_min)
 
         solver_result = newton_1dim(
             root,
@@ -399,31 +396,8 @@ class FXDeltaVolSmile:
             conv_tol=1e-13,
         )
         delta = solver_result["g"]
-
-        # # Explicit Final iteration method
-        # root_solver = _newton(
-        #     root, root_deriv, delta_0, args=(float(u), float(self.t_expiry_sqrt), float(z_u), float(z_w), 0), tolerance=1e-15,
-        # )
-        # # Final iteration of fixed point to capture AD sensitivity
-        # root_solver = _newton(
-        #     root, root_deriv, root_solver[0], args=(u, self.t_expiry_sqrt, z_u, z_w, 1), max_iter=1, tolerance=1e-10
-        # )
-        # delta = root_solver[0]
-
-        # # Analytical determination of AD sensitivity
-        # h = root(root_solver[0], u, self.t_expiry_sqrt, z_u, z_w, 1)
-        # dh = root_deriv(root_solver[0], u, self.t_expiry_sqrt, z_u, z_w, 1)
-        #
-        # vars = list(set(h.vars).union(dh.vars))
-        # dual = (-1.0 / float(dh)) * gradient(h, vars) # + (float(h) / float(dh) ** 2) * gradient(dh, vars)
-        # delta = Dual(root_solver[0], vars, dual.tolist())
-
-        if phi > 0:
-            delta_index = -1.0 * self._call_to_put_delta(delta, self.delta_type, z_w, u)
-        else:
-            delta_index = -1.0 * delta
-
-        return (delta_index, self[delta_index], k)
+        delta_index = -delta
+        return delta_index, self[delta_index], k
 
     def _convert_delta(
         self,
@@ -1028,7 +1002,6 @@ class FXDeltaVolSurface:
     def get_from_strike(
         self,
         k: DualTypes,
-        phi: float,
         f: DualTypes,
         w_deli: Union[DualTypes, NoInput] = NoInput(0),
         w_spot: Union[DualTypes, NoInput] = NoInput(0),
@@ -1041,8 +1014,6 @@ class FXDeltaVolSurface:
         -----------
         k: float, Dual, Dual2
             The strike of the option.
-        phi: float
-            Whether the option is call (1.0) or a put (-1.0).
         f: float, Dual, Dual2
             The forward rate at delivery of the option.
         w_deli: DualTypes, optional
@@ -1065,7 +1036,7 @@ class FXDeltaVolSurface:
         if expiry is NoInput.blank:
             raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
         smile = self.get_smile(expiry)
-        return smile.get_from_strike(k, phi, f, w_deli, w_spot, expiry)
+        return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
 
     def _get_index(self, delta_index: float, expiry: datetime):
         """
