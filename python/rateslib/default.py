@@ -93,6 +93,7 @@ class Defaults:
        print(defaults.print())
 
     """
+
     def __init__(self):
         # Scheduling
         self.stub = "SHORTFRONT"
@@ -348,4 +349,4 @@ def _drb(default, possible_blank):
 
 def _make_py_json(json, class_name):
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
-    return f'{{"Py":' + json + '}'
+    return f'{{"Py":' + json + "}"

@@ -4,7 +4,7 @@ import math
 import warnings
 from datetime import datetime, timedelta
 from itertools import product
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -13,8 +13,9 @@ from pandas.tseries.offsets import CustomBusinessDay
 from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, plot
+from rateslib.default import NoInput, plot, _make_py_json, _drb
 from rateslib.dual import Dual, DualTypes, dual_solve, gradient, set_order
+from rateslib.fx.rs import FXRates as FXRatesObj, FXRate, Ccy
 
 """
 .. ipython:: python
@@ -28,13 +29,6 @@ from rateslib.dual import Dual, DualTypes, dual_solve, gradient, set_order
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-from rateslib.fx.rs import FXRates as FXRatesObj, FXRate, Ccy
-from rateslib.dual import DualTypes
-from rateslib.default import NoInput, _make_py_json, _drb
-from datetime import datetime
-from typing import Union, Any
 
 
 class FXRates:

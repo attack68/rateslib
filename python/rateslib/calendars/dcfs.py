@@ -3,8 +3,7 @@ import warnings
 from datetime import datetime
 from typing import Union
 
-from rateslib.calendars.rs import (CalInput, _get_modifier, _get_rollday,
-                                   get_calendar)
+from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
 
 
@@ -244,7 +243,7 @@ def _dcf_bus252(
         # there are no business days in between start and end
         return 0.0
     dr = cal_.bus_date_range(start_, end_)
-    return (len(dr)+subtract) / 252.0
+    return (len(dr) + subtract) / 252.0
 
 
 _DCF = {
@@ -286,7 +285,7 @@ _DCF1d = {
     "ACTACTBOND": 1.0 / 365.25,
     "1": None,
     "1+": None,
-    "BUS252": 1.0/252,
+    "BUS252": 1.0 / 252,
 }
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

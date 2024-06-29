@@ -3,8 +3,15 @@ from datetime import datetime
 from typing import Union
 
 from rateslib.calendars.dcfs import _DCF
-from rateslib.calendars.rs import (Cal, CalInput, CalTypes, UnionCal,
-                                   _get_modifier, _get_rollday, get_calendar)
+from rateslib.calendars.rs import (
+    Cal,
+    CalInput,
+    CalTypes,
+    UnionCal,
+    _get_modifier,
+    _get_rollday,
+    get_calendar,
+)
 from rateslib.default import NoInput
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

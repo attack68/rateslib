@@ -29,33 +29,42 @@ from typing import Optional, Union
 
 import numpy as np
 from pandas import DataFrame, MultiIndex, Series, concat, isna
+
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.calendars import (_get_years_and_months, add_tenor, dcf,
-                                get_calendar)
-from rateslib.curves import (Curve, IndexCurve, LineCurve, average_rate,
-                             index_left)
+from rateslib.bonds import _BondConventions
+from rateslib.calendars import _get_years_and_months, add_tenor, dcf, get_calendar
+from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
-from rateslib.legs import (FixedLeg, FixedLegMtm, FloatLeg, FloatLegMtm,
-                           IndexFixedLeg, ZeroFixedLeg, ZeroFloatLeg,
-                           ZeroIndexLeg)
-from rateslib.periods import (Cashflow, FloatPeriod, FXCallPeriod, FXPutPeriod,
-                              IndexMixin, _disc_from_curve,
-                              _disc_maybe_from_curve, _get_fx_and_base,
-                              _maybe_local)
+from rateslib.legs import (
+    FixedLeg,
+    FixedLegMtm,
+    FloatLeg,
+    FloatLegMtm,
+    IndexFixedLeg,
+    ZeroFixedLeg,
+    ZeroFloatLeg,
+    ZeroIndexLeg,
+)
+from rateslib.periods import (
+    Cashflow,
+    FloatPeriod,
+    FXCallPeriod,
+    FXPutPeriod,
+    IndexMixin,
+    _disc_from_curve,
+    _disc_maybe_from_curve,
+    _get_fx_and_base,
+    _maybe_local,
+)
 from rateslib.solver import Solver, quadratic_eqn
-from rateslib.bonds import _BondConventions
 
 # from math import sqrt
-
-
-
-
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1197,8 +1206,10 @@ class FXExchange(Sensitivities, BaseMixin):
             imm_fx = fx_
 
         if imm_fx is NoInput.blank:
-            raise ValueError("`fx` must be supplied to price FXExchange object.\n"
-                             "Note: it can be attached to and then gotten from a Solver.")
+            raise ValueError(
+                "`fx` must be supplied to price FXExchange object.\n"
+                "Note: it can be attached to and then gotten from a Solver."
+            )
         _ = forward_fx(self.settlement, curves[1], curves[3], imm_fx)
         return _
 
@@ -1316,7 +1327,9 @@ class BondMixin(_BondConventions):
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i - 1) * v3 * v1
+                d += (
+                    getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i - 1) * v3 * v1
+                )
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
                 d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2**i * v1
@@ -1354,7 +1367,7 @@ class BondMixin(_BondConventions):
                 f1=method["v1"],
                 f2=method["v2"],
                 f3=method["v3"],
-                accrual=accrual
+                accrual=accrual,
             )
             return func(ytm, settlement, dirty)
         except KeyError:
@@ -1670,7 +1683,7 @@ class BondMixin(_BondConventions):
         disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         settlement = self.leg1.schedule.calendar.lag(
             disc_curve_.node_dates[0],
-            self.kwargs['settle'],
+            self.kwargs["settle"],
             True,
         )
         a_delta = self.leg1.analytic_delta(curve, disc_curve_, fx, base)
@@ -1734,7 +1747,7 @@ class BondMixin(_BondConventions):
         elif settlement is NoInput.blank:
             settlement = self.leg1.schedule.calendar.lag(
                 curves[1].node_dates[0],
-                self.kwargs['settle'],
+                self.kwargs["settle"],
                 True,
             )
         cashflows = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
@@ -2849,7 +2862,7 @@ class IndexFixedRateBond(FixedRateBond):
             if forward_settlement is NoInput.blank:
                 settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    self.kwargs['settle'],
+                    self.kwargs["settle"],
                     True,
                 )
             else:
@@ -3113,7 +3126,7 @@ class Bill(FixedRateBond):
         )
         settlement = self.leg1.schedule.calendar.lag(
             curves[1].node_dates[0],
-            self.kwargs['settle'],
+            self.kwargs["settle"],
             True,
         )
         # scale price to par 100 and make a fwd adjustment according to curve
@@ -3726,9 +3739,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         if metric in ["clean_price", "dirty_price", "spread"]:
             if forward_settlement is NoInput.blank:
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves[1].node_dates[0],
-                    self.kwargs['settle'],
-                    True
+                    curves[1].node_dates[0], self.kwargs["settle"], True
                 )
             else:
                 settlement = forward_settlement
@@ -4189,7 +4200,7 @@ class BondFuture(Sensitivities):
         # build a curve for pricing
         today = self.basket[0].leg1.schedule.calendar.lag(
             settlement,
-            -self.basket[0].kwargs['settle'],
+            -self.basket[0].kwargs["settle"],
             False,
         )
         unsorted_nodes = {
@@ -7939,7 +7950,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         else:
             self.kwargs["delivery"] = get_calendar(self.kwargs["calendar"]).lag(
                 self.kwargs["expiry"],
-                self.kwargs['delivery_lag'],
+                self.kwargs["delivery_lag"],
                 True,
             )
 
@@ -7948,7 +7959,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         else:
             self.kwargs["payment"] = get_calendar(self.kwargs["calendar"]).lag(
                 self.kwargs["expiry"],
-                self.kwargs['payment_lag'],
+                self.kwargs["payment_lag"],
                 True,
             )
 
@@ -8305,9 +8316,9 @@ class FXCall(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=NoInput(0)
-                if isinstance(self.kwargs["strike"], str)
-                else self.kwargs["strike"],
+                strike=(
+                    NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"]
+                ),
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -8339,9 +8350,9 @@ class FXPut(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=NoInput(0)
-                if isinstance(self.kwargs["strike"], str)
-                else self.kwargs["strike"],
+                strike=(
+                    NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"]
+                ),
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],

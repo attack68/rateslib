@@ -24,20 +24,33 @@ from math import comb, log
 from typing import Optional, Union
 
 import numpy as np
-
 from pandas import NA, DataFrame, Series, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
-from rateslib.curves import (CompositeCurve, Curve, IndexCurve, LineCurve,
-                             average_rate, index_left)
+from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput
-from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_inv_norm_cdf,
-                           dual_log, dual_norm_cdf, dual_norm_pdf, gradient)
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    DualTypes,
+    dual_exp,
+    dual_inv_norm_cdf,
+    dual_log,
+    dual_norm_cdf,
+    dual_norm_pdf,
+    gradient,
+)
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import (FXDeltaVolSmile, FXDeltaVolSurface,
-                                    FXVolObj, FXVols, _black76, _d_plus_min_u,
-                                    _delta_type_constants)
+from rateslib.fx_volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXVolObj,
+    FXVols,
+    _black76,
+    _d_plus_min_u,
+    _delta_type_constants,
+)
 from rateslib.solver import newton_1dim, newton_ndim
 from rateslib.splines import evaluate
 

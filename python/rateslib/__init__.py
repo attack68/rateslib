@@ -49,29 +49,78 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.json import from_json
-from rateslib.calendars import (Cal, UnionCal, add_tenor, create_calendar, dcf,
-                                get_calendar)
-from rateslib.curves import (CompositeCurve, Curve, IndexCurve, LineCurve,
-                             ProxyCurve, index_left, interpolate)
+from rateslib.calendars import Cal, UnionCal, add_tenor, create_calendar, dcf, get_calendar
+from rateslib.curves import (
+    CompositeCurve,
+    Curve,
+    IndexCurve,
+    LineCurve,
+    ProxyCurve,
+    index_left,
+    interpolate,
+)
 from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
-from rateslib.instruments import (FRA, IIRS, IRS, SBS, XCS, ZCIS, ZCS, Bill,
-                                  BondFuture, FixedRateBond, FloatRateNote,
-                                  Fly, FXBrokerFly, FXCall, FXExchange, FXPut,
-                                  FXRiskReversal, FXStraddle, FXStrangle,
-                                  FXSwap, IndexFixedRateBond, Portfolio,
-                                  Spread, STIRFuture, Value, VolValue)
-from rateslib.legs import (CustomLeg, FixedLeg, FixedLegMtm, FloatLeg,
-                           FloatLegMtm, IndexFixedLeg, ZeroFixedLeg,
-                           ZeroFloatLeg, ZeroIndexLeg)
-from rateslib.periods import (Cashflow, FixedPeriod, FloatPeriod, FXCallPeriod,
-                              FXPutPeriod, IndexCashflow, IndexFixedPeriod)
+from rateslib.instruments import (
+    FRA,
+    IIRS,
+    IRS,
+    SBS,
+    XCS,
+    ZCIS,
+    ZCS,
+    Bill,
+    BondFuture,
+    FixedRateBond,
+    FloatRateNote,
+    Fly,
+    FXBrokerFly,
+    FXCall,
+    FXExchange,
+    FXPut,
+    FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
+    FXSwap,
+    IndexFixedRateBond,
+    Portfolio,
+    Spread,
+    STIRFuture,
+    Value,
+    VolValue,
+)
+from rateslib.json import from_json
+from rateslib.legs import (
+    CustomLeg,
+    FixedLeg,
+    FixedLegMtm,
+    FloatLeg,
+    FloatLegMtm,
+    IndexFixedLeg,
+    ZeroFixedLeg,
+    ZeroFloatLeg,
+    ZeroIndexLeg,
+)
+from rateslib.periods import (
+    Cashflow,
+    FixedPeriod,
+    FloatPeriod,
+    FXCallPeriod,
+    FXPutPeriod,
+    IndexCashflow,
+    IndexFixedPeriod,
+)
 from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
-from rateslib.splines import (PPSpline, PPSplineDual, PPSplineDual2,
-                              PPSplineF64, bspldnev_single, bsplev_single)
+from rateslib.splines import (
+    PPSpline,
+    PPSplineDual,
+    PPSplineDual2,
+    PPSplineF64,
+    bspldnev_single,
+    bsplev_single,
+)
 
 # module level doc-string
 __doc__ = """

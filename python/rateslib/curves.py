@@ -19,13 +19,11 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import (CalInput, add_tenor, create_calendar, dcf,
-                                get_calendar)
+from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
 from rateslib.default import NoInput, plot
-from rateslib.dual import (Dual, Dual2, DualTypes, dual_exp, dual_log,
-                           set_order_convert)
+from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -2662,15 +2660,21 @@ class ProxyCurve(Curve):
 
         default_curve = Curve(
             {},
-            convention=self.fx_forwards.fx_curves[self.cash_pair].convention
-            if convention is None
-            else convention,
-            modifier=self.fx_forwards.fx_curves[self.cash_pair].modifier
-            if modifier is False
-            else modifier,
-            calendar=self.fx_forwards.fx_curves[self.cash_pair].calendar
-            if calendar is False
-            else calendar,
+            convention=(
+                self.fx_forwards.fx_curves[self.cash_pair].convention
+                if convention is None
+                else convention
+            ),
+            modifier=(
+                self.fx_forwards.fx_curves[self.cash_pair].modifier
+                if modifier is False
+                else modifier
+            ),
+            calendar=(
+                self.fx_forwards.fx_curves[self.cash_pair].calendar
+                if calendar is False
+                else calendar
+            ),
         )
         self.convention = default_curve.convention
         self.modifier = default_curve.modifier

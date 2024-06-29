@@ -8,9 +8,18 @@ from pandas import DataFrame
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.calendars import (_adjust_date, _get_modifier, _get_roll,
-                                _get_rollday, _is_eom, _is_eom_cal, _is_imm,
-                                _is_som, add_tenor, get_calendar)
+from rateslib.calendars import (
+    _adjust_date,
+    _get_modifier,
+    _get_roll,
+    _get_rollday,
+    _is_eom,
+    _is_eom_cal,
+    _is_imm,
+    _is_som,
+    add_tenor,
+    get_calendar,
+)
 from rateslib.default import NoInput
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
