@@ -53,6 +53,9 @@ email contact through **rateslib@gmail.com**.
    * - Performance
      - Algorithm for :class:`~rateslib.fx.FXRates` generation is modified to improve the speed of instance
        construction for a larger number of currencies.
+   * - FX Volatility
+     - :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.get_from_strike` on both *Smiles* and *Surfaces* has
+       been refactored to remove the unnecessary ``phi`` argument.
    * - Bug
      - :class:`~rateslib.instruments.ZCS` now raises if fixed frequency is given as "Z".
    * - Bug
