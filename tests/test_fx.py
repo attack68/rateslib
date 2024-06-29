@@ -120,7 +120,6 @@ def test_rates_table():
     assert_frame_equal(result, expected)
 
 
-@pytest.mark.skip(reason="issue to resolve JSON for FXRates")
 def test_fxrates_to_json():
     fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05})
     result = fxr.to_json()
@@ -135,7 +134,6 @@ def test_fxrates_to_json():
     assert result == expected
 
 
-@pytest.mark.skip(reason="issue to resolve JSON for FXRates")
 def test_from_json_and_equality():
     fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05})
     fxr2 = FXRates({"usdnok": 12.0, "eurusd": 1.10})
@@ -193,7 +191,6 @@ def usdeur():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.mark.skip(reason="json to be revised")
 def test_fxforwards_rates_unequal(usdusd, eureur, usdeur):
     fxf = FXForwards(
         FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
@@ -843,7 +840,6 @@ def test_oo_update_forwards_rates_equivalence():
     assert fxf1.rate("usdnok", dt(2022, 7, 15)) == fxf2.rate("usdnok", dt(2022, 7, 15))
 
 
-@pytest.mark.skip(reason="issue to resolve JSON for FXRates")
 @pytest.mark.parametrize(
     "fxr",
     [

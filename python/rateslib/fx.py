@@ -16,6 +16,7 @@ from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, plot, _make_py_json, _drb
 from rateslib.dual import Dual, DualTypes, dual_solve, gradient, set_order
 from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
+from rateslib.json import from_json
 
 """
 .. ipython:: python
@@ -1545,9 +1546,9 @@ class FXForwards:
         serial = json.loads(fx_forwards)
 
         if isinstance(serial["fx_rates"], list):
-            fx_rates = [FXRates.from_json(_) for _ in serial["fx_rates"]]
+            fx_rates = [from_json(_, klass=FXRates) for _ in serial["fx_rates"]]
         else:
-            fx_rates = FXRates.from_json(serial["fx_rates"])
+            fx_rates = from_json(serial["fx_rates"], klass=FXRates)
 
         fx_curves = {k: Curve.from_json(v) for k, v in serial["fx_curves"].items()}
         base = serial["base"]
