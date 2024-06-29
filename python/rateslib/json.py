@@ -1,4 +1,8 @@
 from rateslib.rs import from_json as from_json_rs
+from rateslib.default import NoInput
+from typing import Any
+
+# globals namespace
 from rateslib.fx import FXRates
 
 
