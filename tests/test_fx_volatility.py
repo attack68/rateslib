@@ -336,13 +336,6 @@ class TestFXDeltaVolSmile:
         with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
             fxvs.__iter__()
 
-    # @pytest.mark.parametrize("smile_type, delta_type, exp", [
-    #     ("forward", "forward", 0.25),
-    #     ("forward", "spot", 0.25),
-    # ])
-    # def test_get(self, fxfo):
-    #     pass
-
 
 class TestFXDeltaVolSurface:
 
