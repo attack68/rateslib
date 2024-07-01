@@ -8938,11 +8938,15 @@ class FXStrangle(FXOptionStrat, FXOption):
         tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
         f0, iters = 100e6, 1
         while abs(f0) > 1e-6 and iters < 10:
+            # Determine the strikes at the current tgt_vol
+            # Also determine the greeks of these options measure with tgt_vol
             gks = [
                 self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
                 self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
             ]
-            smile_gks = [  # note the strikes have been set at price time by previous call, call OptionPeriods direct
+            # Also determine the greeks of these options measured with the market smile vol.
+            # (note the strikes have been set by previous call, call OptionPeriods direct to avoid re-determination)
+            smile_gks = [
                 self.periods[0]
                 .periods[0]
                 .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
@@ -8951,7 +8955,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
             ]
 
-            # Apply ad hoc Newton 1d algorithm
+            # The value of the root function is derived from the 4 previous calculated prices
             f0 = (
                 smile_gks[0]["__bs76"]
                 + smile_gks[1]["__bs76"]
@@ -8959,8 +8963,31 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            kega1 = gks[0]["_kega"] if self._is_fixed_delta[0] else 0.0
-            kega2 = gks[1]["_kega"] if self._is_fixed_delta[1] else 0.0
+            # Now evaluate all derivatives necessary.
+            if self._is_fixed_delta[0]:
+                # then the strike of the first option is sensitive to changing tgt_vol
+                kega0 = gks[0]["_kega"]
+                kappa0 = smile_gks[0]["_kappa"]
+                vega0 = smile_gks[0]["vega"]
+            else:
+                kega0, dp_dsigma1_0 = 0.0, 0.0
+                dP0_dsigma1 = 0.0
+
+            if self._is_fixed_delta[1]:
+                # then the strike of the second option is sensitive to changing tgt_vol
+                kega1 = gks[1]["_kega"]
+                kappa1 = smile_gks[1]["_kappa"]
+                vega1 = smile_gks[1]["vega"]
+            else:
+                kega1, dp_dsigma1_1 = 0.0, 0.0
+                dP1_dsigma1 = 0.0
+
+
+
+
+
+
+
             f1 = smile_gks[0]["_kappa"] * kega1 + smile_gks[1]["_kappa"] * kega2
             f1 -= (
                 gks[0]["vega"]

@@ -5,7 +5,6 @@ from typing import Union
 from uuid import uuid4
 
 import numpy as np
-from pandas import DataFrame
 from pytz import UTC
 
 from rateslib.default import NoInput, _drb, plot, plot3d
