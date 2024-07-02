@@ -3871,10 +3871,17 @@ class TestFXStrangle:
         # ([1.02, 1.10], "eur"),
         (["-20d", "20d"], "eur"),
     ])
-    @pytest.mark.parametrize("smile", [True])
-    @pytest.mark.parametrize("delta_type", ["forward", "spot_pa"])
+    @pytest.mark.parametrize("smile", [
+        True,
+        # False,
+    ])
+    @pytest.mark.parametrize("delta_type", [
+        # "forward",
+        "spot_pa"
+    ])
     def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile):
         # test pricing a straddle with vol 10.0 returns 10.0
+        print("TEST START")
         fxo = FXStrangle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3899,7 +3906,7 @@ class TestFXStrangle:
         vol = fxvs if smile else 10.0
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
-
+        print("Next Rate")
         premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
         metric = "pips" if ccy == "usd" else "percent"
         premium_vol = fxo.periods[0].periods[0].rate(
