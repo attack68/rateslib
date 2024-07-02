@@ -8966,35 +8966,40 @@ class FXStrangle(FXOptionStrat, FXOption):
             # Now evaluate all derivatives necessary.
             if self._is_fixed_delta[0]:
                 # then the strike of the first option is sensitive to changing tgt_vol
-                kega0 = gks[0]["_kega"]
-                kappa0 = smile_gks[0]["_kappa"]
-                vega0 = smile_gks[0]["vega"]
+
+                # single vol greeks
+                dc1_dvol1_0 = gks[0]["_kappa"] * gks[0]["_kega"] + gks[0]["vega"]
+
+                if isinstance(vol, FXVolObj):
+                    dcmkt_dvol1_0 = smile_gks[0]["_kappa"] * gks[0]["_kega"]
+                    # PLUS SOME FACTOR
+                else:
+                    # vol is fixed
+                    dcmkt_dvol1_0 = smile_gks[0]["_kappa"] * gks[0]["_kega"]
+
             else:
-                kega0, dp_dsigma1_0 = 0.0, 0.0
-                dP0_dsigma1 = 0.0
+                # strike is fixed so many derivatives cancel to zero
+                dc1_dvol1_0 = gks[0]["vega"]
+                dcmkt_dvol1_0 = 0.0
 
             if self._is_fixed_delta[1]:
                 # then the strike of the second option is sensitive to changing tgt_vol
-                kega1 = gks[1]["_kega"]
-                kappa1 = smile_gks[1]["_kappa"]
-                vega1 = smile_gks[1]["vega"]
+
+                # single vol greeks
+                dc1_dvol1_1 = gks[1]["_kappa"] * gks[1]["_kega"] + gks[1]["vega"]
+
+                if isinstance(vol, FXVolObj):
+                    dcmkt_dvol1_1 = smile_gks[1]["_kappa"] * gks[1]["_kega"]
+                    # PLUS SOME FACTOR
+                else:
+                    # vol is fixed
+                    dcmkt_dvol1_1 = smile_gks[1]["_kappa"] * gks[1]["_kega"]
+
             else:
-                kega1, dp_dsigma1_1 = 0.0, 0.0
-                dP1_dsigma1 = 0.0
+                dc1_dvol1_1 = gks[1]["vega"]
+                dcmkt_dvol1_1 = 0.0
 
-
-
-
-
-
-
-            f1 = smile_gks[0]["_kappa"] * kega1 + smile_gks[1]["_kappa"] * kega2
-            f1 -= (
-                gks[0]["vega"]
-                + gks[1]["vega"]
-                + gks[0]["_kappa"] * kega1
-                + gks[1]["_kappa"] * kega2
-            )
+            f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0
             iters += 1
@@ -9017,6 +9022,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 },
             }
 
+        print("Iters: ", iters)
         return tgt_vol
 
     # def _single_vol_rate_known_strikes(
