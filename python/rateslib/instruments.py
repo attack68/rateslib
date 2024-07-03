@@ -8966,6 +8966,19 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
+            def d_wrt_sigma1(period_index, is_fixed_delta, greeks, smile_greeks, vol):
+                i, sg, g = period_index, smile_greeks, greeks
+                if is_fixed_delta:
+                    return g[i]["vega"], 0.0
+                else:
+                    dc1_dvol1 = g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"]
+
+                    dd_dsigma1 = -1 * g[i]["_kega"] / (sg[i]["__strike"] * sg[i]["__vol"] * sg[i]["__sqrt_t"])
+                    dvol_ddeltaidx = evaluate(vol[i].spline, sg[i]["_delta_index"], 1) * 0.01
+                    eta1 = -0.5 if "_pa" in vol[i].delta_type else 0.5
+                    
+
+
             # Now evaluate all derivatives necessary.
             if self._is_fixed_delta[0]:
                 # then the strike of the first option is sensitive to changing tgt_vol
