@@ -8062,7 +8062,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
             # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
-            self.periods[0].strike = float(self._pricing["k"])
+            self.periods[0].strike = self._pricing["k"]
+            # self.periods[0].strike = float(self._pricing["k"])
 
         if isinstance(vol, FXVolObj):
             if self._pricing["delta_index"] is None:
@@ -8938,6 +8939,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
         tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
         f0, iters = 100e6, 1
+        tgt_vol = Dual(float(tgt_vol), ["TV"], [100.0])
         while abs(f0) > 1e-6 and iters < 10:
             # Determine the strikes at the current tgt_vol
             # Also determine the greeks of these options measure with tgt_vol
@@ -8971,18 +8973,20 @@ class FXStrangle(FXOptionStrat, FXOption):
                 # single vol greeks
                 dc1_dvol1_0 = gks[0]["_kappa"] * gks[0]["_kega"] + gks[0]["vega"]
 
-                # if isinstance(vol[0], FXVolObj):
-                #     if "_pa" in vol[0].delta_type:
-                #         ddeltaidx_dk_0 = smile_gks[0]["_delta_index"] / smile_gks[0]["__strike"]
-                #     else:
-                #         ddeltaidx_dk_0 = 0.0
-                #     ddeltaidx_dk_0 += smile_gks[0]["gamma"] * smile_gks[0]["__forward"] / smile_gks[0]["__strike"]
-                #     dvol_ddeltaidx_0 = evaluate(vol[0].spline, smile_gks[0]["_delta_index"], 1)
-                #     _ = ddeltaidx_dk_0 * smile_gks[0]["vega"] * dvol_ddeltaidx_0
-                #     dcmkt_dvol1_0 = gks[0]["_kega"] * (smile_gks[0]["_kappa"] + _)
-                # else:
-                #     # vol is fixed
-                dcmkt_dvol1_0 = smile_gks[0]["_kappa"] * gks[0]["_kega"]
+                if isinstance(vol[0], FXVolObj):
+                    if "_pa" in vol[0].delta_type:
+                        ddeltaidx_dk_0 = smile_gks[0]["_delta_index"] / smile_gks[0]["__strike"]
+                    else:
+                        ddeltaidx_dk_0 = 0.0
+                    ddeltaidx_dk_0 += smile_gks[0]["gamma"] * smile_gks[0]["__forward"] / smile_gks[0]["__strike"]
+                    dvol_ddeltaidx_0 = evaluate(vol[0].spline, smile_gks[0]["_delta_index"], 1) * 0.01
+                    ddeltaidx_dvol1_0 = ddeltaidx_dk_0 * gks[0]["_kega"]
+                    _ = ddeltaidx_dvol1_0 * smile_gks[0]["vega"] * dvol_ddeltaidx_0
+                    __ = gks[0]["_kega"] * smile_gks[0]["_kappa"]
+                    dcmkt_dvol1_0 = _ + __
+                else:
+                    # vol is fixed
+                    dcmkt_dvol1_0 = smile_gks[0]["_kappa"] * gks[0]["_kega"]
 
             else:
                 # strike is fixed so many derivatives cancel to zero
@@ -8995,18 +8999,19 @@ class FXStrangle(FXOptionStrat, FXOption):
                 # single vol greeks
                 dc1_dvol1_1 = gks[1]["_kappa"] * gks[1]["_kega"] + gks[1]["vega"]
 
-                # if isinstance(vol[1], FXVolObj):
-                #     if "_pa" in vol[1].delta_type:
-                #         ddeltaidx_dk_1 = smile_gks[1]["_delta_index"] / smile_gks[1]["__strike"]
-                #     else:
-                #         ddeltaidx_dk_1 = 0.0
-                #     ddeltaidx_dk_1 += smile_gks[1]["gamma"] * smile_gks[1]["__forward"] / smile_gks[1]["__strike"]
-                #     dvol_ddeltaidx_1 = evaluate(vol[1].spline, smile_gks[1]["_delta_index"], 1)
-                #     _ = ddeltaidx_dk_1 * smile_gks[1]["vega"] * dvol_ddeltaidx_1
-                #     dcmkt_dvol1_1 = gks[1]["_kega"] * (smile_gks[1]["_kappa"] + _)
-                # else:
-                #     # vol is fixed
-                dcmkt_dvol1_1 = smile_gks[1]["_kappa"] * gks[1]["_kega"]
+                if isinstance(vol[1], FXVolObj):
+                    if "_pa" in vol[1].delta_type:
+                        ddeltaidx_dk_1 = smile_gks[1]["_delta_index"] / smile_gks[1]["__strike"]
+                    else:
+                        ddeltaidx_dk_1 = 0.0
+                    ddeltaidx_dk_1 += smile_gks[1]["gamma"] * smile_gks[1]["__forward"] / smile_gks[1]["__strike"]
+                    dvol_ddeltaidx_1 = evaluate(vol[1].spline, smile_gks[1]["_delta_index"], 1) * 0.01
+                    _ = ddeltaidx_dk_1 * smile_gks[1]["vega"] * dvol_ddeltaidx_1 * gks[1]["_kega"]
+                    __ = gks[1]["_kega"] * smile_gks[1]["_kappa"]
+                    dcmkt_dvol1_1 = _ + __
+                else:
+                    # vol is fixed
+                    dcmkt_dvol1_1 = smile_gks[1]["_kappa"] * gks[1]["_kega"]
 
             else:
                 dc1_dvol1_1 = gks[1]["vega"]

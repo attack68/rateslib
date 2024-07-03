@@ -3866,9 +3866,9 @@ class TestFXStraddle:
 class TestFXStrangle:
 
     @pytest.mark.parametrize("strike, ccy", [
-        # ([1.02, 1.10], "usd"),
+        #([1.02, 1.10], "usd"),
         (["-20d", "20d"], "usd"),
-        # ([1.02, 1.10], "eur"),
+        #([1.02, 1.10], "eur"),
         (["-20d", "20d"], "eur"),
     ])
     @pytest.mark.parametrize("smile", [
@@ -3876,7 +3876,7 @@ class TestFXStrangle:
         # False,
     ])
     @pytest.mark.parametrize("delta_type", [
-        # "forward",
+       # "forward",
         "spot_pa"
     ])
     def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile):
