@@ -3905,7 +3905,7 @@ class TestFXStrangle:
         vol = fxvs if smile else 10.0
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
-        print("Next Rate")
+
         premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
         metric = "pips" if ccy == "usd" else "percent"
         premium_vol = fxo.periods[0].periods[0].rate(
