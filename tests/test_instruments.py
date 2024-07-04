@@ -3871,8 +3871,14 @@ class TestFXStrangle:
         ([1.02, 1.10], "eur"),
         (["-20d", "20d"], "eur"),
     ])
-    @pytest.mark.parametrize("smile", [True, False])
-    @pytest.mark.parametrize("delta_type", ["forward", "spot_pa"])
+    @pytest.mark.parametrize("smile", [
+        True,
+        False,
+    ])
+    @pytest.mark.parametrize("delta_type", [
+        "forward",
+        "spot_pa"
+    ])
     def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile):
         # test pricing a straddle with vol 10.0 returns 10.0
         fxo = FXStrangle(
@@ -4100,11 +4106,11 @@ class TestFXStrangle:
         assert abs(premium - premium_vol) < 5e-2
 
     @pytest.mark.parametrize("notn, expected_grks, expected_ccy", [
-        (1e6, [-0.026421, 10.217464, 0.294607], [-26421.048, 109072.493, 2946.066]),
-        (2e6, [-0.026421, 10.217464, 0.294607], [-52842.096, 218144.986, 5892.132]),
-        (-2e6, [-0.026421, 10.217464, 0.294607],  [-52842.096, 218144.986, 5892.132]),
+        (1e6, [-0.026421, 10.217368, 0.294605], [-26421.408, 109071.429, 2946.046]),
+        (2e6, [-0.026421, 10.217368, 0.294605], [-52842.816, 218142.858, 5892.092]),
+        (-2e6, [-0.026421, 10.217368, 0.294605],  [-52842.816, 218142.858, 5892.092]),
     ])
-    @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.0238751229, 1.115919333)])
+    @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.0238746345527665, 1.1159199351325004)])
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
         fxo = FXStrangle(
@@ -4294,14 +4300,14 @@ class TestFXBrokerFly:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize("notn, expected_grks, expected_ccy", [
-        ([1e6, NoInput(0)], [-0.026421, -3.099638, 0.000001], [-26421.063, -33088.735, 0.014]),
-        ([2e6, NoInput(0)], [-0.026421, -3.099638, 0.000001], [-52842.126, -66177.47, 0.028]),
-        ([-2e6, NoInput(0)], [-0.026421, -3.099638, 0.000001],  [-52842.126, -66177.47, 0.028]),
-        ([1e6, -600e3], [-0.026421, -1.234429, 0.041264], [-26421.063, -13177.651, 412.638])
+        ([1e6, NoInput(0)], [-0.026421, -3.099693, 0.000000], [-26421.408, -33089.534, 0.000]),
+        ([2e6, NoInput(0)], [-0.026421, -3.099693, 0.000000], [-52842.816, -66179.068, 0.000]),
+        ([-2e6, NoInput(0)], [-0.026421, -3.099693, 0.000000],  [-52842.816, -66179.068, 0.000]),
+        ([1e6, -600e3], [-0.026421, -1.234524, 0.041262], [-26421.408, -13178.672, 412.619])
     ])
     @pytest.mark.parametrize("strikes", [
         ("-20d", "atm_delta", "20d"),
-        (1.023875122921023, 1.0683288279019205, 1.1159193339873164)
+        (1.0238746345527665, 1.0683288279019205, 1.1159199351325004)
     ])
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.

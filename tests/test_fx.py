@@ -948,6 +948,7 @@ def test_fxforwards_cyclic_system_restructured():
     expected = 1.05 * 1.10
     assert abs(result - expected) < 1e-2
 
+
 def test_fxforwards_cyclic_system_restructured2():
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="eur")
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2), base="cad")

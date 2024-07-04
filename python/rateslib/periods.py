@@ -2725,11 +2725,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, FXVolObj):
-            _, vol_, _ = vol.get_from_strike(
+            delta_idx, vol_, _ = vol.get_from_strike(
                 self.strike, f_d, w_deli, w_spot, self.expiry
             )
         else:
-            vol_ = vol
+            delta_idx, vol_ = None, vol
         vol_ /= 100.0
         vol_sqrt_t = vol_ * sqrt_t
         eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
@@ -2769,9 +2769,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
 
+        _["_delta_index"] = delta_idx
         _["__delta_type"] = self.delta_type
         _["__vol"] = vol_
         _["__strike"] = self.strike
+        _["__forward"] = f_d
+        _["__sqrt_t"] = sqrt_t
         _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
         _["__notional"] = self.notional
         if self.phi > 0:
