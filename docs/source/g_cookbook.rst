@@ -30,6 +30,7 @@ into any one category.
 
     z_stubs.rst
     z_fixings.rst
+    z_historical_swap.ipynb
 
 **Risk Sensitivity Analysis**
 
