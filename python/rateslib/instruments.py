@@ -8062,8 +8062,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
             # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
-            self.periods[0].strike = self._pricing["k"]
-            # self.periods[0].strike = float(self._pricing["k"])
+
+            # self.periods[0].strike = self._pricing["k"]
+            self.periods[0].strike = float(self._pricing["k"])
 
         if isinstance(vol, FXVolObj):
             if self._pricing["delta_index"] is None:
@@ -8930,16 +8931,69 @@ class FXStrangle(FXOptionStrat, FXOption):
         )
         vol = self._vol_as_list(vol, solver)
 
+        spot = fx.pairs_settlement[self.kwargs["pair"]]
+        w_spot, v_spot = curves[1][spot], curves[3][spot]
+        w_deli, v_deli = curves[1][self.kwargs["delivery"]], curves[3][self.kwargs["delivery"]]
+        f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(self.kwargs["pair"], spot)
+        z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
+        f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
+        eta1 = None
+        if isinstance(vol[0], FXVolObj):
+            eta1 = -0.5 if "_pa" in vol[0].delta_type else 0.5
+            z_w_1 = 1.0 if "forward" in vol[0].delta_type else w_deli / w_spot
+            fzw1zw0 = f_0 * z_w_1 / z_w_0
+
         # first start by evaluating the individual swaptions given their strikes with the smile - delta or fixed
         gks = [
             self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
             self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
         ]
 
+        def d_wrt_sigma1(period_index, greeks, smile_greeks, vol, eta1):
+            """
+            Obtain derivatives with respect to tgt vol.
+
+            This function was tested by adding AD to the tgt_vol as a variable e.g.:
+            tgt_vol = Dual(float(tgt_vol), ["tgt_vol"], [100.0]) # note scaled to 100
+            Then the options defined by fixed delta should not have a strike set to float, i.e.
+            self.periods[0].strike = float(self._pricing["k"]) -> self.periods[0].strike = self._pricing["k"]
+            Then evaluate, for example: smile_greeks[i]["_delta_index"] with respect to "tgt_vol".
+            That value calculated with AD aligns with the analyical method here.
+
+            To speed up this function AD could be used, but it requires careful management of whether the
+            strike above is set to float or is left in AD format which has other implications for the calculation
+            of risk sensitivities.
+            """
+            i, sg, g = period_index, smile_greeks, greeks
+            fixed_delta, vol = self._is_fixed_delta[i], vol[i]
+            if not fixed_delta:
+                return g[i]["vega"], 0.0
+            elif not isinstance(vol, FXVolObj):
+                return (
+                    g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
+                    sg[i]["_kappa"] * g[i]["_kega"]
+                )
+            else:
+
+                dvol_ddeltaidx = evaluate(vol.spline, sg[i]["_delta_index"], 1) * 0.01
+                ddeltaidx_dvol1 = sg[i]["gamma"] * fzw1zw0
+                if eta1 < 0:  # premium adjusted vol smile
+                    ddeltaidx_dvol1 += sg[i]["_delta_index"]
+                ddeltaidx_dvol1 *= g[i]["_kega"] / sg[i]["__strike"]
+
+                _ = dual_log(sg[i]["__strike"] / f_d) / sg[i]["__vol"]
+                _ += eta1 * sg[i]["__vol"] * sg[i]["__sqrt_t"] ** 2
+                _ *= dvol_ddeltaidx * sg[i]["gamma"] * fzw1zw0
+                ddeltaidx_dvol1 /= 1 + _
+
+                return (
+                    g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
+                    sg[i]["_kappa"] * g[i]["_kega"] + sg[i]["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1
+                )
+
         tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
         tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
         f0, iters = 100e6, 1
-        tgt_vol = Dual(float(tgt_vol), ["TV"], [100.0])
         while abs(f0) > 1e-6 and iters < 10:
             # Determine the strikes at the current tgt_vol
             # Also determine the greeks of these options measure with tgt_vol
@@ -8966,73 +9020,11 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            def d_wrt_sigma1(period_index, is_fixed_delta, greeks, smile_greeks, vol):
-                i, sg, g = period_index, smile_greeks, greeks
-                if is_fixed_delta:
-                    return g[i]["vega"], 0.0
-                else:
-                    dc1_dvol1 = g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"]
-
-                    dd_dsigma1 = -1 * g[i]["_kega"] / (sg[i]["__strike"] * sg[i]["__vol"] * sg[i]["__sqrt_t"])
-                    dvol_ddeltaidx = evaluate(vol[i].spline, sg[i]["_delta_index"], 1) * 0.01
-                    eta1 = -0.5 if "_pa" in vol[i].delta_type else 0.5
-                    
-
-
-            # Now evaluate all derivatives necessary.
-            if self._is_fixed_delta[0]:
-                # then the strike of the first option is sensitive to changing tgt_vol
-
-                # single vol greeks
-                dc1_dvol1_0 = gks[0]["_kappa"] * gks[0]["_kega"] + gks[0]["vega"]
-
-                if isinstance(vol[0], FXVolObj):
-                    if "_pa" in vol[0].delta_type:
-                        ddeltaidx_dk_0 = smile_gks[0]["_delta_index"] / smile_gks[0]["__strike"]
-                    else:
-                        ddeltaidx_dk_0 = 0.0
-                    ddeltaidx_dk_0 += smile_gks[0]["gamma"] * smile_gks[0]["__forward"] / smile_gks[0]["__strike"]
-                    dvol_ddeltaidx_0 = evaluate(vol[0].spline, smile_gks[0]["_delta_index"], 1) * 0.01
-                    ddeltaidx_dvol1_0 = ddeltaidx_dk_0 * gks[0]["_kega"]
-                    _ = ddeltaidx_dvol1_0 * smile_gks[0]["vega"] * dvol_ddeltaidx_0
-                    __ = gks[0]["_kega"] * smile_gks[0]["_kappa"]
-                    dcmkt_dvol1_0 = _ + __
-                else:
-                    # vol is fixed
-                    dcmkt_dvol1_0 = smile_gks[0]["_kappa"] * gks[0]["_kega"]
-
-            else:
-                # strike is fixed so many derivatives cancel to zero
-                dc1_dvol1_0 = gks[0]["vega"]
-                dcmkt_dvol1_0 = 0.0
-
-            if self._is_fixed_delta[1]:
-                # then the strike of the second option is sensitive to changing tgt_vol
-
-                # single vol greeks
-                dc1_dvol1_1 = gks[1]["_kappa"] * gks[1]["_kega"] + gks[1]["vega"]
-
-                if isinstance(vol[1], FXVolObj):
-                    if "_pa" in vol[1].delta_type:
-                        ddeltaidx_dk_1 = smile_gks[1]["_delta_index"] / smile_gks[1]["__strike"]
-                    else:
-                        ddeltaidx_dk_1 = 0.0
-                    ddeltaidx_dk_1 += smile_gks[1]["gamma"] * smile_gks[1]["__forward"] / smile_gks[1]["__strike"]
-                    dvol_ddeltaidx_1 = evaluate(vol[1].spline, smile_gks[1]["_delta_index"], 1) * 0.01
-                    _ = ddeltaidx_dk_1 * smile_gks[1]["vega"] * dvol_ddeltaidx_1 * gks[1]["_kega"]
-                    __ = gks[1]["_kega"] * smile_gks[1]["_kappa"]
-                    dcmkt_dvol1_1 = _ + __
-                else:
-                    # vol is fixed
-                    dcmkt_dvol1_1 = smile_gks[1]["_kappa"] * gks[1]["_kega"]
-
-            else:
-                dc1_dvol1_1 = gks[1]["vega"]
-                dcmkt_dvol1_1 = 0.0
-
+            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, vol, eta1)
+            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, vol, eta1)
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
-            tgt_vol = tgt_vol - (f0 / f1) * 100.0
+            tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
             iters += 1
 
         if record_greeks:  # this needs to be explicitly called since it degrades performance
