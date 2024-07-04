@@ -3881,7 +3881,6 @@ class TestFXStrangle:
     ])
     def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile):
         # test pricing a straddle with vol 10.0 returns 10.0
-        print("TEST START")
         fxo = FXStrangle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
