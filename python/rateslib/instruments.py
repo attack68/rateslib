@@ -40,7 +40,7 @@ from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_le
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
+from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj, FXDeltaVolSurface
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -8930,6 +8930,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         vol = self._vol_as_list(vol, solver)
+        vol = [_ if not isinstance(_, FXDeltaVolSurface) else _.get_smile(self.kwargs["expiry"]) for _ in vol]
 
         spot = fx.pairs_settlement[self.kwargs["pair"]]
         w_spot, v_spot = curves[1][spot], curves[3][spot]
