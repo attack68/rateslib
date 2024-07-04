@@ -9045,7 +9045,6 @@ class FXStrangle(FXOptionStrat, FXOption):
                 },
             }
 
-        print("Iters: ", iters)
         return tgt_vol
 
     # def _single_vol_rate_known_strikes(
