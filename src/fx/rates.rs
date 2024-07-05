@@ -1,8 +1,7 @@
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
-use crate::dual::dual1::Dual;
-use crate::dual::dual2::Dual2;
+use crate::dual::dual::{Dual, Dual2};
 use crate::dual::dual_py::DualsOrF64;
 use crate::dual::linalg::argabsmax;
 use crate::json::JSON;

@@ -1,6 +1,5 @@
 use crate::calendars::calendar::{Cal, UnionCal};
-use crate::dual::dual1::Dual;
-use crate::dual::dual2::Dual2;
+use crate::dual::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use pyo3::conversion::ToPyObject;
@@ -46,7 +45,7 @@ pub fn from_json_py(_py: Python<'_>, json: &str) -> PyResult<Serialized> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual1::Dual;
+    use crate::dual::dual::Dual;
     #[test]
     fn test_serialized_object() {
         let x = Dual::new(2.5, vec!["x".to_string()]);

@@ -1,5 +1,4 @@
-use crate::dual::dual1::Dual;
-use crate::dual::dual2::Dual2;
+use crate::dual::dual::{Dual, Dual2};
 use crate::dual::dual_py::DualsOrF64;
 use crate::splines::spline_f64::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
