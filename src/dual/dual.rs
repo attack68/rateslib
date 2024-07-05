@@ -22,6 +22,8 @@ use std::ops::{Add, Div, Mul, Sub};
 use std::sync::Arc;
 use crate::dual::linalg_f64::fouter11_;
 
+use crate::dual::dual_ops;
+
 /// Struct for defining a dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
@@ -643,90 +645,10 @@ impl Dual2 {
     }
 }
 
-impl Num for Dual {
-    // PartialEq + Zero + One + NumOps (Add + Sub + Mul + Div + Rem)
-    type FromStrRadixErr = String;
-    fn from_str_radix(_src: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        Err("No implementation for sting radix for Dual".to_string())
-    }
-}
 
-impl Num for Dual2 {
-    type FromStrRadixErr = String;
-    fn from_str_radix(_src: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        Err("No implementation for sting radix for Dual2".to_string())
-    }
-}
 
-// impl Neg for Dual
-impl_op!(-|a: Dual| -> Dual {
-    Dual {
-        vars: a.vars,
-        real: -a.real,
-        dual: -a.dual,
-    }
-});
-impl_op!(-|a: &Dual| -> Dual {
-    Dual {
-        vars: Arc::clone(&a.vars),
-        real: -a.real,
-        dual: &a.dual * -1.0,
-    }
-});
 
-// impl Neg for Dual2
-impl_op!(-|a: Dual2| -> Dual2 {
-    Dual2 {
-        vars: a.vars,
-        real: -a.real,
-        dual: -a.dual,
-        dual2: -a.dual2,
-    }
-});
-impl_op!(-|a: &Dual2| -> Dual2 {
-    Dual2 {
-        vars: Arc::clone(&a.vars),
-        real: -a.real,
-        dual: &a.dual * -1.0,
-        dual2: &a.dual2 * -1.0,
-    }
-});
 
-// impl Add for Dual
-impl_op_ex!(+ |a: &Dual, b: &Dual| -> Dual {
-    let state = a.vars_cmp(b.vars());
-    match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => {
-            Dual {real: a.real + b.real, dual: &a.dual + &b.dual, vars: Arc::clone(&a.vars)}
-        }
-        _ => {
-            let (x, y) = a.to_union_vars(b, Some(state));
-            Dual {real: x.real + y.real, dual: &x.dual + &y.dual, vars: Arc::clone(&x.vars)}
-        }
-    }
-});
-
-// impl Add for Dual2
-impl_op_ex!(+ |a: &Dual2, b: &Dual2| -> Dual2 {
-    let state = a.vars_cmp(b.vars());
-    match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => {
-            Dual2 {
-                real: a.real + b.real,
-                dual: &a.dual + &b.dual,
-                dual2: &a.dual2 + &b.dual2,
-                vars: Arc::clone(&a.vars)}
-        }
-        _ => {
-            let (x, y) = a.to_union_vars(b, Some(state));
-            Dual2 {
-                real: x.real + y.real,
-                dual: &x.dual + &y.dual,
-                dual2: &x.dual2 + &y.dual2,
-                vars: Arc::clone(&x.vars)}
-        }
-    }
-});
 
 // impl Sub for Dual
 impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
@@ -1156,11 +1078,7 @@ impl MathFuncs for Dual2 {
 
 // f64 Crossover
 
-// Add
-impl_op_ex_commutative!(+ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone()} });
-impl_op_ex_commutative!(+ |a: &Dual2, b: &f64| -> Dual2 {
-    Dual2 {vars: Arc::clone(&a.vars), real: a.real + b, dual: a.dual.clone(), dual2: a.dual2.clone()}
-});
+
 // Sub
 impl_op_ex!(-|a: &Dual, b: &f64| -> Dual {
     Dual {

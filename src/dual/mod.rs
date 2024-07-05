@@ -1,3 +1,4 @@
+mod dual_ops;
 pub mod dual;
 pub mod dual_py;
 pub mod linalg;
