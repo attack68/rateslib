@@ -907,15 +907,6 @@ impl MathFuncs for Dual2 {
     }
 }
 
-// f64 Crossover
-
-
-
-
-// Div
-
-// Rem
-
 
 impl PartialEq<f64> for Dual {
     fn eq(&self, other: &f64) -> bool {
