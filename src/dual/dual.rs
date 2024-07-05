@@ -11,8 +11,8 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq};
-
 use std::sync::Arc;
+pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 
 /// Struct for defining a dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
