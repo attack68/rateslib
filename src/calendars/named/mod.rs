@@ -1,4 +1,4 @@
-//! Provides static data for pre-existing named holiday calendars.
+//! Static data for pre-existing named holiday calendars.
 //!
 
 pub mod all;

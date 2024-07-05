@@ -1,4 +1,4 @@
-//! Provides functionality for financial date manipulation.
+//! Utilities for financial date manipulation.
 //!
 
 pub mod calendar;
