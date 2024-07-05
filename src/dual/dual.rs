@@ -650,107 +650,6 @@ impl Dual2 {
 
 
 
-// impl Sub for Dual
-impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
-    let state = a.vars_cmp(b.vars());
-    match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => Dual {
-            real: a.real - b.real,
-            dual: &a.dual - &b.dual,
-            vars: Arc::clone(&a.vars),
-        },
-        _ => {
-            let (x, y) = a.to_union_vars(b, Some(state));
-            Dual {
-                real: x.real - y.real,
-                dual: &x.dual - &y.dual,
-                vars: Arc::clone(&x.vars),
-            }
-        }
-    }
-});
-
-// impl Sub
-impl_op_ex!(-|a: &Dual2, b: &Dual2| -> Dual2 {
-    let state = a.vars_cmp(b.vars());
-    match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => Dual2 {
-            real: a.real - b.real,
-            dual: &a.dual - &b.dual,
-            dual2: &a.dual2 - &b.dual2,
-            vars: Arc::clone(&a.vars),
-        },
-        _ => {
-            let (x, y) = a.to_union_vars(b, Some(state));
-            Dual2 {
-                real: x.real - y.real,
-                dual: &x.dual - &y.dual,
-                dual2: &x.dual2 - &y.dual2,
-                vars: Arc::clone(&x.vars),
-            }
-        }
-    }
-});
-
-// impl Mul for Dual
-impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
-    let state = a.vars_cmp(b.vars());
-    match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => Dual {
-            real: a.real * b.real,
-            dual: &a.dual * b.real + &b.dual * a.real,
-            vars: Arc::clone(&a.vars),
-        },
-        _ => {
-            let (x, y) = a.to_union_vars(b, Some(state));
-            Dual {
-                real: x.real * y.real,
-                dual: &x.dual * y.real + &y.dual * x.real,
-                vars: Arc::clone(&x.vars),
-            }
-        }
-    }
-});
-
-// impl Mul for Dual2
-impl_op_ex!(*|a: &Dual2, b: &Dual2| -> Dual2 {
-    let state = a.vars_cmp(b.vars());
-    match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => {
-            let mut dual2: Array2<f64> = &a.dual2 * b.real + &b.dual2 * a.real;
-            let cross_beta = fouter11_(&a.dual.view(), &b.dual.view());
-            dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
-            Dual2 {
-                real: a.real * b.real,
-                dual: &a.dual * b.real + &b.dual * a.real,
-                vars: Arc::clone(&a.vars),
-                dual2,
-            }
-        }
-        _ => {
-            let (x, y) = a.to_union_vars(b, Some(state));
-            let mut dual2: Array2<f64> = &x.dual2 * y.real + &y.dual2 * x.real;
-            let cross_beta = fouter11_(&x.dual.view(), &y.dual.view());
-            dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
-            Dual2 {
-                real: x.real * y.real,
-                dual: &x.dual * y.real + &y.dual * x.real,
-                vars: Arc::clone(&x.vars),
-                dual2,
-            }
-        }
-    }
-});
-
-// impl Div for Dual
-impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual {
-    let b_ = Dual {real: 1.0 / b.real, vars: Arc::clone(&b.vars), dual: -1.0 / (b.real * b.real) * &b.dual};
-    a * b_
-});
-
-// impl Div for Dual2
-impl_op_ex!(/ |a: &Dual2, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
-
 impl Pow<f64> for Dual {
     type Output = Dual;
     fn pow(self, power: f64) -> Dual {
@@ -803,17 +702,7 @@ impl Pow<f64> for &Dual2 {
     }
 }
 
-// impl REM for Dual
-impl_op_ex!(% |a: &Dual, b: &Dual| -> Dual {
-    let d = f64::trunc(a.real / b.real);
-    a - d * b
-});
 
-// impl Rem for Dual2
-impl_op_ex!(% |a: &Dual2, b: &Dual2| -> Dual2 {
-    let d = f64::trunc(a.real / b.real);
-    a - d * b
-});
 
 impl One for Dual {
     fn one() -> Dual {
@@ -1079,69 +968,12 @@ impl MathFuncs for Dual2 {
 // f64 Crossover
 
 
-// Sub
-impl_op_ex!(-|a: &Dual, b: &f64| -> Dual {
-    Dual {
-        vars: Arc::clone(&a.vars),
-        real: a.real - b,
-        dual: a.dual.clone(),
-    }
-});
-impl_op_ex!(-|a: &f64, b: &Dual| -> Dual {
-    Dual {
-        vars: Arc::clone(&b.vars),
-        real: a - b.real,
-        dual: -(b.dual.clone()),
-    }
-});
-impl_op_ex!(-|a: &Dual2, b: &f64| -> Dual2 {
-    Dual2 {
-        vars: Arc::clone(&a.vars),
-        real: a.real - b,
-        dual: a.dual.clone(),
-        dual2: a.dual2.clone(),
-    }
-});
-impl_op_ex!(-|a: &f64, b: &Dual2| -> Dual2 {
-    Dual2 {
-        vars: Arc::clone(&b.vars),
-        real: a - b.real,
-        dual: -(b.dual.clone()),
-        dual2: -(b.dual2.clone()),
-    }
-});
-// Mul
-impl_op_ex_commutative!(*|a: &Dual, b: &f64| -> Dual {
-    Dual {
-        vars: Arc::clone(&a.vars),
-        real: a.real * b,
-        dual: *b * &a.dual,
-    }
-});
-impl_op_ex_commutative!(*|a: &Dual2, b: &f64| -> Dual2 {
-    Dual2 {
-        vars: Arc::clone(&a.vars),
-        real: a.real * b,
-        dual: *b * &a.dual,
-        dual2: *b * &a.dual2,
-    }
-});
+
+
 // Div
-impl_op_ex!(/ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual} });
-impl_op_ex!(/ |a: &f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
-impl_op_ex!(/ |a: &Dual2, b: &f64| -> Dual2 {
-    Dual2 {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual, dual2: (1_f64/b) * &a.dual2}
-});
-impl_op_ex!(/ |a: &f64, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
+
 // Rem
-impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
-impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new()) % b });
-impl_op_ex!(% |a: &Dual2, b: &f64| -> Dual2 {
-    Dual2 {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone(), dual2: a.dual2.clone()}
-});
-impl_op_ex!(% |a: &f64, b: &Dual2| -> Dual2 {
-    Dual2::new(*a, Vec::new()) % b }
-);
+
 
 impl PartialEq<f64> for Dual {
     fn eq(&self, other: &f64) -> bool {
