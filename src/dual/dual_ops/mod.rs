@@ -5,3 +5,4 @@ mod sub;
 mod mul;
 mod div;
 mod rem;
+mod pow;
