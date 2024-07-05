@@ -5,24 +5,14 @@
 //! gradient at that point. Mathematical operations are defined to give dual numbers
 //! the ability to combine.
 
-use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
-use num_traits;
-use num_traits::identities::{One, Zero};
-use num_traits::{Num, Pow, Signed};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
-use statrs::distribution::{ContinuousCDF, Normal};
-use std::cmp::{Ordering, PartialEq};
-use std::f64::consts::PI;
-use std::iter::Sum;
-use std::ops::{Add, Div, Mul, Sub};
-use std::sync::Arc;
-use crate::dual::linalg_f64::fouter11_;
+use std::cmp::{PartialEq};
 
-use crate::dual::dual_ops;
+use std::sync::Arc;
 
 /// Struct for defining a dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
@@ -45,14 +35,23 @@ pub struct Dual2 {
 
 impl From<Dual2> for Dual {
     fn from(value: Dual2) -> Self {
-        Dual { real: value.real, vars: value.vars.clone(), dual: value.dual }
+        Dual {
+            real: value.real,
+            vars: value.vars.clone(),
+            dual: value.dual,
+        }
     }
 }
 
 impl From<Dual> for Dual2 {
     fn from(value: Dual) -> Self {
         let n = value.dual.len_of(Axis(0));
-        Dual2 { real: value.real, vars: value.vars.clone(), dual: value.dual, dual2: Array2::zeros((n,n)) }
+        Dual2 {
+            real: value.real,
+            vars: value.vars.clone(),
+            dual: value.dual,
+            dual2: Array2::zeros((n, n)),
+        }
     }
 }
 
@@ -223,7 +222,7 @@ impl Vars for Dual2 {
         match match_val {
             VarsState::EquivByArc | VarsState::EquivByVal => {
                 dual_ = self.dual.clone();
-                dual2_ = self.dual2.clone();
+                dual2_.clone_from(&self.dual2);
             }
             _ => {
                 let lookup_or_zero = |v| match self.vars.get_index_of(v) {
@@ -259,7 +258,6 @@ impl Vars for Dual2 {
         }
     }
 }
-
 
 /// A trait to allow calculation of first order gradients to all, or a set of provided, variables.
 pub trait Gradient1: Vars {
@@ -497,7 +495,6 @@ impl Dual {
     }
 }
 
-
 impl Dual2 {
     /// Constructs a new `Dual2`.
     ///
@@ -645,361 +642,12 @@ impl Dual2 {
     }
 }
 
-
-impl One for Dual {
-    fn one() -> Dual {
-        Dual::new(1.0, Vec::new())
-    }
-}
-
-impl One for Dual2 {
-    fn one() -> Dual2 {
-        Dual2::new(1.0, Vec::new())
-    }
-}
-
-impl Zero for Dual {
-    fn zero() -> Dual {
-        Dual::new(0.0, Vec::new())
-    }
-
-    fn is_zero(&self) -> bool {
-        *self == Dual::new(0.0, Vec::new())
-    }
-}
-
-impl Zero for Dual2 {
-    fn zero() -> Dual2 {
-        Dual2::new(0.0, Vec::new())
-    }
-
-    fn is_zero(&self) -> bool {
-        *self == Dual2::new(0.0, Vec::new())
-    }
-}
-
-/// Measures value equivalence of `Dual`.
-///
-/// Returns `true` if:
-///
-/// - `real` components are equal: `lhs.real == rhs.real`.
-/// - `dual` components are equal after aligning `vars`.
-impl PartialEq<Dual> for Dual {
-    fn eq(&self, other: &Dual) -> bool {
-        if self.real != other.real {
-            false
-        } else {
-            let state = self.vars_cmp(other.vars());
-            match state {
-                VarsState::EquivByArc | VarsState::EquivByVal => {
-                    self.dual.iter().eq(other.dual.iter())
-                }
-                _ => {
-                    let (x, y) = self.to_union_vars(other, Some(state));
-                    x.dual.iter().eq(y.dual.iter())
-                }
-            }
-        }
-    }
-}
-
-/// Compares `Dual` by `real` component only.
-impl PartialOrd<Dual> for Dual {
-    fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
-        self.real.partial_cmp(&other.real)
-    }
-}
-
-impl Sum for Dual {
-    fn sum<I>(iter: I) -> Self
-    where
-        I: Iterator<Item = Dual>,
-    {
-        iter.fold(Dual::new(0.0, [].to_vec()), |acc, x| acc + x)
-    }
-}
-
-impl Sum for Dual2 {
-    fn sum<I>(iter: I) -> Self
-    where
-        I: Iterator<Item = Dual2>,
-    {
-        iter.fold(Dual2::new(0.0, Vec::new()), |acc, x| acc + x)
-    }
-}
-
-/// Sign for `Dual` is evaluated in terms of the `real` component.
-impl Signed for Dual {
-    /// Determine the absolute value of `Dual`.
-    ///
-    /// If `real` is negative the returned `Dual` will negate both its `real` value and
-    /// `dual`.
-    ///
-    /// <div class="warning">This behaviour is undefined at zero. The derivative of the `abs` function is
-    /// not defined there and care needs to be taken when implying gradients.</div>
-    fn abs(&self) -> Self {
-        if self.real > 0.0 {
-            Dual {
-                real: self.real,
-                vars: Arc::clone(&self.vars),
-                dual: self.dual.clone(),
-            }
-        } else {
-            Dual {
-                real: -self.real,
-                vars: Arc::clone(&self.vars),
-                dual: -1.0 * &self.dual,
-            }
-        }
-    }
-
-    fn abs_sub(&self, other: &Self) -> Self {
-        if self <= other {
-            Dual::new(0.0, Vec::new())
-        } else {
-            self - other
-        }
-    }
-
-    fn signum(&self) -> Self {
-        Dual::new(self.real.signum(), Vec::new())
-    }
-
-    fn is_positive(&self) -> bool {
-        self.real.is_sign_positive()
-    }
-
-    fn is_negative(&self) -> bool {
-        self.real.is_sign_negative()
-    }
-}
-
-impl Signed for Dual2 {
-    fn abs(&self) -> Self {
-        if self.real > 0.0 {
-            Dual2 {
-                real: self.real,
-                vars: Arc::clone(&self.vars),
-                dual: self.dual.clone(),
-                dual2: self.dual2.clone(),
-            }
-        } else {
-            Dual2 {
-                real: -self.real,
-                vars: Arc::clone(&self.vars),
-                dual: -1.0 * &self.dual,
-                dual2: -1.0 * &self.dual2,
-            }
-        }
-    }
-
-    fn abs_sub(&self, other: &Self) -> Self {
-        if self <= other {
-            Dual2::new(0.0, Vec::new())
-        } else {
-            self - other
-        }
-    }
-
-    fn signum(&self) -> Self {
-        Dual2::new(self.real.signum(), Vec::new())
-    }
-
-    fn is_positive(&self) -> bool {
-        self.real.is_sign_positive()
-    }
-
-    fn is_negative(&self) -> bool {
-        self.real.is_sign_negative()
-    }
-}
-
-pub trait MathFuncs {
-    fn exp(&self) -> Self;
-    fn log(&self) -> Self;
-    fn norm_cdf(&self) -> Self;
-    fn inv_norm_cdf(&self) -> Self;
-}
-
-impl MathFuncs for Dual {
-    fn exp(&self) -> Self {
-        let c = self.real.exp();
-        Dual {
-            real: c,
-            vars: Arc::clone(&self.vars),
-            dual: c * &self.dual,
-        }
-    }
-    fn log(&self) -> Self {
-        Dual {
-            real: self.real.ln(),
-            vars: Arc::clone(&self.vars),
-            dual: (1.0 / self.real) * &self.dual,
-        }
-    }
-    fn norm_cdf(&self) -> Self {
-        let n = Normal::new(0.0, 1.0).unwrap();
-        let base = n.cdf(self.real);
-        let scalar = 1.0 / (2.0 * PI).sqrt() * (-0.5_f64 * self.real.pow(2.0_f64)).exp();
-        Dual {
-            real: base,
-            vars: Arc::clone(&self.vars),
-            dual: scalar * &self.dual,
-        }
-    }
-    fn inv_norm_cdf(&self) -> Self {
-        let n = Normal::new(0.0, 1.0).unwrap();
-        let base = n.inverse_cdf(self.real);
-        let scalar = (2.0 * PI).sqrt() * (0.5_f64 * base.pow(2.0_f64)).exp();
-        Dual {
-            real: base,
-            vars: Arc::clone(&self.vars),
-            dual: scalar * &self.dual,
-        }
-    }
-}
-
-impl MathFuncs for Dual2 {
-    fn exp(&self) -> Self {
-        let c = self.real.exp();
-        Dual2 {
-            real: c,
-            vars: Arc::clone(&self.vars),
-            dual: c * &self.dual,
-            dual2: c * (&self.dual2 + 0.5 * fouter11_(&self.dual.view(), &self.dual.view())),
-        }
-    }
-    fn log(&self) -> Self {
-        let scalar = 1.0 / self.real;
-        Dual2 {
-            real: self.real.ln(),
-            vars: Arc::clone(&self.vars),
-            dual: scalar * &self.dual,
-            dual2: scalar * &self.dual2
-                - fouter11_(&self.dual.view(), &self.dual.view()) * 0.5 * (scalar * scalar),
-        }
-    }
-    fn norm_cdf(&self) -> Self {
-        let n = Normal::new(0.0, 1.0).unwrap();
-        let base = n.cdf(self.real);
-        let scalar = 1.0 / (2.0 * PI).sqrt() * (-0.5_f64 * self.real.pow(2.0_f64)).exp();
-        let scalar2 = scalar * -self.real;
-        let cross_beta = fouter11_(&self.dual.view(), &self.dual.view());
-        Dual2 {
-            real: base,
-            vars: Arc::clone(&self.vars),
-            dual: scalar * &self.dual,
-            dual2: scalar * &self.dual2 + 0.5_f64 * scalar2 * cross_beta,
-        }
-    }
-    fn inv_norm_cdf(&self) -> Self {
-        let n = Normal::new(0.0, 1.0).unwrap();
-        let base = n.inverse_cdf(self.real);
-        let scalar = (2.0 * PI).sqrt() * (0.5_f64 * base.pow(2.0_f64)).exp();
-        let scalar2 = scalar.pow(2.0_f64) * base;
-        let cross_beta = fouter11_(&self.dual.view(), &self.dual.view());
-        Dual2 {
-            real: base,
-            vars: Arc::clone(&self.vars),
-            dual: scalar * &self.dual,
-            dual2: scalar * &self.dual2 + 0.5_f64 * scalar2 * cross_beta,
-        }
-    }
-}
-
-
-impl PartialEq<f64> for Dual {
-    fn eq(&self, other: &f64) -> bool {
-        Dual::new(*other, [].to_vec()) == *self
-    }
-}
-
-impl PartialEq<f64> for Dual2 {
-    fn eq(&self, other: &f64) -> bool {
-        Dual2::new(*other, Vec::new()) == *self
-    }
-}
-
-impl PartialEq<Dual> for f64 {
-    fn eq(&self, other: &Dual) -> bool {
-        Dual::new(*self, [].to_vec()) == *other
-    }
-}
-
-impl PartialEq<Dual2> for f64 {
-    fn eq(&self, other: &Dual2) -> bool {
-        Dual2::new(*self, Vec::new()) == *other
-    }
-}
-
-impl PartialEq<Dual2> for Dual2 {
-    fn eq(&self, other: &Dual2) -> bool {
-        if self.real != other.real {
-            false
-        } else {
-            let state = self.vars_cmp(other.vars());
-            match state {
-                VarsState::EquivByArc | VarsState::EquivByVal => {
-                    self.dual.iter().eq(other.dual.iter())
-                        && self.dual2.iter().eq(other.dual2.iter())
-                }
-                _ => {
-                    let (x, y) = self.to_union_vars(other, Some(state));
-                    x.dual.iter().eq(y.dual.iter()) && x.dual2.iter().eq(y.dual2.iter())
-                }
-            }
-        }
-    }
-}
-
-impl PartialOrd<f64> for Dual {
-    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
-        self.real.partial_cmp(other)
-    }
-}
-
-impl PartialOrd<f64> for Dual2 {
-    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
-        self.real.partial_cmp(other)
-    }
-}
-
-impl PartialOrd<Dual2> for Dual2 {
-    fn partial_cmp(&self, other: &Dual2) -> Option<Ordering> {
-        self.real.partial_cmp(&other.real)
-    }
-}
-
-impl PartialOrd<Dual> for f64 {
-    fn partial_cmp(&self, other: &Dual) -> Option<Ordering> {
-        self.partial_cmp(&other.real)
-    }
-}
-
-impl PartialOrd<Dual2> for f64 {
-    fn partial_cmp(&self, other: &Dual2) -> Option<Ordering> {
-        self.partial_cmp(&other.real)
-    }
-}
-
-pub trait FieldOps<T>:
-    Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Sized + Clone
-{
-}
-impl<'a, T: 'a> FieldOps<T> for &'a T where
-    &'a T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>
-{
-}
-impl FieldOps<Dual> for Dual {}
-impl FieldOps<Dual2> for Dual2 {}
-impl FieldOps<f64> for f64 {}
-
 // UNIT TESTS
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Instant;
     use crate::dual::dual::Dual2;
+    use std::time::Instant;
 
     #[test]
     fn test_fieldops() {
@@ -1763,7 +1411,6 @@ mod tests {
     // copied from old dual2.rs
 
     use ndarray::arr2;
-
 
     #[test]
     fn clone_arc2() {

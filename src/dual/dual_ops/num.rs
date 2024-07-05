@@ -1,5 +1,5 @@
-use num_traits::{Num};
 use crate::dual::dual::{Dual, Dual2};
+use num_traits::Num;
 
 impl Num for Dual {
     // PartialEq + Zero + One + NumOps (Add + Sub + Mul + Div + Rem)

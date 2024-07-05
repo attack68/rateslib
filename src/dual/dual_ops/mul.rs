@@ -1,8 +1,8 @@
-use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
-use std::sync::Arc;
-use crate::dual::dual::{Dual, Dual2, VarsState, Vars};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsState};
 use crate::dual::linalg_f64::fouter11_;
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use ndarray::Array2;
+use std::sync::Arc;
 
 // Mul
 impl_op_ex_commutative!(*|a: &Dual, b: &f64| -> Dual {

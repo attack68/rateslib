@@ -1,8 +1,7 @@
-use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
-use std::sync::Arc;
-use crate::dual::dual::{Dual, Dual2, VarsState, Vars};
-use num_traits::Pow;
+use crate::dual::dual::{Dual, Dual2, Vars};
 use crate::dual::linalg_f64::fouter11_;
+use num_traits::Pow;
+use std::sync::Arc;
 
 impl Pow<f64> for Dual {
     type Output = Dual;

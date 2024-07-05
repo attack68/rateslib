@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Gradient1, Dual2, Gradient2};
+use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2};
 use crate::dual::linalg::dmul11_;
 use crate::dual::linalg_f64::{fdmul11_, fdsolve, fouter11_};
 use ndarray::{Array1, Array2};

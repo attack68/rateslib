@@ -1,6 +1,6 @@
-use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsState};
+use auto_ops::{impl_op_ex};
 use std::sync::Arc;
-use crate::dual::dual::{Dual, Dual2, VarsState, Vars};
 
 // Sub
 impl_op_ex!(-|a: &Dual, b: &f64| -> Dual {

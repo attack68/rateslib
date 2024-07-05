@@ -475,8 +475,8 @@ where
             .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
             .unwrap();
         cd1.iter().zip(cd2.iter()).all(|(x, y)| {
-            self.is_bus_day(&x) == other.is_bus_day(&x)
-                && self.is_settlement(&x) == other.is_settlement(&y)
+            self.is_bus_day(x) == other.is_bus_day(x)
+                && self.is_settlement(x) == other.is_settlement(y)
         })
     }
 }
@@ -490,8 +490,8 @@ impl PartialEq<UnionCal> for Cal {
             .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
             .unwrap();
         cd1.iter().zip(cd2.iter()).all(|(x, y)| {
-            self.is_bus_day(&x) == other.is_bus_day(&x)
-                && self.is_settlement(&x) == other.is_settlement(&y)
+            self.is_bus_day(x) == other.is_bus_day(x)
+                && self.is_settlement(x) == other.is_settlement(y)
         })
     }
 }

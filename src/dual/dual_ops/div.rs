@@ -1,7 +1,7 @@
-use auto_ops::{impl_op_ex};
-use std::sync::Arc;
 use crate::dual::dual::{Dual, Dual2};
+use auto_ops::impl_op_ex;
 use num_traits::Pow;
+use std::sync::Arc;
 
 impl_op_ex!(/ |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real / b, dual: (1_f64/b) * &a.dual} });
 impl_op_ex!(/ |a: &f64, b: &Dual| -> Dual { a * b.clone().pow(-1.0) });
@@ -18,4 +18,3 @@ impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual {
 
 // impl Div for Dual2
 impl_op_ex!(/ |a: &Dual2, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
-

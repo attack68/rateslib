@@ -1,6 +1,6 @@
-use auto_ops::{impl_op, impl_op_ex, impl_op_ex_commutative};
+use crate::dual::dual::{Dual, Dual2};
+use auto_ops::{impl_op_ex};
 use std::sync::Arc;
-use crate::dual::dual::{Dual, Dual2, VarsState, Vars};
 
 impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });
 impl_op_ex!(% |a: &f64, b: &Dual| -> Dual { Dual::new(*a, Vec::new()) % b });

@@ -16,7 +16,7 @@ use crate::json::JSON;
 impl Ccy {
     #[new]
     fn new_py(name: &str) -> PyResult<Self> {
-        Ok(Ccy::try_new(name)?)
+        Ccy::try_new(name)
     }
 
     #[getter]
@@ -43,7 +43,7 @@ impl FXRate {
         rate: DualsOrF64,
         settlement: Option<NaiveDateTime>,
     ) -> PyResult<Self> {
-        Ok(FXRate::try_new(lhs, rhs, rate, settlement)?)
+        FXRate::try_new(lhs, rhs, rate, settlement)
     }
 
     #[getter]
@@ -153,7 +153,7 @@ impl FXRates {
             FXArray::F64(arr) => Ok(arr
                 .row(0)
                 .iter()
-                .map(|x| DualsOrF64::F64(x.clone()))
+                .map(|x| DualsOrF64::F64(*x))
                 .collect()),
             FXArray::Dual(arr) => Ok(arr
                 .row(0)
@@ -175,7 +175,7 @@ impl FXRates {
             FXArray::F64(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
-                .map(|row| row.iter().map(|d| DualsOrF64::F64(d.clone())).collect())
+                .map(|row| row.iter().map(|d| DualsOrF64::F64(*d)).collect())
                 .collect()),
             FXArray::Dual(arr) => Ok(arr
                 .lanes(Axis(1))
