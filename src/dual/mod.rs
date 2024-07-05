@@ -1,5 +1,5 @@
-pub mod dual1;
-pub mod dual2;
+pub mod dual;
+mod dual_ops;
 pub mod dual_py;
 pub mod linalg;
 pub mod linalg_f64;

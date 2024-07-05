@@ -1,3 +1,5 @@
+//! Wrapper module to export to Python using pyo3 bindings.
+
 use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
 use crate::calendars::named::get_calendar_by_name;
 use crate::json::json_py::Serialized;
@@ -9,6 +11,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+/// Container for calendar structs convertible to Python objects.
 #[derive(Debug, Clone, PartialEq, FromPyObject)]
 pub enum Cals {
     Cal(Cal),
@@ -294,6 +297,7 @@ impl UnionCal {
     }
 }
 
+/// Return a calendar container from named identifier.
 #[pyfunction]
 #[pyo3(name = "get_named_calendar")]
 pub fn get_calendar_by_name_py(name: &str) -> PyResult<Cal> {

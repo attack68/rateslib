@@ -1,7 +1,6 @@
 //! Wrapper module to export Rust linalg operations to Python using pyo3 bindings.
 
-use crate::dual::dual1::Dual;
-use crate::dual::dual2::Dual2;
+use crate::dual::dual::{Dual, Dual2};
 use crate::dual::linalg::dsolve;
 use crate::dual::linalg_f64::fdsolve;
 use ndarray::{Array1, ArrayView2};

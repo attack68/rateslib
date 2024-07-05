@@ -1,5 +1,4 @@
-use crate::dual::dual1::{Dual, Gradient1};
-use crate::dual::dual2::{Dual2, Gradient2};
+use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2};
 use crate::dual::linalg::dmul11_;
 use crate::dual::linalg_f64::{fdmul11_, fdsolve, fouter11_};
 use ndarray::{Array1, Array2};
@@ -418,7 +417,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual1::Dual;
+    use crate::dual::dual::Dual;
     use ndarray::{arr1, arr2};
     use num_traits::One;
 

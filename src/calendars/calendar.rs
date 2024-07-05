@@ -1,10 +1,11 @@
-//! Provides functionality to create business day calendars and perform financial date manipulation.
+//! Utilities to create business day calendars and perform financial date manipulation.
 //!
 //! ### Basic usage
 //!
 //! The `Cal` struct allows the construction of a single business day calendar, e.g.
-//! a particular currency calendar. The below constructs two separate calendars, one for London holidays and
-//! one for Tokyo holidays in 2017.
+//! a particular currency calendar. The below constructs two separate calendars,
+//! one for some London holidays and
+//! one for some Tokyo holidays in 2017.
 //!
 //! ```rust
 //! // UK Monday 1st May Bank Holiday
@@ -76,7 +77,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-/// Define a single, business day calendar.
+/// A business day calendar with a singular list of holidays.
 ///
 /// A business day calendar is formed of 2 components:
 ///
@@ -115,7 +116,7 @@ impl Cal {
     }
 }
 
-/// Define a business day calendar which is the potential union of multiple calendars,
+/// A business day calendar which is the potential union of multiple calendars,
 /// with the additional constraint of also ensuring settlement compliance with one or more
 /// other calendars.
 ///
@@ -146,7 +147,7 @@ impl UnionCal {
 
 impl JSON for UnionCal {}
 
-/// A trait to control business day management and date rolling.
+/// Used to control business day management and date rolling.
 pub trait DateRoll {
     /// Returns whether the date is part of the general working week.
     fn is_weekday(&self, date: &NaiveDateTime) -> bool;
@@ -475,8 +476,8 @@ where
             .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
             .unwrap();
         cd1.iter().zip(cd2.iter()).all(|(x, y)| {
-            self.is_bus_day(&x) == other.is_bus_day(&x)
-                && self.is_settlement(&x) == other.is_settlement(&y)
+            self.is_bus_day(x) == other.is_bus_day(x)
+                && self.is_settlement(x) == other.is_settlement(y)
         })
     }
 }
@@ -490,13 +491,13 @@ impl PartialEq<UnionCal> for Cal {
             .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
             .unwrap();
         cd1.iter().zip(cd2.iter()).all(|(x, y)| {
-            self.is_bus_day(&x) == other.is_bus_day(&x)
-                && self.is_settlement(&x) == other.is_settlement(&y)
+            self.is_bus_day(x) == other.is_bus_day(x)
+                && self.is_settlement(x) == other.is_settlement(y)
         })
     }
 }
 
-/// Enum defining the rule to adjust a non-business day to a business day.
+/// A rule to adjust a non-business day to a business day.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum Modifier {
@@ -512,7 +513,7 @@ pub enum Modifier {
     ModP,
 }
 
-/// Enum defining the roll day.
+/// A roll day.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum RollDay {
