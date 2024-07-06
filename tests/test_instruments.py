@@ -4341,6 +4341,32 @@ class TestFXBrokerFly:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1.5
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-1
 
+    def test_single_vol_definition(self, fxfo):
+        # test the metric of the rate can be input as "single_vol" and a result returned.
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-20d", "atm_delta", "20d"],
+            vol=fxvs,
+        )
+        result = fxo.rate(metric="single_vol", fx=fxfo)
+        assert result == 10.0
+
 
 class TestVolValue:
 
