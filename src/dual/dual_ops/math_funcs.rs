@@ -5,10 +5,15 @@ use statrs::distribution::{ContinuousCDF, Normal};
 use std::f64::consts::PI;
 use std::sync::Arc;
 
+/// Functions for common mathematical operations.
 pub trait MathFuncs {
+    /// Return the exponential of a value.
     fn exp(&self) -> Self;
+    /// Return the natural logarithm of a value.
     fn log(&self) -> Self;
+    /// Return the standard normal cumulative distribution function of a value.
     fn norm_cdf(&self) -> Self;
+    /// Return the inverse standard normal cumulative distribution function of a value.
     fn inv_norm_cdf(&self) -> Self;
 }
 

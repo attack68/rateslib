@@ -1,5 +1,8 @@
 //! This is the documentation for rateslib-rs
 
+#![doc(html_favicon_url = "https://rateslib.readthedocs.io/en/stable/_static/favicon.ico")]
+// #![doc(html_logo_url = "https://rateslib.readthedocs.io/en/stable/_static/rateslib_logo2a.png")]
+
 #[cfg(test)]
 mod tests;
 

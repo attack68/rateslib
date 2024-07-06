@@ -1,9 +1,15 @@
-//! Create and use data types for calculating derivatives up to first order using automatic
+//! Create and use data types for calculating derivatives up to second order using automatic
 //! differentiation (AD).
 //!
+//! The type of AD used in *rateslib* is forward mode, dual number based.
+//!
 //! A first order dual number represents a function value and a linear manifold of the
-//! gradient at that point. Mathematical operations are defined to give dual numbers
-//! the ability to combine.
+//! gradient at that point. A second order dual number represents a function value and
+//! a quadratic manifold of the gradient at that point.
+//!
+//! Mathematical operations are defined to give dual numbers the ability to combine, and
+//! flexibly reference different variables at any point during calculations.
+//!
 
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
@@ -11,10 +17,10 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::cmp::{PartialEq};
-
 use std::sync::Arc;
+pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 
-/// Struct for defining a dual number data type supporting first order derivatives.
+/// A dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
@@ -23,7 +29,7 @@ pub struct Dual {
     pub(crate) dual: Array1<f64>,
 }
 
-/// Struct for defining a dual number data type supporting second order derivatives.
+/// A dual number data type supporting second order derivatives.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
@@ -55,17 +61,22 @@ impl From<Dual> for Dual2 {
     }
 }
 
-/// Enum defining the `vars` state of two dual number type structs, a LHS relative to a RHS.
+/// The state of the `vars` measured between two dual number type structs; a LHS relative to a RHS.
 #[derive(Clone, Debug, PartialEq)]
-pub enum VarsState {
-    EquivByArc, // Duals share an Arc ptr to their Vars
-    EquivByVal, // Duals share the same vars in the same order but no Arc ptr
-    Superset,   // The Dual vars contains all of the queried values and is larger set
-    Subset,     // The Dual vars is contained in the queried values and is smaller set
-    Difference, // The Dual vars and the queried set contain different values.
+pub enum VarsRelationship {
+    /// The two structs share the same Arc pointer for their `vars`.
+    ArcEquivalent,
+    /// The structs have the same `vars` in the same order but not a shared Arc pointer.
+    ValueEquivalent,
+    /// The `vars` of the compared RHS is contained within those of the LHS.
+    Superset,
+    /// The `vars` of the calling LHS are contained within those of the RHS.
+    Subset,
+    /// Both the LHS and RHS have different `vars`.
+    Difference,
 }
 
-/// A trait to order and manage the `variables` of the manifold associated with a dual number.
+/// Manages the `vars` of the manifold associated with a dual number.
 pub trait Vars
 where
     Self: Clone,
@@ -78,34 +89,34 @@ where
     /// This method compares the existing `vars` with the new and reshuffles manifold gradient
     /// values in memory. For large numbers of variables this is one of the least efficient
     /// operations relating different dual numbers and should be avoided where possible.
-    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self;
+    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsRelationship>) -> Self;
 
     /// Compare the `vars` on a `Dual` with a given Arc pointer.
-    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState {
+    fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsRelationship {
         if Arc::ptr_eq(self.vars(), arc_vars) {
-            VarsState::EquivByArc
+            VarsRelationship::ArcEquivalent
         } else if self.vars().len() == arc_vars.len()
             && self.vars().iter().zip(arc_vars.iter()).all(|(a, b)| a == b)
         {
-            VarsState::EquivByVal
+            VarsRelationship::ValueEquivalent
         } else if self.vars().len() >= arc_vars.len()
             && arc_vars.iter().all(|var| self.vars().contains(var))
         {
-            VarsState::Superset
+            VarsRelationship::Superset
         } else if self.vars().len() < arc_vars.len()
             && self.vars().iter().all(|var| arc_vars.contains(var))
         {
-            VarsState::Subset
+            VarsRelationship::Subset
         } else {
-            VarsState::Difference
+            VarsRelationship::Difference
         }
     }
-    // fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsState;
+    // fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsRelationship;
 
     /// Construct a tuple of 2 `Self` types whose `vars` are linked by an Arc pointer.
     ///
     /// Gradient values contained in fields may be shuffled in memory if necessary
-    /// according to the calculated `VarsState`. Do not use `state` directly unless you have
+    /// according to the calculated `VarsRelationship`. Do not use `state` directly unless you have
     /// performed a pre-check.
     ///
     /// # Examples
@@ -113,24 +124,24 @@ where
     /// ```rust
     /// let x = Dual::new(1.0, vec!["x".to_string()]);
     /// let y = Dual::new(1.5, vec!["y".to_string()]);
-    /// let (a, b) = x.to_union_vars(&y, Some(VarsState::Difference));
+    /// let (a, b) = x.to_union_vars(&y, Some(VarsRelationship::Difference));
     /// // a: <Dual: 1.0, (x, y), [1.0, 0.0]>
     /// // b: <Dual: 1.5, (x, y), [0.0, 1.0]>
     /// ```
-    fn to_union_vars(&self, other: &Self, state: Option<VarsState>) -> (Self, Self)
+    fn to_union_vars(&self, other: &Self, state: Option<VarsRelationship>) -> (Self, Self)
     where
         Self: Sized,
     {
         let state_ = state.unwrap_or_else(|| self.vars_cmp(other.vars()));
         match state_ {
-            VarsState::EquivByArc => (self.clone(), other.clone()),
-            VarsState::EquivByVal => (self.clone(), other.to_new_vars(self.vars(), Some(state_))),
-            VarsState::Superset => (
+            VarsRelationship::ArcEquivalent => (self.clone(), other.clone()),
+            VarsRelationship::ValueEquivalent => (self.clone(), other.to_new_vars(self.vars(), Some(state_))),
+            VarsRelationship::Superset => (
                 self.clone(),
-                other.to_new_vars(self.vars(), Some(VarsState::Subset)),
+                other.to_new_vars(self.vars(), Some(VarsRelationship::Subset)),
             ),
-            VarsState::Subset => (self.to_new_vars(other.vars(), Some(state_)), other.clone()),
-            VarsState::Difference => self.to_combined_vars(other),
+            VarsRelationship::Subset => (self.to_new_vars(other.vars(), Some(state_)), other.clone()),
+            VarsRelationship::Difference => self.to_combined_vars(other),
         }
     }
 
@@ -146,8 +157,8 @@ where
             self.vars().union(other.vars()).cloned(),
         ));
         (
-            self.to_new_vars(&comb_vars, Some(VarsState::Difference)),
-            other.to_new_vars(&comb_vars, Some(VarsState::Difference)),
+            self.to_new_vars(&comb_vars, Some(VarsRelationship::Difference)),
+            other.to_new_vars(&comb_vars, Some(VarsRelationship::Difference)),
         )
     }
 
@@ -180,10 +191,10 @@ impl Vars for Dual {
     /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
-    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
+    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsRelationship>) -> Self {
         let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
         let dual_: Array1<f64> = match match_val {
-            VarsState::EquivByArc | VarsState::EquivByVal => self.dual.clone(),
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => self.dual.clone(),
             _ => {
                 let lookup_or_zero = |v| match self.vars.get_index_of(v) {
                     Some(idx) => self.dual[idx],
@@ -215,12 +226,12 @@ impl Vars for Dual2 {
     /// let xy = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual2: 1.5, (x, y), [1.0, 0.0], [[0.0, 0.0], [0.0, 0.0]]>
-    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsState>) -> Self {
+    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsRelationship>) -> Self {
         let dual_: Array1<f64>;
         let mut dual2_: Array2<f64> = Array2::zeros((arc_vars.len(), arc_vars.len()));
         let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
         match match_val {
-            VarsState::EquivByArc | VarsState::EquivByVal => {
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
                 dual_ = self.dual.clone();
                 dual2_.clone_from(&self.dual2);
             }
@@ -259,7 +270,7 @@ impl Vars for Dual2 {
     }
 }
 
-/// A trait to allow calculation of first order gradients to all, or a set of provided, variables.
+/// Provides calculations of first order gradients to all, or a set of provided, `vars`.
 pub trait Gradient1: Vars {
     /// Get a reference to the Array containing the first order gradients.
     fn dual(&self) -> &Array1<f64>;
@@ -271,7 +282,7 @@ pub trait Gradient1: Vars {
         let arc_vars = Arc::new(IndexSet::from_iter(vars));
         let state = self.vars_cmp(&arc_vars);
         match state {
-            VarsState::EquivByArc | VarsState::EquivByVal => self.dual().clone(),
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => self.dual().clone(),
             _ => {
                 let mut dual_ = Array1::<f64>::zeros(arc_vars.len());
                 for (i, index) in arc_vars
@@ -301,6 +312,7 @@ impl Gradient1 for Dual2 {
     }
 }
 
+/// Provides calculations of second order gradients to all, or a set of provided, `vars`.
 pub trait Gradient2: Gradient1 {
     /// Get a reference to the Array containing the second order gradients.
     fn dual2(&self) -> &Array2<f64>;
@@ -312,7 +324,7 @@ pub trait Gradient2: Gradient1 {
         let arc_vars = Arc::new(IndexSet::from_iter(vars));
         let state = self.vars_cmp(&arc_vars);
         match state {
-            VarsState::EquivByArc | VarsState::EquivByVal => 2.0_f64 * self.dual2(),
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => 2.0_f64 * self.dual2(),
             _ => {
                 let indices: Vec<Option<usize>> = arc_vars
                     .iter()
@@ -648,31 +660,8 @@ mod tests {
     use super::*;
     use crate::dual::dual::Dual2;
     use std::time::Instant;
-
-    #[test]
-    fn test_fieldops() {
-        fn test_ops<T>(a: &T, b: &T) -> T
-        where
-            for<'a> &'a T: FieldOps<T>,
-        {
-            &(a + b) - a
-        }
-
-        fn test_ops2<T>(a: T, b: T) -> T
-        where
-            T: FieldOps<T>,
-        {
-            (a.clone() + b) - a
-        }
-
-        let x = 1.0;
-        let y = 2.0;
-        let z = test_ops(&x, &y);
-        println!("{:?}", z);
-
-        let z = test_ops2(x, y);
-        println!("{:?}", z);
-    }
+    use std::ops::{Add, Sub, Mul, Div};
+    use num_traits::{Zero, Signed, Pow, One};
 
     #[test]
     fn new() {
@@ -752,11 +741,11 @@ mod tests {
         let y2 = Dual::new(1.5, vec!["y".to_string()]);
         let z = x.to_new_vars(y.vars(), None);
         let u = Dual::new(1.5, vec!["u".to_string()]);
-        assert_eq!(x.vars_cmp(y.vars()), VarsState::Superset);
-        assert_eq!(y.vars_cmp(z.vars()), VarsState::EquivByArc);
-        assert_eq!(y.vars_cmp(y2.vars()), VarsState::EquivByVal);
-        assert_eq!(y.vars_cmp(x.vars()), VarsState::Subset);
-        assert_eq!(y.vars_cmp(u.vars()), VarsState::Difference);
+        assert_eq!(x.vars_cmp(y.vars()), VarsRelationship::Superset);
+        assert_eq!(y.vars_cmp(z.vars()), VarsRelationship::ArcEquivalent);
+        assert_eq!(y.vars_cmp(y2.vars()), VarsRelationship::ValueEquivalent);
+        assert_eq!(y.vars_cmp(x.vars()), VarsRelationship::Subset);
+        assert_eq!(y.vars_cmp(u.vars()), VarsRelationship::Difference);
     }
 
     #[test]
@@ -1203,7 +1192,7 @@ mod tests {
         )
         .unwrap();
 
-        println!("\nProfiling vars_cmp (VarsState::EquivByArc):");
+        println!("\nProfiling vars_cmp (VarsRelationship::ArcEquivalent):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1215,7 +1204,7 @@ mod tests {
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.2?}", elapsed / 100000);
 
-        println!("\nProfiling vars_cmp (VarsState::EquivByVal):");
+        println!("\nProfiling vars_cmp (VarsRelationship::ValueEquivalent):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1227,7 +1216,7 @@ mod tests {
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.2?}", elapsed / 1000);
 
-        println!("\nProfiling vars_cmp (VarsState::Superset):");
+        println!("\nProfiling vars_cmp (VarsRelationship::Superset):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1239,7 +1228,7 @@ mod tests {
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.2?}", elapsed / 1000);
 
-        println!("\nProfiling vars_cmp (VarsState::Different):");
+        println!("\nProfiling vars_cmp (VarsRelationship::Different):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1282,7 +1271,7 @@ mod tests {
         )
         .unwrap();
 
-        println!("\nProfiling to_union_vars (VarsState::EquivByArc):");
+        println!("\nProfiling to_union_vars (VarsRelationship::ArcEquivalent):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1294,7 +1283,7 @@ mod tests {
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.2?}", elapsed / 100000);
 
-        println!("\nProfiling to_union_vars (VarsState::EquivByVal):");
+        println!("\nProfiling to_union_vars (VarsRelationship::ValueEquivalent):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1306,7 +1295,7 @@ mod tests {
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.2?}", elapsed / 1000);
 
-        println!("\nProfiling to_union_vars (VarsState::Superset):");
+        println!("\nProfiling to_union_vars (VarsRelationship::Superset):");
         let now = Instant::now();
         // Code block to measure.
         {
@@ -1318,7 +1307,7 @@ mod tests {
         let elapsed = now.elapsed();
         println!("\nElapsed: {:.2?}", elapsed / 100);
 
-        println!("\nProfiling to_union_vars (VarsState::Different):");
+        println!("\nProfiling to_union_vars (VarsRelationship::Different):");
         let now = Instant::now();
         // Code block to measure.
         {

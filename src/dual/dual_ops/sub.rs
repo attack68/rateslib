@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsState};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
 use auto_ops::{impl_op_ex};
 use std::sync::Arc;
 
@@ -38,7 +38,7 @@ impl_op_ex!(-|a: &f64, b: &Dual2| -> Dual2 {
 impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
     let state = a.vars_cmp(b.vars());
     match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => Dual {
+        VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => Dual {
             real: a.real - b.real,
             dual: &a.dual - &b.dual,
             vars: Arc::clone(&a.vars),
@@ -58,7 +58,7 @@ impl_op_ex!(-|a: &Dual, b: &Dual| -> Dual {
 impl_op_ex!(-|a: &Dual2, b: &Dual2| -> Dual2 {
     let state = a.vars_cmp(b.vars());
     match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => Dual2 {
+        VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => Dual2 {
             real: a.real - b.real,
             dual: &a.dual - &b.dual,
             dual2: &a.dual2 - &b.dual2,
