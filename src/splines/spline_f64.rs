@@ -9,6 +9,10 @@ use std::iter::zip;
 use std::iter::Sum;
 use std::ops::{Mul, Sub};
 
+/// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
 
@@ -43,6 +47,10 @@ pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Opti
     }
 }
 
+/// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bsplev_single_dual(
     x: &Dual,
     i: usize,
@@ -55,6 +63,10 @@ pub fn bsplev_single_dual(
     Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
 }
 
+/// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bsplev_single_dual2(
     x: &Dual2,
     i: usize,

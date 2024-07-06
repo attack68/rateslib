@@ -5,7 +5,7 @@ use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates};
 use chrono::prelude::*;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
-use crate::json::json_py::Serialized;
+use crate::json::json_py::DeserializedObj;
 use ndarray::Axis;
 use pyo3::exceptions::PyValueError;
 // use pyo3::exceptions::PyValueError;
@@ -213,7 +213,7 @@ impl FXRates {
     // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match Serialized::FXRates(self.clone()).to_json() {
+        match DeserializedObj::FXRates(self.clone()).to_json() {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err(
                 "Failed to serialize `UnionCal` to JSON.",

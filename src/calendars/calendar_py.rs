@@ -2,7 +2,7 @@
 
 use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
 use crate::calendars::named::get_calendar_by_name;
-use crate::json::json_py::Serialized;
+use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
@@ -148,7 +148,7 @@ impl Cal {
     // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match Serialized::Cal(self.clone()).to_json() {
+        match DeserializedObj::Cal(self.clone()).to_json() {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err("Failed to serialize `Cal` to JSON.")),
         }
@@ -280,7 +280,7 @@ impl UnionCal {
     // JSON
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match Serialized::UnionCal(self.clone()).to_json() {
+        match DeserializedObj::UnionCal(self.clone()).to_json() {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err(
                 "Failed to serialize `UnionCal` to JSON.",

@@ -1,3 +1,6 @@
+//! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
+//! bindings.
+
 use crate::calendars::calendar::{Cal, UnionCal};
 use crate::dual::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
@@ -7,8 +10,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// Container for all of the Python exposed Rust objects which are deserializable.
 #[derive(Serialize, Deserialize, FromPyObject)]
-pub enum Serialized {
+pub enum DeserializedObj {
     Dual(Dual),
     Dual2(Dual2),
     Cal(Cal),
@@ -16,24 +20,25 @@ pub enum Serialized {
     FXRates(FXRates),
 }
 
-impl IntoPy<PyObject> for Serialized {
+impl IntoPy<PyObject> for DeserializedObj {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            Serialized::Dual(v) => Py::new(py, v).unwrap().to_object(py),
-            Serialized::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
-            Serialized::Cal(v) => Py::new(py, v).unwrap().to_object(py),
-            Serialized::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
-            Serialized::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::Dual(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::Cal(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
         }
     }
 }
 
-impl JSON for Serialized {}
+impl JSON for DeserializedObj {}
 
+///
 #[pyfunction]
 #[pyo3(name = "from_json")]
-pub fn from_json_py(_py: Python<'_>, json: &str) -> PyResult<Serialized> {
-    match Serialized::from_json(json) {
+pub fn from_json_py(_py: Python<'_>, json: &str) -> PyResult<DeserializedObj> {
+    match DeserializedObj::from_json(json) {
         Ok(v) => Ok(v),
         Err(e) => Err(PyValueError::new_err(format!(
             "Could not create Class or Struct from given JSON.\n{}",
@@ -49,13 +54,13 @@ mod tests {
     #[test]
     fn test_serialized_object() {
         let x = Dual::new(2.5, vec!["x".to_string()]);
-        let json = Serialized::Dual(x.clone()).to_json().unwrap();
+        let json = DeserializedObj::Dual(x.clone()).to_json().unwrap();
         println!("{}", json);
         assert_eq!(json,"{\"Dual\":{\"real\":2.5,\"vars\":[\"x\"],\"dual\":{\"v\":1,\"dim\":[1],\"data\":[1.0]}}}");
 
-        let y = Serialized::from_json(&json).unwrap();
+        let y = DeserializedObj::from_json(&json).unwrap();
         match y {
-            Serialized::Dual(d) => assert_eq!(x, d),
+            DeserializedObj::Dual(d) => assert_eq!(x, d),
             _ => assert!(false),
         }
     }
