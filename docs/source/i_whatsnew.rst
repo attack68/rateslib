@@ -72,6 +72,9 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Solving acyclic *FXForwards* systems is now stable for all orderings of currencies, and does not depend
        on a well chosen ``base`` currency.
+   * - Bug
+     - Entering the *"single_vol"* ``metric`` into the :meth:`~rateslib.instruments.FXBrokerFly.rate` method
+       of a :class:`~rateslib.instruments.FXBrokerFly` no longer raises.
    * - Errors
      - Improved messages when missing `fx` objects for pricing :class:`~rateslib.instruments.FXExchange`.
 

@@ -8178,7 +8178,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # self._set_premium(curves, fx)
 
         metric = _drb(self.kwargs["metric"], metric)
-        if metric == "vol":
+        if metric in ["vol", "single_vol"]:
             return self._pricing["vol"]
 
         _ = self.periods[0].rate(curves[1], curves[3], fx, NoInput(0), False, self._pricing["vol"])
@@ -8431,6 +8431,7 @@ class FXOptionStrat:
             "pips_or_%": self.rate_weight,
             "vol": self.rate_weight_vol,
             "premium": [1.0] * len(self.periods),
+            "single_vol": self.rate_weight_vol,
         }
         weights = map_[metric]
 
@@ -9093,6 +9094,9 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     premium: 4-element sequence, optional
         The premiums associated with each option of the strategy; lower strike put, straddle put,
         straddle call, higher strike call.
+    notional: 2-element sequence, optional
+        The first element is the notional associated with the *Strangle*. If the second element is *None*, it will
+        be implied in a vega neutral sense.
     metric: str, optional
         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
