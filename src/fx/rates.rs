@@ -515,7 +515,7 @@ mod tests {
             None,
         )
         .unwrap();
-        fxr.update(vec![FXRate::try_new(
+        let _ = fxr.update(vec![FXRate::try_new(
             "usd",
             "jpy",
             DualsOrF64::F64(120.0),

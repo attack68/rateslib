@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsState};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
 
 /// Measures value equivalence of `Dual`.
 ///
@@ -13,7 +13,7 @@ impl PartialEq<Dual> for Dual {
         } else {
             let state = self.vars_cmp(other.vars());
             match state {
-                VarsState::EquivByArc | VarsState::EquivByVal => {
+                VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
                     self.dual.iter().eq(other.dual.iter())
                 }
                 _ => {
@@ -56,7 +56,7 @@ impl PartialEq<Dual2> for Dual2 {
         } else {
             let state = self.vars_cmp(other.vars());
             match state {
-                VarsState::EquivByArc | VarsState::EquivByVal => {
+                VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
                     self.dual.iter().eq(other.dual.iter())
                         && self.dual2.iter().eq(other.dual2.iter())
                 }

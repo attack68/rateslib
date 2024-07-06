@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsState};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
 use crate::dual::linalg_f64::fouter11_;
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use ndarray::Array2;
@@ -25,7 +25,7 @@ impl_op_ex_commutative!(*|a: &Dual2, b: &f64| -> Dual2 {
 impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
     let state = a.vars_cmp(b.vars());
     match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => Dual {
+        VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => Dual {
             real: a.real * b.real,
             dual: &a.dual * b.real + &b.dual * a.real,
             vars: Arc::clone(&a.vars),
@@ -45,7 +45,7 @@ impl_op_ex!(*|a: &Dual, b: &Dual| -> Dual {
 impl_op_ex!(*|a: &Dual2, b: &Dual2| -> Dual2 {
     let state = a.vars_cmp(b.vars());
     match state {
-        VarsState::EquivByArc | VarsState::EquivByVal => {
+        VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
             let mut dual2: Array2<f64> = &a.dual2 * b.real + &b.dual2 * a.real;
             let cross_beta = fouter11_(&a.dual.view(), &b.dual.view());
             dual2 = dual2 + 0.5_f64 * (&cross_beta + &cross_beta.t());
