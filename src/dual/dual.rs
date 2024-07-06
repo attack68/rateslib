@@ -20,7 +20,7 @@ use std::cmp::{PartialEq};
 use std::sync::Arc;
 pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 
-/// Struct for defining a dual number data type supporting first order derivatives.
+/// A dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
@@ -29,7 +29,7 @@ pub struct Dual {
     pub(crate) dual: Array1<f64>,
 }
 
-/// Struct for defining a dual number data type supporting second order derivatives.
+/// A dual number data type supporting second order derivatives.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
@@ -76,7 +76,7 @@ pub enum VarsRelationship {
     Difference,
 }
 
-/// A trait to order and manage the `variables` of the manifold associated with a dual number.
+/// Manages the `vars` of the manifold associated with a dual number.
 pub trait Vars
 where
     Self: Clone,
@@ -270,7 +270,7 @@ impl Vars for Dual2 {
     }
 }
 
-/// A trait to allow calculation of first order gradients to all, or a set of provided, variables.
+/// Provides calculations of first order gradients to all, or a set of provided, `vars`.
 pub trait Gradient1: Vars {
     /// Get a reference to the Array containing the first order gradients.
     fn dual(&self) -> &Array1<f64>;
@@ -312,6 +312,7 @@ impl Gradient1 for Dual2 {
     }
 }
 
+/// Provides calculations of second order gradients to all, or a set of provided, `vars`.
 pub trait Gradient2: Gradient1 {
     /// Get a reference to the Array containing the second order gradients.
     fn dual2(&self) -> &Array2<f64>;
