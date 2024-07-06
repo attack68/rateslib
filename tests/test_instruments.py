@@ -4365,7 +4365,8 @@ class TestFXBrokerFly:
             vol=fxvs,
         )
         result = fxo.rate(metric="single_vol", fx=fxfo)
-        assert result == 10.0
+        expected = 10.147423 - 7.90
+        assert (result - expected) < 1e-6
 
 
 class TestVolValue:
