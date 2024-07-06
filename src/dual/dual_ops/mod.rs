@@ -1,7 +1,7 @@
 mod add;
 mod div;
 mod eq;
-pub mod field_ops;
+// pub mod field_ops;
 pub mod math_funcs;
 mod mul;
 mod neg;

@@ -659,35 +659,8 @@ mod tests {
     use super::*;
     use crate::dual::dual::Dual2;
     use std::time::Instant;
-    use crate::dual::dual_ops::field_ops::FieldOps;
     use std::ops::{Add, Sub, Mul, Div};
     use num_traits::{Zero, Signed, Pow, One};
-
-
-    #[test]
-    fn test_fieldops() {
-        fn test_ops<T>(a: &T, b: &T) -> T
-        where
-            for<'a> &'a T: FieldOps<T>,
-        {
-            &(a + b) - a
-        }
-
-        fn test_ops2<T>(a: T, b: T) -> T
-        where
-            T: FieldOps<T>,
-        {
-            (a.clone() + b) - a
-        }
-
-        let x = 1.0;
-        let y = 2.0;
-        let z = test_ops(&x, &y);
-        println!("{:?}", z);
-
-        let z = test_ops2(x, y);
-        println!("{:?}", z);
-    }
 
     #[test]
     fn new() {
