@@ -39,26 +39,14 @@ pub struct Dual2 {
     pub(crate) dual2: Array2<f64>,
 }
 
-impl From<Dual2> for Dual {
-    fn from(value: Dual2) -> Self {
-        Dual {
-            real: value.real,
-            vars: value.vars.clone(),
-            dual: value.dual,
-        }
-    }
-}
-
-impl From<Dual> for Dual2 {
-    fn from(value: Dual) -> Self {
-        let n = value.dual.len_of(Axis(0));
-        Dual2 {
-            real: value.real,
-            vars: value.vars.clone(),
-            dual: value.dual,
-            dual2: Array2::zeros((n, n)),
-        }
-    }
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ADOrder{
+    /// Floating point arithmetic only.
+    Zero,
+    /// Derivatives available to first order.
+    One,
+    /// Derivatives available to second order.
+    Two,
 }
 
 /// The state of the `vars` measured between two dual number type structs; a LHS relative to a RHS.
