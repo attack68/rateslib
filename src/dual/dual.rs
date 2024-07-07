@@ -669,7 +669,7 @@ impl Dual2 {
 mod tests {
     use super::*;
     use crate::dual::dual::Dual2;
-    use num_traits::{One, Pow, Signed, Zero};
+    use num_traits::{One, Signed, Zero};
     use std::ops::{Add, Div, Mul, Sub};
     use std::time::Instant;
 
@@ -778,43 +778,10 @@ mod tests {
 
 
 
-    #[test]
-    fn eq_ne() {
-        // Dual with vars - f64
-        assert!(Dual::new(0.0, Vec::from([String::from("a")])) != 0.0);
-        // Dual with no vars - f64 (+reverse)
-        assert!(Dual::new(2.0, Vec::new()) == 2.0);
-        assert!(2.0 == Dual::new(2.0, Vec::new()));
-        // Dual - Dual (various real, vars, gradient mismatch)
-        let d = Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap();
-        assert!(d == Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap());
-        assert!(d != Dual::try_new(2.0, Vec::from([String::from("b")]), Vec::from([2.3])).unwrap());
-        assert!(d != Dual::try_new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap());
-        assert!(d != Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])).unwrap());
-        // Dual - Dual (missing Vars are zero and upcasted)
-        assert!(
-            d == Dual::try_new(
-                2.0,
-                Vec::from([String::from("a"), String::from("b")]),
-                Vec::from([2.3, 0.0])
-            )
-            .unwrap()
-        );
-    }
 
 
-    #[test]
-    fn inv() {
-        let d1 = Dual::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-        )
-        .unwrap();
-        let result = d1.clone() * d1.pow(-1.0);
-        let expected = Dual::new(1.0, vec![]);
-        assert!(result == expected)
-    }
+
+
 
     #[test]
     fn abs() {
@@ -921,13 +888,7 @@ mod tests {
 
 
 
-    #[test]
-    fn pow_ref() {
-        let d1 = Dual::new(3.0, vec!["x".to_string()]);
-        let d2 = (&d1).pow(2.0);
-        assert_eq!(d2.real, 9.0);
-        assert_eq!(d2.dual, Array1::from_vec(vec![6.0]));
-    }
+
 
     #[test]
     fn signed_() {
@@ -1311,13 +1272,7 @@ mod tests {
         assert_eq!(d, Dual2::new(1.0, vec![]));
     }
 
-    #[test]
-    fn pow_ref2() {
-        let d1 = Dual2::new(3.0, vec!["x".to_string()]);
-        let d2 = (&d1).pow(2.0);
-        assert_eq!(d2.real, 9.0);
-        assert_eq!(d2.dual, Array1::from_vec(vec![6.0]));
-    }
+
 
     #[test]
     fn signed_2() {
@@ -1340,68 +1295,7 @@ mod tests {
         assert!(d.is_zero());
     }
 
-    #[test]
-    fn eq_ne2() {
-        // Dual with vars - f64
-        assert!(Dual2::new(0.0, Vec::from([String::from("a")])) != 0.0);
-        // Dual with no vars - f64 (+reverse)
-        assert!(Dual2::new(2.0, Vec::new()) == 2.0);
-        assert!(2.0 == Dual2::new(2.0, Vec::new()));
-        // Dual - Dual (various real, vars, gradient mismatch)
-        let d = Dual2::try_new(
-            2.0,
-            Vec::from([String::from("a")]),
-            Vec::from([2.3]),
-            Vec::new(),
-        )
-        .unwrap();
-        assert!(
-            d == Dual2::try_new(
-                2.0,
-                Vec::from([String::from("a")]),
-                Vec::from([2.3]),
-                Vec::new()
-            )
-            .unwrap()
-        );
-        assert!(
-            d != Dual2::try_new(
-                2.0,
-                Vec::from([String::from("b")]),
-                Vec::from([2.3]),
-                Vec::new()
-            )
-            .unwrap()
-        );
-        assert!(
-            d != Dual2::try_new(
-                3.0,
-                Vec::from([String::from("a")]),
-                Vec::from([2.3]),
-                Vec::new()
-            )
-            .unwrap()
-        );
-        assert!(
-            d != Dual2::try_new(
-                2.0,
-                Vec::from([String::from("a")]),
-                Vec::from([1.3]),
-                Vec::new()
-            )
-            .unwrap()
-        );
-        // Dual - Dual (missing Vars are zero and upcasted)
-        assert!(
-            d == Dual2::try_new(
-                2.0,
-                Vec::from([String::from("a"), String::from("b")]),
-                Vec::from([2.3, 0.0]),
-                Vec::new()
-            )
-            .unwrap()
-        );
-    }
+
 
     #[test]
     fn ops_equiv2() {
@@ -1421,19 +1315,7 @@ mod tests {
 
 
 
-    #[test]
-    fn inv2() {
-        let d1 = Dual2::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        let result = d1.clone() * d1.pow(-1.0);
-        let expected = Dual2::new(1.0, vec![]);
-        assert_eq!(result, expected)
-    }
+
 
     #[test]
     fn abs2() {

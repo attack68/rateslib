@@ -68,3 +68,96 @@ impl PartialEq<Dual2> for Dual2 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eq_ne() {
+        // Dual with vars - f64
+        assert!(Dual::new(0.0, Vec::from([String::from("a")])) != 0.0);
+        // Dual with no vars - f64 (+reverse)
+        assert!(Dual::new(2.0, Vec::new()) == 2.0);
+        assert!(2.0 == Dual::new(2.0, Vec::new()));
+        // Dual - Dual (various real, vars, gradient mismatch)
+        let d = Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap();
+        assert!(d == Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap());
+        assert!(d != Dual::try_new(2.0, Vec::from([String::from("b")]), Vec::from([2.3])).unwrap());
+        assert!(d != Dual::try_new(3.0, Vec::from([String::from("a")]), Vec::from([2.3])).unwrap());
+        assert!(d != Dual::try_new(2.0, Vec::from([String::from("a")]), Vec::from([1.3])).unwrap());
+        // Dual - Dual (missing Vars are zero and upcasted)
+        assert!(
+            d == Dual::try_new(
+                2.0,
+                Vec::from([String::from("a"), String::from("b")]),
+                Vec::from([2.3, 0.0])
+            )
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn eq_ne2() {
+        // Dual with vars - f64
+        assert!(Dual2::new(0.0, Vec::from([String::from("a")])) != 0.0);
+        // Dual with no vars - f64 (+reverse)
+        assert!(Dual2::new(2.0, Vec::new()) == 2.0);
+        assert!(2.0 == Dual2::new(2.0, Vec::new()));
+        // Dual - Dual (various real, vars, gradient mismatch)
+        let d = Dual2::try_new(
+            2.0,
+            Vec::from([String::from("a")]),
+            Vec::from([2.3]),
+            Vec::new(),
+        )
+            .unwrap();
+        assert!(
+            d == Dual2::try_new(
+                2.0,
+                Vec::from([String::from("a")]),
+                Vec::from([2.3]),
+                Vec::new()
+            )
+                .unwrap()
+        );
+        assert!(
+            d != Dual2::try_new(
+                2.0,
+                Vec::from([String::from("b")]),
+                Vec::from([2.3]),
+                Vec::new()
+            )
+                .unwrap()
+        );
+        assert!(
+            d != Dual2::try_new(
+                3.0,
+                Vec::from([String::from("a")]),
+                Vec::from([2.3]),
+                Vec::new()
+            )
+                .unwrap()
+        );
+        assert!(
+            d != Dual2::try_new(
+                2.0,
+                Vec::from([String::from("a")]),
+                Vec::from([1.3]),
+                Vec::new()
+            )
+                .unwrap()
+        );
+        // Dual - Dual (missing Vars are zero and upcasted)
+        assert!(
+            d == Dual2::try_new(
+                2.0,
+                Vec::from([String::from("a"), String::from("b")]),
+                Vec::from([2.3, 0.0]),
+                Vec::new()
+            )
+                .unwrap()
+        );
+    }
+
+}
