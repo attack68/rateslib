@@ -9,6 +9,10 @@ use std::iter::zip;
 use std::iter::Sum;
 use std::ops::{Mul, Sub};
 
+/// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Option<usize>) -> f64 {
     let org_k: usize = org_k.unwrap_or(*k);
 
@@ -43,6 +47,10 @@ pub fn bsplev_single_f64(x: &f64, i: usize, k: &usize, t: &Vec<f64>, org_k: Opti
     }
 }
 
+/// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bsplev_single_dual(
     x: &Dual,
     i: usize,
@@ -55,6 +63,10 @@ pub fn bsplev_single_dual(
     Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
 }
 
+/// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bsplev_single_dual2(
     x: &Dual2,
     i: usize,
@@ -70,6 +82,11 @@ pub fn bsplev_single_dual2(
     Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
+/// Evaluate the `m`'th order derivative of the `x` value on the `i`'th B-spline with
+/// order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bspldnev_single_f64(
     x: &f64,
     i: usize,
@@ -109,6 +126,11 @@ pub fn bspldnev_single_f64(
     r
 }
 
+/// Evaluate the `m`'th order derivative of the `x` value on the `i`'th B-spline with
+/// order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bspldnev_single_dual(
     x: &Dual,
     i: usize,
@@ -122,6 +144,11 @@ pub fn bspldnev_single_dual(
     Dual::clone_from(x, b_f64, dbdx_f64 * x.dual())
 }
 
+/// Evaluate the `m`'th order derivative of the `x` value on the `i`'th B-spline with
+/// order `k` and knot sequence `t`.
+///
+/// Note `org_k` should be input as None, it is used internally for recursively calculating
+/// spline derivatives, where it is set to the original `k` value from the outer scope.
 pub fn bspldnev_single_dual2(
     x: &Dual2,
     i: usize,
@@ -138,6 +165,7 @@ pub fn bspldnev_single_dual2(
     Dual2::clone_from(x, b_f64, dbdx_f64 * x.dual(), dual2)
 }
 
+/// A piecewise polynomial spline of given order and knot sequence.
 #[derive(Clone)]
 pub struct PPSpline<T> {
     k: usize,
@@ -170,6 +198,7 @@ where
     for<'a> &'a T: Sub<&'a T, Output = T>,
     for<'a> &'a f64: Mul<&'a T, Output = T>,
 {
+    /// Create a PPSpline from its order `k`, knot sequence `t` and optional spline coefficents `c`.
     pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<T>>) -> Self {
         // t is given and is non-decreasing
         assert!(t.len() > 1);
@@ -178,20 +207,6 @@ where
         let c_ = c.map(Array1::from_vec);
         PPSpline { k, t, n, c: c_ }
     }
-
-    // pub fn ppev_single(&self, x: &f64) -> T {
-    //     let b: Array1<f64> = Array1::from_vec(
-    //     (0..self.n)
-    //         .map(|i| bsplev_single_f64(x, i, &self.k, &self.t, None))
-    //         .collect(),
-    //     );
-    //     match &self.c {
-    //         Some(c) => fdmul11_(&b.view(), &c.view()),
-    //         None => {
-    //             panic!("Must call csolve before attempting to evaluate spline.")
-    //         }
-    //     }
-    // }
 
     pub fn ppdnev_single(&self, x: &f64, m: usize) -> T {
         let b: Array1<f64> = Array1::from_vec(
@@ -257,29 +272,6 @@ where
 }
 
 impl PPSpline<f64> {
-    // pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
-    //     let b: Array1<Dual> = Array1::from_vec(
-    //         (0..self.n)
-    //             .map(|i| bsplev_single_dual(x, i, &self.k, &self.t, None))
-    //             .collect(),
-    //     );
-    //     match &self.c {
-    //         Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
-    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
-    //     }
-    // }
-    //
-    // pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
-    //     let b: Array1<Dual2> = Array1::from_vec(
-    //     (0..self.n)
-    //         .map(|i| bsplev_single_dual2(x, i, &self.k, &self.t, None))
-    //         .collect(),
-    //     );
-    //     match &self.c {
-    //         Some(c) => Ok(fdmul11_(&c.view(), &b.view())),
-    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
-    //     }
-    // }
 
     pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
         let b: Array1<Dual> = Array1::from_vec(
@@ -311,21 +303,6 @@ impl PPSpline<f64> {
 }
 
 impl PPSpline<Dual> {
-    // pub fn ppev_single_dual(&self, x: &Dual) -> Result<Dual, PyErr> {
-    //     let b: Array1<Dual> = Array1::from_vec(
-    //     (0..self.n)
-    //         .map(|i| bsplev_single_dual(x, i, &self.k, &self.t, None))
-    //         .collect(),
-    //     );
-    //     match &self.c {
-    //         Some(c) => Ok(dmul11_(&c.view(), &b.view())),
-    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
-    //     }
-    // }
-    //
-    // pub fn ppev_single_dual2(&self, _x: &Dual2) -> Result<Dual2, PyErr> {
-    //     Err(PyTypeError::new_err("Cannot index with type `Dual2` on PPSpline<Dual>`."))
-    // }
 
     pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
         Err(PyTypeError::new_err(
@@ -349,21 +326,6 @@ impl PPSpline<Dual> {
 }
 
 impl PPSpline<Dual2> {
-    // pub fn ppev_single_dual(&self, _x: &Dual) -> Result<Dual, PyErr> {
-    //     Err(PyTypeError::new_err("Cannot index with type `Dual` on PPSpline<Dual2>."))
-    // }
-    //
-    // pub fn ppev_single_dual2(&self, x: &Dual2) -> Result<Dual2, PyErr> {
-    //     let b: Array1<Dual2> = Array1::from_vec(
-    //     (0..self.n)
-    //         .map(|i| bsplev_single_dual2(x, i, &self.k, &self.t, None))
-    //         .collect(),
-    //     );
-    //     match &self.c {
-    //         Some(c) => Ok(dmul11_(&c.view(), &b.view())),
-    //         None => Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline.")),
-    //     }
-    // }
 
     pub fn ppdnev_single_dual(&self, _x: &Dual, _m: usize) -> Result<Dual, PyErr> {
         Err(PyTypeError::new_err(
