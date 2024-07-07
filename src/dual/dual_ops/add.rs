@@ -43,3 +43,97 @@ impl_op_ex!(+ |a: &Dual2, b: &Dual2| -> Dual2 {
         }
     }
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_f64() {
+        let d1 = Dual::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+        .unwrap();
+        let result = 10.0 + d1 + 15.0;
+        let expected = Dual::try_new(
+            26.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+        .unwrap();
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn add() {
+        let d1 = Dual::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+        .unwrap();
+        let d2 = Dual::try_new(
+            2.0,
+            vec!["v0".to_string(), "v2".to_string()],
+            vec![0.0, 3.0],
+        )
+        .unwrap();
+        let expected = Dual::try_new(
+            3.0,
+            vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
+            vec![1.0, 2.0, 3.0],
+        )
+        .unwrap();
+        let result = d1 + d2;
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn add_f64_2() {
+        let d1 = Dual2::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+        .unwrap();
+        let result = 10.0 + d1 + 15.0;
+        let expected = Dual2::try_new(
+            26.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(result, expected)
+    }
+
+    #[test]
+    fn add2() {
+        let d1 = Dual2::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+        .unwrap();
+        let d2 = Dual2::try_new(
+            2.0,
+            vec!["v0".to_string(), "v2".to_string()],
+            vec![0.0, 3.0],
+            Vec::new(),
+        )
+        .unwrap();
+        let expected = Dual2::try_new(
+            3.0,
+            vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
+            vec![1.0, 2.0, 3.0],
+            Vec::new(),
+        )
+        .unwrap();
+        let result = d1 + d2;
+        assert_eq!(result, expected)
+    }
+}
