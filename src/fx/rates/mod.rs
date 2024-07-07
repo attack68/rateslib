@@ -104,6 +104,10 @@ impl FXRates {
             }
         }
 
+        let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
+        let mut edges: Array2<i16> = create_initial_edges(&currencies, &fx_pairs);
+        let mut fx_array 
+
         let (mut fx_array, mut edges) = FXRates::_create_initial_arrays(&currencies, &fx_rates);
         let _ = FXRates::_mut_arrays_remaining_elements(
             fx_array.view_mut(),
@@ -334,6 +338,36 @@ impl FXRates {
         }
     }
 }
+
+/// Return a one-hot mapping, in 2-d array form of the initial connections between currencies,
+/// given the pairs associated with the FX rates.
+fn create_initial_edges(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair]) -> (Array2<i16>) {
+    let mut edges: Array2<i16> = Array2::eye(currencies.len());
+    for pair in fx_pairs.iter() {
+        let row = currencies.get_index_of(&pair.0).unwrap();
+        let col = currencies.get_index_of(&pair.1).unwrap();
+        edges[[row, col]] = 1_i16;
+        edges[[col, row]] = 1_i16;
+    }
+    edges
+}
+
+/// Return a 2-d array containing all calculated FX rates as initially provided.
+///
+/// T will be an f64, Dual or Dual2
+fn create_initial_fx_array<T>(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair], fx_rates: &[T]) -> (Array2<T>) {
+    assert_eq!(fx_pairs.len(), fx_rates.len());
+    let mut fx_array: Array2<T> = Array2::eye(currencies.len());
+
+    for (i, pair) in fx_pairs.iter().enumerate() {
+        let row = currencies.get_index_of(&pair.0).unwrap();
+        let col = currencies.get_index_of(&pair.1).unwrap();
+        fx_array[[row, col]] = fx_rates[i].clone();
+        fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
+    }
+    fx_array
+}
+
 
 impl JSON for FXRates {}
 
