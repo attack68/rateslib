@@ -2,8 +2,7 @@
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
-use crate::dual::dual::{Dual, Dual2, ADOrder};
-use crate::dual::dual_py::DualsOrF64;
+use crate::dual::dual::{Dual, Dual2, ADOrder, DualsOrF64};
 use crate::dual::linalg::argabsmax;
 use crate::json::JSON;
 use chrono::prelude::*;
@@ -15,6 +14,7 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::ops::{Mul, Div};
+use num_traits::{One, Zero};
 
 pub(crate) mod ccy;
 pub use crate::fx::rates::ccy::Ccy;
@@ -105,121 +105,8 @@ impl FXRates {
             }
         }
 
-        let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
-        let mut edges: Array2<i16> = create_initial_edges(&currencies, &fx_pairs);
-
-        
-        let fx_rates_vec = fx_rates.iter().map(|x| x.rate).collect();
-
-        let mut fx_array  = create_initial_fx_array(&currencies, &fx_pairs, &fx_rates_vec);
-
-        let (mut fx_array, mut edges) = FXRates::_create_initial_arrays(&currencies, &fx_rates);
-        let _ = FXRates::_mut_arrays_remaining_elements(
-            fx_array.view_mut(),
-            edges.view_mut(),
-            HashSet::new(),
-        )?;
-
-        Ok(FXRates {
-            fx_rates,
-            fx_array: FXArray::Dual(fx_array),
-            currencies,
-        })
-    }
-
-    fn _create_initial_arrays(
-        currencies: &IndexSet<Ccy>,
-        fx_rates: &[FXRate],
-        ad: ADOrder,
-    ) -> (FXArray, Array2<i16>) {
-        let mut fx_array = match ad {
-            ADOrder::Zero => { FXArray::F64(Array2::<f64>::eye(currencies.len())) }
-            ADOrder::One => { FXArray::Dual(Array2::<Dual>::eye(currencies.len())) }
-            ADOrder::Two => { FXArray::Dual2(Array2::<Dual2>::eye(currencies.len())) }
-        };
-        let mut edges: Array2<i16> = Array2::eye(currencies.len());
-        for fxr in fx_rates.iter() {
-            let row = currencies.get_index_of(&fxr.pair.0).unwrap();
-            let col = currencies.get_index_of(&fxr.pair.1).unwrap();
-            edges[[row, col]] = 1_i16;
-            edges[[col, row]] = 1_i16;
-            match &fxr.rate {
-                DualsOrF64::F64(f) => {
-                    *fx_array[[row, col]] =
-                        Dual::new(*f, vec!["fx_".to_string() + &format!("{}", fxr.pair)]);
-                    *fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
-                }
-                DualsOrF64::Dual(d) => {
-                    fx_array[[row, col]] = d.clone();
-                    fx_array[[col, row]] = 1_f64 / &fx_array[[row, col]];
-                }
-                DualsOrF64::Dual2(_) => panic!("cannot construct from dual2 rates"),
-            }
-        }
-        (fx_array, edges)
-    }
-
-    fn _mut_arrays_remaining_elements(
-        mut fx_array: ArrayViewMut2<Dual>,
-        mut edges: ArrayViewMut2<i16>,
-        mut prev_value: HashSet<usize>,
-    ) -> Result<bool, PyErr> {
-        if prev_value.len() == edges.len_of(Axis(0)) {
-            return Err(PyValueError::new_err(
-                "FX Array cannot be solved. There are degenerate FX rate pairs.\n\
-                For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
-            ));
-        }
-        if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
-            return Ok(true); // all edges and values have already been populated.
-        }
-        let mut row_edges = edges.sum_axis(Axis(1));
-
-        let mut node: usize = edges.len_of(Axis(1)) + 1_usize;
-        let mut combinations_: Vec<Vec<usize>> = Vec::new();
-        let mut start_flag = true;
-        while start_flag || prev_value.contains(&node) {
-            start_flag = false;
-
-            // find node with most outgoing edges
-            node = argabsmax(row_edges.view());
-            row_edges[node] = 0_i16;
-
-            // filter by combinations that are not already populated
-            combinations_ = edges
-                .row(node)
-                .iter()
-                .zip(0_usize..)
-                .filter(|(v, i)| **v == 1_i16 && *i != node)
-                .map(|(_v, i)| i)
-                .combinations(2)
-                .filter(|v| edges[[v[0], v[1]]] == 0_i16)
-                .collect();
-        }
-
-        let mut counter: i16 = 0;
-        for c in combinations_ {
-            counter += 1_i16;
-            edges[[c[0], c[1]]] = 1_i16;
-            edges[[c[1], c[0]]] = 1_i16;
-            fx_array[[c[0], c[1]]] = &fx_array[[c[0], node]] * &fx_array[[node, c[1]]];
-            fx_array[[c[1], c[0]]] = 1.0_f64 / &fx_array[[c[0], c[1]]];
-        }
-
-        if counter == 0 {
-            prev_value.insert(node);
-            return FXRates::_mut_arrays_remaining_elements(
-                fx_array.view_mut(),
-                edges.view_mut(),
-                prev_value,
-            );
-        } else {
-            return FXRates::_mut_arrays_remaining_elements(
-                fx_array.view_mut(),
-                edges.view_mut(),
-                HashSet::from([node]),
-            );
-        }
+        let fx_array = create_fx_array(&currencies, &fx_rates, ADOrder::One)?;
+        Ok(FXRates { fx_rates, fx_array, currencies })
     }
 
     pub fn get_ccy_index(&self, currency: &Ccy) -> Option<usize> {
@@ -264,89 +151,89 @@ impl FXRates {
         Ok(())
     }
 
-    pub fn set_ad_order(&mut self, ad: usize) {
-        match (ad, &self.fx_array) {
-            (0, FXArray::F64(_)) | (1, FXArray::Dual(_)) | (2, FXArray::Dual2(_)) => {}
-            (1, FXArray::Dual2(arr)) => {
-                let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::Dual(
-                    Array2::<Dual>::from_shape_vec(
-                        (n, n),
-                        arr.clone().into_iter().map(|d| d.into()).collect(),
-                    )
-                        .unwrap(),
-                );
-                self.fx_array = fx_array;
-            }
-            (2, FXArray::Dual(arr)) => {
-                let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::Dual2(
-                    Array2::<Dual2>::from_shape_vec(
-                        (n, n),
-                        arr.clone().into_iter().map(|d| d.into()).collect(),
-                    )
-                        .unwrap(),
-                );
-                self.fx_array = fx_array;
-            }
-            (0, FXArray::Dual(arr)) => {
-                let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::F64(
-                    Array2::<f64>::from_shape_vec(
-                        (n, n),
-                        arr.clone().into_iter().map(|d| d.real).collect(),
-                    )
-                        .unwrap(),
-                );
-                self.fx_array = fx_array;
-            }
-            (0, FXArray::Dual2(arr)) => {
-                let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::F64(
-                    Array2::<f64>::from_shape_vec(
-                        (n, n),
-                        arr.clone().into_iter().map(|d| d.real).collect(),
-                    )
-                        .unwrap(),
-                );
-                self.fx_array = fx_array;
-            }
-            (1, FXArray::F64(_)) => {
-                let (mut fx_array, mut edges) =
-                    FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
-                let _ = FXRates::_mut_arrays_remaining_elements(
-                    fx_array.view_mut(),
-                    edges.view_mut(),
-                    HashSet::new(),
-                );
-                self.fx_array = FXArray::Dual(fx_array);
-            }
-            (2, FXArray::F64(_)) => {
-                let (mut fx_array, mut edges) =
-                    FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
-                let _ = FXRates::_mut_arrays_remaining_elements(
-                    fx_array.view_mut(),
-                    edges.view_mut(),
-                    HashSet::new(),
-                );
-                let n: usize = fx_array.len_of(Axis(0));
-                let fx_array2 = FXArray::Dual2(
-                    Array2::<Dual2>::from_shape_vec(
-                        (n, n),
-                        fx_array.into_iter().map(|d| d.into()).collect(),
-                    )
-                        .unwrap(),
-                );
-                self.fx_array = fx_array2;
-            }
-            _ => panic!("unreachable pattern for AD: 0, 1, 2"),
-        }
-    }
+    // pub fn set_ad_order(&mut self, ad: usize) {
+    //     match (ad, &self.fx_array) {
+    //         (0, FXArray::F64(_)) | (1, FXArray::Dual(_)) | (2, FXArray::Dual2(_)) => {}
+    //         (1, FXArray::Dual2(arr)) => {
+    //             let n: usize = arr.len_of(Axis(0));
+    //             let fx_array = FXArray::Dual(
+    //                 Array2::<Dual>::from_shape_vec(
+    //                     (n, n),
+    //                     arr.clone().into_iter().map(|d| d.into()).collect(),
+    //                 )
+    //                     .unwrap(),
+    //             );
+    //             self.fx_array = fx_array;
+    //         }
+    //         (2, FXArray::Dual(arr)) => {
+    //             let n: usize = arr.len_of(Axis(0));
+    //             let fx_array = FXArray::Dual2(
+    //                 Array2::<Dual2>::from_shape_vec(
+    //                     (n, n),
+    //                     arr.clone().into_iter().map(|d| d.into()).collect(),
+    //                 )
+    //                     .unwrap(),
+    //             );
+    //             self.fx_array = fx_array;
+    //         }
+    //         (0, FXArray::Dual(arr)) => {
+    //             let n: usize = arr.len_of(Axis(0));
+    //             let fx_array = FXArray::F64(
+    //                 Array2::<f64>::from_shape_vec(
+    //                     (n, n),
+    //                     arr.clone().into_iter().map(|d| d.real).collect(),
+    //                 )
+    //                     .unwrap(),
+    //             );
+    //             self.fx_array = fx_array;
+    //         }
+    //         (0, FXArray::Dual2(arr)) => {
+    //             let n: usize = arr.len_of(Axis(0));
+    //             let fx_array = FXArray::F64(
+    //                 Array2::<f64>::from_shape_vec(
+    //                     (n, n),
+    //                     arr.clone().into_iter().map(|d| d.real).collect(),
+    //                 )
+    //                     .unwrap(),
+    //             );
+    //             self.fx_array = fx_array;
+    //         }
+    //         (1, FXArray::F64(_)) => {
+    //             let (mut fx_array, mut edges) =
+    //                 FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
+    //             let _ = FXRates::_mut_arrays_remaining_elements(
+    //                 fx_array.view_mut(),
+    //                 edges.view_mut(),
+    //                 HashSet::new(),
+    //             );
+    //             self.fx_array = FXArray::Dual(fx_array);
+    //         }
+    //         (2, FXArray::F64(_)) => {
+    //             let (mut fx_array, mut edges) =
+    //                 FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
+    //             let _ = FXRates::_mut_arrays_remaining_elements(
+    //                 fx_array.view_mut(),
+    //                 edges.view_mut(),
+    //                 HashSet::new(),
+    //             );
+    //             let n: usize = fx_array.len_of(Axis(0));
+    //             let fx_array2 = FXArray::Dual2(
+    //                 Array2::<Dual2>::from_shape_vec(
+    //                     (n, n),
+    //                     fx_array.into_iter().map(|d| d.into()).collect(),
+    //                 )
+    //                     .unwrap(),
+    //             );
+    //             self.fx_array = fx_array2;
+    //         }
+    //         _ => panic!("unreachable pattern for AD: 0, 1, 2"),
+    //     }
+    // }
 }
 
 /// Return a one-hot mapping, in 2-d array form of the initial connections between currencies,
 /// given the pairs associated with the FX rates.
-fn create_initial_edges(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair]) -> (Array2<i16>) {
+fn create_initial_edges(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair]) -> Array2<i16> {
     let mut edges: Array2<i16> = Array2::eye(currencies.len());
     for pair in fx_pairs.iter() {
         let row = currencies.get_index_of(&pair.0).unwrap();
@@ -360,7 +247,10 @@ fn create_initial_edges(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair]) -> (Arr
 /// Return a 2-d array containing all calculated FX rates as initially provided.
 ///
 /// T will be an f64, Dual or Dual2
-fn create_initial_fx_array<T>(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair], fx_rates: &[T]) -> (Array2<T>) {
+fn create_initial_fx_array<T>(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair], fx_rates: &[T]) -> Array2<T>
+where T: Clone + One + Zero,
+      for<'a> f64: Div<&'a T, Output = T>
+{
     assert_eq!(fx_pairs.len(), fx_rates.len());
     let mut fx_array: Array2<T> = Array2::eye(currencies.len());
 
@@ -440,9 +330,32 @@ where for<'a> &'a T: Mul<&'a T, Output = T>,
     }
 }
 
-
-
-
+/// Creates an FX Array with the sparse graph network algorithm defining Dual variables directly.
+fn create_fx_array(currencies: &IndexSet<Ccy>, fx_rates: &[FXRate], ad: ADOrder) -> Result<FXArray, PyErr> {
+    let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
+    let vars: Vec<String> = fx_pairs.iter().map(|x| format!("{}", x)).collect();
+    let mut edges = create_initial_edges(currencies, &fx_pairs);
+    match ad {
+        ADOrder::Zero => {
+            let fx_rates_: Vec<f64> = fx_rates.iter().map(|x| f64::from(&x.rate)).collect();
+            let mut fx_array_: Array2<f64> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates_);
+            let _ = mut_arrays_remaining_elements(fx_array_.view_mut(), edges.view_mut(), HashSet::new())?;
+            Ok(FXArray::F64(fx_array_))
+        }
+        ADOrder::One => {
+            let fx_rates_: Vec<Dual> = fx_rates.iter().enumerate().map(|(i,x)| Dual::new(f64::from(&x.rate), vec![vars[i].clone()])).collect();
+            let mut fx_array_: Array2<Dual> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates_);
+            let _ = mut_arrays_remaining_elements(fx_array_.view_mut(), edges.view_mut(), HashSet::new())?;
+            Ok(FXArray::Dual(fx_array_))
+        }
+        ADOrder::Two => {
+            let fx_rates_: Vec<Dual2> = fx_rates.iter().enumerate().map(|(i,x)| Dual2::new(f64::from(&x.rate), vec![vars[i].clone()])).collect();
+            let mut fx_array_: Array2<Dual2> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates_);
+            let _ = mut_arrays_remaining_elements(fx_array_.view_mut(), edges.view_mut(), HashSet::new())?;
+            Ok(FXArray::Dual2(fx_array_))
+        }
+    }
+}
 
 impl JSON for FXRates {}
 

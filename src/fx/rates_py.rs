@@ -1,6 +1,6 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
-use crate::dual::dual_py::DualsOrF64;
+use crate::dual::dual::DualsOrF64;
 use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates};
 use chrono::prelude::*;
 use pyo3::prelude::*;
@@ -201,10 +201,10 @@ impl FXRates {
         self.update(fx_rates)
     }
 
-    #[pyo3(name = "set_ad_order")]
-    fn set_ad_order_py(&mut self, ad: usize) {
-        self.set_ad_order(ad)
-    }
+    // #[pyo3(name = "set_ad_order")]
+    // fn set_ad_order_py(&mut self, ad: usize) {
+    //     self.set_ad_order(ad)
+    // }
 
     // JSON
     #[pyo3(name = "to_json")]

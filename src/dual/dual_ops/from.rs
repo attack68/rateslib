@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64};
 use ndarray::{Array2, Axis};
 
 impl From<Dual> for f64 {
@@ -9,6 +9,18 @@ impl From<Dual> for f64 {
 
 impl From<Dual2> for f64 {
     fn from(value: Dual2) -> Self {
+        value.real
+    }
+}
+
+impl From<&Dual> for f64 {
+    fn from(value: &Dual) -> Self {
+        value.real
+    }
+}
+
+impl From<&Dual2> for f64 {
+    fn from(value: &Dual2) -> Self {
         value.real
     }
 }
@@ -35,6 +47,16 @@ impl From<Dual2> for Dual {
     }
 }
 
+impl From<&Dual2> for Dual {
+    fn from(value: &Dual2) -> Self {
+        Dual {
+            real: value.real,
+            vars: value.vars.clone(),
+            dual: value.dual.clone(),
+        }
+    }
+}
+
 impl From<f64> for Dual2 {
     fn from(value: f64) -> Self {
         Self::new(value, vec![])
@@ -49,6 +71,78 @@ impl From<Dual> for Dual2 {
             vars: value.vars.clone(),
             dual: value.dual,
             dual2: Array2::zeros((n, n)),
+        }
+    }
+}
+
+impl From<&Dual> for Dual2 {
+    fn from(value: &Dual) -> Self {
+        let n = value.dual.len_of(Axis(0));
+        Dual2 {
+            real: value.real,
+            vars: value.vars.clone(),
+            dual: value.dual.clone(),
+            dual2: Array2::zeros((n, n)),
+        }
+    }
+}
+
+impl From<DualsOrF64> for f64 {
+    fn from(value: DualsOrF64) -> Self {
+        match value {
+            DualsOrF64::F64(f) => f,
+            DualsOrF64::Dual(d) => d.real,
+            DualsOrF64::Dual2(d) => d.real
+        }
+    }
+}
+
+impl From<DualsOrF64> for Dual {
+    fn from(value: DualsOrF64) -> Self {
+        match value {
+            DualsOrF64::F64(f) => Dual::new(f, vec![]),
+            DualsOrF64::Dual(d) => d,
+            DualsOrF64::Dual2(d) => Dual::from(d),
+        }
+    }
+}
+
+impl From<DualsOrF64> for Dual2 {
+    fn from(value: DualsOrF64) -> Self {
+        match value {
+            DualsOrF64::F64(f) => Dual2::new(f, vec![]),
+            DualsOrF64::Dual(d) => Dual2::from(d),
+            DualsOrF64::Dual2(d) => d,
+        }
+    }
+}
+
+impl From<&DualsOrF64> for f64 {
+    fn from(value: &DualsOrF64) -> Self {
+        match value {
+            DualsOrF64::F64(f) => *f,
+            DualsOrF64::Dual(d) => d.real,
+            DualsOrF64::Dual2(d) => d.real
+        }
+    }
+}
+
+impl From<&DualsOrF64> for Dual {
+    fn from(value: &DualsOrF64) -> Self {
+        match value {
+            DualsOrF64::F64(f) => Dual::new(*f, vec![]),
+            DualsOrF64::Dual(d) => d.clone(),
+            DualsOrF64::Dual2(d) => Dual::from(d),
+        }
+    }
+}
+
+impl From<&DualsOrF64> for Dual2 {
+    fn from(value: &DualsOrF64) -> Self {
+        match value {
+            DualsOrF64::F64(f) => Dual2::new(*f, vec![]),
+            DualsOrF64::Dual(d) => Dual2::from(d),
+            DualsOrF64::Dual2(d) => d.clone(),
         }
     }
 }
