@@ -14,6 +14,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::ops::{Mul, Div};
 
 pub(crate) mod ccy;
 pub use crate::fx::rates::ccy::Ccy;
@@ -106,7 +107,11 @@ impl FXRates {
 
         let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
         let mut edges: Array2<i16> = create_initial_edges(&currencies, &fx_pairs);
-        let mut fx_array 
+
+        
+        let fx_rates_vec = fx_rates.iter().map(|x| x.rate).collect();
+
+        let mut fx_array  = create_initial_fx_array(&currencies, &fx_pairs, &fx_rates_vec);
 
         let (mut fx_array, mut edges) = FXRates::_create_initial_arrays(&currencies, &fx_rates);
         let _ = FXRates::_mut_arrays_remaining_elements(
@@ -367,6 +372,76 @@ fn create_initial_fx_array<T>(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair], f
     }
     fx_array
 }
+
+fn mut_arrays_remaining_elements<T>(
+    mut fx_array: ArrayViewMut2<T>,
+    mut edges: ArrayViewMut2<i16>,
+    mut prev_value: HashSet<usize>,
+) -> Result<bool, PyErr>
+where for<'a> &'a T: Mul<&'a T, Output = T>,
+      for<'a> f64: Div<&'a T, Output = T>
+{
+    if prev_value.len() == edges.len_of(Axis(0)) {
+        return Err(PyValueError::new_err(
+            "FX Array cannot be solved. There are degenerate FX rate pairs.\n\
+                For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
+        ));
+    }
+    if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
+        return Ok(true); // all edges and values have already been populated.
+    }
+    let mut row_edges = edges.sum_axis(Axis(1));
+
+    let mut node: usize = edges.len_of(Axis(1)) + 1_usize;
+    let mut combinations_: Vec<Vec<usize>> = Vec::new();
+    let mut start_flag = true;
+
+    while start_flag || prev_value.contains(&node) {
+        start_flag = false;
+
+        // find node with most outgoing edges
+        node = argabsmax(row_edges.view());
+        row_edges[node] = 0_i16;
+
+        // filter by combinations that are not already populated
+        combinations_ = edges
+            .row(node)
+            .iter()
+            .zip(0_usize..)
+            .filter(|(v, i)| **v == 1_i16 && *i != node)
+            .map(|(_v, i)| i)
+            .combinations(2)
+            .filter(|v| edges[[v[0], v[1]]] == 0_i16)
+            .collect();
+    }
+
+    let mut counter: i16 = 0;
+    for c in combinations_ {
+        counter += 1_i16;
+        edges[[c[0], c[1]]] = 1_i16;
+        edges[[c[1], c[0]]] = 1_i16;
+        fx_array[[c[0], c[1]]] = &fx_array[[c[0], node]] * &fx_array[[node, c[1]]];
+        fx_array[[c[1], c[0]]] = 1.0_f64 / &fx_array[[c[0], c[1]]];
+    }
+
+    if counter == 0 {
+        prev_value.insert(node);
+        return mut_arrays_remaining_elements(
+            fx_array.view_mut(),
+            edges.view_mut(),
+            prev_value,
+        );
+    } else {
+        return mut_arrays_remaining_elements(
+            fx_array.view_mut(),
+            edges.view_mut(),
+            HashSet::from([node]),
+        );
+    }
+}
+
+
+
 
 
 impl JSON for FXRates {}
