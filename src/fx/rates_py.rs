@@ -150,11 +150,7 @@ impl FXRates {
     #[pyo3(name = "fx_vector")]
     fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
         match &self.fx_array {
-            FXArray::F64(arr) => Ok(arr
-                .row(0)
-                .iter()
-                .map(|x| DualsOrF64::F64(*x))
-                .collect()),
+            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::F64(*x)).collect()),
             FXArray::Dual(arr) => Ok(arr
                 .row(0)
                 .iter()

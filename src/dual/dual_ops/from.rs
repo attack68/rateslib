@@ -85,5 +85,4 @@ mod tests {
     //     let d2: Dual = Dual::from(d1);
     //     assert_eq!(d2, d1);
     // }
-
 }

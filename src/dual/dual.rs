@@ -11,14 +11,14 @@
 //! flexibly reference different variables at any point during calculations.
 //!
 
+pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
-use std::cmp::{PartialEq};
+use std::cmp::PartialEq;
 use std::sync::Arc;
-pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 
 /// A dual number data type supporting first order derivatives.
 #[pyclass(module = "rateslib.rs")]
@@ -40,7 +40,7 @@ pub struct Dual2 {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ADOrder{
+pub enum ADOrder {
     /// Floating point arithmetic only.
     Zero,
     /// Derivatives available to first order.
@@ -77,7 +77,11 @@ where
     /// This method compares the existing `vars` with the new and reshuffles manifold gradient
     /// values in memory. For large numbers of variables this is one of the least efficient
     /// operations relating different dual numbers and should be avoided where possible.
-    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsRelationship>) -> Self;
+    fn to_new_vars(
+        &self,
+        arc_vars: &Arc<IndexSet<String>>,
+        state: Option<VarsRelationship>,
+    ) -> Self;
 
     /// Compare the `vars` on a `Dual` with a given Arc pointer.
     fn vars_cmp(&self, arc_vars: &Arc<IndexSet<String>>) -> VarsRelationship {
@@ -123,12 +127,16 @@ where
         let state_ = state.unwrap_or_else(|| self.vars_cmp(other.vars()));
         match state_ {
             VarsRelationship::ArcEquivalent => (self.clone(), other.clone()),
-            VarsRelationship::ValueEquivalent => (self.clone(), other.to_new_vars(self.vars(), Some(state_))),
+            VarsRelationship::ValueEquivalent => {
+                (self.clone(), other.to_new_vars(self.vars(), Some(state_)))
+            }
             VarsRelationship::Superset => (
                 self.clone(),
                 other.to_new_vars(self.vars(), Some(VarsRelationship::Subset)),
             ),
-            VarsRelationship::Subset => (self.to_new_vars(other.vars(), Some(state_)), other.clone()),
+            VarsRelationship::Subset => {
+                (self.to_new_vars(other.vars(), Some(state_)), other.clone())
+            }
             VarsRelationship::Difference => self.to_combined_vars(other),
         }
     }
@@ -179,10 +187,16 @@ impl Vars for Dual {
     /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
-    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsRelationship>) -> Self {
+    fn to_new_vars(
+        &self,
+        arc_vars: &Arc<IndexSet<String>>,
+        state: Option<VarsRelationship>,
+    ) -> Self {
         let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
         let dual_: Array1<f64> = match match_val {
-            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => self.dual.clone(),
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
+                self.dual.clone()
+            }
             _ => {
                 let lookup_or_zero = |v| match self.vars.get_index_of(v) {
                     Some(idx) => self.dual[idx],
@@ -214,7 +228,11 @@ impl Vars for Dual2 {
     /// let xy = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual2: 1.5, (x, y), [1.0, 0.0], [[0.0, 0.0], [0.0, 0.0]]>
-    fn to_new_vars(&self, arc_vars: &Arc<IndexSet<String>>, state: Option<VarsRelationship>) -> Self {
+    fn to_new_vars(
+        &self,
+        arc_vars: &Arc<IndexSet<String>>,
+        state: Option<VarsRelationship>,
+    ) -> Self {
         let dual_: Array1<f64>;
         let mut dual2_: Array2<f64> = Array2::zeros((arc_vars.len(), arc_vars.len()));
         let match_val = state.unwrap_or_else(|| self.vars_cmp(arc_vars));
@@ -270,7 +288,9 @@ pub trait Gradient1: Vars {
         let arc_vars = Arc::new(IndexSet::from_iter(vars));
         let state = self.vars_cmp(&arc_vars);
         match state {
-            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => self.dual().clone(),
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
+                self.dual().clone()
+            }
             _ => {
                 let mut dual_ = Array1::<f64>::zeros(arc_vars.len());
                 for (i, index) in arc_vars
@@ -312,7 +332,9 @@ pub trait Gradient2: Gradient1 {
         let arc_vars = Arc::new(IndexSet::from_iter(vars));
         let state = self.vars_cmp(&arc_vars);
         match state {
-            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => 2.0_f64 * self.dual2(),
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
+                2.0_f64 * self.dual2()
+            }
             _ => {
                 let indices: Vec<Option<usize>> = arc_vars
                     .iter()
@@ -647,9 +669,9 @@ impl Dual2 {
 mod tests {
     use super::*;
     use crate::dual::dual::Dual2;
+    use num_traits::{One, Pow, Signed, Zero};
+    use std::ops::{Add, Div, Mul, Sub};
     use std::time::Instant;
-    use std::ops::{Add, Sub, Mul, Div};
-    use num_traits::{Zero, Signed, Pow, One};
 
     #[test]
     fn new() {
@@ -792,10 +814,6 @@ mod tests {
             .unwrap()
         );
     }
-
-
-
-
 
     #[test]
     fn mul_f64() {
@@ -1577,8 +1595,6 @@ mod tests {
         );
     }
 
-
-
     #[test]
     fn ops_equiv2() {
         let d1 = Dual2::try_new(1.5, vec!["x".to_string()], vec![1.0], vec![0.0]).unwrap();
@@ -1594,8 +1610,6 @@ mod tests {
             Dual2::try_new(-1.0, vec!["x".to_string()], vec![-1.0], vec![0.0]).unwrap()
         );
     }
-
-
 
     #[test]
     fn mul_f64_2() {

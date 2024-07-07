@@ -1,5 +1,5 @@
 use crate::dual::dual::{Dual, Dual2};
-use auto_ops::{impl_op_ex};
+use auto_ops::impl_op_ex;
 use std::sync::Arc;
 
 impl_op_ex!(% |a: &Dual, b: &f64| -> Dual { Dual {vars: Arc::clone(&a.vars), real: a.real % b, dual: a.dual.clone()} });

@@ -272,7 +272,6 @@ where
 }
 
 impl PPSpline<f64> {
-
     pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
         let b: Array1<Dual> = Array1::from_vec(
             (0..self.n)
@@ -303,7 +302,6 @@ impl PPSpline<f64> {
 }
 
 impl PPSpline<Dual> {
-
     pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
         Err(PyTypeError::new_err(
             "Cannot index with type `Dual2` on PPSpline<Dual>`.",
@@ -326,7 +324,6 @@ impl PPSpline<Dual> {
 }
 
 impl PPSpline<Dual2> {
-
     pub fn ppdnev_single_dual(&self, _x: &Dual, _m: usize) -> Result<Dual, PyErr> {
         Err(PyTypeError::new_err(
             "Cannot index with type `Dual` on PPSpline<Dual2>.",

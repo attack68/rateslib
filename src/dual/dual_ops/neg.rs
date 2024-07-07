@@ -1,5 +1,5 @@
 use crate::dual::dual::{Dual, Dual2};
-use auto_ops::{impl_op};
+use auto_ops::impl_op;
 use std::sync::Arc;
 
 impl_op!(-|a: Dual| -> Dual {
