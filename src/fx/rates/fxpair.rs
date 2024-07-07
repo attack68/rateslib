@@ -1,6 +1,6 @@
 use std::fmt;
 use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, PyErr};
+use pyo3::{PyErr};
 use serde::{Serialize, Deserialize};
 use crate::fx::rates::ccy::Ccy;
 
@@ -32,8 +32,6 @@ impl fmt::Display for FXPair {
 }
 
 mod tests {
-    use super::*;
-
     #[test]
     fn fxpair_creation() {
         let a = FXPair::try_new("usd", "eur").unwrap();

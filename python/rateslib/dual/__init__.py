@@ -13,7 +13,7 @@ else:
     from rateslib.dual.dualrs import Dual, Dual2
 
 from rateslib.dual.dual import FLOATS, INTS, _dsolve
-from rateslib.dual.dualrs import _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
+from rateslib.dual.dualrs import _dsolve1, _dsolve2, _fdsolve1, _fdsolve2, ADOrder
 
 DualTypes = Union[float, Dual, Dual2]
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -262,3 +262,14 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
         out = _fdsolve2(A_, b, allow_lsq)
 
     return np.array(out)[:, None]
+
+
+def _get_adorder(order: int):
+    if order == 1:
+        return ADOrder.One
+    elif order == 0:
+        return ADOrder.Zero
+    elif order == 2:
+        return ADOrder.Two
+    else:
+        raise ValueError("Order for AD can only be in {0,1,2}")

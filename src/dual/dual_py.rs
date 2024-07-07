@@ -11,7 +11,6 @@ use std::sync::Arc;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
-use serde::{Deserialize, Serialize};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;

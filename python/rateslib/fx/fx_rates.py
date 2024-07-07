@@ -7,7 +7,7 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput, _make_py_json, _drb
-from rateslib.dual import Dual, DualTypes, gradient
+from rateslib.dual import Dual, DualTypes, gradient, _get_adorder
 from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
 
 """
@@ -506,7 +506,8 @@ class FXRates:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
-        self.obj.set_ad_order(order)
+
+        self.obj.set_ad_order(_get_adorder(order))
         self.__init_post_obj__()
 
     def to_json(self):

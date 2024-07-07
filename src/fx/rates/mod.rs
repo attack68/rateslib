@@ -151,84 +151,70 @@ impl FXRates {
         Ok(())
     }
 
-    // pub fn set_ad_order(&mut self, ad: usize) {
-    //     match (ad, &self.fx_array) {
-    //         (0, FXArray::F64(_)) | (1, FXArray::Dual(_)) | (2, FXArray::Dual2(_)) => {}
-    //         (1, FXArray::Dual2(arr)) => {
-    //             let n: usize = arr.len_of(Axis(0));
-    //             let fx_array = FXArray::Dual(
-    //                 Array2::<Dual>::from_shape_vec(
-    //                     (n, n),
-    //                     arr.clone().into_iter().map(|d| d.into()).collect(),
-    //                 )
-    //                     .unwrap(),
-    //             );
-    //             self.fx_array = fx_array;
-    //         }
-    //         (2, FXArray::Dual(arr)) => {
-    //             let n: usize = arr.len_of(Axis(0));
-    //             let fx_array = FXArray::Dual2(
-    //                 Array2::<Dual2>::from_shape_vec(
-    //                     (n, n),
-    //                     arr.clone().into_iter().map(|d| d.into()).collect(),
-    //                 )
-    //                     .unwrap(),
-    //             );
-    //             self.fx_array = fx_array;
-    //         }
-    //         (0, FXArray::Dual(arr)) => {
-    //             let n: usize = arr.len_of(Axis(0));
-    //             let fx_array = FXArray::F64(
-    //                 Array2::<f64>::from_shape_vec(
-    //                     (n, n),
-    //                     arr.clone().into_iter().map(|d| d.real).collect(),
-    //                 )
-    //                     .unwrap(),
-    //             );
-    //             self.fx_array = fx_array;
-    //         }
-    //         (0, FXArray::Dual2(arr)) => {
-    //             let n: usize = arr.len_of(Axis(0));
-    //             let fx_array = FXArray::F64(
-    //                 Array2::<f64>::from_shape_vec(
-    //                     (n, n),
-    //                     arr.clone().into_iter().map(|d| d.real).collect(),
-    //                 )
-    //                     .unwrap(),
-    //             );
-    //             self.fx_array = fx_array;
-    //         }
-    //         (1, FXArray::F64(_)) => {
-    //             let (mut fx_array, mut edges) =
-    //                 FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
-    //             let _ = FXRates::_mut_arrays_remaining_elements(
-    //                 fx_array.view_mut(),
-    //                 edges.view_mut(),
-    //                 HashSet::new(),
-    //             );
-    //             self.fx_array = FXArray::Dual(fx_array);
-    //         }
-    //         (2, FXArray::F64(_)) => {
-    //             let (mut fx_array, mut edges) =
-    //                 FXRates::_create_initial_arrays(&self.currencies, &self.fx_rates);
-    //             let _ = FXRates::_mut_arrays_remaining_elements(
-    //                 fx_array.view_mut(),
-    //                 edges.view_mut(),
-    //                 HashSet::new(),
-    //             );
-    //             let n: usize = fx_array.len_of(Axis(0));
-    //             let fx_array2 = FXArray::Dual2(
-    //                 Array2::<Dual2>::from_shape_vec(
-    //                     (n, n),
-    //                     fx_array.into_iter().map(|d| d.into()).collect(),
-    //                 )
-    //                     .unwrap(),
-    //             );
-    //             self.fx_array = fx_array2;
-    //         }
-    //         _ => panic!("unreachable pattern for AD: 0, 1, 2"),
-    //     }
-    // }
+    pub fn set_ad_order(&mut self, ad: ADOrder) -> Result<(), PyErr> {
+        match (ad, &self.fx_array) {
+            (ADOrder::Zero, FXArray::F64(_)) | (ADOrder::One, FXArray::Dual(_)) | (ADOrder::Two, FXArray::Dual2(_)) => {
+                // leave the FXArray unchanged.
+                Ok(())
+            }
+            (ADOrder::One, FXArray::F64(_)) => {
+                // rebuild the derivatives
+                let fx_array = create_fx_array(&self.currencies, &self.fx_rates, ADOrder::One)?;
+                self.fx_array = fx_array;
+                Ok(())
+            }
+            (ADOrder::Two, FXArray::F64(_)) => {
+                // rebuild the derivatives
+                let fx_array = create_fx_array(&self.currencies, &self.fx_rates, ADOrder::Two)?;
+                self.fx_array = fx_array;
+                Ok(())
+            }
+            (ADOrder::One, FXArray::Dual2(arr)) => {
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::Dual(
+                    Array2::<Dual>::from_shape_vec(
+                        (n, n),
+                        arr.clone().into_iter().map(|d| d.into()).collect(),
+                    )
+                        .unwrap(),
+                );
+                self.fx_array = fx_array;
+                Ok(())
+            }
+            (ADOrder::Zero, FXArray::Dual(arr)) => {
+                // covert dual into f64
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::F64(
+                    Array2::<f64>::from_shape_vec(
+                        (n, n),
+                        arr.clone().into_iter().map(|d| d.real).collect(),
+                    )
+                        .unwrap(),
+                );
+                self.fx_array = fx_array;
+                Ok(())
+            }
+            (ADOrder::Zero, FXArray::Dual2(arr)) => {
+                // covert dual into f64
+                let n: usize = arr.len_of(Axis(0));
+                let fx_array = FXArray::F64(
+                    Array2::<f64>::from_shape_vec(
+                        (n, n),
+                        arr.clone().into_iter().map(|d| d.real).collect(),
+                    )
+                        .unwrap(),
+                );
+                self.fx_array = fx_array;
+                Ok(())
+            }
+            (ADOrder::Two, FXArray::Dual(_)) => {
+                // rebuild derivatives
+                let fx_array = create_fx_array(&self.currencies, &self.fx_rates, ADOrder::Two)?;
+                self.fx_array = fx_array;
+                Ok(())
+            }
+        }
+    }
 }
 
 /// Return a one-hot mapping, in 2-d array form of the initial connections between currencies,
