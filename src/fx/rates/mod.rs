@@ -319,7 +319,7 @@ where for<'a> &'a T: Mul<&'a T, Output = T>,
 /// Creates an FX Array with the sparse graph network algorithm defining Dual variables directly.
 fn create_fx_array(currencies: &IndexSet<Ccy>, fx_rates: &[FXRate], ad: ADOrder) -> Result<FXArray, PyErr> {
     let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
-    let vars: Vec<String> = fx_pairs.iter().map(|x| format!("{}", x)).collect();
+    let vars: Vec<String> = fx_pairs.iter().map(|x| format!("fx_{}", x)).collect();
     let mut edges = create_initial_edges(currencies, &fx_pairs);
     match ad {
         ADOrder::Zero => {

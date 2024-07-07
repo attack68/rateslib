@@ -170,7 +170,7 @@ def test_set_ad_order():
     assert fxr.fx_vector[0] == 1.0
     assert fxr.fx_vector[1] == 10.0
 
-    with pytest.raises(TypeError, match="argument 'ad': 'str' object cannot be"):
+    with pytest.raises(ValueError, match="Order for AD can only be in {0,1,2}"):
         fxr._set_ad_order("bad arg")
 
 
