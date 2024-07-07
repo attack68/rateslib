@@ -102,3 +102,95 @@ impl MathFuncs for Dual2 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exp() {
+        let d1 = Dual::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+            .unwrap();
+        let result = d1.exp();
+        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
+        let c = 1.0_f64.exp();
+        let expected = Dual::try_new(
+            c,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0 * c, 2.0 * c],
+        )
+            .unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn log() {
+        let d1 = Dual::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+            .unwrap();
+        let result = d1.log();
+        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
+        let c = 1.0_f64.ln();
+        let expected =
+            Dual::try_new(c, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn exp2() {
+        let d1 = Dual2::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+            .unwrap();
+        let result = d1.exp();
+        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
+        let c = 1.0_f64.exp();
+        let expected = Dual2::try_new(
+            c,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0 * c, 2.0 * c],
+            vec![
+                1.0_f64.exp() * 0.5,
+                1.0_f64.exp(),
+                1.0_f64.exp(),
+                1.0_f64.exp() * 2.,
+            ],
+        )
+            .unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn log2() {
+        let d1 = Dual2::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+            .unwrap();
+        let result = d1.log();
+        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
+        let c = 1.0_f64.ln();
+        let expected = Dual2::try_new(
+            c,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            vec![-0.5, -1.0, -1.0, -2.0],
+        )
+            .unwrap();
+        println!("{:?}", result.dual2);
+        assert_eq!(result, expected);
+    }
+
+}

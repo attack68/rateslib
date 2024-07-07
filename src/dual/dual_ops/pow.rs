@@ -54,3 +54,53 @@ impl Pow<f64> for &Dual2 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use ndarray::Array1;
+    use super::*;
+
+    #[test]
+    fn inv() {
+        let d1 = Dual::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+            .unwrap();
+        let result = d1.clone() * d1.pow(-1.0);
+        let expected = Dual::new(1.0, vec![]);
+        assert!(result == expected)
+    }
+
+    #[test]
+    fn pow_ref() {
+        let d1 = Dual::new(3.0, vec!["x".to_string()]);
+        let d2 = (&d1).pow(2.0);
+        assert_eq!(d2.real, 9.0);
+        assert_eq!(d2.dual, Array1::from_vec(vec![6.0]));
+    }
+
+    #[test]
+    fn pow_ref2() {
+        let d1 = Dual2::new(3.0, vec!["x".to_string()]);
+        let d2 = (&d1).pow(2.0);
+        assert_eq!(d2.real, 9.0);
+        assert_eq!(d2.dual, Array1::from_vec(vec![6.0]));
+    }
+
+    #[test]
+    fn inv2() {
+        let d1 = Dual2::try_new(
+            1.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+            .unwrap();
+        let result = d1.clone() * d1.pow(-1.0);
+        let expected = Dual2::new(1.0, vec![]);
+        assert_eq!(result, expected)
+    }
+
+}

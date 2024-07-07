@@ -20,3 +20,19 @@ impl Zero for Dual2 {
         *self == Dual2::new(0.0, Vec::new())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_zero_() {
+        assert!(Dual::zero().is_zero())
+    }
+
+    #[test]
+    fn is_zero2() {
+        let d = Dual2::zero();
+        assert!(d.is_zero());
+    }
+}
