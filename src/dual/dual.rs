@@ -669,7 +669,6 @@ impl Dual2 {
 mod tests {
     use super::*;
     use crate::dual::dual::Dual2;
-    use num_traits::{One, Signed, Zero};
     use std::ops::{Add, Div, Mul, Sub};
     use std::time::Instant;
 
@@ -769,7 +768,7 @@ mod tests {
     // OPS TESTS
 
     #[test]
-    fn zero_init() {
+    fn unitialised_derivs_eq_1() {
         let d = Dual::new(2.3, Vec::from([String::from("a"), String::from("b")]));
         for (_, val) in d.dual.indexed_iter() {
             assert!(*val == 1.0)
@@ -777,96 +776,6 @@ mod tests {
     }
 
 
-
-
-
-
-
-
-    #[test]
-    fn abs() {
-        let d1 = Dual::try_new(
-            -2.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-        )
-        .unwrap();
-        let result = d1.abs();
-        let expected = Dual::try_new(
-            2.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![-1.0, -2.0],
-        )
-        .unwrap();
-        assert_eq!(result, expected)
-    }
-
-
-
-    #[test]
-    fn ord() {
-        let d1 = Dual::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-        )
-        .unwrap();
-        assert!(d1 < 2.0);
-        assert!(d1 > 0.5);
-        assert!(d1 <= 1.0);
-        assert!(d1 >= 1.0);
-        assert!(1.0 <= d1);
-        assert!(1.0 >= d1);
-        assert!(2.0 > d1);
-        assert!(0.5 < d1);
-        let d2 = Dual::try_new(
-            2.0,
-            vec!["v0".to_string(), "v2".to_string()],
-            vec![1.0, 2.0],
-        )
-        .unwrap();
-        assert!(d2 > d1);
-        assert!(d1 < d2);
-        let d3 = Dual::try_new(1.0, vec!["v3".to_string()], vec![10.0]).unwrap();
-        assert!(d1 >= d3);
-        assert!(d1 <= d3);
-    }
-
-    #[test]
-    fn exp() {
-        let d1 = Dual::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-        )
-        .unwrap();
-        let result = d1.exp();
-        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
-        let c = 1.0_f64.exp();
-        let expected = Dual::try_new(
-            c,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0 * c, 2.0 * c],
-        )
-        .unwrap();
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn log() {
-        let d1 = Dual::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-        )
-        .unwrap();
-        let result = d1.log();
-        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
-        let c = 1.0_f64.ln();
-        let expected =
-            Dual::try_new(c, vec!["v0".to_string(), "v1".to_string()], vec![1.0, 2.0]).unwrap();
-        assert_eq!(result, expected);
-    }
 
     #[test]
     fn gradient1_no_equiv() {
@@ -887,28 +796,6 @@ mod tests {
     }
 
 
-
-
-
-    #[test]
-    fn signed_() {
-        let d1 = Dual::new(3.0, vec!["x".to_string()]);
-        let d2 = Dual::new(-2.0, vec!["x".to_string()]);
-
-        assert!(d2.is_negative());
-        assert!(d1.is_positive());
-        assert_eq!(d2.signum(), -1.0 * Dual::one());
-        assert_eq!(d1.signum(), Dual::one());
-        assert_eq!(d1.abs_sub(&d2), Dual::new(5.0, Vec::new()));
-        assert_eq!(d2.abs_sub(&d1), Dual::zero());
-    }
-
-
-
-    #[test]
-    fn is_zero_() {
-        assert!(Dual::zero().is_zero())
-    }
 
     // PROFILING
 
@@ -1139,14 +1026,6 @@ mod tests {
         println!("\nElapsed: {:.9?}", elapsed / 1000);
     }
 
-    #[test]
-    fn into_dual2() {
-        let d2: Dual2 = Dual2::new(2.0, vec!["x".to_string(), "y".to_string()]);
-        let d1: Dual = d2.into();
-        let result = Dual::new(2.0, vec!["x".to_string(), "y".to_string()]);
-        assert_eq!(d1, result);
-    }
-
     // copied from old dual2.rs
 
     use ndarray::arr2;
@@ -1256,46 +1135,15 @@ mod tests {
         assert_eq!(result, expected);
     }
 
+
+
     #[test]
-    fn zero_init2() {
+    fn uninitialised_derivs_eq_one2() {
         let d = Dual2::new(2.3, Vec::from([String::from("a"), String::from("b")]));
         for (_, val) in d.dual.indexed_iter() {
             assert!(*val == 1.0)
         }
     }
-
-
-
-    #[test]
-    fn one2() {
-        let d = Dual2::one();
-        assert_eq!(d, Dual2::new(1.0, vec![]));
-    }
-
-
-
-    #[test]
-    fn signed_2() {
-        let d1 = Dual2::new(3.0, vec!["x".to_string()]);
-        let d2 = Dual2::new(-2.0, vec!["x".to_string()]);
-
-        assert!(d2.is_negative());
-        assert!(d1.is_positive());
-        assert_eq!(d2.signum(), -1.0 * Dual2::one());
-        assert_eq!(d1.signum(), Dual2::one());
-        assert_eq!(d1.abs_sub(&d2), Dual2::new(5.0, Vec::new()));
-        assert_eq!(d2.abs_sub(&d1), Dual2::zero());
-    }
-
-
-
-    #[test]
-    fn is_zero2() {
-        let d = Dual2::zero();
-        assert!(d.is_zero());
-    }
-
-
 
     #[test]
     fn ops_equiv2() {
@@ -1311,113 +1159,6 @@ mod tests {
             result,
             Dual2::try_new(-1.0, vec!["x".to_string()], vec![-1.0], vec![0.0]).unwrap()
         );
-    }
-
-
-
-
-
-    #[test]
-    fn abs2() {
-        let d1 = Dual2::try_new(
-            -2.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        let result = d1.abs();
-        let expected = Dual2::try_new(
-            2.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![-1.0, -2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        assert_eq!(result, expected)
-    }
-
-
-
-    #[test]
-    fn ord2() {
-        let d1 = Dual2::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        assert!(d1 < 2.0);
-        assert!(d1 > 0.5);
-        assert!(d1 <= 1.0);
-        assert!(d1 >= 1.0);
-        assert!(1.0 <= d1);
-        assert!(1.0 >= d1);
-        assert!(2.0 > d1);
-        assert!(0.5 < d1);
-        let d2 = Dual2::try_new(
-            2.0,
-            vec!["v0".to_string(), "v2".to_string()],
-            vec![1.0, 2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        assert!(d2 > d1);
-        assert!(d1 < d2);
-        let d3 = Dual2::try_new(1.0, vec!["v3".to_string()], vec![10.0], Vec::new()).unwrap();
-        assert!(d1 >= d3);
-        assert!(d1 <= d3);
-    }
-
-    #[test]
-    fn exp2() {
-        let d1 = Dual2::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        let result = d1.exp();
-        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
-        let c = 1.0_f64.exp();
-        let expected = Dual2::try_new(
-            c,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0 * c, 2.0 * c],
-            vec![
-                1.0_f64.exp() * 0.5,
-                1.0_f64.exp(),
-                1.0_f64.exp(),
-                1.0_f64.exp() * 2.,
-            ],
-        )
-        .unwrap();
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn log2() {
-        let d1 = Dual2::try_new(
-            1.0,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-            Vec::new(),
-        )
-        .unwrap();
-        let result = d1.log();
-        assert!(Arc::ptr_eq(&d1.vars, &result.vars));
-        let c = 1.0_f64.ln();
-        let expected = Dual2::try_new(
-            c,
-            vec!["v0".to_string(), "v1".to_string()],
-            vec![1.0, 2.0],
-            vec![-0.5, -1.0, -1.0, -2.0],
-        )
-        .unwrap();
-        println!("{:?}", result.dual2);
-        assert_eq!(result, expected);
     }
 
     #[test]

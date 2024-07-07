@@ -64,7 +64,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_dual_to_dual2() {
+    fn from_dual_into_dual2() {
         let d1 = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
         let d2: Dual2 = d1.into();
         let result = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()]);
@@ -72,7 +72,7 @@ mod tests {
     }
 
     #[test]
-    fn from_dual_to_f64() {
+    fn from_dual_into_f64() {
         let d1 = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
         let d2: f64 = d1.into();
         let result = 2.5_f64;
@@ -85,4 +85,12 @@ mod tests {
     //     let d2: Dual = Dual::from(d1);
     //     assert_eq!(d2, d1);
     // }
+
+    #[test]
+    fn from_dual2_into_dual() {
+        let d2: Dual2 = Dual2::new(2.0, vec!["x".to_string(), "y".to_string()]);
+        let d1: Dual = d2.into();
+        let result = Dual::new(2.0, vec!["x".to_string(), "y".to_string()]);
+        assert_eq!(d1, result);
+    }
 }

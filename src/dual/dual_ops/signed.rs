@@ -87,3 +87,79 @@ impl Signed for Dual2 {
         self.real.is_sign_negative()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use num_traits::{One, Zero};
+
+    #[test]
+    fn signed() {
+        let d1 = Dual::new(3.0, vec!["x".to_string()]);
+        let d2 = Dual::new(-2.0, vec!["x".to_string()]);
+
+        assert!(d2.is_negative());
+        assert!(d1.is_positive());
+        assert_eq!(d2.signum(), -1.0 * Dual::one());
+        assert_eq!(d1.signum(), Dual::one());
+        assert_eq!(d1.abs_sub(&d2), Dual::new(5.0, Vec::new()));
+        assert_eq!(d2.abs_sub(&d1), Dual::zero());
+    }
+
+    #[test]
+    fn signed_2() {
+        let d1 = Dual2::new(3.0, vec!["x".to_string()]);
+        let d2 = Dual2::new(-2.0, vec!["x".to_string()]);
+
+        assert!(d2.is_negative());
+        assert!(d1.is_positive());
+        assert_eq!(d2.signum(), -1.0 * Dual2::one());
+        assert_eq!(d1.signum(), Dual2::one());
+        assert_eq!(d1.abs_sub(&d2), Dual2::new(5.0, Vec::new()));
+        assert_eq!(d2.abs_sub(&d1), Dual2::zero());
+    }
+
+    #[test]
+    fn abs() {
+        let d1 = Dual::try_new(
+            -2.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+        )
+            .unwrap();
+        let result = d1.abs();
+        let expected = Dual::try_new(
+            2.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![-1.0, -2.0],
+        )
+            .unwrap();
+        assert_eq!(result, expected);
+
+        let result = d1.abs();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn abs2() {
+        let d1 = Dual2::try_new(
+            -2.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![1.0, 2.0],
+            Vec::new(),
+        )
+            .unwrap();
+        let result = d1.abs();
+        let expected = Dual2::try_new(
+            2.0,
+            vec!["v0".to_string(), "v1".to_string()],
+            vec![-1.0, -2.0],
+            Vec::new(),
+        )
+            .unwrap();
+        assert_eq!(result, expected);
+
+        let result = result.abs();
+        assert_eq!(result, expected);
+    }
+}
