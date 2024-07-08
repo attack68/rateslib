@@ -174,6 +174,17 @@ def test_set_ad_order():
         fxr._set_ad_order("bad arg")
 
 
+def test_set_ad_order_second_order_gradients():
+    fxr = FXRates({"usdnok": 10.0})
+
+    fxr._set_ad_order(2)
+    assert fxr._ad == 2
+    assert type(fxr.fx_vector[0]) is Dual2
+    assert type(fxr.fx_vector[1]) is Dual2
+    assert np.isclose(fxr.fx_array[1, 0].dual, np.array([-0.01]))  # calculated analytically from USDNOK: 10.0
+    assert np.isclose(fxr.fx_array[1, 0].dual2, np.array([[0.001]]))  # calculated analytically
+
+
 @pytest.fixture()
 def usdusd():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.99}
