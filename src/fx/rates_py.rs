@@ -203,7 +203,7 @@ impl FXRates {
 
     #[pyo3(name = "set_ad_order")]
     fn set_ad_order_py(&mut self, ad: ADOrder) -> PyResult<()> {
-        let _ = self.set_ad_order(ad)?;
+        self.set_ad_order(ad)?;
         Ok(())
     }
 

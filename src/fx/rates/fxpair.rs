@@ -31,8 +31,10 @@ impl fmt::Display for FXPair {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn fxpair_creation() {
         let a = FXPair::try_new("usd", "eur").unwrap();
