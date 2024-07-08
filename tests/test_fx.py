@@ -175,14 +175,29 @@ def test_set_ad_order():
 
 
 def test_set_ad_order_second_order_gradients():
-    fxr = FXRates({"usdnok": 10.0})
+    fxr = FXRates({"usdnok": 10.0, "eurnok": 8.0})
+
+    un = Dual2(10, ["fx_usdnok"], [], [])
+    en = Dual2(8.0, ["fx_eurnok"], [], [])
+    expected = un / en
+    row, col = fxr.currencies["usd"], fxr.currencies["eur"]
 
     fxr._set_ad_order(2)
     assert fxr._ad == 2
     assert type(fxr.fx_vector[0]) is Dual2
     assert type(fxr.fx_vector[1]) is Dual2
-    assert np.isclose(fxr.fx_array[1, 0].dual, np.array([-0.01]))  # calculated analytically from USDNOK: 10.0
-    assert np.isclose(fxr.fx_array[1, 0].dual2, np.array([[0.001]]))  # calculated analytically
+    assert np.all(
+        np.isclose(
+            gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"]),
+            gradient(expected, ["fx_usdnok", "fx_eurnok"])
+        )
+    )
+    assert np.all(
+        np.isclose(
+            gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"], order=2),
+            gradient(expected, ["fx_usdnok", "fx_eurnok"], order=2)
+        )
+    )
 
 
 @pytest.fixture()
