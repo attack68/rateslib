@@ -15,6 +15,7 @@ from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
    :suppress:
 
    from rateslib.curves import Curve
+   from rateslib.fx import FXRates
    from datetime import datetime as dt
 """
 
@@ -90,16 +91,6 @@ class FXRates:
        except ValueError as e:
            print(e)
 
-    Attributes
-    ----------
-    pairs : list
-    settlement : datetime
-    currencies : dict
-    currencies_list : list
-    q : int
-    fx_rates : dict
-    fx_vector : ndarray
-    fx_array : ndarray
     """
 
     def __init__(

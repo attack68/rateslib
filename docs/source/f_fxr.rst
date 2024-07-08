@@ -23,7 +23,6 @@ This documentation page discusses the methods of the
    rateslib.fx.FXRates.update
    rateslib.fx.FXRates.restate
    rateslib.fx.FXRates.to_json
-   rateslib.fx.FXRates.from_json
 
 Introduction
 ------------

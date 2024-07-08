@@ -40,7 +40,6 @@ Defaults
    :skip: plot3d
    :skip: datetime
    :skip: Enum
-   :skip: from_json_rs
    :skip: read_csv
    :skip: get_named_calendar
 
@@ -192,24 +191,6 @@ FX
 .. automodapi:: rateslib.fx
    :no-heading:
    :no-inheritance-diagram:
-   :skip: gradient
-   :skip: NoInput
-   :skip: Curve
-   :skip: LineCurve
-   :skip: ProxyCurve
-   :skip: MultiCsaCurve
-   :skip: CustomBusinessDay
-   :skip: DataFrame
-   :skip: Dual
-   :skip: Series
-   :skip: datetime
-   :skip: product
-   :skip: timedelta
-   :skip: add_tenor
-   :skip: dual_solve
-   :skip: plot
-   :skip: set_order
-   :skip: gradient
 
 FX Volatility
 ==============
@@ -235,7 +216,6 @@ FX Volatility
    :skip: uuid4
    :skip: Union
    :skip: datetime
-   :skip: DataFrame
 
 Periods
 ========
@@ -333,6 +313,7 @@ Instruments
    :skip: timedelta
    :skip: FXCallPeriod
    :skip: FXDeltaVolSmile
+   :skip: FXDeltaVolSurface
    :skip: FXPutPeriod
 
 Class Inheritance Diagram
