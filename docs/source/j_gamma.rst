@@ -119,6 +119,7 @@ calculate its cross-gamma.
 We can slice this to display only the EUR risk.
 
 .. ipython:: python
+   :okwarning:
 
     idx = ("eur", "eur", slice(None), ["estr", "fx"], slice(None))
     cgamma.loc[idx, (slice(None), ["estr", "fx"], slice(None))]
