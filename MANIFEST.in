@@ -16,6 +16,8 @@ include rateslib/data/chf_rfr.csv
 include rateslib/data/nok_rfr.csv
 include rateslib/data/sek_rfr.csv
 include rateslib/data/usd_rfr.csv
+include rateslib/data/jpy_rfr.csv
+include rateslib/data/aud_rfr.csv
 
 include rateslib/dual/*
 include rateslib/splines/*

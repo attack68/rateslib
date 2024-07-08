@@ -5,9 +5,14 @@
         "url": "https://rateslib.readthedocs.io/en/latest/"
     },
     {
-        "name": "1.2.x (stable)",
-        "version": "1.2.x",
+        "name": "1.3.x (stable)",
+        "version": "1.3.x",
         "url": "https://rateslib.readthedocs.io/en/stable/"
+    },
+    {
+        "name": "1.2.x",
+        "version": "1.2.x",
+        "url": "https://rateslib.readthedocs.io/en/1.2.x/"
     },
     {
         "name": "1.1.x",

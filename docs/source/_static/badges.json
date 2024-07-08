@@ -1,9 +1,9 @@
 {
   "coverage": "98%",
   "licence": "CC-BY-NC-ND-4.0",
-  "pypi": "v1.2.2",
+  "pypi": "v1.3.0",
   "conda": "v1.1.1",
-  "python": "3.9 | 3.10 | 3.11",
+  "python": "3.9 | 3.10 | 3.11 | 3.12",
   "style": "black",
   "status": "stable"
 }
