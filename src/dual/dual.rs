@@ -15,7 +15,7 @@ pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, PyErr};
+use pyo3::{FromPyObject, pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 use std::sync::Arc;
@@ -39,6 +39,15 @@ pub struct Dual2 {
     pub(crate) dual2: Array2<f64>,
 }
 
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject, Serialize, Deserialize)]
+pub enum DualsOrF64 {
+    Dual(Dual),
+    Dual2(Dual2),
+    F64(f64),
+}
+
+#[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ADOrder {
     /// Floating point arithmetic only.

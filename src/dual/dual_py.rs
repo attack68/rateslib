@@ -1,6 +1,6 @@
 //! Wrapper module to export Rust dual data types to Python using pyo3 bindings.
 
-use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2, Vars};
+use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2, Vars, DualsOrF64};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -11,7 +11,6 @@ use std::sync::Arc;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
-use serde::{Deserialize, Serialize};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -24,13 +23,6 @@ unsafe impl Element for Dual2 {
     fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject, Serialize, Deserialize)]
-pub enum DualsOrF64 {
-    Dual(Dual),
-    Dual2(Dual2),
-    F64(f64),
 }
 
 impl IntoPy<PyObject> for DualsOrF64 {

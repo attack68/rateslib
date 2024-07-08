@@ -170,8 +170,36 @@ def test_set_ad_order():
     assert fxr.fx_vector[0] == 1.0
     assert fxr.fx_vector[1] == 10.0
 
-    with pytest.raises(TypeError, match="argument 'ad': 'str' object cannot be"):
+    with pytest.raises(ValueError, match="Order for AD can only be in {0,1,2}"):
         fxr._set_ad_order("bad arg")
+
+
+def test_set_ad_order_second_order_gradients():
+    # test ensures that the FX Array is consecutively constructed passing correct second order gradients.
+    # Versions <1.3.0 failed to correctly handle this becuase they simply upcast the FX rates vector.
+    fxr = FXRates({"usdnok": 10.0, "eurnok": 8.0})
+
+    un = Dual2(10, ["fx_usdnok"], [], [])
+    en = Dual2(8.0, ["fx_eurnok"], [], [])
+    expected = un / en
+    row, col = fxr.currencies["usd"], fxr.currencies["eur"]
+
+    fxr._set_ad_order(2)
+    assert fxr._ad == 2
+    assert type(fxr.fx_vector[0]) is Dual2
+    assert type(fxr.fx_vector[1]) is Dual2
+    assert np.all(
+        np.isclose(
+            gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"]),
+            gradient(expected, ["fx_usdnok", "fx_eurnok"])
+        )
+    )
+    assert np.all(
+        np.isclose(
+            gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"], order=2),
+            gradient(expected, ["fx_usdnok", "fx_eurnok"], order=2)
+        )
+    )
 
 
 @pytest.fixture()

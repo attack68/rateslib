@@ -15,7 +15,7 @@ use crate::json::json_py::from_json_py;
 use pyo3::prelude::*;
 
 pub mod dual;
-use dual::dual::{Dual, Dual2};
+use dual::dual::{Dual, Dual2, ADOrder};
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 
 pub mod splines;
@@ -31,7 +31,8 @@ use calendars::calendar::{Cal, Modifier, RollDay, UnionCal};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 pub mod fx;
-use fx::rates::{Ccy, FXRate, FXRates};
+use fx::rates::ccy::Ccy;
+use fx::rates::{FXRate, FXRates};
 
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -41,6 +42,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Automatic Differentiation
     m.add_class::<Dual>()?;
     m.add_class::<Dual2>()?;
+    m.add_class::<ADOrder>()?;
     m.add_function(wrap_pyfunction!(dsolve1_py, m)?)?;
     m.add_function(wrap_pyfunction!(dsolve2_py, m)?)?;
     m.add_function(wrap_pyfunction!(fdsolve1_py, m)?)?;

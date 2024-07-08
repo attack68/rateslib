@@ -73,6 +73,10 @@ email contact through **rateslib@gmail.com**.
      - Solving acyclic *FXForwards* systems is now stable for all orderings of currencies, and does not depend
        on a well chosen ``base`` currency.
    * - Bug
+     - Converting an `fx_array` associated with the :class:`~rateslib.fx.FXRates` into second order for AD
+       calculations now captures second order FX derivatives correctly by rebuilding the array, instead of a
+       direct conversion setting second order derivatives to zero.
+   * - Bug
      - Entering the *"single_vol"* ``metric`` into the :meth:`~rateslib.instruments.FXBrokerFly.rate` method
        of a :class:`~rateslib.instruments.FXBrokerFly` no longer raises.
    * - Errors
