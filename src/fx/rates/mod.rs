@@ -470,4 +470,25 @@ mod tests {
             _ => panic!("failure"),
         }
     }
+
+    #[test]
+    fn second_order_gradients_on_set_order() {
+        let mut fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("usd", "nok", DualsOrF64::F64(10.0), None).unwrap(),
+                FXRate::try_new("eur", "nok", DualsOrF64::F64(8.0), None).unwrap(),
+            ],
+            None,
+        ).unwrap();
+        let _ = fxr.set_ad_order(ADOrder::Two);
+        let d1 = Dual2::new(10.0, vec!["fx_usdnok".to_string()]);
+        let d2 = Dual2::new(8.0, vec!["fx_eurnok".to_string()]);
+        let d3 = d1 / d2;
+        let rate: Dual2 = fxr.rate(
+            &Ccy::try_new("usd").unwrap(),
+            &Ccy::try_new("eur").unwrap()
+        ).unwrap().into();
+        assert_eq!(d3, rate)
+    }
+
 }
