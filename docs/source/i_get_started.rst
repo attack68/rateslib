@@ -51,20 +51,20 @@ performant and contain less features.
      - Recommended Version
      - Earliest Tested
    * - Python
-     - 3.11
+     - 3.12
      - 3.11
      - 3.9
    * - NumPy
-     - 1.26.4
+     - 2.0.0
      - 1.26.1
      - 1.21.5
    * - Pandas
-     - 2.2.1
-     - 2.1.3
+     - 2.2.2
+     - 2.2.2
      - 1.4.1
    * - Matplotlib
-     - 3.8.3
-     - 3.8.1
+     - 3.9.1
+     - 3.8.4
      - 3.5.1
 
 
