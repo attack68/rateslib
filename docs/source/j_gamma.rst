@@ -107,6 +107,7 @@ Now we create a multi-currency :class:`~rateslib.instruments.Portfolio` and
 calculate its cross-gamma.
 
 .. ipython:: python
+   :okwarning:
 
     pf = Portfolio([
         IRS(dt(2022, 1, 1), "20Y", "A", currency="eur", fixed_rate=2.0, notional=1e8, curves="estr"),
