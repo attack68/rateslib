@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import numpy as np
 from pandas import DataFrame, MultiIndex, Series, concat
+from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
@@ -562,7 +563,7 @@ class Gradients:
         return grad_s_P
 
     def grad_f_Ploc(self, npv, fx_vars):
-        """
+        r"""
         1d array of derivatives of local currency PV with respect to FX rate variable,
         of size (len(fx_vars)).
 
@@ -1312,7 +1313,7 @@ class Solver(Gradients):
             self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
-        """
+        r"""
         Solve the DF node values and update all the ``curves``.
 
         This method uses a gradient based optimisation routine, to solve for all
@@ -1734,7 +1735,10 @@ class Solver(Gradients):
                 ]
             )
             locator = key + (slice(None), slice(None), slice(None))
-            df.loc[locator, :] = array
+
+            with warnings.catch_warnings():
+                warnings.simplefilter(action='ignore', category=PerformanceWarning)
+                df.loc[locator, :] = array
 
         if base is not NoInput.blank:
             # sum over all the base rows to aggregate
@@ -2064,7 +2068,7 @@ def newton_ndim(
     final_args=(),
     raise_on_fail=True,
 ) -> dict:
-    """
+    r"""
     Use the Newton-Raphson algorithm to determine the root of a function searching **many** variables.
 
     Solves the *n* root equations :math:`f_i(g_1, \hdots, g_n; s_k)=0` for each :math:`g_j`.
