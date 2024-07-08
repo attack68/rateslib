@@ -321,24 +321,43 @@ fn create_fx_array(currencies: &IndexSet<Ccy>, fx_rates: &[FXRate], ad: ADOrder)
     let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
     let vars: Vec<String> = fx_pairs.iter().map(|x| format!("fx_{}", x)).collect();
     let mut edges = create_initial_edges(currencies, &fx_pairs);
+    let fx_rates_: Vec<DualsOrF64> = fx_rates.iter().enumerate().map(|(i,x)| remap_rate(&x.rate, vec![vars[i].clone()], ad)).collect();
     match ad {
         ADOrder::Zero => {
-            let fx_rates_: Vec<f64> = fx_rates.iter().map(|x| f64::from(&x.rate)).collect();
-            let mut fx_array_: Array2<f64> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates_);
+            let fx_rates__: Vec<f64> = fx_rates_.iter().map(|x| f64::from(x)).collect();
+            let mut fx_array_: Array2<f64> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates__);
             let _ = mut_arrays_remaining_elements(fx_array_.view_mut(), edges.view_mut(), HashSet::new())?;
             Ok(FXArray::F64(fx_array_))
         }
         ADOrder::One => {
-            let fx_rates_: Vec<Dual> = fx_rates.iter().enumerate().map(|(i,x)| Dual::new(f64::from(&x.rate), vec![vars[i].clone()])).collect();
-            let mut fx_array_: Array2<Dual> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates_);
+            let fx_rates__: Vec<Dual> = fx_rates_.iter().enumerate().map(|(i,x)| Dual::from(x)).collect();
+            let mut fx_array_: Array2<Dual> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates__);
             let _ = mut_arrays_remaining_elements(fx_array_.view_mut(), edges.view_mut(), HashSet::new())?;
             Ok(FXArray::Dual(fx_array_))
         }
         ADOrder::Two => {
-            let fx_rates_: Vec<Dual2> = fx_rates.iter().enumerate().map(|(i,x)| Dual2::new(f64::from(&x.rate), vec![vars[i].clone()])).collect();
-            let mut fx_array_: Array2<Dual2> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates_);
+            let fx_rates__: Vec<Dual2> = fx_rates_.iter().enumerate().map(|(i,x)| Dual2::from(x)).collect();
+            let mut fx_array_: Array2<Dual2> = create_initial_fx_array(currencies, &fx_pairs, &fx_rates__);
             let _ = mut_arrays_remaining_elements(fx_array_.view_mut(), edges.view_mut(), HashSet::new())?;
             Ok(FXArray::Dual2(fx_array_))
+        }
+    }
+}
+
+fn remap_rate(rate: &DualsOrF64, vars: Vec<String>, adorder: ADOrder) -> DualsOrF64 {
+    match adorder {
+        ADOrder::Zero => {DualsOrF64::F64(f64::from(rate))},
+        ADOrder::One => {
+            match rate {
+                DualsOrF64::F64(f) => DualsOrF64::Dual(Dual::new(*f, vars)),
+                _ => DualsOrF64::Dual(Dual::from(rate))
+            }
+        },
+        ADOrder::Two => {
+            match rate {
+                DualsOrF64::F64(f) => DualsOrF64::Dual2(Dual2::new(*f, vars)),
+                _ => DualsOrF64::Dual2(Dual2::from(rate))
+            }
         }
     }
 }
