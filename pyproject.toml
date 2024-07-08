@@ -24,7 +24,7 @@ src_paths = ["python", "tests"]
 
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = ['py312']
 
 [project]
 name = "rateslib"
