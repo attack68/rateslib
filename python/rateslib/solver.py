@@ -1317,15 +1317,15 @@ class Solver(Gradients):
         Solve the DF node values and update all the ``curves``.
 
         This method uses a gradient based optimisation routine, to solve for all
-        the curve variables, :math:`\\mathbf{v}`, as follows,
+        the curve variables, :math:`\mathbf{v}`, as follows,
 
         .. math::
 
-           \\mathbf{v} = \\underset{\\mathbf{v}}{\\mathrm{argmin}} \;\; f(\\mathbf{v}) = \\underset{\\mathbf{v}}{\\mathrm{argmin}} \;\; (\\mathbf{r(v)} - \\mathbf{S})\\mathbf{W}(\\mathbf{r(v)} - \\mathbf{S})^\\mathbf{T}
+           \mathbf{v} = \underset{\mathbf{v}}{\mathrm{argmin}} \;\; f(\mathbf{v}) = \underset{\mathbf{v}}{\mathrm{argmin}} \;\; (\mathbf{r(v)} - \mathbf{S})\mathbf{W}(\mathbf{r(v)} - \mathbf{S})^\mathbf{T}
 
-        where :math:`\\mathbf{r}` are the mid-market rates of the calibrating
-        instruments, :math:`\\mathbf{S}` are the observed and target rates, and
-        :math:`\\mathbf{W}` is the diagonal array of weights.
+        where :math:`\mathbf{r}` are the mid-market rates of the calibrating
+        instruments, :math:`\mathbf{S}` are the observed and target rates, and
+        :math:`\mathbf{W}` is the diagonal array of weights.
 
         Returns
         -------

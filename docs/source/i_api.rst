@@ -345,6 +345,7 @@ Solver
    :skip: gradient
    :skip: time
    :skip: uuid4
+   :skip: PerformanceWarning
 
 Cookbook
 =========
