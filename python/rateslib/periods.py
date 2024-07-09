@@ -2452,32 +2452,22 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Parameters
         ----------
-        curve : Curve, optional
-            The forecasting curve object. Not used unless it is set equal to
-            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
-        disc_curve : Curve, optional
-            The discounting curve object used in calculations.
-            Set equal to ``curve`` if not given.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
-            object, converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code).
-            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object. If not given defaults to
-            ``fx.base``.
+        disc_curve: Curve
+            The discount *Curve* for the LHS currency.
+        disc_curve_ccy2: Curve
+            The discount *Curve* for the RHS currency.
+        fx: float, FXRates, FXForwards, optional
+            The object to project the currency pair FX rate at delivery.
+        base: str, optional
+            The base currency in which to express the NPV.
+        local: bool,
+            Whether to display NPV in a currency local to the object.
+        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
+            The percentage log-normal volatility to price the option.
 
         Returns
         -------
         dict
-
-        Examples
-        --------
-        .. ipython:: python
-
-           period.cashflows(curve, curve, fxr)
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         df, collateral = float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
