@@ -15,6 +15,7 @@ into any one category.
     z_dependencychain.rst
     z_turns.rst
     z_quantlib.rst
+    z_curve_from_zero_rates.ipynb
 
 **FX Volatility Surface Building**
 
