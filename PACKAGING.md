@@ -60,3 +60,13 @@ In GITHUB:
 
 1) Add a new release.
 2) Update the Repo PNG with the new badges.
+
+
+To Make a New Release:
+
+1) Edit Cargo.toml and update the version.
+2) Update the version in pyproject.toml.
+3) Update the version in rateslib/__init__.py
+4) Update the version test in test_default.py
+5) Add a new release table to the whats new doc page.
+6) Docs conf.py should record the release name version as "dev".
