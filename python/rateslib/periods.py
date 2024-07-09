@@ -2474,6 +2474,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         npv = float(self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency])
 
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
+        # This method should not be called to get values used in later calculations becuase it is not efficient.
+        # Prefer other ways to get values, i.e. by direct calculation calls.
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: "Optionality",
