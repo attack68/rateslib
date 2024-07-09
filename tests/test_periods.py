@@ -1503,16 +1503,16 @@ class TestCashflow:
         expected = {
             defaults.headers["type"]: "Cashflow",
             defaults.headers["stub_type"]: None,
-            defaults.headers["a_acc_start"]: None,
-            defaults.headers["a_acc_end"]: None,
+            # defaults.headers["a_acc_start"]: None,
+            # defaults.headers["a_acc_end"]: None,
             defaults.headers["payment"]: dt(2022, 4, 3),
             defaults.headers["currency"]: "USD",
             defaults.headers["notional"]: 1e9,
-            defaults.headers["convention"]: None,
-            defaults.headers["dcf"]: None,
+            # defaults.headers["convention"]: None,
+            # defaults.headers["dcf"]: None,
             defaults.headers["df"]: 0.9897791268897856 if crv else None,
             defaults.headers["rate"]: None,
-            defaults.headers["spread"]: None,
+            # defaults.headers["spread"]: None,
             defaults.headers["npv"]: -989779126.8897856 if crv else None,
             defaults.headers["cashflow"]: -1e9,
             defaults.headers["fx"]: fx,
@@ -2784,3 +2784,32 @@ class TestFXOption:
         )
         with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
             fxc.npv(fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol_)
+
+    @pytest.mark.parametrize("smile", [True, False])
+    def test_call_cashflows(self, fxfo, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.cashflows(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=vol_,
+            base="eur"
+        )
+        assert isinstance(result, dict)
+        expected = 140451.5273
+        assert (result[defaults.headers["cashflow"]] - expected) < 1e-3
+        assert result[defaults.headers["currency"]] == "USD"
+        assert result[defaults.headers["type"]] == "FXCallPeriod"

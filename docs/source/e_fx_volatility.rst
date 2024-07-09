@@ -90,7 +90,7 @@ This can be replicated with *rateslib* native functionality via :class:`~ratesli
              strike=1.101,
              payment_lag=dt(2023, 3, 20),
              delivery_lag=2,
-             calendar="tgt",
+             calendar="tgt|fed",
              modifier="mf",
              premium_ccy="usd",
              eval_date=NoInput(0),
@@ -217,7 +217,7 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
        strike="25d",
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -276,7 +276,7 @@ The default pricing ``metric`` for an *FX Straddle* is *'vol'* points.
        strike="atm_delta",
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -325,7 +325,7 @@ The default pricing ``metric`` for an *FX Straddle* is *'vol'* points.
        strike="atm_delta",
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -358,7 +358,7 @@ quotations for each option.
        strike=("-25d", "25d"),
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -402,7 +402,7 @@ quotations for each option.
        strike=("-25d", "25d"),
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -433,7 +433,7 @@ an iteration to calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate
        strike=("-25d", "25d"),
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -477,7 +477,7 @@ an iteration to calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate
        strike=("-25d", "25d"),
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -508,7 +508,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        strike=("-25d", "atm_delta", "25d"),
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )
@@ -552,7 +552,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        strike=("-25d", "atm_delta", "25d"),
        payment_lag=2,
        delivery_lag=2,
-       calendar="tgt",
+       calendar="tgt|fed",
        premium_ccy="usd",
        delta_type="spot",
    )

@@ -8139,13 +8139,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from calibrating
             instruments.
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            Not used by `rate`.
-        vol: float, Dual, Dual2 or FXDeltaVolSmile
+            3-digit currency to express values in (not used by the `rate` method).
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
             The volatility used in calculation.
         metric: str in {"pips_or_%", "vol", "premium"}, optional
             The pricing metric type to return. See notes.
@@ -8198,6 +8198,31 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local: bool = False,
         vol: float = NoInput(0),
     ):
+        """
+        Return the NPV of the *Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from calibrating
+            instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code).
+            If not given defaults to ``fx.base``.
+        local : bool, optional
+            If `True` will return a dict identifying NPV by local currencies on each
+            period.
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such.
+        """
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver, curves, fx, base, vol
         )
@@ -8214,6 +8239,50 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}
         else:
             return opt_npv + prem_npv
+
+    def cashflows(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: float = NoInput(0),
+    ):
+        """
+        Return the properties of all periods used in calculating cashflows.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            Not used by `rate`.
+        vol: float, Dual, Dual2 or FXDeltaVolSmile
+            The volatility used in calculation.
+
+        Returns
+        -------
+        DataFrame
+
+        """
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
+        )
+        self._set_strike_and_vol(curves, fx, vol)
+        self._set_premium(curves, fx)
+
+        seq = [
+            self.periods[0].cashflows(curves[1], curves[3], fx, base, vol=vol),
+            self.periods[1].cashflows(curves[1], curves[3], fx, base),
+        ]
+        return DataFrame.from_records(seq)
 
     def analytic_greeks(
         self,

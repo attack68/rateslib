@@ -225,6 +225,14 @@ class Defaults:
             "index_ratio": "Index Ratio",
             "index_base": "Index Base",
             "collateral": "Collateral",
+            # Options headers
+            "pair": "Pair",
+            "expiry": "Expiry",
+            "t_e": "Time to Expiry",
+            "delivery": "Delivery",
+            "model": "Model",
+            "vol": "Vol",
+            "strike": "Strike",
         }
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

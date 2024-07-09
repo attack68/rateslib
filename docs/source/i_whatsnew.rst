@@ -21,6 +21,9 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Instruments
+     - Add a :meth:`~rateslib.instruments.FXOption.cashflows` method to generic :class:`~rateslib.instruments.FXOption`
+       and also as a pre-requisite to :class:`~rateslib.periods.FXOptionPeriod`
 
 1.3.0 (9th July 2024)
 ***********************
