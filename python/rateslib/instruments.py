@@ -8253,7 +8253,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         Parameters
         ----------
-                curves : list of Curve
+        curves : list of Curve
             Curves for discounting cashflows. List follows the structure used by IRDs and
             should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
