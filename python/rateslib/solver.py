@@ -1737,6 +1737,7 @@ class Solver(Gradients):
             locator = key + (slice(None), slice(None), slice(None))
 
             with warnings.catch_warnings():
+                # TODO: pandas 3.0.0 can optionally turn off these PerformanceWarnings
                 warnings.simplefilter(action='ignore', category=PerformanceWarning)
                 df.loc[locator, :] = array
 

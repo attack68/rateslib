@@ -2784,3 +2784,32 @@ class TestFXOption:
         )
         with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
             fxc.npv(fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol_)
+
+    @pytest.mark.parametrize("smile", [True, False])
+    def test_call_cashflows(self, fxfo, smile):
+        vol_ = 8.9 if not smile else FXDeltaVolSmile(
+            nodes={0.5: 8.9},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        )
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+        )
+        result = fxo.cashflows(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=vol_,
+            base="eur"
+        )
+        assert isinstance(result, dict)
+        expected = 140451.5273
+        assert (result[defaults.headers["cashflow"]] - expected) < 1e-3
+        assert result[defaults.headers["currency"]] == "USD"
+        assert result[defaults.headers["type"]] == "FXCallPeriod"

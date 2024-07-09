@@ -1860,15 +1860,15 @@ class Cashflow:
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: stub_type,
             defaults.headers["currency"]: self.currency.upper(),
-            defaults.headers["a_acc_start"]: None,
-            defaults.headers["a_acc_end"]: None,
+            # defaults.headers["a_acc_start"]: None,
+            # defaults.headers["a_acc_end"]: None,
             defaults.headers["payment"]: self.payment,
-            defaults.headers["convention"]: None,
-            defaults.headers["dcf"]: None,
+            # defaults.headers["convention"]: None,
+            # defaults.headers["dcf"]: None,
             defaults.headers["notional"]: float(self.notional),
             defaults.headers["df"]: df,
             defaults.headers["rate"]: rate,
-            defaults.headers["spread"]: None,
+            # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: float(fx),
@@ -2437,6 +2437,74 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
         )
         self.metric = metric
+
+    def cashflows(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[DualTypes, FXVols, NoInput] = NoInput(0),
+    ) -> dict:
+        """
+        Return the properties of the period used in calculating cashflows.
+
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object. Not used unless it is set equal to
+            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+            object, converts from local currency into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an :class:`~rateslib.fx.FXRates` or
+            :class:`~rateslib.fx.FXForwards` object. If not given defaults to
+            ``fx.base``.
+
+        Returns
+        -------
+        dict
+
+        Examples
+        --------
+        .. ipython:: python
+
+           period.cashflows(curve, curve, fxr)
+        """
+        fx_, base = _get_fx_and_base(self.currency, fx, base)
+        df, collateral = float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
+        npv = float(self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency])
+
+        # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
+        return {
+            defaults.headers["type"]: type(self).__name__,
+            defaults.headers["stub_type"]: "Optionality",
+            defaults.headers["pair"]: self.pair,
+            defaults.headers["notional"]: float(self.notional),
+            defaults.headers["expiry"]: self.expiry,
+            defaults.headers["t_e"]: float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
+            defaults.headers["delivery"]: self.delivery,
+            defaults.headers["rate"]: float(fx.rate(self.pair, self.delivery)),
+            defaults.headers["strike"]: self.strike,
+            defaults.headers["vol"]: float(self._get_vol_maybe_from_obj(vol, fx, disc_curve)),
+            defaults.headers["model"]: "Black76",
+            defaults.headers["payment"]: self.payment,
+            defaults.headers["currency"]: self.currency.upper(),
+            defaults.headers["cashflow"]: npv / df,
+            defaults.headers["df"]: df,
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx_),
+            defaults.headers["npv_fx"]: npv * float(fx_),
+            defaults.headers["collateral"]: collateral,
+        }
 
     def npv(
         self,
