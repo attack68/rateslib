@@ -6743,7 +6743,7 @@ class FRA(Sensitivities, BaseMixin):
             roll=roll,
             eom=eom,
             modifier=_upper(modifier),
-            calendar=get_calendar(calendar),
+            calendar=calendar,
             payment_lag=payment_lag,
             notional=notional,
             currency=_lower(currency),
