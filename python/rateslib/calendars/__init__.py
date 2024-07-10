@@ -422,6 +422,7 @@ def _get_fx_expiry_and_delivery(
     delivery_lag: Union[int, datetime],
     calendar: CalInput,
     modifier: Union[str, NoInput],
+    eom: bool,
 ):
     """
     Determines the expiry and delivery date of an FX option using the following rules:
@@ -440,6 +441,8 @@ def _get_fx_expiry_and_delivery(
         The calendar used for date rolling. This function makes use of the `settlement` option within UnionCals.
     modifier: str
         Date rule, expected to be "MF" for most FX rate tenors.
+    eom: bool
+        Whether end-of-month is preserved in tenor date determination.
 
     Returns
     -------
@@ -460,7 +463,8 @@ def _get_fx_expiry_and_delivery(
                 )
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
-                delivery = add_tenor(spot, expiry, modifier, calendar, NoInput(0), True)
+                roll = "eom" if (eom and _is_eom(spot)) else spot.day
+                delivery = add_tenor(spot, expiry, modifier, calendar, roll, True)
                 expiry = get_calendar(calendar).add_bus_days(delivery, -delivery_lag, False)
                 return expiry, delivery
         else:

@@ -3647,6 +3647,22 @@ class TestFXOptions:
         expected = 6.60 # vol points
         assert abs(result-expected) < 1e-6
 
+    @pytest.mark.parametrize("eval, eom, expected", [
+        (dt(2024, 4, 26), True, dt(2024, 5, 29)),  # 2bd before 31st May (rolled from End of April)
+        (dt(2024, 4, 26), False, dt(2024, 5, 28)),  # 2bd before 30th May (rolled from 30th April)
+    ])
+    def test_expiry_delivery_tenor_eom(self, eval, eom, expected):
+        fxo = FXCall(
+            pair="eurusd",
+            expiry="1m",
+            eval_date=eval,
+            eom=eom,
+            calendar="tgt|fed",
+            modifier="mf",
+            strike=1.0
+        )
+        assert fxo.kwargs["expiry"] == expected
+
 
 class TestRiskReversal:
     @pytest.mark.parametrize("metric, expected", [

@@ -535,7 +535,8 @@ def test_expiries_delivery(eval, delivery, expiry, expected_expiry):
         expiry,
         delivery,
         "tgt|fed",
-        "mf"
+        "mf",
+        False,
     )
     assert result_expiry == expected_expiry
 
@@ -547,5 +548,6 @@ def test_expiries_delivery_raises():
             "3m",
             dt(2000, 3, 2),
             "tgt|fed",
-            "mf"
+            "mf",
+            False,
         )
