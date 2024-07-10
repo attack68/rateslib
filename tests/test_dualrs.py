@@ -1,14 +1,14 @@
+import context
+
 import pytest
 import numpy as np
 import math
 from packaging import version
 
-import context
-
-from rateslib.dual import gradient, DUAL_CORE_PY, dual_solve
-from rateslib.dual.dualrs import Dual, Dual2
+from rateslib.dual import gradient, dual_solve, Dual, Dual2
 from rateslib.rs import from_json
 
+DUAL_CORE_PY = False
 
 @pytest.fixture()
 def x_1():

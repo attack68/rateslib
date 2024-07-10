@@ -2,20 +2,18 @@ import math
 from functools import partial
 from statistics import NormalDist
 from typing import Optional, Union
-
 import numpy as np
 
-DUAL_CORE_PY = False
+from rateslib.rs import Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2, ADOrder
 
-if DUAL_CORE_PY:
-    from rateslib.dual.dual import Dual, Dual2
-else:
-    from rateslib.dual.dualrs import Dual, Dual2
+Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
+Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-from rateslib.dual.dual import FLOATS, INTS, _dsolve
-from rateslib.dual.dualrs import _dsolve1, _dsolve2, _fdsolve1, _fdsolve2, ADOrder
+FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
+INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 
 DualTypes = Union[float, Dual, Dual2]
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -234,9 +232,6 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
             return np.linalg.lstsq(A, b, rcond=None)[0]
         else:
             return np.linalg.solve(A, b)
-
-    if DUAL_CORE_PY:
-        return _dsolve(A, b, allow_lsq)
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
