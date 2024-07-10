@@ -124,6 +124,7 @@ class Defaults:
             "Z": 1e8,
         }
         self.eom = False
+        self.eom_fx = True
 
         # Instrument parameterisation
 

@@ -27,6 +27,8 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - Add an internal routine to derive *FXOption* `expiry` and `delivery` according to FX market conventions using
        the new settlement calendar system introduced in v1.3.0.
+   * - Instruments
+     - Add ``eom`` parameter to *FXOptions* for exact expiry and delivery date calculation when given as string tenor.
 
 1.3.0 (9th July 2024)
 ***********************

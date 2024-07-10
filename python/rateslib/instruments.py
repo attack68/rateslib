@@ -7849,6 +7849,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         The date from which to evaluate a string tenor expiry.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"} for date evaluation.
+    eom: bool, optional (defaults.eom_fx)
+        Whether to use end-of-month rolls when expiry is given as a month or year tenor.
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
@@ -7893,6 +7895,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         eval_date: Union[datetime, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         modifier: Union[str, NoInput] = NoInput(0),
+        eom: Union[bool, NoInput] = NoInput(0),
         delivery_lag: Union[int, NoInput] = NoInput(0),
         strike: Union[DualTypes, str, NoInput] = NoInput(0),
         premium: Union[float, NoInput] = NoInput(0),
@@ -7916,6 +7919,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             payment_lag=payment_lag,
             delivery_lag=delivery_lag,
             calendar=calendar,
+            eom=eom,
             modifier=modifier,
             delta_type=delta_type,
             metric=metric,
@@ -7932,6 +7936,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 "delivery_lag": defaults.fx_delivery_lag,
                 "payment_lag": defaults.payment_lag,
                 "premium_ccy": self.kwargs["pair"][3:],
+                "eom": defaults.eom_fx,
             },
         )
 
@@ -7940,7 +7945,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.kwargs["expiry"],
             self.kwargs["delivery_lag"],
             self.kwargs["calendar"],
-            self.kwargs["modifier"]
+            self.kwargs["modifier"],
+            self.kwargs["eom"],
         )
 
         if isinstance(self.kwargs["payment_lag"], datetime):
