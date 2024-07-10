@@ -414,3 +414,59 @@ def _is_som(date: datetime) -> bool:
     bool
     """
     return date.day == 1
+
+
+def _get_fx_expiry_and_delivery(
+    eval_date: Union[NoInput, datetime],
+    expiry: Union[str, datetime],
+    delivery_lag: Union[int, datetime],
+    calendar: CalInput,
+    modifier: Union[str, NoInput],
+):
+    """
+    Determines the expiry and delivery date of an FX option using the following rules:
+
+    See Foreign Exchange Option Pricing by Iain Clark
+
+    Parameters
+    ----------
+    eval: datetime
+        The evalation date, which is today (if required)
+    expiry: str, datetime
+        The expiry date
+    delivery_lag: int, datetime
+        Number of days, e.g. spot = 2, or a specified datetime for FX settlement after expiry.
+    calendar: CalInput
+        The calendar used for date rolling. This function makes use of the `settlement` option within UnionCals.
+    modifier: str
+        Date rule, expected to be "MF" for most FX rate tenors.
+
+    Returns
+    -------
+    tuple of datetime
+    """
+    if isinstance(expiry, str):
+        if eval_date is NoInput.blank:
+            raise ValueError("`expiry` as string tenor requires `eval_date`.")
+        # then the expiry will be implied
+        e = expiry.upper()
+        if "M" in e or "Y" in e:
+            # method
+            if isinstance(delivery_lag, datetime):
+                raise ValueError(
+                    "Cannot determine FXOption expiry and delivery with given parameters.\n"
+                    "Supply a `delivery_lag` as integer business days and not a datetime, when using a "
+                    "string tenor `expiry`."
+                )
+            else:
+                spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
+                delivery = add_tenor(spot, expiry, modifier, calendar, NoInput(0), True)
+                expiry = get_calendar(calendar).lag(eval_date, -delivery_lag, False)
+                return expiry, delivery
+        else:
+            expiry = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+
+    if isinstance(delivery_lag, datetime):
+        return expiry, delivery_lag
+    else:
+        return expiry, get_calendar(calendar).lag(expiry, delivery_lag, True)

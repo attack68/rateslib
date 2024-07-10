@@ -35,7 +35,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.bonds import _BondConventions
-from rateslib.calendars import _get_years_and_months, add_tenor, dcf, get_calendar
+from rateslib.calendars import _get_years_and_months, add_tenor, dcf, get_calendar, _get_fx_expiry_and_delivery
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
@@ -7935,6 +7935,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             },
         )
 
+        self.kwargs["expiry"], self.kwargs["delivery"] = _get_fx_expiry_and_delivery(
+            self.kwargs["eval_date"],
+            self.kwargs["expiry"],
+            self.kwargs["delivery"],
+            self.kwargs["calendar"],
+            self.kwargs["modifier"]
+        )
+
         if isinstance(self.kwargs["expiry"], str):
             if not isinstance(eval_date, datetime):
                 raise ValueError("`expiry` as string tenor requires `eval_date`.")
@@ -7944,15 +7952,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 self.kwargs["modifier"],
                 self.kwargs["calendar"],
                 NoInput(0),
-            )
-
-        if isinstance(self.kwargs["delivery_lag"], datetime):
-            self.kwargs["delivery"] = self.kwargs["delivery_lag"]
-        else:
-            self.kwargs["delivery"] = get_calendar(self.kwargs["calendar"]).lag(
-                self.kwargs["expiry"],
-                self.kwargs["delivery_lag"],
-                True,
             )
 
         if isinstance(self.kwargs["payment_lag"], datetime):
