@@ -18,9 +18,6 @@ from rateslib.default import NoInput
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-# TODO: edit the docs for create_calendar to link to `Cal` on deprecation
-# TODO: edit the example on create calendar, or move to `Cal`
-
 
 def dcf(
     start: datetime,
@@ -135,6 +132,7 @@ def dcf(
         )
 
 
+# TODO (deprecate): this function on 2.0.0
 def create_calendar(rules: list, week_mask: list[int] = []) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
