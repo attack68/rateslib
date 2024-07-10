@@ -461,7 +461,7 @@ def _get_fx_expiry_and_delivery(
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
                 delivery = add_tenor(spot, expiry, modifier, calendar, NoInput(0), True)
-                expiry = get_calendar(calendar).lag(eval_date, -delivery_lag, False)
+                expiry = get_calendar(calendar).add_bus_days(delivery, -delivery_lag, False)
                 return expiry, delivery
         else:
             expiry = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)

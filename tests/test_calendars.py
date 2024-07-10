@@ -16,6 +16,7 @@ from rateslib.calendars import (
     _is_som,
     _get_imm,
     _get_years_and_months,
+    _get_fx_expiry_and_delivery,
 )
 from rateslib.calendars.dcfs import _dcf_actacticma
 from rateslib.curves import Curve
@@ -520,3 +521,31 @@ def test_add_and_get_custom_calendar():
     defaults.calendars["custom"] = cal
     result = get_calendar("custom")
     assert result == cal
+
+
+@pytest.mark.parametrize("eval, delivery, expiry, expected_expiry", [
+    (dt(2024, 5, 2), 2, "2m", dt(2024, 7, 4)),
+    (dt(2024, 4, 30), 2, "2m", dt(2024, 7, 1)),
+    (dt(2024, 5, 31), 2, "1m", dt(2024, 7, 3)),
+    (dt(2024, 5, 31), 2, "2w", dt(2024, 6, 14)),
+])
+def test_expiries_delivery(eval, delivery, expiry, expected_expiry):
+    result_expiry, _ = _get_fx_expiry_and_delivery(
+        eval,
+        expiry,
+        delivery,
+        "tgt|fed",
+        "mf"
+    )
+    assert result_expiry == expected_expiry
+
+
+def test_expiries_delivery_raises():
+    with pytest.raises(ValueError, match="Cannot determine FXOption expiry and delivery"):
+        _get_fx_expiry_and_delivery(
+            dt(2000, 1, 1),
+            "3m",
+            dt(2000, 3, 2),
+            "tgt|fed",
+            "mf"
+        )

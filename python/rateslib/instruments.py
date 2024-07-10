@@ -7936,23 +7936,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         )
 
         self.kwargs["expiry"], self.kwargs["delivery"] = _get_fx_expiry_and_delivery(
-            self.kwargs["eval_date"],
+            eval_date,
             self.kwargs["expiry"],
-            self.kwargs["delivery"],
+            self.kwargs["delivery_lag"],
             self.kwargs["calendar"],
             self.kwargs["modifier"]
         )
-
-        if isinstance(self.kwargs["expiry"], str):
-            if not isinstance(eval_date, datetime):
-                raise ValueError("`expiry` as string tenor requires `eval_date`.")
-            self.kwargs["expiry"] = add_tenor(
-                eval_date,
-                self.kwargs["expiry"],
-                self.kwargs["modifier"],
-                self.kwargs["calendar"],
-                NoInput(0),
-            )
 
         if isinstance(self.kwargs["payment_lag"], datetime):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
