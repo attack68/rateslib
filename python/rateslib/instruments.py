@@ -7849,6 +7849,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         The date from which to evaluate a string tenor expiry.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"} for date evaluation.
+    eom: bool, optional (defaults.eom_fx)
+        Whether to use end-of-month rolls when expiry is given as a month or year tenor.
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
