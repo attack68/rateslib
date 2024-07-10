@@ -16,14 +16,9 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     set_order,
     gradient,
-    DUAL_CORE_PY,
 )
 
-# Python Dual implementation
-from rateslib.dual.dual import (
-    _plu_decomp,
-    _pivot_matrix,
-)
+DUAL_CORE_PY = False
 
 
 @pytest.fixture()
@@ -698,69 +693,6 @@ def test_dual_set_order(x_1, y_1):
 
 
 # Linalg dual_solve tests
-
-
-def test_pivoting():
-    A = np.array(
-        [[1, 0, 0, 0, 0], [-1, 1, 0, 0, 0], [0, -1, 0, 1, 0], [-1, 0, 0.5, 0, 0], [0, 0, -1, 0, 1]]
-    )
-    result, _ = _pivot_matrix(A, method=1)
-    expected = np.array(
-        [
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 1, 0, 0],
-            [0, 0, 0, 1, 0],
-        ]
-    )
-    assert np.all(result == expected)
-    result, _ = _pivot_matrix(A, method=2)
-    expected = np.array(
-        [
-            [1, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0],
-            [0, 0, 0, 0, 1],
-            [0, 0, 0, 1, 0],
-            [0, 0, 1, 0, 0],
-        ]
-    )
-    assert np.all(result == expected)
-
-
-def test_sparse_plu():
-    A = np.array(
-        [
-            [0, 1, 0],
-            [0, 1, 1],
-            [2, 3, 0],
-        ]
-    )
-    P, L, U = _plu_decomp(A)
-
-    diff = np.matmul(P, A) - np.matmul(L, U)
-    assertions = [abs(diff[i, j]) < 1e-10 for i in range(3) for j in range(3)]
-    assert all(assertions)
-
-
-@pytest.mark.parametrize("sparse", [False, True])
-def test_plu(A, A_sparse, sparse):
-    if sparse:
-        A = A_sparse
-    n = A.shape[0]
-
-    P, L, U = _plu_decomp(A)
-
-    assertions = [abs(L[i, j]) < 1e-10 for i in range(n) for j in range(i + 1, n)]
-    assert all(assertions)
-
-    assertions = [abs(U[i, j]) < 1e-10 for j in range(n) for i in range(j + 1, n)]
-    assert all(assertions)
-
-    diff = np.matmul(P, A) - np.matmul(L, U)
-    assertions = [abs(diff[i, j]) < 1e-10 for i in range(n) for j in range(n)]
-    assert all(assertions)
-
 
 def test_solve(A, b):
     x = dual_solve(A, b)
