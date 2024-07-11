@@ -200,8 +200,9 @@ def add_tenor(
     -------
     datetime
 
-    Examples
-    --------
+    Notes
+    ------
+
     .. ipython:: python
        :suppress:
 
@@ -220,6 +221,32 @@ def add_tenor(
        pd.set_option("display.float_format", lambda x: '%.2f' % x)
        pd.set_option("display.max_columns", None)
        pd.set_option("display.width", 500)
+
+
+    Read more about the ``settlement`` argument in the :ref:`calendar user guide <cal-doc>`.
+
+    The ``mod_days`` argument is provided to avoid having to reconfigure *Instrument* specifications when
+    a *termination* may differ between months or years, and days or weeks. Most *Instruments* will be
+    defined by the typical modified following (*"MF"*) ``modifier``, but this would prefer not to always apply.
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 29), "1M", "MF", "bus")
+
+    while, the following will by default roll into a new month,
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 22), "8d", "MF", "bus")
+
+    unless,
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 22), "8d", "MF", "bus", mod_days=True)
+
+    Examples
+    --------
 
     .. ipython:: python
 
