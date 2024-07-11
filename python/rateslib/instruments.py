@@ -1,24 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # Sphinx substitutions
-"""
-.. ipython:: python
-   :suppress:
-
-   from rateslib.instruments import *
-   from rateslib.curves import Curve
-   from datetime import datetime as dt
-   from pandas import Series, date_range, option_context
-   curve = Curve(
-       nodes={
-           dt(2022,1,1): 1.0,
-           dt(2023,1,1): 0.99,
-           dt(2024,1,1): 0.965,
-           dt(2025,1,1): 0.93,
-       },
-       interpolation="log_linear",
-   )
-"""
 
 import abc
 import warnings
@@ -7836,41 +7818,43 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     Parameters
     ----------
     pair: str
-        The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
+        The currency pair for the FX rate which settles the option, in 3-digit codes, e.g. "eurusd".
     expiry: datetime, str
-        The expiry of the option.
-    notional: float
+        The expiry of the option. If given in string tenor format, e.g. "1M" requires an ``eval_date``. See notes.
+    notional: float, optional (defaults.notional)
         The amount in ccy1 (left side of `pair`) on which the option is based.
     strike: float, Dual, Dual2, str in {"atm_forward", "atm_spot", "atm_delta", "[float]d"}
         The strike value of the option.
-        If str there are four possibilities as above. If giving a specific delta should end
+        If str, there are four possibilities as above. If giving a specific delta should end
         with a 'd' for delta e.g. "-25d". Put deltas should be input including negative sign.
     eval_date: datetime, optional
-        The date from which to evaluate a string tenor expiry.
-    modifier : str, optional
+        Should be entered as today (also called horizon) and **not** spot. Spot is derived from ``delivery_lag``
+        ``calendar``.
+    modifier : str, optional (defaults.modifier)
         The modification rule, in {"F", "MF", "P", "MP"} for date evaluation.
     eom: bool, optional (defaults.eom_fx)
         Whether to use end-of-month rolls when expiry is given as a month or year tenor.
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
-    delivery_lag: int, optional
+    delivery_lag: int, optional (defaults.fx_delivery_lag)
         The number of business days after expiry that the physical settlement of the FX exchange occurs.
-    payment_lag: int or datetime, optional
+    payment_lag: int or datetime, optional (defaults.payment_lag)
         The number of business days after expiry to pay premium. If a *datetime* is given this will
         set the premium date explicitly.
-    premium: float
-        The amount paid for the option.
-    premium_ccy: str
+    premium: float, optional
+        The amount paid for the option. If not given assumes an unpriced *Option* and sets this as
+        mid-market premium during pricing.
+    premium_ccy: str, optional (RHS)
         The currency in which the premium is paid. Can *only* be one of the two currencies in `pair`.
     option_fixing: float
         The value determined at expiry to set the moneyness of the option.
-    delta_type: str in {"spot", "forward"}
+    delta_type: str in {"spot", "forward"}, optional (defaults.fx_delta_type)
         When deriving strike from delta use the equation associated with spot or forward delta.
         If premium currency is ccy1 (left side of `pair`) then this will produce **premium adjusted**
         delta values. If the `premium_ccy` is ccy2 (right side of `pair`) then delta values are
         **unadjusted**.
-    metric: str in {"pips_or_%", "vol", "premium"}, optional
+    metric: str in {"pips_or_%", "vol", "premium"}, optional ("pips_or_%")
         The pricing metric returned by the ``rate`` method.
     curves : Curve, LineCurve, str or list of such, optional
         For *FXOptions* curves should be expressed as a list with the discount curves
@@ -7880,6 +7864,34 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+
+    Notes
+    ------
+
+    Date calculations for *FXOption* products are very specific. See *'Expiry and Delivery Rules'* in *FX Option
+    Pricing* by I. Clark. *Rateslib* uses calendars with associated settlement calendars and the recognised
+    market convention rules to derive dates.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import dt, FXCall
+
+    .. ipython:: python
+
+       fxc = FXCall(
+           pair="eursek",
+           expiry="2M",
+           eval_date=dt(2024, 6, 19),  # <- Wednesday
+           strike=11.0,
+           modifier="mf",
+           calendar="tgt,stk|fed",
+           delivery_lag=2,
+           payment_lag=2,
+       )
+       fxc.kwargs["delivery"]  # <- '2M' out of spot: Monday 24 Jun 2024
+       fxc.kwargs["expiry"]    # <- '2b' before 'delivery'
+       fxc.kwargs["payment"]  # <- '2b' after 'expiry'
 
     """
 
