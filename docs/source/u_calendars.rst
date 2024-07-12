@@ -78,6 +78,7 @@ This requires a list of ``holidays`` and a ``week_mask``.
    custom_cal = Cal([dt(2023, 12, 25), dt(2023, 12, 26), dt(2024, 1, 1)], [5, 6])
    custom_cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
 
+.. _settlement-cals:
 
 Calendar combinations
 **********************

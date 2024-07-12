@@ -42,6 +42,8 @@ FX Forwards
 
 The :class:`~rateslib.fx.FXForwards` class is a more **comprehensive** object
 that uses a mapping of interest rate curves to derive forward FX rates for any settlement date.
+In the curves mapping, the key *"audusd"* should be regarded as; **the Curve to discount AUD cashflows,
+collateralised by USD**.
 
 As a brief, blast from the past example, we replicate John Hull's *Options, Futures and
 Other Derivatives (fifth edition: equation 3.13)*. He derives the 2y forward rate for AUDUSD FX,
@@ -65,8 +67,8 @@ technically immediate) FX rate as above.
 
 The discount factors (DFs) on the currency *Curves* have been specified directly
 to match the continuously compounded zero rates in accordance with the specification
-in Hull's book. We could also have calibrated these with a *Solver* using the
-:class:`~rateslib.instruments.Value` *Instrument* with a ``metric`` of *'cc_zero_rate'*.
+in Hull's book (this could have been done in other ways, see
+:ref:`Cookbook: Curve from Zero Rates <cookbook-doc>`).
 
 The value :math:`F_0` is then directly available, along with forward rates on
 any chosen ``settlement``.

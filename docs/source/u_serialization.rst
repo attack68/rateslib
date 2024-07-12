@@ -6,6 +6,7 @@
    from rateslib import from_json
    from rateslib.dual import Dual, Dual2
    from rateslib.calendars import Cal, UnionCal
+   from rateslib.fx import FXRates
    from datetime import datetime as dt
 
 ****************************
@@ -80,3 +81,14 @@ Calendar serialization is useful for saving and loading custom calendar objects.
 
    # these two objects have the same business and settlement days..
    from_json(cal.to_json()) == from_json(ucal.to_json())
+
+FXRates
+--------
+
+.. ipython:: python
+
+   fxr = FXRates({"gbpusd": 1.2959, "eurusd": 1.0894}, settlement=dt(2024, 7, 16))
+   fxr.to_json()
+
+   fxr.rate("gbpeur")
+   from_json(fxr.to_json()).rate("gbpeur")
