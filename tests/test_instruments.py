@@ -3275,22 +3275,6 @@ class TestFXOptions:
         expected = 0.0
         assert abs(result - expected) < 1e-6
 
-
-    def test_fx_call_npv_unpriced(self, fxfo):
-        fxo = FXCall(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            notional=20e6,
-            delivery_lag=2,
-            payment_lag=2,
-            calendar="tgt",
-            strike=1.101,
-        )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=8.9)
-        expected = 0.0
-        assert abs(result - expected) < 1e-6
-
     def test_fx_call_cashflows(self, fxfo):
         fxo = FXCall(
             pair="eurusd",

@@ -8,11 +8,18 @@ User Guide
 Where to start?
 ===============
 
-It is important to understand that the key elements of this library are
-**curve construction**, **financial instrument specification**,
-**foreign exchange (FX)** and **risk sensitivity**.
-All of these functionalities are interlinked and potentially dependent upon each
-other. This guide's intention is to introduce them in a structured way.
+It is important to understand that this library tends to follow the typical framework:
+
+.. image:: _static/instdatamodel.png
+   :alt: Library pricing framework
+   :align: center
+   :width: 291
+
+This means that **financial instrument specification**, **curve and/or surface construction**
+from market data including **foreign exchange (FX)** will permit **pricing metrics** and **risk sensitivity**.
+These functionalities are interlinked and potentially dependent upon each
+other. This guide's intention is to introduce them in a structured way and give typical examples how they
+are used in practice.
 
 Let's start with the fundamental constructors *Curve* and *Instrument*.
 
@@ -38,8 +45,9 @@ called pillar dates in other publications).
    )
 
 We can then construct an :ref:`Instrument<instruments-toc-doc>`. Here we create a short dated
-RFR interest rate swap (:class:`~rateslib.instruments.IRS`) using market specification pre-defined
-by *rateslib*.
+RFR interest rate swap (:class:`~rateslib.instruments.IRS`) using the conventional market specification
+*rateslib* offers many examples of *Instrument* specifications as all seen
+:ref:`here in defaults <defaults-arg-input>`.
 
 .. ipython:: python
 
@@ -50,14 +58,6 @@ by *rateslib*.
        fixed_rate=2.0,
        spec="usd_irs"
    )
-
-You can read more about arguments for instruments :ref:`here<defaults-doc>`. To double check
-some of the arguments for a *"usd_irs"* one can run:
-
-.. ipython:: python
-
-   defaults.spec["usd_irs"]
-
 
 We can value the *IRS* with the *Curve* in its local currency (USD) by default, and see
 the generated cashflows.
@@ -98,10 +98,10 @@ We now have a mechanism by which to specify values in other currencies.
    irs.npv(usd_curve, fx=fxr, base="eur")
 
 One observes that the value returned here is not a float but a :class:`~rateslib.dual.Dual`
-which is part of *rateslib's* AD framework. One can read more about this particular treatment of FX
+which is part of *rateslib's* AD framework. This is the first example of capturing a
+sensitivity, which here denotes the sensitivity of the EUR NPV relative to the EURUSD FX rate.
+One can read more about this particular treatment of FX
 :ref:`here<fx-dual-doc>` and more generally about the dual AD framework :ref:`here<dual-doc>`.
-It is possible to call ``float()`` on this *Dual* to discard the sensitivity information and return
-just a regular *float*.
 
 FX forwards
 ------------
@@ -111,6 +111,9 @@ We can also create an
 :class:`~rateslib.fx.FXForwards` class. This stores the FX rates and the interest
 rates curves that are used for all the FX-interest rate parity derivations. With these
 we can calculate forward FX rates and also ad-hoc FX swap rates.
+
+When defining the ``fx_curves`` dict mapping, the key *"eurusd"* should be interpreted as; **the
+Curve for EUR cashflows, collateralised in USD**, and similarly for other entries.
 
 .. ipython:: python
 
@@ -160,11 +163,14 @@ parameters that are used to build up the instruments.
 Multi-currency instruments
 --------------------------
 
-Let's take a quick look at a multi-currency instrument: the
+Let's take a look at an example of a multi-currency instrument: the
 :class:`~rateslib.instruments.FXSwap`. All instruments have a mid-market pricing
 function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>`. Keeping a
 consistent function name across all *Instruments* allows any of them to be used within a
 :class:`~rateslib.solver.Solver` to calibrate *Curves* around target mid-market rates.
+
+This *FXSwap* *Instrument* construction prices to the same mid-market rate as the ad-hox *swap* rate
+used in the example above (as expected).
 
 .. ipython:: python
 
@@ -231,18 +237,19 @@ advanced curves :class:`~rateslib.curves.CompositeCurve`,
     g_curves.rst
 
 Calibrating curves is a very natural thing to do in fixed income. We typically use
-market prices of commonly traded instruments to set values.
+market prices of commonly traded instruments to set values. *FX Volatility Smiles* and
+*FX Volatility Surfaces* are also calibrated using the exact same optimising algorithms.
 
 Below we demonstrate how to calibrate the :class:`~rateslib.curves.Curve` that
 we created above in the initial trivial example using SOFR swap market data. First, we
-are reminded of the discount factors (DFs) currently set on that curve.
+are reminded of the discount factors (DFs) which were manually set on that curve.
 
 .. ipython:: python
 
    usd_curve.nodes
 
 Now we will instruct a :class:`~rateslib.solver.Solver` to recalibrate those value to match
-a set of instrument prices, ``s``.
+a set of prices, ``s``. The calibrating *Instruments* associated with those prices are 6M and 1Y *IRSs*.
 
 .. ipython:: python
 
@@ -326,7 +333,7 @@ detailed instructions of the way in which the associations can be constructed in
 The **key takeway** is that when you initialise and create an *Instrument* you can do one
 of three things:
 
-1) Not provide any *Curves* for pricing upfront (``curves=NoInput(0)``).
+1) Not provide any *Curves* (or *Vol* surface) for pricing upfront (``curves=NoInput(0)``).
 2) Create an explicit association to pre-existing Python objects, e.g. ``curves=my_curve``.
 3) Define some reference to a *Curves* mapping with strings using ``curves="my_curve_id"``.
 
@@ -335,9 +342,9 @@ If you do *1)* then you have to provide *Curves* at price
 time: ``instrument.npv(curves=my_curve)``.
 
 If you do *2)* then you do not need to provide anything further at price time:
-``instrument.npv()``, or can provide new *Curves* directly, like for *1)*.
+``instrument.npv()``, or can provide new *Curves* directly, like for *1)*, as an override.
 
-If you do *3)* then you can provide a *Solver* which contains the *Curves* and will
+If you do *3)* then you can provide a :class:`~rateslib.solver.Solver` which contains the *Curves* and will
 resolve the string mapping: ``instrument.npv(solver=my_solver)``. Or you can also provide *Curves*
 directly, like for *1)*.
 
@@ -348,10 +355,15 @@ designed to work best with risk sensitivity calculations also.
 Risk Sensitivities
 ===================
 
-*Rateslib's* main objective is to capture delta and gamma risks in a
-generalised and holistic mathematical framework. See the
+*Rateslib's* can calculate **delta** and **cross-gamma** risks relative to the calibrating
+*Instruments* of a *Solver*. Rateslib also unifies these risks against the **FX rates**
+used to create an *FXForwards* market, to provide a fully consistent risk framework
+expressed in arbitrary currencies. See the
 :ref:`risk framework<risk-toc-doc>` notes.
 
+Performance wise, because *rateslib* uses dual number AD upto 2nd order, combined with the
+appropriate analysis, it is shown to calculate a 150x150 *Instrument* cross-gamma grid
+(22,500 elements) from a calculated portfolio NPV in approximately 1 second.
 
 .. toctree::
     :hidden:

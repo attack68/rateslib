@@ -8,6 +8,8 @@
 Defaults
 ===========
 
+.. _defaults-arg-input:
+
 Argument input management
 -------------------------
 
