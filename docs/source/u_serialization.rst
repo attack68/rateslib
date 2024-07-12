@@ -25,7 +25,7 @@ reconstructed.
 
 .. warning::
 
-   This feature is currently experimental, and in production.
+   This feature is currently experimental, and in development.
 
 JSON
 *******
