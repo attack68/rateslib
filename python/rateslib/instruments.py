@@ -448,8 +448,29 @@ class Sensitivities:
         solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
+        **kwargs
     ):
-        cashflows = self.cashflows(curves, solver, fx, base)
+        """
+        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows` method on an *Instrument*.
+
+        Parameters
+        ----------
+        curves : CurveType, str or list of such, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        solver : Solver, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        fx : float, FXRates, FXForwards, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        base : str, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        kwargs : dict
+            Additional arguments input the underlying ``cashflows`` method of the *Instrument*.
+
+        Returns
+        -------
+        DataFrame
+        """
+        cashflows = self.cashflows(curves, solver, fx, base, **kwargs)
         cashflows = cashflows[
             [
                 defaults.headers["currency"],

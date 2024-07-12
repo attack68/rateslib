@@ -3307,6 +3307,26 @@ class TestFXOptions:
         assert result.loc[0, "Type"] == "FXCallPeriod"
         assert result.loc[1, "Type"] == "Cashflow"
 
+
+    def test_fx_call_cashflows_table(self, fxfo):
+        fxo = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=1.101,
+        )
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.cashflows_table(curves, fx=fxfo, vol=8.9)
+        expected = DataFrame(
+            data=[[0.0]],
+            index=Index([dt(2023, 6, 20)], name="payment"),
+            columns=MultiIndex.from_tuples([("USD", "usd")], names=["local_ccy", "collateral"])
+        )
+        assert_frame_equal(result, expected)
+
     @pytest.mark.parametrize("ccy, exp_rate, exp_strike", [
         ("usd", 70.180131, 1.10101920113408469),
         ("eur", 0.680949, 1.099976),
