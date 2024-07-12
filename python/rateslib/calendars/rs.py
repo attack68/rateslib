@@ -20,15 +20,30 @@ def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     return RollDay.Unspecified()
 
 
-def _get_modifier(modifier: str) -> Modifier:
+_M_ALL = {
+    "F": Modifier.F,
+    "MF": Modifier.ModF,
+    "P": Modifier.P,
+    "MP": Modifier.ModP,
+    "NONE": Modifier.Act,
+}
+_M_EXCL_DAYS = {
+    "F": Modifier.F,
+    "MF": Modifier.F,
+    "P": Modifier.P,
+    "MP": Modifier.P,
+    "NONE": Modifier.Act,
+}
+
+
+def _get_modifier(modifier: str, mod_days: bool) -> Modifier:
+    if mod_days:
+        m = _M_ALL
+    else:
+        m = _M_EXCL_DAYS
+
     try:
-        return {
-            "F": Modifier.F,
-            "MF": Modifier.ModF,
-            "P": Modifier.P,
-            "MP": Modifier.ModP,
-            "NONE": Modifier.Act,
-        }[modifier.upper()]
+        return m[modifier.upper()]
     except KeyError:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 

@@ -47,7 +47,7 @@ class TestCal:
 
     def test_get_modifier_raises(self, simple_cal, simple_union):
         with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
-            _get_modifier("bad")
+            _get_modifier("bad", True)
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
     @pytest.mark.parametrize("start, days, expected", [

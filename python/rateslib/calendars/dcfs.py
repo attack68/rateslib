@@ -110,7 +110,7 @@ def _dcf_actacticma(
                 fwd_end_1 = cal_.add_months(
                     start,
                     (int(fraction) + 1) * frequency_months,
-                    _get_modifier("NONE"),
+                    _get_modifier("NONE", True),
                     _get_rollday(roll),
                     False,
                 )
@@ -127,7 +127,7 @@ def _dcf_actacticma(
                 prev_start_1 = cal_.add_months(
                     end,
                     -(int(fraction) + 1) * frequency_months,
-                    _get_modifier("NONE"),
+                    _get_modifier("NONE", True),
                     _get_rollday(roll),
                     False,
                 )
@@ -162,7 +162,7 @@ def _dcf_actacticma_stub365f(
         cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
             fwd_end = cal_.add_months(
-                start, frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+                start, frequency_months, _get_modifier("NONE", True), _get_rollday(roll), False
             )
             r = (end - start).days
             s = (fwd_end - start).days
@@ -177,7 +177,7 @@ def _dcf_actacticma_stub365f(
 
         else:  # stub is a FRONT stub
             prev_start = cal_.add_months(
-                end, -frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+                end, -frequency_months, _get_modifier("NONE", True), _get_rollday(roll), False
             )
             r = (end - start).days
             s = (end - prev_start).days
@@ -226,8 +226,8 @@ def _dcf_bus252(
         return 0.0
 
     cal_ = get_calendar(calendar)
-    start_ = cal_.roll(start, _get_modifier("F"), False)
-    end_ = cal_.roll(end, _get_modifier("P"), False)
+    start_ = cal_.roll(start, _get_modifier("F", True), False)
+    end_ = cal_.roll(end, _get_modifier("P", True), False)
     subtract = -1.0 if end_ == end else 0.0
     if start_ == end_:
         if start_ > start and end_ < end:

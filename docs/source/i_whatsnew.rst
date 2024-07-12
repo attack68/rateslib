@@ -21,6 +21,9 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Calendars
+     - :meth:`~rateslib.calendars.add_tenor` acquires the new optional argument ``mod_days`` which, by
+       default, negates the modification rule for day type tenors and applies it only to month and year type tenors.
    * - Instruments
      - Add a :meth:`~rateslib.instruments.FXOption.cashflows` method to generic :class:`~rateslib.instruments.FXOption`
        and also as a pre-requisite to :class:`~rateslib.periods.FXOptionPeriod`

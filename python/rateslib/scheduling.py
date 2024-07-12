@@ -886,8 +886,8 @@ def _is_invalid_very_short_stub(
     window.
     """
     # _ = date_range(start=date1, end=date2, freq=calendar)
-    date1_ = calendar.roll(date_to_modify, _get_modifier(modifier), settlement=False)
-    date2_ = calendar.roll(date_fixed, _get_modifier(modifier), settlement=False)
+    date1_ = calendar.roll(date_to_modify, _get_modifier(modifier, True), settlement=False)
+    date2_ = calendar.roll(date_fixed, _get_modifier(modifier, True), settlement=False)
     # settlement calendar alignment is not enforced during schedule generation.
     if date1_ == date2_:
         return True  # date range created by stubs is too small and is invalid
@@ -1204,7 +1204,7 @@ def _get_unadjusted_short_stub_date(
                 _ = cal_.add_months(
                     ueffective,
                     frequency_months * direction,
-                    _get_modifier("NONE"),
+                    _get_modifier("NONE", True),
                     _get_rollday(roll),
                     False,
                 )
@@ -1219,7 +1219,7 @@ def _get_unadjusted_short_stub_date(
                 _ = cal_.add_months(
                     utermination,
                     frequency_months * direction,
-                    _get_modifier("NONE"),
+                    _get_modifier("NONE", True),
                     _get_rollday(roll),
                     False,
                 )
@@ -1233,7 +1233,7 @@ def _get_unadjusted_short_stub_date(
             stub_date = cal_.add_months(
                 stub_side_dt,
                 month_offset * direction,
-                _get_modifier("NONE"),
+                _get_modifier("NONE", True),
                 _get_rollday(roll),
                 False,
             )
@@ -1334,7 +1334,7 @@ def _generate_regular_schedule_unadjusted(
         _ = cal_.add_months(
             _,
             defaults.frequency_months[frequency],
-            _get_modifier("NONE"),
+            _get_modifier("NONE", True),
             _get_rollday(roll),
             False,
         )

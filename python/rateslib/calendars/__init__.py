@@ -163,6 +163,7 @@ def add_tenor(
     calendar: CalInput = NoInput(0),
     roll: Union[str, int, NoInput] = NoInput(0),
     settlement: bool = False,
+    mod_days: bool = False,
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
@@ -191,13 +192,17 @@ def add_tenor(
     settlement : bool, optional
         Whether to enforce the settlement with an associated settlement calendar. If there is
         no associated settlement calendar this will have no effect.
+    mod_days : bool, optional
+        If *True* will apply modified rules to day type tenors as well as month and year tenors.
+        If *False* will convert "MF" to "F" and "MP" to "P" for day type tenors.
 
     Returns
     -------
     datetime
 
-    Examples
-    --------
+    Notes
+    ------
+
     .. ipython:: python
        :suppress:
 
@@ -217,6 +222,32 @@ def add_tenor(
        pd.set_option("display.max_columns", None)
        pd.set_option("display.width", 500)
 
+
+    Read more about the ``settlement`` argument in the :ref:`calendar user guide <cal-doc>`.
+
+    The ``mod_days`` argument is provided to avoid having to reconfigure *Instrument* specifications when
+    a *termination* may differ between months or years, and days or weeks. Most *Instruments* will be
+    defined by the typical modified following (*"MF"*) ``modifier``, but this would prefer not to always apply.
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 29), "1M", "MF", "bus")
+
+    while, the following will by default roll into a new month,
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 22), "8d", "MF", "bus")
+
+    unless,
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 22), "8d", "MF", "bus", mod_days=True)
+
+    Examples
+    --------
+
     .. ipython:: python
 
        add_tenor(dt(2022, 2, 28), "3M", "NONE")
@@ -226,20 +257,20 @@ def add_tenor(
     tenor = tenor.upper()
     cal_ = get_calendar(calendar)
     if "D" in tenor:
-        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier), settlement)
+        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier, mod_days), settlement)
     elif "B" in tenor:
         return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
         months = int(float(tenor[:-1]) * 12)
         return cal_.add_months(
-            start, months, _get_modifier(modifier), _get_rollday(roll), settlement
+            start, months, _get_modifier(modifier, True), _get_rollday(roll), settlement
         )
     elif "M" in tenor:
         return cal_.add_months(
-            start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement
+            start, int(tenor[:-1]), _get_modifier(modifier, True), _get_rollday(roll), settlement
         )
     elif "W" in tenor:
-        return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier), settlement)
+        return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier, mod_days), settlement)
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
 
@@ -271,7 +302,7 @@ def _adjust_date(
     """
     cal_ = get_calendar(calendar)
     modifier = modifier.upper()
-    return cal_.roll(date, _get_modifier(modifier), settlement)
+    return cal_.roll(date, _get_modifier(modifier, True), settlement)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
