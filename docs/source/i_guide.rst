@@ -10,7 +10,7 @@ Where to start?
 
 It is important to understand that this library tends to follow the typical framework:
 
-.. image:: _static/instdatamodel.png
+.. image:: _static/instdatamodel.PNG
    :alt: Library pricing framework
    :align: center
    :width: 291
