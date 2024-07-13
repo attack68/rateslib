@@ -7,6 +7,8 @@ UnionCal
 
    A calendar object for making date roll adjustment calculations, combining multiple calendars.
 
+   See :ref:`User Guide: Calendars <settlement-cals>`.
+
    :param calendars: A list of `Cal` objects.
    :type calendars: list of Cal
 
