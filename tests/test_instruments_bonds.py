@@ -1407,6 +1407,19 @@ class TestBill:
         )
         assert result == result2
 
+    def test_duration(self):
+        b = Bill(dt(2000, 1, 1), "6m", frequency="A", spec="ustb")
+        result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
+        assert result == 0.5170058346378255
+
+        b = Bill(dt(2000, 1, 1), "6m", spec="ustb")
+        result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
+        assert result == 0.5046961719083534
+
+        b = Bill(dt(2000, 1, 1), "6m", frequency="Q", spec="ustb")
+        result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
+        assert result == 0.4985413405436174
+
 
 class TestFloatRateNote:
     @pytest.mark.parametrize(
