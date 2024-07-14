@@ -2521,8 +2521,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
             _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
-            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
-            f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+            price = self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            f = 12 / defaults.frequency_months[self.kwargs["frequency"]]
             v = 1 + float(ytm) / (100 * f)
             _ = -gradient(price, ["y"])[0] / float(price) * v * 100
         return _
@@ -3078,7 +3078,10 @@ class Bill(FixedRateBond):
             calc_mode=calc_mode,
             spec=spec,
         )
-        self.kwargs["frequency"] = frequency
+        self.kwargs["frequency"] = _drb(
+            defaults.spec[getattr(self, f"_{self.kwargs['calc_mode']}")["ytm_clone"]]["frequency"],
+            frequency
+        ).upper()
 
     @property
     def dcf(self):
@@ -3266,15 +3269,13 @@ class Bill(FixedRateBond):
 
         if isinstance(calc_mode, str):
             calc_mode = calc_mode.lower()
-        else:
-            calc_mode = self.calc_mode
-
-        if self.kwargs["frequency"] is NoInput.blank:
             freq = defaults.spec[getattr(self, f"_{calc_mode}")["ytm_clone"]]["frequency"]
         else:
+            calc_mode = self.calc_mode
+            # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
             freq = self.kwargs["frequency"]
 
-        frequency_months = defaults.frequency_months[freq.upper()]
+        frequency_months = defaults.frequency_months[freq]
         quasi_start = self.leg1.schedule.termination
         while quasi_start > settlement:
             quasi_start = add_tenor(
