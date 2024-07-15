@@ -376,6 +376,7 @@ Cookbook
     z_stubs.rst
     z_fixings.rst
     z_historical_swap.ipynb
+    z_amortization.rst
 
 **Risk Sensitivity Analysis**
 

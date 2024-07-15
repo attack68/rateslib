@@ -275,10 +275,9 @@ Scheduling:\n
     'stub_length', 
     'modifier', 
     'eom', 
-    'eom_fx'
+    'eom_fx',
     'eval_mode', 
     'frequency_months',
-    'ytm_frequency',
 ]])}
 Instruments:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
