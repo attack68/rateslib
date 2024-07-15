@@ -2923,7 +2923,7 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str, optional (defaults.calc_mode_bill)
+    calc_mode : str, optional (defaults.calc_mode["Bill"])
         A calculation mode for dealing with bonds that are in short stub or accrual
         periods. All modes give the same value for YTM at issue date for regular
         bonds but differ slightly for bonds with stubs or with accrued.
