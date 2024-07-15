@@ -7240,7 +7240,15 @@ class XCS(BaseDerivative):
                                 UserWarning,
                             )
                 else:
-                    fx_fixing = fx.rate(self.pair, self.leg2.periods[0].payment)
+                    if isinstance(fx, FXForwards):
+                        # this is the correct pricing path
+                        fx_fixing = fx.rate(self.pair, self.leg2.periods[0].payment)
+                    elif isinstance(fx, FXRates):
+                        # maybe used in debugging
+                        fx_fixing = fx.rate(self.pair)
+                    else:
+                        # possible float used in debugging also
+                        fx_fixing = fx
                 self._set_leg2_notional(fx_fixing)
         else:
             self._set_leg2_notional(fx)
