@@ -2522,7 +2522,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
             price = self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
-            f = 12 / defaults.frequency_months[self.kwargs["frequency"]]
+            f = 12 / defaults.frequency_months[self.kwargs["frequency"].upper()]
             v = 1 + float(ytm) / (100 * f)
             _ = -gradient(price, ["y"])[0] / float(price) * v * 100
         return _
@@ -3080,7 +3080,7 @@ class Bill(FixedRateBond):
         self.kwargs["frequency"] = _drb(
             defaults.spec[getattr(self, f"_{self.kwargs['calc_mode']}")["ytm_clone"]]["frequency"],
             frequency
-        ).upper()
+        )
 
     @property
     def dcf(self):
@@ -3274,7 +3274,7 @@ class Bill(FixedRateBond):
             # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
             freq = self.kwargs["frequency"]
 
-        frequency_months = defaults.frequency_months[freq]
+        frequency_months = defaults.frequency_months[freq.upper()]
         quasi_start = self.leg1.schedule.termination
         while quasi_start > settlement:
             quasi_start = add_tenor(
@@ -3287,6 +3287,31 @@ class Bill(FixedRateBond):
             spec=getattr(self, f"_{calc_mode}")["ytm_clone"],
         )
         return equiv_bond.ytm(price, settlement)
+
+    def duration(self, *args, **kwargs):
+        """
+        Return the duration of the *Bill*. See :class:`~rateslib.instruments.FixedRateBond.duration` for arguments.
+
+        Notes
+        ------
+
+        .. warning::
+
+           This function returns a *duration* that is consistent with a
+           *FixedRateBond* yield-to-maturity definition. It currently does not use the
+           specified ``convention`` of the *Bill*, and can be sensitive to the
+           ``frequency`` of the representative *FixedRateBond* equivalent.
+
+        .. ipython:: python
+
+           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb")
+           bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration"))
+
+           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb", frequency="A")
+           bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration"))
+
+        """
+        return super().duration(*args, **kwargs)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

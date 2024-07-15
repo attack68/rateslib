@@ -275,7 +275,7 @@ Scheduling:\n
     'stub_length', 
     'modifier', 
     'eom', 
-    'eom_fx'
+    'eom_fx',
     'eval_mode', 
     'frequency_months',
 ]])}
