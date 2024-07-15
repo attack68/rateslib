@@ -1333,6 +1333,17 @@ class TestBill:
         expected = bill.ytm(99.94734388985547, dt(2004, 1, 26))
         assert abs(result - expected) < 1e-6
 
+    def test_bill_default_calc_mode(self):
+        bill = Bill(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+            settle=0,
+        )
+        assert bill.kwargs["calc_mode"] == "us_gbb"
+
     def test_bill_rate_raises(self):
         curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
 

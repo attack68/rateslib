@@ -2232,7 +2232,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         # set defaults for missing values
         default_kwargs = dict(
-            calc_mode=defaults.calc_mode,
+            calc_mode=defaults.calc_mode[type(self).__name__],
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
@@ -2751,7 +2751,7 @@ class IndexFixedRateBond(FixedRateBond):
 
         # set defaults for missing values
         default_kwargs = dict(
-            calc_mode=defaults.calc_mode,
+            calc_mode=defaults.calc_mode[type(self).__name__],
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
@@ -2904,7 +2904,7 @@ class Bill(FixedRateBond):
         The adjusted or unadjusted effective date.
     termination : datetime or str
         The adjusted or unadjusted termination date. If a string, then a tenor must be
-        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
+        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"7M"`.
     frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
         The frequency of the schedule. "Z" is not permitted.
     modifier : str, optional
@@ -2923,7 +2923,7 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str
+    calc_mode : str, optional (defaults.calc_mode_bill)
         A calculation mode for dealing with bonds that are in short stub or accrual
         periods. All modes give the same value for YTM at issue date for regular
         bonds but differ slightly for bonds with stubs or with accrued.
@@ -3465,7 +3465,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         # set defaults for missing values
         default_kwargs = dict(
-            calc_mode=defaults.calc_mode,
+            calc_mode=defaults.calc_mode[type(self).__name__],
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
