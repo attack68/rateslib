@@ -193,7 +193,12 @@ class Defaults:
         self.ini_lambda = (1000.0, 0.25, 2.0)
 
         # bonds
-        self.calc_mode = "ukg"
+        self.calc_mode = {
+            "FixedRateBond": "uk_gb",
+            "FloatRateNote": "uk_gb",
+            "Bill": "us_gbb",
+            "IndexFixedRateBond": "uk_gb",
+        }
         self.settle = 1
         self.ex_div = 1
         self.calc_mode_futures = "ytm"
@@ -275,8 +280,9 @@ Scheduling:\n
     'stub_length', 
     'modifier', 
     'eom', 
+    'eom_fx',
     'eval_mode', 
-    'frequency_months'
+    'frequency_months',
 ]])}
 Instruments:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [

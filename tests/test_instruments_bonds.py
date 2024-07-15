@@ -1333,6 +1333,17 @@ class TestBill:
         expected = bill.ytm(99.94734388985547, dt(2004, 1, 26))
         assert abs(result - expected) < 1e-6
 
+    def test_bill_default_calc_mode(self):
+        bill = Bill(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+            settle=0,
+        )
+        assert bill.kwargs["calc_mode"] == "us_gbb"
+
     def test_bill_rate_raises(self):
         curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
 
@@ -1406,6 +1417,19 @@ class TestBill:
             Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(curves=gbp, metric="discount_rate", fx=fxf)
         )
         assert result == result2
+
+    def test_duration(self):
+        b = Bill(dt(2000, 1, 1), "6m", frequency="A", spec="ustb")
+        result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
+        assert result == 0.5170058346378255
+
+        b = Bill(dt(2000, 1, 1), "6m", spec="ustb")
+        result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
+        assert result == 0.5046961719083534
+
+        b = Bill(dt(2000, 1, 1), "6m", frequency="Q", spec="ustb")
+        result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
+        assert result == 0.4985413405436174
 
 
 class TestFloatRateNote:

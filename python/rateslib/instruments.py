@@ -2232,7 +2232,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         # set defaults for missing values
         default_kwargs = dict(
-            calc_mode=defaults.calc_mode,
+            calc_mode=defaults.calc_mode[type(self).__name__],
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
@@ -2521,8 +2521,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
             _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
-            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
-            f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
+            price = self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            f = 12 / defaults.frequency_months[self.kwargs["frequency"].upper()]
             v = 1 + float(ytm) / (100 * f)
             _ = -gradient(price, ["y"])[0] / float(price) * v * 100
         return _
@@ -2751,7 +2751,7 @@ class IndexFixedRateBond(FixedRateBond):
 
         # set defaults for missing values
         default_kwargs = dict(
-            calc_mode=defaults.calc_mode,
+            calc_mode=defaults.calc_mode[type(self).__name__],
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
@@ -2904,7 +2904,7 @@ class Bill(FixedRateBond):
         The adjusted or unadjusted effective date.
     termination : datetime or str
         The adjusted or unadjusted termination date. If a string, then a tenor must be
-        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
+        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"7M"`.
     frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
         The frequency of the schedule. "Z" is not permitted.
     modifier : str, optional
@@ -2923,7 +2923,7 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str
+    calc_mode : str, optional (defaults.calc_mode["Bill"])
         A calculation mode for dealing with bonds that are in short stub or accrual
         periods. All modes give the same value for YTM at issue date for regular
         bonds but differ slightly for bonds with stubs or with accrued.
@@ -3077,7 +3077,10 @@ class Bill(FixedRateBond):
             calc_mode=calc_mode,
             spec=spec,
         )
-        self.kwargs["frequency"] = frequency
+        self.kwargs["frequency"] = _drb(
+            defaults.spec[getattr(self, f"_{self.kwargs['calc_mode']}")["ytm_clone"]]["frequency"],
+            frequency
+        )
 
     @property
     def dcf(self):
@@ -3265,12 +3268,10 @@ class Bill(FixedRateBond):
 
         if isinstance(calc_mode, str):
             calc_mode = calc_mode.lower()
-        else:
-            calc_mode = self.calc_mode
-
-        if self.kwargs["frequency"] is NoInput.blank:
             freq = defaults.spec[getattr(self, f"_{calc_mode}")["ytm_clone"]]["frequency"]
         else:
+            calc_mode = self.calc_mode
+            # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
             freq = self.kwargs["frequency"]
 
         frequency_months = defaults.frequency_months[freq.upper()]
@@ -3286,6 +3287,31 @@ class Bill(FixedRateBond):
             spec=getattr(self, f"_{calc_mode}")["ytm_clone"],
         )
         return equiv_bond.ytm(price, settlement)
+
+    def duration(self, *args, **kwargs):
+        """
+        Return the duration of the *Bill*. See :class:`~rateslib.instruments.FixedRateBond.duration` for arguments.
+
+        Notes
+        ------
+
+        .. warning::
+
+           This function returns a *duration* that is consistent with a
+           *FixedRateBond* yield-to-maturity definition. It currently does not use the
+           specified ``convention`` of the *Bill*, and can be sensitive to the
+           ``frequency`` of the representative *FixedRateBond* equivalent.
+
+        .. ipython:: python
+
+           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb")
+           bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration")
+
+           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb", frequency="A")
+           bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration")
+
+        """
+        return super().duration(*args, **kwargs)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -3439,7 +3465,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         # set defaults for missing values
         default_kwargs = dict(
-            calc_mode=defaults.calc_mode,
+            calc_mode=defaults.calc_mode[type(self).__name__],
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
