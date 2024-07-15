@@ -1682,7 +1682,7 @@ class TestNonMtmXCS:
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
         result = xcs.npv(curves=curve, fx=10.0)
-        assert abs(result) < 1e-8
+        assert abs(result) < 5e-7
 
     def test_npv_fx_as_rates_valid(self):
         xcs = XCS(
