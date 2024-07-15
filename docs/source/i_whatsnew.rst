@@ -33,6 +33,9 @@ email contact through **rateslib@gmail.com**.
        the new settlement calendar system introduced in v1.3.0.
    * - Instruments
      - Add ``eom`` parameter to *FXOptions* for exact expiry and delivery date calculation when given as string tenor.
+   * - Instruments
+     - The default ``calc_mode`` for *Bill*, *FixedRateBond*, *FloatRateNote* and *IndexFixedRateBond* is now
+       separately configurable for each type.
 
 1.3.0 (9th July 2024)
 ***********************
