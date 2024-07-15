@@ -15,7 +15,7 @@ groups:
 - :ref:`Utilities and Instrument Combinations<combinations-doc>`, which allows things like *Spread trades*,
   *Butterflies*, *Portfolios* and a *Value* for a *Curve*.
 
-Each *Instrument* is its own Python *Class*, and it is sequentially constructed from other classes.
+Each *Instrument* is its own Python *Class*, and, commonly, are sequentially constructed from other classes.
 
 - First :ref:`Periods<periods-doc>` are defined in the ``rateslib.periods`` module.
 - Secondly :ref:`Legs<legs-doc>` are defined in the ``rateslib.legs`` module and these
