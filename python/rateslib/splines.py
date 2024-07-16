@@ -1,11 +1,13 @@
 from typing import Union
 
 from rateslib.dual import Dual, Dual2
+from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
+from rateslib.rs import PPSplineF64 as PPSpline
 # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
-from rateslib.splines.splinesrs import PPSplineDual, PPSplineDual2
-from rateslib.splines.splinesrs import PPSplineF64
-from rateslib.splines.splinesrs import PPSplineF64 as PPSpline
-from rateslib.splines.splinesrs import bspldnev_single, bsplev_single
+
+PPSplineF64.__doc__ = "Piecewise polynomial spline composed of float values on the x and y axes."
+PPSplineDual.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual values on the y-axis."
+PPSplineDual2.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual2 values on the y-axis."
 
 
 def evaluate(
