@@ -166,7 +166,7 @@ Unsupported
 
    try:
        FixedRateBond(
-           effective=dt(2000, 1, 4),
+           effective=dt(2000, 1, 1),
            termination="1y",
            spec="us_gb",
            notional=5e6,
@@ -180,7 +180,7 @@ Unsupported
 
    try:
        IndexFixedRateBond(
-           effective=dt(2000, 1, 4),
+           effective=dt(2000, 1, 1),
            termination="1y",
            spec="us_gb",
            notional=5e6,
