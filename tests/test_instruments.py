@@ -1666,6 +1666,44 @@ class TestNonMtmXCS:
             with pytest.warns(UserWarning):
                 xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
 
+    def test_npv_fx_as_float_valid(self):
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+        )
+        curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
+        result = xcs.npv(curves=curve, fx=10.0)
+        assert abs(result) < 1e-6
+
+    def test_npv_fx_as_rates_valid(self):
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+        )
+        curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
+        result = xcs.npv(curves=curve, fx=FXRates({"usdnok": 10.0}))
+        assert abs(result) < 1e-6
+
+
+
 
 class TestNonMtmFixedFloatXCS:
     @pytest.mark.parametrize(
