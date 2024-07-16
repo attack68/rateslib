@@ -83,7 +83,7 @@ amount of interim exchanges that have already occurred.
        final_exchange=True,
        amortization=1e6,      # <- 1mm reduction and notional exchange per period
    )
-   fxl.cashflows(curve)[["Type", "Acc Start", "Notional"]]
+   fxl.cashflows(curve)[["Type", "Period", "Acc Start", "Notional"]]
 
 .. ipython:: python
 
@@ -95,7 +95,7 @@ amount of interim exchanges that have already occurred.
        final_exchange=True,
        amortization=1e6,      # <- 1mm reduction and notional exchange per period
    )
-   fll.cashflows(curve)[["Type", "Acc Start", "Notional"]]
+   fll.cashflows(curve)[["Type", "Period", "Acc Start", "Notional"]]
 
 An *Instrument* that can potentially use notional exchanges is a *Non-MTM* :class:`~rateslib.instruments.XCS`.
 
@@ -109,8 +109,40 @@ An *Instrument* that can potentially use notional exchanges is a *Non-MTM* :clas
        amortization=1e6,      # <- 1mm reduction and notional exchange per period
        leg2_mtm=False,
    )
-   xcs.cashflows(curve, fx=FXRates({"eurusd": 2.0}, base="usd"))[["Type", "Acc Start", "Payment", "Ccy", "Notional"]]
+   xcs.cashflows(curve, fx=FXRates({"eurusd": 2.0}, base="usd"))[["Type", "Period", "Acc Start", "Payment", "Ccy", "Notional"]]
 
+
+Indexed Legs
+-------------
+
+We can also apply ``amortization`` to *IndexLegs*. Cashflows paid at future dates
+will also be indexed by the index.
+
+.. ipython:: python
+
+   icurve = IndexCurve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75}, index_base=100.0)
+   il = IndexFixedLeg(
+       effective=dt(2000, 1, 1),
+       termination="1y",
+       frequency="M",
+       notional=10e6,
+       index_base=100.0,
+       amortization=0.5e6,    # 0.5mm reduction per period
+   )
+   il.cashflows(icurve, curve)[["Type", "Acc Start", "Notional"]]
+
+.. ipython:: python
+
+   il = IndexFixedLeg(
+       effective=dt(2000, 1, 1),
+       termination="1y",
+       frequency="Q",
+       notional=10e6,
+       index_base=100.0,
+       final_exchange=True,
+       amortization=1e6,    # 1mm reduction per period
+   )
+   il.cashflows(icurve, curve)[["Type", "Period", "Acc Start", "Payment", "Ccy", "Notional", "Index Ratio", "Index Val"]]
 
 Unsupported
 -------------
@@ -140,6 +172,21 @@ Unsupported
            notional=5e6,
            amortization=1e6,
            fixed_rate=2.0
+       )
+   except Exception as e:
+       print(e)
+
+.. ipython:: python
+
+   try:
+       IndexFixedRateBond(
+           effective=dt(2000, 1, 4),
+           termination="1y",
+           spec="us_gb",
+           notional=5e6,
+           amortization=1e6,
+           fixed_rate=2.0,
+           index_base=100.0
        )
    except Exception as e:
        print(e)
