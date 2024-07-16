@@ -954,6 +954,17 @@ class TestFixedRateBond:
         result = gilt.cashflows()  # no curve argument is passed to cashflows
         assert isinstance(result, DataFrame)
 
+    def test_schedule_start_non_business(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 1.0})
+        frb = FixedRateBond(
+            effective=dt(2000, 1, 1),
+            termination="1y",
+            spec="us_gb",
+            notional=5e6,
+            fixed_rate=2.0
+        )
+        assert frb.leg1.periods[1].payment == dt(2001, 1, 2)
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self):
