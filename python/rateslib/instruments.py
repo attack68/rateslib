@@ -7262,7 +7262,6 @@ class XCS(BaseDerivative):
                     else:
                         # possible float used in debugging also
                         fx_fixing = fx
-
                 self._set_leg2_notional(fx_fixing)
         else:
             self._set_leg2_notional(fx)
