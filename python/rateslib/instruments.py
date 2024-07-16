@@ -2906,7 +2906,8 @@ class Bill(FixedRateBond):
         The adjusted or unadjusted termination date. If a string, then a tenor must be
         given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"7M"`.
     frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
-        The frequency of the schedule. "Z" is not permitted.
+        The frequency used only by the :meth:`~rateslib.instruments.Bill.ytm` method.
+        All *Bills* have an implicit frequency of "Z" for schedule construction.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}
     calendar : calendar or str, optional
@@ -4985,6 +4986,18 @@ class IRS(BaseDerivative):
         A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
+
+    Notes
+    ------
+    The various different ``leg2_fixing_methods``, which describe how an
+    individual *FloatPeriod* calculates its *rate*, are
+    fully documented in the notes for the :class:`~rateslib.periods.FloatPeriod`.
+    These configurations provide the mechanics to differentiate between IBOR swaps, and
+    OISs with different mechanisms such as *payment delay*, *observation shift*,
+    *lockout*, and/or *averaging*.
+    Similarly some information is provided in that same link regarding
+    ``leg2_fixings``, but a cookbook article is also produced for
+    :ref:`working with fixings <cook-fixings-doc>`.
 
     Examples
     --------

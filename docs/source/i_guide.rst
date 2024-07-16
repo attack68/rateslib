@@ -177,9 +177,9 @@ used in the example above (as expected).
    fxs = FXSwap(
        effective=dt(2022, 2, 1),
        termination="3m",
+       pair="eurusd",
        notional=20e6,
-       currency="eur",
-       leg2_currency="usd",
+       calendar="tgt|fed",
    )
    fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
 
