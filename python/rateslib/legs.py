@@ -228,11 +228,8 @@ class BaseLeg(metaclass=ABCMeta):
             [
                 Cashflow(
                     -self.notional,
-                    add_tenor(
-                        self.schedule.aschedule[0],
-                        f"{self.payment_lag_exchange}B",
-                        "NONE",
-                        self.schedule.calendar,
+                    self.schedule.calendar.lag(
+                        self.schedule.aschedule[0], self.payment_lag_exchange, True
                     ),
                     self.currency,
                     "Exchange",
@@ -257,11 +254,8 @@ class BaseLeg(metaclass=ABCMeta):
             amortization = [
                 Cashflow(
                     self.amortization,
-                    add_tenor(
-                        self.schedule.aschedule[i + 1],
-                        f"{self.payment_lag_exchange}B",
-                        None,
-                        self.schedule.calendar,
+                    self.schedule.calendar.lag(
+                        self.schedule.aschedule[i + 1], self.payment_lag_exchange, True
                     ),
                     self.currency,
                     "Amortization",
@@ -2036,11 +2030,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings.append(
                     fx.rate(
                         self.alt_currency + self.currency,
-                        add_tenor(
-                            self.schedule.aschedule[i],
-                            f"{self.payment_lag_exchange}B",
-                            NoInput(0),
-                            self.schedule.calendar,
+                        self.schedule.calendar.lag(
+                            self.schedule.aschedule[i], self.payment_lag_exchange, True
                         ),
                     )
                 )
@@ -2081,11 +2072,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             [
                 Cashflow(
                     -self.notional,
-                    add_tenor(
-                        self.schedule.aschedule[0],
-                        f"{self.payment_lag_exchange}B",
-                        None,
-                        self.schedule.calendar,
+                    self.schedule.calendar.lag(
+                        self.schedule.aschedule[0], self.payment_lag_exchange, True
                     ),
                     self.currency,
                     "Exchange",
@@ -2110,11 +2098,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         mtm_flows = [
             Cashflow(
                 -notionals[i + 1] + notionals[i],
-                add_tenor(
-                    self.schedule.aschedule[i + 1],
-                    f"{self.payment_lag_exchange}B",
-                    None,
-                    self.schedule.calendar,
+                self.schedule.calendar.lag(
+                    self.schedule.aschedule[i + 1], self.payment_lag_exchange, True
                 ),
                 self.currency,
                 "Mtm",
@@ -2130,11 +2115,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self.periods.append(
             Cashflow(
                 notionals[-1],
-                add_tenor(
-                    self.schedule.aschedule[-1],
-                    f"{self.payment_lag_exchange}B",
-                    None,
-                    self.schedule.calendar,
+                self.schedule.calendar.lag(
+                    self.schedule.aschedule[-1], self.payment_lag_exchange, True
                 ),
                 self.currency,
                 "Exchange",

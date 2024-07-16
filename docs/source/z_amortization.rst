@@ -166,12 +166,12 @@ Unsupported
 
    try:
        FixedRateBond(
-           effective=dt(2000, 1, 4),
+           effective=dt(2000, 1, 1),
            termination="1y",
            spec="us_gb",
            notional=5e6,
            amortization=1e6,
-           fixed_rate=2.0
+           fixed_rate=2.0,
        )
    except Exception as e:
        print(e)
@@ -180,13 +180,13 @@ Unsupported
 
    try:
        IndexFixedRateBond(
-           effective=dt(2000, 1, 4),
+           effective=dt(2000, 1, 1),
            termination="1y",
            spec="us_gb",
            notional=5e6,
            amortization=1e6,
            fixed_rate=2.0,
-           index_base=100.0
+           index_base=100.0,
        )
    except Exception as e:
        print(e)

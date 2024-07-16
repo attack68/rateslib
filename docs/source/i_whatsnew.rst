@@ -36,6 +36,9 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - The default ``calc_mode`` for *Bill*, *FixedRateBond*, *FloatRateNote* and *IndexFixedRateBond* is now
        separately configurable for each type.
+   * - Instruments / Legs
+     - Can now have *effective* and *termination* dates which are non-business dates
+       in unmodified schedules.
 
 1.3.0 (9th July 2024)
 ***********************
