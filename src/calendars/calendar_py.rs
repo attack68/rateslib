@@ -239,6 +239,18 @@ impl Cal {
         self.lag(&date, days, settlement)
     }
 
+    /// Return a list of business dates in a range.
+    ///
+    /// Parameters
+    /// ----------
+    /// start: datetime
+    ///     The start date of the range, inclusive.
+    /// end: datetime
+    ///     The end date of the range, inclusive.
+    ///
+    /// Returns
+    /// -------
+    /// list[datetime]
     #[pyo3(name = "bus_date_range")]
     fn bus_date_range_py(
         &self,
@@ -248,6 +260,18 @@ impl Cal {
         self.bus_date_range(&start, &end)
     }
 
+    /// Return a list of calendar dates within a range.
+    ///
+    /// Parameters
+    /// -----------
+    /// start: datetime
+    ///     The start date of the range, inclusive.
+    /// end: datetime
+    ///     The end date of the range, inclusive,
+    ///
+    /// Returns
+    /// --------
+    /// list[datetime]
     #[pyo3(name = "cal_date_range")]
     fn cal_date_range_py(
         &self,
@@ -277,6 +301,11 @@ impl Cal {
     }
 
     // JSON
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
         match DeserializedObj::Cal(self.clone()).to_json() {

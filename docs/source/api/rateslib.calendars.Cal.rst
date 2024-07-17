@@ -26,13 +26,11 @@ Cal
    .. autofunction:: rateslib.rs.Cal.add_days
    .. autofunction:: rateslib.rs.Cal.add_bus_days
    .. autofunction:: rateslib.rs.Cal.add_months
-   .. include:: rateslib.calendars.Cal.bus_date_range.rst
-   .. include:: rateslib.calendars.Cal.cal_date_range.rst
+   .. autofunction:: rateslib.rs.Cal.bus_date_range
+   .. autofunction:: rateslib.rs.Cal.cal_date_range
    .. autofunction:: rateslib.rs.Cal.is_bus_day
    .. autofunction:: rateslib.rs.Cal.is_non_bus_day
    .. autofunction:: rateslib.rs.Cal.is_settlement
    .. autofunction:: rateslib.rs.Cal.lag
    .. autofunction:: rateslib.rs.Cal.roll
-   .. include:: rateslib.calendars.Cal.to_json.rst
-
-
+   .. autofunction:: rateslib.rs.Cal.to_json.rst
