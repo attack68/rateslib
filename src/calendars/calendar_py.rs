@@ -181,6 +181,24 @@ impl Cal {
         Ok(self.add_months(&date, months, &modifier, &roll, settlement))
     }
 
+    /// Adjust a non-business date to a business date under a specific modification rule.
+    ///
+    /// Parameters
+    /// -----------
+    /// date: datetime
+    ///     The date to adjust.
+    /// modifier: Modifier
+    ///     The modification rule
+    /// settlement: bool
+    ///     Whether to enforce settlement against an associated settlement calendar.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    ///
+    /// Notes
+    /// -----
+    /// An input date which is already a settleable, business date will be returned unchanged.
     #[pyo3(name = "roll")]
     fn roll_py(
         &self,
@@ -191,6 +209,31 @@ impl Cal {
         Ok(self.roll(&date, &modifier, settlement))
     }
 
+    /// Adjust a date by a number of business days, under lag rules.
+    ///
+    /// Parameters
+    /// -----------
+    /// date: datetime
+    ///     The date to adjust.
+    /// days: int
+    ///     Number of business days to add.
+    /// settlement: bool
+    ///     Whether to enforce settlement against an associated settlement calendar.
+    ///
+    /// Returns
+    /// --------
+    /// datetime
+    ///
+    /// Notes
+    /// -----
+    /// **Lag rules** define the addition of business days to a date that is a non-business date:
+    ///
+    /// - Adding zero days will roll the date **forwards** to the next available business day.
+    /// - Adding one day will roll the date **forwards** to the next available business day.
+    /// - Subtracting one day will roll the date **backwards** to the previous available business day.
+    ///
+    /// Adding (or subtracting) further business days adopts the
+    /// :meth:`~rateslib.calendars.Cal.add_bus_days` approach with a valid result.
     #[pyo3(name = "lag")]
     fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
         self.lag(&date, days, settlement)

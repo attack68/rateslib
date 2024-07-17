@@ -31,8 +31,8 @@ Cal
    .. autofunction:: rateslib.rs.Cal.is_bus_day
    .. autofunction:: rateslib.rs.Cal.is_non_bus_day
    .. autofunction:: rateslib.rs.Cal.is_settlement
-   .. include:: rateslib.calendars.Cal.lag.rst
-   .. include:: rateslib.calendars.Cal.roll.rst
+   .. autofunction:: rateslib.rs.Cal.lag
+   .. autofunction:: rateslib.rs.Cal.roll
    .. include:: rateslib.calendars.Cal.to_json.rst
 
 
