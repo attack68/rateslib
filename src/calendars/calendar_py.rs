@@ -20,6 +20,7 @@ pub enum Cals {
 
 #[pymethods]
 impl Cal {
+
     #[new]
     fn new_py(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> PyResult<Self> {
         Ok(Cal::new(holidays, week_mask))
@@ -45,21 +46,72 @@ impl Cal {
     //     Ok(self.meta.join(",\n"))
     // }
 
+    /// Return whether the `date` is a business day.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     Date to test
+    ///
+    /// Returns
+    /// -------
+    /// bool
     #[pyo3(name = "is_bus_day")]
     fn is_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_bus_day(&date)
     }
 
+    /// Return whether the `date` is **not** a business day.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     Date to test
+    ///
+    /// Returns
+    /// -------
+    /// bool
     #[pyo3(name = "is_non_bus_day")]
     fn is_non_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_non_bus_day(&date)
     }
 
+    /// Return whether the `date` is a business day of an associated settlement calendar.
+    ///
+    /// .. note::
+    ///
+    ///    *Cal* objects will always return *True*, since they do not contain any
+    ///    associated settlement calendars. This method is provided only for API consistency.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     Date to test
+    ///
+    /// Returns
+    /// -------
+    /// bool
     #[pyo3(name = "is_settlement")]
     fn is_settlement_py(&self, date: NaiveDateTime) -> bool {
         self.is_settlement(&date)
     }
 
+    /// Return a date separated by calendar days from input date, and rolled with a modifier.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     The original business date. Raise if a non-business date is given.
+    /// days: int
+    ///     The number of calendar days to add.
+    /// modifier: Modifier
+    ///     The rule to use to roll resultant non-business days.
+    /// settlement: bool
+    ///     Enforce an associated settlement calendar, if *True* and if one exists.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
     #[pyo3(name = "add_days")]
     fn add_days_py(
         &self,
@@ -71,6 +123,27 @@ impl Cal {
         Ok(self.add_days(&date, days, &modifier, settlement))
     }
 
+    /// Return a business date separated by `days` from an input business `date`.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     The original business date. Raise if a non-business date is given.
+    /// days: int
+    ///     Number of business days to add.
+    /// settlement: bool
+    ///     Enforce an associated settlement calendar, if *True* and if one exists.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    ///
+    /// Notes
+    /// -----
+    /// If adding negative number of business days a failing
+    /// settlement will be rolled **backwards**, whilst adding a
+    /// positive number of days will roll a failing settlement day **forwards**,
+    /// if ``settlement`` is *True*.
     #[pyo3(name = "add_bus_days")]
     fn add_bus_days_py(
         &self,

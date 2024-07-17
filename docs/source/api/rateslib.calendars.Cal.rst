@@ -23,14 +23,14 @@ Cal
 
    .. rubric:: Methods Summary
 
-   .. include:: rateslib.calendars.Cal.add_days.rst
-   .. include:: rateslib.calendars.Cal.add_bus_days.rst
+   .. autofunction:: rateslib.rs.Cal.add_days
+   .. autofunction:: rateslib.rs.Cal.add_bus_days
    .. include:: rateslib.calendars.Cal.add_months.rst
    .. include:: rateslib.calendars.Cal.bus_date_range.rst
    .. include:: rateslib.calendars.Cal.cal_date_range.rst
-   .. include:: rateslib.calendars.Cal.is_bus_day.rst
-   .. include:: rateslib.calendars.Cal.is_non_bus_day.rst
-   .. include:: rateslib.calendars.Cal.is_settlement.rst
+   .. autofunction:: rateslib.rs.Cal.is_bus_day
+   .. autofunction:: rateslib.rs.Cal.is_non_bus_day
+   .. autofunction:: rateslib.rs.Cal.is_settlement
    .. include:: rateslib.calendars.Cal.lag.rst
    .. include:: rateslib.calendars.Cal.roll.rst
    .. include:: rateslib.calendars.Cal.to_json.rst
