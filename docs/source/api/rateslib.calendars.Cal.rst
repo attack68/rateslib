@@ -33,4 +33,4 @@ Cal
    .. autofunction:: rateslib.rs.Cal.is_settlement
    .. autofunction:: rateslib.rs.Cal.lag
    .. autofunction:: rateslib.rs.Cal.roll
-   .. autofunction:: rateslib.rs.Cal.to_json.rst
+   .. autofunction:: rateslib.rs.Cal.to_json

@@ -8,6 +8,7 @@ from rateslib.calendars.rs import (
     CalInput,
     CalTypes,
     UnionCal,
+    Modifier,
     _get_modifier,
     _get_rollday,
     get_calendar,

@@ -52,6 +52,7 @@ Classes
 .. autosummary::
    ~rateslib.calendars.Cal
    ~rateslib.calendars.UnionCal
+   ~rateslib.calendars.Modifier
 
 .. toctree::
     :maxdepth: 0
@@ -60,6 +61,7 @@ Classes
 
     api/rateslib.calendars.Cal.rst
     api/rateslib.calendars.UnionCal.rst
+    api/rateslib.calendars.Modifier.rst
 
 .. automodapi:: rateslib.calendars
    :no-heading:
