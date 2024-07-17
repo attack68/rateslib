@@ -154,6 +154,21 @@ impl Cal {
         self.add_bus_days(&date, days, settlement)
     }
 
+
+    /// Return a date separated by months from an input date, and rolled with a modifier.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     The original date to adjust.
+    /// months: int
+    ///     The number of months to add.
+    /// modifier: Modifier
+    ///     The rule to use to roll a resultant non-business day.
+    /// roll: RollDay
+    ///     The day of the month to adjust to.
+    /// settlement: bool
+    ///     Enforce an associated settlement calendar, if *True* and if one exists.
     #[pyo3(name = "add_months")]
     fn add_months_py(
         &self,

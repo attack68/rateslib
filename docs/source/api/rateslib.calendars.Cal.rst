@@ -25,7 +25,7 @@ Cal
 
    .. autofunction:: rateslib.rs.Cal.add_days
    .. autofunction:: rateslib.rs.Cal.add_bus_days
-   .. include:: rateslib.calendars.Cal.add_months.rst
+   .. autofunction:: rateslib.rs.Cal.add_months
    .. include:: rateslib.calendars.Cal.bus_date_range.rst
    .. include:: rateslib.calendars.Cal.cal_date_range.rst
    .. autofunction:: rateslib.rs.Cal.is_bus_day
