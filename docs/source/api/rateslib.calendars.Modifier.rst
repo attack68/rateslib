@@ -5,7 +5,7 @@ Modifier
 
 .. py:class:: Modifier
 
-   An enum for modification rules.
+   Enumerable type for modification rules.
 
    **Values**
 

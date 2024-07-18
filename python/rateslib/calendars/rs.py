@@ -7,6 +7,7 @@ from rateslib.rs import Cal, Modifier, RollDay, UnionCal
 CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]
 
+Modifier.__doc__ = "Enumerable type for modification rules."
 
 def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     if isinstance(roll, str):

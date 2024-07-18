@@ -63,9 +63,6 @@ Classes
     api/rateslib.calendars.UnionCal.rst
     api/rateslib.calendars.Modifier.rst
 
-.. automodapi:: rateslib.calendars
-   :no-heading:
-
 Scheduling
 ===========
 

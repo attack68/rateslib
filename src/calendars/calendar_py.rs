@@ -21,6 +21,14 @@ pub enum Cals {
 #[pymethods]
 impl Cal {
 
+    /// Create a new *Cal* object.
+    ///
+    /// Parameters
+    /// ----------
+    /// holidays: list[datetime]
+    ///     List of datetimes as the specific holiday days.
+    /// week_mask: list[int],
+    ///     List of integers defining the weekends, [5, 6] for Saturday and Sunday.
     #[new]
     fn new_py(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> PyResult<Self> {
         Ok(Cal::new(holidays, week_mask))
@@ -226,6 +234,11 @@ impl Cal {
     ///
     /// Notes
     /// -----
+    /// ``lag`` and ``add_bus_days`` will return the same value if the input date is a business
+    /// date. If not a business date, ``add_bus_days`` will raise, while ``lag`` will follow
+    /// lag rules. ``lag`` should be used when the input date cannot be guaranteed to be a
+    /// business date.
+    ///
     /// **Lag rules** define the addition of business days to a date that is a non-business date:
     ///
     /// - Adding zero days will roll the date **forwards** to the next available business day.
