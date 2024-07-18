@@ -8,6 +8,8 @@ CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]
 
 Modifier.__doc__ = "Enumerable type for modification rules."
+RollDay.__doc__ = "Enumerable type for roll day types."
+
 
 def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     if isinstance(roll, str):
@@ -100,7 +102,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     .. ipython:: python
        :suppress:
 
-       from rateslib import get_calendar
+       from rateslib import get_calendar, dt
 
     .. ipython:: python
 
