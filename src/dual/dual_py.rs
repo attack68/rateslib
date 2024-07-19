@@ -135,6 +135,16 @@ impl Dual {
         ))
     }
 
+    /// Evaluate if the ARC pointers of two `Dual` data types are equivalent.
+    ///
+    /// Parameters
+    /// ----------
+    /// other: Dual
+    ///     The comparison object.
+    ///
+    /// Returns
+    /// -------
+    /// bool
     #[pyo3(name = "ptr_eq")]
     fn ptr_eq_py(&self, other: &Dual) -> PyResult<bool> {
         Ok(Arc::ptr_eq(self.vars(), other.vars()))
@@ -326,6 +336,11 @@ impl Dual {
     }
 
     // JSON
+    /// Create a JSON string representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
         match DeserializedObj::Dual(self.clone()).to_json() {
