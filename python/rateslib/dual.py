@@ -226,6 +226,26 @@ def dual_inv_norm_cdf(x):
 
 
 def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
+    """
+    Solve a linear system of equations involving dual number data types.
+
+    The `x` value is found for the equation :math:`Ax=b`.
+
+    Parameters
+    ----------
+    A: 2-d array
+        Left side matrix of values.
+    b: 1-d array
+        Right side vector of values.
+    allow_lsq: bool
+        Whether to allow solutions for non-square `A`, i.e. when `len(b) > len(x)`.
+    types: tuple
+        Defining the input data type elements of `A` and `b`, e.g. (float, float) or (Dual, Dual).
+
+    Returns
+    -------
+    1-d array
+    """
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
