@@ -154,3 +154,10 @@ Consider the example below.
 
 Note how the rate for initial exchange is 1.20 (and not 1.19)
 and the MTM payments are 1.21 and 1.24, as expected.
+
+.. ipython:: python
+   :suppress:
+
+   import os
+   os.remove("gbpusd.csv")
+   os.remove("sek_ibor_3m.csv")
