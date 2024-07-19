@@ -1,5 +1,6 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
+use std::collections::HashSet;
 use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
 use crate::calendars::named::get_calendar_by_name;
 use crate::json::json_py::DeserializedObj;
@@ -40,13 +41,13 @@ impl Cal {
     }
 
     #[getter]
-    fn week_mask(&self) -> PyResult<Vec<u8>> {
-        Ok(self
+    fn week_mask(&self) -> PyResult<HashSet<u8>> {
+        Ok(HashSet::from_iter(self
             .week_mask
             .clone()
             .into_iter()
             .map(|x| x.num_days_from_monday() as u8)
-            .collect())
+        ))
     }
 
     // #[getter]
@@ -358,9 +359,13 @@ impl UnionCal {
     }
 
     #[getter]
-    fn week_mask(&self) -> PyResult<Vec<u8>> {
-        // TODO implement function obtain union of vectors
-        panic!("not implemented")
+    fn week_mask(&self) -> PyResult<HashSet<u8>> {
+        let mut s: HashSet<u8> = HashSet::new();
+        for cal in &self.calendars {
+            let ns = cal.week_mask()?;
+            s.extend(&ns);
+        }
+        Ok(s)
     }
 
     /// Return whether the `date` is a business day.

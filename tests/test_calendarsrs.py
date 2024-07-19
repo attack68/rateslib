@@ -158,3 +158,10 @@ class TestCal:
     def test_equality(self, left, right, expected):
         assert (left == right) is expected
         assert (right == left) is expected
+
+
+class TestUnionCal:
+
+    def test_week_mask(self, multi_union):
+        result = multi_union.week_mask
+        assert result == {5, 6}
