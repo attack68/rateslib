@@ -77,7 +77,7 @@ class _Serialize:
             container.update(
                 {
                     "calendar": {
-                        "weekmask": self.calendar.week_mask,
+                        "weekmask": list(self.calendar.week_mask),
                         "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
                     }
                 }
