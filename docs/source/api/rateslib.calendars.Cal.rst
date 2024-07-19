@@ -3,7 +3,7 @@ Cal
 
 .. currentmodule:: rateslib.calendars
 
-.. py:class:: Cal(holidays, weel_mask)
+.. py:class:: Cal(holidays, week_mask)
 
    A calendar object for making date roll adjustment calculations.
 
@@ -23,16 +23,35 @@ Cal
 
    .. rubric:: Methods Summary
 
-   .. include:: rateslib.calendars.Cal.add_days.rst
-   .. include:: rateslib.calendars.Cal.add_bus_days.rst
-   .. include:: rateslib.calendars.Cal.add_months.rst
-   .. include:: rateslib.calendars.Cal.bus_date_range.rst
-   .. include:: rateslib.calendars.Cal.cal_date_range.rst
-   .. include:: rateslib.calendars.Cal.is_bus_day.rst
-   .. include:: rateslib.calendars.Cal.is_non_bus_day.rst
-   .. include:: rateslib.calendars.Cal.is_settlement.rst
-   .. include:: rateslib.calendars.Cal.lag.rst
-   .. include:: rateslib.calendars.Cal.roll.rst
-   .. include:: rateslib.calendars.Cal.to_json.rst
+   .. autosummary::
 
+      ~Cal.add_bus_days
+      ~Cal.add_days
+      ~Cal.add_months
+      ~Cal.bus_date_range
+      ~Cal.cal_date_range
+      ~Cal.is_bus_day
+      ~Cal.is_non_bus_day
+      ~Cal.is_settlement
+      ~Cal.lag
+      ~Cal.roll
+      ~Cal.to_json
 
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: holidays
+   .. autoattribute:: week_mask
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: add_bus_days
+   .. automethod:: add_days
+   .. automethod:: add_months
+   .. automethod:: bus_date_range
+   .. automethod:: cal_date_range
+   .. automethod:: is_bus_day
+   .. automethod:: is_non_bus_day
+   .. automethod:: is_settlement
+   .. automethod:: lag
+   .. automethod:: roll
+   .. automethod:: to_json
