@@ -41,5 +41,14 @@ Dual
 
    .. rubric:: Methods Summary
 
-   .. include:: rateslib.dual.Dual.to_json.rst
-   .. include:: rateslib.dual.Dual.vars_from.rst
+   .. autosummary::
+
+      ~Dual.ptr_eq
+      ~Dual.to_json
+      ~Dual.vars_from
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: rateslib.dual.Dual.ptr_eq
+   .. automethod:: rateslib.dual.Dual.to_json
+   .. automethod:: rateslib.dual.Dual.vars_from
