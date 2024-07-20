@@ -213,6 +213,24 @@ macro_rules! create_interface {
                 }
             }
 
+            /// Evaluate a single *x* coordinate derivative from the right on the pp spline.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: Dual
+            ///     The x-axis value at which to evaluate value.
+            /// m: int
+            ///     The order of derivative to calculate value for (0 is function value).
+            ///
+            /// Returns
+            /// -------
+            /// Dual
+            ///
+            /// Notes
+            /// -----
+            /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual`
+            /// sensitivities. It also prohibits type mixing and will raise if any *Dual2*
+            /// data types are encountered.
             fn ppdnev_single_dual(&self, x: DualsOrF64, m: usize) -> PyResult<Dual> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), m),
@@ -221,6 +239,24 @@ macro_rules! create_interface {
                 }
             }
 
+            /// Evaluate a single *x* coordinate derivative from the right on the pp spline.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: Dual2
+            ///     The x-axis value at which to evaluate value.
+            /// m: int
+            ///     The order of derivative to calculate value for (0 is function value).
+            ///
+            /// Returns
+            /// -------
+            /// Dual2
+            ///
+            /// Notes
+            /// -----
+            /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual2`
+            /// sensitivities. It also prohibits type mixing and will raise if any *Dual*
+            /// data types are encountered.
             fn ppdnev_single_dual2(&self, x: DualsOrF64, m: usize) -> PyResult<Dual2> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), m),
@@ -229,11 +265,51 @@ macro_rules! create_interface {
                 }
             }
 
+            /// Evaluate an array of x coordinates derivatives on the pp spline.
+            ///
+            /// Repeatedly applies :meth:`~rateslib.splines.PPSplineF64.ppdnev_single`.
+            ///
+            /// .. warning::
+            ///
+            ///    The *x* coordinates supplied to this function are treated as *float*, or are
+            ///    **converted** to *float*. Therefore it does not guarantee the preservation of AD
+            ///    sensitivities.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: 1-d array of float
+            ///     x-axis coordinates.
+            /// m: int
+            ///     The order of derivative to calculate value for.
+            ///
+            /// Returns
+            /// -------
+            /// 1-d array of float
             fn ppdnev(&self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
                 Ok(out)
             }
 
+            /// Evaluate value of the *i* th b-spline at x coordinates.
+            ///
+            /// Repeatedly applies :meth:`~rateslib.splines.bsplev_single`.
+            ///
+            /// .. warning::
+            ///
+            ///    The *x* coordinates supplied to this function are treated as *float*, or are
+            ///    **converted** to *float*. Therefore it does not guarantee the preservation of AD
+            ///    sensitivities.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: 1-d array of float
+            ///     x-axis coordinates
+            /// i: int
+            ///     Index of the B-spline to evaluate.
+            ///
+            /// Returns
+            /// -------
+            /// 1-d array of float
             fn bsplev(&self, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &0))
             }
