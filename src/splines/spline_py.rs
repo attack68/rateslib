@@ -46,6 +46,27 @@ macro_rules! create_interface {
                 }
             }
 
+            /// Solve the spline coefficients given the data sites.
+            ///
+            /// Parameters
+            /// ----------
+            /// tau: list[f64]
+            ///     The data site `x`-coordinates.
+            /// y: list[type]
+            ///     The data site `y`-coordinates in appropriate type (float, *Dual* or *Dual2*)
+            ///     for *self*.
+            /// left_n: int
+            ///     The number of derivatives to evaluate at the left side of the data sites,
+            ///     i.e. defining an endpoint constraint.
+            /// right_n: int
+            ///     The number of derivatives to evaluate at the right side of the datasites,
+            ///     i.e. defining an endpoint constraint.
+            /// allow_lsq: bool
+            ///     Whether to permit least squares solving using non-square matrices.
+            ///
+            /// Returns
+            /// -------
+            /// None
             fn csolve(
                 &mut self,
                 tau: Vec<f64>,
@@ -57,6 +78,26 @@ macro_rules! create_interface {
                 self.inner.csolve(&tau, &y, left_n, right_n, allow_lsq)
             }
 
+            /// Evaluate a single *x* coordinate value on the pp spline.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: float
+            ///     The x-axis value at which to evaluate value.
+            ///
+            /// Returns
+            /// -------
+            /// float, Dual or Dual2 based on self
+            ///
+            /// Notes
+            /// -----
+            /// The value of the spline at *x* is the sum of the value of each b-spline
+            /// evaluated at *x* multiplied by the spline coefficients, *c*.
+            ///
+            /// .. math::
+            ///
+            ///    \$(x) = \sum_{i=1}^n c_i B_{(i,k,\mathbf{t})}(x)
+            ///
             fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
                 match x {
                     DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, 0)),

@@ -47,12 +47,19 @@ PPSplineF64
 
    .. rubric:: Methods Summary
 
+   .. autosummary::
+
+      ~PPSplineF64.csolve
+      ~PPSplineF64.ppev_single
+
+   .. rubric:: Methods Documentation
+
    .. include:: rateslib.splines.PPSplineF64.bsplev.rst
    .. include:: rateslib.splines.PPSplineF64.bspldnev.rst
    .. include:: rateslib.splines.PPSplineF64.bsplmatrix.rst
-   .. include:: rateslib.splines.PPSplineF64.csolve.rst
+   .. automethod:: rateslib.splines.PPSplineF64.csolve
    .. include:: rateslib.splines.PPSplineF64.ppev.rst
-   .. include:: rateslib.splines.PPSplineF64.ppev_single.rst
+   .. automethod:: rateslib.splines.PPSplineF64.ppev_single
    .. include:: rateslib.splines.PPSplineF64.ppev_single_dual.rst
    .. include:: rateslib.splines.PPSplineF64.ppev_single_dual2.rst
    .. include:: rateslib.splines.PPSplineF64.ppdnev.rst
