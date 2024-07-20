@@ -364,7 +364,38 @@ impl Dual2 {
         Dual2::try_new(real, vars, dual, dual2)
     }
 
-    /// Python wrapper to construct a new `Dual2` using the Arc pointer of another.
+    /// Create a :class:`~rateslib.dual.Dual2` object with ``vars`` linked with another.
+    ///
+    /// Parameters
+    /// ----------
+    /// other: Dual
+    ///     The other `Dual` from which `vars` are linked.
+    /// real: float
+    ///     The real coefficient of the dual number.
+    /// vars: list[str]
+    ///     The labels of the variables for which to record derivatives. If empty,
+    ///     the dual number represents a constant, equivalent to a float.
+    /// dual: list[float]
+    ///     First derivative information contained as coefficient of linear manifold.
+    ///     Defaults to an array of ones the length of ``vars`` if empty.
+    /// dual2: list[float]
+    ///     Second derivative information contained as coefficients of a quadratic manifold.
+    ///     These values represent a 2d array but must be given as a 1d list of values in
+    ///     row-major order.
+    ///     Defaults to a 2-d array of zeros of size NxN where N is length of ``vars`` if not
+    ///     given.
+    ///
+    /// Returns
+    /// -------
+    /// Dual2
+    ///
+    /// Notes
+    /// --------
+    /// For examples see also...
+    ///
+    /// .. seealso::
+    ///    :meth:`~rateslib.dual.Dual.vars_from`: Create a *Dual* with ``vars`` linked to another.
+    ///
     #[staticmethod]
     pub fn vars_from(
         other: &Dual2,
@@ -428,6 +459,8 @@ impl Dual2 {
         Ok(out.into_raw_vec())
     }
 
+    /// Evaluate if the ARC pointers of two `Dual2` data types are equivalent. See
+    /// :meth:`~rateslib.dual.Dual.ptr_eq`.
     #[pyo3(name = "ptr_eq")]
     fn ptr_eq_py(&self, other: &Dual2) -> PyResult<bool> {
         Ok(self.ptr_eq(other))
@@ -622,6 +655,11 @@ impl Dual2 {
     }
 
     // JSON
+    /// Create a JSON string representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
         match DeserializedObj::Dual2(self.clone()).to_json() {
