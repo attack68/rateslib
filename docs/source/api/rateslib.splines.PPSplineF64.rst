@@ -51,6 +51,8 @@ PPSplineF64
 
       ~PPSplineF64.csolve
       ~PPSplineF64.ppev_single
+      ~PPSplineF64.ppev_single_dual
+      ~PPSplineF64.ppev_single_dual2
 
    .. rubric:: Methods Documentation
 
@@ -60,8 +62,8 @@ PPSplineF64
    .. automethod:: rateslib.splines.PPSplineF64.csolve
    .. include:: rateslib.splines.PPSplineF64.ppev.rst
    .. automethod:: rateslib.splines.PPSplineF64.ppev_single
-   .. include:: rateslib.splines.PPSplineF64.ppev_single_dual.rst
-   .. include:: rateslib.splines.PPSplineF64.ppev_single_dual2.rst
+   .. automethod:: rateslib.splines.PPSplineF64.ppev_single_dual
+   .. automethid:: rateslib.splines.PPSplineF64.ppev_single_dual2
    .. include:: rateslib.splines.PPSplineF64.ppdnev.rst
    .. include:: rateslib.splines.PPSplineF64.ppdnev_single.rst
    .. include:: rateslib.splines.PPSplineF64.ppdnev_single_dual.rst

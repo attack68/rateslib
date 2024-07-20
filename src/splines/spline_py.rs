@@ -109,6 +109,22 @@ macro_rules! create_interface {
                 }
             }
 
+            /// Evaluate a single *x* coordinate value on the pp spline.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: Dual
+            ///     The x-axis value at which to evaluate value.
+            ///
+            /// Returns
+            /// -------
+            /// Dual
+            ///
+            /// Notes
+            /// -----
+            /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual`
+            /// sensitivities. It also prohibits type mixing and will raise if *Dual2* data types
+            /// are encountered.
             fn ppev_single_dual(&self, x: DualsOrF64) -> PyResult<Dual> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), 0),
@@ -117,6 +133,22 @@ macro_rules! create_interface {
                 }
             }
 
+            /// Evaluate a single *x* coordinate value on the pp spline.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: Dual2
+            ///     The x-axis value at which to evaluate value.
+            ///
+            /// Returns
+            /// -------
+            /// Dual2
+            ///
+            /// Notes
+            /// -----
+            /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual2`
+            /// sensitivities. It also prohibits type mixing and will raise if *Dual* data types
+            /// are encountered.
             fn ppev_single_dual2(&self, x: DualsOrF64) -> PyResult<Dual2> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), 0),
