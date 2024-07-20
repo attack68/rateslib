@@ -37,6 +37,7 @@ PPSplineDual
       ~PPSplineDual.ppev
       ~PPSplineDual.ppev_single
       ~PPSplineDual.ppev_single_dual
+      ~PPSplineDual.ppdnev_single
 
    .. rubric:: Methods Documentation
 
@@ -44,3 +45,4 @@ PPSplineDual
    .. automethod:: rateslib.splines.PPSplineDual.ppev
    .. automethod:: rateslib.splines.PPSplineDual.ppev_single
    .. automethod:: rateslib.splines.PPSplineDual.ppev_single_dual
+   .. automethod:: rateslib.splines.PPSplineDual.ppdnev_single

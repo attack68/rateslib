@@ -180,6 +180,31 @@ macro_rules! create_interface {
                 Ok(out)
             }
 
+            /// Evaluate a single *x* coordinate derivative from the right on the pp spline.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: float
+            ///     The x-axis value at which to evaluate value.
+            /// m: int
+            ///     The order of derivative to calculate value for (0 is function value).
+            ///
+            /// Returns
+            /// -------
+            /// float, Dual, or Dual2, based on self
+            ///
+            /// Notes
+            /// -----
+            /// The value of derivatives of the spline at *x* is the sum of the value of each
+            /// b-spline derivatives evaluated at *x* multiplied by the spline
+            /// coefficients, *c*.
+            ///
+            /// Due to the definition of the splines this derivative will return the value
+            /// from the right at points where derivatives are discontinuous.
+            ///
+            /// .. math::
+            ///
+            ///    \frac{d^m\$(x)}{d x^m} = \sum_{i=1}^n c_i \frac{d^m B_{(i,k,\mathbf{t})}(x)}{d x^m}
             fn ppdnev_single(&self, x: DualsOrF64, m: usize) -> PyResult<$type> {
                 match x {
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
