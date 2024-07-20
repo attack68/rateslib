@@ -34,11 +34,13 @@ PPSplineDual2
    .. autosummary::
 
       ~PPSplineDual2.csolve
+      ~PPSplineDual2.ppev
       ~PPSplineDual2.ppev_single
       ~PPSplineDual2.ppev_single_dual2
 
    .. rubric:: Methods Documentation
 
    .. automethod:: rateslib.splines.PPSplineDual2.csolve
+   .. automethod:: rateslib.splines.PPSplineDual2.ppev
    .. automethod:: rateslib.splines.PPSplineDual2.ppev_single
    .. automethod:: rateslib.splines.PPSplineDual2.ppev_single_dual2
