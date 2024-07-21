@@ -50,6 +50,7 @@ PPSplineF64
    .. autosummary::
 
       ~PPSplineF64.bsplev
+      ~PPSPlineF64.bspldnev
       ~PPSplineF64.csolve
       ~PPSplineF64.ppev
       ~PPSplineF64.ppev_single
@@ -62,7 +63,7 @@ PPSplineF64
    .. rubric:: Methods Documentation
 
    .. automethod:: rateslib.splines.PPSplineF64.bsplev
-   .. include:: rateslib.splines.PPSplineF64.bspldnev.rst
+   .. automethod:: rateslib.splines.PPSplineF64.bspldnev
    .. include:: rateslib.splines.PPSplineF64.bsplmatrix.rst
    .. automethod:: rateslib.splines.PPSplineF64.csolve
    .. automethod:: rateslib.splines.PPSplineF64.ppev

@@ -314,6 +314,28 @@ macro_rules! create_interface {
                 Ok(self.inner.bspldnev(&x, &i, &0))
             }
 
+            /// Evaluate *m* order derivative on the *i* th b-spline at *x* coordinates.
+            ///
+            /// Repeatedly applies :meth:`~rateslib.splines.bspldnev_single`.
+            ///
+            /// .. warning::
+            ///
+            ///    The *x* coordinates supplied to this function are treated as *float*, or are
+            ///    **converted** to *float*. Therefore it does not guarantee the preservation of AD
+            ///    sensitivities.
+            ///
+            /// Parameters
+            /// ----------
+            /// x: 1-d array of float
+            ///     x-axis coordinates.
+            /// i: int
+            ///     The index of the B-spline to evaluate.
+            /// m: int
+            ///     The order of derivative to calculate value for.
+            ///
+            /// Returns
+            /// -------
+            /// 1-d array
             fn bspldnev(&self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &m))
             }

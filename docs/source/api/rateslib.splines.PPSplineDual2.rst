@@ -33,18 +33,24 @@ PPSplineDual2
 
    .. autosummary::
 
+      ~PPSplineDual2.bsplev
+      ~PPSplineDual2.bspldnev
       ~PPSplineDual2.csolve
       ~PPSplineDual2.ppev
       ~PPSplineDual2.ppev_single
       ~PPSplineDual2.ppev_single_dual2
+      ~PPSplineDual2.ppdnev
       ~PPSplineDual2.ppdnev_single
       ~PPSplineDual2.ppdnev_single_dual2
 
    .. rubric:: Methods Documentation
 
+   .. automethod:: rateslib.splines.PPSplineDual2.bsplev
+   .. automethod:: rateslib.splines.PPSplineDual2.bspldnev
    .. automethod:: rateslib.splines.PPSplineDual2.csolve
    .. automethod:: rateslib.splines.PPSplineDual2.ppev
    .. automethod:: rateslib.splines.PPSplineDual2.ppev_single
    .. automethod:: rateslib.splines.PPSplineDual2.ppev_single_dual2
+   .. automethod:: rateslib.splines.PPSplineDual2.ppdnev
    .. automethod:: rateslib.splines.PPSplineDual2.ppdnev_single
    .. automethod:: rateslib.splines.PPSplineDual2.ppdnev_single_dual2
