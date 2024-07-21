@@ -51,6 +51,7 @@ PPSplineF64
 
       ~PPSplineF64.bsplev
       ~PPSPlineF64.bspldnev
+      ~PPSPlineF64.bsplmatrix
       ~PPSplineF64.csolve
       ~PPSplineF64.ppev
       ~PPSplineF64.ppev_single
@@ -64,7 +65,7 @@ PPSplineF64
 
    .. automethod:: rateslib.splines.PPSplineF64.bsplev
    .. automethod:: rateslib.splines.PPSplineF64.bspldnev
-   .. include:: rateslib.splines.PPSplineF64.bsplmatrix.rst
+   .. automethod:: rateslib.splines.PPSplineF64.bsplmatrix
    .. automethod:: rateslib.splines.PPSplineF64.csolve
    .. automethod:: rateslib.splines.PPSplineF64.ppev
    .. automethod:: rateslib.splines.PPSplineF64.ppev_single

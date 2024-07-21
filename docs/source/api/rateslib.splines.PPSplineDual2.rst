@@ -35,6 +35,7 @@ PPSplineDual2
 
       ~PPSplineDual2.bsplev
       ~PPSplineDual2.bspldnev
+      ~PPSplineDual2.bsplmatrix
       ~PPSplineDual2.csolve
       ~PPSplineDual2.ppev
       ~PPSplineDual2.ppev_single
@@ -47,6 +48,7 @@ PPSplineDual2
 
    .. automethod:: rateslib.splines.PPSplineDual2.bsplev
    .. automethod:: rateslib.splines.PPSplineDual2.bspldnev
+   .. automethod:: rateslib.splines.PPSplineDual2.bsplmatrix
    .. automethod:: rateslib.splines.PPSplineDual2.csolve
    .. automethod:: rateslib.splines.PPSplineDual2.ppev
    .. automethod:: rateslib.splines.PPSplineDual2.ppev_single

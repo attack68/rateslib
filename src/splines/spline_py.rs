@@ -338,6 +338,38 @@ macro_rules! create_interface {
                 Ok(self.inner.bspldnev(&x, &i, &m))
             }
 
+            /// Evaluate the 2d spline collocation matrix at each data site.
+            ///
+            /// Parameters
+            /// ----------
+            /// tau: 1-d array of float
+            ///     The data sites `x`-axis values which will instruct the pp spline.
+            /// left_n: int
+            ///     The order of derivative to use for the left most data site and top row
+            ///     of the spline collocation matrix.
+            /// right_n: int
+            ///     The order of derivative to use for the right most data site and bottom row
+            ///     of the spline collocation matrix.
+            ///
+            /// Returns
+            /// -------
+            /// 2-d array of float
+            ///
+            /// Notes
+            /// -----
+            /// The spline collocation matrix is defined as,
+            ///
+            /// .. math::
+            ///
+            ///    [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau})]_{j,i} = B_{i,k,\mathbf{t}}(\tau_j)
+            ///
+            /// where each row is a call to :meth:`~rateslib.splines.PPSplineF64.bsplev`, except the top and bottom rows
+            /// which can be specifically adjusted to account for
+            /// ``left_n`` and ``right_n`` such that, for example, the first row might be,
+            ///
+            /// .. math::
+            ///
+            ///    [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau})]_{1,i} = \frac{d^n}{dx}B_{i,k,\mathbf{t}}(\tau_1)
             fn bsplmatrix<'py>(
                 &'py self,
                 py: Python<'py>,
