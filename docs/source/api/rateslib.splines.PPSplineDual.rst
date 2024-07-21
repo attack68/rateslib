@@ -29,7 +29,30 @@ PPSplineDual
 
       :class:`~rateslib.splines.PPSplineDual2`: Spline where the y-axis contains :class:`~rateslib.dual.Dual2` data types.
 
-   .. rubric:: Notes
+   .. rubric:: Methods Summary
 
-   For all associated methods review :class:`~rateslib.splines.PPSplineF64`.
+   .. autosummary::
 
+      ~PPSplineDual.bsplev
+      ~PPSplineDual.bspldnev
+      ~PPSplineDual.bsplmatrix
+      ~PPSplineDual.csolve
+      ~PPSplineDual.ppev
+      ~PPSplineDual.ppev_single
+      ~PPSplineDual.ppev_single_dual
+      ~PPSplineDual.ppdnev
+      ~PPSplineDual.ppdnev_single
+      ~PPSplineDual.ppdnev_single_dual
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: rateslib.splines.PPSplineDual.bsplev
+   .. automethod:: rateslib.splines.PPSplineDual.bspldnev
+   .. automethod:: rateslib.splines.PPSplineDual.bsplmatrix
+   .. automethod:: rateslib.splines.PPSplineDual.csolve
+   .. automethod:: rateslib.splines.PPSplineDual.ppev
+   .. automethod:: rateslib.splines.PPSplineDual.ppev_single
+   .. automethod:: rateslib.splines.PPSplineDual.ppev_single_dual
+   .. automethod:: rateslib.splines.PPSplineDual.ppdnev
+   .. automethod:: rateslib.splines.PPSplineDual.ppdnev_single
+   .. automethod:: rateslib.splines.PPSplineDual.ppdnev_single_dual

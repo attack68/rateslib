@@ -271,3 +271,11 @@ def test_dual_float_raises():
     y2, y3 = Dual(2.0, ["y2"], []), Dual(2.0, ["y3"], [])
     with pytest.raises(TypeError, match="argument 'y': 'float' object cannot be"):
         sp.csolve([0, 0, 1, 3, 4, 4], [0.0, y0, y1, y2, y3, _0], 2, 2, False)
+
+
+def test_bsplmatrix():
+    t = [1,1,1,1,2,2,2,3,4,4,4,4]
+    spline = PPSplineF64(k=4, t=t)
+    tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
+    matrix = spline.bsplmatrix(tau, 0, 0)
+    assert matrix.shape == (8, 8)

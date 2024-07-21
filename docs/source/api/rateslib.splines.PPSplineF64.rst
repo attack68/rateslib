@@ -47,15 +47,31 @@ PPSplineF64
 
    .. rubric:: Methods Summary
 
-   .. include:: rateslib.splines.PPSplineF64.bsplev.rst
-   .. include:: rateslib.splines.PPSplineF64.bspldnev.rst
-   .. include:: rateslib.splines.PPSplineF64.bsplmatrix.rst
-   .. include:: rateslib.splines.PPSplineF64.csolve.rst
-   .. include:: rateslib.splines.PPSplineF64.ppev.rst
-   .. include:: rateslib.splines.PPSplineF64.ppev_single.rst
-   .. include:: rateslib.splines.PPSplineF64.ppev_single_dual.rst
-   .. include:: rateslib.splines.PPSplineF64.ppev_single_dual2.rst
-   .. include:: rateslib.splines.PPSplineF64.ppdnev.rst
-   .. include:: rateslib.splines.PPSplineF64.ppdnev_single.rst
-   .. include:: rateslib.splines.PPSplineF64.ppdnev_single_dual.rst
-   .. include:: rateslib.splines.PPSplineF64.ppdnev_single_dual2.rst
+   .. autosummary::
+
+      ~PPSplineF64.bsplev
+      ~PPSplineF64.bspldnev
+      ~PPSplineF64.bsplmatrix
+      ~PPSplineF64.csolve
+      ~PPSplineF64.ppev
+      ~PPSplineF64.ppev_single
+      ~PPSplineF64.ppev_single_dual
+      ~PPSplineF64.ppev_single_dual2
+      ~PPSplineF64.ppdnev_single
+      ~PPSplineF64.ppdnev_single_dual
+      ~PPSplineF64.ppdnev_single_dual2
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: rateslib.splines.PPSplineF64.bsplev
+   .. automethod:: rateslib.splines.PPSplineF64.bspldnev
+   .. automethod:: rateslib.splines.PPSplineF64.bsplmatrix
+   .. automethod:: rateslib.splines.PPSplineF64.csolve
+   .. automethod:: rateslib.splines.PPSplineF64.ppev
+   .. automethod:: rateslib.splines.PPSplineF64.ppev_single
+   .. automethod:: rateslib.splines.PPSplineF64.ppev_single_dual
+   .. automethod:: rateslib.splines.PPSplineF64.ppev_single_dual2
+   .. automethod:: rateslib.splines.PPSplineF64.ppdnev
+   .. automethod:: rateslib.splines.PPSplineF64.ppdnev_single
+   .. automethod:: rateslib.splines.PPSplineF64.ppdnev_single_dual
+   .. automethod:: rateslib.splines.PPSplineF64.ppdnev_single_dual2

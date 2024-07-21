@@ -104,11 +104,11 @@ Piecewise Polynomial Splines
    :no-inheritance-diagram:
 
 .. Functions
-   ^^^^^^^^^^
+   ---------
    .. autosummary::
       ~rateslib.splines.bsplev_single
       ~rateslib.splines.bspldnev_single
-
+      ~rateslib.splines.evaluate
 
 Classes
 ^^^^^^^^
@@ -127,8 +127,6 @@ Classes
     api/rateslib.splines.PPSplineF64.rst
     api/rateslib.splines.PPSplineDual.rst
     api/rateslib.splines.PPSplineDual2.rst
-    api/rateslib.splines.bspldnev_single.rst
-    api/rateslib.splines.bsplev_single.rst
 
 
 Dual (for AD)
