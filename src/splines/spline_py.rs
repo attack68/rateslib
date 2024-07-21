@@ -333,6 +333,38 @@ create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
 
+/// Calculate the *m* th order derivative from the right of an indexed b-spline at *x*.
+///
+/// Parameters
+/// ----------
+/// x: float
+///     The *x* value at which to evaluate the b-spline.
+/// i: int
+///     The index of the b-spline to evaluate.
+/// k: int
+///     The order of the b-spline (note that k=4 is a cubic spline).
+/// t: sequence of float
+///     The knot sequence of the pp spline.
+/// org_k: int, optional
+///     The original k input. Used only internally when recursively calculating
+///     successive b-splines. Users will not typically use this parameters.
+///
+/// Notes
+/// -----
+/// B-splines can be recursively defined as:
+///
+/// .. math::
+///
+///    B_{i,k,\mathbf{t}}(x) = \frac{x-t_i}{t_{i+k-1}-t_i}B_{i,k-1,\mathbf{t}}(x) + \frac{t_{i+k}-x}{t_{i+k}-t_{i+1}}B_{i+1,k-1,\mathbf{t}}(x)
+///
+/// and such that the basic, stepwise, b-spline or order 1 are:
+///
+/// .. math::
+///
+///    B_{i,1,\mathbf{t}}(x) = \left \{ \begin{matrix} 1, & t_i \leq x < t_{i+1} \\ 0, & \text{otherwise} \end{matrix} \right .
+///
+/// For continuity on the right boundary the rightmost basic b-spline is also set equal
+/// to 1 there: :math:`B_{n,1,\mathbf{t}}(t_{n+k})=1`.
 #[pyfunction]
 pub(crate) fn bsplev_single(
     x: f64,
@@ -344,6 +376,72 @@ pub(crate) fn bsplev_single(
     Ok(bsplev_single_f64(&x, i, &k, &t, org_k))
 }
 
+/// Calculate the *m* th order derivative from the right of an indexed b-spline at *x*.
+///
+/// Parameters
+/// ----------
+/// x: float
+///     The *x* value at which to evaluate the b-spline.
+/// i: int
+///     The index of the b-spline to evaluate.
+/// k: int
+///     The order of the b-spline (note that k=4 is a cubic spline).
+/// t: sequence of float
+///     The knot sequence of the pp spline.
+/// m: int
+///     The order of the derivative of the b-spline to evaluate.
+/// org_k: int, optional
+///     The original k input. Used only internally when recursively calculating
+///     successive b-splines. Users will not typically use this parameter.
+///
+/// Notes
+/// -----
+/// B-splines derivatives can be recursively defined as:
+///
+/// .. math::
+///
+///    \frac{d}{dx}B_{i,k,\mathbf{t}}(x) = (k-1) \left ( \frac{B_{i,k-1,\mathbf{t}}(x)}{t_{i+k-1}-t_i} - \frac{B_{i+1,k-1,\mathbf{t}}(x)}{t_{i+k}-t_{i+1}} \right )
+///
+/// and such that the basic, stepwise, b-spline derivative is:
+///
+/// .. math::
+///
+///    \frac{d}{dx}B_{i,1,\mathbf{t}}(x) = 0
+///
+/// During this recursion the original order of the spline is registered so that under
+/// the given knot sequence, :math:`\mathbf{t}`, lower order b-splines which are not
+/// the rightmost will register a unit value. For example, the 4'th order knot sequence
+/// [1,1,1,1,2,2,2,3,4,4,4,4] defines 8 b-splines. The rightmost is measured
+/// across the knots [3,4,4,4,4]. When the knot sequence remains constant and the
+/// order is lowered to 3 the rightmost, 9'th, b-spline is measured across [4,4,4,4],
+/// which is effectively redundant since its domain has zero width. The 8'th b-spline
+/// which is measured across the knots [3,4,4,4] is that which will impact calculations
+/// and is therefore given the value 1 at the right boundary. This is controlled by
+/// the information provided by ``org_k``.
+///
+/// Examples
+/// --------
+/// The derivative of the 4th b-spline of the following knot sequence
+/// is discontinuous at `x` = 2.0.
+///
+/// .. ipython:: python
+///
+///    t = [1,1,1,1,2,2,2,3,4,4,4,4]
+///    bspldnev_single(x=2.0, i=3, k=4, t=t, m=1)
+///    bspldnev_single(x=1.99999999, i=3, k=4, t=t, m=1)
+///
+/// .. plot::
+///
+///    from rateslib.splines import *
+///    import matplotlib.pyplot as plt
+///    from datetime import datetime as dt
+///    import numpy as np
+///    t = [1,1,1,1,2,2,2,3,4,4,4,4]
+///    spline = PPSpline(k=4, t=t)
+///    x = np.linspace(1, 4, 76)
+///    fix, ax = plt.subplots(1,1)
+///    ax.plot(x, spline.bspldnev(x, 3, 0))
+///    plt.show()
 #[pyfunction]
 pub(crate) fn bspldnev_single(
     x: f64,
