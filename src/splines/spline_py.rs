@@ -4,9 +4,7 @@ use std::cmp::PartialEq;
 
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-
-// use numpy::{PyArray1, ToPyArray, PyArrayMethods};
-// use ndarray::Array1;
+use numpy::{PyArray2, ToPyArray};
 
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {
@@ -338,6 +336,16 @@ macro_rules! create_interface {
             /// 1-d array
             fn bspldnev(&self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &m))
+            }
+
+            fn bsplmatrix<'py>(
+                &'py self,
+                py: Python<'py>,
+                tau: Vec<f64>,
+                left_n: usize,
+                right_n: usize
+            ) -> PyResult<Bound<'_, PyArray2<f64>>> {
+                Ok(self.inner.bsplmatrix(&tau, left_n, right_n).to_pyarray_bound(py))
             }
 
             fn __eq__(&self, other: &Self) -> PyResult<bool> {
