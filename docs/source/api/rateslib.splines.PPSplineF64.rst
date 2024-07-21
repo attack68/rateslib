@@ -50,8 +50,8 @@ PPSplineF64
    .. autosummary::
 
       ~PPSplineF64.bsplev
-      ~PPSPlineF64.bspldnev
-      ~PPSPlineF64.bsplmatrix
+      ~PPSplineF64.bspldnev
+      ~PPSplineF64.bsplmatrix
       ~PPSplineF64.csolve
       ~PPSplineF64.ppev
       ~PPSplineF64.ppev_single
