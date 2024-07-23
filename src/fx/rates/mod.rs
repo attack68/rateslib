@@ -38,10 +38,25 @@ pub enum FXArray {
 /// A multi-currency FX market deriving all crosses from a vector of `FXRate`s.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(from = "FXRatesDataModel")]
 pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
+    #[serde(skip)]
     pub(crate) fx_array: FXArray,
+}
+
+#[derive(Deserialize)]
+struct FXRatesDataModel {
+    fx_rates: Vec<FXRate>,
+    currencies: IndexSet<Ccy>,
+}
+
+impl std::convert::From<FXRatesDataModel> for FXRates {
+    fn from(model: FXRatesDataModel) -> Self {
+        let base = model.currencies.first().unwrap();
+        Self::try_new(model.fx_rates, Some(*base)).expect("FXRates data model contains bad data.")
+    }
 }
 
 impl FXRates {
