@@ -147,6 +147,18 @@ impl UnionCal {
 
 impl JSON for UnionCal {}
 
+pub struct StringCal {
+    name: String,
+    union_cal: UnionCal,
+}
+
+impl StringCal {
+    fn try_new(name: &str) -> Self {
+        let parts = name.split("|");
+        let cals 
+    }
+}
+
 /// Used to control business day management and date rolling.
 pub trait DateRoll {
     /// Returns whether the date is part of the general working week.
@@ -461,6 +473,20 @@ impl DateRoll for UnionCal {
         self.settlement_calendars
             .as_ref()
             .map_or(true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date)))
+    }
+}
+
+impl DateRoll for StringCal {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        self.union_cal.is_weekday(date)
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        self.union_cal.is_holiday(date)
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        self.union_cal.is_settlement(date)
     }
 }
 
