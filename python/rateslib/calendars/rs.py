@@ -128,32 +128,38 @@ def get_calendar(
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.
+    if isinstance(calendar, str) and named:
+        try:
+            return _get_calendar_labelled(NamedCal(calendar), "object", kind)
+        except ValueError:
+            named = False  # try parsing with Python only
+
     if calendar is NoInput.blank:
-        ret = defaults.calendars["all"], "null"
-
-    elif isinstance(calendar, str) and named:
-        ret = NamedCal(calendar), "object"
-
+        return _get_calendar_labelled(defaults.calendars["all"], "null", kind)
     elif isinstance(calendar, str) and not named:
         # parse the string in Python and return Rust objects directly
         vectors = calendar.split("|")
         if len(vectors) == 1:
             calendars = vectors[0].lower().split(",")
             if len(calendars) == 1:  # only one named calendar is found
-                ret = defaults.calendars[calendars[0]], "named"
+                return _get_calendar_labelled(defaults.calendars[calendars[0]], "named", kind)
             else:
                 cals = [defaults.calendars[_] for _ in calendars]
-                ret = UnionCal(cals, None), "named"
+                return _get_calendar_labelled(UnionCal(cals, None), "named", kind)
         elif len(vectors) == 2:
             calendars = vectors[0].lower().split(",")
             cals = [defaults.calendars[_] for _ in calendars]
             settlement_calendars = vectors[1].lower().split(",")
             sets = [defaults.calendars[_] for _ in settlement_calendars]
-            ret = UnionCal(cals, sets), "named"
+            return _get_calendar_labelled(UnionCal(cals, sets), "named", kind)
         else:
-            raise ValueError("Pipe separator can only be used once in input, e.g. 'tgt|nyc'.")
-
+            raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
     else:  # calendar is a Calendar object type
-        ret = calendar, "custom"
+        return _get_calendar_labelled(calendar, "custom", kind)
 
-    return ret if kind else ret[0]
+
+def _get_calendar_labelled(output, label, kind):
+    """Package the return for the get_calendar function"""
+    if kind:
+        return output, label
+    return output

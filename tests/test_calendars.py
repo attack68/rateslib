@@ -512,7 +512,7 @@ def test_pipe_vectors():
 
 
 def test_pipe_raises():
-    with pytest.raises(ValueError, match="Pipe separator can only be used once"):
+    with pytest.raises(ValueError, match="Cannot use more than one pipe"):
         get_calendar("tgt|nyc|stk")
 
 

@@ -368,6 +368,12 @@ impl UnionCal {
         Ok(s)
     }
 
+    #[getter]
+    fn calendars(&self) -> Vec<Cal> { self.calendars.clone() }
+
+    #[getter]
+    fn settlement_calendars(&self) -> Option<Vec<Cal>> { self.settlement_calendars.clone() }
+
     /// Return whether the `date` is a business day.
     ///
     /// See :meth:`Cal.is_bus_day <rateslib.calendars.Cal.is_bus_day>`.
@@ -535,6 +541,12 @@ impl NamedCal {
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         self.union_cal.week_mask()
     }
+
+    #[getter]
+    fn name(&self) -> String { self.name.clone() }
+
+    #[getter]
+    fn union_cal(&self) -> UnionCal { self.union_cal.clone() }
 
     /// Return whether the `date` is a business day.
     ///

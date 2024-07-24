@@ -176,14 +176,14 @@ impl NamedCal {
     /// example input is "tgt,ldn|fed".
     pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let name_ = name.to_lowercase();
-        let parts: Vec<&str> = name.split("|").collect();
+        let parts: Vec<&str> = name_.split("|").collect();
         if parts.len() > 2 {
             Err(PyValueError::new_err("Cannot use more than one pipe ('|') operator in `name`."))
         }
         else if parts.len() == 1 {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             Ok(Self {
-                name: name.to_string(),
+                name: name_,
                 union_cal: UnionCal {calendars: cals, settlement_calendars: None}
             })
         } else {
