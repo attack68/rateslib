@@ -92,7 +92,7 @@ impl From<DualsOrF64> for f64 {
         match value {
             DualsOrF64::F64(f) => f,
             DualsOrF64::Dual(d) => d.real,
-            DualsOrF64::Dual2(d) => d.real
+            DualsOrF64::Dual2(d) => d.real,
         }
     }
 }
@@ -122,7 +122,7 @@ impl From<&DualsOrF64> for f64 {
         match value {
             DualsOrF64::F64(f) => *f,
             DualsOrF64::Dual(d) => d.real,
-            DualsOrF64::Dual2(d) => d.real
+            DualsOrF64::Dual2(d) => d.real,
         }
     }
 }

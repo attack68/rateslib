@@ -1,5 +1,5 @@
-use crate::json::JSON;
 use crate::calendars::calendar::{Cal, UnionCal};
+use crate::json::JSON;
 
 impl JSON for Cal {}
 impl JSON for UnionCal {}

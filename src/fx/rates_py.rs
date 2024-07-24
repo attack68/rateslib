@@ -1,16 +1,16 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
-use crate::dual::dual::{DualsOrF64, ADOrder};
+use crate::dual::dual::{ADOrder, DualsOrF64};
 use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates};
-use ndarray::Axis;
 use chrono::prelude::*;
+use ndarray::Axis;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
 // use pyo3::exceptions::PyValueError;
 // use pyo3::types::PyFloat;
-use crate::json::JSON;
 use crate::json::json_py::DeserializedObj;
+use crate::json::JSON;
 
 #[pymethods]
 impl Ccy {

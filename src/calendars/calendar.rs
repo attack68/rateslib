@@ -68,15 +68,13 @@
 //! ```
 
 use chrono::prelude::*;
-use chrono::{Days, Weekday};
+use chrono::Weekday;
 use indexmap::set::IndexSet;
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, PyErr};
+use pyo3::pyclass;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 use std::collections::HashSet;
 
-pub use crate::calendars::dateroll::{DateRoll, RollDay, Modifier, get_imm, get_roll};
+pub use crate::calendars::dateroll::{get_imm, get_roll, DateRoll, Modifier, RollDay};
 
 /// A business day calendar with a singular list of holidays.
 ///
@@ -190,19 +188,19 @@ impl DateRoll for UnionCal {
     }
 }
 
-impl DateRoll for StringCal {
-    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_weekday(date)
-    }
-
-    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_holiday(date)
-    }
-
-    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_settlement(date)
-    }
-}
+// impl DateRoll for StringCal {
+//     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+//         self.union_cal.is_weekday(date)
+//     }
+//
+//     fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+//         self.union_cal.is_holiday(date)
+//     }
+//
+//     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+//         self.union_cal.is_settlement(date)
+//     }
+// }
 
 impl<T> PartialEq<T> for UnionCal
 where
@@ -246,7 +244,6 @@ pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
         .and_hms_opt(0, 0, 0)
         .unwrap()
 }
-
 
 // UNIT TESTS
 #[cfg(test)]

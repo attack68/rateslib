@@ -1,10 +1,9 @@
+use crate::calendars::calendar::ndt;
 use chrono::prelude::*;
 use chrono::{Days, Weekday};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::cmp::Ordering;
-use crate::calendars::calendar::{ndt};
-
 
 /// A roll day.
 #[pyclass(module = "rateslib.rs")]
@@ -395,8 +394,8 @@ fn roll_without_settlement(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::named::get_calendar_by_name;
     use crate::calendars::calendar::{Cal, UnionCal};
+    use crate::calendars::named::get_calendar_by_name;
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -442,7 +441,7 @@ mod tests {
         );
     }
 
-     #[test]
+    #[test]
     fn test_roll_forward_bus_day() {
         let cal = fixture_hol_cal();
         let hol =
@@ -518,7 +517,6 @@ mod tests {
         assert!(cal.is_non_bus_day(&saturday)); // Saturday
     }
 
-
     #[test]
     fn test_lag() {
         let cal = fixture_hol_cal();
@@ -532,7 +530,7 @@ mod tests {
         assert_eq!(result, ndt(2015, 9, 8))
     }
 
-        #[test]
+    #[test]
     fn test_add_days() {
         let hols = vec![
             NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
@@ -637,7 +635,7 @@ mod tests {
         assert_eq!(result, ndt(2024, 6, 3)); //
     }
 
-     #[test]
+    #[test]
     fn test_add_37_months() {
         let cal = get_calendar_by_name("all").unwrap();
 
