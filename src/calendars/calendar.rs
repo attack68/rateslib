@@ -175,6 +175,7 @@ impl NamedCal {
     /// separating business day calendars with associated settlement calendars by a pipe. A valid
     /// example input is "tgt,ldn|fed".
     pub fn try_new(name: &str) -> Result<Self, PyErr> {
+        let name_ = name.to_lowercase();
         let parts: Vec<&str> = name.split("|").collect();
         if parts.len() > 2 {
             Err(PyValueError::new_err("Cannot use more than one pipe ('|') operator in `name`."))
@@ -189,7 +190,7 @@ impl NamedCal {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             let settle_cals: Vec<Cal> = parse_cals(parts[1])?;
             Ok(Self {
-                name: name.to_string(),
+                name: name_,
                 union_cal: UnionCal {calendars: cals, settlement_calendars: Some(settle_cals)}
             })
         }
