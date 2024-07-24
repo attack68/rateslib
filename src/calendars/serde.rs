@@ -1,8 +1,9 @@
-use crate::calendars::calendar::{Cal, UnionCal};
+use crate::calendars::calendar::{Cal, UnionCal, NamedCal};
 use crate::json::JSON;
 
 impl JSON for Cal {}
 impl JSON for UnionCal {}
+impl JSON for NamedCal {}
 
 #[cfg(test)]
 mod tests {
@@ -29,4 +30,13 @@ mod tests {
         let ucal2 = UnionCal::from_json(&js).unwrap();
         assert_eq!(ucal, ucal2);
     }
+
+    #[test]
+    fn test_named_cal_json() {
+        let ncal = NamedCal::try_new("tgt,ldn|fed").unwrap();
+        let js = ncal.to_json().unwrap();
+        let ncal2 = NamedCal::from_json(&js).unwrap();
+        assert_eq!(ncal, ncal2);
+    }
+
 }

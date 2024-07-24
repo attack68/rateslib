@@ -148,7 +148,7 @@ impl UnionCal {
 ///
 /// This struct is designed for use when serialization of a calendar as part of an another composite
 /// struct seeks to be related to named calendar combinations and not an inefficient list of dates.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(from = "NamedCalDataModel")]
 pub struct NamedCal {
     name: String,
@@ -168,7 +168,7 @@ impl std::convert::From<NamedCalDataModel> for NamedCal {
 }
 
 impl NamedCal {
-    fn try_new(name: &str) -> Result<Self, PyErr> {
+    pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let parts: Vec<&str> = name.split("|").collect();
         if parts.len() > 2 {
             Err(PyValueError::new_err("Cannot use more than one pipe ('|') operator in `name`."))
@@ -289,7 +289,6 @@ pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::named::get_calendar_by_name;
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -388,6 +387,15 @@ mod tests {
 
         assert!(!ncal.is_settlement(&ndt(1970, 5, 4)));  // LDN holiday
         assert!(ncal.is_settlement(&ndt(1970, 5, 1)));  // not LDN holiday
+    }
+
+    #[test]
+    fn test_named_cal_error() {
+        let ncal = NamedCal::try_new("tgt,nyc|ldn|");
+        assert!(ncal.is_err());
+
+        let ncal = NamedCal::try_new("");
+        assert!(ncal.is_err());
     }
 
     #[test]
