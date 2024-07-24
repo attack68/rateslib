@@ -159,17 +159,6 @@ class TestCal:
         assert (left == right) is expected
         assert (right == left) is expected
 
-    def test_equality_named_cal(self):
-        cal = get_calendar("fed", named=False)
-        ncal = NamedCal("fed")
-        assert cal == ncal
-        assert ncal == cal
-
-        ucal = get_calendar("ldn,tgt|fed", named=False)
-        ncal = NamedCal("ldn,tgt|fed")
-        assert ucal == ncal
-        assert ncal == ucal
-
     def test_attributes(self):
         ncal = get_calendar("tgt,LDN|Fed")
         assert ncal.name == "tgt,ldn|fed"
@@ -180,8 +169,22 @@ class TestCal:
         ncal = get_calendar("tgt")
         assert ncal.union_cal.settlement_calendars is None
 
+
 class TestUnionCal:
 
     def test_week_mask(self, multi_union):
         result = multi_union.week_mask
         assert result == {5, 6}
+
+
+class TestNamedCal:
+    def test_equality_named_cal(self):
+        cal = get_calendar("fed", named=False)
+        ncal = NamedCal("fed")
+        assert cal == ncal
+        assert ncal == cal
+
+        ucal = get_calendar("ldn,tgt|fed", named=False)
+        ncal = NamedCal("ldn,tgt|fed")
+        assert ucal == ncal
+        assert ncal == ucal
