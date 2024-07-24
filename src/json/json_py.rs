@@ -34,7 +34,6 @@ impl IntoPy<PyObject> for DeserializedObj {
 
 impl JSON for DeserializedObj {}
 
-///
 #[pyfunction]
 #[pyo3(name = "from_json")]
 pub fn from_json_py(_py: Python<'_>, json: &str) -> PyResult<DeserializedObj> {
