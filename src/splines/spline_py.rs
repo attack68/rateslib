@@ -2,9 +2,9 @@ use crate::dual::dual::{Dual, Dual2, DualsOrF64};
 use crate::splines::spline_f64::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
 
+use numpy::{PyArray2, ToPyArray};
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use numpy::{PyArray2, ToPyArray};
 
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {

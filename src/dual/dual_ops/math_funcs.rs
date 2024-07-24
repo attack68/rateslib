@@ -114,7 +114,7 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let result = d1.exp();
         assert!(Arc::ptr_eq(&d1.vars, &result.vars));
         let c = 1.0_f64.exp();
@@ -123,7 +123,7 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0 * c, 2.0 * c],
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(result, expected);
     }
 
@@ -134,7 +134,7 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let result = d1.log();
         assert!(Arc::ptr_eq(&d1.vars, &result.vars));
         let c = 1.0_f64.ln();
@@ -151,7 +151,7 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let result = d1.exp();
         assert!(Arc::ptr_eq(&d1.vars, &result.vars));
         let c = 1.0_f64.exp();
@@ -166,7 +166,7 @@ mod tests {
                 1.0_f64.exp() * 2.,
             ],
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(result, expected);
     }
 
@@ -178,7 +178,7 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let result = d1.log();
         assert!(Arc::ptr_eq(&d1.vars, &result.vars));
         let c = 1.0_f64.ln();
@@ -188,9 +188,8 @@ mod tests {
             vec![1.0, 2.0],
             vec![-0.5, -1.0, -1.0, -2.0],
         )
-            .unwrap();
+        .unwrap();
         println!("{:?}", result.dual2);
         assert_eq!(result, expected);
     }
-
 }

@@ -1,6 +1,5 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use std::collections::HashSet;
 use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal};
 use crate::calendars::named::get_calendar_by_name;
 use crate::json::json_py::DeserializedObj;
@@ -11,6 +10,7 @@ use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use std::collections::HashSet;
 
 /// Container for calendar structs convertible to Python objects.
 #[derive(Debug, Clone, PartialEq, FromPyObject)]
@@ -21,7 +21,6 @@ pub enum Cals {
 
 #[pymethods]
 impl Cal {
-
     /// Create a new *Cal* object.
     ///
     /// Parameters
@@ -42,11 +41,11 @@ impl Cal {
 
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
-        Ok(HashSet::from_iter(self
-            .week_mask
-            .clone()
-            .into_iter()
-            .map(|x| x.num_days_from_monday() as u8)
+        Ok(HashSet::from_iter(
+            self.week_mask
+                .clone()
+                .into_iter()
+                .map(|x| x.num_days_from_monday() as u8),
         ))
     }
 
@@ -167,7 +166,6 @@ impl Cal {
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
     }
-
 
     /// Return a date separated by months from an input date, and rolled with a modifier.
     ///

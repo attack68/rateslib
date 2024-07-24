@@ -28,5 +28,4 @@ mod tests {
         let d = Dual2::one();
         assert_eq!(d, Dual2::new(1.0, vec![]));
     }
-
 }

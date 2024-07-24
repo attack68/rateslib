@@ -30,14 +30,14 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let result = d1 / 2.0;
         let expected = Dual::try_new(
             0.5,
             vec!["v0".to_string(), "v1".to_string()],
             vec![0.5, 1.0],
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(result, expected)
     }
 
@@ -48,7 +48,7 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let result = 2.0 / d1.clone();
         let expected = Dual::new(2.0, vec![]) / d1;
         assert_eq!(result, expected)
@@ -61,19 +61,19 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let d2 = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![0.0, 3.0],
         )
-            .unwrap();
+        .unwrap();
         let expected = Dual::try_new(
             0.5,
             vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
             vec![0.5, 1.0, -0.75],
         )
-            .unwrap();
+        .unwrap();
         let result = d1 / d2;
         assert_eq!(result, expected)
     }
@@ -86,7 +86,7 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let result = d1 / 2.0;
         let expected = Dual2::try_new(
             0.5,
@@ -94,7 +94,7 @@ mod tests {
             vec![0.5, 1.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(result, expected)
     }
 
@@ -106,7 +106,7 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let result = 2.0 / d1.clone();
         let expected = Dual2::new(2.0, vec![]) / d1;
         assert_eq!(result, expected)
@@ -120,23 +120,22 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let d2 = Dual2::try_new(
             2.0,
             vec!["v0".to_string(), "v2".to_string()],
             vec![0.0, 3.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let expected = Dual2::try_new(
             0.5,
             vec!["v0".to_string(), "v1".to_string(), "v2".to_string()],
             vec![0.5, 1.0, -0.75],
             vec![0., 0., -0.375, 0., 0., -0.75, -0.375, -0.75, 1.125],
         )
-            .unwrap();
+        .unwrap();
         let result = d1 / d2;
         assert_eq!(result, expected)
     }
 }
-

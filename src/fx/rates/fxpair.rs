@@ -1,15 +1,12 @@
-use std::fmt;
-use pyo3::exceptions::PyValueError;
-use pyo3::{PyErr};
-use serde::{Serialize, Deserialize};
 use crate::fx::rates::ccy::Ccy;
+use pyo3::exceptions::PyValueError;
+use pyo3::PyErr;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// A container of a two-pair `Ccy` cross.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FXPair(
-    pub(crate) Ccy,
-    pub(crate) Ccy
-);
+pub struct FXPair(pub(crate) Ccy, pub(crate) Ccy);
 
 impl FXPair {
     /// Constructs a new `FXPair`, as a combination of two distinct `Ccy`s.
