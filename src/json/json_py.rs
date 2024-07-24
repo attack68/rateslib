@@ -1,7 +1,7 @@
 //! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
 //! bindings.
 
-use crate::calendars::calendar::{Cal, UnionCal};
+use crate::calendars::calendar::{Cal, UnionCal, NamedCal};
 use crate::dual::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
@@ -11,12 +11,16 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Container for all of the Python exposed Rust objects which are deserializable.
+///
+/// This allows a single `from_json` function to automatically detect the type and
+/// convert it directly to a usable type in Python.
 #[derive(Serialize, Deserialize, FromPyObject)]
 pub enum DeserializedObj {
     Dual(Dual),
     Dual2(Dual2),
     Cal(Cal),
     UnionCal(UnionCal),
+    NamedCal(NamedCal),
     FXRates(FXRates),
 }
 
@@ -27,6 +31,7 @@ impl IntoPy<PyObject> for DeserializedObj {
             DeserializedObj::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::Cal(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
         }
     }

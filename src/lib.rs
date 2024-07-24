@@ -27,7 +27,7 @@ pub mod curves;
 use curves::interpolation_py::index_left_f64;
 
 pub mod calendars;
-use calendars::calendar::{Cal, Modifier, RollDay, UnionCal};
+use calendars::calendar::{Cal, Modifier, RollDay, UnionCal, NamedCal};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 pub mod fx;
@@ -61,6 +61,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Calendars
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
+    m.add_class::<NamedCal>()?;
     m.add_class::<Modifier>()?;
     m.add_class::<RollDay>()?;
     m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;

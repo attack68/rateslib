@@ -148,12 +148,13 @@ impl UnionCal {
 ///
 /// This struct is designed for use when serialization of a calendar as part of an another composite
 /// struct seeks to be related to named calendar combinations and not an inefficient list of dates.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(from = "NamedCalDataModel")]
 pub struct NamedCal {
-    name: String,
+    pub(crate) name: String,
     #[serde(skip)]
-    union_cal: UnionCal,
+    pub(crate) union_cal: UnionCal,
 }
 
 #[derive(Deserialize)]
@@ -168,6 +169,11 @@ impl std::convert::From<NamedCalDataModel> for NamedCal {
 }
 
 impl NamedCal {
+    /// Create a new named calendar.
+    ///
+    /// `name` must be a string that contains named calendars separated by commas, additionally
+    /// separating business day calendars with associated settlement calendars by a pipe. A valid
+    /// example input is "tgt,ldn|fed".
     pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let parts: Vec<&str> = name.split("|").collect();
         if parts.len() > 2 {
@@ -260,6 +266,15 @@ where
     }
 }
 
+impl<T> PartialEq<T> for NamedCal
+where
+    T: DateRoll,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.union_cal.eq(other)
+    }
+}
+
 impl PartialEq<UnionCal> for Cal {
     fn eq(&self, other: &UnionCal) -> bool {
         let cd1 = self
@@ -272,6 +287,12 @@ impl PartialEq<UnionCal> for Cal {
             self.is_bus_day(x) == other.is_bus_day(x)
                 && self.is_settlement(x) == other.is_settlement(y)
         })
+    }
+}
+
+impl PartialEq<NamedCal> for Cal {
+    fn eq(&self, other: &NamedCal) -> bool {
+        other.union_cal.eq(self)
     }
 }
 

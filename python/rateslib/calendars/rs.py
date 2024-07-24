@@ -2,7 +2,7 @@ from typing import Union
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Cal, Modifier, RollDay, UnionCal
+from rateslib.rs import Cal, Modifier, RollDay, UnionCal, NamedCal
 
 CalTypes = Union[Cal, UnionCal]
 CalInput = Union[CalTypes, str, NoInput]
@@ -51,22 +51,30 @@ def _get_modifier(modifier: str, mod_days: bool) -> Modifier:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 
 
-def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tuple[CalTypes, str]]:
+def get_calendar(
+    calendar: CalInput,
+    kind: bool = False,
+    named: bool = True,
+) -> Union[CalTypes, tuple[CalTypes, str]]:
     """
     Returns a calendar object either from an available set or a user defined input.
 
     Parameters
     ----------
-    calendar : str, Cal, UnionCal
+    calendar : str, Cal, UnionCal, NamedCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
     kind : bool
         If `True` will also return the kind of calculation from `"null", "named",
         "custom"`.
+    named : bool
+        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more compactly
+        serialized, otherwise will parse an input string and return a `~rateslib.calendars.Cal` or
+        `~rateslib.calendars.UnionCal` directly.
 
     Returns
     -------
-    Cal, UnionCal or tuple
+    NamedCal, Cal, UnionCal or tuple
 
     Notes
     -----
@@ -106,7 +114,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
 
     .. ipython:: python
 
-       tgt_cal = get_calendar("tgt")
+       tgt_cal = get_calendar("tgt", named=False)
        tgt_cal.holidays[300:312]
        tgt_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(tgt_cal)
@@ -122,7 +130,12 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
     # TODO: rename calendars or make a more generalist statement about their names.
     if calendar is NoInput.blank:
         ret = defaults.calendars["all"], "null"
-    elif isinstance(calendar, str):
+
+    elif isinstance(calendar, str) and named:
+        ret = NamedCal(calendar), "object"
+
+    elif isinstance(calendar, str) and not named:
+        # parse the string in Python and return Rust objects directly
         vectors = calendar.split("|")
         if len(vectors) == 1:
             calendars = vectors[0].lower().split(",")
@@ -139,6 +152,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
             ret = UnionCal(cals, sets), "named"
         else:
             raise ValueError("Pipe separator can only be used once in input, e.g. 'tgt|nyc'.")
+
     else:  # calendar is a Calendar object type
         ret = calendar, "custom"
 
