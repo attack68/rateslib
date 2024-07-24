@@ -144,10 +144,14 @@ impl UnionCal {
     }
 }
 
-pub struct StringCal {
-    name: String,
-    union_cal: UnionCal,
-}
+/// A wrapper for a UnionCal struct specified by a string representation.
+///
+/// This struct is designed for use when serialization of a calendar as part of an another composite
+/// struct seeks to be related to named calendar combinations and not an inefficient list of dates.
+// pub struct StringCal {
+//     name: String,
+//     union_cal: UnionCal,
+// }
 
 // impl StringCal {
 //     fn try_new(name: &str) -> Self {
@@ -155,8 +159,6 @@ pub struct StringCal {
 //         let cals;
 //     }
 // }
-
-
 
 impl DateRoll for Cal {
     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
