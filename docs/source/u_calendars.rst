@@ -20,6 +20,7 @@ Classes
 --------
 .. autosummary::
    rateslib.calendars.Cal
+   rateslib.calendars.NamedCal
    rateslib.calendars.UnionCal
 
 Methods

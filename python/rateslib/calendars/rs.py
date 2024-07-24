@@ -4,7 +4,7 @@ from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import Cal, Modifier, RollDay, UnionCal, NamedCal
 
-CalTypes = Union[Cal, UnionCal]
+CalTypes = Union[Cal, UnionCal, NamedCal]
 CalInput = Union[CalTypes, str, NoInput]
 
 Modifier.__doc__ = "Enumerable type for modification rules."
