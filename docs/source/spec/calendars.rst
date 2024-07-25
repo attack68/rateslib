@@ -1,3 +1,4 @@
+.. _spec-defaults-calendars:
 
 ***************
 Calendars

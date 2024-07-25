@@ -30,54 +30,110 @@ Methods
    rateslib.calendars.add_tenor
    rateslib.calendars.dcf
 
+
+Why use 3 Calendar types?
+**************************
+
+Every calendar type has the same date manipulation methods, such as :meth:`~rateslib.calendars.Cal.is_bus_day` or
+:meth:`~rateslib.calendars.Cal.bus_date_range`, for example. The different types provide
+slightly different features.
+
+**Cal**
+
+The :class:`~rateslib.calendars.Cal` class is the *base* holiday calendar. It is a simple object for storing a list of
+datetimes as the holidays and maintaining a record of what are the weekends (i.e. Saturdays and Sundays).
+Its business day assessment is made by comparing against its list of ``holidays`` and ``week_mask``. *Cals*
+provide the flexibility to create custom calendars.
+
+.. ipython:: python
+
+   cal = Cal(
+       holidays=[dt(2023, 12, 25), dt(2023, 12, 26), dt(2024, 1, 1)],
+       week_mask=[5, 6]
+   )
+   cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
+
+For ease of use and performance *rateslib* has pre-defined and compiled a set of existing common fixed income
+calendars for example the european *Target* calendar and the FED's settlement calendar.
+See :ref:`default calendars <spec-defaults-calendars>`.
+
+**UnionCal**
+
+The :class:`~rateslib.calendars.UnionCal` class allows combinations of :class:`~rateslib.calendars.Cal`, to extend the
+business day mathematics. This is required for multi-currency instruments. A *UnionCal* can contain, and replicate,
+just one *Cal*.
+
+.. ipython:: python
+
+   union_cal = UnionCal(
+       calendars=[cal],
+       settlement_calendars=None
+   )
+   union_cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
+
+**Calendar equivalence** checks that every business date and every potential settlement date are the same in both
+calendars. For example, in this case we have that:
+
+.. ipython:: python
+
+   cal == union_cal
+
+and these two calendar objects will perform exactly the same date manipulation functions.
+
+**NamedCal**
+
+The :class:`~rateslib.calendars.NamedCal` class is a wrapper for a *UnionCal*. It is a convenient object
+because it will construct holiday calendars directly from *rateslib's* pre-defined list of *Cals* using a
+**string parsing syntax**, which is suitable for multi-currency *Instruments*. This also
+improves *serialization* as shown below.
+
+*NamedCals* can only be used to load and combine the pre-compiled calendars. Custom calendars must be created
+with the *Cal* and/or *UnionCal* objects.
+
 Loading existing calendars
 ***************************
 
+It is possible to load one of the :ref:`default calendars <spec-defaults-calendars>`
+directly using a *NamedCal* as follows:
+
+.. ipython:: python
+
+   named_cal = NamedCal("tgt")
+
 .. warning::
 
-   Use preset calendars at your own risk. Generally the repeated yearly holidays are
-   accurate but a full list of ad-hoc and specialised holidays has not been properly
-   reviewed and is not necessarily upto date.
+   Use defaults calendars at your own risk. Generally the repeated yearly holidays are
+   accurate but a full list of ad-hoc and specialised holidays has may not necessarily be
+   upto date.
 
-The :meth:`~rateslib.calendars.get_calendar` method is used internally
-to parse the different
-options a user might provide, e.g. supplying *NoInput* and then generating a
-null calendar object with no holidays or passing through a user defined
-calendar. There are also some calendars
-pre-programmed, and those currently available calendars are below. More information
-is available in the :meth:`~rateslib.calendars.get_calendar` method:
+Alternatively, the :meth:`~rateslib.calendars.get_calendar` method can be used (and is used internally)
+to parse the different options a user might provide. This is more flexible because it
+can return a calendar with no holidays on null input, or it can also load custom
+calendars that have been dynamically added to *rateslib's* ``defaults.calendars`` object, or it
+can also return *Cal* or *UnionCal* objects directly if preferred. This only has relevance for serialization.
 
 .. ipython:: python
 
-   from rateslib import defaults
-   print(defaults.calendars.keys())
+   cal = get_calendar("ldn", named=False)
+   type(cal)
+   named_cal = get_calendar("ldn", named=True)
+   type(named_cal)
+   cal == named_cal
+
+Serialization
+--------------
+
+The `cal` and `named_cal` calendars created above are equivalent with reference to dates, even though they are
+two different types. The difference is how these objects are serialized. `named_cal` will deserialize to the
+*"ldn"* calendar that is defined as of the current version (and which may be updated from version to version),
+whilst `cal` is statically defined for a list of dates (it will never change).
 
 .. ipython:: python
 
-   ldn_cal = get_calendar("ldn")
-   ldn_cal.bus_date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9))
-   stk_cal = get_calendar("stk")
-   stk_cal.bus_date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9))
+   cal.to_json()
+   named_cal.to_json()
 
-Available calendars can also be **combined** if a comma separator is used in the
-argument, which acts as an AND operator for business days and an OR operator for
-holidays. This is useful for multi-currency derivatives.
-
-.. ipython:: python
-
-   ldn_stk_cal = get_calendar("ldn,stk")
-   ldn_stk_cal.bus_date_range(start=dt(2022, 12, 23), end=dt(2023, 1, 9))
-
-Creating a custom calendar
-**************************
-
-Custom calendars are directly constructed from the :class:`~rateslib.calendars.Cal` class.
-This requires a list of ``holidays`` and a ``week_mask``.
-
-.. ipython:: python
-
-   custom_cal = Cal([dt(2023, 12, 25), dt(2023, 12, 26), dt(2024, 1, 1)], [5, 6])
-   custom_cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
+These JSON strings will deserialize directly into the types from which they were constructed.
 
 .. _settlement-cals:
 
@@ -89,13 +145,14 @@ class. It requires a list of *Cal* objects to form the union of non-business dat
 and another, secondary list, of associated ``settlement_calendars``, to validate
 calculated dates against.
 
-Combined calendars can also be constructed automatically with string parsing.
+Combined calendars can also be constructed automatically using **string parsing syntax**.
 Comma separation forms a union of calendars. For example the appropriate calendar
 for a EUR/USD cross-currency swap is *"tgt,nyc"* for TARGET and New York.
 
 The appropriate holiday calendar to use for a EURUSD FX instrument, such as spot
-determination is *"tgt|nyc"*, which performs date manipulation under a TARGET calendar
-but enforces associated settlement against the New York calendar.
+determination is *"tgt|fed"*, which performs date manipulation under a TARGET calendar
+but enforces associated settlement against the Fed settlement calendar. The associated settlement
+calendar here is defined after the pipe operator.
 
 .. ipython:: python
 
@@ -119,11 +176,11 @@ in *Instrument* instantiation or or in other methods such as :meth:`~rateslib.ca
 
 Suppose we create a custom calendar which allows only Wednesdays to be business days.
 We can then use this calendar to derive IMM dates in a month, although this is
-not the most efficient way of doing this it is just shown for example purposes.
+obviously a pathological way of doing this, it is just shown for example purposes.
 
 .. ipython:: python
 
-   cal = Cal([], [0, 1, 3, 4, 5, 6])
+   cal = Cal(holidays=[], week_mask=[0, 1, 3, 4, 5, 6])
    defaults.calendars["wednesdays"] = cal
 
    # The IMM date in March 2025 is..
