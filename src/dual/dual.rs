@@ -478,9 +478,10 @@ impl Dual {
     /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
     /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn new_from(other: &Self, real: f64, vars: Vec<String>) -> Self {
+    pub fn new_from<T: Vars>(other: &T, real: f64, vars: Vec<String>) -> Self
+    {
         let new = Self::new(real, vars);
-        new.to_new_vars(&other.vars, None)
+        new.to_new_vars(other.vars(), None)
     }
 
     /// Construct a new `Dual` cloning the `vars` Arc pointer from another.
@@ -498,23 +499,23 @@ impl Dual {
     /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
     /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn try_new_from(
-        other: &Self,
+    pub fn try_new_from<T: Vars>(
+        other: &T,
         real: f64,
         vars: Vec<String>,
         dual: Vec<f64>,
     ) -> Result<Self, PyErr> {
         let new = Self::try_new(real, vars, dual)?;
-        Ok(new.to_new_vars(&other.vars, None))
+        Ok(new.to_new_vars(other.vars(), None))
     }
 
     /// Construct a new `Dual` cloning the `vars` Arc pointer from another.
     ///
-    pub fn clone_from(other: &Self, real: f64, dual: Array1<f64>) -> Self {
+    pub fn clone_from<T: Vars>(other: &T, real: f64, dual: Array1<f64>) -> Self {
         assert_eq!(other.vars().len(), dual.len());
         Dual {
             real,
-            vars: Arc::clone(&other.vars),
+            vars: Arc::clone(other.vars()),
             dual,
         }
     }
@@ -621,9 +622,9 @@ impl Dual2 {
     /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
     /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn new_from(other: &Self, real: f64, vars: Vec<String>) -> Self {
+    pub fn new_from<T: Vars>(other: &T, real: f64, vars: Vec<String>) -> Self {
         let new = Self::new(real, vars);
-        new.to_new_vars(&other.vars, None)
+        new.to_new_vars(other.vars(), None)
     }
 
     /// Construct a new `Dual2` cloning the `vars` Arc pointer from another.
@@ -641,26 +642,26 @@ impl Dual2 {
     /// let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![])?;
     /// let y = Dual2::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn try_new_from(
-        other: &Self,
+    pub fn try_new_from<T: Vars>(
+        other: &T,
         real: f64,
         vars: Vec<String>,
         dual: Vec<f64>,
         dual2: Vec<f64>,
     ) -> Result<Self, PyErr> {
         let new = Self::try_new(real, vars, dual, dual2)?;
-        Ok(new.to_new_vars(&other.vars, None))
+        Ok(new.to_new_vars(other.vars(), None))
     }
 
     /// Construct a new `Dual2` cloning the `vars` Arc pointer from another.
     ///
-    pub fn clone_from(other: &Self, real: f64, dual: Array1<f64>, dual2: Array2<f64>) -> Self {
+    pub fn clone_from<T: Vars>(other: &T, real: f64, dual: Array1<f64>, dual2: Array2<f64>) -> Self {
         assert_eq!(other.vars().len(), dual.len());
         assert_eq!(other.vars().len(), dual2.len_of(Axis(0)));
         assert_eq!(other.vars().len(), dual2.len_of(Axis(1)));
         Dual2 {
             real,
-            vars: Arc::clone(&other.vars),
+            vars: Arc::clone(other.vars()),
             dual,
             dual2,
         }
