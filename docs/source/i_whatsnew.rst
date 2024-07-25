@@ -42,7 +42,7 @@ email contact through **rateslib@gmail.com**.
      - Can now have *effective* and *termination* dates which are non-business dates
        in unmodified schedules.
    * - Bug
-     - Publicly exposed the :meth:`PPSpline.bsplmatrix <rateslib.splines.PPSplineF64.bsplmatrix` function
+     - Publicly exposed the :meth:`PPSpline.bsplmatrix <rateslib.splines.PPSplineF64.bsplmatrix>` function
        for displaying intermediate spline calculation results of the spline coefficient matrix.
 
 1.3.0 (9th July 2024)
