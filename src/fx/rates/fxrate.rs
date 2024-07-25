@@ -1,8 +1,8 @@
-use pyo3::{pyclass, PyErr};
-use serde::{Serialize, Deserialize};
-use chrono::NaiveDateTime;
-use crate::fx::rates::fxpair::FXPair;
 use crate::dual::dual::DualsOrF64;
+use crate::fx::rates::fxpair::FXPair;
+use chrono::NaiveDateTime;
+use pyo3::{pyclass, PyErr};
+use serde::{Deserialize, Serialize};
 
 /// An FX rate containing `FXPair`, `rate` and `settlement` info.
 #[pyclass(module = "rateslib.rs")]

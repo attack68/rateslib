@@ -93,7 +93,7 @@ mod tests {
                 Vec::from([String::from("a"), String::from("b")]),
                 Vec::from([2.3, 0.0])
             )
-                .unwrap()
+            .unwrap()
         );
     }
 
@@ -111,7 +111,7 @@ mod tests {
             Vec::from([2.3]),
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         assert!(
             d == Dual2::try_new(
                 2.0,
@@ -119,7 +119,7 @@ mod tests {
                 Vec::from([2.3]),
                 Vec::new()
             )
-                .unwrap()
+            .unwrap()
         );
         assert!(
             d != Dual2::try_new(
@@ -128,7 +128,7 @@ mod tests {
                 Vec::from([2.3]),
                 Vec::new()
             )
-                .unwrap()
+            .unwrap()
         );
         assert!(
             d != Dual2::try_new(
@@ -137,7 +137,7 @@ mod tests {
                 Vec::from([2.3]),
                 Vec::new()
             )
-                .unwrap()
+            .unwrap()
         );
         assert!(
             d != Dual2::try_new(
@@ -146,7 +146,7 @@ mod tests {
                 Vec::from([1.3]),
                 Vec::new()
             )
-                .unwrap()
+            .unwrap()
         );
         // Dual - Dual (missing Vars are zero and upcasted)
         assert!(
@@ -156,8 +156,7 @@ mod tests {
                 Vec::from([2.3, 0.0]),
                 Vec::new()
             )
-                .unwrap()
+            .unwrap()
         );
     }
-
 }

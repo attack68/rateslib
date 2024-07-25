@@ -126,14 +126,14 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let result = d1.abs();
         let expected = Dual::try_new(
             2.0,
             vec!["v0".to_string(), "v1".to_string()],
             vec![-1.0, -2.0],
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(result, expected);
 
         let result = d1.abs();
@@ -148,7 +148,7 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let result = d1.abs();
         let expected = Dual2::try_new(
             2.0,
@@ -156,7 +156,7 @@ mod tests {
             vec![-1.0, -2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(result, expected);
 
         let result = result.abs();

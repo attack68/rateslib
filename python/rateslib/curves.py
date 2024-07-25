@@ -73,6 +73,8 @@ class _Serialize:
             container.update({"calendar": None})
         elif "named: " in self.calendar_type:
             container.update({"calendar": self.calendar_type[7:]})
+        elif self.calendar_type == "object":
+            container.update({"calendar": self.calendar.name})
         else:  # calendar type is custom
             container.update(
                 {

@@ -15,7 +15,7 @@ use crate::json::json_py::from_json_py;
 use pyo3::prelude::*;
 
 pub mod dual;
-use dual::dual::{Dual, Dual2, ADOrder};
+use dual::dual::{ADOrder, Dual, Dual2};
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 
 pub mod splines;
@@ -27,7 +27,7 @@ pub mod curves;
 use curves::interpolation_py::index_left_f64;
 
 pub mod calendars;
-use calendars::calendar::{Cal, Modifier, RollDay, UnionCal};
+use calendars::calendar::{Cal, Modifier, RollDay, UnionCal, NamedCal};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 pub mod fx;
@@ -61,6 +61,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Calendars
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
+    m.add_class::<NamedCal>()?;
     m.add_class::<Modifier>()?;
     m.add_class::<RollDay>()?;
     m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;

@@ -1,7 +1,7 @@
 use internment::Intern;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A currency identified by 3-ascii ISO code.
 #[pyclass(module = "rateslib.rs")]

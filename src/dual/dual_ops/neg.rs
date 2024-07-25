@@ -37,8 +37,8 @@ impl_op!(-|a: &Dual2| -> Dual2 {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array1;
     use super::*;
+    use ndarray::Array1;
 
     #[test]
     fn negate() {
@@ -47,7 +47,7 @@ mod tests {
             Vec::from([String::from("a"), String::from("b")]),
             Vec::from([2., -1.4]),
         )
-            .unwrap();
+        .unwrap();
         let d2 = -d.clone();
         assert!(d2.real == -2.3);
         assert!(Arc::ptr_eq(&d.vars, &d2.vars));
@@ -72,7 +72,7 @@ mod tests {
             Vec::from([2., -1.4]),
             Vec::from([1.0, -1.0, -1.0, 2.0]),
         )
-            .unwrap();
+        .unwrap();
         let d2 = -d.clone();
         assert!(d2.real == -2.3);
         assert!(Arc::ptr_eq(&d.vars, &d2.vars));
@@ -89,7 +89,7 @@ mod tests {
             Vec::from([2., -1.4]),
             Vec::from([1.0, -1.0, -1.0, 2.0]),
         )
-            .unwrap();
+        .unwrap();
         let d2 = -&d;
         assert!(d2.real == -2.3);
         assert!(Arc::ptr_eq(&d.vars, &d2.vars));
@@ -97,5 +97,4 @@ mod tests {
         assert!(d2.dual[1] == 1.4);
         assert!(d2.dual2[[1, 0]] == 1.0);
     }
-
 }

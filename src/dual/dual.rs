@@ -15,7 +15,7 @@ pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use pyo3::exceptions::PyValueError;
-use pyo3::{FromPyObject, pyclass, PyErr};
+use pyo3::{pyclass, FromPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 use std::sync::Arc;
@@ -38,7 +38,6 @@ pub struct Dual2 {
     pub(crate) dual: Array1<f64>,
     pub(crate) dual2: Array2<f64>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject, Serialize, Deserialize)]
 pub enum DualsOrF64 {
@@ -784,8 +783,6 @@ mod tests {
         }
     }
 
-
-
     #[test]
     fn gradient1_no_equiv() {
         let d1 =
@@ -803,8 +800,6 @@ mod tests {
         let expected = Array1::from_vec(vec![1.1, 2.2]);
         assert_eq!(result, expected)
     }
-
-
 
     // PROFILING
 
@@ -1143,8 +1138,6 @@ mod tests {
         let expected = arr2(&[[0., 0.], [0., 10.]]);
         assert_eq!(result, expected);
     }
-
-
 
     #[test]
     fn uninitialised_derivs_eq_one2() {

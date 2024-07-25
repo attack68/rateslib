@@ -49,7 +49,7 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         assert!(d1 < 2.0);
         assert!(d1 > 0.5);
         assert!(d1 <= 1.0);
@@ -63,7 +63,7 @@ mod tests {
             vec!["v0".to_string(), "v2".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         assert!(d2 > d1);
         assert!(d1 < d2);
         let d3 = Dual::try_new(1.0, vec!["v3".to_string()], vec![10.0]).unwrap();
@@ -79,7 +79,7 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         assert!(d1 < 2.0);
         assert!(d1 > 0.5);
         assert!(d1 <= 1.0);
@@ -94,12 +94,11 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         assert!(d2 > d1);
         assert!(d1 < d2);
         let d3 = Dual2::try_new(1.0, vec!["v3".to_string()], vec![10.0], Vec::new()).unwrap();
         assert!(d1 >= d3);
         assert!(d1 <= d3);
     }
-
 }

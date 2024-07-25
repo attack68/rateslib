@@ -57,8 +57,8 @@ impl Pow<f64> for &Dual2 {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array1;
     use super::*;
+    use ndarray::Array1;
 
     #[test]
     fn inv() {
@@ -67,7 +67,7 @@ mod tests {
             vec!["v0".to_string(), "v1".to_string()],
             vec![1.0, 2.0],
         )
-            .unwrap();
+        .unwrap();
         let result = d1.clone() * d1.pow(-1.0);
         let expected = Dual::new(1.0, vec![]);
         assert!(result == expected)
@@ -97,10 +97,9 @@ mod tests {
             vec![1.0, 2.0],
             Vec::new(),
         )
-            .unwrap();
+        .unwrap();
         let result = d1.clone() * d1.pow(-1.0);
         let expected = Dual2::new(1.0, vec![]);
         assert_eq!(result, expected)
     }
-
 }
