@@ -5,7 +5,7 @@
 
    from rateslib import from_json
    from rateslib.dual import Dual, Dual2
-   from rateslib.calendars import Cal, UnionCal
+   from rateslib.calendars import Cal, UnionCal, NamedCal
    from rateslib.fx import FXRates
    from datetime import datetime as dt
 
@@ -76,11 +76,15 @@ Calendar serialization is useful for saving and loading custom calendar objects.
    cal.to_json()
 
    # create an identical calendar to `cal` (in business day terms), by unionising calendars
-   ucal = UnionCal([Cal([dt(2023, 1, 2)], [5,6]), Cal([dt(2023, 1, 3)], [])])
-   ucal.to_json()
+   union_cal = UnionCal([Cal([dt(2023, 1, 2)], [5,6]), Cal([dt(2023, 1, 3)], [])])
+   union_cal.to_json()
 
    # these two objects have the same business and settlement days..
-   from_json(cal.to_json()) == from_json(ucal.to_json())
+   from_json(cal.to_json()) == from_json(union_cal.to_json())
+
+   # serializing NamedCal remains consistent to the pre-compiled calendars for the version of rateslib
+   named_cal = NamedCal("tgt")
+   named_cal.to_json()
 
 FXRates
 --------
