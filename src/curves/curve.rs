@@ -1,6 +1,6 @@
 use crate::calendars::calendar_py::Cals;
 use crate::curves::interpolation::LocalInterpolation;
-use crate::dual::dual::DualsOrF64;
+use crate::dual::dual::{DualsOrF64, ADOrder};
 use pyo3::PyErr;
 // use crate::calendars::dcfs::;
 
@@ -24,11 +24,19 @@ pub struct Curve {
     calendar: Cals,
     convention: Convention,
     interpolation: LocalInterpolation,
+    id: String,
 }
 
 impl Curve {
-    pub fn try_new(nodes: Nodes) -> Result<Self, PyErr> {
-
+    pub fn try_new(
+        nodes: HashMap<NaiveDateTime, DualsOrF64>,
+        ad: ADOrder
+        id: &str,
+    ) -> Result<Self, PyErr> {
+        let mut nodes_order: IndexMap<NaiveDateTime, DualsOrF64> = IndexMap::new();
+        for (k,v) in nodes {
+            let _ = nodes_order.insert_sorted(k, v);
+        }
     }
 
     pub fn value(&self, &NaiveDateTime) -> DualsOrF64 {
