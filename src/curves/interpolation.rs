@@ -1,3 +1,13 @@
+
+pub enum LocalInterpolation {
+    LogLinear,
+    Linear,
+    LinearIndex,
+    LinearZeroRate,
+    FlatForward,
+    FlatBackward,
+}
+
 pub fn index_left<T>(list_input: &[T], value: &T, left_count: Option<usize>) -> usize
 where
     for<'a> &'a T: PartialOrd + PartialEq,
