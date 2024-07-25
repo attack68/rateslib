@@ -24,6 +24,8 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - :meth:`~rateslib.calendars.add_tenor` acquires the new optional argument ``mod_days`` which, by
        default, negates the modification rule for day type tenors and applies it only to month and year type tenors.
+   * - Calendars
+     - Add :class:`~rateslib.calendars.NamedCal` for improved control of calendar serialization and loading.
    * - Instruments
      - Add a :meth:`~rateslib.instruments.FXOption.cashflows` method to generic :class:`~rateslib.instruments.FXOption`
        and also as a pre-requisite to :class:`~rateslib.periods.FXOptionPeriod`. This also allows the derivative
@@ -40,7 +42,7 @@ email contact through **rateslib@gmail.com**.
      - Can now have *effective* and *termination* dates which are non-business dates
        in unmodified schedules.
    * - Bug
-     - Publicly exposed the :meth:`PPSpline.bsplmatrix <rateslib.splines.PPSplineF64.bsplmatrix` function
+     - Publicly exposed the :meth:`PPSpline.bsplmatrix <rateslib.splines.PPSplineF64.bsplmatrix>` function
        for displaying intermediate spline calculation results of the spline coefficient matrix.
 
 1.3.0 (9th July 2024)

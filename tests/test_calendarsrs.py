@@ -1,7 +1,7 @@
 import pytest
 import context
 from rateslib.calendars import _get_modifier, get_calendar
-from rateslib.rs import Cal, UnionCal, Modifier, RollDay
+from rateslib.rs import Cal, UnionCal, Modifier, RollDay, NamedCal
 from rateslib.json import from_json
 from datetime import datetime as dt
 
@@ -159,9 +159,32 @@ class TestCal:
         assert (left == right) is expected
         assert (right == left) is expected
 
+    def test_attributes(self):
+        ncal = get_calendar("tgt,LDN|Fed")
+        assert ncal.name == "tgt,ldn|fed"
+        assert isinstance(ncal.union_cal, UnionCal)
+        assert len(ncal.union_cal.calendars) == 2
+        assert len(ncal.union_cal.settlement_calendars) == 1
+
+        ncal = get_calendar("tgt")
+        assert ncal.union_cal.settlement_calendars is None
+
 
 class TestUnionCal:
 
     def test_week_mask(self, multi_union):
         result = multi_union.week_mask
         assert result == {5, 6}
+
+
+class TestNamedCal:
+    def test_equality_named_cal(self):
+        cal = get_calendar("fed", named=False)
+        ncal = NamedCal("fed")
+        assert cal == ncal
+        assert ncal == cal
+
+        ucal = get_calendar("ldn,tgt|fed", named=False)
+        ncal = NamedCal("ldn,tgt|fed")
+        assert ucal == ncal
+        assert ncal == ucal

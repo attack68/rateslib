@@ -2,9 +2,9 @@ from typing import Union
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Cal, Modifier, RollDay, UnionCal
+from rateslib.rs import Cal, Modifier, RollDay, UnionCal, NamedCal
 
-CalTypes = Union[Cal, UnionCal]
+CalTypes = Union[Cal, UnionCal, NamedCal]
 CalInput = Union[CalTypes, str, NoInput]
 
 Modifier.__doc__ = "Enumerable type for modification rules."
@@ -51,22 +51,30 @@ def _get_modifier(modifier: str, mod_days: bool) -> Modifier:
         raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 
 
-def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tuple[CalTypes, str]]:
+def get_calendar(
+    calendar: CalInput,
+    kind: bool = False,
+    named: bool = True,
+) -> Union[CalTypes, tuple[CalTypes, str]]:
     """
     Returns a calendar object either from an available set or a user defined input.
 
     Parameters
     ----------
-    calendar : str, Cal, UnionCal
+    calendar : str, Cal, UnionCal, NamedCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
     kind : bool
         If `True` will also return the kind of calculation from `"null", "named",
         "custom"`.
+    named : bool
+        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more compactly
+        serialized, otherwise will parse an input string and return a `~rateslib.calendars.Cal` or
+        `~rateslib.calendars.UnionCal` directly.
 
     Returns
     -------
-    Cal, UnionCal or tuple
+    NamedCal, Cal, UnionCal or tuple
 
     Notes
     -----
@@ -106,7 +114,7 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
 
     .. ipython:: python
 
-       tgt_cal = get_calendar("tgt")
+       tgt_cal = get_calendar("tgt", named=False)
        tgt_cal.holidays[300:312]
        tgt_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(tgt_cal)
@@ -120,26 +128,38 @@ def get_calendar(calendar: CalInput, kind: bool = False) -> Union[CalTypes, tupl
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.
+    if isinstance(calendar, str) and named:
+        try:
+            return _get_calendar_labelled(NamedCal(calendar), "object", kind)
+        except ValueError:
+            named = False  # try parsing with Python only
+
     if calendar is NoInput.blank:
-        ret = defaults.calendars["all"], "null"
-    elif isinstance(calendar, str):
+        return _get_calendar_labelled(defaults.calendars["all"], "null", kind)
+    elif isinstance(calendar, str) and not named:
+        # parse the string in Python and return Rust objects directly
         vectors = calendar.split("|")
         if len(vectors) == 1:
             calendars = vectors[0].lower().split(",")
             if len(calendars) == 1:  # only one named calendar is found
-                ret = defaults.calendars[calendars[0]], "named"
+                return _get_calendar_labelled(defaults.calendars[calendars[0]], "named", kind)
             else:
                 cals = [defaults.calendars[_] for _ in calendars]
-                ret = UnionCal(cals, None), "named"
+                return _get_calendar_labelled(UnionCal(cals, None), "named", kind)
         elif len(vectors) == 2:
             calendars = vectors[0].lower().split(",")
             cals = [defaults.calendars[_] for _ in calendars]
             settlement_calendars = vectors[1].lower().split(",")
             sets = [defaults.calendars[_] for _ in settlement_calendars]
-            ret = UnionCal(cals, sets), "named"
+            return _get_calendar_labelled(UnionCal(cals, sets), "named", kind)
         else:
-            raise ValueError("Pipe separator can only be used once in input, e.g. 'tgt|nyc'.")
+            raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
     else:  # calendar is a Calendar object type
-        ret = calendar, "custom"
+        return _get_calendar_labelled(calendar, "custom", kind)
 
-    return ret if kind else ret[0]
+
+def _get_calendar_labelled(output, label, kind):
+    """Package the return for the get_calendar function"""
+    if kind:
+        return output, label
+    return output
