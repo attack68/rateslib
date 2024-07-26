@@ -18,7 +18,6 @@ use crate::dual::dual::{DualsOrF64, ADOrder, Dual, Dual2};
 /// dual type.
 ///
 /// ```rust
-/// use rateslib::dual::dual::set_order_with_conversion;
 /// let f_ = DualsOrF64::F64(2.5_f64);
 /// let d_ = set_order_with_conversion(f_, ADOrder::One, vec!["x".to_string()]);
 /// let d = Dual::from(d_);
