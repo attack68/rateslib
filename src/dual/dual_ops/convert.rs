@@ -24,17 +24,17 @@ use crate::dual::dual::{DualsOrF64, ADOrder, Dual, Dual2};
 /// assert_eq!(d, Dual::new(2.5_f64, vec!["x".to_string()])); // true
 /// ```
 ///
-pub fn set_order_with_conversion(value: DualsOrF64, order: ADOrder, vars: Vec<String>) -> DualsOrF64 {
+pub fn set_order_with_conversion(value: &DualsOrF64, order: ADOrder, vars: Vec<String>) -> DualsOrF64 {
     match (value, order) {
-        (DualsOrF64::F64(f), ADOrder::Zero) => { DualsOrF64::F64(f) }
+        (DualsOrF64::F64(f), ADOrder::Zero) => { DualsOrF64::F64(*f) }
         (DualsOrF64::Dual(d), ADOrder::Zero) => { DualsOrF64::F64(d.real) }
         (DualsOrF64::Dual2(d), ADOrder::Zero) => { DualsOrF64::F64(d.real) }
-        (DualsOrF64::F64(f), ADOrder::One) => { DualsOrF64::Dual(Dual::new(f, vars)) }
-        (DualsOrF64::Dual(d), ADOrder::One) => { DualsOrF64::Dual(d)}
+        (DualsOrF64::F64(f), ADOrder::One) => { DualsOrF64::Dual(Dual::new(*f, vars)) }
+        (DualsOrF64::Dual(d), ADOrder::One) => { DualsOrF64::Dual(d.clone())}
         (DualsOrF64::Dual2(d), ADOrder::One) => { DualsOrF64::Dual(Dual::from(d)) }
-        (DualsOrF64::F64(f), ADOrder::Two) => { DualsOrF64::Dual2(Dual2::new(f, vars)) }
+        (DualsOrF64::F64(f), ADOrder::Two) => { DualsOrF64::Dual2(Dual2::new(*f, vars)) }
         (DualsOrF64::Dual(d), ADOrder::Two) => { DualsOrF64::Dual2(Dual2::from(d)) }
-        (DualsOrF64::Dual2(d), ADOrder::Two) => { DualsOrF64::Dual2(d) }
+        (DualsOrF64::Dual2(d), ADOrder::Two) => { DualsOrF64::Dual2(d.clone()) }
     }
 }
 
