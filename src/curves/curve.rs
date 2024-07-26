@@ -1,5 +1,5 @@
 use crate::calendars::calendar_py::Cals;
-use crate::curves::interpolation::LocalInterpolation;
+use crate::curves::interpolation::{LocalInterpolation, index_left};
 use crate::dual::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order_with_conversion};
 use crate::dual::get_variable_tags;
 use chrono::NaiveDateTime;
@@ -33,6 +33,24 @@ impl From<Nodes> for NodesTimestamp {
     }
 }
 
+impl NodesTimestamp {
+    fn keys_as_f64(&self) -> Vec<f64> {
+        match self {
+            NodesTimestamp::F64(m) => m.keys().cloned().map(|x| x as f64).collect(),
+            NodesTimestamp::Dual(m) => m.keys().cloned().map(|x| x as f64).collect(),
+            NodesTimestamp::Dual2(m) => m.keys().cloned().map(|x| x as f64).collect(),
+        }
+    }
+
+    fn keys(&self) -> Vec<i64> {
+        match self {
+            NodesTimestamp::F64(m) => m.keys().cloned().collect(),
+            NodesTimestamp::Dual(m) => m.keys().cloned().collect(),
+            NodesTimestamp::Dual2(m) => m.keys().cloned().collect(),
+        }
+    }
+}
+
 pub struct Curve {
     nodes: NodesTimestamp,
 //     calendar: Cals,
@@ -60,12 +78,32 @@ impl Curve {
         }
     }
 
-//     pub fn value(&self, &NaiveDateTime) -> DualsOrF64 {
-//         match self.interpolation {
-//             LocalInterpolation::LogLinear => {}
-//             _ => panic!("not implemented!")
-//         }
-//     }
+    /// Get the left side node key index of the given x value datetime
+    fn get_index(&self, date: &NaiveDateTime) -> usize {
+        let timestamp = date.and_utc().timestamp();
+        index_left(&self.nodes.keys(), &timestamp, None)
+    }
+
+    pub fn get_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
+        let index = self.get_index(date);
+        match &self.nodes {
+            NodesTimestamp::F64(m) => {
+                let (x1, y1) = m.get_index(index).unwrap();
+                let (x2, y2) = m.get_index(index + 1_usize).unwrap();
+                DualsOrF64::F64((y1 + y2) / 2.0_f64)
+            }
+            NodesTimestamp::Dual(m) => {
+                let (x1, y1) = m.get_index(index).unwrap();
+                let (x2, y2) = m.get_index(index + 1_usize).unwrap();
+                DualsOrF64::F64(10.0)
+            }
+            NodesTimestamp::Dual2(m) => {
+               let (x1, y1) = m.get_index(index).unwrap();
+                let (x2, y2) = m.get_index(index + 1_usize).unwrap();
+                DualsOrF64::F64(10.0)
+            }
+        }
+    }
 }
 
 
@@ -74,13 +112,26 @@ mod tests {
     use super::*;
     use crate::calendars::calendar::ndt;
 
-    #[test]
-    fn construct_curve() {
+    fn curve_fixture() -> Curve {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), 1.0_f64),
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
-        let curve = Curve::try_new(nodes, LocalInterpolation::LogLinear, "crv").unwrap();
+        Curve::try_new(nodes, LocalInterpolation::LogLinear, "crv").unwrap()
+    }
+
+    #[test]
+    fn test_get_index() {
+        let c = curve_fixture();
+        let result = c.get_index(&ndt(2001, 7, 30));
+        assert_eq!(result, 1_usize)
+    }
+
+    #[test]
+    fn test_get_value() {
+        let c = curve_fixture();
+        let result = c.get_value(&ndt(2001, 7, 30));
+        assert_eq!(result, DualsOrF64::F64(0.985_f64))
     }
 }

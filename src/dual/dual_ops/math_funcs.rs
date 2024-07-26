@@ -103,6 +103,21 @@ impl MathFuncs for Dual2 {
     }
 }
 
+impl MathFuncs for f64 {
+    fn inv_norm_cdf(&self) -> Self {
+        Normal::new(0.0, 1.0).unwrap().inverse_cdf(*self)
+    }
+    fn norm_cdf(&self) -> Self {
+        Normal::new(0.0, 1.0).unwrap().cdf(*self)
+    }
+    fn exp(&self) -> Self {
+        f64::exp(*self)
+    }
+    fn log(&self) -> Self {
+        f64::ln(*self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

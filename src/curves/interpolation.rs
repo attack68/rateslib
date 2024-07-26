@@ -1,5 +1,5 @@
 
-use crate::dual::dual::FieldOps;
+use crate::dual::dual::{FieldOps, MathFuncs};
 use std::ops::Mul;
 
 pub enum LocalInterpolation {
@@ -11,16 +11,48 @@ pub enum LocalInterpolation {
     FlatBackward,
 }
 
-pub(crate) fn linear_interp<T, U>(x1: &T, y1: &U, x2: &T, y2: &U, x: &T) -> U
+// pub(crate) fn linear_interp<T, U>(x1: &T, y1: &U, x2: &T, y2: &U, x: &T) -> U
+// where
+//     for<'a> &'a T: FieldOps<T>,
+//     for<'a> &'a U: FieldOps<U>,
+//     U: Mul<T, Output = U>,
+// {
+//     y1 + &((y2 - y1) * (&(x - x1) / &(x2 - x1)))
+// }
+
+/// Calculate the linear interpolation between two coordinates.
+pub(crate) fn linear_interp<T>(x1: &f64, y1: &T, x2: &f64, y2: &T, x: &f64) -> T
 where
     for<'a> &'a T: FieldOps<T>,
-    for<'a> &'a U: FieldOps<U>,
-    U: Mul<T, Output = U>,
+    T: Mul<f64, Output = T>,
 {
-    y1 + &((y2 - y1) * (&(x - x1) / &(x2 - x1)))
+    y1 + &((y2 - y1) * ((x - x1) / (x2 - x1)))
 }
 
-pub fn index_left<T>(list_input: &[T], value: &T, left_count: Option<usize>) -> usize
+/// Calculte the log-linear interpolation between two coordinates.
+pub(crate) fn log_linear_interp<T>(x1: &f64, y1: &T, x2: &f64, y2: &T, x: &f64) -> T
+where
+    for<'a> &'a T: FieldOps<T>,
+    T: Mul<f64, Output = T> + MathFuncs,
+{
+    let (y1, y2) = (y1.log(), y2.log());
+    let y = linear_interp(x1, &y1, x2, &y2, x);
+    y.exp()
+}
+
+/// Calculate the left sided index for a given value in a sorted list.
+/// `left_count` is used recursively; it should always be entered as None intially.
+/// Examples
+/// --------
+/// If `list_input` is [1.2, 1.7, 1.9, 2.8];
+///
+/// - 0.5: returns 0 (extrapolated out of range)
+/// - 1.5: returns 0 (within first interval)
+/// - 1.7: returns 0 (closed right side of first interval)
+/// - 1.71: returns 1 (within second interval)
+/// - 2.8: returns 2 (closed right side of third interval)
+/// - 3.5: returns 2 (extrapolated out of range)
+pub(crate) fn index_left<T>(list_input: &[T], value: &T, left_count: Option<usize>) -> usize
 where
     for<'a> &'a T: PartialOrd + PartialEq,
 {
@@ -50,8 +82,12 @@ mod tests {
     #[test]
     fn index_left_() {
         let a = [1.2, 1.7, 1.9, 2.8];
-        let result = index_left(&a, &1.8, None);
-        assert_eq!(result, 1_usize);
+        assert_eq!(index_left(&a, &0.5, None), 0_usize);
+        assert_eq!(index_left(&a, &1.5, None), 0_usize);
+        assert_eq!(index_left(&a, &1.7, None), 0_usize);
+        assert_eq!(index_left(&a, &1.71, None), 1_usize);
+        assert_eq!(index_left(&a, &2.8, None), 2_usize);
+        assert_eq!(index_left(&a, &3.5, None), 2_usize);
     }
 
     #[test]
@@ -65,6 +101,21 @@ mod tests {
             &1.0, &Dual::new(10.0, vec!["x".to_string()]), &2.0, &Dual::new(30.0, vec!["y".to_string()]), &1.5
         );
         assert_eq!(result, Dual::try_new(20.0, vec!["x".to_string(), "y".to_string()], vec![0.5, 0.5]).unwrap());
+    }
+
+    #[test]
+    fn test_log_linear_interp() {
+        // float linear_interp
+        let result = log_linear_interp(&1.0, &10.0, &2.0, &30.0, &1.5);
+        let expected = (0.5 * 10.0.log() + 0.5 * 30.0.log()).exp();
+        assert_eq!(result, expected);
+
+        // Dual linear_interp
+        let y1 = Dual::new(10.0, vec!["x".to_string()]);
+        let y2 = Dual::new(30.0, vec!["y".to_string()]);
+        let result = log_linear_interp(&1.0, &y1, &2.0, &y2, &1.5);
+        let expected = (0.5 * y1.log() + 0.5 * y2.log()).exp();
+        assert_eq!(result, expected);
     }
 
 }
