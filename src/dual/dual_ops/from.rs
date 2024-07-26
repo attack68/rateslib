@@ -181,7 +181,7 @@ mod tests {
     // }
 
     #[test]
-    fn from_f64_into_Dual() {
+    fn from_f64_into_dual() {
         let d = Dual::from(4.0_f64);
         assert_eq!(d, Dual::new(4.0_f64, vec![]));
 
