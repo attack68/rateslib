@@ -15,3 +15,4 @@ mod signed;
 mod sub;
 mod sum;
 mod zero;
+pub mod convert;

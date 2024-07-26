@@ -181,6 +181,13 @@ mod tests {
     // }
 
     #[test]
+    fn from_f64_into_Dual() {
+        let d = Dual::from(4.0_f64);
+        assert_eq!(d, Dual::new(4.0_f64, vec![]));
+
+    }
+
+    #[test]
     fn from_dual2_into_dual() {
         let d2: Dual2 = Dual2::new(2.0, vec!["x".to_string(), "y".to_string()]);
         let d1: Dual = d2.into();
