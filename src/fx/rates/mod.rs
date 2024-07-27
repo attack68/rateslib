@@ -389,20 +389,6 @@ fn create_fx_array(
     }
 }
 
-fn remap_rate(rate: &DualsOrF64, vars: Vec<String>, adorder: ADOrder) -> DualsOrF64 {
-    match adorder {
-        ADOrder::Zero => DualsOrF64::F64(f64::from(rate)),
-        ADOrder::One => match rate {
-            DualsOrF64::F64(f) => DualsOrF64::Dual(Dual::new(*f, vars)),
-            _ => DualsOrF64::Dual(Dual::from(rate)),
-        },
-        ADOrder::Two => match rate {
-            DualsOrF64::F64(f) => DualsOrF64::Dual2(Dual2::new(*f, vars)),
-            _ => DualsOrF64::Dual2(Dual2::from(rate)),
-        },
-    }
-}
-
 impl JSON for FXRates {}
 
 #[cfg(test)]
