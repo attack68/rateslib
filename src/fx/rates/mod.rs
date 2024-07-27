@@ -1,7 +1,7 @@
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
-use crate::dual::dual::{ADOrder, Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{ADOrder, Dual, Dual2, DualsOrF64, set_order_clone};
 use crate::dual::linalg::argabsmax;
 use crate::json::JSON;
 use chrono::prelude::*;
@@ -350,7 +350,7 @@ fn create_fx_array(
     let fx_rates_: Vec<DualsOrF64> = fx_rates
         .iter()
         .enumerate()
-        .map(|(i, x)| remap_rate(&x.rate, vec![vars[i].clone()], ad))
+        .map(|(i, x)| set_order_clone(&x.rate, ad,vec![vars[i].clone()]))
         .collect();
     match ad {
         ADOrder::Zero => {
@@ -386,20 +386,6 @@ fn create_fx_array(
             )?;
             Ok(FXArray::Dual2(fx_array_))
         }
-    }
-}
-
-fn remap_rate(rate: &DualsOrF64, vars: Vec<String>, adorder: ADOrder) -> DualsOrF64 {
-    match adorder {
-        ADOrder::Zero => DualsOrF64::F64(f64::from(rate)),
-        ADOrder::One => match rate {
-            DualsOrF64::F64(f) => DualsOrF64::Dual(Dual::new(*f, vars)),
-            _ => DualsOrF64::Dual(Dual::from(rate)),
-        },
-        ADOrder::Two => match rate {
-            DualsOrF64::F64(f) => DualsOrF64::Dual2(Dual2::new(*f, vars)),
-            _ => DualsOrF64::Dual2(Dual2::from(rate)),
-        },
     }
 }
 

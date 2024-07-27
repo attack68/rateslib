@@ -12,7 +12,7 @@
 //!
 
 pub use crate::dual::dual_ops::math_funcs::MathFuncs;
-pub use crate::dual::dual_ops::convert::set_order_with_conversion;
+pub use crate::dual::dual_ops::convert::{set_order, set_order_clone};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use pyo3::exceptions::PyValueError;
