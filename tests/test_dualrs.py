@@ -343,3 +343,13 @@ def test_dual_solve():
     result = dual_solve(a, b[:, None], types=(Dual, Dual))[:, 0]
     expected = np.array([Dual(2.0, ["x", "y"], [1.0, 0.0]), Dual(5.0, ["x", "y"], [1.0, 1.0])])
     assert np.all(result == expected)
+
+
+@pytest.mark.parametrize("obj", [
+    Dual(1.0, ["x"], []),
+    Dual2(2.0, ["x"], [], []),
+])
+def test_pickle(obj):
+    import pickle
+    pickled_obj = pickle.dumps(obj)
+    pickle.loads(pickled_obj)

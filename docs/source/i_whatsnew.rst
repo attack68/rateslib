@@ -44,6 +44,8 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Publicly exposed the :meth:`PPSpline.bsplmatrix <rateslib.splines.PPSplineF64.bsplmatrix>` function
        for displaying intermediate spline calculation results of the spline coefficient matrix.
+   * - Bug
+     - *Dual* and *Dual2* fix support for pickling which allows multithreading across CPU pools.
 
 1.3.0 (9th July 2024)
 ***********************

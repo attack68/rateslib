@@ -5,12 +5,14 @@ use crate::dual::dual_ops::math_funcs::MathFuncs;
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyFloat;
+use pyo3::types::{PyBytes, PyFloat};
 use std::sync::Arc;
+use bincode::{deserialize, serialize};
 // use pyo3::types::PyFloat;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use crate::calendars::calendar::Cal;
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -349,6 +351,18 @@ impl Dual {
         }
     }
 
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>)> {
+        Ok((self.real, self.vars().iter().cloned().collect(), self.dual.to_vec()))
+    }
+
     // Conversion
     #[pyo3(name = "to_dual2")]
     fn to_dual2_py(&self) -> Dual2 {
@@ -668,6 +682,18 @@ impl Dual2 {
                 "Failed to serialize `Dual2` to JSON.",
             )),
         }
+    }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>, Vec<f64>)> {
+        Ok((self.real, self.vars().iter().cloned().collect(), self.dual.to_vec(), self.dual2.clone().into_raw_vec()))
     }
 
     // Conversion
