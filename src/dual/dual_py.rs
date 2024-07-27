@@ -12,7 +12,6 @@ use bincode::{deserialize, serialize};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
-use crate::calendars::calendar::Cal;
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;

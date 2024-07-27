@@ -346,10 +346,11 @@ def test_dual_solve():
 
 
 @pytest.mark.parametrize("obj", [
-    Dual(1.0, ["x"], []),
-    Dual2(2.0, ["x"], [], []),
+    Dual(1.0, ["x", "y"], [1.0, 2.0]),
+    Dual2(2.0, ["x", "y"], [1.0, 2.0], [1.0, 2.0, 2.0, 3.0]),
 ])
 def test_pickle(obj):
     import pickle
     pickled_obj = pickle.dumps(obj)
-    pickle.loads(pickled_obj)
+    reloaded = pickle.loads(pickled_obj)
+    assert obj == reloaded
