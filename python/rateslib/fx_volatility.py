@@ -5,9 +5,14 @@ from typing import Union
 from uuid import uuid4
 
 import numpy as np
+import math
 from pytz import UTC
+from pandas import Series
+from datetime import datetime as dt
+from datetime import timedelta
 
 from rateslib.default import NoInput, _drb, plot, plot3d
+from rateslib.calendars import get_calendar
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -670,6 +675,7 @@ class FXDeltaVolSurface:
         node_values: Union[list, NoInput],
         eval_date: Union[datetime, NoInput],
         delta_type: Union[str, NoInput],
+        weights: Union[Series, NoInput] = NoInput(0),
         id: Union[str, NoInput] = NoInput(0),
         ad: int = 0,
     ):
@@ -696,6 +702,8 @@ class FXDeltaVolSurface:
             for i, expiry in enumerate(self.expiries)
         ]
         self.n = len(self.expiries) * len(self.delta_indexes)
+
+        self.weights = self._validate_weights(weights)
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
@@ -766,28 +774,32 @@ class FXDeltaVolSurface:
             )
             return _
         else:
+            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1] # left_smile, right_smile
+            nodes_ = {
+                k: self._t_var_interp(
+                    self.eval_posix,
+                    self.expiries_posix[e_idx],
+                    vol1,
+                    self.expiries_posix[e_idx + 1],
+                    vol2,
+                    expiry_posix,
+                )
+                for k, vol1, vol2 in zip(self.delta_indexes, ls.nodes.values(), rs.nodes.values())
+            }
+            if isinstance(self.weights, Series):
+                t_adj = self.weights[:expiry].sum()
+                t_nominal = float((expiry - self.eval_date).days)
+                nodes_ = {k: v * math.sqrt(t_adj / t_nominal) for (k, v) in nodes_.items()}
+
             _ = FXDeltaVolSmile(
-                nodes={
-                    k: self._t_var_interp(
-                        self.eval_posix,
-                        self.expiries_posix[e_idx],
-                        vol1,
-                        self.expiries_posix[e_idx + 1],
-                        vol2,
-                        expiry_posix,
-                    )
-                    for k, vol1, vol2 in zip(
-                        self.delta_indexes,
-                        self.smiles[e_idx].nodes.values(),
-                        self.smiles[e_idx + 1].nodes.values(),
-                    )
-                },
+                nodes=nodes_,
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
                 delta_type=self.delta_type,
-                id=self.smiles[e_idx].id + "_" + self.smiles[e_idx + 1].id + "_intp",
+                id=ls.id + "_" + rs.id + "_intp",
             )
+
             return _
 
     @staticmethod
@@ -875,11 +887,29 @@ class FXDeltaVolSurface:
         expiries = [(_ - self.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
         return plot3d(deltas, expiries, vols)
 
+    def _validate_weights(self, weights):
+        if weights is NoInput.blank:
+            return weights
+        else:
+            w = Series(1.0, index=get_calendar("all").cal_date_range(self.eval_date, dt(2100, 1, 1)))
+            w.update(weights)
+
+        w = w.sort_index() # restrict to sorted
+        w = w[self.eval_date:] # restrict any outlier values
+        node_points = [self.eval_date] + self.expiries + [dt(2100, 1, 1)]
+        for i in range(len(self.expiries) + 1):
+            s, e = node_points[i]+timedelta(days=1), node_points[i+1]
+            days = (e - s).days + 1
+            w[s:e] = w[s:e] * days / w[s:e].sum()  # scale the weights to allocate the correct time between nodes.
+        w[self.eval_date] = 0.0
+        return w
+
 
 def _validate_delta_type(delta_type: str):
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
     return delta_type.lower()
+
 
 
 # def _convert_same_adjustment_delta(

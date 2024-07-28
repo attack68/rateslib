@@ -491,6 +491,58 @@ class TestFXDeltaVolSurface:
 
             )
 
+    def test_set_weights(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2024, 2, 1), dt(2024, 3, 1)],
+            node_values=[[11, 10, 12], [8, 7, 9], [9, 7.5, 10]],
+            eval_date=dt(2023, 12, 1),
+            delta_type="forward",
+            weights=Series(
+                2.0,
+                index=[dt(2024, 1, 5), dt(2024, 1, 12), dt(2024, 2, 5)])
+        )
+        assert fxvs.weights.loc[dt(2023, 12, 15)] == 1.0
+        assert fxvs.weights.loc[dt(2024, 1, 4)] == 0.9393939393939394
+        assert fxvs.weights.loc[dt(2024, 1, 5)] == 1.878787878787879
+        assert fxvs.weights.loc[dt(2024, 2, 2)] == 0.9666666666666667
+        assert fxvs.weights.loc[dt(2024, 2, 5)] == 1.9333333333333333
+        assert fxvs.weights.loc[dt(2027, 12, 15)] == 1.0
+
+        # test that the sum of weights to each expiry node is as expected.
+        for e in fxvs.expiries:
+            assert abs(fxvs.weights[fxvs.eval_date:e].sum() - (e - fxvs.eval_date).days) < 1e-13
+
+    @pytest.mark.parametrize("scalar", [1.0, 0.5])
+    def test_weights_get_vol(self, scalar):
+        # from a surface creates a smile and then re-uses methods
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2023, 2, 1), dt(2023, 3, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        fxvs_weights = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2023, 2, 1), dt(2023, 3, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+            weights=Series(scalar, index=[dt(2023, 2, 2), dt(2023, 2, 3)])
+        )
+        result = fxvs.get_from_strike(
+            1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3)
+        )
+        result2 = fxvs_weights.get_from_strike(
+            1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3)
+        )
+        w = fxvs_weights.weights
+
+        expected = result[1] * (w[:dt(2023, 2, 3)].sum() / 33.0)**0.5
+        # This result is not exact because the shape of the spline changes
+        assert abs(expected - result2[1]) < 1e-2
+
 
 def test_validate_delta_type():
     with pytest.raises(ValueError, match="`delta_type` must be in"):
