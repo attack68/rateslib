@@ -1,6 +1,6 @@
 use crate::calendars::calendar_py::Cals;
 use crate::curves::interpolation::{LocalInterpolation, index_left};
-use crate::dual::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order_with_conversion};
+use crate::dual::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order};
 use crate::dual::get_variable_tags;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
