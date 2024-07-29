@@ -754,6 +754,7 @@ class FXDeltaVolSurface:
             # expiry aligns with a known smile
             return self.smiles[e_idx + 1]
         elif expiry_posix > self.expiries_posix[-1]:
+            # use the data from the last smile
             _ = FXDeltaVolSmile(
                 nodes={
                     k: self._t_var_interp(
