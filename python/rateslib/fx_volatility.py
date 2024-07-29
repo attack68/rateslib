@@ -783,15 +783,10 @@ class FXDeltaVolSurface:
             )
             return _
         else:
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1] # left_smile, right_smile
-            # if isinstance(self.weights, Series):
-            #     t_adj = self.weights[:expiry].sum()
-            #     t_nominal = float((expiry - self.eval_date).days)
-            #     nodes_ = {k: v * math.sqrt(t_adj / t_nominal) for (k, v) in nodes_.items()}
-
+            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
             _ = FXDeltaVolSmile(
                 nodes={
-                    k: self._t_var_interp2(
+                    k: self._t_var_interp(
                         expiry_index=e_idx,
                         expiry=expiry,
                         expiry_posix=expiry_posix,
@@ -809,7 +804,7 @@ class FXDeltaVolSurface:
 
             return _
 
-    def _t_var_interp2(self, expiry_index, expiry, expiry_posix, vol1, vol2):
+    def _t_var_interp(self, expiry_index, expiry, expiry_posix, vol1, vol2):
         """
         Return the volatility of an intermediate timestamp via total linear variance interpolation.
         Possibly scaled by time weights if weights is available.
