@@ -704,6 +704,7 @@ class FXDeltaVolSurface:
         self.n = len(self.expiries) * len(self.delta_indexes)
 
         self.weights = self._validate_weights(weights)
+        self.weights_cum = NoInput(0) if self.weights is NoInput.blank else self.weights.cumsum()
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
@@ -751,6 +752,8 @@ class FXDeltaVolSurface:
             return self.smiles[e_idx + 1]
         elif expiry_posix > self.expiries_posix[-1]:
             # use the data from the last smile
+            # TODO: implement weights like extrapolation before first smile
+
             _ = FXDeltaVolSmile(
                 nodes={k: v for k, v in zip(self.delta_indexes, self.smiles[-1].nodes.values())},
                 eval_date=self.eval_date,
@@ -764,28 +767,7 @@ class FXDeltaVolSurface:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # use the data from the first smile
-            _ = FXDeltaVolSmile(
-                nodes={k: v for k, v in zip(self.delta_indexes, self.smiles[0].nodes.values())},
-                eval_date=self.eval_date,
-                expiry=expiry,
-                ad=self.ad,
-                delta_type=self.delta_type,
-                id=self.smiles[-1].id + "_ext",
-            )
-            return _
-        else:
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1] # left_smile, right_smile
-            nodes_ = {
-                k: self._t_var_interp(
-                    self.eval_posix,
-                    self.expiries_posix[e_idx],
-                    vol1,
-                    self.expiries_posix[e_idx + 1],
-                    vol2,
-                    expiry_posix,
-                )
-                for k, vol1, vol2 in zip(self.delta_indexes, ls.nodes.values(), rs.nodes.values())
-            }
+            nodes_ = {k: v for k, v in zip(self.delta_indexes, self.smiles[0].nodes.values())}
             if isinstance(self.weights, Series):
                 t_adj = self.weights[:expiry].sum()
                 t_nominal = float((expiry - self.eval_date).days)
@@ -797,42 +779,72 @@ class FXDeltaVolSurface:
                 expiry=expiry,
                 ad=self.ad,
                 delta_type=self.delta_type,
+                id=self.smiles[-1].id + "_ext",
+            )
+            return _
+        else:
+            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1] # left_smile, right_smile
+            # if isinstance(self.weights, Series):
+            #     t_adj = self.weights[:expiry].sum()
+            #     t_nominal = float((expiry - self.eval_date).days)
+            #     nodes_ = {k: v * math.sqrt(t_adj / t_nominal) for (k, v) in nodes_.items()}
+
+            _ = FXDeltaVolSmile(
+                nodes={
+                    k: self._t_var_interp2(
+                        expiry_index=e_idx,
+                        expiry=expiry,
+                        expiry_posix=expiry_posix,
+                        vol1=vol1,
+                        vol2=vol2,
+                    )
+                    for k, vol1, vol2 in zip(self.delta_indexes, ls.nodes.values(), rs.nodes.values())
+                },
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                delta_type=self.delta_type,
                 id=ls.id + "_" + rs.id + "_intp",
             )
 
             return _
 
-    @staticmethod
-    def _t_var_interp(eval_posix, ep1, vol1, ep2, vol2, ep_t):
+    def _t_var_interp2(self, expiry_index, expiry, expiry_posix, vol1, vol2):
         """
         Return the volatility of an intermediate timestamp via total linear variance interpolation.
+        Possibly scaled by time weights if weights is available.
 
         Parameters
         ----------
-        eval_posix: float
-            The posix timestamp of the eval date of the smile.
-        ep1: float
-            The left side expiry in posix timestamp.
-        vol1: float, Dual, Dual2
-            The left side vol value.
-        ep2: float
-            The right side expiry in posix timestamp.
+        expiry_index: int
+            The index defining the interval within which expiry falls.
+        expiry: datetime
+            The target expiry to be interpolated.
+        expiry_posix: float
+            The pre-calculated posix timestamp for expiry.
+        vol1: float, Dual, DUal2
+            The volatility of the left side
         vol2: float, Dual, Dual2
-            The right side vol value.
-        ep_t: float
-            The posix timestamp for the interpolated time value.
-
-        Returns
-        -------
-        float, Dual, Dual2
+            The volatility on the right side
         """
-        # 86400 posix seconds per day
-        # 31536000 posix seconds per 365 day year
-        t_var_1 = (ep1 - eval_posix) * vol1**2
-        t_var_2 = (ep2 - eval_posix) * vol2**2
-        _ = t_var_1 + (t_var_2 - t_var_1) * (ep_t - ep1) / (ep2 - ep1)
-        _ /= ep_t - eval_posix
-        return _**0.5
+        if self.weights is NoInput.blank:
+            # 86400 posix seconds per day
+            # 31536000 posix seconds per 365 day year
+            ep1 = self.expiries_posix[expiry_index]
+            ep2 = self.expiries_posix[expiry_index + 1]
+            t_var_1 = (ep1 - self.eval_posix) * vol1 ** 2
+            t_var_2 = (ep2 - self.eval_posix) * vol2 ** 2
+            _ = t_var_1 + (t_var_2 - t_var_1) * (expiry_posix - ep1) / (ep2 - ep1)
+            _ /= expiry_posix - self.eval_posix
+        else:
+            t1 = self.weights_cum[self.expiries[expiry_index]]
+            t2 = self.weights_cum[self.expiries[expiry_index + 1]]
+            t = self.weights_cum[expiry]
+            t_var_1 = t1 * vol1 ** 2
+            t_var_2 = t2 * vol2 ** 2
+            _ = t_var_1 + (t_var_2 - t_var_1) * (t - t1) / (t2 - t1)
+            _ *= 86400.0 / (expiry_posix - self.eval_posix)
+        return _ ** 0.5
 
     def get_from_strike(
         self,

@@ -13,6 +13,7 @@ from rateslib.fx import (
 )
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
+from rateslib.calendars import get_calendar
 from rateslib.default import NoInput
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate_delta_type
 from rateslib.periods import FXPutPeriod
@@ -543,6 +544,33 @@ class TestFXDeltaVolSurface:
         # This result is not exact because the shape of the spline changes
         assert abs(expected - result2[1]) < 1e-2
 
+    def test_weights_get_vol_clark(self):
+        cal = get_calendar("bus")
+        weights = Series(0.0, index=cal.cal_date_range(dt(2024, 2, 9), dt(2024, 3, 8)))
+        weights.update(Series(1.0, index=cal.bus_date_range(dt(2024, 2, 9), dt(2024, 3, 8))))
+        fxvs_weights = FXDeltaVolSurface(
+            delta_indexes=[0.5],
+            expiries=[
+                dt(2024, 2, 12),
+                dt(2024, 2, 16),
+                dt(2024, 2, 23),
+                dt(2024, 3, 1),
+                dt(2024, 3, 8),
+            ],
+            node_values=[[8.15], [11.95], [11.97], [11.75], [11.80]],
+            eval_date=dt(2024, 2, 9),
+            delta_type="forward",
+            weights=weights
+        )
+
+        # Clark FX Option Pricing Table 4.7
+        expected = [0.0, 0.0, 8.15, 9.99, 10.95, 11.54, 11.95, 11.18, 10.54, 10.96, 11.29, 11.56, 11.78,
+                    11.97, 11.56, 11.20, 11.34, 11.46, 11.57, 11.66, 11.75, 11.48, 11.23, 11.36, 11.49,
+                    11.60, 11.70, 11.80]
+
+        for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 8))):
+            smile = fxvs_weights.get_smile(date)
+            assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
 
 def test_validate_delta_type():
     with pytest.raises(ValueError, match="`delta_type` must be in"):
