@@ -650,6 +650,8 @@ class FXDeltaVolSurface:
     delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
         The type of delta calculation that is used as the *Smiles* definition to obtain a delta index which
         is referenced by the node keys.
+    weights: Series, optional
+        Weights used for temporal volatility interpolation. See notes.
     id: str, optional
         The unique identifier to label the *Surface* and its variables.
     ad: int, optional
@@ -662,8 +664,15 @@ class FXDeltaVolSurface:
     -----
     See :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for a description of delta indexes and *Smile* construction.
 
+    **Temporal Interpolation**
+
     Interpolation along the expiry axis occurs by performing total linear variance interpolation for each *delta
     index* and then dynamically constructing a *Smile* with the usual cubic interpolation.
+
+    If ``weights`` are given this uses the scaling approach of forward volatility (as demonstrated in Clark's
+    *FX Option Pricing*) for calendar days (different options 'cuts' and timezone are not implemented). A datetime
+    indexed `Series` must be provided, where any calendar date that is not included will be assigned the default
+    weight of 1.0.
 
     See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
 

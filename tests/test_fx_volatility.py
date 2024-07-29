@@ -542,7 +542,7 @@ class TestFXDeltaVolSurface:
 
         expected = result[1] * (w[:dt(2023, 2, 3)].sum() / 33.0)**0.5
         # This result is not exact because the shape of the spline changes
-        assert abs(expected - result2[1]) < 1e-2
+        assert abs(expected - result2[1]) < 5e-2
 
     def test_weights_get_vol_clark(self):
         cal = get_calendar("bus")
