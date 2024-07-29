@@ -41,6 +41,9 @@ email contact through **rateslib@gmail.com**.
    * - Instruments / Legs
      - Can now have *effective* and *termination* dates which are non-business dates
        in unmodified schedules.
+   * - Surfaces
+     - Add ``weights`` to :class:`~rateslib.fx_volatility.FXDeltaVolSurface` to give more control of temporal
+       interpolation of volatility.
    * - Bug
      - Publicly exposed the :meth:`PPSpline.bsplmatrix <rateslib.splines.PPSplineF64.bsplmatrix>` function
        for displaying intermediate spline calculation results of the spline coefficient matrix.
