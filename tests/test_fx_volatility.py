@@ -546,7 +546,7 @@ class TestFXDeltaVolSurface:
 
     def test_weights_get_vol_clark(self):
         cal = get_calendar("bus")
-        weights = Series(0.0, index=cal.cal_date_range(dt(2024, 2, 9), dt(2024, 3, 8)))
+        weights = Series(0.0, index=cal.cal_date_range(dt(2024, 2, 9), dt(2024, 3, 9)))
         weights.update(Series(1.0, index=cal.bus_date_range(dt(2024, 2, 9), dt(2024, 3, 8))))
         fxvs_weights = FXDeltaVolSurface(
             delta_indexes=[0.5],
@@ -566,7 +566,7 @@ class TestFXDeltaVolSurface:
         # Clark FX Option Pricing Table 4.7
         expected = [0.0, 0.0, 8.15, 9.99, 10.95, 11.54, 11.95, 11.18, 10.54, 10.96, 11.29, 11.56, 11.78,
                     11.97, 11.56, 11.20, 11.34, 11.46, 11.57, 11.66, 11.75, 11.48, 11.23, 11.36, 11.49,
-                    11.60, 11.70, 11.80, 11.80]
+                    11.60, 11.70, 11.80, 11.59]
 
         for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
             smile = fxvs_weights.get_smile(date)
