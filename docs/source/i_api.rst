@@ -371,6 +371,7 @@ Cookbook
     :titlesonly:
 
     z_eurusd_surface.ipynb
+    z_fxvol_temporal.ipynb
 
 **Instrument Pricing**
 
