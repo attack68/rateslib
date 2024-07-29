@@ -13,6 +13,7 @@ from rateslib.fx import (
 )
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
+from rateslib.calendars import get_calendar
 from rateslib.default import NoInput
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate_delta_type
 from rateslib.periods import FXPutPeriod
@@ -490,6 +491,86 @@ class TestFXDeltaVolSurface:
                 delta_type="forward",
 
             )
+
+    def test_set_weights(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2024, 2, 1), dt(2024, 3, 1)],
+            node_values=[[11, 10, 12], [8, 7, 9], [9, 7.5, 10]],
+            eval_date=dt(2023, 12, 1),
+            delta_type="forward",
+            weights=Series(
+                2.0,
+                index=[dt(2024, 1, 5), dt(2024, 1, 12), dt(2024, 2, 5)])
+        )
+        assert fxvs.weights.loc[dt(2023, 12, 15)] == 1.0
+        assert fxvs.weights.loc[dt(2024, 1, 4)] == 0.9393939393939394
+        assert fxvs.weights.loc[dt(2024, 1, 5)] == 1.878787878787879
+        assert fxvs.weights.loc[dt(2024, 2, 2)] == 0.9666666666666667
+        assert fxvs.weights.loc[dt(2024, 2, 5)] == 1.9333333333333333
+        assert fxvs.weights.loc[dt(2027, 12, 15)] == 1.0
+
+        # test that the sum of weights to each expiry node is as expected.
+        for e in fxvs.expiries:
+            assert abs(fxvs.weights[fxvs.eval_date:e].sum() - (e - fxvs.eval_date).days) < 1e-13
+
+    @pytest.mark.parametrize("scalar", [1.0, 0.5])
+    def test_weights_get_vol(self, scalar):
+        # from a surface creates a smile and then re-uses methods
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2023, 2, 1), dt(2023, 3, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        fxvs_weights = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2023, 2, 1), dt(2023, 3, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+            weights=Series(scalar, index=[dt(2023, 2, 2), dt(2023, 2, 3)])
+        )
+        result = fxvs.get_from_strike(
+            1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3)
+        )
+        result2 = fxvs_weights.get_from_strike(
+            1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3)
+        )
+        w = fxvs_weights.weights
+
+        expected = result[1] * (w[:dt(2023, 2, 3)].sum() / 33.0)**0.5
+        # This result is not exact because the shape of the spline changes
+        assert abs(expected - result2[1]) < 5e-2
+
+    def test_weights_get_vol_clark(self):
+        cal = get_calendar("bus")
+        weights = Series(0.0, index=cal.cal_date_range(dt(2024, 2, 9), dt(2024, 3, 8)))
+        weights.update(Series(1.0, index=cal.bus_date_range(dt(2024, 2, 9), dt(2024, 3, 8))))
+        fxvs_weights = FXDeltaVolSurface(
+            delta_indexes=[0.5],
+            expiries=[
+                dt(2024, 2, 12),
+                dt(2024, 2, 16),
+                dt(2024, 2, 23),
+                dt(2024, 3, 1),
+                dt(2024, 3, 8),
+            ],
+            node_values=[[8.15], [11.95], [11.97], [11.75], [11.80]],
+            eval_date=dt(2024, 2, 9),
+            delta_type="forward",
+            weights=weights
+        )
+
+        # Clark FX Option Pricing Table 4.7
+        expected = [0.0, 0.0, 8.15, 9.99, 10.95, 11.54, 11.95, 11.18, 10.54, 10.96, 11.29, 11.56, 11.78,
+                    11.97, 11.56, 11.20, 11.34, 11.46, 11.57, 11.66, 11.75, 11.48, 11.23, 11.36, 11.49,
+                    11.60, 11.70, 11.80, 11.80]
+
+        for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
+            smile = fxvs_weights.get_smile(date)
+            assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
 
 
 def test_validate_delta_type():
