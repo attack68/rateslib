@@ -566,11 +566,12 @@ class TestFXDeltaVolSurface:
         # Clark FX Option Pricing Table 4.7
         expected = [0.0, 0.0, 8.15, 9.99, 10.95, 11.54, 11.95, 11.18, 10.54, 10.96, 11.29, 11.56, 11.78,
                     11.97, 11.56, 11.20, 11.34, 11.46, 11.57, 11.66, 11.75, 11.48, 11.23, 11.36, 11.49,
-                    11.60, 11.70, 11.80]
+                    11.60, 11.70, 11.80, 11.80]
 
-        for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 8))):
+        for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
             smile = fxvs_weights.get_smile(date)
             assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
+
 
 def test_validate_delta_type():
     with pytest.raises(ValueError, match="`delta_type` must be in"):
