@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship, DualsOrF64};
 
 /// Measures value equivalence of `Dual`.
 ///
@@ -158,5 +158,19 @@ mod tests {
             )
             .unwrap()
         );
+    }
+
+    #[test]
+    fn test_enum_ne() {
+        let d = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        assert_ne!(d, d2)
+    }
+
+    #[test]
+    fn test_enum() {
+        let d = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        let d2 = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        assert_eq!(d, d2)
     }
 }
