@@ -29,7 +29,7 @@ where
     y1 + &((y2 - y1) * ((x - x1) / (x2 - x1)))
 }
 
-/// Calculte the log-linear interpolation between two coordinates.
+/// Calculate the log-linear interpolation between two coordinates.
 pub(crate) fn log_linear_interp<T>(x1: &f64, y1: &T, x2: &f64, y2: &T, x: &f64) -> T
 where
     for<'a> &'a T: FieldOps<T>,
