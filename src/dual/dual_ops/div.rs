@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64};
 use auto_ops::impl_op_ex;
 use num_traits::Pow;
 use std::sync::Arc;
@@ -18,6 +18,21 @@ impl_op_ex!(/ |a: &Dual, b: &Dual| -> Dual {
 
 // impl Div for Dual2
 impl_op_ex!(/ |a: &Dual2, b: &Dual2| -> Dual2 { a * b.clone().pow(-1.0) });
+
+// Div for DualsOrF64
+impl_op_ex!(/ |a: &DualsOrF64, b: &DualsOrF64| -> DualsOrF64 {
+    match (a,b) {
+        (DualsOrF64::F64(f), DualsOrF64::F64(f2)) => DualsOrF64::F64(f / f2),
+        (DualsOrF64::F64(f), DualsOrF64::Dual(d2)) => DualsOrF64::Dual(f / d2),
+        (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => DualsOrF64::Dual2(f / d2),
+        (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => DualsOrF64::Dual(d / f2),
+        (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => DualsOrF64::Dual(d / d2),
+        (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => panic!("Cannot mix dual types: Dual / Dual2"),
+        (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => DualsOrF64::Dual2(d / f2),
+        (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => panic!("Cannot mix dual types: Dual2 / Dual"),
+        (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => DualsOrF64::Dual2(d / d2),
+    }
+});
 
 #[cfg(test)]
 mod tests {
@@ -138,4 +153,22 @@ mod tests {
         let result = d1 / d2;
         assert_eq!(result, expected)
     }
+
+    #[test]
+    fn test_enum() {
+        let f = DualsOrF64::F64(2.0);
+        let d = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        assert_eq!(&f/&d, DualsOrF64::Dual(Dual::try_new(2.0/3.0, vec!["x".to_string()], vec![-2.0/9.0]).unwrap()));
+
+        assert_eq!(&d/&d, DualsOrF64::Dual(Dual::try_new(1.0, vec!["x".to_string()], vec![0.0]).unwrap()));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_enum_panic() {
+        let d = DualsOrF64::Dual2(Dual2::new(2.0, vec!["y".to_string()]));
+        let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let r = d / d2;
+    }
+
 }

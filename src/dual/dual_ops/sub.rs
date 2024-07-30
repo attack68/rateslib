@@ -76,7 +76,7 @@ impl_op_ex!(-|a: &Dual2, b: &Dual2| -> Dual2 {
     }
 });
 
-// Add for DualsOrF64
+// Sub for DualsOrF64
 impl_op_ex!(- |a: &DualsOrF64, b: &DualsOrF64| -> DualsOrF64 {
     match (a,b) {
         (DualsOrF64::F64(f), DualsOrF64::F64(f2)) => DualsOrF64::F64(f - f2),
