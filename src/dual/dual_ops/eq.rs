@@ -173,4 +173,11 @@ mod tests {
         let d2 = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
         assert_eq!(d, d2)
     }
+
+    #[test]
+    fn test_cross_enum_eq() {
+        let f = DualsOrF64::F64(2.5_f64);
+        let d = DualsOrF64::Dual(Dual::new(2.5_f64, vec![]));
+        assert_eq!(f, d);
+    }
 }
