@@ -106,6 +106,6 @@ mod tests {
     fn test_enum_panic() {
         let d = DualsOrF64::Dual2(Dual2::new(2.0, vec!["y".to_string()]));
         let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
-        let r = d % d2;
+        let _ = d % d2;
     }
 }

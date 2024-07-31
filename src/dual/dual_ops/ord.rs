@@ -118,7 +118,7 @@ mod tests {
         assert!(d1 <= d3);
     }
 
-        #[test]
+    #[test]
     fn test_enum() {
         let d = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
         let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));

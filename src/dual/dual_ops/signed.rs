@@ -210,4 +210,12 @@ mod tests {
         let result = result.abs();
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn test_enum() {
+        let d = DualsOrF64::Dual(Dual::new(-2.5, vec!["x".to_string()]));
+        assert!(!d.is_positive());
+        assert!(d.is_negative());
+        assert_eq!(d.abs(), DualsOrF64::Dual(Dual::try_new(2.5, vec!["x".to_string()], vec![-1.0]).unwrap()));
+    }
 }
