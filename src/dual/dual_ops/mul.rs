@@ -1,5 +1,5 @@
 use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship, DualsOrF64};
-use crate::dual::linalg_f64::fouter11_;
+use crate::dual::linalg::fouter11_;
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use ndarray::Array2;
 use std::sync::Arc;

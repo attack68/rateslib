@@ -15,7 +15,7 @@ use crate::json::json_py::from_json_py;
 use pyo3::prelude::*;
 
 pub mod dual;
-use dual::dual::{ADOrder, Dual, Dual2};
+use dual::{ADOrder, Dual, Dual2};
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 
 pub mod splines;
