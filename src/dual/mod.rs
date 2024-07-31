@@ -1,4 +1,8 @@
-//! Toolset for automatic differentiation (AD).
+//! Toolset for forward mode automatic differentiation (AD).
+//!
+//! # AD Architecture
+//!
+//! This library
 //!
 //! Create and use data types for calculating derivatives up to second order using automatic
 //! differentiation (AD). The type of AD used in *rateslib* is forward mode, dual number based.

@@ -1,14 +1,27 @@
 
-use crate::dual::dual::{FieldOps, MathFuncs};
+use crate::dual::{FieldOps, MathFuncs};
+use crate::calendars::Cals;
 use std::ops::Mul;
+use crate::calendars::dcfs::Convention;
 
-pub enum LocalInterpolation {
+/// Interpolation 
+pub enum Interpolator {
     LogLinear,
     Linear,
     LinearIndex,
     LinearZeroRate,
     FlatForward,
     FlatBackward,
+}
+
+pub struct LogLinear {
+    calendar: Cals,
+    convention: Convention,
+}
+
+///
+trait Interpolation {
+
 }
 
 // pub(crate) fn linear_interp<T, U>(x1: &T, y1: &U, x2: &T, y2: &U, x: &T) -> U

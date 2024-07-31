@@ -1,7 +1,6 @@
 pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 pub use crate::dual::dual_ops::field_ops::FieldOps;
 pub use crate::dual::dual_ops::convert::{set_order, set_order_clone};
-pub use crate::dual::dual_ops::field_ops::FieldOps;
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use pyo3::exceptions::PyValueError;
