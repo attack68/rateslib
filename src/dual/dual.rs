@@ -12,6 +12,7 @@
 //!
 
 pub use crate::dual::dual_ops::math_funcs::MathFuncs;
+pub use crate::dual::dual_ops::field_ops::FieldOps;
 pub use crate::dual::dual_ops::convert::{set_order, set_order_clone};
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
@@ -40,7 +41,8 @@ pub struct Dual2 {
     pub(crate) dual2: Array2<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject, Serialize, Deserialize)]
+/// Container for the three core numeric types; `f64`, `Dual` and `Dual2`
+#[derive(Debug, Clone, FromPyObject, Serialize, Deserialize)]
 pub enum DualsOrF64 {
     Dual(Dual),
     Dual2(Dual2),

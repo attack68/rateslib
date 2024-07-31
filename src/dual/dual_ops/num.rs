@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64};
 use num_traits::Num;
 
 impl Num for Dual {
@@ -13,5 +13,12 @@ impl Num for Dual2 {
     type FromStrRadixErr = String;
     fn from_str_radix(_src: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         Err("No implementation for sting radix for Dual2".to_string())
+    }
+}
+
+impl Num for DualsOrF64 {
+    type FromStrRadixErr = String;
+    fn from_str_radix(_src: &str, _radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+        Err("No implementation for sting radix for DualsOrF64".to_string())
     }
 }
