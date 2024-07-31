@@ -394,7 +394,7 @@ impl JSON for FXRates {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::calendar::ndt;
+    use crate::calendars::ndt;
     use ndarray::arr2;
 
     #[test]

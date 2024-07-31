@@ -375,7 +375,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual::Dual;
+    use crate::dual::Dual;
     use ndarray::{arr1, arr2};
     use num_traits::One;
 
