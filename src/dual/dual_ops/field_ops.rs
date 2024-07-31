@@ -14,6 +14,7 @@ impl FieldOps<Dual2> for Dual2 {}
 impl FieldOps<f64> for f64 {}
 impl FieldOps<DualsOrF64> for DualsOrF64 {}
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
