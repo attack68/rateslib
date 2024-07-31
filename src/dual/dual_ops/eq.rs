@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship, DualsOrF64};
 
 /// Measures value equivalence of `Dual`.
 ///
@@ -65,6 +65,22 @@ impl PartialEq<Dual2> for Dual2 {
                     x.dual.iter().eq(y.dual.iter()) && x.dual2.iter().eq(y.dual2.iter())
                 }
             }
+        }
+    }
+}
+
+impl PartialEq<DualsOrF64> for DualsOrF64 {
+    fn eq(&self, other: &DualsOrF64) -> bool {
+        match (self, other) {
+            (DualsOrF64::F64(f), DualsOrF64::F64(f2)) => f == f2,
+            (DualsOrF64::F64(f), DualsOrF64::Dual(d2)) => f == d2,
+            (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => f == d2,
+            (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => d == f2,
+            (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => d == d2,
+            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => panic!("Cannot mix dual types: Dual == Dual2"),
+            (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => d == f2,
+            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => panic!("Cannot mix dual types: Dual2 == Dual"),
+            (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => d == d2,
         }
     }
 }
@@ -158,5 +174,34 @@ mod tests {
             )
             .unwrap()
         );
+    }
+
+    #[test]
+    fn test_enum_ne() {
+        let d = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        assert_ne!(d, d2)
+    }
+
+    #[test]
+    fn test_enum() {
+        let d = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        let d2 = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        assert_eq!(d, d2)
+    }
+
+    #[test]
+    fn test_cross_enum_eq() {
+        let f = DualsOrF64::F64(2.5_f64);
+        let d = DualsOrF64::Dual(Dual::new(2.5_f64, vec![]));
+        assert_eq!(f, d);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_cross_enum_eq_error() {
+        let d2 = DualsOrF64::Dual2(Dual2::new(2.5_f64, vec![]));
+        let d = DualsOrF64::Dual(Dual::new(2.5_f64, vec![]));
+        assert_eq!(d2, d);
     }
 }

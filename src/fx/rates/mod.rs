@@ -1,7 +1,7 @@
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
-use crate::dual::dual::{ADOrder, Dual, Dual2, DualsOrF64, set_order_clone};
+use crate::dual::{ADOrder, Dual, Dual2, DualsOrF64, set_order_clone};
 use crate::dual::linalg::argabsmax;
 use crate::json::JSON;
 use chrono::prelude::*;

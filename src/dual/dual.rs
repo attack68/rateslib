@@ -1,17 +1,5 @@
-//! Create and use data types for calculating derivatives up to second order using automatic
-//! differentiation (AD).
-//!
-//! The type of AD used in *rateslib* is forward mode, dual number based.
-//!
-//! A first order dual number represents a function value and a linear manifold of the
-//! gradient at that point. A second order dual number represents a function value and
-//! a quadratic manifold of the gradient at that point.
-//!
-//! Mathematical operations are defined to give dual numbers the ability to combine, and
-//! flexibly reference different variables at any point during calculations.
-//!
-
 pub use crate::dual::dual_ops::math_funcs::MathFuncs;
+pub use crate::dual::dual_ops::field_ops::FieldOps;
 pub use crate::dual::dual_ops::convert::{set_order, set_order_clone};
 pub use crate::dual::dual_ops::field_ops::FieldOps;
 use indexmap::set::IndexSet;
@@ -41,7 +29,8 @@ pub struct Dual2 {
     pub(crate) dual2: Array2<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject, Serialize, Deserialize)]
+/// Container for the three core numeric types; `f64`, `Dual` and `Dual2`
+#[derive(Debug, Clone, FromPyObject, Serialize, Deserialize)]
 pub enum DualsOrF64 {
     Dual(Dual),
     Dual2(Dual2),

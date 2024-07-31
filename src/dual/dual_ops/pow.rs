@@ -1,5 +1,5 @@
 use crate::dual::dual::{Dual, Dual2, Vars};
-use crate::dual::linalg_f64::fouter11_;
+use crate::dual::linalg::fouter11_;
 use num_traits::Pow;
 use std::sync::Arc;
 

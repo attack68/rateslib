@@ -1,4 +1,4 @@
-use crate::dual::dual::DualsOrF64;
+use crate::dual::DualsOrF64;
 use crate::fx::rates::fxpair::FXPair;
 use chrono::NaiveDateTime;
 use pyo3::{pyclass, PyErr};

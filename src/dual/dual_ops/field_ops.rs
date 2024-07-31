@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64};
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait FieldOps<T>:
@@ -12,10 +12,11 @@ impl<'a, T: 'a> FieldOps<T> for &'a T where
 impl FieldOps<Dual> for Dual {}
 impl FieldOps<Dual2> for Dual2 {}
 impl FieldOps<f64> for f64 {}
+impl FieldOps<DualsOrF64> for DualsOrF64 {}
 
-
+#[cfg(test)]
 mod tests {
-    use crate::dual::dual_ops::field_ops::FieldOps;
+    use super::*;
 
     #[test]
     fn test_fieldops() {
