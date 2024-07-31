@@ -2,7 +2,7 @@
 //! bindings.
 
 use crate::calendars::calendar::{Cal, UnionCal, NamedCal};
-use crate::dual::dual::{Dual, Dual2};
+use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use pyo3::conversion::ToPyObject;

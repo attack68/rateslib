@@ -1,6 +1,6 @@
 //! Perform linear algebraic operations between arrays of generic type and arrays of f64.
 
-use crate::dual::linalg::{argabsmax, dmul22_, el_swap, row_swap};
+use crate::dual::linalg::linalg_dual::{argabsmax, dmul22_, el_swap, row_swap};
 use itertools::Itertools;
 use ndarray::prelude::*;
 use num_traits::identities::Zero;

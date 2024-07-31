@@ -385,13 +385,13 @@ impl Dual2 {
     ///     The other `Dual` from which `vars` are linked.
     /// real: float
     ///     The real coefficient of the dual number.
-    /// vars: list[str]
+    /// vars: list(str)
     ///     The labels of the variables for which to record derivatives. If empty,
     ///     the dual number represents a constant, equivalent to a float.
-    /// dual: list[float]
+    /// dual: list(float)
     ///     First derivative information contained as coefficient of linear manifold.
     ///     Defaults to an array of ones the length of ``vars`` if empty.
-    /// dual2: list[float]
+    /// dual2: list(float)
     ///     Second derivative information contained as coefficients of a quadratic manifold.
     ///     These values represent a 2d array but must be given as a 1d list of values in
     ///     row-major order.
