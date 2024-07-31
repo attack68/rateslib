@@ -15,7 +15,7 @@ impl FieldOps<f64> for f64 {}
 impl FieldOps<DualsOrF64> for DualsOrF64 {}
 
 mod tests {
-    use crate::dual::dual_ops::field_ops::FieldOps;
+    use super::*;
 
     #[test]
     fn test_fieldops() {
