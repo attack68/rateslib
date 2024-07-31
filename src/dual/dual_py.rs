@@ -684,14 +684,14 @@ impl Dual2 {
     }
 
     // Pickling
-    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+    fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
         *self = deserialize(state.as_bytes()).unwrap();
         Ok(())
     }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
-    pub fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>, Vec<f64>)> {
+    fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>, Vec<f64>)> {
         Ok((self.real, self.vars().iter().cloned().collect(), self.dual.to_vec(), self.dual2.clone().into_raw_vec()))
     }
 
