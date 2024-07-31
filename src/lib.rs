@@ -27,7 +27,7 @@ pub mod curves;
 use curves::interpolation_py::index_left_f64;
 
 pub mod calendars;
-use calendars::calendar::{Cal, Modifier, RollDay, UnionCal, NamedCal};
+use calendars::{Cal, Modifier, RollDay, UnionCal, NamedCal};
 use calendars::calendar_py::get_calendar_by_name_py;
 
 pub mod fx;
