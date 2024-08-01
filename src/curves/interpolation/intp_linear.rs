@@ -4,20 +4,20 @@ use std::ops::Mul;
 use chrono::NaiveDateTime;
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
-use crate::curves::interpolation::utils::log_linear_interp;
+use crate::curves::interpolation::utils::linear_interp;
 
-pub struct LogLinearInterpolator {
+pub struct LinearInterpolator {
     calendar: CalType,
     convention: Convention,
 }
 
-impl LogLinearInterpolator {
+impl LinearInterpolator {
     pub fn new(calendar: CalType, convention: Convention) -> Self {
-        LogLinearInterpolator {calendar, convention}
+        LinearInterpolator {calendar, convention}
     }
 }
 
-impl CurveInterpolation for LogLinearInterpolator {
+impl CurveInterpolation for LinearInterpolator {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
         let x = date.and_utc().timestamp();
         let index = self.node_index(nodes, x);
@@ -26,7 +26,7 @@ impl CurveInterpolation for LogLinearInterpolator {
             ($Variant: ident, $indexmap: expr) => {{
                 let (x1, y1) = $indexmap.get_index(index).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
-                DualsOrF64::$Variant(log_linear_interp(*x1 as f64, y1, *x2 as f64, y2, x as f64))
+                DualsOrF64::$Variant(linear_interp(*x1 as f64, y1, *x2 as f64, y2, x as f64))
             }}
         }
         match nodes {
@@ -55,14 +55,14 @@ mod tests {
     }
 
     #[test]
-    fn test_log_linear() {
+    fn test_linear() {
         let nts = nodes_timestamp_fixture();
-        let ll = LogLinearInterpolator {
+        let li = LinearInterpolator {
             calendar: CalType::NamedCal(NamedCal::try_new("all").unwrap()),
             convention: Convention::Act365F,
         };
-        let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
-        // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
+        let result = li.interpolated_value(&nts, &ndt(2000, 7, 1));
+        // expected = 1.0 + (182 / 366) * (0.99 - 1.0) = 0.995027
+        assert_eq!(result, DualsOrF64::F64(0.995027));
     }
 }

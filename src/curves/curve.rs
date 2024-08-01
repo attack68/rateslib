@@ -1,6 +1,6 @@
 
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::curves::{CurveInterpolator, LogLinearInterpolator};
+use crate::curves::{CurveInterpolator, LogLinearInterpolator, CurveInterpolation};
 use crate::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order, get_variable_tags};
 use chrono::NaiveDateTime;
 use pyo3::PyErr;
@@ -37,6 +37,16 @@ impl Curve {
     }
 }
 
+impl Curve {
+    pub fn interpolated_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
+        self.interpolator.interpolated_value(&self.nodes, date)
+    }
+
+    pub fn node_index(&self, date_timestamp: i64) -> usize {
+        self.interpolator.node_index(&self.nodes, date_timestamp)
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -60,14 +70,14 @@ mod tests {
     #[test]
     fn test_get_index() {
         let c = curve_fixture();
-        let result = c.node_index(&ndt(2001, 7, 30));
+        let result = c.node_index(ndt(2001, 7, 30).and_utc().timestamp());
         assert_eq!(result, 1_usize)
     }
-//
-//     #[test]
-//     fn test_get_value() {
-//         let c = curve_fixture();
-//         let result = c.get_value(&ndt(2001, 7, 30));
-//         assert_eq!(result, DualsOrF64::F64(0.985_f64))
-//     }
+
+    #[test]
+    fn test_get_value() {
+        let c = curve_fixture();
+        let result = c.get_value(&ndt(2001, 7, 30));
+        assert_eq!(result, DualsOrF64::F64(0.985_f64))
+    }
 }

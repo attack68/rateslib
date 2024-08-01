@@ -2,14 +2,14 @@ use crate::dual::{FieldOps, MathFuncs, DualsOrF64};
 use crate::calendars::{CalType, Convention};
 use std::ops::Mul;
 use chrono::NaiveDateTime;
-use crate::curves::{LogLinearInterpolator};
+use crate::curves::{LogLinearInterpolator, LinearInterpolator};
 use crate::curves::nodes::{NodesTimestamp};
 use crate::curves::interpolation::utils::index_left;
 
 /// Interpolation
 pub enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
-//     Linear,
+    Linear(LinearInterpolator),
 //     LinearIndex,
 //     LinearZeroRate,
 //     FlatForward,
@@ -22,11 +22,18 @@ pub trait CurveInterpolation {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64;
 
     /// Get the left side node key index of the given datetime
-    fn node_index(&self, nodes: &NodesTimestamp, date_timestamp: &i64) -> usize {
+    fn node_index(&self, nodes: &NodesTimestamp, date_timestamp: i64) -> usize {
         // let timestamp = date.and_utc().timestamp();
         index_left(&nodes.keys(), &date_timestamp, None)
     }
+}
 
+impl CurveInterpolation for CurveInterpolator {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+        match self {
+            CurveInterpolator::LogLinear(i) => i.interpolated_value(nodes, date),
+        }
+    }
 }
 
 
