@@ -2132,6 +2132,20 @@ class TestXCS:
         )
         assert xcs.leg2.fx_fixings == [1.25, 1.5, 1.75]
 
+    def test_initialisation_nonmtm_xcs_leg_notional_unused(self):
+        xcs = XCS(
+            effective=dt(2000,1,1),
+            termination="1y",
+            frequency="q",
+            notional=135e6,
+            fx_fixings=0.7407407407407407,
+            leg2_notional=20e6,
+            currency="cad",
+            leg2_currency="usd",
+            leg2_mtm=False,
+        )
+        assert abs(xcs.leg2.notional + 100e6) < 1e-8  # not 20e6
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2):
