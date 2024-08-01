@@ -1,7 +1,7 @@
 //! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
 //! bindings.
 
-use crate::calendars::calendar::{Cal, UnionCal, NamedCal};
+use crate::calendars::{Cal, UnionCal, NamedCal};
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
@@ -54,7 +54,7 @@ pub fn from_json_py(_py: Python<'_>, json: &str) -> PyResult<DeserializedObj> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual::Dual;
+    use crate::dual::Dual;
     #[test]
     fn test_serialized_object() {
         let x = Dual::new(2.5, vec!["x".to_string()]);

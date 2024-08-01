@@ -112,7 +112,7 @@ pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::calendar::DateRoll;
+    use crate::calendars::DateRoll;
 
     #[test]
     fn test_get_weekmask() {

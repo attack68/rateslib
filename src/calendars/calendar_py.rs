@@ -1,6 +1,6 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::calendar::{Cal, DateRoll, Modifier, RollDay, UnionCal, NamedCal};
+use crate::calendars::{Cal, DateRoll, Modifier, RollDay, UnionCal, NamedCal};
 use crate::calendars::named::get_calendar_by_name;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
