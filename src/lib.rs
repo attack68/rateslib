@@ -24,7 +24,7 @@ use splines::spline_py::{
 };
 
 pub mod curves;
-use curves::interpolation_py::index_left_f64;
+use curves::interpolation::interpolation_py::index_left_f64;
 
 pub mod calendars;
 use calendars::{Cal, Modifier, RollDay, UnionCal, NamedCal};
