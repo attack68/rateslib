@@ -6,18 +6,18 @@ use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::log_linear_interp;
 
-pub struct LogLinear {
+pub struct LogLinearInterpolator {
     calendar: CalType,
     convention: Convention,
 }
 
-impl LogLinear {
+impl LogLinearInterpolator {
     pub fn new(calendar: CalType, convention: Convention) -> Self {
-        LogLinear {calendar, convention}
+        LogLinearInterpolator {calendar, convention}
     }
 }
 
-impl CurveInterpolation for LogLinear {
+impl CurveInterpolation for LogLinearInterpolator {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
         let x = date.and_utc().timestamp();
         let index = self.node_index(nodes, &x);
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn test_log_linear() {
         let nts = nodes_timestamp_fixture();
-        let ll = LogLinear {
+        let ll = LogLinearInterpolator {
             calendar: CalType::NamedCal(NamedCal::try_new("all").unwrap()),
             convention: Convention::Act365F,
         };

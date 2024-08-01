@@ -1,4 +1,4 @@
-//! Utilities to create business day calendars and perform financial date manipulation.
+//! Create business day calendars and perform financial date manipulation.
 //!
 //! ### Basic usage
 //!

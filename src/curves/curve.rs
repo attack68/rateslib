@@ -1,6 +1,6 @@
 
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::curves::{CurveInterpolator, LogLinear};
+use crate::curves::{CurveInterpolator, LogLinearInterpolator};
 use crate::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order, get_variable_tags};
 use chrono::NaiveDateTime;
 use pyo3::PyErr;
@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use crate::json::JSON;
 use serde::{Serialize, Deserialize};
 
+///
 pub struct Curve {
     nodes: NodesTimestamp,
     interpolator: CurveInterpolator,
@@ -21,7 +22,8 @@ impl Curve {
         interpolator: CurveInterpolator,
         id: &str,
     ) -> Result<Self, PyErr> {
-        let nodes = NodesTimestamp::from(nodes);
+        let mut nodes = NodesTimestamp::from(nodes);
+        nodes.sort_keys();
         Ok( Self {nodes, interpolator, id: id.to_string()} )
     }
 
@@ -39,24 +41,28 @@ impl Curve {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calendars::{CalType, NamedCal, Convention};
     use indexmap::IndexMap;
     use crate::calendars::ndt;
 
-//     fn curve_fixture() -> Curve {
-//         let nodes = Nodes::F64(IndexMap::from_iter(vec![
-//             (ndt(2000, 1, 1), 1.0_f64),
-//             (ndt(2001, 1, 1), 0.99_f64),
-//             (ndt(2002, 1, 1), 0.98_f64),
-//         ]));
-//         Curve::try_new(nodes, LocalInterpolation::LogLinear, "crv").unwrap()
-//     }
+    fn curve_fixture() -> Curve {
+        let nodes = Nodes::F64(IndexMap::from_iter(vec![
+            (ndt(2000, 1, 1), 1.0_f64),
+            (ndt(2001, 1, 1), 0.99_f64),
+            (ndt(2002, 1, 1), 0.98_f64),
+        ]));
+        let interpolator = CurveInterpolator::LogLinear(
+            LogLinearInterpolator::new(CalType::NamedCal(NamedCal::try_new("bus").unwrap()), Convention::Act365F)
+        );
+        Curve::try_new(nodes, interpolator, "crv").unwrap()
+    }
 
-//     #[test]
-//     fn test_get_index() {
-//         let c = curve_fixture();
-//         let result = c.get_index(&ndt(2001, 7, 30));
-//         assert_eq!(result, 1_usize)
-//     }
+    #[test]
+    fn test_get_index() {
+        let c = curve_fixture();
+        let result = c.node_index(&ndt(2001, 7, 30));
+        assert_eq!(result, 1_usize)
+    }
 //
 //     #[test]
 //     fn test_get_value() {

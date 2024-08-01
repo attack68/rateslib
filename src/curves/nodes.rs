@@ -2,7 +2,8 @@ use crate::dual::{Dual, Dual2};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 
-pub(crate) enum Nodes {
+/// Datetime indexed values of a specific [ADOrder](`crate::dual::ADOrder`).
+pub enum Nodes {
     F64(IndexMap<NaiveDateTime, f64>),
     Dual(IndexMap<NaiveDateTime, Dual>),
     Dual2(IndexMap<NaiveDateTime, Dual2>),
@@ -30,6 +31,14 @@ impl NodesTimestamp {
             NodesTimestamp::F64(m) => m.keys().cloned().map(|x| x as f64).collect(),
             NodesTimestamp::Dual(m) => m.keys().cloned().map(|x| x as f64).collect(),
             NodesTimestamp::Dual2(m) => m.keys().cloned().map(|x| x as f64).collect(),
+        }
+    }
+
+    pub(crate) fn sort_keys(&mut self) {
+        match self {
+            NodesTimestamp::F64(m) => m.sort_keys(),
+            NodesTimestamp::Dual(m) => m.sort_keys(),
+            NodesTimestamp::Dual2(m) => m.sort_keys(),
         }
     }
 

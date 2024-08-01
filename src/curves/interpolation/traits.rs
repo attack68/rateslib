@@ -2,13 +2,13 @@ use crate::dual::{FieldOps, MathFuncs, DualsOrF64};
 use crate::calendars::{CalType, Convention};
 use std::ops::Mul;
 use chrono::NaiveDateTime;
-use crate::curves::{LogLinear};
+use crate::curves::{LogLinearInterpolator};
 use crate::curves::nodes::{NodesTimestamp};
 use crate::curves::interpolation::utils::index_left;
 
 /// Interpolation
 pub enum CurveInterpolator {
-    LogLinear(LogLinear),
+    LogLinear(LogLinearInterpolator),
 //     Linear,
 //     LinearIndex,
 //     LinearZeroRate,
@@ -18,7 +18,7 @@ pub enum CurveInterpolator {
 
 /// Assigns methods for returning values from datetime indexed Curves.
 pub trait CurveInterpolation {
-    /// Get an item from the Curve expressed in its input form, i.e. discount factor or value.
+    /// Get a value from the curve's `Nodes` expressed in its input form, i.e. discount factor or value.
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64;
 
     /// Get the left side node key index of the given datetime
@@ -35,7 +35,7 @@ mod tests {
     use super::*;
     use indexmap::IndexMap;
     use crate::curves::nodes::Nodes;
-    use crate::calendars::{NamedCal, ndt};
+    use crate::calendars::{NamedCal, ndt, Convention};
     use crate::dual::Dual;
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn test_log_linear() {
         let nts = nodes_timestamp_fixture();
-        let ll = LogLinear::new(
+        let ll = LogLinearInterpolator::new(
             CalType::NamedCal(NamedCal::try_new("all").unwrap()),
             Convention::Act365F,
         );
