@@ -68,7 +68,7 @@
 //! ```
 
 mod calendar;
-pub use crate::calendars::calendar::{Cal, UnionCal, NamedCal, ndt};
+pub use crate::calendars::calendar::{Cal, UnionCal, NamedCal, ndt, CalType};
 
 pub mod named;
 pub use crate::calendars::named::get_calendar_by_name;
@@ -76,7 +76,8 @@ pub use crate::calendars::named::get_calendar_by_name;
 mod dateroll;
 pub use crate::calendars::dateroll::{get_imm, get_roll, DateRoll, Modifier, RollDay};
 
-pub mod dcfs;
+mod dcfs;
+pub use crate::calendars::dcfs::Convention;
 
 mod serde;
 

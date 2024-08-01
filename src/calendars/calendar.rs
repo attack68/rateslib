@@ -2,12 +2,20 @@ use chrono::prelude::*;
 use chrono::Weekday;
 use indexmap::set::IndexSet;
 use pyo3::exceptions::{PyValueError};
-use pyo3::{pyclass, PyErr};
+use pyo3::{pyclass, PyErr, FromPyObject};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 use crate::calendars::dateroll::{DateRoll};
 use crate::calendars::named::get_calendar_by_name;
+
+/// Container for calendar types.
+#[derive(Debug, Clone, PartialEq, FromPyObject)]
+pub enum CalType {
+    Cal(Cal),
+    UnionCal(UnionCal),
+    NamedCal(NamedCal)
+}
 
 /// A business day calendar with a singular list of holidays.
 ///
