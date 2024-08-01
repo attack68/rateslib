@@ -7027,6 +7027,12 @@ class XCS(BaseDerivative):
 
     MTM-XCSs will introduce a MTM *Leg* as *Leg2*.
 
+    .. warning::
+
+       ``leg2_notional`` is unused by *XCS*. That notional is always dynamically determined by
+       ``fx_fixings``, i.e. an initial FX fixing and/or forecast forward FX rates if ``leg2_mtm``
+       is set to *True*. See also the parameter definition for ``fx_fixings``.
+
     Parameters
     ----------
     args : tuple
@@ -7089,7 +7095,7 @@ class XCS(BaseDerivative):
     fx_fixings : float, Dual, Dual2, list of such, optional
         Specify a known initial FX fixing or a list of such for ``mtm`` legs, where leg 1 is
         considered the domestic currency. For example for an ESTR/SOFR XCS in 100mm EUR notional
-        a value of 1.10 for fx_fixings implies the notional on leg 2 is 110m USD. Fixings that
+        a value of 1.10 EURUSD for fx_fixings implies the notional on leg 2 is 110m USD. Fixings that
         are not specified will be forecast at pricing time with an
         :class:`~rateslib.fx.FXForwards` object.
     kwargs : dict
