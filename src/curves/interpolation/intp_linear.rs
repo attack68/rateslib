@@ -2,19 +2,17 @@ use crate::dual::{FieldOps, MathFuncs, DualsOrF64};
 use crate::calendars::{CalType, Convention};
 use std::ops::Mul;
 use chrono::NaiveDateTime;
+use pyo3::pyclass;
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::linear_interp;
 
-pub struct LinearInterpolator {
-    calendar: CalType,
-    convention: Convention,
-}
+/// Define linear interpolation of nodes.
+#[pyclass(module = "rateslib.rs")]
+pub struct LinearInterpolator { }
 
 impl LinearInterpolator {
-    pub fn new(calendar: CalType, convention: Convention) -> Self {
-        LinearInterpolator {calendar, convention}
-    }
+    pub fn new() -> Self { LinearInterpolator {} }
 }
 
 impl CurveInterpolation for LinearInterpolator {
@@ -57,10 +55,7 @@ mod tests {
     #[test]
     fn test_linear() {
         let nts = nodes_timestamp_fixture();
-        let li = LinearInterpolator {
-            calendar: CalType::NamedCal(NamedCal::try_new("all").unwrap()),
-            convention: Convention::Act365F,
-        };
+        let li = LinearInterpolator::new();
         let result = li.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = 1.0 + (182 / 366) * (0.99 - 1.0) = 0.995027
         assert_eq!(result, DualsOrF64::F64(0.9950273224043715));

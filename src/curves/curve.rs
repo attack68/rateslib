@@ -63,7 +63,7 @@ mod tests {
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
         let interpolator = CurveInterpolator::LogLinear(
-            LogLinearInterpolator::new(CalType::NamedCal(NamedCal::try_new("bus").unwrap()), Convention::Act365F)
+            LogLinearInterpolator::new()
         );
         Curve::try_new(nodes, interpolator, "crv").unwrap()
     }

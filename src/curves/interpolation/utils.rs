@@ -1,6 +1,6 @@
 use crate::dual::{FieldOps, MathFuncs};
 use std::{
-    ops::Mul,
+    ops::{Mul, Neg, Sub},
     cmp::{PartialEq, PartialOrd}
 };
 
@@ -31,6 +31,21 @@ where
     let (y1, y2) = (y1.log(), y2.log());
     let y = linear_interp(x1, &y1, x2, &y2, x);
     y.exp()
+}
+
+/// Calculate the linear zero rate interpolation between two coordinates.
+pub(crate) fn linear_zero_interp<T>(x0: f64, x1: f64, y1: &T, x2: f64, y2: &T, x: f64) -> T
+where
+    for<'a> &'a T: FieldOps<T>,
+    T: Mul<f64, Output = T> + MathFuncs + Sub,
+{
+    let t1: f64 = x1 - x0;
+    let t2: f64 = x2 - x0;
+    let t: f64 = x - x0;
+    let r1: T = y1.log() * (-1_f64 / t1);
+    let r2: T = y2.log() * (-1_f64 / t2);
+    let r = &r1 + &((&r2 - &r1) * ((t - t1) / (t2 - t1)));
+    (r * -t).exp()
 }
 
 /// Calculate the left sided index for a given value in a sorted list.

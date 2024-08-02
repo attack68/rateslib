@@ -5,26 +5,27 @@ use chrono::NaiveDateTime;
 use pyo3::pyclass;
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
-use crate::curves::interpolation::utils::log_linear_interp;
+use crate::curves::interpolation::utils::linear_zero_interp;
 
 /// Define linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
-pub struct LogLinearInterpolator {}
+pub struct LinearZeroRateInterpolator {}
 
-impl LogLinearInterpolator {
-    pub fn new() -> Self { LogLinearInterpolator {} }
+impl LinearZeroRateInterpolator {
+    pub fn new() -> Self { LinearZeroRateInterpolator {} }
 }
 
-impl CurveInterpolation for LogLinearInterpolator {
+impl CurveInterpolation for LinearZeroRateInterpolator {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
         let x = date.and_utc().timestamp();
         let index = self.node_index(nodes, x);
 
         macro_rules! interp {
             ($Variant: ident, $indexmap: expr) => {{
+                let (x0, _) = $indexmap.get_index(0_usize).unwrap();
                 let (x1, y1) = $indexmap.get_index(index).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
-                DualsOrF64::$Variant(log_linear_interp(*x1 as f64, y1, *x2 as f64, y2, x as f64))
+                DualsOrF64::$Variant(linear_zero_interp(*x0 as f64, *x1 as f64, y1, *x2 as f64, y2, x as f64))
             }}
         }
         match nodes {
@@ -55,7 +56,7 @@ mod tests {
     #[test]
     fn test_log_linear() {
         let nts = nodes_timestamp_fixture();
-        let ll = LogLinearInterpolator::new();
+        let ll = LinearZeroRateInterpolator::new();
         let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
         assert_eq!(result, DualsOrF64::F64(0.9950147597711371));

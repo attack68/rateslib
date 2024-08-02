@@ -58,10 +58,7 @@ mod tests {
     #[test]
     fn test_log_linear() {
         let nts = nodes_timestamp_fixture();
-        let ll = LogLinearInterpolator::new(
-            CalType::NamedCal(NamedCal::try_new("all").unwrap()),
-            Convention::Act365F,
-        );
+        let ll = LogLinearInterpolator::new();
         let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
         assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
