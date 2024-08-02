@@ -32,6 +32,7 @@ impl CurveInterpolation for CurveInterpolator {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
         match self {
             CurveInterpolator::LogLinear(i) => i.interpolated_value(nodes, date),
+            CurveInterpolator::Linear(i) => i.interpolated_value(nodes, date)
         }
     }
 }

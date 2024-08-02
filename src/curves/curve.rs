@@ -3,13 +3,14 @@ use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{CurveInterpolator, LogLinearInterpolator, CurveInterpolation};
 use crate::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order, get_variable_tags};
 use chrono::NaiveDateTime;
-use pyo3::PyErr;
+use pyo3::{PyErr, pyclass};
 use std::collections::HashMap;
 
 use crate::json::JSON;
 use serde::{Serialize, Deserialize};
 
-///
+/// Default struct for storing discount factors (DFs).
+#[pyclass(module = "rateslib.rs")]
 pub struct Curve {
     nodes: NodesTimestamp,
     interpolator: CurveInterpolator,
@@ -77,7 +78,7 @@ mod tests {
     #[test]
     fn test_get_value() {
         let c = curve_fixture();
-        let result = c.get_value(&ndt(2001, 7, 30));
-        assert_eq!(result, DualsOrF64::F64(0.985_f64))
+        let result = c.interpolated_value(&ndt(2000, 7, 1));
+        assert_eq!(result, DualsOrF64::F64(0.9950147597711371))
     }
 }

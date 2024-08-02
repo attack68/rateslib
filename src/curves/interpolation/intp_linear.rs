@@ -63,6 +63,6 @@ mod tests {
         };
         let result = li.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = 1.0 + (182 / 366) * (0.99 - 1.0) = 0.995027
-        assert_eq!(result, DualsOrF64::F64(0.995027));
+        assert_eq!(result, DualsOrF64::F64(0.9950273224043715));
     }
 }
