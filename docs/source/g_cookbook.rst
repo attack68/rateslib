@@ -34,6 +34,7 @@ into any one category.
     z_fixings.rst
     z_historical_swap.ipynb
     z_amortization.rst
+    z_reverse_xcs.rst
 
 **Risk Sensitivity Analysis**
 
