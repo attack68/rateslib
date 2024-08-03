@@ -40,7 +40,7 @@ Get Started
 ===========
 
 Read the documentation at 
-[Rateslib Read-the-Docs](https://rateslib.readthedocs.io/en/latest/)
+[Rateslib Read-the-Docs](https://rateslib.readthedocs.io/en/stable/)
 
 
 
