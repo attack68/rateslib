@@ -23,8 +23,8 @@ impl CurveInterpolation for LinearZeroRateInterpolator {
         macro_rules! interp {
             ($Variant: ident, $indexmap: expr) => {{
                 let (x0, _) = $indexmap.get_index(0_usize).unwrap();
-                let (x1, y1) = $indexmap.get_index(index).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
+                let (x1, y1) = $indexmap.get_index(index).unwrap();
                 DualsOrF64::$Variant(linear_zero_interp(*x0 as f64, *x1 as f64, y1, *x2 as f64, y2, x as f64))
             }}
         }
@@ -57,8 +57,10 @@ mod tests {
     fn test_log_linear() {
         let nts = nodes_timestamp_fixture();
         let ll = LinearZeroRateInterpolator::new();
-        let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
-        // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
+        let result = ll.interpolated_value(&nts, &ndt(2001, 7, 1));
+        // r1 = -ln(0.99) / 366, r2 = -ln(0.98) / 731
+        // r = r1 + (181 / 365) * (r2 - r1)
+        // expected = exp(-r * 547) r1 = 0.985044328
+        assert_eq!(result, DualsOrF64::F64(0.9850443279738612));
     }
 }

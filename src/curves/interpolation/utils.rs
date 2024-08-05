@@ -37,14 +37,19 @@ where
 pub(crate) fn linear_zero_interp<T>(x0: f64, x1: f64, y1: &T, x2: f64, y2: &T, x: f64) -> T
 where
     for<'a> &'a T: FieldOps<T>,
-    T: Mul<f64, Output = T> + MathFuncs + Sub,
+    T: Mul<f64, Output = T> + MathFuncs + Sub + Clone,
 {
     let t1: f64 = x1 - x0;
     let t2: f64 = x2 - x0;
     let t: f64 = x - x0;
-    let r1: T = y1.log() * (-1_f64 / t1);
     let r2: T = y2.log() * (-1_f64 / t2);
-    let r = &r1 + &((&r2 - &r1) * ((t - t1) / (t2 - t1)));
+    let r: T;
+    if t1 == 0.0_f64 {
+        r = r2.clone();  // Flat forward zero rate in first interval
+    } else {
+        let r1: T = y1.log() * (-1_f64 / t1);
+        r = &r1 + &((&r2 - &r1) * ((t - t1) / (t2 - t1)));
+    }
     (r * -t).exp()
 }
 
