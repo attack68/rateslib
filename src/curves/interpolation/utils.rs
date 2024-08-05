@@ -1,6 +1,6 @@
 use crate::dual::{FieldOps, MathFuncs};
 use std::{
-    ops::{Mul, Neg, Sub},
+    ops::{Mul, Sub},
     cmp::{PartialEq, PartialOrd}
 };
 

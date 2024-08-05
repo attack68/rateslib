@@ -1,6 +1,4 @@
-use crate::dual::{FieldOps, MathFuncs, DualsOrF64};
-use crate::calendars::{CalType, Convention};
-use std::ops::Mul;
+use crate::dual::{DualsOrF64};
 use chrono::NaiveDateTime;
 use pyo3::pyclass;
 use crate::curves::{CurveInterpolation};
@@ -40,8 +38,7 @@ mod tests {
     use super::*;
     use indexmap::IndexMap;
     use crate::curves::nodes::Nodes;
-    use crate::calendars::{NamedCal, ndt};
-    use crate::dual::Dual;
+    use crate::calendars::{ndt};
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![

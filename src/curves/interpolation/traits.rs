@@ -1,8 +1,10 @@
-use crate::dual::{FieldOps, MathFuncs, DualsOrF64};
-use crate::calendars::{CalType, Convention};
-use std::ops::Mul;
+use crate::dual::{DualsOrF64};
 use chrono::NaiveDateTime;
-use crate::curves::{LogLinearInterpolator, LinearInterpolator};
+use crate::curves::{
+    LogLinearInterpolator,
+    LinearInterpolator,
+    LinearZeroRateInterpolator,
+};
 use crate::curves::nodes::{NodesTimestamp};
 use crate::curves::interpolation::utils::index_left;
 
@@ -10,6 +12,7 @@ use crate::curves::interpolation::utils::index_left;
 pub enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),
+    LinearZeroRate(LinearZeroRateInterpolator),
 //     LinearIndex,
 //     LinearZeroRate,
 //     FlatForward,
@@ -32,7 +35,8 @@ impl CurveInterpolation for CurveInterpolator {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
         match self {
             CurveInterpolator::LogLinear(i) => i.interpolated_value(nodes, date),
-            CurveInterpolator::Linear(i) => i.interpolated_value(nodes, date)
+            CurveInterpolator::Linear(i) => i.interpolated_value(nodes, date),
+            CurveInterpolator::LinearZeroRate(i) => i.interpolated_value(nodes, date),
         }
     }
 }
@@ -43,8 +47,7 @@ mod tests {
     use super::*;
     use indexmap::IndexMap;
     use crate::curves::nodes::Nodes;
-    use crate::calendars::{NamedCal, ndt, Convention};
-    use crate::dual::Dual;
+    use crate::calendars::{ndt};
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![

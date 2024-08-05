@@ -1,13 +1,13 @@
-use crate::dual::{FieldOps, MathFuncs, DualsOrF64};
-use crate::calendars::{CalType, Convention};
-use std::ops::Mul;
+use crate::dual::{DualsOrF64};
 use chrono::NaiveDateTime;
 use pyo3::pyclass;
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::linear_zero_interp;
 
-/// Define linear interpolation of nodes.
+/// Define linear zero rate interpolation of nodes.
+///
+/// This interpolation can only be used with discount factors node values.
 #[pyclass(module = "rateslib.rs")]
 pub struct LinearZeroRateInterpolator {}
 
@@ -41,8 +41,7 @@ mod tests {
     use super::*;
     use indexmap::IndexMap;
     use crate::curves::nodes::Nodes;
-    use crate::calendars::{NamedCal, ndt};
-    use crate::dual::Dual;
+    use crate::calendars::{ndt};
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
@@ -62,5 +61,16 @@ mod tests {
         // r = r1 + (181 / 365) * (r2 - r1)
         // expected = exp(-r * 547) r1 = 0.985044328
         assert_eq!(result, DualsOrF64::F64(0.9850443279738612));
+    }
+
+    #[test]
+    fn test_log_linear_first_period() {
+        let nts = nodes_timestamp_fixture();
+        let ll = LinearZeroRateInterpolator::new();
+        let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
+        // r1 = r2, r2 = -ln(0.99) / 366
+        // r = r1
+        // expected = exp(-r * 182) = 0.99501476
+        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
     }
 }
