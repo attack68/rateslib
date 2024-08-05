@@ -24,7 +24,15 @@ use splines::spline_py::{
 };
 
 pub mod curves;
-use curves::interpolation::interpolation_py::index_left_f64;
+use curves::interpolation::interpolation_py::{
+    index_left_f64,
+
+};
+use curves::{
+    LinearInterpolator,
+    LogLinearInterpolator,
+    LinearZeroRateInterpolator,
+};
 
 pub mod calendars;
 use calendars::{Cal, Modifier, RollDay, UnionCal, NamedCal};
@@ -57,6 +65,9 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Curves
     m.add_function(wrap_pyfunction!(index_left_f64, m)?)?;
+    m.add_class::<LinearInterpolator>()?;
+    m.add_class::<LogLinearInterpolator>()?;
+    m.add_class::<LinearZeroRateInterpolator>()?;
 
     // Calendars
     m.add_class::<Cal>()?;
