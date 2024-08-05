@@ -8,16 +8,6 @@ use bincode::{deserialize, serialize};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 
-impl IntoPy<PyObject> for DualsOrF64 {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            DualsOrF64::F64(f) => PyFloat::new_bound(py, f).to_object(py),
-            DualsOrF64::Dual(d) => Py::new(py, d).unwrap().to_object(py),
-            DualsOrF64::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
-        }
-    }
-}
-
 #[pymethods]
 impl Curve {
     #[new]
