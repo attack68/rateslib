@@ -4,11 +4,13 @@ use pyo3::pyclass;
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::linear_zero_interp;
+use std::cmp::PartialEq;
 
 /// Define linear zero rate interpolation of nodes.
 ///
 /// This interpolation can only be used with discount factors node values.
 #[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearZeroRateInterpolator {}
 
 impl LinearZeroRateInterpolator {

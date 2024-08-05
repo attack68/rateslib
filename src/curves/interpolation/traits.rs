@@ -7,8 +7,11 @@ use crate::curves::{
 };
 use crate::curves::nodes::{NodesTimestamp};
 use crate::curves::interpolation::utils::index_left;
+use pyo3::FromPyObject;
+use std::cmp::PartialEq;
 
 /// Interpolation
+#[derive(Debug, Clone, PartialEq, FromPyObject)]
 pub enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),

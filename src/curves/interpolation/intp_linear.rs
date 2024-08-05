@@ -4,9 +4,11 @@ use pyo3::pyclass;
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::linear_interp;
+use std::cmp::PartialEq;
 
 /// Define linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LinearInterpolator { }
 
 impl LinearInterpolator {
