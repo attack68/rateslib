@@ -1,13 +1,9 @@
 
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::curves::{CurveInterpolator, LogLinearInterpolator, CurveInterpolation};
-use crate::dual::{DualsOrF64, ADOrder, Dual, Dual2, set_order, get_variable_tags};
+use crate::curves::{CurveInterpolator, CurveInterpolation};
+use crate::dual::{DualsOrF64, ADOrder};
 use chrono::NaiveDateTime;
 use pyo3::{PyErr, pyclass};
-use std::collections::HashMap;
-
-use crate::json::JSON;
-use serde::{Serialize, Deserialize};
 
 /// Default struct for storing discount factors (DFs).
 #[pyclass(module = "rateslib.rs")]
@@ -52,9 +48,9 @@ impl Curve {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{CalType, NamedCal, Convention};
+    use crate::calendars::{CalType, NamedCal, Convention, ndt};
     use indexmap::IndexMap;
-    use crate::calendars::ndt;
+    use crate::curves::LogLinearInterpolator;
 
     fn curve_fixture() -> Curve {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![

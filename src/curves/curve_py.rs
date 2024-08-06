@@ -3,14 +3,9 @@
 use crate::curves::{Curve, CurveInterpolator};
 use crate::curves::nodes::Nodes;
 use crate::dual::{Dual, Dual2, DualsOrF64, set_order, ADOrder, get_variable_tags};
-use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyFloat};
-use bincode::{deserialize, serialize};
 use indexmap::IndexMap;
 use chrono::NaiveDateTime;
-use crate::json::json_py::DeserializedObj;
-use crate::json::JSON;
 
 #[pymethods]
 impl Curve {
