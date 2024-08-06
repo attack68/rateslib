@@ -1,16 +1,15 @@
-
-use std::time::SystemTime;
 use rateslib::dual::{Dual, DualsOrF64, FieldOps};
+use std::time::SystemTime;
 
 fn ops<T>(a: &T, b: &T) -> T
-where         T: FieldOps<T>,
-  for<'a> &'a T: FieldOps<T>
+where
+    T: FieldOps<T>,
+    for<'a> &'a T: FieldOps<T>,
 {
     &(&(&(a + b) - a) * b) / a
 }
 
-fn ops2(a: f64, b: &Dual) -> Dual
-{
+fn ops2(a: f64, b: &Dual) -> Dual {
     &(&(&(a + b) - a) * b) / a
 }
 
@@ -34,7 +33,10 @@ fn main() {
     for i in 0..10000 {
         let _ = ops(&a3, &b3);
     }
-    println!("{:.5?} time taken for DualsOrF64 F64 wrapper", now.elapsed());
+    println!(
+        "{:.5?} time taken for DualsOrF64 F64 wrapper",
+        now.elapsed()
+    );
 
     for i in 0..10000 {
         let _ = ops(&a1, &b1);
@@ -44,16 +46,21 @@ fn main() {
     for i in 0..10000 {
         let _ = ops(&a2, &b2);
     }
-    println!("{:.5?} time taken for DualsOrF64 Dual wrapper", now.elapsed());
+    println!(
+        "{:.5?} time taken for DualsOrF64 Dual wrapper",
+        now.elapsed()
+    );
 
     for i in 0..10000 {
         let _ = ops(&a2, &a3);
     }
-    println!("{:.5?} time taken for DualsOrF64 F64/Dual wrapper", now.elapsed());
+    println!(
+        "{:.5?} time taken for DualsOrF64 F64/Dual wrapper",
+        now.elapsed()
+    );
 
     for i in 0..10000 {
         let _ = ops2(a0, &a1);
     }
     println!("{:.5?} time taken for F64/Dual special func", now.elapsed());
-
 }

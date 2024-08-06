@@ -68,7 +68,7 @@
 //! ```
 
 mod calendar;
-pub use crate::calendars::calendar::{Cal, UnionCal, NamedCal, ndt, CalType};
+pub use crate::calendars::calendar::{ndt, Cal, CalType, NamedCal, UnionCal};
 
 pub mod named;
 pub use crate::calendars::named::get_calendar_by_name;

@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64, Vars, VarsRelationship};
 use auto_ops::impl_op_ex;
 use std::sync::Arc;
 
@@ -77,16 +77,20 @@ impl_op_ex!(-|a: &Dual2, b: &Dual2| -> Dual2 {
 });
 
 // Sub for DualsOrF64
-impl_op_ex!(- |a: &DualsOrF64, b: &DualsOrF64| -> DualsOrF64 {
-    match (a,b) {
+impl_op_ex!(-|a: &DualsOrF64, b: &DualsOrF64| -> DualsOrF64 {
+    match (a, b) {
         (DualsOrF64::F64(f), DualsOrF64::F64(f2)) => DualsOrF64::F64(f - f2),
         (DualsOrF64::F64(f), DualsOrF64::Dual(d2)) => DualsOrF64::Dual(f - d2),
         (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => DualsOrF64::Dual2(f - d2),
         (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => DualsOrF64::Dual(d - f2),
         (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => DualsOrF64::Dual(d - d2),
-        (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => panic!("Cannot mix dual types: Dual - Dual2"),
+        (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => {
+            panic!("Cannot mix dual types: Dual - Dual2")
+        }
         (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => DualsOrF64::Dual2(d - f2),
-        (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => panic!("Cannot mix dual types: Dual2 - Dual"),
+        (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => {
+            panic!("Cannot mix dual types: Dual2 - Dual")
+        }
         (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => DualsOrF64::Dual2(d - d2),
     }
 });
@@ -187,9 +191,15 @@ mod tests {
     fn test_enum() {
         let f = DualsOrF64::F64(2.0);
         let d = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
-        assert_eq!(&f-&d, DualsOrF64::Dual(Dual::try_new(-1.0, vec!["x".to_string()], vec![-1.0]).unwrap()));
+        assert_eq!(
+            &f - &d,
+            DualsOrF64::Dual(Dual::try_new(-1.0, vec!["x".to_string()], vec![-1.0]).unwrap())
+        );
 
-        assert_eq!(&d-&d, DualsOrF64::Dual(Dual::try_new(0.0, vec!["x".to_string()], vec![0.0]).unwrap()));
+        assert_eq!(
+            &d - &d,
+            DualsOrF64::Dual(Dual::try_new(0.0, vec!["x".to_string()], vec![0.0]).unwrap())
+        );
     }
 
     #[test]

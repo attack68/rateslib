@@ -158,9 +158,17 @@ mod tests {
     fn test_enum() {
         let f = DualsOrF64::F64(2.0);
         let d = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
-        assert_eq!(&f/&d, DualsOrF64::Dual(Dual::try_new(2.0/3.0, vec!["x".to_string()], vec![-2.0/9.0]).unwrap()));
+        assert_eq!(
+            &f / &d,
+            DualsOrF64::Dual(
+                Dual::try_new(2.0 / 3.0, vec!["x".to_string()], vec![-2.0 / 9.0]).unwrap()
+            )
+        );
 
-        assert_eq!(&d/&d, DualsOrF64::Dual(Dual::try_new(1.0, vec!["x".to_string()], vec![0.0]).unwrap()));
+        assert_eq!(
+            &d / &d,
+            DualsOrF64::Dual(Dual::try_new(1.0, vec!["x".to_string()], vec![0.0]).unwrap())
+        );
     }
 
     #[test]
@@ -170,5 +178,4 @@ mod tests {
         let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let _ = d / d2;
     }
-
 }

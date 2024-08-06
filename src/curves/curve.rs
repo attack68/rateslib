@@ -1,9 +1,8 @@
-
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::curves::{CurveInterpolator, CurveInterpolation};
-use crate::dual::{DualsOrF64, ADOrder};
+use crate::curves::{CurveInterpolation, CurveInterpolator};
+use crate::dual::{ADOrder, DualsOrF64};
 use chrono::NaiveDateTime;
-use pyo3::{PyErr, pyclass};
+use pyo3::{pyclass, PyErr};
 
 /// Default struct for storing discount factors (DFs).
 #[pyclass(module = "rateslib.rs")]
@@ -14,14 +13,14 @@ pub struct Curve {
 }
 
 impl Curve {
-    pub fn try_new(
-        nodes: Nodes,
-        interpolator: CurveInterpolator,
-        id: &str,
-    ) -> Result<Self, PyErr> {
+    pub fn try_new(nodes: Nodes, interpolator: CurveInterpolator, id: &str) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
-        Ok( Self {nodes: nodes, interpolator, id: id.to_string()} )
+        Ok(Self {
+            nodes,
+            interpolator,
+            id: id.to_string(),
+        })
     }
 
     /// Get the `ADOrder` of the `Curve`.
@@ -44,13 +43,12 @@ impl Curve {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{CalType, NamedCal, Convention, ndt};
-    use indexmap::IndexMap;
+    use crate::calendars::{ndt, CalType, Convention, NamedCal};
     use crate::curves::LogLinearInterpolator;
+    use indexmap::IndexMap;
 
     fn curve_fixture() -> Curve {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
@@ -58,9 +56,7 @@ mod tests {
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
-        let interpolator = CurveInterpolator::LogLinear(
-            LogLinearInterpolator::new()
-        );
+        let interpolator = CurveInterpolator::LogLinear(LogLinearInterpolator::new());
         Curve::try_new(nodes, interpolator, "crv").unwrap()
     }
 

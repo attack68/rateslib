@@ -18,9 +18,15 @@ pub enum NodesTimestamp {
 impl From<Nodes> for NodesTimestamp {
     fn from(value: Nodes) -> Self {
         match value {
-            Nodes::F64(m) => {NodesTimestamp::F64(IndexMap::from_iter(m.into_iter().map(|(k,v)| (k.and_utc().timestamp(), v))))}
-            Nodes::Dual(m) => {NodesTimestamp::Dual(IndexMap::from_iter(m.into_iter().map(|(k,v)| (k.and_utc().timestamp(), v))))}
-            Nodes::Dual2(m) => {NodesTimestamp::Dual2(IndexMap::from_iter(m.into_iter().map(|(k,v)| (k.and_utc().timestamp(), v))))}
+            Nodes::F64(m) => NodesTimestamp::F64(IndexMap::from_iter(
+                m.into_iter().map(|(k, v)| (k.and_utc().timestamp(), v)),
+            )),
+            Nodes::Dual(m) => NodesTimestamp::Dual(IndexMap::from_iter(
+                m.into_iter().map(|(k, v)| (k.and_utc().timestamp(), v)),
+            )),
+            Nodes::Dual2(m) => NodesTimestamp::Dual2(IndexMap::from_iter(
+                m.into_iter().map(|(k, v)| (k.and_utc().timestamp(), v)),
+            )),
         }
     }
 }

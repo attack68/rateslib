@@ -1,12 +1,8 @@
-use crate::dual::{DualsOrF64};
-use chrono::NaiveDateTime;
-use crate::curves::{
-    LogLinearInterpolator,
-    LinearInterpolator,
-    LinearZeroRateInterpolator,
-};
-use crate::curves::nodes::{NodesTimestamp};
 use crate::curves::interpolation::utils::index_left;
+use crate::curves::nodes::NodesTimestamp;
+use crate::curves::{LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator};
+use crate::dual::DualsOrF64;
+use chrono::NaiveDateTime;
 use pyo3::FromPyObject;
 use std::cmp::PartialEq;
 
@@ -16,10 +12,10 @@ pub enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),
     LinearZeroRate(LinearZeroRateInterpolator),
-//     LinearIndex,
-//     LinearZeroRate,
-//     FlatForward,
-//     FlatBackward,
+    //     LinearIndex,
+    //     LinearZeroRate,
+    //     FlatForward,
+    //     FlatBackward,
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.
@@ -44,13 +40,12 @@ impl CurveInterpolation for CurveInterpolator {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use indexmap::IndexMap;
+    use crate::calendars::ndt;
     use crate::curves::nodes::Nodes;
-    use crate::calendars::{ndt};
+    use indexmap::IndexMap;
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![

@@ -40,6 +40,9 @@ mod tests {
             DualsOrF64::Dual(Dual::new(3.5, vec!["x".to_string()])),
         ];
         let s: DualsOrF64 = v.into_iter().sum();
-        assert_eq!(s, DualsOrF64::Dual(Dual::try_new(7.5, vec!["x".to_string()], vec![2.0]).unwrap()));
+        assert_eq!(
+            s,
+            DualsOrF64::Dual(Dual::try_new(7.5, vec!["x".to_string()], vec![2.0]).unwrap())
+        );
     }
 }

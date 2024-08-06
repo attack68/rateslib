@@ -15,8 +15,8 @@ use crate::json::json_py::from_json_py;
 use pyo3::prelude::*;
 
 pub mod dual;
-use dual::{ADOrder, Dual, Dual2};
 use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
+use dual::{ADOrder, Dual, Dual2};
 
 pub mod splines;
 use splines::spline_py::{
@@ -24,20 +24,12 @@ use splines::spline_py::{
 };
 
 pub mod curves;
-use curves::interpolation::interpolation_py::{
-    index_left_f64,
-
-};
-use curves::{
-    Curve,
-    LinearInterpolator,
-    LogLinearInterpolator,
-    LinearZeroRateInterpolator,
-};
+use curves::interpolation::interpolation_py::index_left_f64;
+use curves::{Curve, LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator};
 
 pub mod calendars;
-use calendars::{Cal, Modifier, RollDay, UnionCal, NamedCal};
 use calendars::calendar_py::get_calendar_by_name_py;
+use calendars::{Cal, Modifier, NamedCal, RollDay, UnionCal};
 
 pub mod fx;
 use fx::rates::ccy::Ccy;
@@ -70,7 +62,6 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<LinearInterpolator>()?;
     m.add_class::<LogLinearInterpolator>()?;
     m.add_class::<LinearZeroRateInterpolator>()?;
-
 
     // Calendars
     m.add_class::<Cal>()?;

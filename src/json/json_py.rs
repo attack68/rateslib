@@ -1,7 +1,7 @@
 //! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
 //! bindings.
 
-use crate::calendars::{Cal, UnionCal, NamedCal};
+use crate::calendars::{Cal, NamedCal, UnionCal};
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;

@@ -1,7 +1,7 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::{Cal, DateRoll, Modifier, RollDay, UnionCal, NamedCal, CalType};
 use crate::calendars::named::get_calendar_by_name;
+use crate::calendars::{Cal, CalType, DateRoll, Modifier, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use bincode::{deserialize, serialize};
@@ -361,10 +361,14 @@ impl UnionCal {
     }
 
     #[getter]
-    fn calendars(&self) -> Vec<Cal> { self.calendars.clone() }
+    fn calendars(&self) -> Vec<Cal> {
+        self.calendars.clone()
+    }
 
     #[getter]
-    fn settlement_calendars(&self) -> Option<Vec<Cal>> { self.settlement_calendars.clone() }
+    fn settlement_calendars(&self) -> Option<Vec<Cal>> {
+        self.settlement_calendars.clone()
+    }
 
     /// Return whether the `date` is a business day.
     ///
@@ -521,7 +525,7 @@ impl UnionCal {
 impl NamedCal {
     #[new]
     fn new_py(name: String) -> PyResult<Self> {
-        Ok(NamedCal::try_new(&name)?)
+        NamedCal::try_new(&name)
     }
 
     #[getter]
@@ -535,10 +539,14 @@ impl NamedCal {
     }
 
     #[getter]
-    fn name(&self) -> String { self.name.clone() }
+    fn name(&self) -> String {
+        self.name.clone()
+    }
 
     #[getter]
-    fn union_cal(&self) -> UnionCal { self.union_cal.clone() }
+    fn union_cal(&self) -> UnionCal {
+        self.union_cal.clone()
+    }
 
     /// Return whether the `date` is a business day.
     ///

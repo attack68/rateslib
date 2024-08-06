@@ -21,14 +21,14 @@ pub(crate) mod dual_py;
 pub mod linalg;
 pub(crate) mod linalg_py;
 
-pub use crate::dual::dual::{Dual, Dual2, ADOrder, DualsOrF64, VarsRelationship, FieldOps,
-Gradient1, Gradient2, MathFuncs, Vars, set_order, set_order_clone
+pub use crate::dual::dual::{
+    set_order, set_order_clone, ADOrder, Dual, Dual2, DualsOrF64, FieldOps, Gradient1, Gradient2,
+    MathFuncs, Vars, VarsRelationship,
 };
 
-
 /// Utility for creating an ordered list of variable tags from a string and enumerator
-pub(crate) fn get_variable_tags(name: &str, range: usize) -> Vec<String>{
-    Vec::from_iter((0..range).map(|i| name.to_string() + &i.to_string() ))
+pub(crate) fn get_variable_tags(name: &str, range: usize) -> Vec<String> {
+    Vec::from_iter((0..range).map(|i| name.to_string() + &i.to_string()))
 }
 
 #[cfg(test)]
@@ -38,6 +38,9 @@ mod tests {
     #[test]
     fn test_get_variable_tags() {
         let result = get_variable_tags("x", 3);
-        assert_eq!(result, vec!["x0".to_string(), "x1".to_string(), "x2".to_string()])
+        assert_eq!(
+            result,
+            vec!["x0".to_string(), "x1".to_string(), "x2".to_string()]
+        )
     }
 }

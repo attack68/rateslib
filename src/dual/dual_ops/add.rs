@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64, Vars, VarsRelationship};
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use std::sync::Arc;
 
@@ -156,9 +156,15 @@ mod tests {
     fn test_enum() {
         let f = DualsOrF64::F64(2.0);
         let d = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
-        assert_eq!(&f+&d, DualsOrF64::Dual(Dual::new(5.0, vec!["x".to_string()])));
+        assert_eq!(
+            &f + &d,
+            DualsOrF64::Dual(Dual::new(5.0, vec!["x".to_string()]))
+        );
 
-        assert_eq!(&d+&d, DualsOrF64::Dual(Dual::try_new(6.0, vec!["x".to_string()], vec![2.0]).unwrap()));
+        assert_eq!(
+            &d + &d,
+            DualsOrF64::Dual(Dual::try_new(6.0, vec!["x".to_string()], vec![2.0]).unwrap())
+        );
     }
 
     #[test]

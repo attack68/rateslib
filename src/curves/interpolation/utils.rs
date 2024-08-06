@@ -1,7 +1,7 @@
 use crate::dual::{FieldOps, MathFuncs};
 use std::{
+    cmp::{PartialEq, PartialOrd},
     ops::{Mul, Sub},
-    cmp::{PartialEq, PartialOrd}
 };
 
 // pub(crate) fn linear_interp<T, U>(x1: &T, y1: &U, x2: &T, y2: &U, x: &T) -> U
@@ -43,13 +43,12 @@ where
     let t2: f64 = x2 - x0;
     let t: f64 = x - x0;
     let r2: T = y2.log() * (-1_f64 / t2);
-    let r: T;
-    if t1 == 0.0_f64 {
-        r = r2.clone();  // Flat forward zero rate in first interval
+    let r: T = if t1 == 0.0_f64 {
+        r2.clone() // Flat forward zero rate in first interval
     } else {
         let r1: T = y1.log() * (-1_f64 / t1);
-        r = &r1 + &((&r2 - &r1) * ((t - t1) / (t2 - t1)));
-    }
+        &r1 + &((&r2 - &r1) * ((t - t1) / (t2 - t1)))
+    };
     (r * -t).exp()
 }
 
@@ -111,9 +110,16 @@ mod tests {
 
         // Dual linear_interp
         let result = linear_interp(
-            1.0, &Dual::new(10.0, vec!["x".to_string()]), 2.0, &Dual::new(30.0, vec!["y".to_string()]), 1.5
+            1.0,
+            &Dual::new(10.0, vec!["x".to_string()]),
+            2.0,
+            &Dual::new(30.0, vec!["y".to_string()]),
+            1.5,
         );
-        assert_eq!(result, Dual::try_new(20.0, vec!["x".to_string(), "y".to_string()], vec![0.5, 0.5]).unwrap());
+        assert_eq!(
+            result,
+            Dual::try_new(20.0, vec!["x".to_string(), "y".to_string()], vec![0.5, 0.5]).unwrap()
+        );
     }
 
     #[test]
@@ -130,5 +136,4 @@ mod tests {
         let expected = (0.5 * y1.log() + 0.5 * y2.log()).exp();
         assert_eq!(result, expected);
     }
-
 }

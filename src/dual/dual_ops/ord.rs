@@ -46,9 +46,13 @@ impl PartialOrd<DualsOrF64> for DualsOrF64 {
             (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => f.partial_cmp(d2),
             (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => d.partial_cmp(f2),
             (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => d.partial_cmp(d2),
-            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => panic!("Cannot mix dual types: Dual compare Dual2"),
+            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => {
+                panic!("Cannot mix dual types: Dual compare Dual2")
+            }
             (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => d.partial_cmp(f2),
-            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => panic!("Cannot mix dual types: Dual2 compare Dual"),
+            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => {
+                panic!("Cannot mix dual types: Dual2 compare Dual")
+            }
             (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => d.partial_cmp(d2),
         }
     }
