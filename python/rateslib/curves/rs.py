@@ -6,7 +6,7 @@ from rateslib.rs import (
 )
 
 def _get_interpolator(name: str):
-    name_ = name.upper()
+    name_ = name.lower()
     if name_ == "log_linear":
         return LogLinearInterpolator()
     elif name_ == "linear":
@@ -14,4 +14,4 @@ def _get_interpolator(name: str):
     elif name_ == "linear_zero_rate":
         return LinearZeroRateInterpolator()
     else:
-        raise ValueError("Interp `name` is invalid.")
+        raise ValueError("Interpolator `name` is invalid.")

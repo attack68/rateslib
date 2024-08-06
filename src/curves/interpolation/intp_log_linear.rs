@@ -1,6 +1,6 @@
 use crate::dual::{DualsOrF64};
 use chrono::NaiveDateTime;
-use pyo3::pyclass;
+use pyo3::{pyclass, pymethods};
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::log_linear_interp;
@@ -11,7 +11,9 @@ use std::cmp::PartialEq;
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogLinearInterpolator {}
 
+#[pymethods]
 impl LogLinearInterpolator {
+    #[new]
     pub fn new() -> Self { LogLinearInterpolator {} }
 }
 

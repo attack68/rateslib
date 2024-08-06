@@ -1,6 +1,6 @@
 use crate::dual::{DualsOrF64};
 use chrono::NaiveDateTime;
-use pyo3::pyclass;
+use pyo3::{pyclass, pymethods};
 use crate::curves::{CurveInterpolation};
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::interpolation::utils::linear_zero_interp;
@@ -13,7 +13,10 @@ use std::cmp::PartialEq;
 #[derive(Clone, Debug, PartialEq)]
 pub struct LinearZeroRateInterpolator {}
 
+#[pymethods]
+
 impl LinearZeroRateInterpolator {
+    #[new]
     pub fn new() -> Self { LinearZeroRateInterpolator {} }
 }
 
