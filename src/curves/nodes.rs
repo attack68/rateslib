@@ -9,7 +9,7 @@ pub enum Nodes {
     Dual2(IndexMap<NaiveDateTime, Dual2>),
 }
 
-pub(crate) enum NodesTimestamp {
+pub enum NodesTimestamp {
     F64(IndexMap<i64, f64>),
     Dual(IndexMap<i64, Dual>),
     Dual2(IndexMap<i64, Dual2>),
@@ -26,13 +26,13 @@ impl From<Nodes> for NodesTimestamp {
 }
 
 impl NodesTimestamp {
-    fn keys_as_f64(&self) -> Vec<f64> {
-        match self {
-            NodesTimestamp::F64(m) => m.keys().cloned().map(|x| x as f64).collect(),
-            NodesTimestamp::Dual(m) => m.keys().cloned().map(|x| x as f64).collect(),
-            NodesTimestamp::Dual2(m) => m.keys().cloned().map(|x| x as f64).collect(),
-        }
-    }
+    // fn keys_as_f64(&self) -> Vec<f64> {
+    //     match self {
+    //         NodesTimestamp::F64(m) => m.keys().cloned().map(|x| x as f64).collect(),
+    //         NodesTimestamp::Dual(m) => m.keys().cloned().map(|x| x as f64).collect(),
+    //         NodesTimestamp::Dual2(m) => m.keys().cloned().map(|x| x as f64).collect(),
+    //     }
+    // }
 
     pub(crate) fn sort_keys(&mut self) {
         match self {

@@ -10,7 +10,7 @@ use pyo3::{PyErr, pyclass};
 pub struct Curve {
     nodes: NodesTimestamp,
     interpolator: CurveInterpolator,
-    id: String,
+    pub(crate) id: String,
 }
 
 impl Curve {

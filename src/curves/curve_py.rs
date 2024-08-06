@@ -20,6 +20,11 @@ impl Curve {
         Self::try_new(nodes_, interpolator, id)
     }
 
+    #[getter]
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.interpolated_value(&date)
     }
