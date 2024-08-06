@@ -1,4 +1,5 @@
 mod add;
+pub mod convert;
 mod div;
 mod eq;
 pub mod field_ops;
@@ -15,4 +16,3 @@ mod signed;
 mod sub;
 mod sum;
 mod zero;
-pub mod convert;

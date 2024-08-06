@@ -1,8 +1,8 @@
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
-use crate::dual::{ADOrder, Dual, Dual2, DualsOrF64, set_order_clone};
 use crate::dual::linalg::argabsmax;
+use crate::dual::{set_order_clone, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::JSON;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
@@ -350,7 +350,7 @@ fn create_fx_array(
     let fx_rates_: Vec<DualsOrF64> = fx_rates
         .iter()
         .enumerate()
-        .map(|(i, x)| set_order_clone(&x.rate, ad,vec![vars[i].clone()]))
+        .map(|(i, x)| set_order_clone(&x.rate, ad, vec![vars[i].clone()]))
         .collect();
     match ad {
         ADOrder::Zero => {

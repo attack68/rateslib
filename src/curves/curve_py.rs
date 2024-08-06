@@ -1,11 +1,11 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
-use crate::curves::{Curve, CurveInterpolator};
 use crate::curves::nodes::Nodes;
-use crate::dual::{Dual, Dual2, DualsOrF64, set_order, ADOrder, get_variable_tags};
-use pyo3::prelude::*;
-use indexmap::IndexMap;
+use crate::curves::{Curve, CurveInterpolator};
+use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use chrono::NaiveDateTime;
+use indexmap::IndexMap;
+use pyo3::prelude::*;
 
 #[pymethods]
 impl Curve {
@@ -59,8 +59,18 @@ fn nodes_into_order(
     let vars: Vec<String> = get_variable_tags(id, nodes.keys().len());
     nodes.sort_keys();
     match ad {
-        ADOrder::Zero => { Nodes::F64(IndexMap::from_iter(nodes.into_iter().map(|(k,v)| (k, f64::from(v))))) }
-        ADOrder::One => { Nodes::Dual(IndexMap::from_iter(nodes.into_iter().enumerate().map(|(i,(k,v))| (k, Dual::from(set_order(v, ad, vec![vars[i].clone()])))))) }
-        ADOrder::Two => { Nodes::Dual2(IndexMap::from_iter(nodes.into_iter().enumerate().map(|(i,(k,v))| (k, Dual2::from(set_order(v, ad, vec![vars[i].clone()])))))) }
+        ADOrder::Zero => Nodes::F64(IndexMap::from_iter(
+            nodes.into_iter().map(|(k, v)| (k, f64::from(v))),
+        )),
+        ADOrder::One => {
+            Nodes::Dual(IndexMap::from_iter(nodes.into_iter().enumerate().map(
+                |(i, (k, v))| (k, Dual::from(set_order(v, ad, vec![vars[i].clone()]))),
+            )))
+        }
+        ADOrder::Two => {
+            Nodes::Dual2(IndexMap::from_iter(nodes.into_iter().enumerate().map(
+                |(i, (k, v))| (k, Dual2::from(set_order(v, ad, vec![vars[i].clone()]))),
+            )))
+        }
     }
 }

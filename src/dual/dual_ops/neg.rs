@@ -36,20 +36,20 @@ impl_op!(-|a: &Dual2| -> Dual2 {
 });
 
 // Neg for DualsOrF64
-impl_op!(- |a: &DualsOrF64| -> DualsOrF64 {
+impl_op!(-|a: &DualsOrF64| -> DualsOrF64 {
     match a {
         DualsOrF64::F64(f) => DualsOrF64::F64(-f),
         DualsOrF64::Dual(d) => DualsOrF64::Dual(-d),
-        DualsOrF64::Dual2(d)=> DualsOrF64::Dual2(-d),
+        DualsOrF64::Dual2(d) => DualsOrF64::Dual2(-d),
     }
 });
 
 // Neg for DualsOrF64
-impl_op!(- |a: DualsOrF64| -> DualsOrF64 {
+impl_op!(-|a: DualsOrF64| -> DualsOrF64 {
     match a {
         DualsOrF64::F64(f) => DualsOrF64::F64(-f),
         DualsOrF64::Dual(d) => DualsOrF64::Dual(-d),
-        DualsOrF64::Dual2(d)=> DualsOrF64::Dual2(-d),
+        DualsOrF64::Dual2(d) => DualsOrF64::Dual2(-d),
     }
 });
 
@@ -121,6 +121,9 @@ mod tests {
         let f = DualsOrF64::F64(2.0);
         let d = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
         assert_eq!(-f, DualsOrF64::F64(-2.0));
-        assert_eq!(-d, DualsOrF64::Dual(Dual::try_new(-3.0, vec!["x".to_string()], vec![-1.0]).unwrap()));
+        assert_eq!(
+            -d,
+            DualsOrF64::Dual(Dual::try_new(-3.0, vec!["x".to_string()], vec![-1.0]).unwrap())
+        );
     }
 }

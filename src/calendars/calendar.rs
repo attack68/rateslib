@@ -1,12 +1,12 @@
 use chrono::prelude::*;
 use chrono::Weekday;
 use indexmap::set::IndexSet;
-use pyo3::exceptions::{PyValueError};
-use pyo3::{pyclass, PyErr, FromPyObject};
+use pyo3::exceptions::PyValueError;
+use pyo3::{pyclass, FromPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::calendars::dateroll::{DateRoll};
+use crate::calendars::dateroll::DateRoll;
 use crate::calendars::named::get_calendar_by_name;
 
 /// Container for calendar types.
@@ -14,7 +14,7 @@ use crate::calendars::named::get_calendar_by_name;
 pub enum CalType {
     Cal(Cal),
     UnionCal(UnionCal),
-    NamedCal(NamedCal)
+    NamedCal(NamedCal),
 }
 
 /// A business day calendar with a singular list of holidays.
@@ -117,20 +117,27 @@ impl NamedCal {
         let name_ = name.to_lowercase();
         let parts: Vec<&str> = name_.split("|").collect();
         if parts.len() > 2 {
-            Err(PyValueError::new_err("Cannot use more than one pipe ('|') operator in `name`."))
-        }
-        else if parts.len() == 1 {
+            Err(PyValueError::new_err(
+                "Cannot use more than one pipe ('|') operator in `name`.",
+            ))
+        } else if parts.len() == 1 {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             Ok(Self {
                 name: name_,
-                union_cal: UnionCal {calendars: cals, settlement_calendars: None}
+                union_cal: UnionCal {
+                    calendars: cals,
+                    settlement_calendars: None,
+                },
             })
         } else {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             let settle_cals: Vec<Cal> = parse_cals(parts[1])?;
             Ok(Self {
                 name: name_,
-                union_cal: UnionCal {calendars: cals, settlement_calendars: Some(settle_cals)}
+                union_cal: UnionCal {
+                    calendars: cals,
+                    settlement_calendars: Some(settle_cals),
+                },
             })
         }
     }
@@ -333,8 +340,8 @@ mod tests {
     fn test_named_cal() {
         let ncal = NamedCal::try_new("tgt,nyc").unwrap();
 
-        assert!(ncal.is_non_bus_day(&ndt(1970, 2, 16)));  // NYC holiday
-        assert!(ncal.is_non_bus_day(&ndt(1970, 5, 1)));  // TGT holiday
+        assert!(ncal.is_non_bus_day(&ndt(1970, 2, 16))); // NYC holiday
+        assert!(ncal.is_non_bus_day(&ndt(1970, 5, 1))); // TGT holiday
         assert!(ncal.is_bus_day(&ndt(1970, 2, 17)));
     }
 
@@ -342,12 +349,12 @@ mod tests {
     fn test_named_cal_pipe() {
         let ncal = NamedCal::try_new("tgt,nyc|ldn").unwrap();
 
-        assert!(ncal.is_non_bus_day(&ndt(1970, 2, 16)));  // NYC holiday
-        assert!(ncal.is_non_bus_day(&ndt(1970, 5, 1)));  // TGT holiday
+        assert!(ncal.is_non_bus_day(&ndt(1970, 2, 16))); // NYC holiday
+        assert!(ncal.is_non_bus_day(&ndt(1970, 5, 1))); // TGT holiday
         assert!(ncal.is_bus_day(&ndt(1970, 2, 17)));
 
-        assert!(!ncal.is_settlement(&ndt(1970, 5, 4)));  // LDN holiday
-        assert!(ncal.is_settlement(&ndt(1970, 5, 1)));  // not LDN holiday
+        assert!(!ncal.is_settlement(&ndt(1970, 5, 4))); // LDN holiday
+        assert!(ncal.is_settlement(&ndt(1970, 5, 1))); // not LDN holiday
     }
 
     #[test]

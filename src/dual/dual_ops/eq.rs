@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64, Vars, VarsRelationship};
 
 /// Measures value equivalence of `Dual`.
 ///
@@ -77,9 +77,13 @@ impl PartialEq<DualsOrF64> for DualsOrF64 {
             (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => f == d2,
             (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => d == f2,
             (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => d == d2,
-            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => panic!("Cannot mix dual types: Dual == Dual2"),
+            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => {
+                panic!("Cannot mix dual types: Dual == Dual2")
+            }
             (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => d == f2,
-            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => panic!("Cannot mix dual types: Dual2 == Dual"),
+            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => {
+                panic!("Cannot mix dual types: Dual2 == Dual")
+            }
             (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => d == d2,
         }
     }

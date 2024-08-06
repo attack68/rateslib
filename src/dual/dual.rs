@@ -1,6 +1,6 @@
-pub use crate::dual::dual_ops::math_funcs::MathFuncs;
-pub use crate::dual::dual_ops::field_ops::FieldOps;
 pub use crate::dual::dual_ops::convert::{set_order, set_order_clone};
+pub use crate::dual::dual_ops::field_ops::FieldOps;
+pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 use indexmap::set::IndexSet;
 use ndarray::{Array, Array1, Array2, Axis};
 use pyo3::exceptions::PyValueError;
@@ -468,8 +468,7 @@ impl Dual {
     /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
     /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
-    pub fn new_from<T: Vars>(other: &T, real: f64, vars: Vec<String>) -> Self
-    {
+    pub fn new_from<T: Vars>(other: &T, real: f64, vars: Vec<String>) -> Self {
         let new = Self::new(real, vars);
         new.to_new_vars(other.vars(), None)
     }
@@ -645,7 +644,12 @@ impl Dual2 {
 
     /// Construct a new `Dual2` cloning the `vars` Arc pointer from another.
     ///
-    pub fn clone_from<T: Vars>(other: &T, real: f64, dual: Array1<f64>, dual2: Array2<f64>) -> Self {
+    pub fn clone_from<T: Vars>(
+        other: &T,
+        real: f64,
+        dual: Array1<f64>,
+        dual2: Array2<f64>,
+    ) -> Self {
         assert_eq!(other.vars().len(), dual.len());
         assert_eq!(other.vars().len(), dual2.len_of(Axis(0)));
         assert_eq!(other.vars().len(), dual2.len_of(Axis(1)));

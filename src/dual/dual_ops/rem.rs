@@ -96,9 +96,15 @@ mod tests {
     fn test_enum() {
         let f = DualsOrF64::F64(4.0);
         let d = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
-        assert_eq!(&f%&d, DualsOrF64::Dual(Dual::try_new(1.0, vec!["x".to_string()], vec![-1.0]).unwrap()));
+        assert_eq!(
+            &f % &d,
+            DualsOrF64::Dual(Dual::try_new(1.0, vec!["x".to_string()], vec![-1.0]).unwrap())
+        );
 
-        assert_eq!(&d%&d, DualsOrF64::Dual(Dual::try_new(0.0, vec!["x".to_string()], vec![0.0]).unwrap()));
+        assert_eq!(
+            &d % &d,
+            DualsOrF64::Dual(Dual::try_new(0.0, vec!["x".to_string()], vec![0.0]).unwrap())
+        );
     }
 
     #[test]

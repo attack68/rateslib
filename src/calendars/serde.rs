@@ -1,4 +1,4 @@
-use crate::calendars::calendar::{Cal, UnionCal, NamedCal};
+use crate::calendars::calendar::{Cal, NamedCal, UnionCal};
 use crate::json::JSON;
 
 impl JSON for Cal {}
@@ -38,5 +38,4 @@ mod tests {
         let ncal2 = NamedCal::from_json(&js).unwrap();
         assert_eq!(ncal, ncal2);
     }
-
 }

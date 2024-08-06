@@ -2,12 +2,12 @@
 
 use crate::dual::dual::{Dual, Dual2, DualsOrF64, Gradient1, Gradient2, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
+use bincode::{deserialize, serialize};
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyFloat};
 use std::sync::Arc;
-use bincode::{deserialize, serialize};
 // use pyo3::types::PyFloat;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
@@ -359,7 +359,11 @@ impl Dual {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>)> {
-        Ok((self.real, self.vars().iter().cloned().collect(), self.dual.to_vec()))
+        Ok((
+            self.real,
+            self.vars().iter().cloned().collect(),
+            self.dual.to_vec(),
+        ))
     }
 
     // Conversion
@@ -692,7 +696,12 @@ impl Dual2 {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
     fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>, Vec<f64>)> {
-        Ok((self.real, self.vars().iter().cloned().collect(), self.dual.to_vec(), self.dual2.clone().into_raw_vec()))
+        Ok((
+            self.real,
+            self.vars().iter().cloned().collect(),
+            self.dual.to_vec(),
+            self.dual2.clone().into_raw_vec(),
+        ))
     }
 
     // Conversion

@@ -40,5 +40,4 @@ mod tests {
         let d = DualsOrF64::one();
         assert_eq!(d, DualsOrF64::F64(1.0));
     }
-
 }

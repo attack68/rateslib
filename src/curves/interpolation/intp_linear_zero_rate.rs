@@ -1,9 +1,9 @@
-use crate::dual::{DualsOrF64};
+use crate::curves::interpolation::utils::linear_zero_interp;
+use crate::curves::nodes::NodesTimestamp;
+use crate::curves::CurveInterpolation;
+use crate::dual::DualsOrF64;
 use chrono::NaiveDateTime;
 use pyo3::{pyclass, pymethods};
-use crate::curves::{CurveInterpolation};
-use crate::curves::nodes::NodesTimestamp;
-use crate::curves::interpolation::utils::linear_zero_interp;
 use std::cmp::PartialEq;
 
 /// Define linear zero rate interpolation of nodes.
@@ -17,7 +17,9 @@ pub struct LinearZeroRateInterpolator {}
 
 impl LinearZeroRateInterpolator {
     #[new]
-    pub fn new() -> Self { LinearZeroRateInterpolator {} }
+    pub fn new() -> Self {
+        LinearZeroRateInterpolator {}
+    }
 }
 
 impl CurveInterpolation for LinearZeroRateInterpolator {
@@ -30,8 +32,10 @@ impl CurveInterpolation for LinearZeroRateInterpolator {
                 let (x0, _) = $indexmap.get_index(0_usize).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
                 let (x1, y1) = $indexmap.get_index(index).unwrap();
-                DualsOrF64::$Variant(linear_zero_interp(*x0 as f64, *x1 as f64, y1, *x2 as f64, y2, x as f64))
-            }}
+                DualsOrF64::$Variant(linear_zero_interp(
+                    *x0 as f64, *x1 as f64, y1, *x2 as f64, y2, x as f64,
+                ))
+            }};
         }
         match nodes {
             NodesTimestamp::F64(m) => interp!(F64, m),
@@ -44,9 +48,9 @@ impl CurveInterpolation for LinearZeroRateInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use indexmap::IndexMap;
+    use crate::calendars::ndt;
     use crate::curves::nodes::Nodes;
-    use crate::calendars::{ndt};
+    use indexmap::IndexMap;
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![

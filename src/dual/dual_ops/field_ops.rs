@@ -22,7 +22,7 @@ mod tests {
     fn test_fieldops() {
         fn test_ops<T>(a: &T, b: &T) -> T
         where
-                for<'a> &'a T: FieldOps<T>,
+            for<'a> &'a T: FieldOps<T>,
         {
             &(a + b) - a
         }
@@ -42,5 +42,4 @@ mod tests {
         let z = test_ops2(x, y);
         println!("{:?}", z);
     }
-
 }
