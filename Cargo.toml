@@ -17,7 +17,7 @@ crate-type = ["lib"]
 #pyo3 = { version = "0.20.3", features = ["abi3-py39", "extension-module"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 chrono = { version = "0.4", features = ["serde"] }
-indexmap = { version = "1.9", features = ["serde"] }
+indexmap = { version = "2.0", features = ["serde"] }
 ndarray = { version = "0.15", features = ["serde"] }
 internment = {  version = "0.8", features = ["serde"] }
 pyo3 = "0.21"
