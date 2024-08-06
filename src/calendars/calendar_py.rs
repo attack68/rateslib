@@ -1,6 +1,6 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::{Cal, DateRoll, Modifier, RollDay, UnionCal, NamedCal};
+use crate::calendars::{Cal, DateRoll, Modifier, RollDay, UnionCal, NamedCal, CalType};
 use crate::calendars::named::get_calendar_by_name;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
@@ -11,14 +11,6 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::collections::HashSet;
-
-/// Container for calendar structs convertible to Python objects.
-#[derive(Debug, Clone, PartialEq, FromPyObject)]
-pub enum Cals {
-    Cal(Cal),
-    UnionCal(UnionCal),
-    NamedCal(NamedCal)
-}
 
 #[pymethods]
 impl Cal {
@@ -333,11 +325,11 @@ impl Cal {
     }
 
     // Equality
-    fn __eq__(&self, other: Cals) -> bool {
+    fn __eq__(&self, other: CalType) -> bool {
         match other {
-            Cals::UnionCal(c) => *self == c,
-            Cals::Cal(c) => *self == c,
-            Cals::NamedCal(c) => *self == c,
+            CalType::UnionCal(c) => *self == c,
+            CalType::Cal(c) => *self == c,
+            CalType::NamedCal(c) => *self == c,
         }
     }
 }
@@ -516,11 +508,11 @@ impl UnionCal {
     }
 
     // Equality
-    fn __eq__(&self, other: Cals) -> bool {
+    fn __eq__(&self, other: CalType) -> bool {
         match other {
-            Cals::UnionCal(c) => *self == c,
-            Cals::Cal(c) => *self == c,
-            Cals::NamedCal(c) => *self == c,
+            CalType::UnionCal(c) => *self == c,
+            CalType::Cal(c) => *self == c,
+            CalType::NamedCal(c) => *self == c,
         }
     }
 }
@@ -690,11 +682,11 @@ impl NamedCal {
     }
 
     // Equality
-    fn __eq__(&self, other: Cals) -> bool {
+    fn __eq__(&self, other: CalType) -> bool {
         match other {
-            Cals::UnionCal(c) => *self == c,
-            Cals::Cal(c) => *self == c,
-            Cals::NamedCal(c) => *self == c,
+            CalType::UnionCal(c) => *self == c,
+            CalType::Cal(c) => *self == c,
+            CalType::NamedCal(c) => *self == c,
         }
     }
 }

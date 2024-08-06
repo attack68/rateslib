@@ -1,4 +1,4 @@
-use crate::curves::interpolation::index_left;
+use crate::curves::interpolation::utils::index_left;
 use pyo3::pyfunction;
 
 macro_rules! create_interface {
