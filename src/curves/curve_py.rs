@@ -16,7 +16,7 @@ use crate::json::JSON;
 impl Curve {
     #[new]
     fn new_py(
-        mut nodes: IndexMap<NaiveDateTime, DualsOrF64>,
+        nodes: IndexMap<NaiveDateTime, DualsOrF64>,
         interpolator: CurveInterpolator,
         ad: ADOrder,
         id: &str,
@@ -25,7 +25,7 @@ impl Curve {
         Self::try_new(nodes_, interpolator, id)
     }
 
-    fn __get_item__(&self, date: NaiveDateTime) -> DualsOrF64 {
+    fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.interpolated_value(&date)
     }
 }

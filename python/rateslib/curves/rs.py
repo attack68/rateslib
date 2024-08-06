@@ -1,9 +1,9 @@
 from rateslib.rs import (
-    LinearInterpolation,
-    LinearZeroRateInterpolation,
-    LogLinearInterpolation,
+    LinearInterpolator,
+    LinearZeroRateInterpolator,
+    LogLinearInterpolator,
 )
-
+from rateslib.rs import Curve as CurveRs
 
 def _get_interpolation_enum(name: str):
     name_ = name.upper()
