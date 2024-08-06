@@ -1,17 +1,17 @@
 from rateslib.rs import (
+    Curve as CurveRs,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
 )
-from rateslib.rs import Curve as CurveRs
 
-def _get_interpolation_enum(name: str):
+def _get_interpolator(name: str):
     name_ = name.upper()
     if name_ == "log_linear":
-        return LogLinearInterpolation()
+        return LogLinearInterpolator()
     elif name_ == "linear":
-        return LinearInterpolation()
+        return LinearInterpolator()
     elif name_ == "linear_zero_rate":
-        return LinearZeroRateInterpolation()
+        return LinearZeroRateInterpolator()
     else:
         raise ValueError("Interp `name` is invalid.")
