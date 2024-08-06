@@ -273,7 +273,9 @@ def add_tenor(
             start, int(tenor[:-1]), _get_modifier(modifier, True), _get_rollday(roll), settlement
         )
     elif "W" in tenor:
-        return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier, mod_days), settlement)
+        return cal_.add_days(
+            start, int(tenor[:-1]) * 7, _get_modifier(modifier, mod_days), settlement
+        )
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
 

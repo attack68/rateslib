@@ -17,7 +17,13 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.bonds import _BondConventions
-from rateslib.calendars import _get_years_and_months, add_tenor, dcf, get_calendar, _get_fx_expiry_and_delivery
+from rateslib.calendars import (
+    _get_years_and_months,
+    add_tenor,
+    dcf,
+    get_calendar,
+    _get_fx_expiry_and_delivery,
+)
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
@@ -448,7 +454,7 @@ class Sensitivities:
         solver: Union[Solver, NoInput] = NoInput(0),
         fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
-        **kwargs
+        **kwargs,
     ):
         """
         Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows` method on an *Instrument*.
@@ -3080,7 +3086,7 @@ class Bill(FixedRateBond):
         )
         self.kwargs["frequency"] = _drb(
             defaults.spec[getattr(self, f"_{self.kwargs['calc_mode']}")["ytm_clone"]]["frequency"],
-            frequency
+            frequency,
         )
 
     @property
@@ -9080,12 +9086,17 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         vol = self._vol_as_list(vol, solver)
-        vol = [_ if not isinstance(_, FXDeltaVolSurface) else _.get_smile(self.kwargs["expiry"]) for _ in vol]
+        vol = [
+            _ if not isinstance(_, FXDeltaVolSurface) else _.get_smile(self.kwargs["expiry"])
+            for _ in vol
+        ]
 
         spot = fx.pairs_settlement[self.kwargs["pair"]]
         w_spot, v_spot = curves[1][spot], curves[3][spot]
         w_deli, v_deli = curves[1][self.kwargs["delivery"]], curves[3][self.kwargs["delivery"]]
-        f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(self.kwargs["pair"], spot)
+        f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(
+            self.kwargs["pair"], spot
+        )
         z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
         eta1 = None
@@ -9122,7 +9133,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             elif not isinstance(vol, FXVolObj):
                 return (
                     g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
-                    sg[i]["_kappa"] * g[i]["_kega"]
+                    sg[i]["_kappa"] * g[i]["_kega"],
                 )
             else:
 
@@ -9139,7 +9150,8 @@ class FXStrangle(FXOptionStrat, FXOption):
 
                 return (
                     g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
-                    sg[i]["_kappa"] * g[i]["_kega"] + sg[i]["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1
+                    sg[i]["_kappa"] * g[i]["_kega"]
+                    + sg[i]["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1,
                 )
 
         tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0

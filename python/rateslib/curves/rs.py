@@ -5,6 +5,7 @@ from rateslib.rs import (
     LogLinearInterpolator,
 )
 
+
 def _get_interpolator(name: str):
     name_ = name.lower()
     if name_ == "log_linear":

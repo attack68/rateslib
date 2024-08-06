@@ -772,7 +772,7 @@ class FXDeltaVolSurface:
                         expiry_posix=expiry_posix,
                         vol1=vol1,
                         vol2=vol1,
-                        bounds_flag=1
+                        bounds_flag=1,
                     )
                     for k, vol1 in zip(self.delta_indexes, self.smiles[e_idx + 1].nodes.values())
                 },
@@ -795,7 +795,7 @@ class FXDeltaVolSurface:
                         expiry_posix=expiry_posix,
                         vol1=vol1,
                         vol2=vol1,
-                        bounds_flag=-1
+                        bounds_flag=-1,
                     )
                     for k, vol1 in zip(self.delta_indexes, self.smiles[0].nodes.values())
                 },
@@ -816,9 +816,11 @@ class FXDeltaVolSurface:
                         expiry_posix=expiry_posix,
                         vol1=vol1,
                         vol2=vol2,
-                        bounds_flag=0
+                        bounds_flag=0,
                     )
-                    for k, vol1, vol2 in zip(self.delta_indexes, ls.nodes.values(), rs.nodes.values())
+                    for k, vol1, vol2 in zip(
+                        self.delta_indexes, ls.nodes.values(), rs.nodes.values()
+                    )
                 },
                 eval_date=self.eval_date,
                 expiry=expiry,
@@ -868,8 +870,8 @@ class FXDeltaVolSurface:
                 ep1 = self.expiries_posix[expiry_index + 1]
                 ep2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp()
 
-            t_var_1 = (ep1 - self.eval_posix) * vol1 ** 2
-            t_var_2 = (ep2 - self.eval_posix) * vol2 ** 2
+            t_var_1 = (ep1 - self.eval_posix) * vol1**2
+            t_var_2 = (ep2 - self.eval_posix) * vol2**2
             _ = t_var_1 + (t_var_2 - t_var_1) * (expiry_posix - ep1) / (ep2 - ep1)
             _ /= expiry_posix - self.eval_posix
         else:
@@ -886,11 +888,13 @@ class FXDeltaVolSurface:
                 t2 = self.weights_cum[TERMINAL_DATE]
 
             t = self.weights_cum[expiry]
-            t_var_1 = t1 * vol1 ** 2
-            t_var_2 = t2 * vol2 ** 2
+            t_var_1 = t1 * vol1**2
+            t_var_2 = t2 * vol2**2
             _ = t_var_1 + (t_var_2 - t_var_1) * (t - t1) / (t2 - t1)
-            _ *= 86400.0 / (expiry_posix - self.eval_posix)  # scale by real cal days and not adjusted weights
-        return _ ** 0.5
+            _ *= 86400.0 / (
+                expiry_posix - self.eval_posix
+            )  # scale by real cal days and not adjusted weights
+        return _**0.5
 
     def get_from_strike(
         self,
@@ -952,13 +956,15 @@ class FXDeltaVolSurface:
             w = Series(1.0, index=get_calendar("all").cal_date_range(self.eval_date, TERMINAL_DATE))
             w.update(weights)
 
-        w = w.sort_index() # restrict to sorted
-        w = w[self.eval_date:] # restrict any outlier values
+        w = w.sort_index()  # restrict to sorted
+        w = w[self.eval_date :]  # restrict any outlier values
         node_points = [self.eval_date] + self.expiries + [TERMINAL_DATE]
         for i in range(len(self.expiries) + 1):
-            s, e = node_points[i]+timedelta(days=1), node_points[i+1]
+            s, e = node_points[i] + timedelta(days=1), node_points[i + 1]
             days = (e - s).days + 1
-            w[s:e] = w[s:e] * days / w[s:e].sum()  # scale the weights to allocate the correct time between nodes.
+            w[s:e] = (
+                w[s:e] * days / w[s:e].sum()
+            )  # scale the weights to allocate the correct time between nodes.
         w[self.eval_date] = 0.0
         return w
 
@@ -967,7 +973,6 @@ def _validate_delta_type(delta_type: str):
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
     return delta_type.lower()
-
 
 
 # def _convert_same_adjustment_delta(

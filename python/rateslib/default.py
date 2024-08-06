@@ -353,7 +353,7 @@ def plot3d(x, y, z, labels=[]):
 
     X, Y = np.meshgrid(x, y)
     # Plot the surface.
-    surf = ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
     return fig, ax, None
 
 
@@ -364,4 +364,4 @@ def _drb(default, possible_blank):
 
 def _make_py_json(json, class_name):
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
-    return f'{{"Py":' + json + "}"
+    return '{"Py":' + json + '}'

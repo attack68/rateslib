@@ -1738,7 +1738,7 @@ class Solver(Gradients):
 
             with warnings.catch_warnings():
                 # TODO: pandas 3.0.0 can optionally turn off these PerformanceWarnings
-                warnings.simplefilter(action='ignore', category=PerformanceWarning)
+                warnings.simplefilter(action="ignore", category=PerformanceWarning)
                 df.loc[locator, :] = array
 
         if base is not NoInput.blank:

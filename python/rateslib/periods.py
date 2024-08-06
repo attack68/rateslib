@@ -2471,7 +2471,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         df, collateral = float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
-        npv = float(self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency])
+        npv = float(
+            self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency]
+        )
 
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
         # This method should not be called to get values used in later calculations becuase it is not efficient.
@@ -2785,9 +2787,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, FXVolObj):
-            delta_idx, vol_, _ = vol.get_from_strike(
-                self.strike, f_d, w_deli, w_spot, self.expiry
-            )
+            delta_idx, vol_, _ = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
         else:
             delta_idx, vol_ = None, vol
         vol_ /= 100.0
