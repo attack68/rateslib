@@ -25,7 +25,7 @@ impl Curve {
     ) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
-        Ok( Self {nodes, interpolator, id: id.to_string()} )
+        Ok( Self {nodes: nodes, interpolator, id: id.to_string()} )
     }
 
     /// Get the `ADOrder` of the `Curve`.

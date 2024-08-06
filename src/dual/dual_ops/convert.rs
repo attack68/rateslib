@@ -19,7 +19,7 @@ use crate::dual::dual::{DualsOrF64, ADOrder, Dual, Dual2};
 ///
 /// ```rust
 /// let f_ = DualsOrF64::F64(2.5_f64);
-/// let d_ = set_order_with_conversion(f_, ADOrder::One, vec!["x".to_string()]);
+/// let d_ = set_order(f_, ADOrder::One, vec!["x".to_string()]);
 /// let d = Dual::from(d_);
 /// assert_eq!(d, Dual::new(2.5_f64, vec!["x".to_string()])); // true
 /// ```

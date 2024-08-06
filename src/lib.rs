@@ -29,6 +29,7 @@ use curves::interpolation::interpolation_py::{
 
 };
 use curves::{
+    Curve,
     LinearInterpolator,
     LogLinearInterpolator,
     LinearZeroRateInterpolator,
@@ -64,10 +65,12 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bspldnev_single, m)?)?;
 
     // Curves
+    m.add_class::<Curve>()?;
     m.add_function(wrap_pyfunction!(index_left_f64, m)?)?;
     m.add_class::<LinearInterpolator>()?;
     m.add_class::<LogLinearInterpolator>()?;
     m.add_class::<LinearZeroRateInterpolator>()?;
+
 
     // Calendars
     m.add_class::<Cal>()?;
