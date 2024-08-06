@@ -27,6 +27,7 @@ from rateslib.fx.fx_rates import FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+
 class FXForwards:
     """
     Class for storing and calculating FX forward rates.

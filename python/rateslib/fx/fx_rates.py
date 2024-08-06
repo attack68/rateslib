@@ -259,7 +259,7 @@ class FXRates:
         restated_fx_rates = FXRates(
             {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
             settlement=self.settlement,
-            base=self.base
+            base=self.base,
         )
         return restated_fx_rates
 
@@ -503,6 +503,7 @@ class FXRates:
 
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "FXRates")
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
