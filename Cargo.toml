@@ -16,15 +16,15 @@ crate-type = ["lib"]
 [dependencies]
 #pyo3 = { version = "0.20.3", features = ["abi3-py39", "extension-module"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
-chrono = { version = "0.4.38", features = ["serde"] }
-indexmap = { version = "1.9.3", features = ["serde"] }
-ndarray = { version = "0.15.6", features = ["serde"] }
-internment = {  version = "0.8.3", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+indexmap = { version = "1.9", features = ["serde"] }
+ndarray = { version = "0.15", features = ["serde"] }
+internment = {  version = "0.8", features = ["serde"] }
 pyo3 = "0.21"
-num-traits = "0.2.15"
-auto_ops = "0.3.0"
+num-traits = "0.2"
+auto_ops = "0.3"
 numpy = "0.21"
-itertools = "0.12.1"
+itertools = "0.12"
 statrs = "0.16"
 bincode = "1.3"
 
