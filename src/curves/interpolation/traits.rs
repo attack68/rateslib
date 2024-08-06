@@ -6,18 +6,6 @@ use chrono::NaiveDateTime;
 use pyo3::FromPyObject;
 use std::cmp::PartialEq;
 
-/// Interpolation
-#[derive(Debug, Clone, PartialEq, FromPyObject)]
-pub enum CurveInterpolator {
-    LogLinear(LogLinearInterpolator),
-    Linear(LinearInterpolator),
-    LinearZeroRate(LinearZeroRateInterpolator),
-    //     LinearIndex,
-    //     LinearZeroRate,
-    //     FlatForward,
-    //     FlatBackward,
-}
-
 /// Assigns methods for returning values from datetime indexed Curves.
 pub trait CurveInterpolation {
     /// Get a value from the curve's `Nodes` expressed in its input form, i.e. discount factor or value.
@@ -27,16 +15,6 @@ pub trait CurveInterpolation {
     fn node_index(&self, nodes: &NodesTimestamp, date_timestamp: i64) -> usize {
         // let timestamp = date.and_utc().timestamp();
         index_left(&nodes.keys(), &date_timestamp, None)
-    }
-}
-
-impl CurveInterpolation for CurveInterpolator {
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
-        match self {
-            CurveInterpolator::LogLinear(i) => i.interpolated_value(nodes, date),
-            CurveInterpolator::Linear(i) => i.interpolated_value(nodes, date),
-            CurveInterpolator::LinearZeroRate(i) => i.interpolated_value(nodes, date),
-        }
     }
 }
 
