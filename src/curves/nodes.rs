@@ -1,5 +1,5 @@
 use crate::dual::{Dual, Dual2};
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, DateTime};
 use indexmap::IndexMap;
 
 /// Datetime indexed values of a specific [ADOrder](`crate::dual::ADOrder`).
@@ -9,6 +9,7 @@ pub enum Nodes {
     Dual2(IndexMap<NaiveDateTime, Dual2>),
 }
 
+#[derive(Clone)]
 pub enum NodesTimestamp {
     F64(IndexMap<i64, f64>),
     Dual(IndexMap<i64, Dual>),
@@ -30,6 +31,23 @@ impl From<Nodes> for NodesTimestamp {
         }
     }
 }
+
+impl From<NodesTimestamp> for Nodes {
+    fn from(value: NodesTimestamp) -> Self {
+        match value {
+            NodesTimestamp::F64(m) => Nodes::F64(IndexMap::from_iter(
+                m.into_iter().map(|(k, v)| (DateTime::from_timestamp(k, 0).unwrap().naive_utc(), v)),
+            )),
+            NodesTimestamp::Dual(m) => Nodes::Dual(IndexMap::from_iter(
+                m.into_iter().map(|(k, v)| (DateTime::from_timestamp(k, 0).unwrap().naive_utc(), v)),
+            )),
+            NodesTimestamp::Dual2(m) => Nodes::Dual2(IndexMap::from_iter(
+                m.into_iter().map(|(k, v)| (DateTime::from_timestamp(k, 0).unwrap().naive_utc(), v)),
+            )),
+        }
+    }
+}
+
 
 impl NodesTimestamp {
     // fn keys_as_f64(&self) -> Vec<f64> {

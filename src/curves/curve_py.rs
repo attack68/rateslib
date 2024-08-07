@@ -1,14 +1,41 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
-use crate::curves::nodes::Nodes;
-use crate::curves::{Curve, CurveInterpolator};
+use crate::curves::nodes::{Nodes, NodesTimestamp};
+use crate::curves::{Curve, LinearInterpolator, LogLinearInterpolator, LinearZeroRateInterpolator, CurveInterpolation};
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 
+/// Interpolation
+#[derive(Debug, Clone, PartialEq, FromPyObject)]
+pub(crate) enum CurveInterpolator {
+    LogLinear(LogLinearInterpolator),
+    Linear(LinearInterpolator),
+    LinearZeroRate(LinearZeroRateInterpolator),
+    //     LinearIndex,
+    //     LinearZeroRate,
+    //     FlatForward,
+    //     FlatBackward,
+}
+
+impl CurveInterpolation for CurveInterpolator {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+        match self {
+            CurveInterpolator::LogLinear(i) => i.interpolated_value(nodes, date),
+            CurveInterpolator::Linear(i) => i.interpolated_value(nodes, date),
+            CurveInterpolator::LinearZeroRate(i) => i.interpolated_value(nodes, date),
+        }
+    }
+}
+
+#[pyclass(name = "Curve", module = "rateslib.rs")]
+pub(crate) struct PyCurve{
+    inner: Curve::<CurveInterpolator>
+}
+
 #[pymethods]
-impl Curve {
+impl PyCurve {
     #[new]
     fn new_py(
         nodes: IndexMap<NaiveDateTime, DualsOrF64>,
@@ -17,16 +44,27 @@ impl Curve {
         id: &str,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        Self::try_new(nodes_, interpolator, id)
+        let inner = Curve::try_new(nodes_, interpolator, id)?;
+        Ok(Self { inner })
     }
 
     #[getter]
     fn id(&self) -> String {
-        self.id.clone()
+        self.inner.id.clone()
+    }
+
+    #[getter]
+    fn nodes(&self) -> IndexMap<NaiveDateTime, DualsOrF64> {
+        let nodes = Nodes::from(self.inner.nodes.clone());
+        match nodes {
+            Nodes::F64(i) => IndexMap::from_iter(i.into_iter().map(|(k,v)| (k, DualsOrF64::F64(v)))),
+            Nodes::Dual(i) => IndexMap::from_iter(i.into_iter().map(|(k,v)| (k, DualsOrF64::Dual(v)))),
+            Nodes::Dual2(i) => IndexMap::from_iter(i.into_iter().map(|(k,v)| (k, DualsOrF64::Dual2(v)))),
+        }
     }
 
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
-        self.interpolated_value(&date)
+        self.inner.interpolated_value(&date)
     }
 }
 

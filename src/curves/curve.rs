@@ -1,19 +1,30 @@
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::curves::{CurveInterpolation, CurveInterpolator};
+use crate::curves::interpolation::utils::index_left;
 use crate::dual::{ADOrder, DualsOrF64};
 use chrono::NaiveDateTime;
-use pyo3::{pyclass, PyErr};
+use pyo3::{PyErr};
 
 /// Default struct for storing discount factors (DFs).
-#[pyclass(module = "rateslib.rs")]
-pub struct Curve {
-    nodes: NodesTimestamp,
-    interpolator: CurveInterpolator,
+pub struct Curve<T: CurveInterpolation> {
+    pub(crate) nodes: NodesTimestamp,
+    interpolator: T,
     pub(crate) id: String,
 }
 
-impl Curve {
-    pub fn try_new(nodes: Nodes, interpolator: CurveInterpolator, id: &str) -> Result<Self, PyErr> {
+/// Assigns methods for returning values from datetime indexed Curves.
+pub trait CurveInterpolation {
+    /// Get a value from the curve's `Nodes` expressed in its input form, i.e. discount factor or value.
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64;
+
+    /// Get the left side node key index of the given datetime
+    fn node_index(&self, nodes: &NodesTimestamp, date_timestamp: i64) -> usize {
+        // let timestamp = date.and_utc().timestamp();
+        index_left(&nodes.keys(), &date_timestamp, None)
+    }
+}
+
+impl<T: CurveInterpolation> Curve<T> {
+    pub fn try_new(nodes: Nodes, interpolator: T, id: &str) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
         Ok(Self {
@@ -33,7 +44,7 @@ impl Curve {
     }
 }
 
-impl Curve {
+impl<T: CurveInterpolation> Curve<T> {
     pub fn interpolated_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
         self.interpolator.interpolated_value(&self.nodes, date)
     }
@@ -50,13 +61,13 @@ mod tests {
     use crate::curves::LogLinearInterpolator;
     use indexmap::IndexMap;
 
-    fn curve_fixture() -> Curve {
+    fn curve_fixture() -> Curve<LogLinearInterpolator> {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), 1.0_f64),
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
-        let interpolator = CurveInterpolator::LogLinear(LogLinearInterpolator::new());
+        let interpolator = LogLinearInterpolator::new();
         Curve::try_new(nodes, interpolator, "crv").unwrap()
     }
 
@@ -72,5 +83,24 @@ mod tests {
         let c = curve_fixture();
         let result = c.interpolated_value(&ndt(2000, 7, 1));
         assert_eq!(result, DualsOrF64::F64(0.9950147597711371))
+    }
+
+
+    fn nodes_timestamp_fixture() -> NodesTimestamp {
+        let nodes = Nodes::F64(IndexMap::from_iter(vec![
+            (ndt(2000, 1, 1), 1.0_f64),
+            (ndt(2001, 1, 1), 0.99_f64),
+            (ndt(2002, 1, 1), 0.98_f64),
+        ]));
+        NodesTimestamp::from(nodes)
+    }
+
+    #[test]
+    fn test_log_linear() {
+        let nts = nodes_timestamp_fixture();
+        let ll = LogLinearInterpolator::new();
+        let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
+        // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
+        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
     }
 }
