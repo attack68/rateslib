@@ -54,6 +54,11 @@ impl PyCurve {
     }
 
     #[getter]
+    fn ad(&self) -> ADOrder {
+        self.inner.ad()
+    }
+
+    #[getter]
     fn nodes(&self) -> IndexMap<NaiveDateTime, DualsOrF64> {
         let nodes = Nodes::from(self.inner.nodes.clone());
         match nodes {
@@ -65,6 +70,10 @@ impl PyCurve {
 
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
+    }
+
+    fn _set_ad_order(&mut self, ad: ADOrder) -> PyResult<()> {
+        self.inner.set_ad_order(ad)
     }
 }
 
