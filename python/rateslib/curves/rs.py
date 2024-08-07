@@ -1,5 +1,5 @@
 from rateslib.rs import (
-    Curve as CurveRs,
+    Curve as CurveObj,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
