@@ -1068,7 +1068,7 @@ class Curve(_Serialize):
             modifier=self.modifier,
             calendar=self.calendar,
             convention=self.convention,
-            id=None,
+            id=NoInput(0),
             ad=self.ad,
             **xtra,
         )
