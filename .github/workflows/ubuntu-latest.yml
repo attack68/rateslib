@@ -30,7 +30,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install .[dev] -v
+    - name: Lint with Ruff
+      run: |
+        ruff check
+    - name: Ruff Format
+      run: |
+        ruff format
     - name: Test with pytest
       run: |
-        coverage run -m pytest
+        coverage run -m --source=rateslib pytest
         coverage report -m
