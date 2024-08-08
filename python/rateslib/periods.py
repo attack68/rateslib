@@ -3232,7 +3232,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
         msg = (
-            f"If the delta, {float(delta):.1f}, is premium adjusted for a call option is it infeasible?"
+            f"If the delta, {float(delta):.1f}, is premium adjusted for a "
+            "call option is it infeasible?"
             if self.phi > 0
             else ""
         )
