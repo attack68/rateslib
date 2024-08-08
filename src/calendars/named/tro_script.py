@@ -1,14 +1,15 @@
+from datetime import datetime
+
 import pandas as pd
 from pandas.tseries.holiday import (
+    MO,
     AbstractHolidayCalendar,
+    DateOffset,
     Holiday,
     next_monday,
     next_monday_or_tuesday,
-    DateOffset,
-    MO,
 )
-from datetime import datetime
-from pandas.tseries.offsets import CustomBusinessDay, Easter, Day
+from pandas.tseries.offsets import CustomBusinessDay, Day, Easter
 
 RULES = [
     Holiday("New Year's Day Holiday", month=1, day=1, observance=next_monday),

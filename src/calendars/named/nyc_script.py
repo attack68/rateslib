@@ -1,13 +1,16 @@
+# ruff: noqa: E501
+
 from datetime import datetime
+
 import pandas as pd
 from dateutil.relativedelta import MO, TH
 from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
     Holiday,
-    sunday_to_monday,
     nearest_workday,
+    sunday_to_monday,
 )
-from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from pandas.tseries.offsets import CustomBusinessDay, DateOffset, Day, Easter
 
 RULES = [
     Holiday("New Year's Day Holiday", month=1, day=1, observance=sunday_to_monday),

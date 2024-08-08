@@ -1,4 +1,7 @@
+# ruff: noqa: E501
+
 from datetime import datetime, timedelta
+
 import pandas as pd
 from dateutil.relativedelta import MO
 from pandas.tseries.holiday import (

@@ -3,7 +3,7 @@ from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
     Holiday,
 )
-from pandas.tseries.offsets import CustomBusinessDay, Easter, Day
+from pandas.tseries.offsets import CustomBusinessDay, Day, Easter
 
 RULES = [
     Holiday("New Year's Day", month=1, day=1),
