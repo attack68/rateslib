@@ -1183,7 +1183,7 @@ class Curve(_Serialize):
     ):
         try:
             rate = self.rate(effective, termination, modifier)
-        except ValueError as e:
+        except ValueError:
             return None
         return rate
 
@@ -2133,7 +2133,7 @@ class CompositeCurve(IndexCurve):
         if not all([_ == ini_dates[0] for _ in ini_dates[1:]]):
             raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
 
-        if not type(self) is MultiCsaCurve:  # for multi_csa DF curve do not check calendars
+        if type(self) is not MultiCsaCurve:  # for multi_csa DF curve do not check calendars
             self._check_init_attribute("calendar")
 
         if self._base_type == "dfs":

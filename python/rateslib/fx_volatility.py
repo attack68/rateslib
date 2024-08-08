@@ -1,18 +1,17 @@
 from __future__ import annotations  # type hinting
 
-from datetime import datetime
+import math
+from datetime import datetime, timedelta
+from datetime import datetime as dt
 from typing import Union
 from uuid import uuid4
 
 import numpy as np
-import math
-from pytz import UTC
 from pandas import Series
-from datetime import datetime as dt
-from datetime import timedelta
+from pytz import UTC
 
-from rateslib.default import NoInput, _drb, plot, plot3d
 from rateslib.calendars import get_calendar
+from rateslib.default import NoInput, _drb, plot, plot3d
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -27,7 +26,6 @@ from rateslib.dual import (
 from rateslib.rs import index_left_f64
 from rateslib.solver import newton_1dim
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
-
 
 TERMINAL_DATE = dt(2100, 1, 1)
 

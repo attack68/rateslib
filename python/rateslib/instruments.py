@@ -18,17 +18,17 @@ from pandas.tseries.offsets import CustomBusinessDay
 from rateslib import defaults
 from rateslib.bonds import _BondConventions
 from rateslib.calendars import (
+    _get_fx_expiry_and_delivery,
     _get_years_and_months,
     add_tenor,
     dcf,
     get_calendar,
-    _get_fx_expiry_and_delivery,
 )
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -7483,7 +7483,7 @@ class XCS(BaseDerivative):
         )
 
         specified_spd = 0.0
-        if _is_float_tgt_leg and not (getattr(tgt_leg, "float_spread") is NoInput.blank):
+        if _is_float_tgt_leg and getattr(tgt_leg, "float_spread") is not NoInput.blank:
             specified_spd = tgt_leg.float_spread
         elif not _is_float_tgt_leg:
             specified_spd = tgt_leg.fixed_rate * 100
@@ -8294,8 +8294,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
-            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from calibrating
-            instruments.
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces*
+            from calibrating instruments.
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base : str, optional
@@ -8644,7 +8644,10 @@ class FXOptionStrat:
         return x, y
 
     def _set_notionals(self, notional):
-        """Set the notionals on each option period. Mainly used by Brokerfly for vega neutral strangle and straddle."""
+        """
+        Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
+        strangle and straddle.
+        """
         for option in self.periods:
             option.periods[0].notional = notional
 
@@ -8663,7 +8666,8 @@ class FXOptionStrat:
         Parameters
         ----------
         curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            Curves for discounting cashflows. List follows the structure used by IRDs and should
+            be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
             The numerical :class:`Solver` that constructs ``Curves`` from calibrating
@@ -8833,7 +8837,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
-                    "FXRiskReversal with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "FXRiskReversal with string delta as `strike` cannot be initialised with a "
+                    "known `premium`.\n"
                     "Either set `strike` as a defined numeric value, or remove the `premium`."
                 )
 
@@ -8919,8 +8924,9 @@ class FXStraddle(FXOptionStrat, FXOption):
             NoInput.blank,
         ]:
             raise ValueError(
-                "FXStraddle with string delta as `strike` cannot be initialised with a known `premium`.\n"
-                "Either set `strike` as a defined numeric value, or remove the `premium`."
+                "FXStraddle with string delta as `strike` cannot be initialised with a known "
+                "`premium`.\nEither set `strike` as a defined numeric value, or remove "
+                "the `premium`."
             )
 
 
@@ -8958,9 +8964,11 @@ class FXStrangle(FXOptionStrat, FXOption):
 
     .. warning::
 
-       The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative algorithm to solve.
+       The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative
+       algorithm to solve.
        For defined strikes it is usually very accurate but for strikes defined by delta it
-       will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+       will return a solution within 0.1 pips. This means it is both slower than other instruments
+       and inexact.
 
     """
 
@@ -9051,13 +9059,16 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         .. warning::
 
-           The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative algorithm to solve.
+           The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an
+           iterative algorithm to solve.
            For defined strikes it is usually very accurate but for strikes defined by delta it
-           will return a solution within 0.01 pips. This means it is both slower than other instruments and inexact.
+           will return a solution within 0.01 pips. This means it is both slower than other
+           instruments and inexact.
 
         For parameters see :meth:`~rateslib.instruments.FXOption.rate`.
 
-        The ``metric`` *'vol'* is not sensible to use with an *FXStraddle*, although it will return the arithmetic
+        The ``metric`` *'vol'* is not sensible to use with an *FXStraddle*, although it will
+        return the arithmetic
         average volatility across both options, *'single_vol'* is the more standardised choice.
         """
         return self._rate(curves, solver, fx, base, vol, metric)
@@ -9105,7 +9116,8 @@ class FXStrangle(FXOptionStrat, FXOption):
             z_w_1 = 1.0 if "forward" in vol[0].delta_type else w_deli / w_spot
             fzw1zw0 = f_0 * z_w_1 / z_w_0
 
-        # first start by evaluating the individual swaptions given their strikes with the smile - delta or fixed
+        # first start by evaluating the individual swaptions given their
+        # strikes with the smile - delta or fixed
         gks = [
             self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
             self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
@@ -9118,13 +9130,14 @@ class FXStrangle(FXOptionStrat, FXOption):
             This function was tested by adding AD to the tgt_vol as a variable e.g.:
             tgt_vol = Dual(float(tgt_vol), ["tgt_vol"], [100.0]) # note scaled to 100
             Then the options defined by fixed delta should not have a strike set to float, i.e.
-            self.periods[0].strike = float(self._pricing["k"]) -> self.periods[0].strike = self._pricing["k"]
+            self.periods[0].strike = float(self._pricing["k"]) ->
+            self.periods[0].strike = self._pricing["k"]
             Then evaluate, for example: smile_greeks[i]["_delta_index"] with respect to "tgt_vol".
             That value calculated with AD aligns with the analyical method here.
 
-            To speed up this function AD could be used, but it requires careful management of whether the
-            strike above is set to float or is left in AD format which has other implications for the calculation
-            of risk sensitivities.
+            To speed up this function AD could be used, but it requires careful management of
+            whether the strike above is set to float or is left in AD format which has other
+            implications for the calculation of risk sensitivities.
             """
             i, sg, g = period_index, smile_greeks, greeks
             fixed_delta, vol = self._is_fixed_delta[i], vol[i]
@@ -9165,7 +9178,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                 self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
             ]
             # Also determine the greeks of these options measured with the market smile vol.
-            # (note the strikes have been set by previous call, call OptionPeriods direct to avoid re-determination)
+            # (note the strikes have been set by previous call, call OptionPeriods direct
+            # to avoid re-determination)
             smile_gks = [
                 self.periods[0]
                 .periods[0]
@@ -9256,8 +9270,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         The premiums associated with each option of the strategy; lower strike put, straddle put,
         straddle call, higher strike call.
     notional: 2-element sequence, optional
-        The first element is the notional associated with the *Strangle*. If the second element is *None*, it will
-        be implied in a vega neutral sense.
+        The first element is the notional associated with the *Strangle*. If the second element
+        is *None*, it will be implied in a vega neutral sense.
     metric: str, optional
         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
@@ -9274,9 +9288,11 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     .. warning::
 
-       The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an iterative algorithm to solve.
+       The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an iterative
+       algorithm to solve.
        For defined strikes it is usually very accurate but for strikes defined by delta it
-       will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+       will return a solution within 0.1 pips. This means it is both slower than other instruments
+       and inexact.
 
     """
 
@@ -9387,13 +9403,17 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         - *'single_vol'*: the default type for a :class:`~rateslib.instruments.FXStrangle`
 
-        - *'vol'*: sums the mid-market volatilities of each option multiplied by their respective ``rate_weight_vol``
+        - *'vol'*: sums the mid-market volatilities of each option multiplied by their
+          respective ``rate_weight_vol``
           parameter. For example this is the default pricing convention for
-          a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call minus the vol of the
+          a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call
+          minus the vol of the
           put and the ``rate_weight_vol`` parameters are [-1.0, 1.0].
 
-        - *'pips_or_%'*: sums the mid-market pips or percent price of each option multiplied by their respective
-          ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle` the total premium
+        - *'pips_or_%'*: sums the mid-market pips or percent price of each option multiplied by
+          their respective
+          ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle`
+          the total premium
           is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
         """
         if not isinstance(vol, list):
@@ -9442,7 +9462,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         else:
             vol = [[vol[0], vol[2]], vol[1]]  # restructure for strangle / straddle
 
-        # TODO: this method can be optimised because it calculates greeks at multiple times within frames
+        # TODO: this meth can be optimised because it calculates greeks at multiple times in frames
         g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, local, vol[0])
         d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, local, vol[1])
         sclr = abs(

@@ -263,7 +263,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve)
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
-        """
+        """  # noqa: E501
         disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         _ = fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
@@ -1487,7 +1487,8 @@ class FloatPeriod(BasePeriod):
 
             notional_exposure[mask] *= -self.notional * (self.dcf / dcf_of_r[mask]) * float(v)
             notional_exposure[mask] /= v_with_r[mask].astype(float)
-            # notional_exposure[mask] *= (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
+            # notional_exposure[mask] *=
+            #     (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
             # notional_exposure[fixed.drop_index(drop=True)] = 0.0
             notional_exposure[fixed.to_numpy()] = 0.0
             extra_cols = {
@@ -2136,7 +2137,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
            curve=IndexCurve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.99}, index_base=100.0, index_lag=2),
            disc_curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98})
        )
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -2476,8 +2477,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
 
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
-        # This method should not be called to get values used in later calculations becuase it is not efficient.
-        # Prefer other ways to get values, i.e. by direct calculation calls.
+        # This method should not be called to get values used in later calculations becuase it
+        # is not efficient. Prefer other ways to get values, i.e. by direct calculation calls.
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: "Optionality",
@@ -2770,8 +2771,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Raises
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
-
-        """
+        """  # noqa: E501
         spot = fx.pairs_settlement[self.pair]
         w_spot = disc_curve[spot]
         w_deli = disc_curve[self.delivery]
@@ -2919,7 +2919,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
 
-        # u, delta_idx, delta = self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
+        # u, delta_idx, delta =
+        # self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
 
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
