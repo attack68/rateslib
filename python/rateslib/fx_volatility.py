@@ -1,6 +1,5 @@
 from __future__ import annotations  # type hinting
 
-import math
 from datetime import datetime, timedelta
 from datetime import datetime as dt
 from typing import Union
