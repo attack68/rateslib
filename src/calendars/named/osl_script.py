@@ -3,7 +3,7 @@ from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
     Holiday,
 )
-from pandas.tseries.offsets import CustomBusinessDay, Easter, Day
+from pandas.tseries.offsets import CustomBusinessDay, Day, Easter
 
 RULES = [
     Holiday("New Year's Day", month=1, day=1),
@@ -26,6 +26,6 @@ CALENDAR = CustomBusinessDay(
 
 ### RUN THE SCRIPT TO EXPORT HOLIDAY LIST
 ts = pd.to_datetime(CALENDAR.holidays)
-strings = ['"'+_.strftime("%Y-%m-%d %H:%M:%S")+'"' for _ in ts]
+strings = ['"' + _.strftime("%Y-%m-%d %H:%M:%S") + '"' for _ in ts]
 line = ",\n".join(strings)
 print(line)

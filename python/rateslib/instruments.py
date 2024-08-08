@@ -258,7 +258,8 @@ def _get_vol_maybe_from_solver(
     solver: Union[Solver, NoInput],
 ):
     """
-    Try to retrieve a general vol input from a solver or the default vol object associated with instrument.
+    Try to retrieve a general vol input from a solver or the default vol object associated with
+    instrument.
 
     Parameters
     ----------
@@ -457,7 +458,8 @@ class Sensitivities:
         **kwargs,
     ):
         """
-        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows` method on an *Instrument*.
+        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
+        method on an *Instrument*.
 
         Parameters
         ----------
@@ -1071,7 +1073,8 @@ class FXExchange(Sensitivities, BaseMixin):
     notional : float
         The cashflow amount of the LHS currency.
     curves : Curve, LineCurve, str or list of such, optional
-        For *FXExchange* only discounting curves are required in each currency and not rate forecasting curves.
+        For *FXExchange* only discounting curves are required in each currency and not rate
+        forecasting curves.
         The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
@@ -1154,10 +1157,12 @@ class FXExchange(Sensitivities, BaseMixin):
             warnings.warn(
                 "When valuing multi-currency derivatives it not best practice to "
                 "supply `fx` as numeric.\nYour input:\n"
-                f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, fx={fx}, base='{base if base is not NoInput.blank else 'None'}')\n"
+                f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, "
+                f"fx={fx}, base='{base if base is not NoInput.blank else 'None'}')\n"
                 "has been implicitly converted into the following by this operation:\n"
                 f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, "
-                f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), base='{self.leg2.currency}')\n.",
+                f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), "
+                f"base='{self.leg2.currency}')\n.",
                 UserWarning,
             )
         else:
@@ -1247,7 +1252,6 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class BondMixin(_BondConventions):
-
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -2183,7 +2187,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        gilt.cashflows(solver=solver)
 
-    """
+    """  # noqa: E501
+
     _fixed_rate_mixin = True
     _ytm_attribute = "cashflow"  # nominal bonds use cashflows in YTM calculation
 
@@ -2286,7 +2291,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
-        """
+        """  # noqa: E501
         return self._accrued(settlement, getattr(self, f"_{self.calc_mode}")["accrual"])
 
     def rate(
@@ -2426,7 +2431,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
            gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2], []), dt(1999, 5, 27), True)
 
-        """
+        """  # noqa: E501
 
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added
@@ -3317,7 +3322,7 @@ class Bill(FixedRateBond):
            bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb", frequency="A")
            bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration")
 
-        """
+        """  # noqa: E501
         return super().duration(*args, **kwargs)
 
 
@@ -3666,7 +3671,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
            )
            frn.accrued(dt(2000, 3, 27))
            frn.accrued(dt(2000, 6, 4))
-        """
+        """  # noqa: E501
         if self.leg1.fixing_method == "ibor":
             acc_idx = self._period_index(settlement)
             frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, acc_idx)
@@ -6041,7 +6046,8 @@ class ZCS(BaseDerivative):
         """
         Return the analytic delta of a leg of the derivative object.
 
-        See :meth:`BaseDerivative.analytic_delta<rateslib.instruments.BaseDerivative.analytic_delta>`.
+        See
+        :meth:`BaseDerivative.analytic_delta<rateslib.instruments.BaseDerivative.analytic_delta>`.
         """
         return super().analytic_delta(*args, **kwargs)
 
@@ -7101,8 +7107,8 @@ class XCS(BaseDerivative):
     fx_fixings : float, Dual, Dual2, list of such, optional
         Specify a known initial FX fixing or a list of such for ``mtm`` legs, where leg 1 is
         considered the domestic currency. For example for an ESTR/SOFR XCS in 100mm EUR notional
-        a value of 1.10 EURUSD for fx_fixings implies the notional on leg 2 is 110m USD. Fixings that
-        are not specified will be forecast at pricing time with an
+        a value of 1.10 EURUSD for fx_fixings implies the notional on leg 2 is 110m USD. Fixings
+        that are not specified will be forecast at pricing time with an
         :class:`~rateslib.fx.FXForwards` object.
     kwargs : dict
         Required keyword arguments for :class:`~rateslib.instruments.BaseDerivative`.
@@ -7534,9 +7540,9 @@ class FXSwap(XCS):
     args : dict
         Required positional args to :class:`XCS`.
     pair : str, optional
-        The FX pair, e.g. "eurusd" as 3-digit ISO codes. If not given, fallsback to the base implementation of
-        *XCS* which defines separate inputs as ``currency`` and ``leg2_currency``. If overspecified, ``pair`` will
-        dominate.
+        The FX pair, e.g. "eurusd" as 3-digit ISO codes. If not given, fallsback to the base
+        implementation of *XCS* which defines separate inputs as ``currency`` and ``leg2_currency``.
+        If overspecified, ``pair`` will dominate.
     fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
@@ -7763,7 +7769,8 @@ class FXSwap(XCS):
         self._parse_split_flag(fx_fixings, points, split_notional)
         currencies = {}
         if isinstance(pair, str):
-            # TODO for version 2.0 should look to deprecate 'currency' and 'leg2_currency' as allowable inputs.
+            # TODO for version 2.0 should look to deprecate 'currency' and 'leg2_currency' as
+            #  allowable inputs.
             currencies = {"currency": pair.lower()[0:3], "leg2_currency": pair.lower()[3:6]}
 
         kwargs_overrides = dict(  # specific args for FXSwap passed to the Base XCS
@@ -7900,7 +7907,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     pair: str
         The currency pair for the FX rate which settles the option, in 3-digit codes, e.g. "eurusd".
     expiry: datetime, str
-        The expiry of the option. If given in string tenor format, e.g. "1M" requires an ``eval_date``. See notes.
+        The expiry of the option. If given in string tenor format, e.g. "1M" requires an
+        ``eval_date``. See notes.
     notional: float, optional (defaults.notional)
         The amount in ccy1 (left side of `pair`) on which the option is based.
     strike: float, Dual, Dual2, str in {"atm_forward", "atm_spot", "atm_delta", "[float]d"}
@@ -7908,8 +7916,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         If str, there are four possibilities as above. If giving a specific delta should end
         with a 'd' for delta e.g. "-25d". Put deltas should be input including negative sign.
     eval_date: datetime, optional
-        Should be entered as today (also called horizon) and **not** spot. Spot is derived from ``delivery_lag``
-        ``calendar``.
+        Should be entered as today (also called horizon) and **not** spot. Spot is derived
+        from ``delivery_lag`` and ``calendar``.
     modifier : str, optional (defaults.modifier)
         The modification rule, in {"F", "MF", "P", "MP"} for date evaluation.
     eom: bool, optional (defaults.eom_fx)
@@ -7918,7 +7926,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
     delivery_lag: int, optional (defaults.fx_delivery_lag)
-        The number of business days after expiry that the physical settlement of the FX exchange occurs.
+        The number of business days after expiry that the physical settlement of the FX
+        exchange occurs.
     payment_lag: int or datetime, optional (defaults.payment_lag)
         The number of business days after expiry to pay premium. If a *datetime* is given this will
         set the premium date explicitly.
@@ -7926,12 +7935,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         The amount paid for the option. If not given assumes an unpriced *Option* and sets this as
         mid-market premium during pricing.
     premium_ccy: str, optional (RHS)
-        The currency in which the premium is paid. Can *only* be one of the two currencies in `pair`.
+        The currency in which the premium is paid. Can *only* be one of the two currencies
+        in `pair`.
     option_fixing: float
         The value determined at expiry to set the moneyness of the option.
     delta_type: str in {"spot", "forward"}, optional (defaults.fx_delta_type)
         When deriving strike from delta use the equation associated with spot or forward delta.
-        If premium currency is ccy1 (left side of `pair`) then this will produce **premium adjusted**
+        If premium currency is ccy1 (left side of `pair`) then this will produce
+        **premium adjusted**
         delta values. If the `premium_ccy` is ccy2 (right side of `pair`) then delta values are
         **unadjusted**.
     metric: str in {"pips_or_%", "vol", "premium"}, optional ("pips_or_%")
@@ -7948,9 +7959,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     Notes
     ------
 
-    Date calculations for *FXOption* products are very specific. See *'Expiry and Delivery Rules'* in *FX Option
-    Pricing* by I. Clark. *Rateslib* uses calendars with associated settlement calendars and the recognised
-    market convention rules to derive dates.
+    Date calculations for *FXOption* products are very specific. See *'Expiry and Delivery Rules'*
+    in *FX Option Pricing* by I. Clark. *Rateslib* uses calendars with associated settlement
+    calendars and the recognised market convention rules to derive dates.
 
     .. ipython:: python
        :suppress:
@@ -8079,7 +8090,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             raise ValueError("`strike` for FXOption must be set to numeric or string value.")
         if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] is not NoInput.blank:
             raise ValueError(
-                "FXOption with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "FXOption with string delta as `strike` cannot be initialised with a known "
+                "`premium`.\n"
                 "Either set `strike` as a defined numeric value, or remove the `premium`."
             )
 
@@ -8146,8 +8158,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 )
 
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
-            # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
-            # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
+            # set the strike as a float without any sensitivity. Trade definition is a fixed
+            # quantity at this stage. Similar to setting a fixed rate as a float on an unpriced
+            # IRS for mid-market.
 
             # self.periods[0].strike = self._pricing["k"]
             self.periods[0].strike = float(self._pricing["k"])
@@ -8225,8 +8238,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
-            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from calibrating
-            instruments.
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
+            calibrating instruments.
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
@@ -8244,17 +8257,21 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         -----
         The available choices for the pricing ``metric`` that can be used are:
 
-        - *"pips_or_%"*: if the ``premium_ccy`` is the foreign (RHS) currency then *pips* will be returned, else
+        - *"pips_or_%"*: if the ``premium_ccy`` is the foreign (RHS) currency then *pips* will
+          be returned, else
           if the premium is the domestic (LHS) currency then % of notional will be returned.
 
         - *"vol"*: the volatility used to price the option at that strike / delta is returned.
 
-        - *"premium"*: the monetary amount in ``premium_ccy`` payable at the payment date is returned.
+        - *"premium"*: the monetary amount in ``premium_ccy`` payable at the payment date is
+          returned.
 
-        If calculating the *rate* of an *FXOptionStrat* then the attributes ``rate_weight`` and ``rate_weight_vol``
+        If calculating the *rate* of an *FXOptionStrat* then the attributes ``rate_weight``
+        and ``rate_weight_vol``
         will be used to combine the output for each individual *FXOption* within the strategy.
 
-        *FXStrangle* and *FXBrokerFly* have the additional ``metric`` *'single_vol'* which is a more complex and
+        *FXStrangle* and *FXBrokerFly* have the additional ``metric`` *'single_vol'* which is a
+        more complex and
         integrated calculation.
         """
         curves, fx, _base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
@@ -9038,7 +9055,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
-                    "FXStrangle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "FXStrangle with string delta as `strike` cannot be initialised with a "
+                    "known `premium`.\n"
                     "Either set `strike` as a defined numeric value, or remove the `premium`."
                 )
 
@@ -9103,10 +9121,10 @@ class FXStrangle(FXOptionStrat, FXOption):
         ]
 
         spot = fx.pairs_settlement[self.kwargs["pair"]]
-        w_spot, v_spot = curves[1][spot], curves[3][spot]
-        w_deli, v_deli = curves[1][self.kwargs["delivery"]], curves[3][self.kwargs["delivery"]]
-        f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(
-            self.kwargs["pair"], spot
+        w_spot, w_deli = curves[1][spot], curves[1][self.kwargs["delivery"]]
+        f_d, f_t = (
+            fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+            fx.rate(self.kwargs["pair"], spot),
         )
         z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
@@ -9149,7 +9167,6 @@ class FXStrangle(FXOptionStrat, FXOption):
                     sg[i]["_kappa"] * g[i]["_kega"],
                 )
             else:
-
                 dvol_ddeltaidx = evaluate(vol.spline, sg[i]["_delta_index"], 1) * 0.01
                 ddeltaidx_dvol1 = sg[i]["gamma"] * fzw1zw0
                 if eta1 < 0:  # premium adjusted vol smile

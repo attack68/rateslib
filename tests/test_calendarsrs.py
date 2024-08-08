@@ -1,9 +1,10 @@
-import pytest
-import context
-from rateslib.calendars import _get_modifier, get_calendar
-from rateslib.rs import Cal, UnionCal, Modifier, RollDay, NamedCal
-from rateslib.json import from_json
 from datetime import datetime as dt
+
+import context
+import pytest
+from rateslib.calendars import _get_modifier, get_calendar
+from rateslib.json import from_json
+from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 
 @pytest.fixture()
@@ -23,7 +24,6 @@ def multi_union(simple_cal):
 
 
 class TestCal:
-
     def test_cal_construct(self):
         cal = Cal([dt(2015, 9, 5), dt(2015, 9, 7)], [5, 6])
         UnionCal([cal], None)
@@ -50,14 +50,17 @@ class TestCal:
             _get_modifier("bad", True)
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
-    @pytest.mark.parametrize("start, days, expected", [
-        (dt(2015, 9, 4), 0, dt(2015, 9, 4)),
-        (dt(2015, 9, 4), 0, dt(2015, 9, 4)),
-        (dt(2015, 9, 4), 1, dt(2015, 9, 8)),
-        (dt(2015, 9, 8), -1, dt(2015, 9, 4)),
-        (dt(2015, 9, 4), -1, dt(2015, 9, 3)),
-        (dt(2015, 9, 8), 1, dt(2015, 9, 9)),
-    ])
+    @pytest.mark.parametrize(
+        "start, days, expected",
+        [
+            (dt(2015, 9, 4), 0, dt(2015, 9, 4)),
+            (dt(2015, 9, 4), 0, dt(2015, 9, 4)),
+            (dt(2015, 9, 4), 1, dt(2015, 9, 8)),
+            (dt(2015, 9, 8), -1, dt(2015, 9, 4)),
+            (dt(2015, 9, 4), -1, dt(2015, 9, 3)),
+            (dt(2015, 9, 8), 1, dt(2015, 9, 9)),
+        ],
+    )
     def test_add_bus_days(self, simple_cal, simple_union, cal, start, days, expected):
         cal = simple_cal if cal == "basic" else simple_union
 
@@ -69,10 +72,13 @@ class TestCal:
             simple_cal.add_bus_days(dt(2015, 9, 5), 1, True)
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
-    @pytest.mark.parametrize("start, months, expected", [
-        (dt(2015, 9, 4), 2, dt(2015, 11, 4)),
-        (dt(2015, 9, 4), 36, dt(2018, 9, 4)),
-    ])
+    @pytest.mark.parametrize(
+        "start, months, expected",
+        [
+            (dt(2015, 9, 4), 2, dt(2015, 11, 4)),
+            (dt(2015, 9, 4), 36, dt(2018, 9, 4)),
+        ],
+    )
     def test_add_months(self, cal, simple_cal, simple_union, start, months, expected):
         cal = simple_cal if cal == "basic" else simple_union
         result = cal.add_months(start, months, Modifier.F, RollDay.Unspecified(), True)
@@ -80,18 +86,23 @@ class TestCal:
 
     def test_pickle_cal(self, simple_cal):
         import pickle
+
         pickled_cal = pickle.dumps(simple_cal)
         pickle.loads(pickled_cal)
 
     def test_pickle_union(self, simple_union):
         import pickle
+
         pickled_cal = pickle.dumps(simple_union)
         pickle.loads(pickled_cal)
 
-    @pytest.mark.parametrize("cal, exp", [
-        ("basic", [dt(2015, 9, 5), dt(2015, 9, 7)]),
-        ("union", [dt(2015, 9, 3), dt(2015, 9, 5), dt(2015, 9, 7), dt(2015, 9, 8)]),
-    ])
+    @pytest.mark.parametrize(
+        "cal, exp",
+        [
+            ("basic", [dt(2015, 9, 5), dt(2015, 9, 7)]),
+            ("union", [dt(2015, 9, 3), dt(2015, 9, 5), dt(2015, 9, 7), dt(2015, 9, 8)]),
+        ],
+    )
     def test_holidays(self, cal, exp, simple_cal, multi_union):
         cal = simple_cal if cal == "basic" else multi_union
         assert cal.holidays == exp
@@ -140,16 +151,12 @@ class TestCal:
                 True,
             ),
             (
-                UnionCal(
-                    [Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 3)], [5, 6])]
-                ),
+                UnionCal([Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 3)], [5, 6])]),
                 Cal([dt(2006, 1, 2), dt(2006, 1, 3)], [5, 6]),
                 True,
             ),
             (
-                UnionCal(
-                    [Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 3)], [5, 6])]
-                ),
+                UnionCal([Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 3)], [5, 6])]),
                 UnionCal([Cal([dt(2006, 1, 2), dt(2006, 1, 3)], [5, 6])]),
                 True,
             ),
@@ -171,7 +178,6 @@ class TestCal:
 
 
 class TestUnionCal:
-
     def test_week_mask(self, multi_union):
         result = multi_union.week_mask
         assert result == {5, 6}

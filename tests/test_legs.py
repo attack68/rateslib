@@ -1,28 +1,28 @@
-import pytest
 from datetime import datetime as dt
-from pandas import DataFrame, Series, date_range, Index
-from pandas.testing import assert_frame_equal, assert_series_equal
-import numpy as np
 
 import context
+import numpy as np
+import pytest
+from pandas import DataFrame, Index, Series, date_range
+from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
-from rateslib.legs import (
-    FixedLeg,
-    FloatLeg,
-    FloatPeriod,
-    ZeroFloatLeg,
-    ZeroFixedLeg,
-    ZeroIndexLeg,
-    FixedPeriod,
-    CustomLeg,
-    IndexFixedLeg,
-    FloatLegMtm,
-    FixedLegMtm,
-    Cashflow,
-)
-from rateslib.fx import FXRates, FXForwards
-from rateslib.default import NoInput
 from rateslib.curves import Curve, IndexCurve
+from rateslib.default import NoInput
+from rateslib.fx import FXForwards, FXRates
+from rateslib.legs import (
+    Cashflow,
+    CustomLeg,
+    FixedLeg,
+    FixedLegMtm,
+    FixedPeriod,
+    FloatLeg,
+    FloatLegMtm,
+    FloatPeriod,
+    IndexFixedLeg,
+    ZeroFixedLeg,
+    ZeroFloatLeg,
+    ZeroIndexLeg,
+)
 
 
 @pytest.fixture()
@@ -221,6 +221,7 @@ class TestFloatLeg:
 
     def test_rfr_with_fixings_fixings_table_issue(self):
         from rateslib import IRS
+
         instruments = [
             IRS(dt(2024, 1, 15), dt(2024, 3, 20), spec="eur_irs", curves="estr"),
             IRS(dt(2024, 3, 20), dt(2024, 6, 19), spec="eur_irs", curves="estr"),
@@ -238,6 +239,7 @@ class TestFloatLeg:
             id="estr",
         )
         from rateslib import Solver
+
         Solver(
             curves=[curve],
             instruments=instruments,
@@ -495,9 +497,9 @@ class TestFloatLeg:
             frequency="M",
             fixings=[[1.19, 1.19, -8.81]],
             currency="SEK",
-            calendar="stk"
+            calendar="stk",
         )
-        result = float_leg.fixings_table(swestr_curve)[dt(2022, 12, 28):dt(2023, 1, 4)]
+        result = float_leg.fixings_table(swestr_curve)[dt(2022, 12, 28) : dt(2023, 1, 4)]
         assert result.iloc[0, 0] == 0.0
         assert result.iloc[1, 0] == 0.0
         assert result.iloc[2, 0] == 0.0
@@ -510,7 +512,7 @@ class TestFloatLeg:
             frequency="M",
             fixings=[[1.19, 1.19, -8.81]],
             currency="SEK",
-            calendar="stk"
+            calendar="stk",
         )
         with pytest.warns(UserWarning):
             result = float_leg.fixings_table(swestr_curve, approximate=True)
@@ -1321,7 +1323,7 @@ class TestFloatLegExchangeMtm:
             (1.25, [1.25, NoInput(0), NoInput(0)]),
             ([1.25, 1.35], [1.25, 1.35, NoInput(0)]),
             (Series([1.25, 1.3], index=[dt(2022, 1, 6), dt(2022, 4, 6)]), [1.25, 1.3, NoInput(0)]),
-            (Series([1.25], index=[dt(2022, 1, 6)]), [1.25, NoInput(0), NoInput(0)])
+            (Series([1.25], index=[dt(2022, 1, 6)]), [1.25, NoInput(0), NoInput(0)]),
         ],
     )
     def test_float_leg_exchange_mtm(self, fx_fixings, exp):
@@ -1460,51 +1462,74 @@ class TestFloatLegExchangeMtm:
 
 
 class TestCustomLeg:
-
     def test_npv(self, curve):
-        cl = CustomLeg(periods=[
-            FixedPeriod(
-                start=dt(2022, 1, 1), end=dt(2023, 1, 1), payment=dt(2023, 1, 9), frequency="A",
-                fixed_rate=1.0,
-            ),
-            FixedPeriod(
-                start=dt(2022, 2, 1), end=dt(2023, 2, 1), payment=dt(2023, 2, 9), frequency="A",
-                fixed_rate=2.0
-            )
-        ])
+        cl = CustomLeg(
+            periods=[
+                FixedPeriod(
+                    start=dt(2022, 1, 1),
+                    end=dt(2023, 1, 1),
+                    payment=dt(2023, 1, 9),
+                    frequency="A",
+                    fixed_rate=1.0,
+                ),
+                FixedPeriod(
+                    start=dt(2022, 2, 1),
+                    end=dt(2023, 2, 1),
+                    payment=dt(2023, 2, 9),
+                    frequency="A",
+                    fixed_rate=2.0,
+                ),
+            ]
+        )
         result = cl.npv(curve)
         expected = -29109.962157023772
         assert abs(result - expected) < 1e-6
 
     def test_cashflows(self, curve):
-        cl = CustomLeg(periods=[
-            FixedPeriod(
-                start=dt(2022, 1, 1), end=dt(2023, 1, 1), payment=dt(2023, 1, 9), frequency="A",
-                fixed_rate=1.0,
-            ),
-            FixedPeriod(
-                start=dt(2022, 2, 1), end=dt(2023, 2, 1), payment=dt(2023, 2, 9), frequency="A",
-                fixed_rate=2.0
-            )
-        ])
+        cl = CustomLeg(
+            periods=[
+                FixedPeriod(
+                    start=dt(2022, 1, 1),
+                    end=dt(2023, 1, 1),
+                    payment=dt(2023, 1, 9),
+                    frequency="A",
+                    fixed_rate=1.0,
+                ),
+                FixedPeriod(
+                    start=dt(2022, 2, 1),
+                    end=dt(2023, 2, 1),
+                    payment=dt(2023, 2, 9),
+                    frequency="A",
+                    fixed_rate=2.0,
+                ),
+            ]
+        )
         result = cl.cashflows(curve)
         assert isinstance(result, DataFrame)
         assert len(result.index) == 2
 
     def test_analytic_delta(self, curve):
-        cl = CustomLeg(periods=[
-            FixedPeriod(
-                start=dt(2022, 1, 1), end=dt(2023, 1, 1), payment=dt(2023, 1, 9), frequency="A",
-                fixed_rate=1.0,
-            ),
-            FixedPeriod(
-                start=dt(2022, 2, 1), end=dt(2023, 2, 1), payment=dt(2023, 2, 9), frequency="A",
-                fixed_rate=2.0
-            )
-        ])
+        cl = CustomLeg(
+            periods=[
+                FixedPeriod(
+                    start=dt(2022, 1, 1),
+                    end=dt(2023, 1, 1),
+                    payment=dt(2023, 1, 9),
+                    frequency="A",
+                    fixed_rate=1.0,
+                ),
+                FixedPeriod(
+                    start=dt(2022, 2, 1),
+                    end=dt(2023, 2, 1),
+                    payment=dt(2023, 2, 9),
+                    frequency="A",
+                    fixed_rate=2.0,
+                ),
+            ]
+        )
         result = cl.analytic_delta(curve)
         expected = 194.1782607729773
-        assert abs(result-expected) < 1e-6
+        assert abs(result - expected) < 1e-6
 
 
 def test_leg_amortization():
@@ -1577,7 +1602,7 @@ def test_custom_leg():
         (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
         ([1.5], [1.5, NoInput(0), NoInput(0)]),
         (1.25, [1.25, NoInput(0), NoInput(0)]),
-        ((1.25, Series([1.5], index=[dt(2022, 4, 6)])), [1.25, 1.5, NoInput(0)])
+        ((1.25, Series([1.5], index=[dt(2022, 4, 6)])), [1.25, 1.5, NoInput(0)]),
     ],
 )
 def test_fixed_leg_exchange_mtm(fx_fixings, exp):

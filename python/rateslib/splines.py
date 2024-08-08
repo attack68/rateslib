@@ -2,7 +2,8 @@ from typing import Union
 
 from rateslib.dual import Dual, Dual2
 from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
-from rateslib.rs import PPSplineF64 as PPSpline  # noqa: F401
+from rateslib.rs import PPSplineF64 as PPSpline
+
 # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
 # TODO: (depr) remove this for version 2.0
 
@@ -44,3 +45,6 @@ def evaluate(
         return spline.ppdnev_single_dual2(x, m)
     else:
         return spline.ppdnev_single(x, m)
+
+
+__all__ = (PPSplineDual, PPSplineDual2, PPSplineF64, PPSpline, bspldnev_single, bsplev_single)

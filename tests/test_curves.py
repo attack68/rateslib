@@ -1,26 +1,26 @@
-import pytest
 from datetime import datetime as dt
-import numpy as np
-from math import log, exp
-from matplotlib import pyplot as plt
+from math import exp, log
 
 import context
+import numpy as np
+import pytest
+from matplotlib import pyplot as plt
+from rateslib import default_context
+from rateslib.calendars import get_calendar
 from rateslib.curves import (
+    CompositeCurve,
     Curve,
+    IndexCurve,
     LineCurve,
+    MultiCsaCurve,
     index_left,
     interpolate,
-    IndexCurve,
-    CompositeCurve,
-    MultiCsaCurve,
 )
 from rateslib.default import NoInput
-from rateslib.fx import FXRates, FXForwards
-from rateslib import default_context
 from rateslib.dual import Dual, Dual2, gradient
-from rateslib.calendars import get_calendar
-from rateslib.solver import Solver
+from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
+from rateslib.solver import Solver
 
 
 @pytest.fixture()
@@ -343,14 +343,14 @@ def test_curve_equality_spline_coeffs():
 
 
 def test_curve_interp_raises():
-    interp = 'BAD'
+    interp = "BAD"
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
             dt(2022, 2, 1): 0.9,
         },
-        id='curve',
-        interpolation=interp
+        id="curve",
+        interpolation=interp,
     )
 
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
@@ -359,19 +359,19 @@ def test_curve_interp_raises():
 
 
 def test_curve_sorted_nodes_raises():
-    err = 'Curve node dates are not sorted or contain duplicates.'
+    err = "Curve node dates are not sorted or contain duplicates."
     with pytest.raises(ValueError, match=err):
         Curve(
             nodes={
                 dt(2022, 2, 1): 0.9,
                 dt(2022, 1, 1): 1.0,
             },
-            id='curve',
+            id="curve",
         )
 
 
 def test_interp_raises():
-    interp = 'linea'  # Wrongly spelled interpolation method
+    interp = "linea"  # Wrongly spelled interpolation method
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
     with pytest.raises(ValueError, match=err):
         interpolate(1.5, 1, 5, 2, 10, interp)
@@ -1034,9 +1034,19 @@ def test_curve_spline_warning():
             dt(2026, 1, 1): 0.94,
             dt(2027, 1, 1): 0.91,
         },
-        t=[dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1), dt(2023, 1, 1),
-           dt(2024, 1, 1), dt(2025, 1, 1), dt(2026, 1, 1),
-           dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1)]
+        t=[
+            dt(2023, 1, 1),
+            dt(2023, 1, 1),
+            dt(2023, 1, 1),
+            dt(2023, 1, 1),
+            dt(2024, 1, 1),
+            dt(2025, 1, 1),
+            dt(2026, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+            dt(2027, 1, 1),
+        ],
     )
     with pytest.warns(UserWarning):
         curve[dt(2028, 1, 1)]
@@ -1309,10 +1319,7 @@ class TestCompositeCurve:
 
         rolled_curve = crv.roll("10d")
         expected = np.array(
-            [
-                crv.rate(_, "1D")
-                for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15)]
-            ]
+            [crv.rate(_, "1D") for _ in [dt(2023, 1, 15), dt(2023, 3, 15), dt(2024, 11, 15)]]
         )
         result = np.array(
             [
@@ -1443,9 +1450,7 @@ class TestCompositeCurve:
     def test_multi_csa_granularity(self):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.9, dt(2072, 1, 1): 0.5})
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.8, dt(2072, 1, 1): 0.7})
-        cc = MultiCsaCurve(
-            [c1, c2], multi_csa_max_step=182, multi_csa_min_step=182
-        )
+        cc = MultiCsaCurve([c1, c2], multi_csa_max_step=182, multi_csa_min_step=182)
 
         r1 = cc.rate(dt(2052, 5, 24), "1d")
         # r2 = cc.rate(dt(2052, 5, 25), "1d")
@@ -1646,13 +1651,19 @@ class TestPlotCurve:
                 dt(2024, 1, 1): 0.975,
                 dt(2025, 1, 1): 0.965,
                 dt(2026, 1, 1): 0.955,
-                dt(2027, 1, 1): 0.9475
+                dt(2027, 1, 1): 0.9475,
             },
             t=[
-                dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
+                dt(2024, 1, 1),
                 dt(2025, 1, 1),
                 dt(2026, 1, 1),
-                dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
             ],
         )
         rolled_curve = curve.roll("6m")
@@ -1664,20 +1675,12 @@ class TestPlotCurve:
             right=dt(2026, 6, 30),
         )
         usd_curve = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 7, 1): 0.98,
-                dt(2023, 1, 1): 0.95
-            },
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 0.98, dt(2023, 1, 1): 0.95},
             calendar="nyc",
             id="sofr",
         )
-        usd_args = dict(
-            effective=dt(2022, 1, 1),
-            spec="usd_irs",
-            curves="sofr"
-        )
-        solver = Solver(
+        usd_args = dict(effective=dt(2022, 1, 1), spec="usd_irs", curves="sofr")
+        Solver(
             curves=[usd_curve],
             instruments=[
                 IRS(**usd_args, termination="6M"),
@@ -1685,6 +1688,6 @@ class TestPlotCurve:
             ],
             s=[4.35, 4.85],
             instrument_labels=["6M", "1Y"],
-            id="us_rates"
+            id="us_rates",
         )
         usd_curve.plot("1b", labels=["SOFR o/n"])

@@ -1,27 +1,27 @@
-import pytest
 from datetime import datetime as dt
 
 import context
-from rateslib.default import NoInput
+import pytest
+from rateslib import defaults
 from rateslib.calendars import (
     Cal,
-    create_calendar,
-    dcf,
-    get_calendar,
-    add_tenor,
-    _get_eom,
     _adjust_date,
+    _get_eom,
+    _get_fx_expiry_and_delivery,
+    _get_imm,
+    _get_years_and_months,
     _is_eom,
     _is_imm,
     _is_som,
-    _get_imm,
-    _get_years_and_months,
-    _get_fx_expiry_and_delivery,
+    add_tenor,
+    create_calendar,
+    dcf,
+    get_calendar,
 )
 from rateslib.calendars.dcfs import _dcf_actacticma
 from rateslib.curves import Curve
+from rateslib.default import NoInput
 from rateslib.instruments import IRS
-from rateslib import defaults
 
 
 @pytest.fixture
@@ -130,15 +130,18 @@ def test_add_negative_tenor(tenor, expected, roll):
     assert result == expected
 
 
-@pytest.mark.parametrize("date, tenor, mod, roll, cal, expected", [
-    (dt(1990, 9, 28), "-6m", "NONE", 31, NoInput(0), dt(1990, 3, 31)),
-    (dt(1990, 9, 28), "-6m", "NONE", 29, NoInput(0), dt(1990, 3, 29)),
-    (dt(1990, 5, 29), "3m", "NONE", NoInput(0), NoInput(0), dt(1990, 8, 29)),
-    (dt(1990, 5, 29), "3m", "NONE",  31, NoInput(0), dt(1990, 8, 31)),
-    (dt(1990, 3, 31), "6m", "MF", 31, "nyc", dt(1990, 9, 28)),
-    (dt(2023, 4, 21), "-3m", "P", 23, "bus", dt(2023, 1, 23)),
-    (dt(2023, 6, 23), "-3m", "P", 25, "bus", dt(2023, 3, 24)),
-])
+@pytest.mark.parametrize(
+    "date, tenor, mod, roll, cal, expected",
+    [
+        (dt(1990, 9, 28), "-6m", "NONE", 31, NoInput(0), dt(1990, 3, 31)),
+        (dt(1990, 9, 28), "-6m", "NONE", 29, NoInput(0), dt(1990, 3, 29)),
+        (dt(1990, 5, 29), "3m", "NONE", NoInput(0), NoInput(0), dt(1990, 8, 29)),
+        (dt(1990, 5, 29), "3m", "NONE", 31, NoInput(0), dt(1990, 8, 31)),
+        (dt(1990, 3, 31), "6m", "MF", 31, "nyc", dt(1990, 9, 28)),
+        (dt(2023, 4, 21), "-3m", "P", 23, "bus", dt(2023, 1, 23)),
+        (dt(2023, 6, 23), "-3m", "P", 25, "bus", dt(2023, 3, 24)),
+    ],
+)
 def test_add_tenor_special_cases(date, tenor, mod, roll, cal, expected):
     end = add_tenor(date, tenor, mod, cal, roll)
     assert end == expected
@@ -326,7 +329,8 @@ def test_dcf(start, end, conv, expected):
             dt(2000, 6, 30),
             True,
         ),  # short back
-        # (dt(1999, 11, 30), dt(2000, 4, 30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),  # long back : SKIP the _add_tenor does not account for month end roll here
+        # (dt(1999,11,30), dt(2000,4,30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),
+        # long back : SKIP the _add_tenor does not account for month end roll here
         (
             dt(1999, 11, 15),
             dt(2000, 4, 15),
@@ -338,43 +342,52 @@ def test_dcf(start, end, conv, expected):
         ),  # long back
         (dt(2002, 8, 31), dt(2002, 11, 30), "ACTACTICMA", 0.25, 3, dt(2004, 11, 30), False),
         (
-                dt(1999, 2, 1),
-                dt(1999, 7, 1),
-                "ACTACTICMA_STUB365F",
-                150 / 365,
-                12,
-                dt(2000, 7, 1),
-                True,
+            dt(1999, 2, 1),
+            dt(1999, 7, 1),
+            "ACTACTICMA_STUB365F",
+            150 / 365,
+            12,
+            dt(2000, 7, 1),
+            True,
         ),  # short first
         (
-                dt(2002, 8, 15),
-                dt(2003, 7, 15),
-                "ACTACTICMA_STUB365F",
-                0.5 + 153 / 365,
-                6,
-                dt(2004, 1, 15),
-                True,
+            dt(2002, 8, 15),
+            dt(2003, 7, 15),
+            "ACTACTICMA_STUB365F",
+            0.5 + 153 / 365,
+            6,
+            dt(2004, 1, 15),
+            True,
         ),  # long first
         (
-                dt(2000, 1, 30),
-                dt(2000, 6, 30),
-                "ACTACTICMA_STUB365F",
-                152 / 365,
-                6,
-                dt(2000, 6, 30),
-                True,
+            dt(2000, 1, 30),
+            dt(2000, 6, 30),
+            "ACTACTICMA_STUB365F",
+            152 / 365,
+            6,
+            dt(2000, 6, 30),
+            True,
         ),  # short back
-        # (dt(1999, 11, 30), dt(2000, 4, 30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),  # long back : SKIP the _add_tenor does not account for month end roll here
+        # (dt(1999,11,30), dt(2000,4,30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),
+        # long back : SKIP the _add_tenor does not account for month end roll here
         (
-                dt(1999, 11, 15),
-                dt(2000, 4, 15),
-                "ACTACTICMA_STUB365F",
-                0.25 + 60 / 365,
-                3,
-                dt(2000, 4, 15),
-                True,
+            dt(1999, 11, 15),
+            dt(2000, 4, 15),
+            "ACTACTICMA_STUB365F",
+            0.25 + 60 / 365,
+            3,
+            dt(2000, 4, 15),
+            True,
         ),  # long back
-        (dt(2002, 8, 31), dt(2002, 11, 30), "ACTACTICMA_STUB365F", 0.25, 3, dt(2004, 11, 30), False),
+        (
+            dt(2002, 8, 31),
+            dt(2002, 11, 30),
+            "ACTACTICMA_STUB365F",
+            0.25,
+            3,
+            dt(2004, 11, 30),
+            False,
+        ),
     ],
 )
 def test_dcf_special(start, end, conv, expected, freq_m, term, stub):
@@ -398,25 +411,30 @@ def test_dcf_raises(conv, freq_m, term, stub):
         _ = dcf(dt(2022, 1, 1), dt(2022, 4, 1), conv, term, freq_m, stub)
 
 
-@pytest.mark.parametrize("start, end, expected", [
-    (dt(2000, 1, 1), dt(2000, 1, 4), 1.0 / 252.0),
-    (dt(2000, 1, 2), dt(2000, 1, 4), 1.0 / 252.0),
-    (dt(2000, 1, 2), dt(2000, 1, 5), 2.0 / 252.0),
-    (dt(2000, 1, 1), dt(2000, 1, 5), 2.0 / 252.0),
-    (dt(2000, 1, 3), dt(2000, 1, 5), 1.0 / 252.0),
-    (dt(2000, 1, 3), dt(2000, 1, 4), 0.0 / 252.0),
-    (dt(2000, 1, 4), dt(2000, 1, 5), 1.0 / 252.0),
-    (dt(2000, 1, 5), dt(2000, 1, 6), 0.0 / 252.0),
-    (dt(2000, 1, 5), dt(2000, 1, 5), 0.0 / 252.0),
-])
+@pytest.mark.parametrize(
+    "start, end, expected",
+    [
+        (dt(2000, 1, 1), dt(2000, 1, 4), 1.0 / 252.0),
+        (dt(2000, 1, 2), dt(2000, 1, 4), 1.0 / 252.0),
+        (dt(2000, 1, 2), dt(2000, 1, 5), 2.0 / 252.0),
+        (dt(2000, 1, 1), dt(2000, 1, 5), 2.0 / 252.0),
+        (dt(2000, 1, 3), dt(2000, 1, 5), 1.0 / 252.0),
+        (dt(2000, 1, 3), dt(2000, 1, 4), 0.0 / 252.0),
+        (dt(2000, 1, 4), dt(2000, 1, 5), 1.0 / 252.0),
+        (dt(2000, 1, 5), dt(2000, 1, 6), 0.0 / 252.0),
+        (dt(2000, 1, 5), dt(2000, 1, 5), 0.0 / 252.0),
+    ],
+)
 def test_bus252(start, end, expected):
-    cal = Cal([
-        dt(2000, 1, 1),
-        dt(2000, 1, 3),
-        dt(2000, 1, 5),
-        dt(2000, 1, 6),
-
-    ], [])
+    cal = Cal(
+        [
+            dt(2000, 1, 1),
+            dt(2000, 1, 3),
+            dt(2000, 1, 5),
+            dt(2000, 1, 6),
+        ],
+        [],
+    )
     assert dcf(start, end, "BUS252", calendar=cal) == expected
 
 
@@ -434,11 +452,14 @@ def test_get_years_and_months(d1, d2, exp):
     assert result == exp
 
 
-@pytest.mark.parametrize("s, e, t, exp", [
-    (dt(2024, 2, 29), dt(2024, 5, 29), dt(2024, 5, 29), 0.24657534),
-    (dt(2021, 2, 28), dt(2024, 5, 29), dt(2024, 5, 29), 3.24863387),
-    (dt(2021, 2, 28), dt(2024, 5, 29), dt(2026, 5, 28), 3.24657534),
-])
+@pytest.mark.parametrize(
+    "s, e, t, exp",
+    [
+        (dt(2024, 2, 29), dt(2024, 5, 29), dt(2024, 5, 29), 0.24657534),
+        (dt(2021, 2, 28), dt(2024, 5, 29), dt(2024, 5, 29), 3.24863387),
+        (dt(2021, 2, 28), dt(2024, 5, 29), dt(2026, 5, 28), 3.24657534),
+    ],
+)
 def test_act_act_icma_z_freq(s, e, t, exp):
     result = _dcf_actacticma(
         start=s,
@@ -449,7 +470,7 @@ def test_act_act_icma_z_freq(s, e, t, exp):
         roll=NoInput(0),
         calendar=NoInput(0),
     )
-    assert abs(result-exp)<1e-6
+    assert abs(result - exp) < 1e-6
 
 
 def test_calendar_aligns_with_fixings_tyo():
@@ -461,9 +482,7 @@ def test_calendar_aligns_with_fixings_tyo():
         calendar="tyo",
     )
     fixings = defaults.fixings["jpy_rfr"]
-    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A",
-                 leg2_fixings=fixings, calendar="tyo"
-    )
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings, calendar="tyo")
     irs.rate(curve)
 
 
@@ -476,9 +495,7 @@ def test_calendar_aligns_with_fixings_syd():
         calendar="syd",
     )
     fixings = defaults.fixings["aud_rfr"]
-    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A",
-                 leg2_fixings=fixings, calendar="syd"
-    )
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings, calendar="syd")
     irs.rate(curve)
 
 
@@ -523,12 +540,15 @@ def test_add_and_get_custom_calendar():
     assert result == cal
 
 
-@pytest.mark.parametrize("eval, delivery, expiry, expected_expiry", [
-    (dt(2024, 5, 2), 2, "2m", dt(2024, 7, 4)),
-    (dt(2024, 4, 30), 2, "2m", dt(2024, 7, 1)),
-    (dt(2024, 5, 31), 2, "1m", dt(2024, 7, 3)),
-    (dt(2024, 5, 31), 2, "2w", dt(2024, 6, 14)),
-])
+@pytest.mark.parametrize(
+    "eval, delivery, expiry, expected_expiry",
+    [
+        (dt(2024, 5, 2), 2, "2m", dt(2024, 7, 4)),
+        (dt(2024, 4, 30), 2, "2m", dt(2024, 7, 1)),
+        (dt(2024, 5, 31), 2, "1m", dt(2024, 7, 3)),
+        (dt(2024, 5, 31), 2, "2w", dt(2024, 6, 14)),
+    ],
+)
 def test_expiries_delivery(eval, delivery, expiry, expected_expiry):
     result_expiry, _ = _get_fx_expiry_and_delivery(
         eval,

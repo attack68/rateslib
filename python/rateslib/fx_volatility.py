@@ -1,6 +1,5 @@
 from __future__ import annotations  # type hinting
 
-import math
 from datetime import datetime, timedelta
 from datetime import datetime as dt
 from typing import Union
@@ -205,8 +204,8 @@ class FXDeltaVolSmile:
         w_spot: DualTypes, optional
             Required only for spot/forward conversions.
         expiry: datetime, optional
-            If given, performs a check to ensure consistency of valuations. Raises if expiry requested and expiry
-            of the *Smile* do not match. Used internally.
+            If given, performs a check to ensure consistency of valuations. Raises if expiry
+            requested and expiry of the *Smile* do not match. Used internally.
 
         Returns
         -------
@@ -214,9 +213,9 @@ class FXDeltaVolSmile:
 
         Notes
         -----
-        This function will return a delta index associated with the *FXDeltaVolSmile* and the volatility attributed
-        to the delta at that point. Recall that the delta index is the negated put option delta for the given strike
-        ``k``.
+        This function will return a delta index associated with the *FXDeltaVolSmile* and the
+        volatility attributed to the delta at that point. Recall that the delta index is the
+        negated put option delta for the given strike ``k``.
         """
         expiry = _drb(self.expiry, expiry)
         if self.expiry != expiry:
@@ -470,18 +469,20 @@ class FXDeltaVolSmile:
     #     data["d_min"] = data["d_plus"] - data["vol_sqrt_t"]
     #     data["log_moneyness"] = (0.5 * data["vol_sqrt_t"] - data["d_plus"]) * data["vol_sqrt_t"]
     #     data["moneyness"] = data["log_moneyness"].map(dual_exp)
-    #     data["put_delta_forward_pa"] = (data["d_min"].map(dual_norm_cdf) - 1.0) * data["moneyness"]
+    #     data["put_delta_forward_pa"] = (data["d_min"].map(dual_norm_cdf)-1.0) * data["moneyness"]
     #     return data
 
     # def _create_approx_spline_conversions(
     #     self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]
     # ):
     #     """
-    #     Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the (Delta, Vol) spline.
+    #     Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the
+    #     (Delta, Vol) spline.
     #
     #     U is moneyness i.e.: U = K / f
     #     """
-    #     # TODO: this only works for forward unadjusted delta because no spot conversion takes place
+    #     # TODO: this only works for forward unadjusted delta because no spot conversion takes
+    #     # place
     #     # Create approximate (K, Delta) curve via interpolation
     #     delta = np.array(
     #         [
@@ -632,7 +633,8 @@ class FXDeltaVolSmile:
 
 class FXDeltaVolSurface:
     r"""
-    Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different expiries.
+    Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
+    expiries.
 
     Parameters
     ----------
@@ -641,13 +643,13 @@ class FXDeltaVolSurface:
     expiries: list[datetime]
         Datetimes representing the expiries of each cross-sectional *Smile*, in ascending order.
     node_values: 2d-shape of float, Dual, Dual2
-        An array of values representing each node value on each cross-sectional *Smile*. Should be an array of size:
-        (length of ``expiries``, length of ``delta_indexes``).
+        An array of values representing each node value on each cross-sectional *Smile*. Should be
+        an array of size: (length of ``expiries``, length of ``delta_indexes``).
     eval_date: datetime
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
     delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
-        The type of delta calculation that is used as the *Smiles* definition to obtain a delta index which
-        is referenced by the node keys.
+        The type of delta calculation that is used as the *Smiles* definition to obtain a delta
+        index which is referenced by the node keys.
     weights: Series, optional
         Weights used for temporal volatility interpolation. See notes.
     id: str, optional
@@ -660,17 +662,19 @@ class FXDeltaVolSurface:
 
     Notes
     -----
-    See :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for a description of delta indexes and *Smile* construction.
+    See :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for a description of delta indexes and
+    *Smile* construction.
 
     **Temporal Interpolation**
 
-    Interpolation along the expiry axis occurs by performing total linear variance interpolation for each *delta
-    index* and then dynamically constructing a *Smile* with the usual cubic interpolation.
+    Interpolation along the expiry axis occurs by performing total linear variance interpolation
+    for each *delta index* and then dynamically constructing a *Smile* with the usual cubic
+    interpolation.
 
-    If ``weights`` are given this uses the scaling approach of forward volatility (as demonstrated in Clark's
-    *FX Option Pricing*) for calendar days (different options 'cuts' and timezone are not implemented). A datetime
-    indexed `Series` must be provided, where any calendar date that is not included will be assigned the default
-    weight of 1.0.
+    If ``weights`` are given this uses the scaling approach of forward volatility (as demonstrated
+    in Clark's *FX Option Pricing*) for calendar days (different options 'cuts' and timezone are
+    not implemented). A datetime indexed `Series` must be provided, where any calendar date that
+    is not included will be assigned the default weight of 1.0.
 
     See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
 
@@ -850,8 +854,8 @@ class FXDeltaVolSurface:
 
         Notes
         -----
-        This function performs different interpolation if weights are given or not. ``bounds_flag`` is used
-        to parse the inputs when *Smiles* to the left and/or right are not available.
+        This function performs different interpolation if weights are given or not. ``bounds_flag``
+        is used to parse the inputs when *Smiles* to the left and/or right are not available.
         """
         # 86400 posix seconds per day
         # 31536000 posix seconds per 365 day year
@@ -924,9 +928,9 @@ class FXDeltaVolSurface:
 
         Notes
         -----
-        This function will return a delta index associated with the *FXDeltaVolSmile* and the volatility attributed
-        to the delta at that point. Recall that the delta index is the negated put option delta for the given strike
-        ``k``.
+        This function will return a delta index associated with the *FXDeltaVolSmile* and the
+        volatility attributed to the delta at that point. Recall that the delta index is the
+        negated put option delta for the given strike ``k``.
         """
         if expiry is NoInput.blank:
             raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
@@ -1004,7 +1008,8 @@ def _validate_delta_type(delta_type: str):
 #         "_pa" not in from_delta_type and "_pa" in to_delta_type
 #     ):
 #         raise ValueError(
-#             "Can only convert between deltas of the same premium type, i.e. adjusted or unadjusted."
+#             "Can only convert between deltas of the same premium type, i.e. adjusted or "
+#             "unadjusted."
 #         )
 #
 #     if from_delta_type == to_delta_type:
