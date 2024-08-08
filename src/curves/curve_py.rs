@@ -1,7 +1,10 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::curves::{Curve, LinearInterpolator, LogLinearInterpolator, LinearZeroRateInterpolator, CurveInterpolation};
+use crate::curves::{
+    Curve, CurveInterpolation, LinearInterpolator, LinearZeroRateInterpolator,
+    LogLinearInterpolator,
+};
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
@@ -30,8 +33,8 @@ impl CurveInterpolation for CurveInterpolator {
 }
 
 #[pyclass(name = "Curve", module = "rateslib.rs")]
-pub(crate) struct PyCurve{
-    inner: Curve::<CurveInterpolator>
+pub(crate) struct PyCurve {
+    inner: Curve<CurveInterpolator>,
 }
 
 #[pymethods]
@@ -57,9 +60,15 @@ impl PyCurve {
     fn nodes(&self) -> IndexMap<NaiveDateTime, DualsOrF64> {
         let nodes = Nodes::from(self.inner.nodes.clone());
         match nodes {
-            Nodes::F64(i) => IndexMap::from_iter(i.into_iter().map(|(k,v)| (k, DualsOrF64::F64(v)))),
-            Nodes::Dual(i) => IndexMap::from_iter(i.into_iter().map(|(k,v)| (k, DualsOrF64::Dual(v)))),
-            Nodes::Dual2(i) => IndexMap::from_iter(i.into_iter().map(|(k,v)| (k, DualsOrF64::Dual2(v)))),
+            Nodes::F64(i) => {
+                IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, DualsOrF64::F64(v))))
+            }
+            Nodes::Dual(i) => {
+                IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, DualsOrF64::Dual(v))))
+            }
+            Nodes::Dual2(i) => {
+                IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, DualsOrF64::Dual2(v))))
+            }
         }
     }
 

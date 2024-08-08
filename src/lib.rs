@@ -24,9 +24,9 @@ use splines::spline_py::{
 };
 
 pub mod curves;
+use curves::curve_py::PyCurve;
 use curves::interpolation::interpolation_py::index_left_f64;
 use curves::{LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator};
-use curves::curve_py::PyCurve;
 
 pub mod calendars;
 use calendars::calendar_py::get_calendar_by_name_py;

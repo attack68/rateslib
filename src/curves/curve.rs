@@ -1,8 +1,8 @@
-use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::interpolation::utils::index_left;
+use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{ADOrder, DualsOrF64};
 use chrono::NaiveDateTime;
-use pyo3::{PyErr};
+use pyo3::PyErr;
 
 /// Default struct for storing discount factors (DFs).
 pub struct Curve<T: CurveInterpolation> {
@@ -84,7 +84,6 @@ mod tests {
         let result = c.interpolated_value(&ndt(2000, 7, 1));
         assert_eq!(result, DualsOrF64::F64(0.9950147597711371))
     }
-
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
