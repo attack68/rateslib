@@ -38,5 +38,5 @@ jobs:
         ruff format
     - name: Test with pytest
       run: |
-        coverage run -m pytest
+        coverage run -m --source=rateslib pytest
         coverage report -m
