@@ -329,7 +329,8 @@ def test_dcf(start, end, conv, expected):
             dt(2000, 6, 30),
             True,
         ),  # short back
-        # (dt(1999, 11, 30), dt(2000, 4, 30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),  # long back : SKIP the _add_tenor does not account for month end roll here
+        # (dt(1999,11,30), dt(2000,4,30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),
+        # long back : SKIP the _add_tenor does not account for month end roll here
         (
             dt(1999, 11, 15),
             dt(2000, 4, 15),
@@ -367,7 +368,8 @@ def test_dcf(start, end, conv, expected):
             dt(2000, 6, 30),
             True,
         ),  # short back
-        # (dt(1999, 11, 30), dt(2000, 4, 30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),  # long back : SKIP the _add_tenor does not account for month end roll here
+        # (dt(1999,11,30), dt(2000,4,30), "ACTACTICMA", 0.25 + 61 / 368, 3, dt(2000, 4, 30), True),
+        # long back : SKIP the _add_tenor does not account for month end roll here
         (
             dt(1999, 11, 15),
             dt(2000, 4, 15),

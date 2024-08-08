@@ -1680,7 +1680,7 @@ class TestPlotCurve:
             id="sofr",
         )
         usd_args = dict(effective=dt(2022, 1, 1), spec="usd_irs", curves="sofr")
-        solver = Solver(
+        Solver(
             curves=[usd_curve],
             instruments=[
                 IRS(**usd_args, termination="6M"),

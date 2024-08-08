@@ -498,7 +498,8 @@ class TestFixedRateBond:
                 1.204918,
             ),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
             (dt(2022, 12, 20), 99.31, 2.208075, 0.350959),  # BBG BXT ticket data
-            # (dt(2022, 12, 20), 99.31, 2.20804175, 0.3452055),  # Bundesbank official data: see link above (accrual is unexplained and does not match systems)
+            # (dt(2022, 12, 20), 99.31, 2.20804175, 0.3452055),  # Bundesbank official data:
+            # see link above (accrual is unexplained and does not match systems)
             (
                 dt(2023, 11, 2),
                 97.04,
@@ -578,7 +579,7 @@ class TestFixedRateBond:
             (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
             (dt(2033, 3, 15), 99.65, 7.006149, 1.628730),  # BBG YAS Yield - Last coupon simple rate
             (dt(2032, 11, 1), 99.00, 6.569126, 0.0),  # BBG YAS Yield - Annualised
-            # (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield - Last coupon simple rate
+            # (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield-Last coupon simple rate
             (dt(2033, 4, 29), 99.97, 9.623617, 2.175690),  # Test accrual upto adjusted payment date
         ],
     )

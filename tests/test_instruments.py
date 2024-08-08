@@ -1253,7 +1253,7 @@ class TestZCS:
 
     def test_zcs_raise_frequency(self):
         with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'."):
-            zcs = ZCS(
+            ZCS(
                 effective=dt(2022, 1, 5),
                 termination="10Y",
                 modifier="mf",
@@ -1699,10 +1699,6 @@ class TestNonMtmXCS:
         assert abs(result - 65.766356) < 1e-5
 
     def test_no_fx_warns(self, curve, curve2):
-        fxf = FXForwards(
-            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
-            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
-        )
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -2002,7 +1998,8 @@ class TestNonMtmFixedFixedXCS:
     #         "FX Rate": [0.10002256337062124, 1.0],
     #     }, index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 8)]))
     #     assert_frame_equal(
-    #         result.loc[[("leg1", 0), ("leg2", 8)], ["Type", "Period", "Ccy", "Notional", "FX Rate"]],
+    #         result.loc[[("leg1", 0), ("leg2", 8)],
+    #                    ["Type", "Period", "Ccy", "Notional", "FX Rate"]],
     #         expected,
     #     )
 
@@ -2547,8 +2544,10 @@ class TestFXSwap:
     #                         currency="usd", leg2_currency="nok",
     #                         payment_lag_exchange=0, notional=1e6,
     #                         leg2_fixed_rate=-1.0)
-    #     npv_nok = fxs.npv([NoInput(0), fxf.curve("usd", "nok"), NoInput(0), curve2], NoInput(0), fxf)
-    #     npv_usd = fxs.npv([NoInput(0), curve, NoInput(0), fxf.curve("nok", "usd")], NoInput(0), fxf)
+    #     npv_nok =
+    #         fxs.npv([NoInput(0), fxf.curve("usd", "nok"), NoInput(0), curve2], NoInput(0), fxf)
+    #     npv_usd =
+    #         fxs.npv([NoInput(0), curve, NoInput(0), fxf.curve("nok", "usd")], NoInput(0), fxf)
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
 
     def test_transition_from_dual_to_dual2(self, curve, curve2):
@@ -3775,7 +3774,8 @@ class TestFXOptions:
         ],
     )
     def test_greeks_delta_direction(self, fxfo, notn, expected, phi):
-        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
+        # relative to a Buy.
         FXOp = FXCall if phi > 0 else FXPut
         delta = f"{'-' if phi < 0 else ''}50d"
         fxo = fxo = FXOp(
@@ -3991,7 +3991,8 @@ class TestRiskReversal:
         ],
     )
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy):
-        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
+        # relative to a Buy.
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4062,7 +4063,7 @@ class TestFXStraddle:
             delta_type=dlty,
         )
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=vol_)
+        fxo.npv(curves, fx=fxfo, vol=vol_)
         call_k = fxo.periods[0].periods[0].strike
         put_k = fxo.periods[1].periods[0].strike
         assert abs(call_k - exp[0]) < 1e-7
@@ -4115,7 +4116,8 @@ class TestFXStraddle:
         ],
     )
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy):
-        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
+        # relative to a Buy.
         fxo = FXStraddle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4447,7 +4449,8 @@ class TestFXStrangle:
     )
     @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.0238746345527665, 1.1159199351325004)])
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
-        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
+        # relative to a Buy.
         fxo = FXStrangle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4659,7 +4662,8 @@ class TestFXBrokerFly:
         ],
     )
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
-        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed relative to a Buy.
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
+        # relative to a Buy.
         fxo = FXBrokerFly(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4732,7 +4736,7 @@ class TestVolValue:
             VolValue(0.5, vol="VolSmile"),
             VolValue(0.75, vol="VolSmile"),
         ]
-        solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1])
+        Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1])
         assert abs(smile[0.25] - 8.9) < 5e-7
         assert abs(smile[0.5] - 8.2) < 5e-7
         assert abs(smile[0.75] - 9.1) < 5e-7

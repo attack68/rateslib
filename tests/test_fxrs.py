@@ -25,6 +25,7 @@ def test_json_round_trip():
     fxr = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
     json = fxr.to_json()
     fxr2 = from_json(json)
+    assert fxr == fxr2
 
 
 def test_equality():

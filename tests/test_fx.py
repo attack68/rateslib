@@ -187,8 +187,8 @@ def test_set_ad_order():
 
 
 def test_set_ad_order_second_order_gradients():
-    # test ensures that the FX Array is consecutively constructed passing correct second order gradients.
-    # Versions <1.3.0 failed to correctly handle this becuase they simply upcast the FX rates vector.
+    # test ensures that FX Array is consecutively constructed passing correct 2nd order gradients.
+    # Versions <1.3.0 failed to correctly handle this becuase they simply upcast FX rates vector.
     fxr = FXRates({"usdnok": 10.0, "eurnok": 8.0})
 
     un = Dual2(10, ["fx_usdnok"], [], [])

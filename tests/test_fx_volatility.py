@@ -478,7 +478,7 @@ class TestFXDeltaVolSurface:
 
     def test_expiries_unsorted(self):
         with pytest.raises(ValueError, match="Surface `expiries` are not sorted or"):
-            fxvs = FXDeltaVolSurface(
+            FXDeltaVolSurface(
                 delta_indexes=[0.25, 0.5, 0.75],
                 expiries=[dt(2024, 1, 1), dt(2024, 1, 1)],
                 node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
