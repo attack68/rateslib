@@ -32,7 +32,7 @@ jobs:
         pip install .[dev] -v
     - name: Lint with Ruff
       run: |
-        ruff check --output-format=github
+        ruff check
     - name: Ruff Format
       run: |
         ruff format
