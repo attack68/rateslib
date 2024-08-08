@@ -43,6 +43,11 @@ indent-width = 4
 # Assume Python 3.12
 target-version = "py39"
 
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
+docstring-code-format = false
+
 [tool.ruff.lint]
 select = [
     # pycodestyle
