@@ -1,12 +1,12 @@
 import pytest
 import context
-from rateslib.curves.rs import CurveRs, LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, _get_interpolator
+from rateslib.curves.rs import CurveObj, LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, _get_interpolator
 from rateslib.dual import ADOrder
 from datetime import datetime as dt
 
 @pytest.fixture()
 def curve():
-    return CurveRs(
+    return CurveObj(
         nodes={
             dt(2022, 3, 1): 1.00,
             dt(2022, 3, 31): 0.99,
