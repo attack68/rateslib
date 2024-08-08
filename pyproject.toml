@@ -58,7 +58,7 @@ select = [
     # isort
     "I",
 ]
-ignore = ["E501"]
+ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402"]
