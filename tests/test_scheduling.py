@@ -1,30 +1,30 @@
-import pytest
-import numpy as np
-from pandas import DatetimeIndex, date_range, DataFrame
-from pandas.tseries.holiday import Holiday
-from pandas.testing import assert_index_equal
 from datetime import datetime as dt
 
 import context
+import numpy as np
+import pytest
+from pandas import DataFrame, DatetimeIndex, date_range
+from pandas.testing import assert_index_equal
+from pandas.tseries.holiday import Holiday
 from rateslib import defaults
+from rateslib.calendars import Cal, create_calendar
 from rateslib.default import NoInput
-from rateslib.calendars import create_calendar, Cal
 from rateslib.scheduling import (
-    _check_unadjusted_regular_swap,
+    Schedule,
     _check_regular_swap,
-    _is_divisible_months,
+    _check_unadjusted_regular_swap,
+    _generate_irregular_schedule_unadjusted,
+    _generate_regular_schedule_unadjusted,
     _get_date_category,
     _get_default_stub,
-    _get_unadjusted_roll,
-    _get_unadjusted_date_alternatives,
-    _get_unadjusted_short_stub_date,
-    _get_unadjusted_stub_date,
     _get_n_periods_in_regular,
     _get_roll,
-    _generate_regular_schedule_unadjusted,
-    _generate_irregular_schedule_unadjusted,
+    _get_unadjusted_date_alternatives,
+    _get_unadjusted_roll,
+    _get_unadjusted_short_stub_date,
+    _get_unadjusted_stub_date,
     _infer_stub_date,
-    Schedule,
+    _is_divisible_months,
 )
 
 
@@ -108,7 +108,9 @@ def test_get_default_stub():
     ],
 )
 def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, NoInput(0), NoInput(0), "MF", False, NoInput(0), cal_)
+    result = _infer_stub_date(
+        e, t, "Q", stub, NoInput(0), NoInput(0), "MF", False, NoInput(0), cal_
+    )
     assert result[0]
     if "FRONT" in stub:
         assert result[1]["front_stub"] == exp_stub
@@ -128,7 +130,9 @@ def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_):
     ],
 )
 def test_infer_stub_date_no_inference_on_regular(e, t, stub, exp_roll, exp_stub, cal_):
-    result = _infer_stub_date(e, t, "Q", stub, NoInput(0), NoInput(0), "MF", False, NoInput(0), cal_)
+    result = _infer_stub_date(
+        e, t, "Q", stub, NoInput(0), NoInput(0), "MF", False, NoInput(0), cal_
+    )
     assert result[0]
     if "FRONT" in stub:
         assert result[1]["front_stub"] == exp_stub
@@ -253,7 +257,19 @@ def test_infer_stub_date_eom(cal_):
 
 
 def test_schedule_repr(cal_):
-    schedule = Schedule(dt(2022, 1, 1), "2M", "M", NoInput(0), NoInput(0), NoInput(0), NoInput(0), False, "MF", cal_, 1)
+    schedule = Schedule(
+        dt(2022, 1, 1),
+        "2M",
+        "M",
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        NoInput(0),
+        False,
+        "MF",
+        cal_,
+        1,
+    )
     expected = "freq: M,  stub: SHORTFRONT,  roll: 1,  pay lag: 1,  modifier: MF\n"
     df = DataFrame(
         {
@@ -845,11 +861,14 @@ def test_dead_stubs():
     assert s.aschedule[-2:] == [dt(2046, 10, 19), dt(2047, 10, 21)]
 
 
-@pytest.mark.parametrize("mode, end, roll", [
-    (NoInput(0), dt(2025, 8, 17), 17),
-    ("swaps_align", dt(2025, 8, 17), 17),
-    ("swaptions_align", dt(2025, 8, 19), 19),
-])
+@pytest.mark.parametrize(
+    "mode, end, roll",
+    [
+        (NoInput(0), dt(2025, 8, 17), 17),
+        ("swaps_align", dt(2025, 8, 17), 17),
+        ("swaptions_align", dt(2025, 8, 19), 19),
+    ],
+)
 def test_eval_mode(mode, end, roll):
     sch = Schedule(
         effective="1Y",

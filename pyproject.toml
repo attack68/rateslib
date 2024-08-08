@@ -69,7 +69,6 @@ exclude = [
     "dist",
     "bench",
     "benchmarks",
-    "tests"
 ]
 # Same as Black.
 line-length = 100

@@ -1,19 +1,19 @@
-import pytest
 from datetime import datetime as dt
+
+import context
+import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 from pandas import DataFrame, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
-import numpy as np
-
-import context
+from rateslib.curves import CompositeCurve, Curve, LineCurve
+from rateslib.default import NoInput
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.fx import (
     FXForwards,
     FXRates,
     forward_fx,
 )
-from rateslib.dual import Dual, Dual2, gradient
-from rateslib.curves import Curve, LineCurve, CompositeCurve
-from rateslib.default import NoInput
 from rateslib.json import from_json
 
 
@@ -31,7 +31,7 @@ def test_ill_constrained(fx_rates):
 
 
 def test_avoid_recursion_error():
-    pairs = ['jpymxp', 'usdnok', 'usdgbp', 'audmxp', 'gbpsek', 'eurnok', 'eursek']
+    pairs = ["jpymxp", "usdnok", "usdgbp", "audmxp", "gbpsek", "eurnok", "eursek"]
     with pytest.raises(ValueError, match="FX Array cannot be solved. There are degenerate"):
         FXRates({k: 1.2 for k in pairs})
 
@@ -90,13 +90,17 @@ def test_positions_value():
 def test_fxrates_set_order():
     fxr = FXRates({"usdnok": 8.0})
     fxr._set_ad_order(order=2)
-    expected = np.array([Dual2(1.0, ["fx_usdnok"], [0.0], []), Dual2(8.0, ["fx_usdnok"], [1.0], [])])
+    expected = np.array(
+        [Dual2(1.0, ["fx_usdnok"], [0.0], []), Dual2(8.0, ["fx_usdnok"], [1.0], [])]
+    )
     assert all(fxr.fx_vector == expected)
 
 
 def test_update_raises():
     fxr = FXRates({"usdnok": 8.0})
-    with pytest.raises(ValueError, match="The given `fx_rates` pairs are not contained in the `FXRates` object."):
+    with pytest.raises(
+        ValueError, match="The given `fx_rates` pairs are not contained in the `FXRates` object."
+    ):
         fxr.update({"usdnok": 9.0, "gbpnok": 10.0})
 
 
@@ -199,13 +203,13 @@ def test_set_ad_order_second_order_gradients():
     assert np.all(
         np.isclose(
             gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"]),
-            gradient(expected, ["fx_usdnok", "fx_eurnok"])
+            gradient(expected, ["fx_usdnok", "fx_eurnok"]),
         )
     )
     assert np.all(
         np.isclose(
             gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"], order=2),
-            gradient(expected, ["fx_usdnok", "fx_eurnok"], order=2)
+            gradient(expected, ["fx_usdnok", "fx_eurnok"], order=2),
         )
     )
 
@@ -253,14 +257,7 @@ def test_fxforwards_without_settlement_raise():
     fxr = FXRates({"usdeur": 1.0})
     crv = Curve({dt(2022, 1, 1): 1.0})
     with pytest.raises(ValueError, match="`fx_rates` as FXRates supplied to FXForwards must cont"):
-        FXForwards(
-            fx_rates=fxr,
-            fx_curves={
-                "usdusd": crv,
-                "usdeur": crv,
-                "eureur": crv
-            }
-        )
+        FXForwards(fx_rates=fxr, fx_curves={"usdusd": crv, "usdeur": crv, "eureur": crv})
 
 
 def test_fxforwards_set_order(usdusd, eureur, usdeur):
@@ -269,7 +266,9 @@ def test_fxforwards_set_order(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     fxf._set_ad_order(order=2)
-    expected = np.array([Dual2(1.0, ["fx_usdeur"], [0.0], []), Dual2(2.0, ["fx_usdeur"], [1.0], [])])
+    expected = np.array(
+        [Dual2(1.0, ["fx_usdeur"], [0.0], []), Dual2(2.0, ["fx_usdeur"], [1.0], [])]
+    )
     assert all(fxf.fx_rates.fx_vector == expected)
     assert usdusd.ad == 2
     assert eureur.ad == 2
@@ -311,13 +310,13 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur):
     )
     result = fxf.rate("usdeur", dt(2022, 3, 25))
     expected = Dual(0.8991875219289739, ["fx_usdeur"], [0.99909725])
-    assert abs(result-expected) < 1e-10
+    assert abs(result - expected) < 1e-10
     assert np.isclose(result.dual, expected.dual)
 
     # test fx_swap price
     result = fxf.swap("usdeur", [dt(2022, 1, 3), dt(2022, 3, 25)])
     expected = (expected - fxf.rate("usdeur", dt(2022, 1, 3))) * 10000
-    assert abs(result-expected) < 1e-10
+    assert abs(result - expected) < 1e-10
     assert np.isclose(result.dual, expected.dual)
 
     result = fxf.rate("eurusd", dt(2022, 3, 25))
@@ -357,10 +356,12 @@ def test_fxforwards2():
 
     # expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
     assert abs(f_usdnok_res - f_usdnok_exp) < 1e-14
-    assert all(np.isclose(
-        gradient(f_usdnok_res, ["fx_eurnok", "fx_usdeur"]),
-        gradient(f_usdnok_exp, ["fx_eurnok", "fx_usdeur"])
-    ))
+    assert all(
+        np.isclose(
+            gradient(f_usdnok_res, ["fx_eurnok", "fx_usdeur"]),
+            gradient(f_usdnok_exp, ["fx_eurnok", "fx_usdeur"]),
+        )
+    )
 
 
 def test_fxforwards_immediate():
@@ -436,14 +437,10 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     result = fxf.convert(
-        100,
-        domestic="usd",
-        foreign="eur",
-        settlement=dt(2022, 1, 15),
-        value_date=dt(2022, 1, 30)
+        100, domestic="usd", foreign="eur", settlement=dt(2022, 1, 15), value_date=dt(2022, 1, 30)
     )
     expected = Dual(90.12374519723947, ["fx_usdeur"], [100.13749466359941])
-    assert abs(result-expected) < 1e-13
+    assert abs(result - expected) < 1e-13
     assert np.isclose(expected.dual, result.dual)
 
     result = fxf.convert(
@@ -475,13 +472,13 @@ def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur):
         )
 
     result = fxf.convert(
-            100,
-            domestic=ccy,
-            foreign="eur",
-            settlement=dt(2022, 1, 15),
-            value_date=dt(2022, 1, 30),
-            on_error="ignore",
-        )
+        100,
+        domestic=ccy,
+        foreign="eur",
+        settlement=dt(2022, 1, 15),
+        value_date=dt(2022, 1, 30),
+        on_error="ignore",
+    )
     assert result is None
 
     with pytest.warns(UserWarning):
@@ -503,14 +500,13 @@ def test_fxforwards_position_not_dual(usdusd, eureur, usdeur):
     )
     result = fxf.positions(100)
     expected = DataFrame(
-        {dt(2022, 1, 1): [100.0, 0.], dt(2022, 1, 3): [0.0, 0.0]},
-        index=["usd", "eur"]
+        {dt(2022, 1, 1): [100.0, 0.0], dt(2022, 1, 3): [0.0, 0.0]}, index=["usd", "eur"]
     )
     assert_frame_equal(result, expected)
 
     result = fxf.positions(100, aggregate=True)
     expected = Series(
-        [100.0, 0.],
+        [100.0, 0.0],
         index=["usd", "eur"],
         name=dt(2022, 1, 1),
     )
@@ -609,11 +605,11 @@ def test_multiple_settlement_forwards():
     )
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
     F0_usdeur_result = fxf.rate("usdeur", dt(2022, 1, 1))
-    assert abs(F0_usdeur_result.real-F0_usdeur) < 1e-13
+    assert abs(F0_usdeur_result.real - F0_usdeur) < 1e-13
 
     expected = Dual(0.95, ["fx_usdeur"], [1.0])
     result = fxf.rate("usdeur", dt(2022, 1, 3))
-    assert abs(result-expected) < 1e-13
+    assert abs(result - expected) < 1e-13
     assert np.isclose(gradient(result, ["fx_usdeur"]), expected.dual)
 
 
@@ -641,7 +637,7 @@ def test_generate_proxy_curve():
     assert type(c3) is not Curve  # should be ProxyCurve
     expected = Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
     result = c3[dt(2022, 10, 1)]
-    assert abs(result-expected) < 1e-12
+    assert abs(result - expected) < 1e-12
     assert all(np.isclose(gradient(expected, result.vars), gradient(result)))
 
 
@@ -659,7 +655,7 @@ def test_generate_multi_csa_curve():
             "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
         },
     )
-    c1 = fxf.curve("cad", ["cad","usd","eur"])
+    c1 = fxf.curve("cad", ["cad", "usd", "eur"])
     assert isinstance(c1, CompositeCurve)
 
 
@@ -787,18 +783,20 @@ def test_delta_risk_equivalence():
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
-    assert set(result1.vars) == set([
-        "ee0",
-        "ee1",
-        "eu0",
-        "eu1",
-        "fx_eurnok",
-        "fx_usdeur",
-        "ne0",
-        "ne1",
-        "uu0",
-        "uu1",
-    ])
+    assert set(result1.vars) == set(
+        [
+            "ee0",
+            "ee1",
+            "eu0",
+            "eu1",
+            "fx_eurnok",
+            "fx_usdeur",
+            "ne0",
+            "ne1",
+            "uu0",
+            "uu1",
+        ]
+    )
     assert abs(result1 - result2) < 1e-12
     assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 

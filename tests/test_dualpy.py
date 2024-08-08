@@ -1,21 +1,20 @@
-import context
-
-import pytest
 import math
-import numpy as np
-from packaging import version
 from statistics import NormalDist
 
+import context
+import numpy as np
+import pytest
+from packaging import version
 from rateslib.dual import (
-    dual_exp,
-    dual_log,
-    dual_solve,
-    dual_norm_cdf,
-    dual_inv_norm_cdf,
-    set_order,
-    gradient,
     Dual,
     Dual2,
+    dual_exp,
+    dual_inv_norm_cdf,
+    dual_log,
+    dual_norm_cdf,
+    dual_solve,
+    gradient,
+    set_order,
 )
 
 
@@ -194,7 +193,7 @@ def test_dual2_abs_float(x_1, y_1, y_2):
 def test_dual2_immutable(y_1, y_2, op):
     _ = getattr(y_1, op)(y_2)
     assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[])
-    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[1., 1., 1., 1.])
+    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[1.0, 1.0, 1.0, 1.0])
 
 
 @pytest.mark.parametrize("op", ["__add__", "__sub__", "__mul__", "__truediv__"])
@@ -230,21 +229,17 @@ def test_op_inversions(x_1, x_2):
 @pytest.mark.parametrize(
     "op, expected",
     [
-        (
-            "__add__",
-            Dual2(3, ["v0", "v1", "v2"], [1, 2, 3], [2, 1, 1, 1, 1, 0, 1, 0, 1])
-        ),
-        (
-            "__sub__",
-            Dual2(-1, ["v0", "v1", "v2"], [1, 2, -3], [0, 1, -1, 1, 1, 0, -1, 0, -1])
-        ),
-        (
-            "__mul__",
-            Dual2(2, ["v0", "v1", "v2"], [2, 4, 3], [3, 2, 2.5, 2, 2, 3, 2.5, 3, 1])
-        ),
+        ("__add__", Dual2(3, ["v0", "v1", "v2"], [1, 2, 3], [2, 1, 1, 1, 1, 0, 1, 0, 1])),
+        ("__sub__", Dual2(-1, ["v0", "v1", "v2"], [1, 2, -3], [0, 1, -1, 1, 1, 0, -1, 0, -1])),
+        ("__mul__", Dual2(2, ["v0", "v1", "v2"], [2, 4, 3], [3, 2, 2.5, 2, 2, 3, 2.5, 3, 1])),
         (
             "__truediv__",
-            Dual2(0.5, ["v0", "v1", "v2"], [0.5, 1.0, -0.75], [0.25, 0.5, -0.625, 0.5, 0.5, -0.75, -0.625, -0.75, 0.875])
+            Dual2(
+                0.5,
+                ["v0", "v1", "v2"],
+                [0.5, 1.0, -0.75],
+                [0.25, 0.5, -0.625, 0.5, 0.5, -0.75, -0.625, -0.75, 0.875],
+            ),
         ),
     ],
 )
@@ -288,21 +283,15 @@ def test_left_op_with_float(x_1, op, expected):
 @pytest.mark.parametrize(
     "op, expected",
     [
-        (
-            "__add__",
-            Dual2(1 + 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])
-        ),
+        ("__add__", Dual2(1 + 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])),
         (
             "__sub__",
             Dual2(1 - 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0]),
         ),
-        (
-            "__mul__",
-            Dual2(1 * 2.5, ["v0", "v1"], [2.5, 5.0], [2.5, 2.5, 2.5, 2.5])
-        ),
+        ("__mul__", Dual2(1 * 2.5, ["v0", "v1"], [2.5, 5.0], [2.5, 2.5, 2.5, 2.5])),
         (
             "__truediv__",
-            Dual2(1 / 2.5, ["v0", "v1"], [1/2.5, 2/2.5], [1/2.5, 1/2.5, 1/2.5, 1/2.5])
+            Dual2(1 / 2.5, ["v0", "v1"], [1 / 2.5, 2 / 2.5], [1 / 2.5, 1 / 2.5, 1 / 2.5, 1 / 2.5]),
         ),
     ],
 )
@@ -320,10 +309,10 @@ def test_right_op_with_float(x_1):
 
 def test_right_op_with_float2(y_2):
     assert 2.5 + y_2 == Dual2(
-        1 + 2.5, vars=["v0", "v1"], dual=[1., 2.], dual2=[1., 1., 1., 1.]
+        1 + 2.5, vars=["v0", "v1"], dual=[1.0, 2.0], dual2=[1.0, 1.0, 1.0, 1.0]
     )
     assert 2.5 - y_2 == Dual2(
-        2.5 - 1, vars=["v0", "v1"], dual=[-1., -2.], dual2=[-1., -1., -1., -1.]
+        2.5 - 1, vars=["v0", "v1"], dual=[-1.0, -2.0], dual2=[-1.0, -1.0, -1.0, -1.0]
     )
     assert 2.5 * y_2 == y_2 * 2.5
     assert 2.5 / y_2 == (y_2 / 2.5) ** -1
@@ -549,6 +538,7 @@ def test_exp(x):
     expected = math.exp(2)
     assert result == expected
 
+
 @pytest.mark.parametrize(
     "x",
     [
@@ -611,6 +601,7 @@ def test_powers_bad_type(base, exponent, x_1, y_1):
 
 
 # Linalg dual_solve tests
+
 
 def test_solve(A, b):
     x = dual_solve(A, b)
