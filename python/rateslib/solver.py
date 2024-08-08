@@ -998,7 +998,7 @@ class Solver(Gradients):
         self.curves = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
-            if not type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
+            if type(curve) not in [ProxyCurve, CompositeCurve, MultiCsaCurve]
             # Proxy and Composite curves have no parameters of their own
         }
         self.variables = ()
@@ -1753,7 +1753,7 @@ class Solver(Gradients):
 
         return df.astype("float64")
 
-    def _pnl_explain(self, npv, ds, dfx=None, base=NoInput(0), fx=NoInput(0), order=1):
+    def _pnl_explain(self, npv, ds, dfx=None, base=NoInput.blank, fx=NoInput.blank, order=1):
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
 
