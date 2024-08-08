@@ -1,5 +1,3 @@
-# ruff: noqa: E501
-
 from datetime import datetime
 
 import pandas as pd
@@ -17,8 +15,20 @@ RULES = [
     Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)]),
     Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)]),
     Holiday("UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1))),
-    Holiday("UK Spring Bank Holiday pre 2022", end_date=datetime(2022, 5, 1), month=5, day=31, offset=DateOffset(weekday=MO(-1))),
-    Holiday("UK Spring Bank Holiday post 2022", start_date=datetime(2022, 7, 1), month=5, day=31, offset=DateOffset(weekday=MO(-1))),
+    Holiday(
+        "UK Spring Bank Holiday pre 2022",
+        end_date=datetime(2022, 5, 1),
+        month=5,
+        day=31,
+        offset=DateOffset(weekday=MO(-1)),
+    ),
+    Holiday(
+        "UK Spring Bank Holiday post 2022",
+        start_date=datetime(2022, 7, 1),
+        month=5,
+        day=31,
+        offset=DateOffset(weekday=MO(-1)),
+    ),
     Holiday("Queen Elizabeth II Jubilee Thu", year=2022, month=6, day=2),
     Holiday("Queen Elizabeth II Jubilee Fri", year=2022, month=6, day=3),
     Holiday("Queen Elizabeth II Funeral", year=2022, month=9, day=19),
@@ -35,6 +45,6 @@ CALENDAR = CustomBusinessDay(  # type: ignore[call-arg]
 
 ### RUN THE SCRIPT TO EXPORT HOLIDAY LIST
 ts = pd.to_datetime(CALENDAR.holidays)
-strings = ['"'+_.strftime("%Y-%m-%d %H:%M:%S")+'"' for _ in ts]
+strings = ['"' + _.strftime("%Y-%m-%d %H:%M:%S") + '"' for _ in ts]
 line = ",\n".join(strings)
 print(line)

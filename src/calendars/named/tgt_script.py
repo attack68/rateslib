@@ -21,6 +21,6 @@ CALENDAR = CustomBusinessDay(
 
 ### RUN THE SCRIPT TO EXPORT HOLIDAY LIST
 ts = pd.to_datetime(CALENDAR.holidays)
-strings = ['"'+_.strftime("%Y-%m-%d %H:%M:%S")+'"' for _ in ts]
+strings = ['"' + _.strftime("%Y-%m-%d %H:%M:%S") + '"' for _ in ts]
 line = ",\n".join(strings)
 print(line)
