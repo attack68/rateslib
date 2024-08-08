@@ -1,14 +1,15 @@
 import warnings
 from datetime import datetime
-from typing import Union, Any
+from typing import Any, Union
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _make_py_json, _drb
-from rateslib.dual import Dual, DualTypes, gradient, _get_adorder
-from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
+from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.dual import Dual, DualTypes, _get_adorder, gradient
+from rateslib.rs import Ccy, FXRate
+from rateslib.rs import FXRates as FXRatesObj
 
 """
 .. ipython:: python

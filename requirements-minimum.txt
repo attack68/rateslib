@@ -6,6 +6,5 @@ matplotlib==3.5.1
 
 # development
 pytest==7.3.1
-black==23.3.0  # for code formatting
-flake8==6.1.0  # for code linting
+ruff==0.5.6  # for code linting
 coverage==7.2.5  # for test and code monitoring

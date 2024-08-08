@@ -17,14 +17,57 @@ features = ["pyo3/extension-module"]
 # rustc --print target-list
 # https://doc.rust-lang.org/rustc/platform-support.html
 
+[tool.ruff]
+exclude = [
+    ".git",
+    ".github",
+    "docs",
+    "notebooks",
+    "target",
+    "venv9",
+    "venv11",
+    "scratch.py",
+    "__pycache__",
+    "docs/source/conf.py",
+    "old",
+    "build",
+    "dist",
+    "bench",
+    "benchmarks",
+    "src",
+    "tests"
+]
+# Same as Black.
+line-length = 100
+indent-width = 4
+# Assume Python 3.12
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+#    # pyupgrade
+#    "UP",
+#    # flake8-bugbear
+#    "B",
+#    # flake8-simplify
+#    "SIM",
+    # isort
+    "I",
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402"]
+"tests/*" = ["F401"]
+
 [tool.isort]
 profile = "black"
 line_length = 100
 src_paths = ["python", "tests"]
-
-[tool.black]
-line-length = 100
-target-version = ['py312']
 
 [project]
 name = "rateslib"
@@ -56,6 +99,7 @@ dev = [
     "pydata-sphinx-theme==0.14.3",
     "nbsphinx==0.9.4",
     "pickleshare==0.7.5",  # for doc building with IPython
+    "ruff==0.5.6",  # for code linting
 ]
 
 [tool.setuptools]

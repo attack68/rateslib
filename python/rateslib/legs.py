@@ -380,7 +380,7 @@ class BaseLeg(metaclass=ABCMeta):
     ):  # pragma: no cover
         # This method is unused and untested, superseded by _spread_isda_approx_rate
 
-        # This method creates a dual2 variable for float spread and obtains derivatives automatically
+        # This method creates a dual2 variable for float spread + obtains derivatives automatically
         _fs = self.float_spread
         self.float_spread = Dual2(0.0 if _fs is None else float(_fs), "spread_z")
 
@@ -572,7 +572,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
        )
        fixed_leg_exch.cashflows(curve)
        fixed_leg_exch.npv(curve)
-    """
+    """  # noqa: E501
 
     def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
         self._fixed_rate = fixed_rate
@@ -896,7 +896,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
        )
        float_leg.cashflows(swestr_curve)
        float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -1140,7 +1140,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
            float_spread=100.0
        )
        zfl.cashflows(curve)
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -1771,7 +1771,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
        index_leg_exch.cashflows(index_curve, curve)
        index_leg_exch.npv(index_curve, curve)
 
-    """
+    """  # noqa: E501
 
     # TODO: spread calculations to determine the fixed rate on this leg do not work.
     def __init__(
@@ -2335,7 +2335,7 @@ class CustomLeg(BaseLeg):
        custom_leg = CustomLeg(periods=[fp1, fp2])
        custom_leg.cashflows(curve)
 
-    """
+    """  # noqa: E501
 
     def __init__(self, periods):
         if not all(isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods):

@@ -2,7 +2,7 @@ from typing import Union
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Cal, Modifier, RollDay, UnionCal, NamedCal
+from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 CalTypes = Union[Cal, UnionCal, NamedCal]
 CalInput = Union[CalTypes, str, NoInput]
