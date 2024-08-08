@@ -1183,7 +1183,7 @@ class Curve(_Serialize):
     ):
         try:
             rate = self.rate(effective, termination, modifier)
-        except ValueError as e:
+        except ValueError:
             return None
         return rate
 
