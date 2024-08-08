@@ -1247,7 +1247,6 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class BondMixin(_BondConventions):
-
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -2184,6 +2183,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        gilt.cashflows(solver=solver)
 
     """
+
     _fixed_rate_mixin = True
     _ytm_attribute = "cashflow"  # nominal bonds use cashflows in YTM calculation
 
@@ -9104,8 +9104,9 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         spot = fx.pairs_settlement[self.kwargs["pair"]]
         w_spot, w_deli = curves[1][spot], curves[1][self.kwargs["delivery"]]
-        f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(
-            self.kwargs["pair"], spot
+        f_d, f_t = (
+            fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+            fx.rate(self.kwargs["pair"], spot),
         )
         z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
@@ -9148,7 +9149,6 @@ class FXStrangle(FXOptionStrat, FXOption):
                     sg[i]["_kappa"] * g[i]["_kega"],
                 )
             else:
-
                 dvol_ddeltaidx = evaluate(vol.spline, sg[i]["_delta_index"], 1) * 0.01
                 ddeltaidx_dvol1 = sg[i]["gamma"] * fzw1zw0
                 if eta1 < 0:  # premium adjusted vol smile

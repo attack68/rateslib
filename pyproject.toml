@@ -45,7 +45,7 @@ target-version = "py39"
 
 [tool.ruff.format]
 quote-style = "double"
-indent-style = "tab"
+indent-style = "space"
 docstring-code-format = false
 
 [tool.ruff.lint]

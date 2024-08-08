@@ -17,6 +17,7 @@
        interpolation="log_linear",
    )
 """
+
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime

@@ -10,7 +10,6 @@ from rateslib.dual import DualTypes
 
 
 class _AccruedAndYTMMethods:
-
     def _period_index(self, settlement: datetime):
         """
         Get the coupon period index for that which the settlement date fall within.
