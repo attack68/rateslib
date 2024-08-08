@@ -258,7 +258,8 @@ def _get_vol_maybe_from_solver(
     solver: Union[Solver, NoInput],
 ):
     """
-    Try to retrieve a general vol input from a solver or the default vol object associated with instrument.
+    Try to retrieve a general vol input from a solver or the default vol object associated with
+    instrument.
 
     Parameters
     ----------
@@ -457,7 +458,8 @@ class Sensitivities:
         **kwargs,
     ):
         """
-        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows` method on an *Instrument*.
+        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
+        method on an *Instrument*.
 
         Parameters
         ----------
@@ -1071,7 +1073,8 @@ class FXExchange(Sensitivities, BaseMixin):
     notional : float
         The cashflow amount of the LHS currency.
     curves : Curve, LineCurve, str or list of such, optional
-        For *FXExchange* only discounting curves are required in each currency and not rate forecasting curves.
+        For *FXExchange* only discounting curves are required in each currency and not rate
+        forecasting curves.
         The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
@@ -1154,10 +1157,12 @@ class FXExchange(Sensitivities, BaseMixin):
             warnings.warn(
                 "When valuing multi-currency derivatives it not best practice to "
                 "supply `fx` as numeric.\nYour input:\n"
-                f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, fx={fx}, base='{base if base is not NoInput.blank else 'None'}')\n"
+                f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, "
+                f"fx={fx}, base='{base if base is not NoInput.blank else 'None'}')\n"
                 "has been implicitly converted into the following by this operation:\n"
                 f"`npv(solver={'None' if solver is NoInput.blank else '<Solver>'}, "
-                f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), base='{self.leg2.currency}')\n.",
+                f"fx=FXRates({{'{self.leg2.currency}{self.leg1.currency}: {fx}}}), "
+                f"base='{self.leg2.currency}')\n.",
                 UserWarning,
             )
         else:
@@ -2182,7 +2187,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        gilt.cashflows(solver=solver)
 
-    """
+    """  # noqa: E501
 
     _fixed_rate_mixin = True
     _ytm_attribute = "cashflow"  # nominal bonds use cashflows in YTM calculation
@@ -2286,7 +2291,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
-        """
+        """  # noqa: E501
         return self._accrued(settlement, getattr(self, f"_{self.calc_mode}")["accrual"])
 
     def rate(
@@ -2426,7 +2431,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
            gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2], []), dt(1999, 5, 27), True)
 
-        """
+        """  # noqa: E501
 
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added

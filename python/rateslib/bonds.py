@@ -43,7 +43,8 @@ class _AccruedAndYTMMethods:
         Method: a linear proportion of actual days between start, settlement and end.
         Measures between unadjusted coupon dates.
 
-        This is a general method, used by many types of bonds, for example by UK Gilts, German Bunds.
+        This is a general method, used by many types of bonds, for example by UK Gilts,
+        German Bunds.
         """
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
@@ -233,7 +234,8 @@ class _AccruedAndYTMMethods:
         """
         Use simple rates with a yield which matches the frequency of the coupon.
 
-        If the stub period is long, then discount the regular part of the stub with the regular discount param ``v``.
+        If the stub period is long, then discount the regular part of the stub with the regular
+        discount param ``v``.
         """
         acc_frac = accrual(settlement, acc_idx)
         if self.leg1.periods[acc_idx].stub:

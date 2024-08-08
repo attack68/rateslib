@@ -228,9 +228,10 @@ def add_tenor(
 
     Read more about the ``settlement`` argument in the :ref:`calendar user guide <cal-doc>`.
 
-    The ``mod_days`` argument is provided to avoid having to reconfigure *Instrument* specifications when
-    a *termination* may differ between months or years, and days or weeks. Most *Instruments* will be
-    defined by the typical modified following (*"MF"*) ``modifier``, but this would prefer not to always apply.
+    The ``mod_days`` argument is provided to avoid having to reconfigure *Instrument*
+    specifications when a *termination* may differ between months or years, and days or weeks.
+    Most *Instruments* will be defined by the typical modified following (*"MF"*) ``modifier``,
+    but this would prefer not to always apply.
 
     .. ipython:: python
 
@@ -256,7 +257,7 @@ def add_tenor(
        add_tenor(dt(2022, 2, 28), "3M", "NONE")
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
-    """
+    """  # noqa: E501
     tenor = tenor.upper()
     cal_ = get_calendar(calendar)
     if "D" in tenor:
@@ -472,7 +473,8 @@ def _get_fx_expiry_and_delivery(
     delivery_lag: int, datetime
         Number of days, e.g. spot = 2, or a specified datetime for FX settlement after expiry.
     calendar: CalInput
-        The calendar used for date rolling. This function makes use of the `settlement` option within UnionCals.
+        The calendar used for date rolling. This function makes use of the `settlement` option
+        within calendars.
     modifier: str
         Date rule, expected to be "MF" for most FX rate tenors.
     eom: bool
@@ -492,8 +494,8 @@ def _get_fx_expiry_and_delivery(
             if isinstance(delivery_lag, datetime):
                 raise ValueError(
                     "Cannot determine FXOption expiry and delivery with given parameters.\n"
-                    "Supply a `delivery_lag` as integer business days and not a datetime, when using a "
-                    "string tenor `expiry`."
+                    "Supply a `delivery_lag` as integer business days and not a datetime, when "
+                    "using a string tenor `expiry`."
                 )
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
