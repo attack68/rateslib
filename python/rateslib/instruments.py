@@ -9103,8 +9103,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         ]
 
         spot = fx.pairs_settlement[self.kwargs["pair"]]
-        w_spot, v_spot = curves[1][spot], curves[3][spot]
-        w_deli, v_deli = curves[1][self.kwargs["delivery"]], curves[3][self.kwargs["delivery"]]
+        w_spot, w_deli = curves[1][spot], curves[1][self.kwargs["delivery"]]
         f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(
             self.kwargs["pair"], spot
         )
