@@ -18,17 +18,17 @@ from pandas.tseries.offsets import CustomBusinessDay
 from rateslib import defaults
 from rateslib.bonds import _BondConventions
 from rateslib.calendars import (
+    _get_fx_expiry_and_delivery,
     _get_years_and_months,
     add_tenor,
     dcf,
     get_calendar,
-    _get_fx_expiry_and_delivery,
 )
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -7483,7 +7483,7 @@ class XCS(BaseDerivative):
         )
 
         specified_spd = 0.0
-        if _is_float_tgt_leg and not (getattr(tgt_leg, "float_spread") is NoInput.blank):
+        if _is_float_tgt_leg and getattr(tgt_leg, "float_spread") is not NoInput.blank:
             specified_spd = tgt_leg.float_spread
         elif not _is_float_tgt_leg:
             specified_spd = tgt_leg.fixed_rate * 100
