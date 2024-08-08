@@ -22,11 +22,20 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
+from rateslib.curves.rs import CurveObj, LogLinearInterpolator, _get_interpolator
 from rateslib.default import NoInput, plot
-from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert, _get_adorder, ADOrder
+from rateslib.dual import (
+    ADOrder,
+    Dual,
+    Dual2,
+    DualTypes,
+    _get_adorder,
+    dual_exp,
+    dual_log,
+    set_order_convert,
+)
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
-from rateslib.curves.rs import _get_interpolator, LogLinearInterpolator, CurveObj
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover
