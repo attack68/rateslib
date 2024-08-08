@@ -385,8 +385,6 @@ class Curve(_Serialize):
             self.node_dates_posix[0],
         )
 
-    # aaaaaaaaaddddddddddddddddddkkdlkldkldkdlkldkldkdlkdlkdldkldkldkldkldkldkldkldkldkldkdkldkldkldkdlkdlk
-
     # def plot(self, *args, **kwargs):
     #     return super().plot(*args, **kwargs)
 
