@@ -68,9 +68,9 @@ def get_calendar(
         If `True` will also return the kind of calculation from `"null", "named",
         "custom"`.
     named : bool
-        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more compactly
-        serialized, otherwise will parse an input string and return a `~rateslib.calendars.Cal` or
-        `~rateslib.calendars.UnionCal` directly.
+        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more
+        compactly serialized, otherwise will parse an input string and return a
+        :class:`~rateslib.calendars.Cal` or :class:`~rateslib.calendars.UnionCal` directly.
 
     Returns
     -------
@@ -83,7 +83,8 @@ def get_calendar(
     publication of RFR indexes in the relevant geography.
 
     - *"all"*: Every day is defined as business day including weekends.
-    - *"bus"*: Regular weekdays are defined as business days. Saturdays and Sunday are non-business days.
+    - *"bus"*: Regular weekdays are defined as business days. Saturdays and Sunday are
+      non-business days.
     - *"tgt"*: Target for Europe's ESTR.
     - *"osl"*: Oslo for Norway's NOWA.
     - *"zur"*: Zurich for Switzerland's SARON.

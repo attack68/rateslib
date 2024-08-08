@@ -1,13 +1,12 @@
-from datetime import datetime, timedelta
 import pandas as pd
 from dateutil.relativedelta import MO
 from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
-    Holiday,
-    next_monday_or_tuesday,
-    next_monday,
+    Day,
     Easter,
-    Day
+    Holiday,
+    next_monday,
+    next_monday_or_tuesday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, DateOffset
 
@@ -31,6 +30,6 @@ CALENDAR = CustomBusinessDay(  # type: ignore[call-arg]
 
 ### RUN THE SCRIPT TO EXPORT HOLIDAY LIST
 ts = pd.to_datetime(CALENDAR.holidays)
-strings = ['"'+_.strftime("%Y-%m-%d %H:%M:%S")+'"' for _ in ts]
+strings = ['"' + _.strftime("%Y-%m-%d %H:%M:%S") + '"' for _ in ts]
 line = ",\n".join(strings)
 print(line)

@@ -92,8 +92,9 @@ def _dcf_actacticma(
         # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
         if frequency_months >= 13:
             warnings.warn(
-                "Using `convention` 'ActActICMA' with a Period having `frequency` 'Z' is undefined, and "
-                "should be avoided.\nFor calculation purposes here the `frequency` is set to 'A'.",
+                "Using `convention` 'ActActICMA' with a Period having `frequency` 'Z' is "
+                "undefined, and should be avoided.\n"
+                "For calculation purposes here the `frequency` is set to 'A'.",
                 UserWarning,
             )
             frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
@@ -237,7 +238,8 @@ def _dcf_bus252(
             # then the business start is permitted to the calculation until the non-business end
             return 1.0 / 252.0
         elif start_ > start:
-            # then the business end is not permitted to have occurred and non-business start does not count
+            # then the business end is not permitted to have occurred and non-business start
+            # does not count
             return 0.0
     elif start_ > end_:
         # there are no business days in between start and end

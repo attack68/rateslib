@@ -1,10 +1,10 @@
-import pytest
-import numpy as np
 import copy
 
 import context
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
-from rateslib.dual import gradient, Dual, Dual2, set_order_convert
+import numpy as np
+import pytest
+from rateslib.dual import Dual, Dual2, gradient, set_order_convert
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
 @pytest.fixture()
@@ -187,33 +187,39 @@ def test_spline_equality_type():
     assert spline6 == spline7
 
 
-@pytest.mark.parametrize("klass, order", [
-    (PPSplineF64, 0),
-    (PPSplineDual, 1),
-])
+@pytest.mark.parametrize(
+    "klass, order",
+    [
+        (PPSplineF64, 0),
+        (PPSplineDual, 1),
+    ],
+)
 def test_dual_AD(klass, order):
     sp = klass(
-        t=[0,0,0,0,1,3,4,4,4,4],
+        t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
     )
-    y=[set_order_convert(_, order, []) for _ in [0,0,0,2,2,0]]
-    sp.csolve([0,0,1,3,4,4], y, 2, 2, False)
+    y = [set_order_convert(_, order, []) for _ in [0, 0, 0, 2, 2, 0]]
+    sp.csolve([0, 0, 1, 3, 4, 4], y, 2, 2, False)
     analytic_deriv = sp.ppdnev_single(3.5, 1)
     dual_deriv = gradient(sp.ppev_single_dual(Dual(3.5, ["x"], [2.0])))[0]
     assert abs(dual_deriv - 2.0 * analytic_deriv) < 1e-9
 
 
-@pytest.mark.parametrize("klass, order", [
-    (PPSplineF64, 0),
-    (PPSplineDual2, 2),
-])
+@pytest.mark.parametrize(
+    "klass, order",
+    [
+        (PPSplineF64, 0),
+        (PPSplineDual2, 2),
+    ],
+)
 def test_dual2_AD(klass, order):
     sp = klass(
-        t=[0,0,0,0,1,3,4,4,4,4],
+        t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
     )
-    y=[set_order_convert(_, order, []) for _ in [0,0,0,2,2,0]]
-    sp.csolve([0,0,1,3,4,4], y, 2, 2, False)
+    y = [set_order_convert(_, order, []) for _ in [0, 0, 0, 2, 2, 0]]
+    sp.csolve([0, 0, 1, 3, 4, 4], y, 2, 2, False)
     analytic_deriv = sp.ppdnev_single(3.5, 1)
     dual_deriv = gradient(sp.ppev_single_dual2(Dual2(3.5, ["x"], [3.0], [])))[0]
     assert abs(dual_deriv - 3.0 * analytic_deriv) < 1e-9
@@ -237,7 +243,7 @@ def test_dual_AD_raises():
     _0 = Dual(0.0, [], [])
     y0, y1 = Dual(0.0, ["y0"], []), Dual(0.0, ["y1"], [])
     y2, y3 = Dual(2.0, ["y2"], []), Dual(2.0, ["y3"], [])
-    sp.csolve([0,0,1,3,4,4], [_0, y0, y1, y2, y3, _0], 2, 2, False)
+    sp.csolve([0, 0, 1, 3, 4, 4], [_0, y0, y1, y2, y3, _0], 2, 2, False)
     with pytest.raises(TypeError, match="Cannot index with type `Dual2`"):
         sp.ppev_single_dual2(Dual2(3.5, ["x"], [], []))
 
@@ -274,7 +280,7 @@ def test_dual_float_raises():
 
 
 def test_bsplmatrix():
-    t = [1,1,1,1,2,2,2,3,4,4,4,4]
+    t = [1, 1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4]
     spline = PPSplineF64(k=4, t=t)
     tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
     matrix = spline.bsplmatrix(tau, 0, 0)

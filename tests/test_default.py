@@ -1,11 +1,9 @@
+import context
 import pytest
 from pandas import Series
-
-import context
-from rateslib import defaults, default_context, __version__
-from rateslib.instruments import IRS
+from rateslib import __version__, default_context, defaults, dt
 from rateslib.curves import Curve
-from rateslib import dt
+from rateslib.instruments import IRS
 
 
 def test_version():
@@ -42,7 +40,7 @@ def test_calendar_matches_fixings_corra():
         frequency="A",
         leg2_fixings=defaults.fixings["corra"],
         calendar="tro",
-        fixed_rate=1.0
+        fixed_rate=1.0,
     )
     curve = Curve({dt(2017, 1, 1): 1.0, dt(2027, 1, 1): 1.0}, calendar="tro")
     swap.npv(curves=curve)

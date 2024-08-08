@@ -505,7 +505,7 @@ class FXForwards:
 
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
-        """
+        """  # noqa: E501
 
         def _get_d_f_idx_and_path(pair, path: Optional[list[dict]]) -> tuple[int, int, list[dict]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
@@ -1188,7 +1188,7 @@ def forward_fx(
            "gbpusd": foreign_curve,
        })
        fxf.rate("usdgbp", dt(2022, 7, 1))
-    """
+    """  # noqa: E501
     if date == fx_settlement:
         return fx_rate
     elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:

@@ -192,7 +192,8 @@ class Curve(_Serialize):
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional, set by Default
-        The convention of the curve for determining rates. Please see :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
+        The convention of the curve for determining rates. Please see
+        :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
     calendar : calendar or str, optional
@@ -306,7 +307,8 @@ class Curve(_Serialize):
         for idx in range(1, self.n):
             if self.node_dates[idx - 1] >= self.node_dates[idx]:
                 raise ValueError(
-                    "Curve node dates are not sorted or contain duplicates. To sort directly use: `dict(sorted(nodes.items()))`"
+                    "Curve node dates are not sorted or contain duplicates. To sort directly "
+                    "use: `dict(sorted(nodes.items()))`"
                 )
 
         # Parameters for the rate derivation
@@ -392,7 +394,8 @@ class Curve(_Serialize):
                 warnings.warn(
                     "Evaluating points on a curve beyond the endpoint of the basic "
                     "spline interval is undefined.\n"
-                    f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
+                    f"date: {date.strftime('%Y-%m-%d')}, spline end: "
+                    f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
             return self._op_exp(self.spline.ppev_single(date_posix))
@@ -928,7 +931,7 @@ class Curve(_Serialize):
            fig, ax, line = curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated, translated2], labels=["orig", "translated", "translated2"])
            plt.show()
 
-        """
+        """  # noqa: E501
         if start <= self.node_dates[0]:
             raise ValueError("Cannot translate into the past. Review the docs.")
 
@@ -1080,7 +1083,7 @@ class Curve(_Serialize):
            fig, ax, line = curve.plot("1d", comparators=[rolled_curve, rolled_curve2], labels=["orig", "rolled", "rolled2"], right=dt(2026,6,30))
            plt.show()
 
-        """
+        """  # noqa: E501
         if isinstance(tenor, str):
             tenor = add_tenor(self.node_dates[0], tenor, "NONE", NoInput(0))
 
@@ -1688,7 +1691,7 @@ class LineCurve(Curve):
            fig, ax, line = curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated, translated2], labels=["orig", "translated", "translated2"])
            plt.show()
 
-        """
+        """  # noqa: E501
         return super().translate(start, t)
 
     def _roll_nodes(self, tenor: datetime, days: int):
@@ -1778,7 +1781,7 @@ class LineCurve(Curve):
            plt.show()
            plt.close()
 
-        """
+        """  # noqa: E501
         return super().roll(tenor)
 
 
@@ -2119,7 +2122,7 @@ class CompositeCurve(IndexCurve):
        curve.rate(dt(2022, 6, 1), "1y", approximate=False)
        %timeit curve.rate(dt(2022, 6, 1), "1y", approximate=False)
 
-    """
+    """  # noqa: E501
 
     collateral = None
 

@@ -1,21 +1,34 @@
 from datetime import datetime
+
 import pandas as pd
 from dateutil.relativedelta import MO, TH
 from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
     Holiday,
-    sunday_to_monday,
     nearest_workday,
+    sunday_to_monday,
 )
-from pandas.tseries.offsets import CustomBusinessDay, Easter, Day, DateOffset
+from pandas.tseries.offsets import CustomBusinessDay, DateOffset, Day, Easter
 
 RULES = [
     Holiday("New Year's Day Holiday", month=1, day=1, observance=sunday_to_monday),
-    Holiday("Dr. Martin Luther King Jr.", start_date=datetime(1986, 1, 1), month=1, day=1, offset=DateOffset(weekday=MO(3))),
+    Holiday(
+        "Dr. Martin Luther King Jr.",
+        start_date=datetime(1986, 1, 1),
+        month=1,
+        day=1,
+        offset=DateOffset(weekday=MO(3)),
+    ),
     Holiday("US President" "s Day", month=2, day=1, offset=DateOffset(weekday=MO(3))),
     Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)]),
     Holiday("US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1))),
-    Holiday("Juneteenth Independence Day", start_date=datetime(2022, 1, 1), month=6, day=19, observance=sunday_to_monday),
+    Holiday(
+        "Juneteenth Independence Day",
+        start_date=datetime(2022, 1, 1),
+        month=6,
+        day=19,
+        observance=sunday_to_monday,
+    ),
     Holiday("US Independence Day", month=7, day=4, observance=nearest_workday),
     Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1))),
     Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2))),
@@ -32,6 +45,6 @@ CALENDAR = CustomBusinessDay(
 
 ### RUN THE SCRIPT TO EXPORT HOLIDAY LIST
 ts = pd.to_datetime(CALENDAR.holidays)
-strings = ['"'+_.strftime("%Y-%m-%d %H:%M:%S")+'"' for _ in ts]
+strings = ['"' + _.strftime("%Y-%m-%d %H:%M:%S") + '"' for _ in ts]
 line = ",\n".join(strings)
 print(line)

@@ -1,10 +1,10 @@
-import context
-import pytest
 from datetime import datetime as dt
 
-from rateslib.json import from_json
-from rateslib.rs import FXRate, Dual, Dual2, Ccy
+import context
+import pytest
 from rateslib.fx import FXRates
+from rateslib.json import from_json
+from rateslib.rs import Ccy, Dual, Dual2, FXRate
 
 
 def test_ccy_creation():
@@ -25,14 +25,10 @@ def test_json_round_trip():
     fxr = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
     json = fxr.to_json()
     fxr2 = from_json(json)
+    assert fxr == fxr2
 
 
 def test_equality():
     fxr = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
     fxr2 = FXRates({"eurusd": 1.08, "usdjpy": 110.0}, dt(2004, 1, 1))
     assert fxr == fxr2
-
-
-
-
-

@@ -1,32 +1,32 @@
-import pytest
 from datetime import datetime as dt
-from pandas import DataFrame, MultiIndex
-from pandas.testing import assert_frame_equal, assert_series_equal
-import numpy as np
-from numpy.testing import assert_allclose
-from math import log, exp
+from math import exp, log
 
 import context
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose
+from pandas import DataFrame, MultiIndex
+from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
+from rateslib.curves import CompositeCurve, Curve, LineCurve, index_left
 from rateslib.default import NoInput
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve
-from rateslib.solver import Solver, Gradients, newton_1dim, newton_ndim
 from rateslib.dual import Dual, Dual2, gradient
+from rateslib.fx import FXForwards, FXRates
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
     IRS,
-    Value,
-    FloatRateNote,
-    Portfolio,
     XCS,
-    FXStrangle,
-    FXStraddle,
-    FXRiskReversal,
+    FloatRateNote,
     FXBrokerFly,
+    FXCall,
+    FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
     FXSwap,
-    FXCall
+    Portfolio,
+    Value,
 )
-from rateslib.fx import FXRates, FXForwards
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.solver import Gradients, Solver, newton_1dim, newton_ndim
 
 
 class TestGradients:
@@ -279,9 +279,7 @@ def test_large_spline_solver():
     )
     solver = Solver(
         curves=[curve],
-        instruments=[
-            IRS(dt(2000, 1, 3), _, spec="usd_irs", curves=curve) for _ in dates[1:]
-        ],
+        instruments=[IRS(dt(2000, 1, 3), _, spec="usd_irs", curves=curve) for _ in dates[1:]],
         s=[1.0 + _ / 25 for _ in range(18)],
     )
     assert solver.result["status"] == "SUCCESS"
@@ -558,7 +556,12 @@ def test_solver_pre_solver_dependency_generates_same_delta():
     ]
     eur_ibor_s = [2.25, 2.65]
     eur_solver2 = Solver(
-        [eur_ibor_curve], [], eur_ibor_instruments, eur_ibor_s, pre_solvers=[eur_disc_solver], id="ibor"
+        [eur_ibor_curve],
+        [],
+        eur_ibor_instruments,
+        eur_ibor_s,
+        pre_solvers=[eur_disc_solver],
+        id="ibor",
     )
 
     eur_disc_curve2 = Curve(
@@ -672,7 +675,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma():
         estr_s,
         id="estr",
         instrument_labels=estr_labels,
-        algorithm="gauss_newton"
+        algorithm="gauss_newton",
     )
 
     ibor_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
@@ -1581,7 +1584,7 @@ def test_solver_jacobians_in_text():
             dt(2023, 1, 1): 1.0,
             dt(2024, 1, 1): 1.0,
             dt(2027, 1, 1): 1.0,
-            dt(2032, 1, 1): 1.0
+            dt(2032, 1, 1): 1.0,
         },
         id="curve",
     )
@@ -1604,9 +1607,9 @@ def test_solver_jacobians_in_text():
             dt(2023, 1, 1): 1.0,
             dt(2024, 1, 1): 1.0,
             dt(2027, 1, 1): 1.0,
-            dt(2032, 1, 1): 1.0
+            dt(2032, 1, 1): 1.0,
         },
-        id="curve"
+        id="curve",
     )
     fwd_instruments = [
         IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
@@ -1674,7 +1677,7 @@ def test_solver_jacobians_pre():
             dt(2023, 1, 1): 1.0,
             dt(2024, 1, 1): 1.0,
         },
-        id="curve"
+        id="curve",
     )
     fwd_instruments = [
         IRS(dt(2022, 1, 1), "1Y", "A", curves="curve"),
@@ -1694,7 +1697,7 @@ def test_solver_jacobians_pre():
             dt(2023, 1, 1): 1.0,
             dt(2024, 1, 1): 1.0,
         },
-        id="curve2"
+        id="curve2",
     )
     fwd_instruments2 = [
         IRS(dt(2022, 1, 1), "1Y", "A", curves="curve2"),
@@ -1717,7 +1720,7 @@ def test_solver_jacobians_pre():
 
 def test_newton_solver_1dim_dual():
     def root(x, s):
-        return x**2 - s, 2*x
+        return x**2 - s, 2 * x
 
     x0 = Dual(1.0, ["x"], [])
     s = Dual(2.0, ["s"], [])
@@ -1730,7 +1733,7 @@ def test_newton_solver_1dim_dual():
 
 def test_newton_solver_1dim_dual2():
     def root(x, s):
-        return x**2 - s, 2*x
+        return x**2 - s, 2 * x
 
     x0 = Dual2(1.0, ["x"], [], [])
     s = Dual2(2.0, ["s"], [], [])
@@ -1748,7 +1751,7 @@ def test_newton_solver_1dim_dual2():
 def test_newton_solver_2dim_dual():
     def root(g, s):
         f0 = g[0] ** 2 + g[1] ** 2 + s
-        f1 = g[0] ** 2 - 2 * g[1]**2 - s
+        f1 = g[0] ** 2 - 2 * g[1] ** 2 - s
 
         f00 = 2 * g[0]
         f01 = 2 * g[1]
@@ -1761,14 +1764,14 @@ def test_newton_solver_2dim_dual():
     s = Dual(-2.0, ["s"], [])
     result = newton_ndim(root, g0, args=(s,))
 
-    expected_x = (2/3)**0.5
+    expected_x = (2 / 3) ** 0.5
     assert abs(result["g"][0] - expected_x) < 1e-9
 
-    expected_y = (4/3)**0.5
+    expected_y = (4 / 3) ** 0.5
     assert abs(result["g"][1] - expected_y) < 1e-9
 
-    expected_y = -0.5 * (2/3)**0.5 * (2.0)**-0.5
-    expected_x = -0.5 * (1/3.0)**0.5 * (2.0)**-0.5
+    expected_y = -0.5 * (2 / 3) ** 0.5 * (2.0) ** -0.5
+    expected_x = -0.5 * (1 / 3.0) ** 0.5 * (2.0) ** -0.5
 
     sensitivity_x = gradient(result["g"][0], ["s"])[0]
     sensitivity_y = gradient(result["g"][1], ["s"])[0]
@@ -1779,7 +1782,7 @@ def test_newton_solver_2dim_dual():
 def test_newton_solver_2dim_dual2():
     def root(g, s):
         f0 = g[0] ** 2 + g[1] ** 2 + s
-        f1 = g[0] ** 2 - 2 * g[1]**2 - s
+        f1 = g[0] ** 2 - 2 * g[1] ** 2 - s
 
         f00 = 2 * g[0]
         f01 = 2 * g[1]
@@ -1804,8 +1807,8 @@ def test_newton_solver_2dim_dual2():
     assert abs(expected_x - sensitivity_x) < 1e-9
     assert abs(expected_y - sensitivity_y) < 1e-9
 
-    expected_y2 = -0.25 * (2/3)**0.5 * (2.0) ** -1.5
-    expected_x2 = -0.25 * (1/3) ** 0.5 * (2.0) ** -1.5
+    expected_y2 = -0.25 * (2 / 3) ** 0.5 * (2.0) ** -1.5
+    expected_x2 = -0.25 * (1 / 3) ** 0.5 * (2.0) ** -1.5
     sensitivity_x2 = gradient(result["g"][0], ["s"], order=2)[0, 0]
     sensitivity_y2 = gradient(result["g"][1], ["s"], order=2)[0, 0]
     assert abs(expected_x2 - sensitivity_x2) < 1e-9
@@ -1824,23 +1827,24 @@ def test_newton_1d_failed_state():
 
 def test_newton_ndim_raises():
     def root(g):
-        f0_0 = g[0]**2 + 10.0
-        f0_1 = g[0] + g[1]**2 - 2.0
-        return [f0_0, f0_1], [[2*g[0], 0.0], [1.0, 2*g[1]]]
+        f0_0 = g[0] ** 2 + 10.0
+        f0_1 = g[0] + g[1] ** 2 - 2.0
+        return [f0_0, f0_1], [[2 * g[0], 0.0], [1.0, 2 * g[1]]]
 
     with pytest.raises(ValueError, match="`max_iter`: 5 exceeded in 'newton_ndim'"):
         newton_ndim(root, [0.5, 1.0], max_iter=5)
 
 
 def test_solver_with_vol_smile():
-    eureur = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur")
-    usdusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd")
+    eureur = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+    )
+    usdusd = Curve(
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+    )
     # eurusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd")
     fxr = FXRates({"eurusd": 1.3088}, settlement=dt(2023, 3, 20))
-    fxf = FXForwards(
-        fx_curves={"eureur": eureur, "eurusd": eureur, "usdusd": usdusd},
-        fx_rates=fxr
-    )
+    fxf = FXForwards(fx_curves={"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, fx_rates=fxr)
     fxf._set_ad_order(1)
     solver = Solver(
         curves=[eureur, usdusd],
@@ -1861,25 +1865,26 @@ def test_solver_with_vol_smile():
         expiry=dt(2023, 4, 18),
         delta_type="spot",
         id="smile",
-        )
+    )
     args = {
         "pair": "eurusd",
         "expiry": dt(2023, 4, 18),
         "curves": [None, "eureur", None, "usdusd"],
         "delta_type": "spot",
-        "vol": "smile"
+        "vol": "smile",
     }
-    solver2 = Solver(
+    Solver(
         pre_solvers=[solver],
         curves=[eurusd_1m_smile],
         instruments=[
             FXStraddle(strike="atm_delta", **args),
             FXRiskReversal(strike=["-25d", "25d"], **args),
-            FXStrangle(strike=["-25d", "25d"], **args)
+            FXStrangle(strike=["-25d", "25d"], **args),
         ],
         s=[21.6215, -0.5, 22.359],
         fx=fxf,
     )
+
 
 def test_solver_with_surface():
     eureur = Curve({dt(2024, 5, 7): 1.0, dt(2025, 5, 30): 1.0}, calendar="tgt", id="eureur")
@@ -1895,7 +1900,13 @@ def test_solver_with_surface():
         instruments=[
             IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
             IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-            FXSwap(dt(2024, 5, 9), "3W", currency="eur", leg2_currency="usd", curves=[None, "eurusd", None, "usdusd"]),
+            FXSwap(
+                dt(2024, 5, 9),
+                "3W",
+                currency="eur",
+                leg2_currency="usd",
+                curves=[None, "eurusd", None, "usdusd"],
+            ),
         ],
         s=[3.90, 5.32, 8.85],
         instrument_labels=["3w EU", "3w US", "3w FXSw"],
@@ -1915,24 +1926,26 @@ def test_solver_with_surface():
             [5.525, -0.213, 0.075, -0.400, 0.250],
         ],
         columns=["ATM", "25dRR", "25dBF", "10dRR", "25dBF"],
-        index=[dt(2024, 5, 28), dt(2024, 6, 7)]
+        index=[dt(2024, 5, 28), dt(2024, 6, 7)],
     )
     fx_args = dict(
         pair="eurusd",
         delta_type="spot",
         calendar="tgt",
         curves=[None, "eurusd", None, "usdusd"],
-        vol="eurusd_vol"
+        vol="eurusd_vol",
     )
     instruments, s, labels = [], [], []
     for e, row in enumerate(data.itertuples()):
-        instruments.extend([
-            FXStraddle(strike="atm_delta", expiry=row[0], **fx_args),
-            FXRiskReversal(strike=["-25d", "25d"], expiry=row[0], **fx_args),
-            FXBrokerFly(strike=["-25d", "atm_delta", "25d"], expiry=row[0], **fx_args),
-            FXRiskReversal(strike=["-10d", "10d"], expiry=row[0], **fx_args),
-            FXBrokerFly(strike=["-10d", "atm_delta", "10d"], expiry=row[0], **fx_args),
-        ])
+        instruments.extend(
+            [
+                FXStraddle(strike="atm_delta", expiry=row[0], **fx_args),
+                FXRiskReversal(strike=["-25d", "25d"], expiry=row[0], **fx_args),
+                FXBrokerFly(strike=["-25d", "atm_delta", "25d"], expiry=row[0], **fx_args),
+                FXRiskReversal(strike=["-10d", "10d"], expiry=row[0], **fx_args),
+                FXBrokerFly(strike=["-10d", "atm_delta", "10d"], expiry=row[0], **fx_args),
+            ]
+        )
         s.extend([row[1], row[2], row[3], row[4], row[5]])
         labels.extend([f"atm{e}", f"25rr{e}", f"25bf{e}", f"10rr{e}", f"10bf{e}"])
     surf_solver = Solver(
@@ -1943,11 +1956,7 @@ def test_solver_with_surface():
         instrument_labels=labels,
         fx=fxf,
     )
-    fxc = FXCall(
-        expiry=dt(2024, 6, 7),
-        strike=1.08,
-        **fx_args
-    )
+    fxc = FXCall(expiry=dt(2024, 6, 7), strike=1.08, **fx_args)
     fxc.analytic_greeks(solver=surf_solver)
     fxc.delta(solver=surf_solver)
     fxc.gamma(solver=surf_solver)
