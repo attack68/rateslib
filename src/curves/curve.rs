@@ -1,7 +1,8 @@
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::dual::{ADOrder, DualsOrF64};
+use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
 use chrono::NaiveDateTime;
+use indexmap::IndexMap;
 use pyo3::PyErr;
 
 /// Default struct for storing discount factors (DFs).
@@ -42,15 +43,70 @@ impl<T: CurveInterpolation> Curve<T> {
             NodesTimestamp::Dual2(_) => ADOrder::Two,
         }
     }
-}
 
-impl<T: CurveInterpolation> Curve<T> {
     pub fn interpolated_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
         self.interpolator.interpolated_value(&self.nodes, date)
     }
 
     pub fn node_index(&self, date_timestamp: i64) -> usize {
         self.interpolator.node_index(&self.nodes, date_timestamp)
+    }
+
+    pub fn set_ad_order(&mut self, ad: ADOrder) -> Result<(), PyErr> {
+        let vars: Vec<String> = get_variable_tags(&self.id, self.nodes.keys().len());
+        match (ad, &self.nodes) {
+            (ADOrder::Zero, NodesTimestamp::F64(_))
+            | (ADOrder::One, NodesTimestamp::Dual(_))
+            | (ADOrder::Two, NodesTimestamp::Dual2(_)) => {
+                // leave unchanged.
+                Ok(())
+            }
+            (ADOrder::One, NodesTimestamp::F64(i)) => {
+                // rebuild the derivatives
+                self.nodes = NodesTimestamp::Dual(IndexMap::from_iter(
+                    i.into_iter()
+                        .enumerate()
+                        .map(|(i, (k, v))| (*k, Dual::new(*v, vec![vars[i].clone()]))),
+                ));
+                Ok(())
+            }
+            (ADOrder::Two, NodesTimestamp::F64(i)) => {
+                // rebuild the derivatives
+                self.nodes = NodesTimestamp::Dual2(IndexMap::from_iter(
+                    i.into_iter()
+                        .enumerate()
+                        .map(|(i, (k, v))| (*k, Dual2::new(*v, vec![vars[i].clone()]))),
+                ));
+                Ok(())
+            }
+            (ADOrder::One, NodesTimestamp::Dual2(i)) => {
+                self.nodes = NodesTimestamp::Dual(IndexMap::from_iter(
+                    i.into_iter().map(|(k, v)| (*k, Dual::from(v))),
+                ));
+                Ok(())
+            }
+            (ADOrder::Zero, NodesTimestamp::Dual(i)) => {
+                // covert dual into f64
+                self.nodes = NodesTimestamp::F64(IndexMap::from_iter(
+                    i.into_iter().map(|(k, v)| (*k, f64::from(v))),
+                ));
+                Ok(())
+            }
+            (ADOrder::Zero, NodesTimestamp::Dual2(i)) => {
+                // covert dual into f64
+                self.nodes = NodesTimestamp::F64(IndexMap::from_iter(
+                    i.into_iter().map(|(k, v)| (*k, f64::from(v))),
+                ));
+                Ok(())
+            }
+            (ADOrder::Two, NodesTimestamp::Dual(i)) => {
+                // rebuild derivatives
+                self.nodes = NodesTimestamp::Dual2(IndexMap::from_iter(
+                    i.into_iter().map(|(k, v)| (*k, Dual2::from(v))),
+                ));
+                Ok(())
+            }
+        }
     }
 }
 

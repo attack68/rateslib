@@ -36,6 +36,9 @@ jobs:
     - name: Ruff Format
       run: |
         ruff format
+    - name: Cargo fmt check
+      run: |
+        cargo fmt --check
     - name: Test with pytest
       run: |
         coverage run -m --source=rateslib pytest

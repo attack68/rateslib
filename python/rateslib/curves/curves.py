@@ -22,8 +22,18 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
+from rateslib.curves.rs import CurveObj, LogLinearInterpolator, _get_interpolator
 from rateslib.default import NoInput, plot
-from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
+from rateslib.dual import (
+    ADOrder,
+    Dual,
+    Dual2,
+    DualTypes,
+    _get_adorder,
+    dual_exp,
+    dual_log,
+    set_order_convert,
+)
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -295,8 +305,10 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
-        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        self.nodes = nodes  # nodes.copy()
+        id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
+        self.interpolation, interpolator = self._validate_curve_interpolation(interpolation)
+        self.obj = CurveObj(nodes, interpolator, _get_adorder(ad), id)
+
         self.node_keys = list(self.nodes.keys())
         self.node_dates = self.node_keys
         self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
@@ -307,13 +319,6 @@ class Curve(_Serialize):
                     "Curve node dates are not sorted or contain duplicates. To sort directly "
                     "use: `dict(sorted(nodes.items()))`"
                 )
-        self.interpolation = (
-            defaults.interpolation[type(self).__name__]
-            if interpolation is NoInput.blank
-            else interpolation
-        )
-        if isinstance(self.interpolation, str):
-            self.interpolation = self.interpolation.lower()
 
         # Parameters for the rate derivation
         self.convention = defaults.convention if convention is NoInput.blank else convention
@@ -344,6 +349,48 @@ class Curve(_Serialize):
             self.spline = None
 
         self._set_ad_order(order=ad)
+
+    def _validate_curve_interpolation(self, interpolation: Union[str, Callable, NoInput]):
+        """
+        Get a user input and convert to the form necessary for object creation
+        """
+        interpolation = (
+            defaults.interpolation[type(self).__name__]
+            if interpolation is NoInput.blank
+            else interpolation
+        )
+        interpolator = LogLinearInterpolator()  # placeholder: will not be used by Python
+        if isinstance(interpolation, str):
+            try:
+                interpolator = _get_interpolator(interpolation)
+            except ValueError:
+                pass
+        return interpolation, interpolator
+
+    def _set_ad_order(self, order):
+        """
+        Change the node values to float, Dual or Dual2 based on input parameter.
+        """
+        self.obj._set_ad_order(_get_adorder(order))
+        self.csolve()
+        return None
+
+    @property
+    def id(self):
+        return self.obj.id
+
+    @property
+    def nodes(self):
+        return self.obj.nodes
+
+    @property
+    def ad(self):
+        _ = self.obj.ad
+        if _ is ADOrder.One:
+            return 1
+        elif _ is ADOrder.Two:
+            return 2
+        return 0
 
     def __getitem__(self, date: datetime):
         date_posix = date.replace(tzinfo=UTC).timestamp()
@@ -2093,7 +2140,7 @@ class CompositeCurve(IndexCurve):
         curves: Union[list, tuple],
         id: Union[str, NoInput] = NoInput(0),
     ) -> None:
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self._id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
@@ -2109,6 +2156,10 @@ class CompositeCurve(IndexCurve):
 
         # validate
         self._validate_curve_collection()
+
+    @property
+    def id(self):
+        return self._id  # overloads Curve calling CurveObj.id
 
     def _validate_curve_collection(self):
         """Perform checks to ensure CompositeCurve can exist"""
@@ -2646,7 +2697,7 @@ class ProxyCurve(Curve):
         calendar: Optional[Union[CalInput, bool]] = False,
         id: Optional[str] = None,
     ):
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self._id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
         self._is_proxy = True
@@ -2685,6 +2736,10 @@ class ProxyCurve(Curve):
         self.modifier = default_curve.modifier
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
+
+    @property
+    def id(self):
+        return self._id  # overloads Curve getting id from CurveObj
 
     def __getitem__(self, date: datetime):
         return (
