@@ -81,6 +81,10 @@ impl PyCurve {
         self.inner.interpolated_value(&date)
     }
 
+    fn __eq__(&self, other: PyCurve) -> bool {
+        self.inner.eq(&other.inner)
+    }
+
     // JSON
     /// Create a JSON string representation of the object.
     ///

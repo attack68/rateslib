@@ -24,6 +24,11 @@ class CurveRs:
         new.obj = obj
         return new
 
+    def __eq__(self, other):
+        if not isinstance(other, CurveRs):
+            return False
+        return self.obj.__eq__(other.obj)
+
 
 def _get_interpolator(name: str):
     name_ = name.lower()
