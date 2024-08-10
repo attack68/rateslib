@@ -4,6 +4,18 @@ from rateslib.rs import (
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
 )
+from rateslib.default import _make_py_json
+from rateslib.dual import _get_adorder
+
+
+class CurveRs:
+
+    def __init__(self, nodes, interpolation, id, ad):
+        interpolation = _get_interpolator(interpolation)
+        self.obj = CurveObj(nodes, interpolation, _get_adorder(ad), id)
+
+    def to_json(self):
+        return _make_py_json(self.obj.to_json(), "Curve")
 
 
 def _get_interpolator(name: str):

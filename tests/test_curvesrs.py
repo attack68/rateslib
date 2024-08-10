@@ -4,12 +4,14 @@ import context
 import pytest
 from rateslib.curves.rs import (
     CurveObj,
+    CurveRs,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
     _get_interpolator,
 )
 from rateslib.dual import ADOrder
+from rateslib.json import from_json
 
 
 @pytest.fixture()
@@ -22,6 +24,18 @@ def curve():
         interpolator=LinearInterpolator(),
         id="v",
         ad=ADOrder.One,
+    )
+
+@pytest.fixture()
+def curvers():
+    return CurveRs(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolation="log_linear",
+        id="v",
+        ad=1,
     )
 
 
@@ -46,3 +60,9 @@ def test_get_interpolator_raises():
 def test_get_item(curve):
     result = curve[dt(2022, 3, 16)]
     assert abs(result - 0.995) < 1e-14
+
+
+def test_json_round_trip(curvers):
+    json = curvers.to_json()
+    curve2 = from_json(json)
+    assert curvers == curve2
