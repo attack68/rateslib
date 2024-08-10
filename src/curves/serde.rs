@@ -1,8 +1,11 @@
 use crate::curves::{Curve, CurveInterpolation};
+use crate::curves::curve_py::PyCurve;
 use crate::json::JSON;
 use serde::{Deserialize, Serialize};
 
 impl<T: CurveInterpolation + for<'a> Deserialize<'a> + Serialize> JSON for Curve<T> {}
+
+impl JSON for PyCurve {}
 
 #[cfg(test)]
 mod tests {

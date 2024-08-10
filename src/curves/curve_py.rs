@@ -34,6 +34,7 @@ impl CurveInterpolation for CurveInterpolator {
 }
 
 #[pyclass(name = "Curve", module = "rateslib.rs")]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct PyCurve {
     inner: Curve<CurveInterpolator>,
 }
