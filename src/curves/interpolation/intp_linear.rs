@@ -4,8 +4,8 @@ use crate::curves::CurveInterpolation;
 use crate::dual::DualsOrF64;
 use chrono::NaiveDateTime;
 use pyo3::{pyclass, pymethods};
-use std::cmp::PartialEq;
 use serde::{Deserialize, Serialize};
+use std::cmp::PartialEq;
 
 /// Define linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
