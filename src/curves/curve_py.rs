@@ -6,8 +6,11 @@ use crate::curves::{
     LogLinearInterpolator,
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
+use crate::json::json_py::DeserializedObj;
+use crate::json::JSON;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -76,6 +79,26 @@ impl PyCurve {
 
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
+    }
+
+    fn __eq__(&self, other: PyCurve) -> bool {
+        self.inner.eq(&other.inner)
+    }
+
+    // JSON
+    /// Create a JSON string representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::PyCurve(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `Curve` to JSON.",
+            )),
+        }
     }
 }
 

@@ -1,10 +1,10 @@
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{ADOrder, DualsOrF64};
-use std::cmp::PartialEq;
 use chrono::NaiveDateTime;
 use pyo3::PyErr;
 use serde::{Deserialize, Serialize};
+use std::cmp::PartialEq;
 
 /// Default struct for storing discount factors (DFs).
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -60,7 +60,7 @@ impl<T: CurveInterpolation> Curve<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt};
+    use crate::calendars::ndt;
     use crate::curves::LogLinearInterpolator;
     use indexmap::IndexMap;
 
