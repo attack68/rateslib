@@ -1995,24 +1995,6 @@ class TestFloatRateNote:
             frn_no_fixings.accrued(settlement=dt(2022, 1, 10))
 
 
-    def test_cashflows_with_known_data_no_curve(self):
-        fixings = Series(2.0, index=date_range(dt(1997, 12, 1), dt(2000, 6, 2)))
-
-        frn = FloatRateNote(
-            effective=dt(1998, 12, 7),
-            termination=dt(1999, 12, 7),
-            frequency="S",
-            currency="gbp",
-            convention="Act365F",
-            ex_div=3,
-            fixings=fixings,
-            fixing_method="rfr_observation_shift",
-            method_param=5,
-        )
-        result = frn.cashflows()
-        pass
-
-
 class TestBondFuture:
     @pytest.mark.parametrize(
         "delivery, mat, coupon, exp",
