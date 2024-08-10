@@ -9,9 +9,10 @@ use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Interpolation
-#[derive(Debug, Clone, PartialEq, FromPyObject)]
+#[derive(Debug, Clone, PartialEq, FromPyObject, Deserialize, Serialize)]
 pub(crate) enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),
