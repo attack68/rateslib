@@ -5,12 +5,13 @@ use crate::dual::DualsOrF64;
 use chrono::NaiveDateTime;
 use pyo3::{pyclass, pymethods};
 use std::cmp::PartialEq;
+use serde::{Deserialize, Serialize};
 
 /// Define linear zero rate interpolation of nodes.
 ///
 /// This interpolation can only be used with discount factors node values.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LinearZeroRateInterpolator {}
 
 #[pymethods]

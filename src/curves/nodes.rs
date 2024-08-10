@@ -1,15 +1,18 @@
 use crate::dual::{Dual, Dual2};
 use chrono::{DateTime, NaiveDateTime};
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
+use std::cmp::PartialEq;
 
 /// Datetime indexed values of a specific [ADOrder](`crate::dual::ADOrder`).
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum Nodes {
     F64(IndexMap<NaiveDateTime, f64>),
     Dual(IndexMap<NaiveDateTime, Dual>),
     Dual2(IndexMap<NaiveDateTime, Dual2>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum NodesTimestamp {
     F64(IndexMap<i64, f64>),
     Dual(IndexMap<i64, Dual>),

@@ -5,10 +5,11 @@ use crate::dual::DualsOrF64;
 use chrono::NaiveDateTime;
 use pyo3::{pyclass, pymethods};
 use std::cmp::PartialEq;
+use serde::{Deserialize, Serialize};
 
 /// Define log-linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LogLinearInterpolator {}
 
 #[pymethods]

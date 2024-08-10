@@ -12,3 +12,5 @@ pub(crate) mod curve;
 pub use crate::curves::curve::{Curve, CurveInterpolation};
 
 pub(crate) mod curve_py;
+
+mod serde;
