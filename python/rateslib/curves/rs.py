@@ -6,6 +6,7 @@ from rateslib.rs import (
 )
 from rateslib.default import _make_py_json
 from rateslib.dual import _get_adorder
+from datetime import datetime as dt
 
 
 class CurveRs:
@@ -16,6 +17,12 @@ class CurveRs:
 
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "Curve")
+
+    @classmethod
+    def __init_from_obj__(cls, obj):
+        new = cls({dt(2000, 1, 1): 1.0}, "linear", "_", 0)
+        new.obj = obj
+        return new
 
 
 def _get_interpolator(name: str):
