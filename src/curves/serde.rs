@@ -1,5 +1,5 @@
-use crate::curves::{Curve, CurveInterpolation};
 use crate::curves::curve_py::PyCurve;
+use crate::curves::{Curve, CurveInterpolation};
 use crate::json::JSON;
 use serde::{Deserialize, Serialize};
 
@@ -11,8 +11,10 @@ impl JSON for PyCurve {}
 mod tests {
     use super::*;
     use crate::calendars::ndt;
-    use crate::curves::{LogLinearInterpolator, LinearInterpolator, LinearZeroRateInterpolator, Nodes};
     use crate::curves::curve_py::CurveInterpolator;
+    use crate::curves::{
+        LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, Nodes,
+    };
     use indexmap::IndexMap;
 
     fn curve_fixture<T: CurveInterpolation>(interpolator: T) -> Curve<T> {

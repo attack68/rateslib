@@ -2,9 +2,9 @@
 //! bindings.
 
 use crate::calendars::{Cal, NamedCal, UnionCal};
+use crate::curves::curve_py::PyCurve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
-use crate::curves::curve_py::PyCurve;
 use crate::json::JSON;
 use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;
