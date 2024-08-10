@@ -11,7 +11,6 @@ from rateslib.rs import (
 
 
 class CurveRs:
-
     def __init__(self, nodes, interpolation, id, ad):
         interpolation = _get_interpolator(interpolation)
         self.obj = CurveObj(nodes, interpolation, _get_adorder(ad), id)

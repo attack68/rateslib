@@ -26,6 +26,7 @@ def curve():
         ad=ADOrder.One,
     )
 
+
 @pytest.fixture()
 def curvers():
     return CurveRs(
