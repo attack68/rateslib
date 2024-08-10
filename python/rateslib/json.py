@@ -1,9 +1,7 @@
 # globals namespace
-from rateslib.fx import FXRates
 from rateslib.curves.rs import CurveRs
-
+from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
-
 
 NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,

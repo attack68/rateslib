@@ -1,12 +1,13 @@
+from datetime import datetime as dt
+
+from rateslib.default import _make_py_json
+from rateslib.dual import _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 from rateslib.rs import (
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
 )
-from rateslib.default import _make_py_json
-from rateslib.dual import _get_adorder
-from datetime import datetime as dt
 
 
 class CurveRs:
