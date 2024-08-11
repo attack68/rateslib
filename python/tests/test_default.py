@@ -1,4 +1,3 @@
-import context
 import pytest
 from pandas import Series
 from rateslib import __version__, default_context, defaults, dt

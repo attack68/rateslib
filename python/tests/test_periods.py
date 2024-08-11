@@ -2,7 +2,6 @@ import re
 from datetime import datetime as dt
 from datetime import timedelta
 
-import context
 import numpy as np
 import pytest
 from pandas import DataFrame, Index, Series
