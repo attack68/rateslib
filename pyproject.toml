@@ -47,8 +47,9 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+# pythonpath = [".", "python/rateslib"]
 minversion = "7.0"
-addopts = ""
+addopts = ""  # use -s to show print capture, use -q for quiet, use -v for verbose
 testpaths = [
     "python/tests",
 ]
@@ -62,18 +63,6 @@ packages = ["rateslib"]
 
 [project.urls]
 Homepage = "https://github.com/attack68/rateslib"
-
-[tool.pytest.ini_options]
-pythonpath = [".", "python/rateslib"]
-minversion = "7.0"
-addopts = "-v"  # use -s to show print capture, use -q for quiet, use -v for verbose
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
-]
-testpaths = [
-    "python/tests",
-]
 
 [tool.ruff]
 exclude = [
