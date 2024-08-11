@@ -100,12 +100,12 @@ ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402"]
-"tests/*" = ["F401"]
+"python/tests/*" = ["F401"]
 
 [tool.isort]
 profile = "black"
 line_length = 100
-src_paths = ["python", "tests"]
+src_paths = ["python"]
 
 [tool.black]
 line-length = 100
