@@ -2,8 +2,8 @@
 
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
-    Curve, CurveInterpolation, LinearInterpolator, LinearZeroRateInterpolator,
-    LogLinearInterpolator,
+    Curve, CurveInterpolation, FlatForwardInterpolator, LinearInterpolator,
+    LinearZeroRateInterpolator, LogLinearInterpolator,
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
@@ -20,10 +20,8 @@ pub(crate) enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),
     LinearZeroRate(LinearZeroRateInterpolator),
-    //     LinearIndex,
-    //     LinearZeroRate,
-    //     FlatForward,
-    //     FlatBackward,
+    FlatForward(FlatForwardInterpolator), //     LinearIndex,
+                                          //     FlatBackward,
 }
 
 impl CurveInterpolation for CurveInterpolator {
@@ -32,6 +30,7 @@ impl CurveInterpolation for CurveInterpolator {
             CurveInterpolator::LogLinear(i) => i.interpolated_value(nodes, date),
             CurveInterpolator::Linear(i) => i.interpolated_value(nodes, date),
             CurveInterpolator::LinearZeroRate(i) => i.interpolated_value(nodes, date),
+            CurveInterpolator::FlatForward(i) => i.interpolated_value(nodes, date),
         }
     }
 }
