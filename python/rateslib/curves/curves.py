@@ -306,7 +306,7 @@ class Curve(_Serialize):
         **kwargs,
     ):
         id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        self.interpolation, interpolator = self._validate_curve_interpolation(interpolation)
+        interpolator = self._validate_curve_interpolation(interpolation)
         self.obj = CurveObj(nodes, interpolator, _get_adorder(ad), id)
 
         self.node_keys = list(self.nodes.keys())
@@ -365,7 +365,7 @@ class Curve(_Serialize):
                 interpolator = _get_interpolator(interpolation)
             except ValueError:
                 pass
-        return interpolation, interpolator
+        return interpolator
 
     def _set_ad_order(self, order):
         """
@@ -378,6 +378,10 @@ class Curve(_Serialize):
     @property
     def id(self):
         return self.obj.id
+
+    @property
+    def interpolation(self):
+        return self.obj.interpolation
 
     @property
     def nodes(self):

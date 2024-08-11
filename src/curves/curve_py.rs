@@ -67,6 +67,15 @@ impl PyCurve {
     }
 
     #[getter]
+    fn interpolation(&self) -> String {
+        match self.inner.interpolator {
+            CurveInterpolator::Linear(_) => "linear".to_string(),
+            CurveInterpolator::LogLinear(_) => "log_linear".to_string(),
+            CurveInterpolator::LinearZeroRate(_) => "linear_zero_rate".to_string(),
+        }
+    }
+
+    #[getter]
     fn nodes(&self) -> IndexMap<NaiveDateTime, DualsOrF64> {
         let nodes = Nodes::from(self.inner.nodes.clone());
         match nodes {

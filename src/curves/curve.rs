@@ -1,7 +1,6 @@
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
-use crate::dual::{ADOrder, DualsOrF64};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::PyErr;
@@ -12,7 +11,7 @@ use std::cmp::PartialEq;
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Curve<T: CurveInterpolation> {
     pub(crate) nodes: NodesTimestamp,
-    interpolator: T,
+    pub(crate) interpolator: T,
     pub(crate) id: String,
 }
 
