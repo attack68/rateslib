@@ -67,3 +67,23 @@ def test_json_round_trip(curvers):
     json = curvers.to_json()
     curve2 = from_json(json)
     assert curvers == curve2
+
+
+@pytest.mark.parametrize("kind", [
+    "linear",
+    "log_linear",
+    "linear_zero_rate",
+    "flat_forward",
+    "flat_backward",
+])
+def test_interp_constructs(kind):
+    result = CurveRs(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolation=kind,
+        id="v",
+        ad=1,
+    )
+    assert isinstance(result, CurveRs)
