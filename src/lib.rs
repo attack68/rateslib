@@ -27,8 +27,8 @@ pub mod curves;
 use curves::curve_py::PyCurve;
 use curves::interpolation::interpolation_py::index_left_f64;
 use curves::{
-    FlatForwardInterpolator, FlatBackwardInterpolator,
-    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator
+    FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
+    LinearZeroRateInterpolator, LogLinearInterpolator,
 };
 
 pub mod calendars;
