@@ -68,13 +68,16 @@ def test_json_round_trip(curvers):
     assert curvers == curve2
 
 
-@pytest.mark.parametrize("kind", [
-    "linear",
-    "log_linear",
-    "linear_zero_rate",
-    "flat_forward",
-    "flat_backward",
-])
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "linear",
+        "log_linear",
+        "linear_zero_rate",
+        "flat_forward",
+        "flat_backward",
+    ],
+)
 def test_interp_constructs(kind):
     result = CurveRs(
         nodes={
