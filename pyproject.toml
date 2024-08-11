@@ -46,6 +46,17 @@ dev = [
     "ruff==0.5.6",  # for code linting
 ]
 
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = ""
+testpaths = [
+    "python/tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
 [tool.setuptools]
 packages = ["rateslib"]
 
