@@ -1,6 +1,5 @@
 from datetime import datetime as dt
 
-import context
 import pytest
 from rateslib.fx import FXRates
 from rateslib.json import from_json

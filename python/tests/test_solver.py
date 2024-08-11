@@ -1,7 +1,6 @@
 from datetime import datetime as dt
 from math import exp, log
 
-import context
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
