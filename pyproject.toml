@@ -52,6 +52,17 @@ packages = ["rateslib"]
 [project.urls]
 Homepage = "https://github.com/attack68/rateslib"
 
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-s"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+testpaths = [
+    "python/tests",
+]
+
 [tool.ruff]
 exclude = [
     ".git",
