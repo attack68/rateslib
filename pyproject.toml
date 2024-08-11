@@ -54,7 +54,7 @@ Homepage = "https://github.com/attack68/rateslib"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-s"
+addopts = ""  # use -s to show print capture, use -q for quiet, use -v for verbose
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
