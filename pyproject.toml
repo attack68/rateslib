@@ -53,7 +53,7 @@ packages = ["rateslib"]
 Homepage = "https://github.com/attack68/rateslib"
 
 [tool.pytest.ini_options]
-pythonpath = ["python/rateslib"]
+pythonpath = [".", "python/rateslib"]
 minversion = "7.0"
 addopts = "-v"  # use -s to show print capture, use -q for quiet, use -v for verbose
 filterwarnings = [
