@@ -1,6 +1,5 @@
 from datetime import datetime as dt
 
-import context
 import pytest
 from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.json import from_json

@@ -1,6 +1,5 @@
 from datetime import datetime as dt
 
-import context
 import pytest
 from rateslib.curves.rs import (
     CurveObj,
