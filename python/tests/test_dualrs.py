@@ -1,6 +1,5 @@
 import math
 
-import context
 import numpy as np
 import pytest
 from packaging import version

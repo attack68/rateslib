@@ -1,6 +1,5 @@
 import copy
 
-import context
 import numpy as np
 import pytest
 from rateslib.dual import Dual, Dual2, gradient, set_order_convert

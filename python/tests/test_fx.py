@@ -1,6 +1,5 @@
 from datetime import datetime as dt
 
-import context
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
