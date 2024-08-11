@@ -2761,6 +2761,9 @@ class TestPortfolio:
         pf = Portfolio([irs1] * 5)
         assert pf.npv(base="usd") == irs1.npv() * 5
 
+    def test_portoflio_npv_pool(self, curve):
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
+        pf = Portfolio([irs1] * 5)
         with default_context("pool", 2):  # also test parallel processing
             result = pf.npv(base="usd")
             assert result == irs1.npv() * 5
