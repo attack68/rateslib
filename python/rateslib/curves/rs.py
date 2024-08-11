@@ -4,6 +4,8 @@ from rateslib.default import _make_py_json
 from rateslib.dual import _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 from rateslib.rs import (
+    FlatBackwardInterpolator,
+    FlatForwardInterpolator,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
@@ -38,5 +40,9 @@ def _get_interpolator(name: str):
         return LinearInterpolator()
     elif name_ == "linear_zero_rate":
         return LinearZeroRateInterpolator()
+    elif name_ == "flat_forward":
+        return FlatForwardInterpolator()
+    elif name_ == "flat_backward":
+        return FlatBackwardInterpolator()
     else:
         raise ValueError("Interpolator `name` is invalid.")
