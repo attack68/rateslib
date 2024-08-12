@@ -1250,7 +1250,7 @@ class Curve(_Serialize):
 
     def _get_node_vars(self):
         """Get the variable names of elements updated by a Solver"""
-        return tuple((f"{self.id}{i}" for i in range(self._ini_solve, self.n)))
+        return tuple(f"{self.id}{i}" for i in range(self._ini_solve, self.n))
 
 
 class LineCurve(Curve):

@@ -81,7 +81,7 @@ class FXDeltaVolSmile:
         eval_date: datetime,
         expiry: datetime,
         delta_type: str,
-        id: Union[str, NoInput] = NoInput(0),
+        id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
@@ -150,9 +150,9 @@ class FXDeltaVolSmile:
         delta: float,
         delta_type: str,
         phi: float,
-        w_deli: Union[DualTypes, NoInput] = NoInput(0),
-        w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        u: Union[DualTypes, NoInput] = NoInput(0),
+        w_deli: DualTypes | NoInput = NoInput(0),
+        w_spot: DualTypes | NoInput = NoInput(0),
+        u: DualTypes | NoInput = NoInput(0),
     ):
         """
         Return a volatility for a provided real option delta.
@@ -186,9 +186,9 @@ class FXDeltaVolSmile:
         self,
         k: DualTypes,
         f: DualTypes,
-        w_deli: Union[DualTypes, NoInput] = NoInput(0),
-        w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        expiry: Union[datetime, NoInput(0)] = NoInput(0),
+        w_deli: DualTypes | NoInput = NoInput(0),
+        w_spot: DualTypes | NoInput = NoInput(0),
+        expiry: datetime | NoInput(0) = NoInput(0),
     ) -> tuple:
         """
         Given an option strike return associated delta and vol values.
@@ -336,8 +336,8 @@ class FXDeltaVolSmile:
         self,
         delta: DualTypes,
         phi: float,
-        z_w: Union[DualTypes, NoInput] = NoInput(0),
-        u: Union[DualTypes, NoInput] = NoInput(0),
+        z_w: DualTypes | NoInput = NoInput(0),
+        u: DualTypes | NoInput = NoInput(0),
     ):
         """
         Get the *Smile* index delta given an option delta of the same type as the *Smile*.
@@ -628,7 +628,7 @@ class FXDeltaVolSmile:
 
     def _get_node_vars(self):
         """Get the variable names of elements updated by a Solver"""
-        return tuple((f"{self.id}{i}" for i in range(self.n)))
+        return tuple(f"{self.id}{i}" for i in range(self.n))
 
 
 class FXDeltaVolSurface:
@@ -684,13 +684,13 @@ class FXDeltaVolSurface:
 
     def __init__(
         self,
-        delta_indexes: Union[list, NoInput],
-        expiries: Union[list, NoInput],
-        node_values: Union[list, NoInput],
-        eval_date: Union[datetime, NoInput],
-        delta_type: Union[str, NoInput],
-        weights: Union[Series, NoInput] = NoInput(0),
-        id: Union[str, NoInput] = NoInput(0),
+        delta_indexes: list | NoInput,
+        expiries: list | NoInput,
+        node_values: list | NoInput,
+        eval_date: datetime | NoInput,
+        delta_type: str | NoInput,
+        weights: Series | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
         node_values = np.asarray(node_values)
@@ -741,7 +741,7 @@ class FXDeltaVolSurface:
         """Get the variable names of elements updated by a Solver"""
         vars = ()
         for smile in self.smiles:
-            vars += tuple((f"{smile.id}{i}" for i in range(smile.n)))
+            vars += tuple(f"{smile.id}{i}" for i in range(smile.n))
         return vars
 
     def get_smile(self, expiry: datetime):
@@ -902,9 +902,9 @@ class FXDeltaVolSurface:
         self,
         k: DualTypes,
         f: DualTypes,
-        w_deli: Union[DualTypes, NoInput] = NoInput(0),
-        w_spot: Union[DualTypes, NoInput] = NoInput(0),
-        expiry: Union[datetime, NoInput(0)] = NoInput(0),
+        w_deli: DualTypes | NoInput = NoInput(0),
+        w_spot: DualTypes | NoInput = NoInput(0),
+        expiry: datetime | NoInput(0) = NoInput(0),
     ) -> tuple:
         """
         Given an option strike and expiry return associated delta and vol values.

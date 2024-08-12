@@ -1047,9 +1047,9 @@ class Solver(Gradients):
         # Final elements
         self._ad = 1
         self.fx = fx
-        self.instruments = tuple((self._parse_instrument(inst) for inst in instruments))
+        self.instruments = tuple(self._parse_instrument(inst) for inst in instruments)
         self.pre_instruments += self.instruments
-        self.rate_scalars = tuple((inst[0]._rate_scalar for inst in self.instruments))
+        self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
         self.pre_rate_scalars += self.rate_scalars
 
         # TODO need to check curves associated with fx object and set order.

@@ -577,7 +577,7 @@ class TestNullPricing:
             fx=fxf,
         )
         result = inst.delta(solver=solver)
-        assert abs((result.iloc[0, 0] - 25.0)) < 1.0
+        assert abs(result.iloc[0, 0] - 25.0) < 1.0
         result2 = inst.npv(solver=solver)
         assert abs(result2) < 1e-3
 
