@@ -397,7 +397,7 @@ create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
 
-/// Calculate the *m* th order derivative from the right of an indexed b-spline at *x*.
+/// Calculate the value of an indexed b-spline at *x*.
 ///
 /// Parameters
 /// ----------
@@ -440,7 +440,7 @@ pub(crate) fn bsplev_single(
     Ok(bsplev_single_f64(&x, i, &k, &t, org_k))
 }
 
-/// Calculate the *m* th order derivative from the right of an indexed b-spline at *x*.
+/// Calculate the *m* th order derivative (from the right) of an indexed b-spline at *x*.
 ///
 /// Parameters
 /// ----------

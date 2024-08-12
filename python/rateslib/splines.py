@@ -7,6 +7,8 @@ from rateslib.rs import PPSplineF64 as PPSpline
 # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
 # TODO: (depr) remove this for version 2.0
 
+# bspldnev_single.__doc__ = "Calculate the *m* th order derivative (from the right) of an indexed b-spline at *x*."  # noqa: E501
+# bsplev_single.__doc__ = "Calculate the value of an indexed b-spline at *x*."
 PPSplineF64.__doc__ = "Piecewise polynomial spline composed of float values on the x and y axes."
 PPSplineDual.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual values on the y-axis."  # noqa: E501
 PPSplineDual2.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual2 values on the y-axis."  # noqa: E501
