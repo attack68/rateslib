@@ -596,9 +596,9 @@ class Curve(_Serialize):
     def shift(
         self,
         spread: float,
-        id: str | None = None,
+        id: str | NoInput = NoInput(0),
         composite: bool = True,
-        collateral: str | None = None,
+        collateral: str | NoInput = NoInput(0),
     ):
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -1418,9 +1418,9 @@ class LineCurve(Curve):
     def shift(
         self,
         spread: float,
-        id: str | None = None,
+        id: str | NoInput = NoInput(0),
         composite: bool = True,
-        collateral: str | None = None,
+        collateral: str | NoInput = NoInput(0),
     ):
         """
         Raise or lower the curve in parallel by a set number of basis points.
@@ -2158,8 +2158,8 @@ class CompositeCurve(IndexCurve):
     def rate(
         self,
         effective: datetime,
-        termination: datetime | str | None = None,
-        modifier: str | bool | None = False,
+        termination: datetime | str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
         approximate: bool = True,
     ):
         """
@@ -2258,9 +2258,9 @@ class CompositeCurve(IndexCurve):
     def shift(
         self,
         spread: float,
-        id: str | None = None,
-        composite: bool | None = True,
-        collateral: str | None = None,
+        id: str | NoInput = NoInput(0),
+        composite: bool | NoInput = True,
+        collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -2396,8 +2396,8 @@ class MultiCsaCurve(CompositeCurve):
         self,
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
-        multi_csa_min_step: int | None = 1,
-        multi_csa_max_step: int | None = 1825,
+        multi_csa_min_step: int | NoInput = 1,
+        multi_csa_max_step: int | NoInput = 1825,
     ) -> None:
         self.multi_csa_min_step = max(1, multi_csa_min_step)
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
@@ -2406,8 +2406,8 @@ class MultiCsaCurve(CompositeCurve):
     def rate(
         self,
         effective: datetime,
-        termination: datetime | str | None = None,
-        modifier: str | bool | None = False,
+        termination: datetime | str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
     ):
         """
         Calculate the cheapest-to-deliver (CTD) rate on the curve.
@@ -2544,9 +2544,9 @@ class MultiCsaCurve(CompositeCurve):
     def shift(
         self,
         spread: float,
-        id: str | None = None,
-        composite: bool | None = True,
-        collateral: str | None = None,
+        id: str | NoInput = NoInput(0),
+        composite: bool | NoInput = True,
+        collateral: str | NoInput = NoInput(0),
     ) -> MultiCsaCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -2641,10 +2641,10 @@ class ProxyCurve(Curve):
         cashflow: str,
         collateral: str,
         fx_forwards: FXForwards,
-        convention: str | None = None,
-        modifier: str | bool | None = False,
-        calendar: CalInput | bool | None = False,
-        id: str | None = None,
+        convention: str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
+        calendar: CalInput | bool | NoInput = False,
+        id: str | NoInput = NoInput(0),
     ):
         self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
@@ -2667,7 +2667,7 @@ class ProxyCurve(Curve):
             {},
             convention=(
                 self.fx_forwards.fx_curves[self.cash_pair].convention
-                if convention is None
+                if convention is NoInput(0)
                 else convention
             ),
             modifier=(
