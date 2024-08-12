@@ -47,4 +47,11 @@ def evaluate(
         return spline.ppdnev_single(x, m)
 
 
-__all__ = (PPSplineDual, PPSplineDual2, PPSplineF64, PPSpline, bspldnev_single, bsplev_single)
+__all__ = (
+    "PPSplineDual",
+    "PPSplineDual2",
+    "PPSplineF64",
+    "PPSpline",
+    "bspldnev_single",
+    "bsplev_single"
+)
