@@ -1,4 +1,4 @@
-from typing import Union
+from __future__ import annotations
 
 from rateslib.dual import Dual, Dual2
 from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
@@ -15,10 +15,10 @@ PPSplineDual2.__doc__ = "Piecewise polynomial spline composed of float values on
 
 
 def evaluate(
-    spline: Union[PPSplineF64, PPSplineDual, PPSplineDual2],
-    x: Union[float, Dual, Dual2],
+    spline: PPSplineF64 | PPSplineDual | PPSplineDual2,
+    x: float | Dual | Dual2,
     m: int = 0,
-) -> Union[float, Dual, Dual2]:
+) -> float | Dual | Dual2:
     """
     Evaluate a single x-axis data point, or a derivative value, on a *Spline*.
 
