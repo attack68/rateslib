@@ -12,7 +12,7 @@ import json
 import warnings
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 import numpy as np
@@ -294,13 +294,13 @@ class Curve(_Serialize):
         self,
         nodes: dict,
         *,
-        interpolation: Union[str, Callable, NoInput] = NoInput(0),
-        t: Union[list[datetime], NoInput] = NoInput(0),
-        c: Union[list[float], NoInput] = NoInput(0),
-        endpoints: Union[str, NoInput] = NoInput(0),
-        id: Union[str, NoInput] = NoInput(0),
-        convention: Union[str, NoInput] = NoInput(0),
-        modifier: Union[str, NoInput] = NoInput(0),
+        interpolation: str | Callable | NoInput = NoInput(0),
+        t: list[datetime] | NoInput = NoInput(0),
+        c: list[float] | NoInput = NoInput(0),
+        endpoints: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),
+        convention: str | NoInput = NoInput(0),
+        modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
         **kwargs,
@@ -442,12 +442,12 @@ class Curve(_Serialize):
     def rate(
         self,
         effective: datetime,
-        termination: Union[datetime, str],
-        modifier: Union[str, bool, NoInput] = NoInput(0),
+        termination: datetime | str,
+        modifier: str | bool | NoInput = NoInput(0),
         # calendar: CalInput = NoInput(0),
         # convention: Optional[str] = None,
-        float_spread: float = None,  # TODO: NoInput
-        spread_compound_method: str = None,
+        float_spread: float | NoInput = NoInput(0),
+        spread_compound_method: str | NoInput = NoInput(0),
     ):
         """
         Calculate the rate on the `Curve` using DFs.
@@ -557,7 +557,7 @@ class Curve(_Serialize):
         n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
         _ = n_ / d_ * 100
 
-        if float_spread is not None and abs(float_spread) > 1e-9:
+        if float_spread is not NoInput(0) and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
                 return _ + float_spread / 100
             elif spread_compound_method == "isda_compounding":
@@ -647,9 +647,9 @@ class Curve(_Serialize):
     def shift(
         self,
         spread: float,
-        id: Optional[str] = None,
+        id: str | NoInput = NoInput(0),
         composite: bool = True,
-        collateral: Optional[str] = None,
+        collateral: str | NoInput = NoInput(0),
     ):
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -952,7 +952,7 @@ class Curve(_Serialize):
 
         # re-organise the t-knot sequence
         if self.t is NoInput.blank:
-            new_t: Union[list[datetime], NoInput] = NoInput(0)
+            new_t: list[datetime] | NoInput = NoInput(0)
         else:
             new_t = self.t.copy()
 
@@ -1015,7 +1015,7 @@ class Curve(_Serialize):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def roll(self, tenor: Union[datetime, str]):
+    def roll(self, tenor: datetime | str):
         """
         Create a new curve with its shape translated in time but an identical initial
         node date.
@@ -1136,8 +1136,8 @@ class Curve(_Serialize):
     def plot(
         self,
         tenor: str,
-        right: Union[datetime, str, NoInput] = NoInput(0),
-        left: Union[datetime, str, NoInput] = NoInput(0),
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
         comparators: list[Curve] = [],
         difference: bool = False,
         labels: list[str] = [],
@@ -1198,8 +1198,8 @@ class Curve(_Serialize):
     def _plot_rates(
         self,
         upper_tenor: str,
-        left: Union[datetime, str, NoInput] = NoInput(0),
-        right: Union[datetime, str, NoInput] = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
+        right: datetime | str | NoInput = NoInput(0),
     ):
         if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
@@ -1244,8 +1244,8 @@ class Curve(_Serialize):
     def _plot_fx(
         self,
         curve_foreign: Curve,
-        fx_rate: Union[float, Dual],
-        fx_settlement: Union[datetime, NoInput] = NoInput(0),
+        fx_rate: float | Dual,
+        fx_settlement: datetime | NoInput = NoInput(0),
         left: datetime = None,
         right: datetime = None,
         points: int = None,
@@ -1301,7 +1301,7 @@ class Curve(_Serialize):
 
     def _get_node_vars(self):
         """Get the variable names of elements updated by a Solver"""
-        return tuple((f"{self.id}{i}" for i in range(self._ini_solve, self.n)))
+        return tuple(f"{self.id}{i}" for i in range(self._ini_solve, self.n))
 
 
 class LineCurve(Curve):
@@ -1469,9 +1469,9 @@ class LineCurve(Curve):
     def shift(
         self,
         spread: float,
-        id: Optional[str] = None,
+        id: str | NoInput = NoInput(0),
         composite: bool = True,
-        collateral: Optional[str] = None,
+        collateral: str | NoInput = NoInput(0),
     ):
         """
         Raise or lower the curve in parallel by a set number of basis points.
@@ -1713,7 +1713,7 @@ class LineCurve(Curve):
             new_nodes = {self.node_dates[0]: self[self.node_dates[0]], **new_nodes}
         return new_nodes
 
-    def roll(self, tenor: Union[datetime, str]):
+    def roll(self, tenor: datetime | str):
         """
         Create a new curve with its shape translated in time
 
@@ -1819,8 +1819,8 @@ class IndexCurve(Curve):
     def __init__(
         self,
         *args,
-        index_base: Union[float, NoInput] = NoInput(0),
-        index_lag: Union[int, NoInput] = NoInput(0),
+        index_base: float | NoInput = NoInput(0),
+        index_lag: int | NoInput = NoInput(0),
         **kwargs,
     ):
         self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
@@ -1883,8 +1883,8 @@ class IndexCurve(Curve):
 
     def plot_index(
         self,
-        right: Union[datetime, str, NoInput] = NoInput(0),
-        left: Union[datetime, str, NoInput] = NoInput(0),
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
         comparators: list[Curve] = [],
         difference: bool = False,
         labels: list[str] = [],
@@ -2141,8 +2141,8 @@ class CompositeCurve(IndexCurve):
 
     def __init__(
         self,
-        curves: Union[list, tuple],
-        id: Union[str, NoInput] = NoInput(0),
+        curves: list | tuple,
+        id: str | NoInput = NoInput(0),
     ) -> None:
         self._id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
 
@@ -2213,8 +2213,8 @@ class CompositeCurve(IndexCurve):
     def rate(
         self,
         effective: datetime,
-        termination: Optional[Union[datetime, str]] = None,
-        modifier: Optional[Union[str, bool]] = False,
+        termination: datetime | str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
         approximate: bool = True,
     ):
         """
@@ -2313,9 +2313,9 @@ class CompositeCurve(IndexCurve):
     def shift(
         self,
         spread: float,
-        id: Optional[str] = None,
-        composite: Optional[bool] = True,
-        collateral: Optional[str] = None,
+        id: str | NoInput = NoInput(0),
+        composite: bool | NoInput = True,
+        collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -2380,7 +2380,7 @@ class CompositeCurve(IndexCurve):
         """
         return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
 
-    def roll(self, tenor: Union[datetime, str]) -> CompositeCurve:
+    def roll(self, tenor: datetime | str) -> CompositeCurve:
         """
         Create a new curve with its shape translated in time
 
@@ -2449,10 +2449,10 @@ class MultiCsaCurve(CompositeCurve):
 
     def __init__(
         self,
-        curves: Union[list, tuple],
-        id: Union[str, NoInput] = NoInput(0),
-        multi_csa_min_step: Optional[int] = 1,
-        multi_csa_max_step: Optional[int] = 1825,
+        curves: list | tuple,
+        id: str | NoInput = NoInput(0),
+        multi_csa_min_step: int | NoInput = 1,
+        multi_csa_max_step: int | NoInput = 1825,
     ) -> None:
         self.multi_csa_min_step = max(1, multi_csa_min_step)
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
@@ -2461,8 +2461,8 @@ class MultiCsaCurve(CompositeCurve):
     def rate(
         self,
         effective: datetime,
-        termination: Optional[Union[datetime, str]] = None,
-        modifier: Optional[Union[str, bool]] = False,
+        termination: datetime | str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
     ):
         """
         Calculate the cheapest-to-deliver (CTD) rate on the curve.
@@ -2568,7 +2568,7 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_min_step=self.multi_csa_min_step,
         )
 
-    def roll(self, tenor: Union[datetime, str]) -> MultiCsaCurve:
+    def roll(self, tenor: datetime | str) -> MultiCsaCurve:
         """
         Create a new curve with its shape translated in time
 
@@ -2599,9 +2599,9 @@ class MultiCsaCurve(CompositeCurve):
     def shift(
         self,
         spread: float,
-        id: Optional[str] = None,
-        composite: Optional[bool] = True,
-        collateral: Optional[str] = None,
+        id: str | NoInput = NoInput(0),
+        composite: bool | NoInput = True,
+        collateral: str | NoInput = NoInput(0),
     ) -> MultiCsaCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -2696,10 +2696,10 @@ class ProxyCurve(Curve):
         cashflow: str,
         collateral: str,
         fx_forwards: FXForwards,
-        convention: Optional[str] = None,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CalInput, bool]] = False,
-        id: Optional[str] = None,
+        convention: str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
+        calendar: CalInput | bool | NoInput = False,
+        id: str | NoInput = NoInput(0),
     ):
         self._id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
@@ -2722,7 +2722,7 @@ class ProxyCurve(Curve):
             {},
             convention=(
                 self.fx_forwards.fx_curves[self.cash_pair].convention
-                if convention is None
+                if convention is NoInput(0)
                 else convention
             ),
             modifier=(
@@ -2888,7 +2888,7 @@ def index_left(
     list_input: list[Any],
     list_length: int,
     value: Any,
-    left_count: Optional[int] = 0,
+    left_count: int | None = 0,
 ):
     """
     Return the interval index of a value from an ordered input list on the left side.
