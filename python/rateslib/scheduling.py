@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import calendar as calendar_mod
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from itertools import product
-from typing import Any, Optional, Union
+from typing import Any
 
 from pandas import DataFrame
 from pandas.tseries.offsets import CustomBusinessDay
@@ -250,19 +252,19 @@ class Schedule:
 
     def __init__(
         self,
-        effective: Union[datetime, str],
-        termination: Union[datetime, str],
+        effective: datetime | str,
+        termination: datetime | str,
         frequency: str,
-        stub: Union[str, NoInput] = NoInput(0),
-        front_stub: Union[datetime, NoInput] = NoInput(0),
-        back_stub: Union[datetime, NoInput] = NoInput(0),
-        roll: Union[str, int, NoInput] = NoInput(0),
-        eom: Union[bool, NoInput] = NoInput(0),
-        modifier: Union[str, NoInput] = NoInput(0),
-        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
-        payment_lag: Union[int, NoInput] = NoInput(0),
-        eval_date: Union[datetime, NoInput] = NoInput(0),
-        eval_mode: Union[str, NoInput] = NoInput(0),
+        stub: str | NoInput = NoInput(0),
+        front_stub: datetime | NoInput = NoInput(0),
+        back_stub: datetime | NoInput = NoInput(0),
+        roll: str | int | NoInput = NoInput(0),
+        eom: bool | NoInput = NoInput(0),
+        modifier: str | NoInput = NoInput(0),
+        calendar: CustomBusinessDay | str | NoInput = NoInput(0),
+        payment_lag: int | NoInput = NoInput(0),
+        eval_date: datetime | NoInput = NoInput(0),
+        eval_mode: str | NoInput = NoInput(0),
     ):
         # Arg validation
         eom = defaults.eom if eom is NoInput.blank else eom
@@ -727,7 +729,7 @@ def _check_unadjusted_regular_swap(
     utermination: datetime,
     frequency: str,
     eom: bool,
-    roll: Optional[Union[str, int]],
+    roll: str | int | None,
 ):
     """
     Test whether given parameters define a regular leg without stubs.
@@ -801,7 +803,7 @@ def _check_regular_swap(
     frequency: str,
     modifier: str,
     eom: bool,
-    roll: Optional[Union[str, int]],
+    roll: str | int | None,
     calendar: CustomBusinessDay,
 ):
     """
@@ -899,11 +901,11 @@ def _infer_stub_date(
     termination: datetime,
     frequency: str,
     stub: str,
-    front_stub: Union[datetime, NoInput],
-    back_stub: Union[datetime, NoInput],
+    front_stub: datetime | NoInput,
+    back_stub: datetime | NoInput,
     modifier: str,
     eom: bool,
-    roll: Union[str, int, NoInput],
+    roll: str | int | NoInput,
     calendar: CustomBusinessDay,
 ) -> tuple[bool, Any]:
     """
@@ -1106,7 +1108,7 @@ def _get_unadjusted_stub_date(
     frequency: str,
     stub: str,
     eom: bool,
-    roll: Union[int, str, NoInput],
+    roll: int | str | NoInput,
 ) -> datetime:
     """
     Return an unadjusted stub date inferred from the dates and frequency.
@@ -1162,7 +1164,7 @@ def _get_unadjusted_short_stub_date(
     frequency: str,
     stub_side: str,
     eom: bool,
-    roll: Union[int, str, NoInput],
+    roll: int | str | NoInput,
 ):
     """
     Return an unadjusted short stub date inferred from the dates and frequency.
@@ -1254,9 +1256,9 @@ def _generate_irregular_schedule_unadjusted(
     ueffective: datetime,
     utermination: datetime,
     frequency: str,
-    roll: Union[int, str],
-    ufront_stub: Optional[datetime],
-    uback_stub: Optional[datetime],
+    roll: int | str,
+    ufront_stub: datetime | None,
+    uback_stub: datetime | None,
 ) -> Iterator[datetime]:
     """
     Generate unadjusted dates defining an irregular swap schedule.
@@ -1297,7 +1299,7 @@ def _generate_irregular_schedule_unadjusted(
 
 
 def _generate_regular_schedule_unadjusted(
-    ueffective: datetime, utermination: datetime, frequency: str, roll: Union[int, str]
+    ueffective: datetime, utermination: datetime, frequency: str, roll: int | str
 ) -> Iterator[datetime]:
     """
     Generates unadjusted dates defining a regular swap schedule.
