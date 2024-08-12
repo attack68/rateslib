@@ -1,4 +1,3 @@
-
 # Sphinx substitutions
 
 import abc
