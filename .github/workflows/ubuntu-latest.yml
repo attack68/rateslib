@@ -47,9 +47,9 @@ jobs:
         coverage run -m --source=rateslib pytest
         coverage report -m
     - name: Install Pandoc
-      uses: pandoc/actions/setup@{main}
+      uses: r-lib/actions/setup-pandoc@v2
       with:
-        version: 3.2
+        pandoc-version: '3.2' # The pandoc version to download (if necessary) and use.
     - name: Build Docs
       run: |
         cd docs && make html
