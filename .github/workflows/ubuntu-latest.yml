@@ -46,6 +46,8 @@ jobs:
       run: |
         coverage run -m --source=rateslib pytest
         coverage report -m
+    - name: Install Pandoc
+      uses: pandoc/actions/setup@{main}
     - name: Build Docs
       run: |
         cd docs && make html
