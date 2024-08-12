@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import combinations
 from time import time
-from typing import Callable, Optional, Union
+from typing import Callable
 from uuid import uuid4
 
 import numpy as np
@@ -95,7 +95,7 @@ class Gradients:
             self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
         return self._grad_s_vT
 
-    def _grad_s_vT_final_iteration_dual(self, algorithm: Optional[str] = None):
+    def _grad_s_vT_final_iteration_dual(self, algorithm: str | None = None):
         """
         This is not the ideal method since it requires reset_properties to reassess.
         """
@@ -938,21 +938,21 @@ class Solver(Gradients):
 
     def __init__(
         self,
-        curves: Union[list, tuple] = (),
-        surfaces: Union[list, tuple] = (),
-        instruments: Union[tuple[tuple], list[tuple]] = (),
+        curves: list | tuple = (),
+        surfaces: list | tuple = (),
+        instruments: tuple[tuple] | list[tuple] = (),
         s: list[float] = [],
-        weights: Optional[list] = NoInput(0),
-        algorithm: Optional[str] = NoInput(0),
-        fx: Union[FXForwards, FXRates, NoInput] = NoInput(0),
-        instrument_labels: Optional[tuple[str], list[str]] = NoInput(0),
-        id: Optional[str] = NoInput(0),
-        pre_solvers: Union[tuple[Solver], list[Solver]] = (),
+        weights: list | NoInput = NoInput(0),
+        algorithm: str | NoInput = NoInput(0),
+        fx: FXForwards | FXRates | NoInput = NoInput(0),
+        instrument_labels: tuple[str] | list[str] | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),
+        pre_solvers: tuple[Solver] | list[Solver] = (),
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
-        ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0),
-        callback: Union[Callable, NoInput] = NoInput(0),
+        ini_lambda: tuple[float, float, float] | NoInput = NoInput(0),
+        callback: Callable | NoInput = NoInput(0),
     ) -> None:
         self.callback = callback
         self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
@@ -1391,7 +1391,7 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def delta(self, npv, base: Union[str, NoInput] = NoInput(0), fx=NoInput(0)):
+    def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)):
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
@@ -1503,7 +1503,7 @@ class Solver(Gradients):
         return df.loc[:, sorted_cols].astype("float64")
 
     def _get_base_and_fx(
-        self, base: Union[str, NoInput], fx: Union[FXForwards, FXRates, float, NoInput]
+        self, base: str | NoInput, fx: FXForwards | FXRates | float | NoInput
     ):
         if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
             raise ValueError(
