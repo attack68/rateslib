@@ -872,10 +872,10 @@ class FXForwards:
         self,
         cashflow: str,
         collateral: str,
-        convention: Optional[str] = None,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
-        id: Optional[str] = None,
+        convention: str | NoInput = NoInput(0),
+        modifier: str | bool = False,
+        calendar: CustomBusinessDay | str | bool = False,
+        id: str | NoInput = NoInput(0),
     ):
         """
         Return a cash collateral curve.
