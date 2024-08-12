@@ -506,7 +506,7 @@ class Curve(_Serialize):
         n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
         _ = n_ / d_ * 100
 
-        if float_spread is not None and abs(float_spread) > 1e-9:
+        if float_spread is not NoInput(0) and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
                 return _ + float_spread / 100
             elif spread_compound_method == "isda_compounding":
