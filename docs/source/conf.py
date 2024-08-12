@@ -30,7 +30,7 @@ extensions = [
     'IPython.sphinxext.ipython_console_highlighting',
     'IPython.sphinxext.ipython_directive',
     'matplotlib.sphinxext.plot_directive',
-    'sphinx_automodapi.automodapi',
+    "sphinx_automodapi.automodapi",
     "nbsphinx",
 ]
 numpydoc_show_class_members = False  # for sphinx automod according to docs
