@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import math
 from functools import partial
 from statistics import NormalDist
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 
@@ -86,7 +88,7 @@ def set_order_convert(val, order, tag, vars_from=None):
     return set_order(val, order)
 
 
-def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifold: bool = False):
+def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold: bool = False):
     """
     Return derivatives of a dual number.
 
