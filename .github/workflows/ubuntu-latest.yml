@@ -34,3 +34,6 @@ jobs:
       run: |
         coverage run -m pytest
         coverage report -m
+    - name: Build Docs
+      run: |
+        cd docs && make html
