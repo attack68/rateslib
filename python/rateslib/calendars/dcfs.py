@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import calendar as calendar_mod
 import warnings
 from datetime import datetime
-from typing import Union
 
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
@@ -39,7 +40,7 @@ def _dcf_30e360(start: datetime, end: datetime, *args):
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
+def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoInput, *args):
     if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
@@ -74,10 +75,10 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
 def _dcf_actacticma(
     start: datetime,
     end: datetime,
-    termination: Union[datetime, NoInput],
-    frequency_months: Union[int, NoInput],
-    stub: Union[bool, NoInput],
-    roll: Union[str, int, NoInput],
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
     calendar: CalInput,
 ):
     if frequency_months is NoInput.blank:
@@ -140,10 +141,10 @@ def _dcf_actacticma(
 def _dcf_actacticma_stub365f(
     start: datetime,
     end: datetime,
-    termination: Union[datetime, NoInput],
-    frequency_months: Union[int, NoInput],
-    stub: Union[bool, NoInput],
-    roll: Union[str, int, NoInput],
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
     calendar: CalInput,
 ):
     """
@@ -205,10 +206,10 @@ def _dcf_1plus(start: datetime, end: datetime, *args):
 def _dcf_bus252(
     start: datetime,
     end: datetime,
-    termination: Union[datetime, NoInput],
-    frequency_months: Union[int, NoInput],
-    stub: Union[bool, NoInput],
-    roll: Union[str, int, NoInput],
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
     calendar: CalInput,
 ):
     """

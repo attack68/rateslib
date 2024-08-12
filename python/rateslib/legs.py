@@ -18,11 +18,12 @@
    )
 """
 
+from __future__ import annotations
+
 import abc
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from typing import Optional, Union
 
 import pandas as pd
 from pandas import DataFrame, Series
@@ -153,22 +154,22 @@ class BaseLeg(metaclass=ABCMeta):
     def __init__(
         self,
         effective: datetime,
-        termination: Union[datetime, str],
+        termination: datetime | str,
         frequency: str,
         *,
-        stub: Union[str, NoInput] = NoInput(0),
-        front_stub: Union[datetime, NoInput] = NoInput(0),
-        back_stub: Union[datetime, NoInput] = NoInput(0),
-        roll: Union[str, int, NoInput] = NoInput(0),
-        eom: Union[bool, NoInput] = NoInput(0),
-        modifier: Union[str, NoInput] = NoInput(0),
-        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
-        payment_lag: Union[int, NoInput] = NoInput(0),
-        notional: Union[float, NoInput] = NoInput(0),
-        currency: Union[str, NoInput] = NoInput(0),
-        amortization: Union[float, NoInput] = NoInput(0),
-        convention: Union[str, NoInput] = NoInput(0),
-        payment_lag_exchange: Union[int, NoInput] = NoInput(0),
+        stub: str | NoInput = NoInput(0),
+        front_stub: datetime | NoInput = NoInput(0),
+        back_stub: datetime | NoInput = NoInput(0),
+        roll: str | int | NoInput = NoInput(0),
+        eom: bool | NoInput = NoInput(0),
+        modifier: str | NoInput = NoInput(0),
+        calendar: CustomBusinessDay | str | NoInput = NoInput(0),
+        payment_lag: int | NoInput = NoInput(0),
+        notional: float | NoInput = NoInput(0),
+        currency: str | NoInput = NoInput(0),
+        amortization: float | NoInput = NoInput(0),
+        convention: str | NoInput = NoInput(0),
+        payment_lag_exchange: int | NoInput = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
     ):
@@ -574,7 +575,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
        fixed_leg_exch.npv(curve)
     """  # noqa: E501
 
-    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
+    def __init__(self, *args, fixed_rate: float | NoInput = NoInput(0), **kwargs):
         self._fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
         self._set_periods()
@@ -901,11 +902,11 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     def __init__(
         self,
         *args,
-        float_spread: Union[float, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, tuple, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        float_spread: float | NoInput = NoInput(0),
+        fixings: float | list | Series | tuple | NoInput = NoInput(0),
+        fixing_method: str | NoInput = NoInput(0),
+        method_param: int | NoInput = NoInput(0),
+        spread_compound_method: str | NoInput = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -1145,11 +1146,11 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
     def __init__(
         self,
         *args,
-        float_spread: Union[float, NoInput] = NoInput(0),
-        fixings: Union[float, list, Series, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        float_spread: float | NoInput = NoInput(0),
+        fixings: float | list | Series | NoInput = NoInput(0),
+        fixing_method: str | NoInput = NoInput(0),
+        method_param: int | NoInput = NoInput(0),
+        spread_compound_method: str | NoInput = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread
@@ -1216,9 +1217,9 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
     def npv(
         self,
         curve: Curve,
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
         """
@@ -1248,10 +1249,10 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     def analytic_delta(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         """
         Return the analytic delta of the *ZeroFloatLeg* from all periods.
@@ -1259,7 +1260,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         compounded_rate = 1.0
         for period in self.periods:
@@ -1275,10 +1276,10 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
 
     def cashflows(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         """
         Return the properties of the *ZeroFloatLeg* used in calculating cashflows.
@@ -1286,7 +1287,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if curve is NoInput.blank:
@@ -1379,7 +1380,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     """
 
-    def __init__(self, *args, fixed_rate: Union[float, NoInput] = NoInput(0), **kwargs):
+    def __init__(self, *args, fixed_rate: float | NoInput = NoInput(0), **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_rate = fixed_rate
         if self.schedule.frequency == "Z":
@@ -1442,10 +1443,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     def cashflows(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         """
         Return the cashflows of the *ZeroFixedLeg* from all periods.
@@ -1453,7 +1454,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
         """
-        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         rate = self.fixed_rate
         cashflow = self.periods[0].cashflow
@@ -1491,10 +1492,10 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
 
     def analytic_delta(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Return the analytic delta of the *ZeroFixedLeg* from all periods.
@@ -1502,7 +1503,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         if self.fixed_rate is NoInput.blank:
             return None
@@ -1608,10 +1609,10 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
     def __init__(
         self,
         *args,
-        index_base: Union[float, Series, NoInput] = NoInput(0),
-        index_fixings: Union[float, Series, NoInput] = NoInput(0),
-        index_method: Union[str, NoInput] = NoInput(0),
-        index_lag: Union[int, NoInput] = NoInput(0),
+        index_base: float | Series | NoInput = NoInput(0),
+        index_fixings: float | Series | NoInput = NoInput(0),
+        index_method: str | NoInput = NoInput(0),
+        index_lag: int | NoInput = NoInput(0),
         **kwargs,
     ):
         self.index_method = (
@@ -1651,7 +1652,7 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
             ),
         ]
 
-    def cashflow(self, curve: Optional[IndexCurve] = None):
+    def cashflow(self, curve: IndexCurve | None = None):
         """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using an
         *IndexCurve*."""
         _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
@@ -1778,10 +1779,10 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
         self,
         *args,
         index_base: float,
-        index_fixings: Union[float, Series, NoInput] = NoInput(0),
-        index_method: Union[str, NoInput] = NoInput(0),
-        index_lag: Union[int, NoInput] = NoInput(0),
-        fixed_rate: Union[float, NoInput] = NoInput(0),
+        index_fixings: float | Series | NoInput = NoInput(0),
+        index_method: str | NoInput = NoInput(0),
+        index_lag: int | NoInput = NoInput(0),
+        fixed_rate: float | NoInput = NoInput(0),
         **kwargs,
     ) -> None:
         self._fixed_rate = fixed_rate
@@ -1928,9 +1929,9 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def __init__(
         self,
         *args,
-        fx_fixings: Union[list, float, Dual, Dual2, NoInput] = NoInput(0),
-        alt_currency: Union[str, NoInput] = NoInput(0),
-        alt_notional: Union[float, NoInput] = NoInput(0),
+        fx_fixings: list | float | Dual | Dual2 | NoInput = NoInput(0),
+        alt_currency: str | NoInput = NoInput(0),
+        alt_notional: float | NoInput = NoInput(0),
         **kwargs,
     ):
         if alt_currency is NoInput.blank:
@@ -2127,9 +2128,9 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def npv(
         self,
         curve: Curve,
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
         if not self._do_not_repeat_set_periods:
@@ -2140,10 +2141,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def cashflows(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
@@ -2153,10 +2154,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def analytic_delta(
         self,
-        curve: Union[Curve, NoInput] = NoInput(0),
-        disc_curve: Union[Curve, NoInput] = NoInput(0),
-        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
@@ -2213,7 +2214,7 @@ class FixedLegMtm(BaseLegMtm, FixedLegMixin):
     def __init__(
         self,
         *args,
-        fixed_rate: Union[float, NoInput] = NoInput(0),
+        fixed_rate: float | NoInput = NoInput(0),
         **kwargs,
     ):
         self._fixed_rate = fixed_rate
@@ -2287,11 +2288,11 @@ class FloatLegMtm(BaseLegMtm, FloatLegMixin):
     def __init__(
         self,
         *args,
-        float_spread: Union[float, NoInput] = NoInput(0),
-        fixings: Union[float, list, NoInput] = NoInput(0),
-        fixing_method: Union[str, NoInput] = NoInput(0),
-        method_param: Union[int, NoInput] = NoInput(0),
-        spread_compound_method: Union[str, NoInput] = NoInput(0),
+        float_spread: float | NoInput = NoInput(0),
+        fixings: float | list | NoInput = NoInput(0),
+        fixing_method: str | NoInput = NoInput(0),
+        method_param: int | NoInput = NoInput(0),
+        spread_compound_method: str | NoInput = NoInput(0),
         **kwargs,
     ):
         self._float_spread = float_spread

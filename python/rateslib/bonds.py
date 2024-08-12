@@ -1,6 +1,7 @@
 # This file contains bond convention outlines
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Union
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
@@ -22,7 +23,7 @@ class _AccruedAndYTMMethods:
         )
         return _
 
-    def _accrued_fraction(self, settlement: datetime, calc_mode: Union[str, NoInput], acc_idx: int):
+    def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
         """
         Return the accrual fraction of period between last coupon and settlement and
         coupon period left index.
