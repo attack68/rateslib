@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # Sphinx substitutions
 
 import abc
