@@ -48,6 +48,8 @@ jobs:
         coverage report -m
     - name: Install Pandoc
       uses: pandoc/actions/setup@{main}
+      with:
+        version: 3.2
     - name: Build Docs
       run: |
         cd docs && make html
