@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import calendar as calendar_mod
 from datetime import datetime
-from typing import Union
 
 from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
@@ -26,10 +27,10 @@ def dcf(
     start: datetime,
     end: datetime,
     convention: str,
-    termination: Union[datetime, NoInput] = NoInput(0),  # required for 30E360ISDA and ActActICMA
-    frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
-    stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: Union[str, int, NoInput] = NoInput(0),  # required also for ActACtICMA = ...
+    termination: datetime | NoInput = NoInput(0),  # required for 30E360ISDA and ActActICMA
+    frequency_months: int | NoInput = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
+    stub: bool | NoInput = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
+    roll: str | int | NoInput = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -164,7 +165,7 @@ def add_tenor(
     tenor: str,
     modifier: str,
     calendar: CalInput = NoInput(0),
-    roll: Union[str, int, NoInput] = NoInput(0),
+    roll: str | int | NoInput = NoInput(0),
     settlement: bool = False,
     mod_days: bool = False,
 ) -> datetime:
@@ -316,7 +317,7 @@ def _adjust_date(
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
+def _get_roll(month: int, year: int, roll: str | int) -> datetime:
     if isinstance(roll, str):
         if roll == "eom":
             date = _get_eom(month, year)
@@ -452,11 +453,11 @@ def _is_som(date: datetime) -> bool:
 
 
 def _get_fx_expiry_and_delivery(
-    eval_date: Union[NoInput, datetime],
-    expiry: Union[str, datetime],
-    delivery_lag: Union[int, datetime],
+    eval_date: NoInput | datetime,
+    expiry: str | datetime,
+    delivery_lag: int | datetime,
     calendar: CalInput,
-    modifier: Union[str, NoInput],
+    modifier: str | NoInput,
     eom: bool,
 ):
     """
