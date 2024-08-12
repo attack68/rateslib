@@ -46,3 +46,6 @@ jobs:
       run: |
         coverage run -m --source=rateslib pytest
         coverage report -m
+    - name: Build Docs
+      run: |
+        cd docs && make html
