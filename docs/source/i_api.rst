@@ -160,28 +160,6 @@ Curves
    :no-heading:
    :inherited-members:
    :no-inheritance-diagram:
-   :skip: NoInput
-   :skip: Modifier
-   :skip: set_order_convert
-   :skip: add_tenor
-   :skip: create_calendar
-   :skip: dcf
-   :skip: dual_exp
-   :skip: dual_log
-   :skip: floor
-   :skip: get_calendar
-   :skip: plot
-   :skip: uuid4
-   :skip: Any
-   :skip: Dual
-   :skip: Dual2
-   :skip: PPSplineF64
-   :skip: PPSplineDual
-   :skip: PPSplineDual2
-   :skip: datetime
-   :skip: timedelta
-   :skip: comb
-   :skip: index_left_f64
 
 Class Inheritance Diagram
 --------------------------
@@ -220,6 +198,9 @@ FX Volatility
    :skip: uuid4
    :skip: Union
    :skip: datetime
+   :skip: dt
+   :skip: timedelta
+   :skip: Series
 
 Periods
 ========
