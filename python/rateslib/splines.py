@@ -53,5 +53,5 @@ __all__ = (
     "PPSplineF64",
     "PPSpline",
     "bspldnev_single",
-    "bsplev_single"
+    "bsplev_single",
 )

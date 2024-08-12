@@ -1502,9 +1502,7 @@ class Solver(Gradients):
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
 
-    def _get_base_and_fx(
-        self, base: str | NoInput, fx: FXForwards | FXRates | float | NoInput
-    ):
+    def _get_base_and_fx(self, base: str | NoInput, fx: FXForwards | FXRates | float | NoInput):
         if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
             raise ValueError(
                 "`base` is given but `fx` is not and Solver does not "
