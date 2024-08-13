@@ -59,7 +59,7 @@ from rateslib.curves import (
     index_left,
     interpolate,
 )
-from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve
+from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
@@ -148,6 +148,7 @@ __all__ = [
     "dual_log",
     "dual_exp",
     "dual_solve",
+    "gradient",
     # splines.py
     "bsplev_single",
     "bspldnev_single",
