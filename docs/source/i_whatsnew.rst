@@ -49,6 +49,8 @@ email contact through **rateslib@gmail.com**.
        for displaying intermediate spline calculation results of the spline coefficient matrix.
    * - Bug
      - *Dual* and *Dual2* fix support for pickling which allows multithreading across CPU pools.
+   * - Bug
+     - Expose :meth:`~rateslib.dual.gradient` as a method in the *rateslib* public API.
 
 1.3.0 (9th July 2024)
 ***********************
