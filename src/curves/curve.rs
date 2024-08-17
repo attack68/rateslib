@@ -7,9 +7,9 @@ use pyo3::PyErr;
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
-/// Default struct for storing discount factors (DFs).
+/// Default struct for storing datetime indexed discount factors (DFs).
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct Curve<T: CurveInterpolation> {
+pub struct CurveDF<T: CurveInterpolation> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
@@ -27,7 +27,7 @@ pub trait CurveInterpolation {
     }
 }
 
-impl<T: CurveInterpolation> Curve<T> {
+impl<T: CurveInterpolation> CurveDF<T> {
     pub fn try_new(nodes: Nodes, interpolator: T, id: &str) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
@@ -120,24 +120,24 @@ mod tests {
     use crate::curves::LogLinearInterpolator;
     use indexmap::IndexMap;
 
-    fn curve_fixture() -> Curve<LogLinearInterpolator> {
+    fn curve_fixture() -> CurveDF<LogLinearInterpolator> {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), 1.0_f64),
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
         let interpolator = LogLinearInterpolator::new();
-        Curve::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
     }
 
-    fn curve_dual_fixture() -> Curve<LogLinearInterpolator> {
+    fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator> {
         let nodes = Nodes::Dual(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), Dual::new(1.0, vec!["x".to_string()])),
             (ndt(2001, 1, 1), Dual::new(0.99, vec!["y".to_string()])),
             (ndt(2002, 1, 1), Dual::new(0.98, vec!["z".to_string()])),
         ]));
         let interpolator = LogLinearInterpolator::new();
-        Curve::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
     }
 
     #[test]

@@ -24,7 +24,7 @@ use splines::spline_py::{
 };
 
 pub mod curves;
-use curves::curve_py::PyCurve;
+use curves::curve_py::Curve;
 use curves::interpolation::interpolation_py::index_left_f64;
 use curves::{
     FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
@@ -61,7 +61,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bspldnev_single, m)?)?;
 
     // Curves
-    m.add_class::<PyCurve>()?;
+    m.add_class::<Curve>()?;
     m.add_function(wrap_pyfunction!(index_left_f64, m)?)?;
     m.add_class::<FlatBackwardInterpolator>()?;
     m.add_class::<FlatForwardInterpolator>()?;
