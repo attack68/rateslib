@@ -132,6 +132,16 @@ mod tests {
         Curve::try_new(nodes, interpolator, "crv").unwrap()
     }
 
+    fn curve_dual_fixture() -> Curve<LogLinearInterpolator> {
+        let nodes = Nodes::Dual(IndexMap::from_iter(vec![
+            (ndt(2000, 1, 1), Dual::new(1.0, vec!["x".to_string()])),
+            (ndt(2001, 1, 1), Dual::new(0.99, vec!["y".to_string()])),
+            (ndt(2002, 1, 1), Dual::new(0.98, vec!["z".to_string()])),
+        ]));
+        let interpolator = LogLinearInterpolator::new();
+        Curve::try_new(nodes, interpolator, "crv").unwrap()
+    }
+
     #[test]
     fn test_get_index() {
         let c = curve_fixture();
@@ -166,12 +176,37 @@ mod tests {
 
     #[test]
     fn test_set_order() {
+        // converts the input f64 nodes to dual with ordered variables tagged by id
         let mut curve = curve_fixture();
         let _ = curve.set_ad_order(ADOrder::One);
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
         assert_eq!(
             result,
             DualsOrF64::Dual(Dual::new(0.99, vec!["crv1".to_string()]))
+        );
+    }
+
+    #[test]
+    fn test_set_order_no_change() {
+        // asserts no change in values when AD order remains same
+        let mut curve = curve_dual_fixture();
+        let _ = curve.set_ad_order(ADOrder::One);
+        let result = curve.interpolated_value(&ndt(2001, 1, 1));
+        assert_eq!(
+            result,
+            DualsOrF64::Dual(Dual::new(0.99, vec!["y".to_string()]))
+        );
+    }
+
+    #[test]
+    fn test_set_order_vars_remain() {
+        // asserts no change in variables transitioning ADone to ADtwo
+        let mut curve = curve_dual_fixture();
+        let _ = curve.set_ad_order(ADOrder::Two);
+        let result = curve.interpolated_value(&ndt(2001, 1, 1));
+        assert_eq!(
+            result,
+            DualsOrF64::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
         );
     }
 }
