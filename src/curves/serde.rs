@@ -13,12 +13,8 @@ mod tests {
     use crate::calendars::ndt;
     use crate::curves::curve_py::CurveInterpolator;
     use crate::curves::{
-        LinearInterpolator,
-        LinearZeroRateInterpolator,
-        LogLinearInterpolator,
-        FlatForwardInterpolator,
-        FlatBackwardInterpolator,
-        Nodes,
+        FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
+        LinearZeroRateInterpolator, LogLinearInterpolator, Nodes,
     };
     use indexmap::IndexMap;
 
