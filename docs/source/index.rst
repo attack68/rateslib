@@ -177,8 +177,4 @@ Move on to the next page to :ref:`Get Started<pricing-doc>`
     i_about.rst
     i_api.rst
     i_whatsnew.rst
-
-
-
-
-
+    i_developers.rst
