@@ -4,11 +4,11 @@ import pytest
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
+    FlatBackwardInterpolator,
+    FlatForwardInterpolator,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
-    FlatBackwardInterpolator,
-    FlatForwardInterpolator,
     _get_interpolator,
 )
 from rateslib.dual import ADOrder
