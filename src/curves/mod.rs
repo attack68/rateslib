@@ -11,7 +11,7 @@ pub use crate::curves::interpolation::intp_linear_zero_rate::LinearZeroRateInter
 pub use crate::curves::interpolation::intp_log_linear::LogLinearInterpolator;
 
 pub(crate) mod curve;
-pub use crate::curves::curve::{Curve, CurveInterpolation};
+pub use crate::curves::curve::{CurveDF, CurveInterpolation};
 
 pub(crate) mod curve_py;
 
