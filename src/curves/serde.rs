@@ -38,7 +38,6 @@ mod tests {
                 let interpolator = $Variant::new();
                 let curve = curve_fixture(interpolator);
                 let js = curve.to_json().unwrap();
-                println!("{}", js);
                 let curve2 = CurveDF::from_json(&js).unwrap();
                 assert_eq!(curve, curve2);
             };
