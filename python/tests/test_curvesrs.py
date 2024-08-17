@@ -4,6 +4,8 @@ import pytest
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
+    FlatBackwardInterpolator,
+    FlatForwardInterpolator,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
@@ -45,11 +47,18 @@ def curvers():
         ("linear", LinearInterpolator),
         ("log_linear", LogLinearInterpolator),
         ("linear_zero_rate", LinearZeroRateInterpolator),
+        ("flat_forward", FlatForwardInterpolator),
+        ("flat_backward", FlatBackwardInterpolator),
     ],
 )
 def test_get_interpolator(name, expected):
     result = _get_interpolator(name)
     assert type(result) is expected
+
+
+def test_get_interpolation(curve):
+    result = curve.interpolation
+    assert result == "linear"
 
 
 def test_get_interpolator_raises():
