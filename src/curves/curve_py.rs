@@ -91,6 +91,22 @@ impl PyCurve {
         }
     }
 
+    #[getter]
+    fn ad(&self) -> ADOrder {
+        self.inner.ad()
+    }
+
+    #[getter]
+    fn interpolation(&self) -> String {
+        match self.inner.interpolator {
+            CurveInterpolator::Linear(_) => "linear".to_string(),
+            CurveInterpolator::LogLinear(_) => "log_linear".to_string(),
+            CurveInterpolator::LinearZeroRate(_) => "linear_zero_rate".to_string(),
+            CurveInterpolator::FlatForward(_) => "flat_forward".to_string(),
+            CurveInterpolator::FlatBackward(_) => "flat_backward".to_string(),
+        }
+    }
+
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
     }
