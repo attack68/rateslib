@@ -46,9 +46,7 @@ impl<T: CurveInterpolation> Curve<T> {
             NodesTimestamp::Dual2(_) => ADOrder::Two,
         }
     }
-}
 
-impl<T: CurveInterpolation> Curve<T> {
     pub fn interpolated_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
         self.interpolator.interpolated_value(&self.nodes, date)
     }
