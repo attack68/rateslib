@@ -50,9 +50,10 @@ impl Curve {
         interpolator: CurveInterpolator,
         ad: ADOrder,
         id: &str,
+        index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = CurveDF::try_new(nodes_, interpolator, id)?;
+        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base)?;
         Ok(Self { inner })
     }
 

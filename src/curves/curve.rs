@@ -124,7 +124,11 @@ impl<T: CurveInterpolation> CurveDF<T> {
         match self.index_base {
             None => Err(PyValueError::new_err("Can only calculate `index_value` for a Curve which has been initialised with `index_base`.")),
             Some(ib) => {
-                Ok(DualsOrF64::F64(ib) * self.interpolated_value(date))
+                if date.and_utc().timestamp() < self.nodes.first_key() {
+                    Ok(DualsOrF64::F64(0.0))
+                } else {
+                    Ok(DualsOrF64::F64(ib) / self.interpolated_value(date))
+                }
             }
         }
     }
@@ -144,7 +148,17 @@ mod tests {
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
         let interpolator = LogLinearInterpolator::new();
-        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", None).unwrap()
+    }
+
+    fn index_curve_fixture() -> CurveDF<LogLinearInterpolator> {
+        let nodes = Nodes::F64(IndexMap::from_iter(vec![
+            (ndt(2000, 1, 1), 1.0_f64),
+            (ndt(2001, 1, 1), 0.99_f64),
+            (ndt(2002, 1, 1), 0.98_f64),
+        ]));
+        let interpolator = LogLinearInterpolator::new();
+        CurveDF::try_new(nodes, interpolator, "crv", Some(100.0)).unwrap()
     }
 
     fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator> {
@@ -154,7 +168,7 @@ mod tests {
             (ndt(2002, 1, 1), Dual::new(0.98, vec!["z".to_string()])),
         ]));
         let interpolator = LogLinearInterpolator::new();
-        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", None).unwrap()
     }
 
     #[test]
@@ -223,5 +237,12 @@ mod tests {
             result,
             DualsOrF64::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
         );
+    }
+
+    #[test]
+    fn test_index_value() {
+        let index_curve = index_curve_fixture();
+        let result = index_curve.index_value(&ndt(2001, 1, 1)).unwrap();
+        assert_eq!(result, DualsOrF64::F64(100.0 / 0.99))
     }
 }
