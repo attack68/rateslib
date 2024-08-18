@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use pyo3::PyErr;
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
+use pyo3::exceptions::PyValueError;
 
 /// Default struct for storing datetime indexed discount factors (DFs).
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -13,6 +14,7 @@ pub struct CurveDF<T: CurveInterpolation> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
+    pub(crate) index_base: Option<f64>
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.
@@ -28,13 +30,19 @@ pub trait CurveInterpolation {
 }
 
 impl<T: CurveInterpolation> CurveDF<T> {
-    pub fn try_new(nodes: Nodes, interpolator: T, id: &str) -> Result<Self, PyErr> {
+    pub fn try_new(
+        nodes: Nodes,
+        interpolator: T,
+        id: &str,
+        index_base: Option<f64>,
+    ) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
         Ok(Self {
             nodes,
             interpolator,
             id: id.to_string(),
+            index_base,
         })
     }
 
@@ -108,6 +116,15 @@ impl<T: CurveInterpolation> CurveDF<T> {
                     i.into_iter().map(|(k, v)| (*k, Dual2::from(v))),
                 ));
                 Ok(())
+            }
+        }
+    }
+
+    pub fn index_value(&self, date: &NaiveDateTime) -> Result<DualsOrF64, PyErr> {
+        match self.index_base {
+            None => Err(PyValueError::new_err("Can only calculate `index_value` for a Curve which has been initialised with `index_base`.")),
+            Some(ib) => {
+                Ok(DualsOrF64::F64(ib) * self.interpolated_value(date))
             }
         }
     }
