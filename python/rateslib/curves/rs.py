@@ -1,5 +1,6 @@
 from datetime import datetime as dt
 
+from rateslib.default import NoInput, _drb
 from rateslib.dual import _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 from rateslib.rs import (
@@ -12,9 +13,9 @@ from rateslib.rs import (
 
 
 class CurveRs:
-    def __init__(self, nodes, interpolation, id, ad):
+    def __init__(self, nodes, interpolation, id, ad, index_base=NoInput(0)):
         interpolation = _get_interpolator(interpolation)
-        self.obj = CurveObj(nodes, interpolation, _get_adorder(ad), id)
+        self.obj = CurveObj(nodes, interpolation, _get_adorder(ad), id, _drb(None, index_base))
 
     def to_json(self):
         return '{"Py":' + self.obj.to_json() + "}"

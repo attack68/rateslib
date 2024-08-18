@@ -2,7 +2,7 @@
 //! bindings.
 
 use crate::calendars::{Cal, NamedCal, UnionCal};
-use crate::curves::curve_py::PyCurve;
+use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
@@ -23,7 +23,7 @@ pub(crate) enum DeserializedObj {
     UnionCal(UnionCal),
     NamedCal(NamedCal),
     FXRates(FXRates),
-    PyCurve(PyCurve),
+    PyCurve(Curve),
 }
 
 impl IntoPy<PyObject> for DeserializedObj {

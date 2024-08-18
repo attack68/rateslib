@@ -2,7 +2,7 @@
 
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
-    Curve, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
+    CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
     LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator,
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
@@ -36,23 +36,24 @@ impl CurveInterpolation for CurveInterpolator {
     }
 }
 
-#[pyclass(name = "Curve", module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Deserialize, Serialize)]
-pub(crate) struct PyCurve {
-    inner: Curve<CurveInterpolator>,
+pub(crate) struct Curve {
+    inner: CurveDF<CurveInterpolator>,
 }
 
 #[pymethods]
-impl PyCurve {
+impl Curve {
     #[new]
     fn new_py(
         nodes: IndexMap<NaiveDateTime, DualsOrF64>,
         interpolator: CurveInterpolator,
         ad: ADOrder,
         id: &str,
+        index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = Curve::try_new(nodes_, interpolator, id)?;
+        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base)?;
         Ok(Self { inner })
     }
 
@@ -93,11 +94,16 @@ impl PyCurve {
         }
     }
 
+    #[pyo3(name = "index_value")]
+    fn index_value_py(&self, date: NaiveDateTime) -> PyResult<DualsOrF64> {
+        self.inner.index_value(&date)
+    }
+
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
     }
 
-    fn __eq__(&self, other: PyCurve) -> bool {
+    fn __eq__(&self, other: Curve) -> bool {
         self.inner.eq(&other.inner)
     }
 

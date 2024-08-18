@@ -19,6 +19,16 @@ pub enum NodesTimestamp {
     Dual2(IndexMap<i64, Dual2>),
 }
 
+impl NodesTimestamp {
+    pub fn first_key(&self) -> i64 {
+        match self {
+            NodesTimestamp::F64(m) => *m.first().unwrap().0,
+            NodesTimestamp::Dual(m) => *m.first().unwrap().0,
+            NodesTimestamp::Dual2(m) => *m.first().unwrap().0,
+        }
+    }
+}
+
 impl From<Nodes> for NodesTimestamp {
     fn from(value: Nodes) -> Self {
         match value {
