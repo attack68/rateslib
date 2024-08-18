@@ -3,6 +3,7 @@ use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
+use pyo3::exceptions::PyValueError;
 use pyo3::PyErr;
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
@@ -13,6 +14,7 @@ pub struct CurveDF<T: CurveInterpolation> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
+    pub(crate) index_base: Option<f64>,
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.
@@ -28,13 +30,19 @@ pub trait CurveInterpolation {
 }
 
 impl<T: CurveInterpolation> CurveDF<T> {
-    pub fn try_new(nodes: Nodes, interpolator: T, id: &str) -> Result<Self, PyErr> {
+    pub fn try_new(
+        nodes: Nodes,
+        interpolator: T,
+        id: &str,
+        index_base: Option<f64>,
+    ) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
         Ok(Self {
             nodes,
             interpolator,
             id: id.to_string(),
+            index_base,
         })
     }
 
@@ -111,6 +119,19 @@ impl<T: CurveInterpolation> CurveDF<T> {
             }
         }
     }
+
+    pub fn index_value(&self, date: &NaiveDateTime) -> Result<DualsOrF64, PyErr> {
+        match self.index_base {
+            None => Err(PyValueError::new_err("Can only calculate `index_value` for a Curve which has been initialised with `index_base`.")),
+            Some(ib) => {
+                if date.and_utc().timestamp() < self.nodes.first_key() {
+                    Ok(DualsOrF64::F64(0.0))
+                } else {
+                    Ok(DualsOrF64::F64(ib) / self.interpolated_value(date))
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -127,7 +148,17 @@ mod tests {
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
         let interpolator = LogLinearInterpolator::new();
-        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", None).unwrap()
+    }
+
+    fn index_curve_fixture() -> CurveDF<LogLinearInterpolator> {
+        let nodes = Nodes::F64(IndexMap::from_iter(vec![
+            (ndt(2000, 1, 1), 1.0_f64),
+            (ndt(2001, 1, 1), 0.99_f64),
+            (ndt(2002, 1, 1), 0.98_f64),
+        ]));
+        let interpolator = LogLinearInterpolator::new();
+        CurveDF::try_new(nodes, interpolator, "crv", Some(100.0)).unwrap()
     }
 
     fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator> {
@@ -137,7 +168,7 @@ mod tests {
             (ndt(2002, 1, 1), Dual::new(0.98, vec!["z".to_string()])),
         ]));
         let interpolator = LogLinearInterpolator::new();
-        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", None).unwrap()
     }
 
     #[test]
@@ -206,5 +237,19 @@ mod tests {
             result,
             DualsOrF64::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
         );
+    }
+
+    #[test]
+    fn test_index_value() {
+        let index_curve = index_curve_fixture();
+        let result = index_curve.index_value(&ndt(2001, 1, 1)).unwrap();
+        assert_eq!(result, DualsOrF64::F64(100.0 / 0.99))
+    }
+
+    #[test]
+    fn test_index_value_prior_to_first() {
+        let index_curve = index_curve_fixture();
+        let result = index_curve.index_value(&ndt(1980, 1, 1)).unwrap();
+        assert_eq!(result, DualsOrF64::F64(0.0))
     }
 }
