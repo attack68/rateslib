@@ -50,6 +50,6 @@ mod tests {
     fn test_null_interpolation() {
         let nts = nodes_timestamp_fixture();
         let li = NullInterpolator::new();
-        let result = li.interpolated_value(&nts, &ndt(2000, 7, 1));
+        li.interpolated_value(&nts, &ndt(2000, 7, 1));
     }
 }
