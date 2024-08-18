@@ -5,6 +5,7 @@ use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
     LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
 };
+use crate::calendars::CalType;
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
@@ -41,7 +42,7 @@ impl CurveInterpolation for CurveInterpolator {
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct Curve {
-    inner: CurveDF<CurveInterpolator>,
+    inner: CurveDF<CurveInterpolator, CalType>,
 }
 
 #[pymethods]

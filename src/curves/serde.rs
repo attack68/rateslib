@@ -1,16 +1,20 @@
 use crate::curves::curve_py::Curve;
 use crate::curves::{CurveDF, CurveInterpolation};
+use crate::calendars::DateRoll;
 use crate::json::JSON;
 use serde::{Deserialize, Serialize};
 
-impl<T: CurveInterpolation + for<'a> Deserialize<'a> + Serialize> JSON for CurveDF<T> {}
+impl<T, U> JSON for CurveDF<T, U>
+where T: CurveInterpolation + for<'a> Deserialize<'a> + Serialize,
+      U: DateRoll + for<'a> Deserialize<'a> + Serialize
+{}
 
 impl JSON for Curve {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::calendars::{ndt, NamedCal};
     use crate::curves::curve_py::CurveInterpolator;
     use crate::curves::{
         FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
@@ -18,13 +22,13 @@ mod tests {
     };
     use indexmap::IndexMap;
 
-    fn curve_fixture<T: CurveInterpolation>(interpolator: T) -> CurveDF<T> {
+    fn curve_fixture<T: CurveInterpolation>(interpolator: T) -> CurveDF<T, NamedCal> {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), 1.0_f64),
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
-        CurveDF::try_new(nodes, interpolator, "crv", None).unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", None, NamedCal::try_new("all").unwrap()).unwrap()
     }
 
     #[test]
