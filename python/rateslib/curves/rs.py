@@ -27,7 +27,7 @@ class CurveRs:
         ad: int = 0,
         index_base: float | NoInput = NoInput(0),
     ):
-        self._py_interpolator = interpolation if isinstance(interpolation, callable) else None
+        self._py_interpolator = interpolation if callable(interpolation) else None
 
         self.obj = CurveObj(
             nodes=nodes,
@@ -72,7 +72,13 @@ class CurveRs:
 
     @classmethod
     def __init_from_obj__(cls, obj):
-        new = cls({dt(2000, 1, 1): 1.0}, "linear", "_", 0)
+        new = cls(
+            nodes={dt(2000, 1, 1): 1.0},
+            interpolation="linear",
+            id="_",
+            ad=0,
+            index_base=NoInput(0),
+        )
         new.obj = obj
         return new
 
