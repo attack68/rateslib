@@ -28,7 +28,7 @@ use curves::curve_py::Curve;
 use curves::interpolation::interpolation_py::index_left_f64;
 use curves::{
     FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
-    LinearZeroRateInterpolator, LogLinearInterpolator,
+    LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
 };
 
 pub mod calendars;
@@ -68,6 +68,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<LinearInterpolator>()?;
     m.add_class::<LogLinearInterpolator>()?;
     m.add_class::<LinearZeroRateInterpolator>()?;
+    m.add_class::<NullInterpolator>()?;
 
     // Calendars
     m.add_class::<Cal>()?;
