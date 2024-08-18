@@ -22,8 +22,9 @@ impl NullInterpolator {
 }
 
 impl CurveInterpolation for NullInterpolator {
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+    fn interpolated_value(&self, _nodes: &NodesTimestamp, _date: &NaiveDateTime) -> DualsOrF64 {
         panic!("NullInterpolator cannot be used to obtain interpolated values.");
+        #[allow(unreachable_code)]
         DualsOrF64::F64(0.0)
     }
 }
