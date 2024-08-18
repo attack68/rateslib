@@ -94,6 +94,11 @@ impl Curve {
         }
     }
 
+    #[pyo3(name = "index_value")]
+    fn index_value_py(&self, date: NaiveDateTime) -> PyResult<DualsOrF64> {
+        self.inner.index_value(&date)
+    }
+
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
     }

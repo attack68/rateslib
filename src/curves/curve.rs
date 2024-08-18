@@ -245,4 +245,11 @@ mod tests {
         let result = index_curve.index_value(&ndt(2001, 1, 1)).unwrap();
         assert_eq!(result, DualsOrF64::F64(100.0 / 0.99))
     }
+
+    #[test]
+    fn test_index_value_prior_to_first() {
+        let index_curve = index_curve_fixture();
+        let result = index_curve.index_value(&ndt(1980, 1, 1)).unwrap();
+        assert_eq!(result, DualsOrF64::F64(0.0))
+    }
 }
