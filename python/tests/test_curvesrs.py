@@ -41,6 +41,20 @@ def curvers():
     )
 
 
+@pytest.fixture()
+def indexcurvers():
+    return CurveObj(
+        nodes={
+            dt(2022, 3, 1): 1.00,
+            dt(2022, 3, 31): 0.99,
+        },
+        interpolator=LinearInterpolator(),
+        id="v",
+        ad=ADOrder.One,
+        index_base=100.0,
+    )
+
+
 @pytest.mark.parametrize(
     "name, expected",
     [
@@ -98,3 +112,8 @@ def test_interp_constructs(kind):
         ad=1,
     )
     assert isinstance(result, CurveRs)
+
+
+def test_index_value(indexcurvers):
+    result = indexcurvers.index_value(dt(2022, 3, 31))
+    assert abs(result - 100.0 / 0.99) < 1e-12

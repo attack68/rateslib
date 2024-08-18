@@ -24,7 +24,7 @@ mod tests {
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
-        CurveDF::try_new(nodes, interpolator, "crv").unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", None).unwrap()
     }
 
     #[test]
