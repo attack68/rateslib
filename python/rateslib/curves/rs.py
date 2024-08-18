@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb
-from rateslib.dual import _get_adorder, ADOrder
+from rateslib.dual import ADOrder, _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 from rateslib.rs import (
     FlatBackwardInterpolator,
@@ -34,7 +34,7 @@ class CurveRs:
             interpolator=self._validate_interpolator(interpolation),
             ad=_get_adorder(ad),
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
-            index_base=_drb(None, index_base)
+            index_base=_drb(None, index_base),
         )
 
     @property
