@@ -3,10 +3,10 @@ use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
+use pyo3::exceptions::PyValueError;
 use pyo3::PyErr;
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
-use pyo3::exceptions::PyValueError;
 
 /// Default struct for storing datetime indexed discount factors (DFs).
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -14,7 +14,7 @@ pub struct CurveDF<T: CurveInterpolation> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
-    pub(crate) index_base: Option<f64>
+    pub(crate) index_base: Option<f64>,
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.
