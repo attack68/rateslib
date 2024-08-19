@@ -9,9 +9,9 @@ from rateslib.curves.rs import (
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
-    _get_interpolator,
     _get_convention,
     _get_convention_str,
+    _get_interpolator,
 )
 from rateslib.dual import ADOrder
 from rateslib.json import from_json

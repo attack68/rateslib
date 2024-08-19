@@ -15,7 +15,7 @@ from rateslib.rs import (
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
     NullInterpolator,
-    _get_convention_str
+    _get_convention_str,
 )
 
 
