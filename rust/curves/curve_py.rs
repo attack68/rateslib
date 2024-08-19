@@ -1,9 +1,10 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
+use crate::calendars::{Convention, Modifier};
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
-    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator,
+    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
@@ -20,8 +21,9 @@ pub(crate) enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),
     LinearZeroRate(LinearZeroRateInterpolator),
-    FlatForward(FlatForwardInterpolator), //     LinearIndex,
+    FlatForward(FlatForwardInterpolator),
     FlatBackward(FlatBackwardInterpolator),
+    Null(NullInterpolator),
 }
 
 impl CurveInterpolation for CurveInterpolator {
@@ -32,6 +34,7 @@ impl CurveInterpolation for CurveInterpolator {
             CurveInterpolator::LinearZeroRate(i) => i.interpolated_value(nodes, date),
             CurveInterpolator::FlatBackward(i) => i.interpolated_value(nodes, date),
             CurveInterpolator::FlatForward(i) => i.interpolated_value(nodes, date),
+            CurveInterpolator::Null(i) => i.interpolated_value(nodes, date),
         }
     }
 }
@@ -50,10 +53,12 @@ impl Curve {
         interpolator: CurveInterpolator,
         ad: ADOrder,
         id: &str,
+        convention: Convention,
+        modifier: Modifier,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base)?;
+        let inner = CurveDF::try_new(nodes_, interpolator, id, convention, modifier, index_base)?;
         Ok(Self { inner })
     }
 
@@ -91,7 +96,18 @@ impl Curve {
             CurveInterpolator::LinearZeroRate(_) => "linear_zero_rate".to_string(),
             CurveInterpolator::FlatForward(_) => "flat_forward".to_string(),
             CurveInterpolator::FlatBackward(_) => "flat_backward".to_string(),
+            CurveInterpolator::Null(_) => "null".to_string(),
         }
+    }
+
+    #[getter]
+    fn convention(&self) -> Convention {
+        self.inner.convention
+    }
+
+    #[getter]
+    fn modifier(&self) -> Modifier {
+        self.inner.modifier
     }
 
     #[pyo3(name = "index_value")]

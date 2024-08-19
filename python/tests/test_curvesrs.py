@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
+from rateslib.calendars import _get_modifier
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -9,6 +10,8 @@ from rateslib.curves.rs import (
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
+    _get_convention,
+    _get_convention_str,
     _get_interpolator,
 )
 from rateslib.dual import ADOrder
@@ -25,6 +28,8 @@ def curve():
         interpolator=LinearInterpolator(),
         id="v",
         ad=ADOrder.One,
+        convention=_get_convention("Act360"),
+        modifier=_get_modifier("MF", True),
     )
 
 
@@ -51,6 +56,8 @@ def indexcurvers():
         interpolator=LinearInterpolator(),
         id="v",
         ad=ADOrder.One,
+        convention=_get_convention("Act360"),
+        modifier=_get_modifier("MF", True),
         index_base=100.0,
     )
 
@@ -73,6 +80,21 @@ def test_get_interpolator(name, expected):
 def test_get_interpolation(curve):
     result = curve.interpolation
     assert result == "linear"
+
+
+def test_get_modifier(curvers):
+    result = curvers.modifier
+    assert result == "MF"
+
+
+def test_get_convention(curvers):
+    result = curvers.convention
+    assert result == "Act360"
+
+
+def test_get_ad(curvers):
+    result = curvers.ad
+    assert result == 1
 
 
 def test_get_interpolator_raises():
