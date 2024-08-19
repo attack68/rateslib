@@ -99,6 +99,11 @@ impl Curve {
         }
     }
 
+    #[getter]
+    fn convention(&self) -> Convention {
+        self.inner.convention
+    }
+
     #[pyo3(name = "index_value")]
     fn index_value_py(&self, date: NaiveDateTime) -> PyResult<DualsOrF64> {
         self.inner.index_value(&date)

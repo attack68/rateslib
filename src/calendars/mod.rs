@@ -78,6 +78,7 @@ pub use crate::calendars::dateroll::{get_imm, get_roll, DateRoll, Modifier, Roll
 
 mod dcfs;
 pub use crate::calendars::dcfs::Convention;
+pub(crate) use crate::calendars::dcfs::_get_convention_str;
 
 mod serde;
 

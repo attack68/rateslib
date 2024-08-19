@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars.dcfs import _get_convention
+from rateslib.calendars.dcfs import _get_convention, _get_convention_str
 from rateslib.default import NoInput, _drb
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
@@ -45,6 +45,10 @@ class CurveRs:
         return self.obj.id
 
     @property
+    def convention(self):
+        return _get_convention_str(self.obj.convention)
+
+    @property
     def interpolation(self):
         return self.obj.interpolation
 
@@ -55,9 +59,9 @@ class CurveRs:
     @property
     def ad(self):
         _ = self.obj.ad
-        if _ is ADOrder.One:
+        if _ == ADOrder.One:
             return 1
-        elif _ is ADOrder.Two:
+        elif _ == ADOrder.Two:
             return 2
         return 0
 

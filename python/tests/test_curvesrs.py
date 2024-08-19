@@ -77,6 +77,16 @@ def test_get_interpolation(curve):
     assert result == "linear"
 
 
+def test_get_convention(curvers):
+    result = curvers.convention
+    assert result == "Act360"
+
+
+def test_get_ad(curvers):
+    result = curvers.ad
+    assert result == 1
+
+
 def test_get_interpolator_raises():
     with pytest.raises(ValueError, match="Interpolator `name` is invalid"):
         _get_interpolator("bad")

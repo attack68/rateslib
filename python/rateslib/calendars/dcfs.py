@@ -4,7 +4,7 @@ import calendar as calendar_mod
 import warnings
 from datetime import datetime
 
-from rateslib.rs import Convention
+from rateslib.rs import Convention, _get_convention_str
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
 
@@ -28,11 +28,14 @@ CONVENTIONS_MAP = {
     "1+": Convention.OnePlus,
     "BUS252": Convention.Bus252,
 }
+
+
 def _get_convention(convention: str) -> Convention:
     try:
         return CONVENTIONS_MAP[convention.upper()]
     except KeyError:
         raise ValueError(f"`convention`: {convention}, is not valid.")
+
 
 def _dcf_act365f(start: datetime, end: datetime, *args):
     return (end - start).days / 365.0
