@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
+from rateslib.calendars import _get_modifier
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -13,7 +14,6 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
-from rateslib.calendars import _get_modifier
 from rateslib.dual import ADOrder
 from rateslib.json import from_json
 
@@ -29,7 +29,7 @@ def curve():
         id="v",
         ad=ADOrder.One,
         convention=_get_convention("Act360"),
-        modifier=_get_modifier("MF", True)
+        modifier=_get_modifier("MF", True),
     )
 
 

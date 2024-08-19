@@ -33,7 +33,9 @@ use curves::{
 
 pub mod calendars;
 use calendars::calendar_py::get_calendar_by_name_py;
-use calendars::{Cal, Convention, Modifier, NamedCal, RollDay, UnionCal, _get_convention_str, _get_modifier_str};
+use calendars::{
+    Cal, Convention, Modifier, NamedCal, RollDay, UnionCal, _get_convention_str, _get_modifier_str,
+};
 
 pub mod fx;
 use fx::rates::ccy::Ccy;

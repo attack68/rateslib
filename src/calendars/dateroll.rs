@@ -3,8 +3,8 @@ use chrono::prelude::*;
 use chrono::{Days, Weekday};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
+use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialEq};
-use serde::{Serialize, Deserialize};
 
 /// A roll day.
 #[pyclass(module = "rateslib.rs")]

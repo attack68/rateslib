@@ -169,7 +169,15 @@ mod tests {
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
         let modifier = Modifier::ModF;
-        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, Some(100.0)).unwrap()
+        CurveDF::try_new(
+            nodes,
+            interpolator,
+            "crv",
+            convention,
+            modifier,
+            Some(100.0),
+        )
+        .unwrap()
     }
 
     fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator> {
