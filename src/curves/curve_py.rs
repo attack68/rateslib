@@ -1,5 +1,6 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
+use crate::calendars::Convention;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
@@ -52,10 +53,11 @@ impl Curve {
         interpolator: CurveInterpolator,
         ad: ADOrder,
         id: &str,
+        convention: Convention,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base)?;
+        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base, convention)?;
         Ok(Self { inner })
     }
 
@@ -95,6 +97,11 @@ impl Curve {
             CurveInterpolator::FlatBackward(_) => "flat_backward".to_string(),
             CurveInterpolator::Null(_) => "null".to_string(),
         }
+    }
+
+    #[getter]
+    fn convention(&self) -> Convention {
+        self.inner.convention
     }
 
     #[pyo3(name = "index_value")]
