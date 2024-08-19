@@ -13,6 +13,7 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
+from rateslib.calendars import _get_modifier
 from rateslib.dual import ADOrder
 from rateslib.json import from_json
 
@@ -28,6 +29,7 @@ def curve():
         id="v",
         ad=ADOrder.One,
         convention=_get_convention("Act360"),
+        modifier=_get_modifier("MF", True)
     )
 
 
@@ -54,8 +56,9 @@ def indexcurvers():
         interpolator=LinearInterpolator(),
         id="v",
         ad=ADOrder.One,
-        index_base=100.0,
         convention=_get_convention("Act360"),
+        modifier=_get_modifier("MF", True),
+        index_base=100.0,
     )
 
 
@@ -77,6 +80,11 @@ def test_get_interpolator(name, expected):
 def test_get_interpolation(curve):
     result = curve.interpolation
     assert result == "linear"
+
+
+def test_get_modifier(curvers):
+    result = curvers.modifier
+    assert result == "MF"
 
 
 def test_get_convention(curvers):

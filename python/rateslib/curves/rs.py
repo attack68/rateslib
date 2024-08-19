@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars.dcfs import _get_convention
+from rateslib.calendars.dcfs import _get_convention, _get_modifier
 from rateslib.default import NoInput, _drb
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
@@ -16,6 +16,7 @@ from rateslib.rs import (
     LogLinearInterpolator,
     NullInterpolator,
     _get_convention_str,
+    _get_modifier_str,
 )
 
 
@@ -27,6 +28,7 @@ class CurveRs:
         interpolation: str | callable | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
+        modifier: str | NoInput = NoInput(0),
         ad: int = 0,
         index_base: float | NoInput = NoInput(0),
     ):
@@ -38,6 +40,7 @@ class CurveRs:
             ad=_get_adorder(ad),
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
             convention=_get_convention(_drb(defaults.convention, convention)),
+            modifier=_get_modifier(_drb(defaults.modifier, modifier), True),
             index_base=_drb(None, index_base),
         )
 
@@ -48,6 +51,10 @@ class CurveRs:
     @property
     def convention(self):
         return _get_convention_str(self.obj.convention)
+
+    @property
+    def modifier(self):
+        return _get_modifier_str(self.obj.modifier)
 
     @property
     def interpolation(self):

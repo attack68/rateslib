@@ -12,6 +12,17 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::collections::HashSet;
 
+#[pyfunction]
+pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {
+    match modifier {
+        Modifier::F => "F".to_string(),
+        Modifier::ModF => "MF".to_string(),
+        Modifier::P => "P".to_string(),
+        Modifier::ModP => "MP".to_string(),
+        Modifier::Act => "NONE".to_string(),
+    }
+}
+
 #[pymethods]
 impl Cal {
     /// Create a new *Cal* object.
