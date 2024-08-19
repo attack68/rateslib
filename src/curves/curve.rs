@@ -1,7 +1,7 @@
+use crate::calendars::Convention;
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
-use crate::calendars::Convention;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;

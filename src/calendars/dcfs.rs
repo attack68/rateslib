@@ -1,6 +1,6 @@
+use pyo3::{pyclass, pyfunction};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
-use pyo3::{pyclass, pyfunction};
 
 #[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]

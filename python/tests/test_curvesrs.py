@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
+from rateslib.calendars.dcfs import _get_convention
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -13,7 +14,7 @@ from rateslib.curves.rs import (
 )
 from rateslib.dual import ADOrder
 from rateslib.json import from_json
-from rateslib.calendars.dcfs import _get_convention
+
 
 @pytest.fixture()
 def curve():

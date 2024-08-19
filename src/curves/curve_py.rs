@@ -1,11 +1,11 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
+use crate::calendars::Convention;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
     LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
 };
-use crate::calendars::Convention;
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;

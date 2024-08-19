@@ -4,9 +4,9 @@ import calendar as calendar_mod
 import warnings
 from datetime import datetime
 
-from rateslib.rs import Convention, _get_convention_str
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
+from rateslib.rs import Convention
 
 CONVENTIONS_MAP = {
     "ACT365F": Convention.Act365F,
