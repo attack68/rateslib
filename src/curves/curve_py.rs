@@ -56,10 +56,13 @@ impl Curve {
         id: &str,
         convention: Convention,
         modifier: Modifier,
+        calendar: CalType,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = CurveDF::try_new(nodes_, interpolator, id, convention, modifier, index_base)?;
+        let inner = CurveDF::try_new(
+            nodes_, interpolator, id, convention, modifier, index_base, calendar
+        )?;
         Ok(Self { inner })
     }
 

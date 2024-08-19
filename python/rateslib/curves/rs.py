@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars.dcfs import _get_convention, _get_modifier
+from rateslib.calendars import _get_convention, _get_modifier, CalInput, get_calendar
 from rateslib.default import NoInput, _drb
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
@@ -29,6 +29,7 @@ class CurveRs:
         id: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
+        calendar: CalInput = NoInput(0),
         ad: int = 0,
         index_base: float | NoInput = NoInput(0),
     ):
@@ -41,6 +42,7 @@ class CurveRs:
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
             convention=_get_convention(_drb(defaults.convention, convention)),
             modifier=_get_modifier(_drb(defaults.modifier, modifier), True),
+            calendar=get_calendar(calendar, kind=False, named=True),
             index_base=_drb(None, index_base),
         )
 
