@@ -1,4 +1,4 @@
-use crate::calendars::Convention;
+use crate::calendars::{Convention, Modifier};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
@@ -15,8 +15,9 @@ pub struct CurveDF<T: CurveInterpolation> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
-    pub(crate) index_base: Option<f64>,
     pub(crate) convention: Convention,
+    pub(crate) modifier: Modifier,
+    pub(crate) index_base: Option<f64>,
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.
@@ -36,8 +37,9 @@ impl<T: CurveInterpolation> CurveDF<T> {
         nodes: Nodes,
         interpolator: T,
         id: &str,
-        index_base: Option<f64>,
         convention: Convention,
+        modifier: Modifier,
+        index_base: Option<f64>,
     ) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
@@ -45,8 +47,9 @@ impl<T: CurveInterpolation> CurveDF<T> {
             nodes,
             interpolator,
             id: id.to_string(),
-            index_base,
             convention,
+            modifier,
+            index_base,
         })
     }
 
@@ -153,7 +156,8 @@ mod tests {
         ]));
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
-        CurveDF::try_new(nodes, interpolator, "crv", None, convention).unwrap()
+        let modifier = Modifier::ModF;
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None).unwrap()
     }
 
     fn index_curve_fixture() -> CurveDF<LogLinearInterpolator> {
@@ -164,7 +168,16 @@ mod tests {
         ]));
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
-        CurveDF::try_new(nodes, interpolator, "crv", Some(100.0), convention).unwrap()
+        let modifier = Modifier::ModF;
+        CurveDF::try_new(
+            nodes,
+            interpolator,
+            "crv",
+            convention,
+            modifier,
+            Some(100.0),
+        )
+        .unwrap()
     }
 
     fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator> {
@@ -175,7 +188,8 @@ mod tests {
         ]));
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
-        CurveDF::try_new(nodes, interpolator, "crv", None, convention).unwrap()
+        let modifier = Modifier::ModF;
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None).unwrap()
     }
 
     #[test]
