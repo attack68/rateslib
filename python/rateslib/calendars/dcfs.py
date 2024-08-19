@@ -6,6 +6,35 @@ from datetime import datetime
 
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
+from rateslib.rs import Convention
+
+CONVENTIONS_MAP = {
+    "ACT365F": Convention.Act365F,
+    "ACT365F+": Convention.Act365FPlus,
+    "ACT360": Convention.Act360,
+    "30360": Convention.Thirty360,
+    "360360": Convention.Thirty360,
+    "BONDBASIS": Convention.Thirty360,
+    "30E360": Convention.ThirtyE360,
+    "EUROBONDBASIS": Convention.ThirtyE360,
+    "30E360ISDA": Convention.Thirty360ISDA,
+    "ACTACT": Convention.ActActISDA,
+    "ACTACTISDA": Convention.ActActISDA,
+    "ACTACTICMA": Convention.ActActICMA,
+    "ACTACTICMA_STUB365F": "should panic",
+    "ACTACTISMA": Convention.ActActICMA,
+    "ACTACTBOND": Convention.ActActICMA,
+    "1": Convention.One,
+    "1+": Convention.OnePlus,
+    "BUS252": Convention.Bus252,
+}
+
+
+def _get_convention(convention: str) -> Convention:
+    try:
+        return CONVENTIONS_MAP[convention.upper()]
+    except KeyError:
+        raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
 def _dcf_act365f(start: datetime, end: datetime, *args):

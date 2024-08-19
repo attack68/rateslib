@@ -14,7 +14,7 @@ impl JSON for Curve {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, NamedCal};
+    use crate::calendars::{ndt, Convention, Modifier, NamedCal};
     use crate::curves::curve_py::CurveInterpolator;
     use crate::curves::{
         FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
@@ -28,7 +28,10 @@ mod tests {
             (ndt(2001, 1, 1), 0.99_f64),
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
-        CurveDF::try_new(nodes, interpolator, "crv", None, NamedCal::try_new("all").unwrap()).unwrap()
+        let convention = Convention::Act360;
+        let modifier = Modifier::ModF;
+        let cal = NamedCal::try_new("all").unwrap();
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None, cal).unwrap()
     }
 
     #[test]

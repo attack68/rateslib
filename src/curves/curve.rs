@@ -1,3 +1,4 @@
+use crate::calendars::{Convention, Modifier};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
@@ -15,6 +16,8 @@ pub struct CurveDF<T: CurveInterpolation, U: DateRoll> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
+    pub(crate) convention: Convention,
+    pub(crate) modifier: Modifier,
     pub(crate) index_base: Option<f64>,
     pub(crate) calendar: U,
 }
@@ -36,6 +39,8 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
         nodes: Nodes,
         interpolator: T,
         id: &str,
+        convention: Convention,
+        modifier: Modifier,
         index_base: Option<f64>,
         calendar: U,
     ) -> Result<Self, PyErr> {
@@ -45,6 +50,8 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
             nodes,
             interpolator,
             id: id.to_string(),
+            convention,
+            modifier,
             index_base,
             calendar,
         })
@@ -141,7 +148,7 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, NamedCal};
+    use crate::calendars::{ndt, Convention, NamedCal};
     use crate::curves::LogLinearInterpolator;
     use indexmap::IndexMap;
 
@@ -152,8 +159,10 @@ mod tests {
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
         let interpolator = LogLinearInterpolator::new();
+        let convention = Convention::Act360;
+        let modifier = Modifier::ModF;
         let cal = NamedCal::try_new("all").unwrap();
-        CurveDF::try_new(nodes, interpolator, "crv", None, cal).unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None, cal).unwrap()
     }
 
     fn index_curve_fixture() -> CurveDF<LogLinearInterpolator, NamedCal> {
@@ -163,8 +172,19 @@ mod tests {
             (ndt(2002, 1, 1), 0.98_f64),
         ]));
         let interpolator = LogLinearInterpolator::new();
+        let convention = Convention::Act360;
+        let modifier = Modifier::ModF;
         let cal = NamedCal::try_new("all").unwrap();
-        CurveDF::try_new(nodes, interpolator, "crv", Some(100.0), cal).unwrap()
+        CurveDF::try_new(
+            nodes,
+            interpolator,
+            "crv",
+            convention,
+            modifier,
+            Some(100.0),
+            cal
+        )
+        .unwrap()
     }
 
     fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator, NamedCal> {
@@ -174,8 +194,10 @@ mod tests {
             (ndt(2002, 1, 1), Dual::new(0.98, vec!["z".to_string()])),
         ]));
         let interpolator = LogLinearInterpolator::new();
+        let convention = Convention::Act360;
+        let modifier = Modifier::ModF;
         let cal = NamedCal::try_new("all").unwrap();
-        CurveDF::try_new(nodes, interpolator, "crv", None, cal).unwrap()
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None, cal).unwrap()
     }
 
     #[test]

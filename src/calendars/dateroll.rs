@@ -3,7 +3,8 @@ use chrono::prelude::*;
 use chrono::{Days, Weekday};
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
-use std::cmp::Ordering;
+use serde::{Deserialize, Serialize};
+use std::cmp::{Ordering, PartialEq};
 
 /// A roll day.
 #[pyclass(module = "rateslib.rs")]
@@ -23,7 +24,7 @@ pub enum RollDay {
 
 /// A rule to adjust a non-business day to a business day.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.
     Act,
