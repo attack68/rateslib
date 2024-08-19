@@ -1,4 +1,4 @@
-use crate::calendars::calendar::{Cal, NamedCal, UnionCal, CalType};
+use crate::calendars::calendar::{Cal, CalType, NamedCal, UnionCal};
 use crate::json::JSON;
 
 impl JSON for Cal {}

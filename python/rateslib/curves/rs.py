@@ -4,7 +4,8 @@ from datetime import datetime as dt
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars import _get_convention, _get_modifier, CalInput, get_calendar
+from rateslib.calendars import CalInput, _get_modifier, get_calendar
+from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401

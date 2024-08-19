@@ -1,8 +1,8 @@
+use crate::calendars::DateRoll;
 use crate::calendars::{Convention, Modifier};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
-use crate::calendars::DateRoll;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
@@ -182,7 +182,7 @@ mod tests {
             convention,
             modifier,
             Some(100.0),
-            cal
+            cal,
         )
         .unwrap()
     }

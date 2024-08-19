@@ -3,7 +3,7 @@ from __future__ import annotations
 import calendar as calendar_mod
 from datetime import datetime
 
-from rateslib.calendars.dcfs import _DCF, _get_convention
+from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
     Cal,
     CalInput,

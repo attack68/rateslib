@@ -195,7 +195,6 @@ impl DateRoll for NamedCal {
     }
 }
 
-
 impl DateRoll for CalType {
     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
         match self {

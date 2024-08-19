@@ -1,13 +1,15 @@
+use crate::calendars::DateRoll;
 use crate::curves::curve_py::Curve;
 use crate::curves::{CurveDF, CurveInterpolation};
-use crate::calendars::DateRoll;
 use crate::json::JSON;
 use serde::{Deserialize, Serialize};
 
 impl<T, U> JSON for CurveDF<T, U>
-where T: CurveInterpolation + for<'a> Deserialize<'a> + Serialize,
-      U: DateRoll + for<'a> Deserialize<'a> + Serialize
-{}
+where
+    T: CurveInterpolation + for<'a> Deserialize<'a> + Serialize,
+    U: DateRoll + for<'a> Deserialize<'a> + Serialize,
+{
+}
 
 impl JSON for Curve {}
 
