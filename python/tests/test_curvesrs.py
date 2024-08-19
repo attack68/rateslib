@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib.calendars import _get_modifier
+from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -14,7 +14,7 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
-from rateslib.dual import ADOrder
+from rateslib.dual import ADOrder, _get_adorder
 from rateslib.json import from_json
 
 
@@ -25,11 +25,12 @@ def curve():
             dt(2022, 3, 1): 1.00,
             dt(2022, 3, 31): 0.99,
         },
-        interpolator=LinearInterpolator(),
+        interpolator=_get_interpolator("linear"),
         id="v",
-        ad=ADOrder.One,
+        ad=_get_adorder(1),
         convention=_get_convention("Act360"),
         modifier=_get_modifier("MF", True),
+        calendar=get_calendar("all"),
     )
 
 
@@ -53,11 +54,12 @@ def indexcurvers():
             dt(2022, 3, 1): 1.00,
             dt(2022, 3, 31): 0.99,
         },
-        interpolator=LinearInterpolator(),
+        interpolator=_get_interpolator("linear"),
         id="v",
-        ad=ADOrder.One,
+        ad=_get_adorder(1),
         convention=_get_convention("Act360"),
         modifier=_get_modifier("MF", True),
+        calendar=get_calendar("all"),
         index_base=100.0,
     )
 
