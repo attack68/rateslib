@@ -42,7 +42,7 @@ mod tests {
     }
 
     #[test]
-    fn test_named_cal_json() {
+    fn test_cal_type_json() {
         let cal = CalType::NamedCal(NamedCal::try_new("tgt,ldn|fed").unwrap());
         let js = cal.to_json().unwrap();
         let cal2 = CalType::from_json(&js).unwrap();
