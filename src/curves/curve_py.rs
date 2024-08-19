@@ -5,6 +5,7 @@ use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
     LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
 };
+use crate::calendars::Convention;
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
@@ -52,10 +53,11 @@ impl Curve {
         interpolator: CurveInterpolator,
         ad: ADOrder,
         id: &str,
+        convention: Convention,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base)?;
+        let inner = CurveDF::try_new(nodes_, interpolator, id, index_base, convention)?;
         Ok(Self { inner })
     }
 

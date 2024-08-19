@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
+use pyo3::pyclass;
 
+#[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Convention {
     /// Return 1.0 for any period.

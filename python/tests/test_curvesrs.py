@@ -13,7 +13,7 @@ from rateslib.curves.rs import (
 )
 from rateslib.dual import ADOrder
 from rateslib.json import from_json
-
+from rateslib.calendars.dcfs import _get_convention
 
 @pytest.fixture()
 def curve():
@@ -25,6 +25,7 @@ def curve():
         interpolator=LinearInterpolator(),
         id="v",
         ad=ADOrder.One,
+        convention=_get_convention("Act360"),
     )
 
 
@@ -52,6 +53,7 @@ def indexcurvers():
         id="v",
         ad=ADOrder.One,
         index_base=100.0,
+        convention=_get_convention("Act360"),
     )
 
 

@@ -33,7 +33,7 @@ use curves::{
 
 pub mod calendars;
 use calendars::calendar_py::get_calendar_by_name_py;
-use calendars::{Cal, Modifier, NamedCal, RollDay, UnionCal};
+use calendars::{Cal, Modifier, NamedCal, RollDay, UnionCal, Convention};
 
 pub mod fx;
 use fx::rates::ccy::Ccy;
@@ -77,6 +77,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Modifier>()?;
     m.add_class::<RollDay>()?;
     m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;
+    m.add_class::<Convention>()?;
 
     // FX
     m.add_class::<Ccy>()?;
