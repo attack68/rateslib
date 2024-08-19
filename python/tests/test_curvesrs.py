@@ -1,7 +1,6 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib.calendars.dcfs import _get_convention
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -11,6 +10,8 @@ from rateslib.curves.rs import (
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
     _get_interpolator,
+    _get_convention,
+    _get_convention_str,
 )
 from rateslib.dual import ADOrder
 from rateslib.json import from_json

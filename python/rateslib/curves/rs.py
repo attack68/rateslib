@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars.dcfs import _get_convention, _get_convention_str
+from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.rs import Curve as CurveObj  # noqa: F401
@@ -15,6 +15,7 @@ from rateslib.rs import (
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
     NullInterpolator,
+    _get_convention_str
 )
 
 
