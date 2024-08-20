@@ -141,7 +141,7 @@ impl Curve {
     /// str
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match DeserializedObj::PyCurve(self.clone()).to_json() {
+        match DeserializedObj::Curve(self.clone()).to_json() {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err(
                 "Failed to serialize `Curve` to JSON.",

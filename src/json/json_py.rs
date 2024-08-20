@@ -23,7 +23,7 @@ pub(crate) enum DeserializedObj {
     UnionCal(UnionCal),
     NamedCal(NamedCal),
     FXRates(FXRates),
-    PyCurve(Curve),
+    Curve(Curve),
 }
 
 impl IntoPy<PyObject> for DeserializedObj {
@@ -35,7 +35,7 @@ impl IntoPy<PyObject> for DeserializedObj {
             DeserializedObj::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::PyCurve(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::Curve(v) => Py::new(py, v).unwrap().to_object(py),
         }
     }
 }

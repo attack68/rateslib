@@ -5,7 +5,7 @@ from rateslib.rs import from_json as from_json_rs
 
 NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,
-    "PyCurve": CurveRs,
+    "Curve": CurveRs,
 }
 
 
