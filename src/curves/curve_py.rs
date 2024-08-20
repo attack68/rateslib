@@ -9,11 +9,11 @@ use crate::curves::{
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
+use crate::json::JSON;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use crate::json::JSON;
 use serde::{Deserialize, Serialize};
 
 /// Interpolation
