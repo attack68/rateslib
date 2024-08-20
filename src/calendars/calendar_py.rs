@@ -12,6 +12,22 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::collections::HashSet;
 
+impl IntoPy<PyObject> for CalType {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        macro_rules! into_py {
+            ($obj: ident) => {
+                Py::new(py, $obj).unwrap().to_object(py)
+            }
+        }
+
+        match self {
+            CalType::Cal(i) => into_py!(i),
+            CalType::UnionCal(i) => into_py!(i),
+            CalType::NamedCal(i) => into_py!(i),
+        }
+    }
+}
+
 #[pyfunction]
 pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {
     match modifier {

@@ -3,9 +3,12 @@ use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::DualsOrF64;
 use chrono::NaiveDateTime;
-use pyo3::{pyclass, pymethods};
+use pyo3::{Bound, pyclass, pymethods, PyResult, Python};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
+use bincode::{deserialize, serialize};
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 
 /// Define log-linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
@@ -17,6 +20,18 @@ impl LogLinearInterpolator {
     #[new]
     pub fn new() -> Self {
         LogLinearInterpolator {}
+    }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__(&self) -> PyResult<()> {
+        Ok(())
     }
 }
 

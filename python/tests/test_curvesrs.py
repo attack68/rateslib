@@ -80,6 +80,23 @@ def test_get_interpolator(name, expected):
     assert type(result) is expected
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "linear",
+        "log_linear",
+        "linear_zero_rate",
+        "flat_forward",
+        "flat_backward",
+    ],
+)
+def test_pickle_interpolator(name):
+    import pickle
+    obj = _get_interpolator(name)
+    bytes = pickle.dumps(obj)
+    pickle.loads(bytes)
+
+
 def test_get_interpolation(curve):
     result = curve.interpolation
     assert result == "linear"
@@ -147,3 +164,9 @@ def test_interp_constructs(kind):
 def test_index_value(indexcurvers):
     result = indexcurvers.index_value(dt(2022, 3, 31))
     assert abs(result - 100.0 / 0.99) < 1e-12
+
+
+def test_pickle(curvers):
+    import pickle
+    obj = pickle.dumps(curvers)
+    pickle.loads(obj)
