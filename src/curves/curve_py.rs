@@ -9,11 +9,11 @@ use crate::curves::{
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
-use crate::json::JSON;
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use crate::json::JSON;
 use serde::{Deserialize, Serialize};
 
 /// Interpolation
@@ -141,7 +141,7 @@ impl Curve {
     /// str
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match DeserializedObj::PyCurve(self.clone()).to_json() {
+        match DeserializedObj::Curve(self.clone()).to_json() {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err(
                 "Failed to serialize `Curve` to JSON.",
