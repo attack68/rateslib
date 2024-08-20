@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime as dt
+from datetime import datetime
 from uuid import uuid4
 
 from rateslib import defaults
@@ -91,7 +91,7 @@ class CurveRs:
     @classmethod
     def __init_from_obj__(cls, obj):
         new = cls(
-            nodes={dt(2000, 1, 1): 1.0},
+            nodes={datetime(2000, 1, 1): 1.0},
             interpolation="linear",
             id="_",
             ad=0,
@@ -104,6 +104,9 @@ class CurveRs:
         if not isinstance(other, CurveRs):
             return False
         return self.obj.__eq__(other.obj)
+
+    def __getitem__(self, value: datetime):
+        return self.obj[value]
 
 
 def _get_interpolator(name: str):
