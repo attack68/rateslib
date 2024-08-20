@@ -1,5 +1,5 @@
-from datetime import datetime as dt
 import math
+from datetime import datetime as dt
 
 import pytest
 from rateslib.calendars import _get_modifier, get_calendar
@@ -110,7 +110,7 @@ def test_get_item(curve, curvers):
     assert abs(result - 0.995) < 1e-14
 
     result = curvers[dt(2022, 3, 16)]
-    expected = math.log(1.0) + (16-1) / (31-1) * (math.log(0.99) - math.log(1.0))
+    expected = math.log(1.0) + (16 - 1) / (31 - 1) * (math.log(0.99) - math.log(1.0))
     expected = math.exp(expected)
     assert abs(result - expected) < 1e-14
 
