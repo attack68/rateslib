@@ -1,6 +1,6 @@
 //! Wrapper module to export Rust dual data types to Python using pyo3 bindings.
 
-use crate::dual::dual::{Dual, Dual2, DualsOrF64, Gradient1, Gradient2, Vars};
+use crate::dual::dual::{ADOrder, Dual, Dual2, DualsOrF64, Gradient1, Gradient2, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use bincode::{deserialize, serialize};
 use num_traits::{Pow, Signed};
@@ -43,6 +43,34 @@ impl IntoPy<PyObject> for DualsOrF64 {
 //     Dual2(Dual2),
 //     Float(&'py PyFloat),
 // }
+
+#[pymethods]
+impl ADOrder {
+    // Pickling
+    #[new]
+    fn new_py(ad: u8) -> PyResult<ADOrder> {
+        match ad {
+            0_u8 => Ok(ADOrder::Zero),
+            1_u8 => Ok(ADOrder::One),
+            2_u8 => Ok(ADOrder::Two),
+            _ => Err(PyValueError::new_err("unreachable code on ADOrder pickle.")),
+        }
+    }
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+        match self {
+            ADOrder::Zero => Ok((0_u8,)),
+            ADOrder::One => Ok((1_u8,)),
+            ADOrder::Two => Ok((2_u8,)),
+        }
+    }
+}
 
 #[pymethods]
 impl Dual {

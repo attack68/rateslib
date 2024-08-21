@@ -17,6 +17,30 @@ from rateslib.curves.rs import (
 )
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.json import from_json
+from rateslib.rs import Convention
+
+
+@pytest.mark.parametrize(
+    "convention",
+    [
+        Convention.One,
+        Convention.One,
+        Convention.OnePlus,
+        Convention.Act365F,
+        Convention.Act365FPlus,
+        Convention.Act360,
+        Convention.ThirtyE360,
+        Convention.Thirty360,
+        Convention.Thirty360ISDA,
+        Convention.ActActISDA,
+        Convention.ActActICMA,
+        Convention.Bus252,
+    ],
+)
+def test_pickle_convention(convention):
+    import pickle
+
+    assert convention == pickle.loads(pickle.dumps(convention))
 
 
 @pytest.fixture()
@@ -78,6 +102,24 @@ def indexcurvers():
 def test_get_interpolator(name, expected):
     result = _get_interpolator(name)
     assert type(result) is expected
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "linear",
+        "log_linear",
+        "linear_zero_rate",
+        "flat_forward",
+        "flat_backward",
+    ],
+)
+def test_pickle_interpolator(name):
+    import pickle
+
+    obj = _get_interpolator(name)
+    bytes = pickle.dumps(obj)
+    pickle.loads(bytes)
 
 
 def test_get_interpolation(curve):
@@ -147,3 +189,10 @@ def test_interp_constructs(kind):
 def test_index_value(indexcurvers):
     result = indexcurvers.index_value(dt(2022, 3, 31))
     assert abs(result - 100.0 / 0.99) < 1e-12
+
+
+def test_pickle(curvers):
+    import pickle
+
+    obj = pickle.dumps(curvers)
+    pickle.loads(obj)
