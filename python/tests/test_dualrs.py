@@ -19,11 +19,14 @@ def x_2():
     return Dual(2, vars=["v0", "v2"], dual=[0, 3])
 
 
-def test_adorder_pickle():
+@pytest.mark.parametrize("ad", [
+    ADOrder.Zero,
+    ADOrder.One,
+    ADOrder.Two,
+])
+def test_adorder_pickle(ad):
     import pickle
-    obj = ADOrder.One
-    pickled = pickle.dumps(obj)
-    pickle.loads(pickled)
+    assert ad == pickle.loads(pickle.dumps(ad))
 
 
 def test_json_round_trip(x_2):
