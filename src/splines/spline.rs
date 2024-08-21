@@ -4,9 +4,13 @@ use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::PyErr;
-use std::iter::zip;
-use std::iter::Sum;
-use std::ops::{Mul, Sub};
+use std::{
+    iter::{zip, Sum},
+    ops::{Mul, Sub},
+    cmp::PartialEq,
+};
+use serde::{Deserialize, Serialize};
+
 
 /// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
 ///
@@ -165,7 +169,7 @@ pub fn bspldnev_single_dual2(
 }
 
 /// A piecewise polynomial spline of given order and knot sequence.
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct PPSpline<T> {
     k: usize,
     t: Vec<f64>,
@@ -343,8 +347,6 @@ impl PPSpline<Dual2> {
         }
     }
 }
-
-use std::cmp::PartialEq;
 
 impl<T> PartialEq for PPSpline<T>
 where
