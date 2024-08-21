@@ -15,9 +15,27 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
+from rateslib.rs import Convention
 from rateslib.dual import ADOrder, _get_adorder
 from rateslib.json import from_json
 
+@pytest.mark.parametrize("convention", [
+    Convention.One,
+    Convention.One,
+    Convention.OnePlus,
+    Convention.Act365F,
+    Convention.Act365FPlus,
+    Convention.Act360,
+    Convention.ThirtyE360,
+    Convention.Thirty360,
+    Convention.Thirty360ISDA,
+    Convention.ActActISDA,
+    Convention.ActActICMA,
+    Convention.Bus252,
+])
+def test_pickle_convention(convention):
+    import pickle
+    assert convention == pickle.loads(pickle.dumps(convention))
 
 @pytest.fixture()
 def curve():

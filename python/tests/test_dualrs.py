@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from packaging import version
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
-from rateslib.rs import from_json
+from rateslib.rs import from_json, ADOrder
 
 DUAL_CORE_PY = False
 
@@ -17,6 +17,13 @@ def x_1():
 @pytest.fixture()
 def x_2():
     return Dual(2, vars=["v0", "v2"], dual=[0, 3])
+
+
+def test_adorder_pickle():
+    import pickle
+    obj = ADOrder.One
+    pickled = pickle.dumps(obj)
+    pickle.loads(pickled)
 
 
 def test_json_round_trip(x_2):
