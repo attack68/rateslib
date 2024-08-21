@@ -72,6 +72,38 @@ impl Convention {
     }
 }
 
+#[pymethods]
+impl Modifier {
+    // Pickling
+    #[new]
+    fn new_py(ad: u8) -> PyResult<Modifier> {
+        match ad {
+            0_u8 => Ok(Modifier::Act),
+            1_u8 => Ok(Modifier::F),
+            2_u8 => Ok(Modifier::ModF),
+            3_u8 => Ok(Modifier::P),
+            4_u8 => Ok(Modifier::ModP),
+            _ => Err(PyValueError::new_err("unreachable code on Convention pickle."))
+        }
+    }
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+        match self {
+            Modifier::Act => Ok((0_u8,)),
+            Modifier::F => Ok((1_u8,)),
+            Modifier::ModF => Ok((2_u8,)),
+            Modifier::P => Ok((3_u8,)),
+            Modifier::ModP => Ok((4_u8,)),
+        }
+    }
+}
+
 #[pyfunction]
 pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {
     match modifier {
