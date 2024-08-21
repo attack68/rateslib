@@ -4,13 +4,12 @@ use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::PyErr;
+use serde::{Deserialize, Serialize};
 use std::{
+    cmp::PartialEq,
     iter::{zip, Sum},
     ops::{Mul, Sub},
-    cmp::PartialEq,
 };
-use serde::{Deserialize, Serialize};
-
 
 /// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
 ///
