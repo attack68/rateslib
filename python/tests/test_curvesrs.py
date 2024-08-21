@@ -15,7 +15,7 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
-from rateslib.dual import ADOrder, _get_adorder, Dual2
+from rateslib.dual import ADOrder, Dual2, _get_adorder
 from rateslib.json import from_json
 from rateslib.rs import Convention
 
@@ -195,7 +195,7 @@ def test_set_ad_order(curvers):
     curvers._set_ad_order(2)
     assert curvers.nodes == {
         dt(2022, 3, 1): Dual2(1.0, ["v0"], [], []),
-        dt(2022, 3, 31): Dual2(0.99, ["v1"], [], [])
+        dt(2022, 3, 31): Dual2(0.99, ["v1"], [], []),
     }
 
 
