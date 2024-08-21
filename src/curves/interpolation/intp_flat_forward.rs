@@ -29,8 +29,8 @@ impl FlatForwardInterpolator {
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
-    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<()> {
-        Ok(())
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        Ok(PyTuple::empty_bound(py))
     }
 }
 

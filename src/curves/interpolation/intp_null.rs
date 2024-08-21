@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 use bincode::{deserialize, serialize};
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyTuple};
 
 /// Define a null interpolation object.
 ///
@@ -31,8 +31,8 @@ impl NullInterpolator {
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
-    pub fn __getnewargs__(&self) -> PyResult<()> {
-        Ok(())
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        Ok(PyTuple::empty_bound(py))
     }
 }
 
