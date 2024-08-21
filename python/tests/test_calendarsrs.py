@@ -6,16 +6,21 @@ from rateslib.json import from_json
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 
-@pytest.mark.parametrize("modifier", [
-    Modifier.Act,
-    Modifier.F,
-    Modifier.ModF,
-    Modifier.P,
-    Modifier.ModP,
-])
+@pytest.mark.parametrize(
+    "modifier",
+    [
+        Modifier.Act,
+        Modifier.F,
+        Modifier.ModF,
+        Modifier.P,
+        Modifier.ModP,
+    ],
+)
 def test_modifier_pickle(modifier):
     import pickle
+
     assert modifier == pickle.loads(pickle.dumps(modifier))
+
 
 @pytest.fixture()
 def simple_cal():

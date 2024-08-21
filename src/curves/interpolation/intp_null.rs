@@ -1,13 +1,13 @@
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::DualsOrF64;
-use chrono::NaiveDateTime;
-use pyo3::{Bound, pyclass, pymethods, PyResult, Python};
-use serde::{Deserialize, Serialize};
-use std::cmp::PartialEq;
 use bincode::{deserialize, serialize};
+use chrono::NaiveDateTime;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
+use pyo3::{pyclass, pymethods, Bound, PyResult, Python};
+use serde::{Deserialize, Serialize};
+use std::cmp::PartialEq;
 
 /// Define a null interpolation object.
 ///

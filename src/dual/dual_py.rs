@@ -1,6 +1,6 @@
 //! Wrapper module to export Rust dual data types to Python using pyo3 bindings.
 
-use crate::dual::dual::{Dual, Dual2, DualsOrF64, Gradient1, Gradient2, Vars, ADOrder};
+use crate::dual::dual::{ADOrder, Dual, Dual2, DualsOrF64, Gradient1, Gradient2, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use bincode::{deserialize, serialize};
 use num_traits::{Pow, Signed};
@@ -53,7 +53,7 @@ impl ADOrder {
             0_u8 => Ok(ADOrder::Zero),
             1_u8 => Ok(ADOrder::One),
             2_u8 => Ok(ADOrder::Two),
-            _ => Err(PyValueError::new_err("unreachable code on ADOrder pickle."))
+            _ => Err(PyValueError::new_err("unreachable code on ADOrder pickle.")),
         }
     }
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {

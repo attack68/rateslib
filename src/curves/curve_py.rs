@@ -1,6 +1,5 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
-use bincode::{deserialize, serialize};
 use crate::calendars::CalType;
 use crate::calendars::{Convention, Modifier};
 use crate::curves::nodes::{Nodes, NodesTimestamp};
@@ -11,11 +10,12 @@ use crate::curves::{
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
+use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes};
+use pyo3::types::PyBytes;
 use serde::{Deserialize, Serialize};
 
 /// Interpolation
@@ -34,7 +34,7 @@ impl IntoPy<PyObject> for CurveInterpolator {
         macro_rules! into_py {
             ($obj: ident) => {
                 Py::new(py, $obj).unwrap().to_object(py)
-            }
+            };
         }
 
         match self {
@@ -178,7 +178,9 @@ impl Curve {
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
-    pub fn __getnewargs__(&self) -> PyResult<(
+    pub fn __getnewargs__(
+        &self,
+    ) -> PyResult<(
         IndexMap<NaiveDateTime, DualsOrF64>,
         CurveInterpolator,
         ADOrder,

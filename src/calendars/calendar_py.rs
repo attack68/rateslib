@@ -1,7 +1,7 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
 use crate::calendars::named::get_calendar_by_name;
-use crate::calendars::{Cal, CalType, DateRoll, Modifier, NamedCal, RollDay, UnionCal, Convention};
+use crate::calendars::{Cal, CalType, Convention, DateRoll, Modifier, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use bincode::{deserialize, serialize};
@@ -17,7 +17,7 @@ impl IntoPy<PyObject> for CalType {
         macro_rules! into_py {
             ($obj: ident) => {
                 Py::new(py, $obj).unwrap().to_object(py)
-            }
+            };
         }
 
         match self {
@@ -45,7 +45,9 @@ impl Convention {
             8_u8 => Ok(Convention::ActActISDA),
             9_u8 => Ok(Convention::ActActICMA),
             10_u8 => Ok(Convention::Bus252),
-            _ => Err(PyValueError::new_err("unreachable code on Convention pickle."))
+            _ => Err(PyValueError::new_err(
+                "unreachable code on Convention pickle.",
+            )),
         }
     }
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
@@ -83,7 +85,9 @@ impl Modifier {
             2_u8 => Ok(Modifier::ModF),
             3_u8 => Ok(Modifier::P),
             4_u8 => Ok(Modifier::ModP),
-            _ => Err(PyValueError::new_err("unreachable code on Convention pickle."))
+            _ => Err(PyValueError::new_err(
+                "unreachable code on Convention pickle.",
+            )),
         }
     }
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
