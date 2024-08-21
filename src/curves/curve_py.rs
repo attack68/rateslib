@@ -146,6 +146,11 @@ impl Curve {
         self.inner.index_value(&date)
     }
 
+    fn set_ad_order(&mut self, ad: ADOrder) -> PyResult<()> {
+        let _ = self.inner.set_ad_order(ad);
+        Ok(())
+    }
+
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
     }
