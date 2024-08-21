@@ -15,7 +15,7 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
-from rateslib.dual import ADOrder, _get_adorder
+from rateslib.dual import ADOrder, Dual2, _get_adorder
 from rateslib.json import from_json
 from rateslib.rs import Convention
 
@@ -189,6 +189,14 @@ def test_interp_constructs(kind):
 def test_index_value(indexcurvers):
     result = indexcurvers.index_value(dt(2022, 3, 31))
     assert abs(result - 100.0 / 0.99) < 1e-12
+
+
+def test_set_ad_order(curvers):
+    curvers._set_ad_order(2)
+    assert curvers.nodes == {
+        dt(2022, 3, 1): Dual2(1.0, ["v0"], [], []),
+        dt(2022, 3, 31): Dual2(0.99, ["v1"], [], []),
+    }
 
 
 def test_pickle(curvers):

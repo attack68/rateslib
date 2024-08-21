@@ -76,6 +76,10 @@ class CurveRs:
             return 2
         return 0
 
+    def _set_ad_order(self, ad: int):
+        self.obj.set_ad_order(_get_adorder(ad))
+        return None
+
     @staticmethod
     def _validate_interpolator(interpolation: str | callable | NoInput):
         if interpolation is NoInput.blank:
