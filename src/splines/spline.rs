@@ -222,9 +222,9 @@ where
         );
         match &self.c {
             Some(c) => Ok(fdmul11_(&b.view(), &c.view())),
-            None => {
-                Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline."))
-            }
+            None => Err(PyValueError::new_err(
+                "Must call `csolve` before evaluating PPSpline.",
+            )),
         }
     }
 
