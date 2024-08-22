@@ -37,7 +37,7 @@ pub enum DualsOrF64 {
 }
 
 #[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ADOrder {
     /// Floating point arithmetic only.
     Zero,

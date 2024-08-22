@@ -1,7 +1,7 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
 use crate::calendars::named::get_calendar_by_name;
-use crate::calendars::{Cal, CalType, DateRoll, Modifier, NamedCal, RollDay, UnionCal};
+use crate::calendars::{Cal, CalType, Convention, DateRoll, Modifier, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use bincode::{deserialize, serialize};
@@ -11,6 +11,102 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::collections::HashSet;
+
+impl IntoPy<PyObject> for CalType {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        macro_rules! into_py {
+            ($obj: ident) => {
+                Py::new(py, $obj).unwrap().to_object(py)
+            };
+        }
+
+        match self {
+            CalType::Cal(i) => into_py!(i),
+            CalType::UnionCal(i) => into_py!(i),
+            CalType::NamedCal(i) => into_py!(i),
+        }
+    }
+}
+
+#[pymethods]
+impl Convention {
+    // Pickling
+    #[new]
+    fn new_py(ad: u8) -> PyResult<Convention> {
+        match ad {
+            0_u8 => Ok(Convention::One),
+            1_u8 => Ok(Convention::OnePlus),
+            2_u8 => Ok(Convention::Act365F),
+            3_u8 => Ok(Convention::Act365FPlus),
+            4_u8 => Ok(Convention::Act360),
+            5_u8 => Ok(Convention::ThirtyE360),
+            6_u8 => Ok(Convention::Thirty360),
+            7_u8 => Ok(Convention::Thirty360ISDA),
+            8_u8 => Ok(Convention::ActActISDA),
+            9_u8 => Ok(Convention::ActActICMA),
+            10_u8 => Ok(Convention::Bus252),
+            _ => Err(PyValueError::new_err(
+                "unreachable code on Convention pickle.",
+            )),
+        }
+    }
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+        match self {
+            Convention::One => Ok((0_u8,)),
+            Convention::OnePlus => Ok((1_u8,)),
+            Convention::Act365F => Ok((2_u8,)),
+            Convention::Act365FPlus => Ok((3_u8,)),
+            Convention::Act360 => Ok((4_u8,)),
+            Convention::ThirtyE360 => Ok((5_u8,)),
+            Convention::Thirty360 => Ok((6_u8,)),
+            Convention::Thirty360ISDA => Ok((6_u8,)),
+            Convention::ActActISDA => Ok((8_u8,)),
+            Convention::ActActICMA => Ok((9_u8,)),
+            Convention::Bus252 => Ok((10_u8,)),
+        }
+    }
+}
+
+#[pymethods]
+impl Modifier {
+    // Pickling
+    #[new]
+    fn new_py(ad: u8) -> PyResult<Modifier> {
+        match ad {
+            0_u8 => Ok(Modifier::Act),
+            1_u8 => Ok(Modifier::F),
+            2_u8 => Ok(Modifier::ModF),
+            3_u8 => Ok(Modifier::P),
+            4_u8 => Ok(Modifier::ModP),
+            _ => Err(PyValueError::new_err(
+                "unreachable code on Convention pickle.",
+            )),
+        }
+    }
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+        match self {
+            Modifier::Act => Ok((0_u8,)),
+            Modifier::F => Ok((1_u8,)),
+            Modifier::ModF => Ok((2_u8,)),
+            Modifier::P => Ok((3_u8,)),
+            Modifier::ModP => Ok((4_u8,)),
+        }
+    }
+}
 
 #[pyfunction]
 pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {

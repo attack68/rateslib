@@ -1,5 +1,6 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
+use crate::calendars::CalType;
 use crate::calendars::{Convention, Modifier};
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
@@ -9,10 +10,12 @@ use crate::curves::{
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, DualsOrF64};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
+use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 use serde::{Deserialize, Serialize};
 
 /// Interpolation
@@ -24,6 +27,25 @@ pub(crate) enum CurveInterpolator {
     FlatForward(FlatForwardInterpolator),
     FlatBackward(FlatBackwardInterpolator),
     Null(NullInterpolator),
+}
+
+impl IntoPy<PyObject> for CurveInterpolator {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        macro_rules! into_py {
+            ($obj: ident) => {
+                Py::new(py, $obj).unwrap().to_object(py)
+            };
+        }
+
+        match self {
+            CurveInterpolator::LogLinear(i) => into_py!(i),
+            CurveInterpolator::Linear(i) => into_py!(i),
+            CurveInterpolator::LinearZeroRate(i) => into_py!(i),
+            CurveInterpolator::FlatForward(i) => into_py!(i),
+            CurveInterpolator::FlatBackward(i) => into_py!(i),
+            CurveInterpolator::Null(i) => into_py!(i),
+        }
+    }
 }
 
 impl CurveInterpolation for CurveInterpolator {
@@ -42,7 +64,7 @@ impl CurveInterpolation for CurveInterpolator {
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct Curve {
-    inner: CurveDF<CurveInterpolator>,
+    inner: CurveDF<CurveInterpolator, CalType>,
 }
 
 #[pymethods]
@@ -52,13 +74,22 @@ impl Curve {
         nodes: IndexMap<NaiveDateTime, DualsOrF64>,
         interpolator: CurveInterpolator,
         ad: ADOrder,
-        id: &str,
+        id: String,
         convention: Convention,
         modifier: Modifier,
+        calendar: CalType,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
-        let nodes_ = nodes_into_order(nodes, ad, id);
-        let inner = CurveDF::try_new(nodes_, interpolator, id, convention, modifier, index_base)?;
+        let nodes_ = nodes_into_order(nodes, ad, &id);
+        let inner = CurveDF::try_new(
+            nodes_,
+            interpolator,
+            &id,
+            convention,
+            modifier,
+            index_base,
+            calendar,
+        )?;
         Ok(Self { inner })
     }
 
@@ -115,6 +146,11 @@ impl Curve {
         self.inner.index_value(&date)
     }
 
+    fn set_ad_order(&mut self, ad: ADOrder) -> PyResult<()> {
+        let _ = self.inner.set_ad_order(ad);
+        Ok(())
+    }
+
     fn __getitem__(&self, date: NaiveDateTime) -> DualsOrF64 {
         self.inner.interpolated_value(&date)
     }
@@ -131,7 +167,7 @@ impl Curve {
     /// str
     #[pyo3(name = "to_json")]
     fn to_json_py(&self) -> PyResult<String> {
-        match DeserializedObj::PyCurve(self.clone()).to_json() {
+        match DeserializedObj::Curve(self.clone()).to_json() {
             Ok(v) => Ok(v),
             Err(_) => Err(PyValueError::new_err(
                 "Failed to serialize `Curve` to JSON.",
@@ -139,8 +175,36 @@ impl Curve {
         }
     }
 
-    fn _set_ad_order(&mut self, ad: ADOrder) -> PyResult<()> {
-        self.inner.set_ad_order(ad)
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__(
+        &self,
+    ) -> PyResult<(
+        IndexMap<NaiveDateTime, DualsOrF64>,
+        CurveInterpolator,
+        ADOrder,
+        String,
+        Convention,
+        Modifier,
+        CalType,
+        Option<f64>,
+    )> {
+        Ok((
+            self.inner.nodes.index_map(),
+            self.inner.interpolator.clone(),
+            self.inner.ad(),
+            self.inner.id.clone(),
+            self.inner.convention,
+            self.inner.modifier,
+            self.inner.calendar.clone(),
+            self.inner.index_base,
+        ))
     }
 }
 
