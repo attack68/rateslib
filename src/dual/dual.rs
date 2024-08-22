@@ -478,15 +478,19 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::try_new_from(&x, 1.5, vec["y".to_string()], vec![3.2])?;
+    /// # use rateslib::dual::{Dual, Vars};
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+    /// let y1 = Dual::try_new_from(&x, 1.5, vec!["y".to_string()], vec![3.2]).unwrap();
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// # use rateslib::dual::{Dual, Vars};
+    /// # let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+    /// # let y1 = Dual::try_new_from(&x, 1.5, vec!["y".to_string()], vec![3.2]).unwrap();
+    /// let y2 = Dual::try_new(1.5, vec!["y".to_string()], vec![3.2]).unwrap().to_union_vars(x.vars(), None).0;
+    /// assert_eq!(y1, y2);
     /// ```
     pub fn try_new_from<T: Vars>(
         other: &T,
