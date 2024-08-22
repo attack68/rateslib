@@ -112,6 +112,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::{Dual, Vars, VarsRelationship};
     /// let x = Dual::new(1.0, vec!["x".to_string()]);
     /// let y = Dual::new(1.5, vec!["y".to_string()]);
     /// let (a, b) = x.to_union_vars(&y, Some(VarsRelationship::Difference));
@@ -156,14 +157,15 @@ where
         )
     }
 
-    /// Compare if two `Dual` structs share the same `vars`by Arc pointer equivalence.
+    /// Compare if two `Dual` structs share the same `vars` by Arc pointer equivalence.
     ///
     /// # Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::{Dual, Vars};
     /// let x1 = Dual::new(1.5, vec!["x".to_string()]);
     /// let x2 = Dual::new(2.5, vec!["x".to_string()]);
-    /// x1.ptr_eq(&x2); // false
+    /// assert_eq!(x1.ptr_eq(&x2), false); // Vars are the same but not a shared Arc pointer
     /// ```
     fn ptr_eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(self.vars(), other.vars())
@@ -181,10 +183,12 @@ impl Vars for Dual {
     /// Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::{Dual, Vars};
     /// let x = Dual::new(1.5, vec!["x".to_string()]);
     /// let xy = Dual::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual: 1.5, (x, y), [1.0, 0.0]>
+    /// assert_eq!(x_y, Dual::try_new(1.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap());
     fn to_new_vars(
         &self,
         arc_vars: &Arc<IndexSet<String>>,
@@ -222,10 +226,12 @@ impl Vars for Dual2 {
     /// Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::{Dual2, Vars};
     /// let x = Dual2::new(1.5, vec!["x".to_string()]);
     /// let xy = Dual2::new(2.5, vec!["x".to_string(), "y".to_string()]);
     /// let x_y = x.to_new_vars(xy.vars(), None);
     /// // x_y: <Dual2: 1.5, (x, y), [1.0, 0.0], [[0.0, 0.0], [0.0, 0.0]]>
+    /// assert_eq!(x_y, Dual2::try_new(1.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]).unwrap());
     fn to_new_vars(
         &self,
         arc_vars: &Arc<IndexSet<String>>,
@@ -403,6 +409,7 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::Dual;
     /// let x = Dual::new(2.5, vec!["x".to_string()]);
     /// // x: <Dual: 2.5, (x), [1.0]>
     /// ```
@@ -430,7 +437,8 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2])?;
+    /// # use rateslib::dual::Dual;
+    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2]).unwrap();
     /// // x: <Dual: 2.5, (x), [4.2]>
     /// ```
     pub fn try_new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, PyErr> {
@@ -458,15 +466,19 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new_from(&x, 1.5, vec["y".to_string()]);
+    /// # use rateslib::dual::Dual;
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+    /// let y1 = Dual::new_from(&x, 1.5, vec!["y".to_string()]);
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// # use rateslib::dual::{Dual, Vars};
+    /// # let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+    /// # let y1 = Dual::new_from(&x, 1.5, vec!["y".to_string()]);
+    /// let y2 = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// assert_eq!(y1, y2);
     /// ```
     pub fn new_from<T: Vars>(other: &T, real: f64, vars: Vec<String>) -> Self {
         let new = Self::new(real, vars);
@@ -478,15 +490,19 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::try_new_from(&x, 1.5, vec["y".to_string()], vec![3.2])?;
+    /// # use rateslib::dual::{Dual, Vars};
+    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+    /// let y1 = Dual::try_new_from(&x, 1.5, vec!["y".to_string()], vec![3.2]).unwrap();
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// # use rateslib::dual::{Dual, Vars};
+    /// # let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
+    /// # let y1 = Dual::try_new_from(&x, 1.5, vec!["y".to_string()], vec![3.2]).unwrap();
+    /// let y2 = Dual::try_new(1.5, vec!["y".to_string()], vec![3.2]).unwrap().to_new_vars(x.vars(), None);
+    /// assert_eq!(y1, y2);
     /// ```
     pub fn try_new_from<T: Vars>(
         other: &T,
@@ -527,6 +543,7 @@ impl Dual2 {
     /// # Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::Dual2;
     /// let x = Dual2::new(2.5, vec!["x".to_string()]);
     /// // x: <Dual2: 2.5, (x), [1.0], [[0.0]]>
     /// ```
@@ -555,7 +572,8 @@ impl Dual2 {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual2::try_new(2.5, vec!["x".to_string()], vec![], vec![])?;
+    /// # use rateslib::dual::Dual2;
+    /// let x = Dual2::try_new(2.5, vec!["x".to_string()], vec![], vec![]).unwrap();
     /// // x: <Dual2: 2.5, (x), [1.0], [[0.0]]>
     /// ```
     pub fn try_new(
@@ -601,15 +619,18 @@ impl Dual2 {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual2::new_from(&x, 1.5, vec["y".to_string()]);
+    /// # use rateslib::dual::Dual2;
+    /// let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]).unwrap();
+    /// let y1 = Dual2::new_from(&x, 1.5, vec!["y".to_string()]);
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0])?;
-    /// let y = Dual::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// # use rateslib::dual::{Dual2, Vars};
+    /// # let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]).unwrap();
+    /// # let y1 = Dual2::new_from(&x, 1.5, vec!["y".to_string()]);
+    /// let y = Dual2::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
     /// ```
     pub fn new_from<T: Vars>(other: &T, real: f64, vars: Vec<String>) -> Self {
         let new = Self::new(real, vars);
@@ -621,15 +642,19 @@ impl Dual2 {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![])?;
-    /// let y = Dual2::new_from(&x, 1.5, vec["y".to_string()]);
+    /// # use rateslib::dual::Dual2;
+    /// let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]).unwrap();
+    /// let y1 = Dual2::new_from(&x, 1.5, vec!["y".to_string()]);
     /// ```
     ///
     /// This is semantically the same as:
     ///
     /// ```rust
-    /// let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![])?;
-    /// let y = Dual2::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// # use rateslib::dual::{Dual2, Vars};
+    /// # let x = Dual2::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0], vec![]).unwrap();
+    /// # let y1 = Dual2::new_from(&x, 1.5, vec!["y".to_string()]);
+    /// let y2 = Dual2::new(1.5, vec!["y".to_string()]).to_new_vars(x.vars(), None);
+    /// assert_eq!(y1, y2);
     /// ```
     pub fn try_new_from<T: Vars>(
         other: &T,

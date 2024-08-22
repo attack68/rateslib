@@ -9,8 +9,9 @@ use std::convert::From;
 /// however, when doing so there is no variable information attached for an `f64`. For example,
 ///
 /// ```rust
+/// # use rateslib::dual::Dual;
 /// let d = Dual::from(2.5_f64);
-/// assert_eq!(d, Dual::new(2.5_f64, vec![])); // true
+/// assert_eq!(d, Dual::new(2.5_f64, vec![]));
 /// ```
 ///
 /// On the other hand using a `DualsOrF64` enum can convert any value to a dual data type tagged
@@ -18,10 +19,11 @@ use std::convert::From;
 /// dual type.
 ///
 /// ```rust
+/// # use rateslib::dual::{DualsOrF64, set_order, ADOrder, Dual};
 /// let f_ = DualsOrF64::F64(2.5_f64);
 /// let d_ = set_order(f_, ADOrder::One, vec!["x".to_string()]);
 /// let d = Dual::from(d_);
-/// assert_eq!(d, Dual::new(2.5_f64, vec!["x".to_string()])); // true
+/// assert_eq!(d, Dual::new(2.5_f64, vec!["x".to_string()]));
 /// ```
 ///
 pub fn set_order(value: DualsOrF64, order: ADOrder, vars: Vec<String>) -> DualsOrF64 {

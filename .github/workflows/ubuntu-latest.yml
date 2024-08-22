@@ -28,6 +28,9 @@ jobs:
     - name: Rust library tests
       run: |
         cargo test --lib
+    - name: Rust doc tests
+      run: |
+        cargo test --doc
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
