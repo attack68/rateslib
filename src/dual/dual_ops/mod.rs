@@ -2,7 +2,7 @@ mod add;
 pub mod convert;
 mod div;
 mod eq;
-pub mod field_ops;
+pub mod numeric_ops;
 mod from;
 pub mod math_funcs;
 mod mul;
