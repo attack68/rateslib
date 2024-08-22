@@ -112,6 +112,7 @@ where
     /// # Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::{Dual, Vars, VarsRelationship};
     /// let x = Dual::new(1.0, vec!["x".to_string()]);
     /// let y = Dual::new(1.5, vec!["y".to_string()]);
     /// let (a, b) = x.to_union_vars(&y, Some(VarsRelationship::Difference));
@@ -156,14 +157,15 @@ where
         )
     }
 
-    /// Compare if two `Dual` structs share the same `vars`by Arc pointer equivalence.
+    /// Compare if two `Dual` structs share the same `vars` by Arc pointer equivalence.
     ///
     /// # Examples
     ///
     /// ```rust
+    /// # use rateslib::dual::{Dual, Vars}
     /// let x1 = Dual::new(1.5, vec!["x".to_string()]);
     /// let x2 = Dual::new(2.5, vec!["x".to_string()]);
-    /// x1.ptr_eq(&x2); // false
+    /// assert_eq!(x1.ptr_eq(&x2), false);
     /// ```
     fn ptr_eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(self.vars(), other.vars())
