@@ -432,7 +432,8 @@ impl Dual {
     /// # Examples
     ///
     /// ```rust
-    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2])?;
+    /// # use rateslib::dual::Dual;
+    /// let x = Dual::try_new(2.5, vec!["x".to_string()], vec![4.2]).unwrap();
     /// // x: <Dual: 2.5, (x), [4.2]>
     /// ```
     pub fn try_new(real: f64, vars: Vec<String>, dual: Vec<f64>) -> Result<Self, PyErr> {
@@ -491,7 +492,7 @@ impl Dual {
     /// # use rateslib::dual::{Dual, Vars};
     /// # let x = Dual::try_new(2.5, vec!["x".to_string(), "y".to_string()], vec![1.0, 0.0]).unwrap();
     /// # let y1 = Dual::try_new_from(&x, 1.5, vec!["y".to_string()], vec![3.2]).unwrap();
-    /// let y2 = Dual::try_new(1.5, vec!["y".to_string()], vec![3.2]).unwrap().to_union_vars(x.vars(), None).0;
+    /// let y2 = Dual::try_new(1.5, vec!["y".to_string()], vec![3.2]).unwrap().to_new_vars(x.vars(), None);
     /// assert_eq!(y1, y2);
     /// ```
     pub fn try_new_from<T: Vars>(
