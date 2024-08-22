@@ -100,7 +100,7 @@ macro_rules! create_interface {
             ///
             fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
                 match x {
-                    DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, 0)),
+                    DualsOrF64::F64(f) => self.inner.ppdnev_single(&f, 0),
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err(
                         "Cannot index PPSpline with `Dual`, use either `ppev_single(float(x))` or `ppev_single_dual(x)`."
                         )),
@@ -176,7 +176,7 @@ macro_rules! create_interface {
             /// -------
             /// 1-d array of float
             fn ppev(&self, x: Vec<f64>) -> PyResult<Vec<$type>> {
-                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, 0)).collect();
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, 0)).collect::<Result<Vec<$type>, _>>()?;
                 Ok(out)
             }
 
@@ -208,7 +208,7 @@ macro_rules! create_interface {
             fn ppdnev_single(&self, x: DualsOrF64, m: usize) -> PyResult<$type> {
                 match x {
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
-                    DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, m)),
+                    DualsOrF64::F64(f) => self.inner.ppdnev_single(&f, m),
                     DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
                 }
             }
@@ -286,7 +286,7 @@ macro_rules! create_interface {
             /// -------
             /// 1-d array of float
             fn ppdnev(&self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
-                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect::<Result<Vec<$type>, _>>()?;
                 Ok(out)
             }
 
