@@ -1,5 +1,5 @@
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
-use crate::dual::{Dual, Dual2, Gradient1, Gradient2};
+use crate::dual::{Dual, Dual2, Gradient1, Gradient2, DualsOrF64};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -10,6 +10,10 @@ use std::{
     iter::{zip, Sum},
     ops::{Mul, Sub},
 };
+
+pub trait SplineInterpolation {
+    fn interpolated_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr>;
+}
 
 /// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
 ///
@@ -210,16 +214,16 @@ where
         PPSpline { k, t, n, c: c_ }
     }
 
-    pub fn ppdnev_single(&self, x: &f64, m: usize) -> T {
+    pub fn ppdnev_single(&self, x: &f64, m: usize) -> Result<T, PyErr> {
         let b: Array1<f64> = Array1::from_vec(
             (0..self.n)
                 .map(|i| bspldnev_single_f64(x, i, &self.k, &self.t, m, None))
                 .collect(),
         );
         match &self.c {
-            Some(c) => fdmul11_(&b.view(), &c.view()),
+            Some(c) => Ok(fdmul11_(&b.view(), &c.view())),
             None => {
-                panic!("Must call csolve before attempting to evaluate spline.")
+                Err(PyValueError::new_err("Must call `csolve` before evaluating PPSpline."))
             }
         }
     }
@@ -270,6 +274,16 @@ where
             }
         }
         b
+    }
+}
+
+impl SplineInterpolation for PPSpline<f64> {
+    fn interpolated_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+        match x {
+            DualsOrF64::F64(f) => Ok(DualsOrF64::F64(self.ppdnev_single(f, 0_usize)?)),
+            DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+        }
     }
 }
 
@@ -557,11 +571,11 @@ mod tests {
         let t = vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.];
         let mut pps = PPSpline::new(4, t, None);
         pps.c = Some(arr1(&[1., 2., -1., 2., 1., 1., 2., 2.]));
-        let r1 = pps.ppdnev_single(&1.1, 0);
+        let r1 = pps.ppdnev_single(&1.1, 0).unwrap();
         assert!(is_close(&r1, &1.19, None));
-        let r2 = pps.ppdnev_single(&1.8, 0);
+        let r2 = pps.ppdnev_single(&1.8, 0).unwrap();
         assert!(is_close(&r2, &0.84, None));
-        let r3 = pps.ppdnev_single(&2.8, 0);
+        let r3 = pps.ppdnev_single(&2.8, 0).unwrap();
         assert!(is_close(&r3, &1.136, None));
     }
 
