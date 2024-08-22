@@ -98,7 +98,8 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 /// # Examples
 ///
 /// ```rust
-/// let ldn_cal = get_calendar_by_name("ldn")?;
+/// # use rateslib::calendars::get_calendar_by_name;
+/// let ldn_cal = get_calendar_by_name("ldn").unwrap();
 /// ```
 pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
     Ok(Cal::new(
