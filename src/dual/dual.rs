@@ -36,6 +36,14 @@ pub enum DualsOrF64 {
     F64(f64),
 }
 
+/// Generic trait indicating a function exists to map one value to another preserving AD.
+///
+/// An example of this trait is used by certain PPSplines indicating that an x-value as some DualsOrF64 value
+/// can be mapped under spline interpolation to some y-value which is another DualsOrF64 value.
+pub trait DualsOrF64Mapping {
+    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr>;
+}
+
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ADOrder {

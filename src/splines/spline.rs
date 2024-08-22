@@ -1,5 +1,5 @@
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
-use crate::dual::{Dual, Dual2, Gradient1, Gradient2, DualsOrF64};
+use crate::dual::{Dual, Dual2, DualsOrF64, Gradient1, Gradient2, DualsOrF64Mapping};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -10,10 +10,6 @@ use std::{
     iter::{zip, Sum},
     ops::{Mul, Sub},
 };
-
-pub trait SplineInterpolation {
-    fn interpolated_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr>;
-}
 
 /// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
 ///
@@ -277,8 +273,8 @@ where
     }
 }
 
-impl SplineInterpolation for PPSpline<f64> {
-    fn interpolated_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+impl DualsOrF64Mapping for PPSpline<f64> {
+    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
         match x {
             DualsOrF64::F64(f) => Ok(DualsOrF64::F64(self.ppdnev_single(f, 0_usize)?)),
             DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
@@ -317,6 +313,16 @@ impl PPSpline<f64> {
     }
 }
 
+impl DualsOrF64Mapping for PPSpline<Dual> {
+    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+        match x {
+            DualsOrF64::F64(f) => Ok(DualsOrF64::Dual(self.ppdnev_single(f, 0_usize)?)),
+            DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+        }
+    }
+}
+
 impl PPSpline<Dual> {
     pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
         Err(PyTypeError::new_err(
@@ -335,6 +341,16 @@ impl PPSpline<Dual> {
             None => Err(PyValueError::new_err(
                 "Must call `csolve` before evaluating PPSpline.",
             )),
+        }
+    }
+}
+
+impl DualsOrF64Mapping for PPSpline<Dual2> {
+    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+        match x {
+            DualsOrF64::F64(f) => Ok(DualsOrF64::Dual2(self.ppdnev_single(f, 0_usize)?)),
+            DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
         }
     }
 }
