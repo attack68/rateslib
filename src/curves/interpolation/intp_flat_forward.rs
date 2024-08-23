@@ -1,6 +1,6 @@
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
-use crate::dual::DualsOrF64;
+use crate::dual::Number;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use pyo3::prelude::*;
@@ -35,7 +35,7 @@ impl FlatForwardInterpolator {
 }
 
 impl CurveInterpolation for FlatForwardInterpolator {
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number {
         let x = date.and_utc().timestamp();
         let index = self.node_index(nodes, x);
         macro_rules! interp {
@@ -43,9 +43,9 @@ impl CurveInterpolation for FlatForwardInterpolator {
                 let (_x1, y1) = $indexmap.get_index(index).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
                 if x >= *x2 {
-                    DualsOrF64::$Variant(y2.clone())
+                    Number::$Variant(y2.clone())
                 } else {
-                    DualsOrF64::$Variant(y1.clone())
+                    Number::$Variant(y1.clone())
                 }
             }};
         }
@@ -78,7 +78,7 @@ mod tests {
         let nts = nodes_timestamp_fixture();
         let li = FlatForwardInterpolator::new();
         let result = li.interpolated_value(&nts, &ndt(2000, 7, 1));
-        assert_eq!(result, DualsOrF64::F64(1.0));
+        assert_eq!(result, Number::F64(1.0));
     }
 
     #[test]
@@ -86,7 +86,7 @@ mod tests {
         let nts = nodes_timestamp_fixture();
         let li = FlatForwardInterpolator::new();
         let result = li.interpolated_value(&nts, &ndt(1999, 7, 1));
-        assert_eq!(result, DualsOrF64::F64(1.0));
+        assert_eq!(result, Number::F64(1.0));
     }
 
     #[test]
@@ -94,7 +94,7 @@ mod tests {
         let nts = nodes_timestamp_fixture();
         let li = FlatForwardInterpolator::new();
         let result = li.interpolated_value(&nts, &ndt(2005, 7, 1));
-        assert_eq!(result, DualsOrF64::F64(0.98));
+        assert_eq!(result, Number::F64(0.98));
     }
 
     #[test]
@@ -102,6 +102,6 @@ mod tests {
         let nts = nodes_timestamp_fixture();
         let li = FlatForwardInterpolator::new();
         let result = li.interpolated_value(&nts, &ndt(2001, 1, 1));
-        assert_eq!(result, DualsOrF64::F64(0.99));
+        assert_eq!(result, Number::F64(0.99));
     }
 }

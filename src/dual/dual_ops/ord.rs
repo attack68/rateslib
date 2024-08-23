@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use std::cmp::Ordering;
 
 /// Compares `Dual` by `real` component only.
@@ -38,22 +38,22 @@ impl PartialOrd<Dual2> for f64 {
     }
 }
 
-impl PartialOrd<DualsOrF64> for DualsOrF64 {
-    fn partial_cmp(&self, other: &DualsOrF64) -> Option<Ordering> {
+impl PartialOrd<Number> for Number {
+    fn partial_cmp(&self, other: &Number) -> Option<Ordering> {
         match (self, other) {
-            (DualsOrF64::F64(f), DualsOrF64::F64(f2)) => f.partial_cmp(f2),
-            (DualsOrF64::F64(f), DualsOrF64::Dual(d2)) => f.partial_cmp(d2),
-            (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => f.partial_cmp(d2),
-            (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => d.partial_cmp(f2),
-            (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => d.partial_cmp(d2),
-            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => {
+            (Number::F64(f), Number::F64(f2)) => f.partial_cmp(f2),
+            (Number::F64(f), Number::Dual(d2)) => f.partial_cmp(d2),
+            (Number::F64(f), Number::Dual2(d2)) => f.partial_cmp(d2),
+            (Number::Dual(d), Number::F64(f2)) => d.partial_cmp(f2),
+            (Number::Dual(d), Number::Dual(d2)) => d.partial_cmp(d2),
+            (Number::Dual(_), Number::Dual2(_)) => {
                 panic!("Cannot mix dual types: Dual compare Dual2")
             }
-            (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => d.partial_cmp(f2),
-            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => {
+            (Number::Dual2(d), Number::F64(f2)) => d.partial_cmp(f2),
+            (Number::Dual2(_), Number::Dual(_)) => {
                 panic!("Cannot mix dual types: Dual2 compare Dual")
             }
-            (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => d.partial_cmp(d2),
+            (Number::Dual2(d), Number::Dual2(d2)) => d.partial_cmp(d2),
         }
     }
 }
@@ -124,23 +124,23 @@ mod tests {
 
     #[test]
     fn test_enum() {
-        let d = DualsOrF64::Dual(Dual::new(2.0, vec!["x".to_string()]));
-        let d2 = DualsOrF64::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let d = Number::Dual(Dual::new(2.0, vec!["x".to_string()]));
+        let d2 = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         assert!(d <= d2)
     }
 
     #[test]
     fn test_cross_enum_eq() {
-        let f = DualsOrF64::F64(2.5_f64);
-        let d = DualsOrF64::Dual(Dual::new(3.5_f64, vec![]));
+        let f = Number::F64(2.5_f64);
+        let d = Number::Dual(Dual::new(3.5_f64, vec![]));
         assert!(f <= d);
     }
 
     #[test]
     #[should_panic]
     fn test_cross_enum_eq_error() {
-        let d2 = DualsOrF64::Dual2(Dual2::new(2.5_f64, vec![]));
-        let d = DualsOrF64::Dual(Dual::new(2.5_f64, vec![]));
+        let d2 = Number::Dual2(Dual2::new(2.5_f64, vec![]));
+        let d = Number::Dual(Dual::new(2.5_f64, vec![]));
         assert!(d <= d2);
     }
 }

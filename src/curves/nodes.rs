@@ -1,4 +1,4 @@
-use crate::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::{Dual, Dual2, Number};
 use chrono::{DateTime, NaiveDateTime};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -92,13 +92,13 @@ impl NodesTimestamp {
         }
     }
 
-    pub(crate) fn index_map(&self) -> IndexMap<NaiveDateTime, DualsOrF64> {
+    pub(crate) fn index_map(&self) -> IndexMap<NaiveDateTime, Number> {
         macro_rules! create_map {
             ($map:ident, $Variant:ident) => {
                 IndexMap::from_iter($map.clone().into_iter().map(|(k, v)| {
                     (
                         DateTime::from_timestamp(k, 0).unwrap().naive_utc(),
-                        DualsOrF64::$Variant(v),
+                        Number::$Variant(v),
                     )
                 }))
             };
@@ -113,19 +113,19 @@ impl NodesTimestamp {
 }
 
 //     /// Refactors the `get_index` method of an IndexMap and type casts the return values.
-//     pub(crate) fn get_index_as_f64(&self, index: usize) -> (f64, DualsOrF64) {
+//     pub(crate) fn get_index_as_f64(&self, index: usize) -> (f64, Number) {
 //         match self {
 //             NodesTimestamp::F64(m) => {
 //                 let (k, v) = m.get_index(index).unwrap();
-//                 (*k as f64, DualsOrF64::F64(*v))
+//                 (*k as f64, Number::F64(*v))
 //             },
 //             NodesTimestamp::Dual(m) => {
 //                 let (k, v) = m.get_index(index).unwrap();
-//                 (*k as f64, DualsOrF64::Dual(v.clone()))
+//                 (*k as f64, Number::Dual(v.clone()))
 //             },
 //             NodesTimestamp::Dual2(m) => {
 //                 let (k, v) = m.get_index(index).unwrap();
-//                 (*k as f64, DualsOrF64::Dual2(v.clone()))
+//                 (*k as f64, Number::Dual2(v.clone()))
 //             },
 //         }
 //     }
