@@ -100,15 +100,11 @@ impl Signed for Number {
     fn abs_sub(&self, other: &Self) -> Self {
         match (self, other) {
             (Number::F64(f), Number::F64(f2)) => Number::F64(f.abs_sub(f2)),
-            (Number::F64(f), Number::Dual(d2)) => {
-                Number::Dual(Dual::new(*f, vec![]).abs_sub(d2))
-            }
+            (Number::F64(f), Number::Dual(d2)) => Number::Dual(Dual::new(*f, vec![]).abs_sub(d2)),
             (Number::F64(f), Number::Dual2(d2)) => {
                 Number::Dual2(Dual2::new(*f, vec![]).abs_sub(d2))
             }
-            (Number::Dual(d), Number::F64(f2)) => {
-                Number::Dual(d.abs_sub(&Dual::new(*f2, vec![])))
-            }
+            (Number::Dual(d), Number::F64(f2)) => Number::Dual(d.abs_sub(&Dual::new(*f2, vec![]))),
             (Number::Dual(d), Number::Dual(d2)) => Number::Dual(d.abs_sub(d2)),
             (Number::Dual(_), Number::Dual2(_)) => {
                 panic!("Cannot mix dual types: Dual / Dual2")

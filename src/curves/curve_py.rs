@@ -102,12 +102,8 @@ impl Curve {
     fn nodes(&self) -> IndexMap<NaiveDateTime, Number> {
         let nodes = Nodes::from(self.inner.nodes.clone());
         match nodes {
-            Nodes::F64(i) => {
-                IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, Number::F64(v))))
-            }
-            Nodes::Dual(i) => {
-                IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, Number::Dual(v))))
-            }
+            Nodes::F64(i) => IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, Number::F64(v)))),
+            Nodes::Dual(i) => IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, Number::Dual(v)))),
             Nodes::Dual2(i) => {
                 IndexMap::from_iter(i.into_iter().map(|(k, v)| (k, Number::Dual2(v))))
             }
@@ -229,11 +225,7 @@ impl Curve {
 //     }
 // }
 
-fn nodes_into_order(
-    mut nodes: IndexMap<NaiveDateTime, Number>,
-    ad: ADOrder,
-    id: &str,
-) -> Nodes {
+fn nodes_into_order(mut nodes: IndexMap<NaiveDateTime, Number>, ad: ADOrder, id: &str) -> Nodes {
     let vars: Vec<String> = get_variable_tags(id, nodes.keys().len());
     nodes.sort_keys();
     match ad {

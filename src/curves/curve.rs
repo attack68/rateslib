@@ -250,10 +250,7 @@ mod tests {
         let mut curve = curve_dual_fixture();
         let _ = curve.set_ad_order(ADOrder::One);
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
-        assert_eq!(
-            result,
-            Number::Dual(Dual::new(0.99, vec!["y".to_string()]))
-        );
+        assert_eq!(result, Number::Dual(Dual::new(0.99, vec!["y".to_string()])));
     }
 
     #[test]

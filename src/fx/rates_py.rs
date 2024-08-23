@@ -151,11 +151,7 @@ impl FXRates {
     fn fx_vector_py(&self) -> PyResult<Vec<Number>> {
         match &self.fx_array {
             FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| Number::F64(*x)).collect()),
-            FXArray::Dual(arr) => Ok(arr
-                .row(0)
-                .iter()
-                .map(|x| Number::Dual(x.clone()))
-                .collect()),
+            FXArray::Dual(arr) => Ok(arr.row(0).iter().map(|x| Number::Dual(x.clone())).collect()),
             FXArray::Dual2(arr) => Ok(arr
                 .row(0)
                 .iter()
@@ -239,10 +235,8 @@ mod tests {
     fn fxrates_eq() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
-                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
             None,
         )
@@ -250,10 +244,8 @@ mod tests {
 
         let fxr2 = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
-                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
             None,
         )

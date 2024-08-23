@@ -156,10 +156,7 @@ mod tests {
     fn test_enum() {
         let f = Number::F64(2.0);
         let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
-        assert_eq!(
-            &f + &d,
-            Number::Dual(Dual::new(5.0, vec!["x".to_string()]))
-        );
+        assert_eq!(&f + &d, Number::Dual(Dual::new(5.0, vec!["x".to_string()])));
 
         assert_eq!(
             &d + &d,

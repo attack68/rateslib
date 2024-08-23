@@ -1,6 +1,6 @@
 //! Wrapper module to export Rust dual data types to Python using pyo3 bindings.
 
-use crate::dual::dual::{ADOrder, Dual, Dual2, Number, Gradient1, Gradient2, Vars};
+use crate::dual::dual::{ADOrder, Dual, Dual2, Gradient1, Gradient2, Number, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use bincode::{deserialize, serialize};
 use num_traits::{Pow, Signed};

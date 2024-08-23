@@ -401,10 +401,8 @@ mod tests {
     fn fxrates_rate() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
-                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
             None,
         )

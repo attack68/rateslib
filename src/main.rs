@@ -1,4 +1,4 @@
-use rateslib::dual::{Dual, Number, FieldOps};
+use rateslib::dual::{Dual, FieldOps, Number};
 use std::time::SystemTime;
 
 fn ops<T>(a: &T, b: &T) -> T
@@ -33,10 +33,7 @@ fn main() {
     for i in 0..10000 {
         let _ = ops(&a3, &b3);
     }
-    println!(
-        "{:.5?} time taken for Number F64 wrapper",
-        now.elapsed()
-    );
+    println!("{:.5?} time taken for Number F64 wrapper", now.elapsed());
 
     for i in 0..10000 {
         let _ = ops(&a1, &b1);
@@ -46,10 +43,7 @@ fn main() {
     for i in 0..10000 {
         let _ = ops(&a2, &b2);
     }
-    println!(
-        "{:.5?} time taken for Number Dual wrapper",
-        now.elapsed()
-    );
+    println!("{:.5?} time taken for Number Dual wrapper", now.elapsed());
 
     for i in 0..10000 {
         let _ = ops(&a2, &a3);

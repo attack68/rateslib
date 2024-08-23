@@ -65,16 +65,10 @@ mod tests {
     fn test_set_order_with_conversion() {
         let f = 2.5_f64;
         let d = set_order(Number::F64(f), ADOrder::One, vec!["var1".to_string()]);
-        assert_eq!(
-            d,
-            Number::Dual(Dual::new(2.5, vec!["var1".to_string()]))
-        );
+        assert_eq!(d, Number::Dual(Dual::new(2.5, vec!["var1".to_string()])));
 
         let d2 = set_order(d, ADOrder::Two, vec![]);
-        assert_eq!(
-            d2,
-            Number::Dual2(Dual2::new(2.5, vec!["var1".to_string()]))
-        );
+        assert_eq!(d2, Number::Dual2(Dual2::new(2.5, vec!["var1".to_string()])));
 
         let f = set_order(d2, ADOrder::Zero, vec![]);
         assert_eq!(f, Number::F64(2.5_f64));
