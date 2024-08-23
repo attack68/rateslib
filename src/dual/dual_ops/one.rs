@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use num_traits::One;
 
 impl One for Dual {
@@ -13,9 +13,9 @@ impl One for Dual2 {
     }
 }
 
-impl One for DualsOrF64 {
-    fn one() -> DualsOrF64 {
-        DualsOrF64::F64(1.0_f64)
+impl One for Number {
+    fn one() -> Number {
+        Number::F64(1.0_f64)
     }
 }
 
@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn one_enum() {
-        let d = DualsOrF64::one();
-        assert_eq!(d, DualsOrF64::F64(1.0));
+        let d = Number::one();
+        assert_eq!(d, Number::F64(1.0));
     }
 }

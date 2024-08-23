@@ -138,7 +138,7 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
                 if date.and_utc().timestamp() < self.nodes.first_key() {
                     Ok(Number::F64(0.0))
                 } else {
-                    Ok(DualsOrF64::F64(ib) / self.interpolated_value(date))
+                    Ok(Number::F64(ib) / self.interpolated_value(date))
                 }
             }
         }
@@ -211,7 +211,7 @@ mod tests {
     fn test_get_value() {
         let c = curve_fixture();
         let result = c.interpolated_value(&ndt(2000, 7, 1));
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371))
+        assert_eq!(result, Number::F64(0.9950147597711371))
     }
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
@@ -229,7 +229,7 @@ mod tests {
         let ll = LogLinearInterpolator::new();
         let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
+        assert_eq!(result, Number::F64(0.9950147597711371));
     }
 
     #[test]
@@ -240,7 +240,7 @@ mod tests {
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
         assert_eq!(
             result,
-            DualsOrF64::Dual(Dual::new(0.99, vec!["crv1".to_string()]))
+            Number::Dual(Dual::new(0.99, vec!["crv1".to_string()]))
         );
     }
 
@@ -252,7 +252,7 @@ mod tests {
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
         assert_eq!(
             result,
-            DualsOrF64::Dual(Dual::new(0.99, vec!["y".to_string()]))
+            Number::Dual(Dual::new(0.99, vec!["y".to_string()]))
         );
     }
 
@@ -264,7 +264,7 @@ mod tests {
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
         assert_eq!(
             result,
-            DualsOrF64::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
+            Number::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
         );
     }
 
@@ -272,13 +272,13 @@ mod tests {
     fn test_index_value() {
         let index_curve = index_curve_fixture();
         let result = index_curve.index_value(&ndt(2001, 1, 1)).unwrap();
-        assert_eq!(result, DualsOrF64::F64(100.0 / 0.99))
+        assert_eq!(result, Number::F64(100.0 / 0.99))
     }
 
     #[test]
     fn test_index_value_prior_to_first() {
         let index_curve = index_curve_fixture();
         let result = index_curve.index_value(&ndt(1980, 1, 1)).unwrap();
-        assert_eq!(result, DualsOrF64::F64(0.0))
+        assert_eq!(result, Number::F64(0.0))
     }
 }

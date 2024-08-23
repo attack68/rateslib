@@ -1,6 +1,6 @@
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
-use crate::dual::DualsOrF64;
+use crate::dual::Number;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use pyo3::prelude::*;
@@ -37,10 +37,10 @@ impl NullInterpolator {
 }
 
 impl CurveInterpolation for NullInterpolator {
-    fn interpolated_value(&self, _nodes: &NodesTimestamp, _date: &NaiveDateTime) -> DualsOrF64 {
+    fn interpolated_value(&self, _nodes: &NodesTimestamp, _date: &NaiveDateTime) -> Number {
         panic!("NullInterpolator cannot be used to obtain interpolated values.");
         #[allow(unreachable_code)]
-        DualsOrF64::F64(0.0)
+        Number::F64(0.0)
     }
 }
 

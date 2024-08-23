@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use num_traits::Zero;
 
 impl Zero for Dual {
@@ -21,16 +21,16 @@ impl Zero for Dual2 {
     }
 }
 
-impl Zero for DualsOrF64 {
-    fn zero() -> DualsOrF64 {
-        DualsOrF64::F64(0.0_f64)
+impl Zero for Number {
+    fn zero() -> Number {
+        Number::F64(0.0_f64)
     }
 
     fn is_zero(&self) -> bool {
         match self {
-            DualsOrF64::F64(f) => *f == 0.0_f64,
-            DualsOrF64::Dual(d) => *d == Dual::new(0.0, vec![]),
-            DualsOrF64::Dual2(d) => *d == Dual2::new(0.0, vec![]),
+            Number::F64(f) => *f == 0.0_f64,
+            Number::Dual(d) => *d == Dual::new(0.0, vec![]),
+            Number::Dual2(d) => *d == Dual2::new(0.0, vec![]),
         }
     }
 }
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn is_zero_enum() {
-        let d = DualsOrF64::Dual2(Dual2::zero());
+        let d = Number::Dual2(Dual2::zero());
         assert!(d.is_zero());
     }
 }

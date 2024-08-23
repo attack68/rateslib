@@ -1,7 +1,7 @@
 use crate::curves::interpolation::utils::linear_interp;
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
-use crate::dual::DualsOrF64;
+use crate::dual::Number;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use pyo3::prelude::*;
@@ -36,7 +36,7 @@ impl LinearInterpolator {
 }
 
 impl CurveInterpolation for LinearInterpolator {
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number {
         let x = date.and_utc().timestamp();
         let index = self.node_index(nodes, x);
 
@@ -44,7 +44,7 @@ impl CurveInterpolation for LinearInterpolator {
             ($Variant: ident, $indexmap: expr) => {{
                 let (x1, y1) = $indexmap.get_index(index).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
-                DualsOrF64::$Variant(linear_interp(*x1 as f64, y1, *x2 as f64, y2, x as f64))
+                Number::$Variant(linear_interp(*x1 as f64, y1, *x2 as f64, y2, x as f64))
             }};
         }
         match nodes {
@@ -77,6 +77,6 @@ mod tests {
         let li = LinearInterpolator::new();
         let result = li.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = 1.0 + (182 / 366) * (0.99 - 1.0) = 0.995027
-        assert_eq!(result, DualsOrF64::F64(0.9950273224043715));
+        assert_eq!(result, Number::F64(0.9950273224043715));
     }
 }
