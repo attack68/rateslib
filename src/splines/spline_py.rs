@@ -1,6 +1,6 @@
 //! Wrapper to export spline functionality to Python
 
-use crate::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::{Dual, Dual2, Number};
 use crate::splines::spline::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
 
@@ -98,13 +98,13 @@ macro_rules! create_interface {
             ///
             ///    \$(x) = \sum_{i=1}^n c_i B_{(i,k,\mathbf{t})}(x)
             ///
-            fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
+            fn ppev_single(&self, x: Number) -> PyResult<$type> {
                 match x {
-                    DualsOrF64::F64(f) => self.inner.ppdnev_single(&f, 0),
-                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err(
+                    Number::F64(f) => self.inner.ppdnev_single(&f, 0),
+                    Number::Dual(_) => Err(PyTypeError::new_err(
                         "Cannot index PPSpline with `Dual`, use either `ppev_single(float(x))` or `ppev_single_dual(x)`."
                         )),
-                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err(
+                    Number::Dual2(_) => Err(PyTypeError::new_err(
                         "Cannot index PPSpline with `Dual2`, use either `ppev_single(float(x))` or `ppev_single_dual2(x)`.")),
                 }
             }
@@ -125,7 +125,7 @@ macro_rules! create_interface {
             /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual`
             /// sensitivities. It also prohibits type mixing and will raise if *Dual2* data types
             /// are encountered.
-            fn ppev_single_dual(&self, x: DualsOrF64) -> PyResult<Dual> {
+            fn ppev_single_dual(&self, x: Number) -> PyResult<Dual> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), 0),
                     DualsOrF64::Dual(d) => self.inner.ppdnev_single_dual(&d, 0),

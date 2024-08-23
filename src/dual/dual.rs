@@ -30,7 +30,7 @@ pub struct Dual2 {
 
 /// Container for the three core numeric types; `f64`, `Dual` and `Dual2`
 #[derive(Debug, Clone, FromPyObject, Serialize, Deserialize)]
-pub enum DualsOrF64 {
+pub enum Number {
     Dual(Dual),
     Dual2(Dual2),
     F64(f64),

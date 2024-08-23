@@ -22,7 +22,7 @@ pub mod linalg;
 pub(crate) mod linalg_py;
 
 pub use crate::dual::dual::{
-    set_order, set_order_clone, ADOrder, Dual, Dual2, DualsOrF64, FieldOps, Gradient1, Gradient2,
+    set_order, set_order_clone, ADOrder, Dual, Dual2, Number, FieldOps, Gradient1, Gradient2,
     MathFuncs, Vars, VarsRelationship,
 };
 

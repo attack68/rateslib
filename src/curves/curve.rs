@@ -2,7 +2,7 @@ use crate::calendars::DateRoll;
 use crate::calendars::{Convention, Modifier};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
+use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, Number};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
@@ -25,7 +25,7 @@ pub struct CurveDF<T: CurveInterpolation, U: DateRoll> {
 /// Assigns methods for returning values from datetime indexed Curves.
 pub trait CurveInterpolation {
     /// Get a value from the curve's `Nodes` expressed in its input form, i.e. discount factor or value.
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64;
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number;
 
     /// Get the left side node key index of the given datetime
     fn node_index(&self, nodes: &NodesTimestamp, date_timestamp: i64) -> usize {
@@ -66,7 +66,7 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
         }
     }
 
-    pub fn interpolated_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
+    pub fn interpolated_value(&self, date: &NaiveDateTime) -> Number {
         self.interpolator.interpolated_value(&self.nodes, date)
     }
 
@@ -131,12 +131,12 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
         }
     }
 
-    pub fn index_value(&self, date: &NaiveDateTime) -> Result<DualsOrF64, PyErr> {
+    pub fn index_value(&self, date: &NaiveDateTime) -> Result<Number, PyErr> {
         match self.index_base {
             None => Err(PyValueError::new_err("Can only calculate `index_value` for a Curve which has been initialised with `index_base`.")),
             Some(ib) => {
                 if date.and_utc().timestamp() < self.nodes.first_key() {
-                    Ok(DualsOrF64::F64(0.0))
+                    Ok(Number::F64(0.0))
                 } else {
                     Ok(DualsOrF64::F64(ib) / self.interpolated_value(date))
                 }

@@ -1,6 +1,6 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
-use crate::dual::{ADOrder, DualsOrF64};
+use crate::dual::{ADOrder, Number};
 use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates};
 use chrono::prelude::*;
 use ndarray::Axis;
@@ -40,7 +40,7 @@ impl FXRate {
     fn new_py(
         lhs: &str,
         rhs: &str,
-        rate: DualsOrF64,
+        rate: Number,
         settlement: Option<NaiveDateTime>,
     ) -> PyResult<Self> {
         FXRate::try_new(lhs, rhs, rate, settlement)
@@ -48,7 +48,7 @@ impl FXRate {
 
     #[getter]
     #[pyo3(name = "rate")]
-    fn rate_py(&self) -> PyResult<DualsOrF64> {
+    fn rate_py(&self) -> PyResult<Number> {
         Ok(self.rate.clone())
     }
 
@@ -56,9 +56,9 @@ impl FXRate {
     #[pyo3(name = "ad")]
     fn ad_py(&self) -> u8 {
         match self.rate {
-            DualsOrF64::F64(_) => 0,
-            DualsOrF64::Dual(_) => 1,
-            DualsOrF64::Dual2(_) => 2,
+            Number::F64(_) => 0,
+            Number::Dual(_) => 1,
+            Number::Dual2(_) => 2,
         }
     }
 
@@ -76,13 +76,13 @@ impl FXRate {
 
     fn __repr__(&self) -> PyResult<String> {
         match &self.rate {
-            DualsOrF64::F64(f) => Ok(format!("<FXRate: '{}' {}>", self.pair, f)),
-            DualsOrF64::Dual(d) => Ok(format!(
+            Number::F64(f) => Ok(format!("<FXRate: '{}' {}>", self.pair, f)),
+            Number::Dual(d) => Ok(format!(
                 "<FXRate: '{}' <Dual: {}, ..>>",
                 self.pair,
                 d.real()
             )),
-            DualsOrF64::Dual2(d) => Ok(format!(
+            Number::Dual2(d) => Ok(format!(
                 "<FXRate: '{}' <Dual2: {}, ..>>",
                 self.pair,
                 d.real()
@@ -99,7 +99,7 @@ impl FXRate {
 impl FXRates {
     // #[new]
     // fn new_py(
-    //     fx_rates: HashMap<String, DualsOrF64>,
+    //     fx_rates: HashMap<String, Number>,
     //     settlement: NaiveDateTime,
     //     base: Option<String>,
     // ) -> PyResult<Self> {
@@ -148,40 +148,40 @@ impl FXRates {
 
     #[getter]
     #[pyo3(name = "fx_vector")]
-    fn fx_vector_py(&self) -> PyResult<Vec<DualsOrF64>> {
+    fn fx_vector_py(&self) -> PyResult<Vec<Number>> {
         match &self.fx_array {
-            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| DualsOrF64::F64(*x)).collect()),
+            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| Number::F64(*x)).collect()),
             FXArray::Dual(arr) => Ok(arr
                 .row(0)
                 .iter()
-                .map(|x| DualsOrF64::Dual(x.clone()))
+                .map(|x| Number::Dual(x.clone()))
                 .collect()),
             FXArray::Dual2(arr) => Ok(arr
                 .row(0)
                 .iter()
-                .map(|x| DualsOrF64::Dual2(x.clone()))
+                .map(|x| Number::Dual2(x.clone()))
                 .collect()),
         }
     }
 
     #[getter]
     #[pyo3(name = "fx_array")]
-    fn fx_array_py(&self) -> PyResult<Vec<Vec<DualsOrF64>>> {
+    fn fx_array_py(&self) -> PyResult<Vec<Vec<Number>>> {
         match &self.fx_array {
             FXArray::F64(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
-                .map(|row| row.iter().map(|d| DualsOrF64::F64(*d)).collect())
+                .map(|row| row.iter().map(|d| Number::F64(*d)).collect())
                 .collect()),
             FXArray::Dual(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
-                .map(|row| row.iter().map(|d| DualsOrF64::Dual(d.clone())).collect())
+                .map(|row| row.iter().map(|d| Number::Dual(d.clone())).collect())
                 .collect()),
             FXArray::Dual2(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
-                .map(|row| row.iter().map(|d| DualsOrF64::Dual2(d.clone())).collect())
+                .map(|row| row.iter().map(|d| Number::Dual2(d.clone())).collect())
                 .collect()),
         }
     }
@@ -192,7 +192,7 @@ impl FXRates {
     }
 
     #[pyo3(name = "rate")]
-    fn rate_py(&self, lhs: &Ccy, rhs: &Ccy) -> PyResult<Option<DualsOrF64>> {
+    fn rate_py(&self, lhs: &Ccy, rhs: &Ccy) -> PyResult<Option<Number>> {
         Ok(self.rate(lhs, rhs))
     }
 
@@ -239,9 +239,9 @@ mod tests {
     fn fxrates_eq() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1)))
+                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1)))
                     .unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1)))
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1)))
                     .unwrap(),
             ],
             None,
@@ -250,9 +250,9 @@ mod tests {
 
         let fxr2 = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1)))
+                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1)))
                     .unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1)))
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1)))
                     .unwrap(),
             ],
             None,
