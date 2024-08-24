@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use std::ops::{Add, Div, Mul, Sub};
 
 pub trait NumericOps<T>:
@@ -12,7 +12,7 @@ impl<'a, T: 'a> NumericOps<T> for &'a T where
 impl NumericOps<Dual> for Dual {}
 impl NumericOps<Dual2> for Dual2 {}
 impl NumericOps<f64> for f64 {}
-impl NumericOps<DualsOrF64> for DualsOrF64 {}
+impl NumericOps<Number> for Number {}
 
 #[cfg(test)]
 mod tests {

@@ -2,7 +2,7 @@
 //! currencies, measured at different settlement dates in time.
 
 use crate::dual::linalg::argabsmax;
-use crate::dual::{set_order_clone, ADOrder, Dual, Dual2, DualsOrF64};
+use crate::dual::{set_order_clone, ADOrder, Dual, Dual2, Number};
 use crate::json::JSON;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
@@ -131,13 +131,13 @@ impl FXRates {
         self.currencies.get_index_of(currency)
     }
 
-    pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<DualsOrF64> {
+    pub fn rate(&self, lhs: &Ccy, rhs: &Ccy) -> Option<Number> {
         let dom_idx = self.currencies.get_index_of(lhs)?;
         let for_idx = self.currencies.get_index_of(rhs)?;
         match &self.fx_array {
-            FXArray::F64(arr) => Some(DualsOrF64::F64(arr[[dom_idx, for_idx]])),
-            FXArray::Dual(arr) => Some(DualsOrF64::Dual(arr[[dom_idx, for_idx]].clone())),
-            FXArray::Dual2(arr) => Some(DualsOrF64::Dual2(arr[[dom_idx, for_idx]].clone())),
+            FXArray::F64(arr) => Some(Number::F64(arr[[dom_idx, for_idx]])),
+            FXArray::Dual(arr) => Some(Number::Dual(arr[[dom_idx, for_idx]].clone())),
+            FXArray::Dual2(arr) => Some(Number::Dual2(arr[[dom_idx, for_idx]].clone())),
         }
     }
 
@@ -347,7 +347,7 @@ fn create_fx_array(
     let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
     let vars: Vec<String> = fx_pairs.iter().map(|x| format!("fx_{}", x)).collect();
     let mut edges = create_initial_edges(currencies, &fx_pairs);
-    let fx_rates_: Vec<DualsOrF64> = fx_rates
+    let fx_rates_: Vec<Number> = fx_rates
         .iter()
         .enumerate()
         .map(|(i, x)| set_order_clone(&x.rate, ad, vec![vars[i].clone()]))
@@ -401,10 +401,8 @@ mod tests {
     fn fxrates_rate() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), Some(ndt(2004, 1, 1)))
-                    .unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
             None,
         )
@@ -430,9 +428,9 @@ mod tests {
     fn fxrates_creation_error() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
-                FXRate::try_new("usd", "eur", DualsOrF64::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
-                FXRate::try_new("sek", "nok", DualsOrF64::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "eur", Number::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("sek", "nok", Number::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
             ],
             None,
         );
@@ -446,8 +444,8 @@ mod tests {
     fn fxrates_eq() {
         let fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), None).unwrap(),
             ],
             None,
         )
@@ -455,8 +453,8 @@ mod tests {
 
         let fxr2 = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), None).unwrap(),
             ],
             None,
         )
@@ -469,8 +467,8 @@ mod tests {
     fn fxrates_update() {
         let mut fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("eur", "usd", DualsOrF64::F64(1.08), None).unwrap(),
-                FXRate::try_new("usd", "jpy", DualsOrF64::F64(110.0), None).unwrap(),
+                FXRate::try_new("eur", "usd", Number::F64(1.08), None).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(110.0), None).unwrap(),
             ],
             None,
         )
@@ -478,7 +476,7 @@ mod tests {
         let _ = fxr.update(vec![FXRate::try_new(
             "usd",
             "jpy",
-            DualsOrF64::F64(120.0),
+            Number::F64(120.0),
             None,
         )
         .unwrap()]);
@@ -486,14 +484,14 @@ mod tests {
             .rate(&Ccy::try_new("eur").unwrap(), &Ccy::try_new("usd").unwrap())
             .unwrap();
         match rate {
-            DualsOrF64::Dual(d) => assert_eq!(d.real, 1.08),
+            Number::Dual(d) => assert_eq!(d.real, 1.08),
             _ => panic!("failure"),
         };
         let rate = fxr
             .rate(&Ccy::try_new("usd").unwrap(), &Ccy::try_new("jpy").unwrap())
             .unwrap();
         match rate {
-            DualsOrF64::Dual(d) => assert_eq!(d.real, 120.0),
+            Number::Dual(d) => assert_eq!(d.real, 120.0),
             _ => panic!("failure"),
         }
     }
@@ -502,8 +500,8 @@ mod tests {
     fn second_order_gradients_on_set_order() {
         let mut fxr = FXRates::try_new(
             vec![
-                FXRate::try_new("usd", "nok", DualsOrF64::F64(10.0), None).unwrap(),
-                FXRate::try_new("eur", "nok", DualsOrF64::F64(8.0), None).unwrap(),
+                FXRate::try_new("usd", "nok", Number::F64(10.0), None).unwrap(),
+                FXRate::try_new("eur", "nok", Number::F64(8.0), None).unwrap(),
             ],
             None,
         )
