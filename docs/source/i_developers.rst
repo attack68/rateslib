@@ -52,7 +52,7 @@ After installing everything test that everything is successful.
 **5) Making changes**
 
 You can now edit and make code changes and submit them for addition to
-the package. The continuous integration (CI) check on github perform 6 tasks:
+the package. The continuous integration (CI) checks on github perform 7 tasks:
 
 - **Rust Checks**
 
@@ -73,6 +73,14 @@ the package. The continuous integration (CI) check on github perform 6 tasks:
     .. code-block::
 
       (venv) rateslib/>$ cargo test --lib
+
+  - ``cargo test --doc``: to ensure that any introduced code does not impact the
+    pre-existing tests in the rust documentation. To check this before
+    committing run:
+
+    .. code-block::
+
+      (venv) rateslib/>$ cargo test --doc
 
   If you made changes to the *Rust* section then you must rebuild the PyO3 extension
   module before testing it works in Python. To do this run:
@@ -121,6 +129,3 @@ the package. The continuous integration (CI) check on github perform 6 tasks:
   In order to build docs without error you will also need to **install pandoc**.
 
   In order to generate inheritance diagrams you will need to **install graphviz**.
-
-
-
