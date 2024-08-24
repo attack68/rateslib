@@ -10,7 +10,7 @@ use crate::calendars::dateroll::DateRoll;
 use crate::calendars::named::get_calendar_by_name;
 
 /// Container for calendar types.
-#[derive(Debug, Clone, PartialEq, FromPyObject)]
+#[derive(Debug, Clone, PartialEq, FromPyObject, Serialize, Deserialize)]
 pub enum CalType {
     Cal(Cal),
     UnionCal(UnionCal),
@@ -192,6 +192,32 @@ impl DateRoll for NamedCal {
 
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
         self.union_cal.is_settlement(date)
+    }
+}
+
+impl DateRoll for CalType {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalType::Cal(c) => c.is_weekday(date),
+            CalType::UnionCal(c) => c.is_weekday(date),
+            CalType::NamedCal(c) => c.is_weekday(date),
+        }
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalType::Cal(c) => c.is_holiday(date),
+            CalType::UnionCal(c) => c.is_holiday(date),
+            CalType::NamedCal(c) => c.is_holiday(date),
+        }
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalType::Cal(c) => c.is_settlement(date),
+            CalType::UnionCal(c) => c.is_settlement(date),
+            CalType::NamedCal(c) => c.is_settlement(date),
+        }
     }
 }
 

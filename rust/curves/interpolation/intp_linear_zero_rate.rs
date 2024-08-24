@@ -1,9 +1,12 @@
 use crate::curves::interpolation::utils::linear_zero_interp;
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
-use crate::dual::DualsOrF64;
+use crate::dual::Number;
+use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
-use pyo3::{pyclass, pymethods};
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyTuple};
+use pyo3::{pyclass, pymethods, Bound, PyResult, Python};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
@@ -21,10 +24,22 @@ impl LinearZeroRateInterpolator {
     pub fn new() -> Self {
         LinearZeroRateInterpolator {}
     }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        Ok(PyTuple::empty_bound(py))
+    }
 }
 
 impl CurveInterpolation for LinearZeroRateInterpolator {
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number {
         let x = date.and_utc().timestamp();
         let index = self.node_index(nodes, x);
 
@@ -33,7 +48,7 @@ impl CurveInterpolation for LinearZeroRateInterpolator {
                 let (x0, _) = $indexmap.get_index(0_usize).unwrap();
                 let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
                 let (x1, y1) = $indexmap.get_index(index).unwrap();
-                DualsOrF64::$Variant(linear_zero_interp(
+                Number::$Variant(linear_zero_interp(
                     *x0 as f64, *x1 as f64, y1, *x2 as f64, y2, x as f64,
                 ))
             }};
@@ -70,7 +85,7 @@ mod tests {
         // r1 = -ln(0.99) / 366, r2 = -ln(0.98) / 731
         // r = r1 + (181 / 365) * (r2 - r1)
         // expected = exp(-r * 547) r1 = 0.985044328
-        assert_eq!(result, DualsOrF64::F64(0.9850443279738612));
+        assert_eq!(result, Number::F64(0.9850443279738612));
     }
 
     #[test]
@@ -81,6 +96,6 @@ mod tests {
         // r1 = r2, r2 = -ln(0.99) / 366
         // r = r1
         // expected = exp(-r * 182) = 0.99501476
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
+        assert_eq!(result, Number::F64(0.9950147597711371));
     }
 }

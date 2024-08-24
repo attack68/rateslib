@@ -1,8 +1,11 @@
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
-use crate::dual::DualsOrF64;
+use crate::dual::Number;
+use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
-use pyo3::{pyclass, pymethods};
+use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyTuple};
+use pyo3::{pyclass, pymethods, Bound, PyResult, Python};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
@@ -19,13 +22,25 @@ impl NullInterpolator {
     pub fn new() -> Self {
         NullInterpolator {}
     }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        Ok(PyTuple::empty_bound(py))
+    }
 }
 
 impl CurveInterpolation for NullInterpolator {
-    fn interpolated_value(&self, _nodes: &NodesTimestamp, _date: &NaiveDateTime) -> DualsOrF64 {
+    fn interpolated_value(&self, _nodes: &NodesTimestamp, _date: &NaiveDateTime) -> Number {
         panic!("NullInterpolator cannot be used to obtain interpolated values.");
         #[allow(unreachable_code)]
-        DualsOrF64::F64(0.0)
+        Number::F64(0.0)
     }
 }
 

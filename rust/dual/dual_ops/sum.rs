@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use std::iter::Sum;
 
 impl Sum for Dual {
@@ -19,12 +19,12 @@ impl Sum for Dual2 {
     }
 }
 
-impl Sum for DualsOrF64 {
+impl Sum for Number {
     fn sum<I>(iter: I) -> Self
     where
-        I: Iterator<Item = DualsOrF64>,
+        I: Iterator<Item = Number>,
     {
-        iter.fold(DualsOrF64::F64(0.0_f64), |acc, x| acc + x)
+        iter.fold(Number::F64(0.0_f64), |acc, x| acc + x)
     }
 }
 
@@ -35,14 +35,14 @@ mod tests {
     #[test]
     fn test_enum() {
         let v = vec![
-            DualsOrF64::F64(2.5_f64),
-            DualsOrF64::Dual(Dual::new(1.5, vec!["x".to_string()])),
-            DualsOrF64::Dual(Dual::new(3.5, vec!["x".to_string()])),
+            Number::F64(2.5_f64),
+            Number::Dual(Dual::new(1.5, vec!["x".to_string()])),
+            Number::Dual(Dual::new(3.5, vec!["x".to_string()])),
         ];
-        let s: DualsOrF64 = v.into_iter().sum();
+        let s: Number = v.into_iter().sum();
         assert_eq!(
             s,
-            DualsOrF64::Dual(Dual::try_new(7.5, vec!["x".to_string()], vec![2.0]).unwrap())
+            Number::Dual(Dual::try_new(7.5, vec!["x".to_string()], vec![2.0]).unwrap())
         );
     }
 }

@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use num_traits::Signed;
 use std::sync::Arc;
 
@@ -88,62 +88,58 @@ impl Signed for Dual2 {
     }
 }
 
-impl Signed for DualsOrF64 {
+impl Signed for Number {
     fn abs(&self) -> Self {
         match self {
-            DualsOrF64::F64(f) => DualsOrF64::F64(f.abs()),
-            DualsOrF64::Dual(d) => DualsOrF64::Dual(d.abs()),
-            DualsOrF64::Dual2(d) => DualsOrF64::Dual2(d.abs()),
+            Number::F64(f) => Number::F64(f.abs()),
+            Number::Dual(d) => Number::Dual(d.abs()),
+            Number::Dual2(d) => Number::Dual2(d.abs()),
         }
     }
 
     fn abs_sub(&self, other: &Self) -> Self {
         match (self, other) {
-            (DualsOrF64::F64(f), DualsOrF64::F64(f2)) => DualsOrF64::F64(f.abs_sub(f2)),
-            (DualsOrF64::F64(f), DualsOrF64::Dual(d2)) => {
-                DualsOrF64::Dual(Dual::new(*f, vec![]).abs_sub(d2))
+            (Number::F64(f), Number::F64(f2)) => Number::F64(f.abs_sub(f2)),
+            (Number::F64(f), Number::Dual(d2)) => Number::Dual(Dual::new(*f, vec![]).abs_sub(d2)),
+            (Number::F64(f), Number::Dual2(d2)) => {
+                Number::Dual2(Dual2::new(*f, vec![]).abs_sub(d2))
             }
-            (DualsOrF64::F64(f), DualsOrF64::Dual2(d2)) => {
-                DualsOrF64::Dual2(Dual2::new(*f, vec![]).abs_sub(d2))
-            }
-            (DualsOrF64::Dual(d), DualsOrF64::F64(f2)) => {
-                DualsOrF64::Dual(d.abs_sub(&Dual::new(*f2, vec![])))
-            }
-            (DualsOrF64::Dual(d), DualsOrF64::Dual(d2)) => DualsOrF64::Dual(d.abs_sub(d2)),
-            (DualsOrF64::Dual(_), DualsOrF64::Dual2(_)) => {
+            (Number::Dual(d), Number::F64(f2)) => Number::Dual(d.abs_sub(&Dual::new(*f2, vec![]))),
+            (Number::Dual(d), Number::Dual(d2)) => Number::Dual(d.abs_sub(d2)),
+            (Number::Dual(_), Number::Dual2(_)) => {
                 panic!("Cannot mix dual types: Dual / Dual2")
             }
-            (DualsOrF64::Dual2(d), DualsOrF64::F64(f2)) => {
-                DualsOrF64::Dual2(d.abs_sub(&Dual2::new(*f2, vec![])))
+            (Number::Dual2(d), Number::F64(f2)) => {
+                Number::Dual2(d.abs_sub(&Dual2::new(*f2, vec![])))
             }
-            (DualsOrF64::Dual2(_), DualsOrF64::Dual(_)) => {
+            (Number::Dual2(_), Number::Dual(_)) => {
                 panic!("Cannot mix dual types: Dual2 / Dual")
             }
-            (DualsOrF64::Dual2(d), DualsOrF64::Dual2(d2)) => DualsOrF64::Dual2(d.abs_sub(d2)),
+            (Number::Dual2(d), Number::Dual2(d2)) => Number::Dual2(d.abs_sub(d2)),
         }
     }
 
     fn signum(&self) -> Self {
         match self {
-            DualsOrF64::F64(f) => DualsOrF64::F64(f.signum()),
-            DualsOrF64::Dual(d) => DualsOrF64::Dual(d.signum()),
-            DualsOrF64::Dual2(d) => DualsOrF64::Dual2(d.signum()),
+            Number::F64(f) => Number::F64(f.signum()),
+            Number::Dual(d) => Number::Dual(d.signum()),
+            Number::Dual2(d) => Number::Dual2(d.signum()),
         }
     }
 
     fn is_positive(&self) -> bool {
         match self {
-            DualsOrF64::F64(f) => f.is_positive(),
-            DualsOrF64::Dual(d) => d.is_positive(),
-            DualsOrF64::Dual2(d) => d.is_positive(),
+            Number::F64(f) => f.is_positive(),
+            Number::Dual(d) => d.is_positive(),
+            Number::Dual2(d) => d.is_positive(),
         }
     }
 
     fn is_negative(&self) -> bool {
         match self {
-            DualsOrF64::F64(f) => f.is_negative(),
-            DualsOrF64::Dual(d) => d.is_negative(),
-            DualsOrF64::Dual2(d) => d.is_negative(),
+            Number::F64(f) => f.is_negative(),
+            Number::Dual(d) => d.is_negative(),
+            Number::Dual2(d) => d.is_negative(),
         }
     }
 }
@@ -225,12 +221,12 @@ mod tests {
 
     #[test]
     fn test_enum() {
-        let d = DualsOrF64::Dual(Dual::new(-2.5, vec!["x".to_string()]));
+        let d = Number::Dual(Dual::new(-2.5, vec!["x".to_string()]));
         assert!(!d.is_positive());
         assert!(d.is_negative());
         assert_eq!(
             d.abs(),
-            DualsOrF64::Dual(Dual::try_new(2.5, vec!["x".to_string()], vec![-1.0]).unwrap())
+            Number::Dual(Dual::try_new(2.5, vec!["x".to_string()], vec![-1.0]).unwrap())
         );
     }
 }

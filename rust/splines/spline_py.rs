@@ -1,6 +1,6 @@
 //! Wrapper to export spline functionality to Python
 
-use crate::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::{Dual, Dual2, Number};
 use crate::splines::spline::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
 
@@ -98,13 +98,13 @@ macro_rules! create_interface {
             ///
             ///    \$(x) = \sum_{i=1}^n c_i B_{(i,k,\mathbf{t})}(x)
             ///
-            fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
+            fn ppev_single(&self, x: Number) -> PyResult<$type> {
                 match x {
-                    DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, 0)),
-                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err(
+                    Number::F64(f) => self.inner.ppdnev_single(&f, 0),
+                    Number::Dual(_) => Err(PyTypeError::new_err(
                         "Cannot index PPSpline with `Dual`, use either `ppev_single(float(x))` or `ppev_single_dual(x)`."
                         )),
-                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err(
+                    Number::Dual2(_) => Err(PyTypeError::new_err(
                         "Cannot index PPSpline with `Dual2`, use either `ppev_single(float(x))` or `ppev_single_dual2(x)`.")),
                 }
             }
@@ -125,11 +125,11 @@ macro_rules! create_interface {
             /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual`
             /// sensitivities. It also prohibits type mixing and will raise if *Dual2* data types
             /// are encountered.
-            fn ppev_single_dual(&self, x: DualsOrF64) -> PyResult<Dual> {
+            fn ppev_single_dual(&self, x: Number) -> PyResult<Dual> {
                 match x {
-                    DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), 0),
-                    DualsOrF64::Dual(d) => self.inner.ppdnev_single_dual(&d, 0),
-                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppev_single_dual2(x)`.")),
+                    Number::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), 0),
+                    Number::Dual(d) => self.inner.ppdnev_single_dual(&d, 0),
+                    Number::Dual2(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppev_single_dual2(x)`.")),
                 }
             }
 
@@ -149,11 +149,11 @@ macro_rules! create_interface {
             /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual2`
             /// sensitivities. It also prohibits type mixing and will raise if *Dual* data types
             /// are encountered.
-            fn ppev_single_dual2(&self, x: DualsOrF64) -> PyResult<Dual2> {
+            fn ppev_single_dual2(&self, x: Number) -> PyResult<Dual2> {
                 match x {
-                    DualsOrF64::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), 0),
-                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppev_single_dual(x)`.")),
-                    DualsOrF64::Dual2(d) => self.inner.ppdnev_single_dual2(&d, 0),
+                    Number::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), 0),
+                    Number::Dual(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppev_single_dual(x)`.")),
+                    Number::Dual2(d) => self.inner.ppdnev_single_dual2(&d, 0),
                 }
             }
 
@@ -176,7 +176,7 @@ macro_rules! create_interface {
             /// -------
             /// 1-d array of float
             fn ppev(&self, x: Vec<f64>) -> PyResult<Vec<$type>> {
-                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, 0)).collect();
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, 0)).collect::<Result<Vec<$type>, _>>()?;
                 Ok(out)
             }
 
@@ -205,11 +205,11 @@ macro_rules! create_interface {
             /// .. math::
             ///
             ///    \frac{d^m\$(x)}{d x^m} = \sum_{i=1}^n c_i \frac{d^m B_{(i,k,\mathbf{t})}(x)}{d x^m}
-            fn ppdnev_single(&self, x: DualsOrF64, m: usize) -> PyResult<$type> {
+            fn ppdnev_single(&self, x: Number, m: usize) -> PyResult<$type> {
                 match x {
-                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
-                    DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, m)),
-                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                    Number::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
+                    Number::F64(f) => self.inner.ppdnev_single(&f, m),
+                    Number::Dual2(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
                 }
             }
 
@@ -231,11 +231,11 @@ macro_rules! create_interface {
             /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual`
             /// sensitivities. It also prohibits type mixing and will raise if any *Dual2*
             /// data types are encountered.
-            fn ppdnev_single_dual(&self, x: DualsOrF64, m: usize) -> PyResult<Dual> {
+            fn ppdnev_single_dual(&self, x: Number, m: usize) -> PyResult<Dual> {
                 match x {
-                    DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), m),
-                    DualsOrF64::Dual(d) => self.inner.ppdnev_single_dual(&d, m),
-                    DualsOrF64::Dual2(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppdnev_single_dual2(x)`.")),
+                    Number::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), m),
+                    Number::Dual(d) => self.inner.ppdnev_single_dual(&d, m),
+                    Number::Dual2(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppdnev_single_dual2(x)`.")),
                 }
             }
 
@@ -257,11 +257,11 @@ macro_rules! create_interface {
             /// This function guarantees preservation of accurate AD :class:`~rateslib.dual.Dual2`
             /// sensitivities. It also prohibits type mixing and will raise if any *Dual*
             /// data types are encountered.
-            fn ppdnev_single_dual2(&self, x: DualsOrF64, m: usize) -> PyResult<Dual2> {
+            fn ppdnev_single_dual2(&self, x: Number, m: usize) -> PyResult<Dual2> {
                 match x {
-                    DualsOrF64::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), m),
-                    DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppdnev_single_dual(x)`.")),
-                    DualsOrF64::Dual2(d) => self.inner.ppdnev_single_dual2(&d, m),
+                    Number::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), m),
+                    Number::Dual(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppdnev_single_dual(x)`.")),
+                    Number::Dual2(d) => self.inner.ppdnev_single_dual2(&d, m),
                 }
             }
 
@@ -286,7 +286,7 @@ macro_rules! create_interface {
             /// -------
             /// 1-d array of float
             fn ppdnev(&self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
-                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
+                let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect::<Result<Vec<$type>, _>>()?;
                 Ok(out)
             }
 

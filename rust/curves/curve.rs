@@ -1,7 +1,8 @@
+use crate::calendars::DateRoll;
 use crate::calendars::{Convention, Modifier};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
-use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, DualsOrF64};
+use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, Number};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
@@ -11,19 +12,20 @@ use std::cmp::PartialEq;
 
 /// Default struct for storing datetime indexed discount factors (DFs).
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct CurveDF<T: CurveInterpolation> {
+pub struct CurveDF<T: CurveInterpolation, U: DateRoll> {
     pub(crate) nodes: NodesTimestamp,
     pub(crate) interpolator: T,
     pub(crate) id: String,
     pub(crate) convention: Convention,
     pub(crate) modifier: Modifier,
     pub(crate) index_base: Option<f64>,
+    pub(crate) calendar: U,
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.
 pub trait CurveInterpolation {
     /// Get a value from the curve's `Nodes` expressed in its input form, i.e. discount factor or value.
-    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64;
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number;
 
     /// Get the left side node key index of the given datetime
     fn node_index(&self, nodes: &NodesTimestamp, date_timestamp: i64) -> usize {
@@ -32,7 +34,7 @@ pub trait CurveInterpolation {
     }
 }
 
-impl<T: CurveInterpolation> CurveDF<T> {
+impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
     pub fn try_new(
         nodes: Nodes,
         interpolator: T,
@@ -40,6 +42,7 @@ impl<T: CurveInterpolation> CurveDF<T> {
         convention: Convention,
         modifier: Modifier,
         index_base: Option<f64>,
+        calendar: U,
     ) -> Result<Self, PyErr> {
         let mut nodes = NodesTimestamp::from(nodes);
         nodes.sort_keys();
@@ -50,6 +53,7 @@ impl<T: CurveInterpolation> CurveDF<T> {
             convention,
             modifier,
             index_base,
+            calendar,
         })
     }
 
@@ -62,7 +66,7 @@ impl<T: CurveInterpolation> CurveDF<T> {
         }
     }
 
-    pub fn interpolated_value(&self, date: &NaiveDateTime) -> DualsOrF64 {
+    pub fn interpolated_value(&self, date: &NaiveDateTime) -> Number {
         self.interpolator.interpolated_value(&self.nodes, date)
     }
 
@@ -127,14 +131,14 @@ impl<T: CurveInterpolation> CurveDF<T> {
         }
     }
 
-    pub fn index_value(&self, date: &NaiveDateTime) -> Result<DualsOrF64, PyErr> {
+    pub fn index_value(&self, date: &NaiveDateTime) -> Result<Number, PyErr> {
         match self.index_base {
             None => Err(PyValueError::new_err("Can only calculate `index_value` for a Curve which has been initialised with `index_base`.")),
             Some(ib) => {
                 if date.and_utc().timestamp() < self.nodes.first_key() {
-                    Ok(DualsOrF64::F64(0.0))
+                    Ok(Number::F64(0.0))
                 } else {
-                    Ok(DualsOrF64::F64(ib) / self.interpolated_value(date))
+                    Ok(Number::F64(ib) / self.interpolated_value(date))
                 }
             }
         }
@@ -144,11 +148,11 @@ impl<T: CurveInterpolation> CurveDF<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, Convention};
+    use crate::calendars::{ndt, Convention, NamedCal};
     use crate::curves::LogLinearInterpolator;
     use indexmap::IndexMap;
 
-    fn curve_fixture() -> CurveDF<LogLinearInterpolator> {
+    fn curve_fixture() -> CurveDF<LogLinearInterpolator, NamedCal> {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), 1.0_f64),
             (ndt(2001, 1, 1), 0.99_f64),
@@ -157,10 +161,11 @@ mod tests {
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
         let modifier = Modifier::ModF;
-        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None).unwrap()
+        let cal = NamedCal::try_new("all").unwrap();
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None, cal).unwrap()
     }
 
-    fn index_curve_fixture() -> CurveDF<LogLinearInterpolator> {
+    fn index_curve_fixture() -> CurveDF<LogLinearInterpolator, NamedCal> {
         let nodes = Nodes::F64(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), 1.0_f64),
             (ndt(2001, 1, 1), 0.99_f64),
@@ -169,6 +174,7 @@ mod tests {
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
         let modifier = Modifier::ModF;
+        let cal = NamedCal::try_new("all").unwrap();
         CurveDF::try_new(
             nodes,
             interpolator,
@@ -176,11 +182,12 @@ mod tests {
             convention,
             modifier,
             Some(100.0),
+            cal,
         )
         .unwrap()
     }
 
-    fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator> {
+    fn curve_dual_fixture() -> CurveDF<LogLinearInterpolator, NamedCal> {
         let nodes = Nodes::Dual(IndexMap::from_iter(vec![
             (ndt(2000, 1, 1), Dual::new(1.0, vec!["x".to_string()])),
             (ndt(2001, 1, 1), Dual::new(0.99, vec!["y".to_string()])),
@@ -189,7 +196,8 @@ mod tests {
         let interpolator = LogLinearInterpolator::new();
         let convention = Convention::Act360;
         let modifier = Modifier::ModF;
-        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None).unwrap()
+        let cal = NamedCal::try_new("all").unwrap();
+        CurveDF::try_new(nodes, interpolator, "crv", convention, modifier, None, cal).unwrap()
     }
 
     #[test]
@@ -203,7 +211,7 @@ mod tests {
     fn test_get_value() {
         let c = curve_fixture();
         let result = c.interpolated_value(&ndt(2000, 7, 1));
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371))
+        assert_eq!(result, Number::F64(0.9950147597711371))
     }
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {
@@ -221,7 +229,7 @@ mod tests {
         let ll = LogLinearInterpolator::new();
         let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
         // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
-        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
+        assert_eq!(result, Number::F64(0.9950147597711371));
     }
 
     #[test]
@@ -232,7 +240,7 @@ mod tests {
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
         assert_eq!(
             result,
-            DualsOrF64::Dual(Dual::new(0.99, vec!["crv1".to_string()]))
+            Number::Dual(Dual::new(0.99, vec!["crv1".to_string()]))
         );
     }
 
@@ -242,10 +250,7 @@ mod tests {
         let mut curve = curve_dual_fixture();
         let _ = curve.set_ad_order(ADOrder::One);
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
-        assert_eq!(
-            result,
-            DualsOrF64::Dual(Dual::new(0.99, vec!["y".to_string()]))
-        );
+        assert_eq!(result, Number::Dual(Dual::new(0.99, vec!["y".to_string()])));
     }
 
     #[test]
@@ -256,7 +261,7 @@ mod tests {
         let result = curve.interpolated_value(&ndt(2001, 1, 1));
         assert_eq!(
             result,
-            DualsOrF64::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
+            Number::Dual2(Dual2::new(0.99, vec!["y".to_string()]))
         );
     }
 
@@ -264,13 +269,13 @@ mod tests {
     fn test_index_value() {
         let index_curve = index_curve_fixture();
         let result = index_curve.index_value(&ndt(2001, 1, 1)).unwrap();
-        assert_eq!(result, DualsOrF64::F64(100.0 / 0.99))
+        assert_eq!(result, Number::F64(100.0 / 0.99))
     }
 
     #[test]
     fn test_index_value_prior_to_first() {
         let index_curve = index_curve_fixture();
         let result = index_curve.index_value(&ndt(1980, 1, 1)).unwrap();
-        assert_eq!(result, DualsOrF64::F64(0.0))
+        assert_eq!(result, Number::F64(0.0))
     }
 }

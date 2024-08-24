@@ -207,17 +207,17 @@ where
         PPSpline { k, t, n, c: c_ }
     }
 
-    pub fn ppdnev_single(&self, x: &f64, m: usize) -> T {
+    pub fn ppdnev_single(&self, x: &f64, m: usize) -> Result<T, PyErr> {
         let b: Array1<f64> = Array1::from_vec(
             (0..self.n)
                 .map(|i| bspldnev_single_f64(x, i, &self.k, &self.t, m, None))
                 .collect(),
         );
         match &self.c {
-            Some(c) => fdmul11_(&b.view(), &c.view()),
-            None => {
-                panic!("Must call csolve before attempting to evaluate spline.")
-            }
+            Some(c) => Ok(fdmul11_(&b.view(), &c.view())),
+            None => Err(PyValueError::new_err(
+                "Must call `csolve` before evaluating PPSpline.",
+            )),
         }
     }
 
@@ -556,11 +556,11 @@ mod tests {
         let t = vec![1., 1., 1., 1., 2., 2., 2., 3., 4., 4., 4., 4.];
         let mut pps = PPSpline::new(4, t, None);
         pps.c = Some(arr1(&[1., 2., -1., 2., 1., 1., 2., 2.]));
-        let r1 = pps.ppdnev_single(&1.1, 0);
+        let r1 = pps.ppdnev_single(&1.1, 0).unwrap();
         assert!(is_close(&r1, &1.19, None));
-        let r2 = pps.ppdnev_single(&1.8, 0);
+        let r2 = pps.ppdnev_single(&1.8, 0).unwrap();
         assert!(is_close(&r2, &0.84, None));
-        let r3 = pps.ppdnev_single(&2.8, 0);
+        let r3 = pps.ppdnev_single(&2.8, 0).unwrap();
         assert!(is_close(&r3, &1.136, None));
     }
 

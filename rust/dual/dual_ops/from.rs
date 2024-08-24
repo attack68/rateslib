@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, Number};
 use ndarray::{Array2, Axis};
 
 impl From<Dual> for f64 {
@@ -87,62 +87,62 @@ impl From<&Dual> for Dual2 {
     }
 }
 
-impl From<DualsOrF64> for f64 {
-    fn from(value: DualsOrF64) -> Self {
+impl From<Number> for f64 {
+    fn from(value: Number) -> Self {
         match value {
-            DualsOrF64::F64(f) => f,
-            DualsOrF64::Dual(d) => d.real,
-            DualsOrF64::Dual2(d) => d.real,
+            Number::F64(f) => f,
+            Number::Dual(d) => d.real,
+            Number::Dual2(d) => d.real,
         }
     }
 }
 
-impl From<DualsOrF64> for Dual {
-    fn from(value: DualsOrF64) -> Self {
+impl From<Number> for Dual {
+    fn from(value: Number) -> Self {
         match value {
-            DualsOrF64::F64(f) => Dual::new(f, vec![]),
-            DualsOrF64::Dual(d) => d,
-            DualsOrF64::Dual2(d) => Dual::from(d),
+            Number::F64(f) => Dual::new(f, vec![]),
+            Number::Dual(d) => d,
+            Number::Dual2(d) => Dual::from(d),
         }
     }
 }
 
-impl From<DualsOrF64> for Dual2 {
-    fn from(value: DualsOrF64) -> Self {
+impl From<Number> for Dual2 {
+    fn from(value: Number) -> Self {
         match value {
-            DualsOrF64::F64(f) => Dual2::new(f, vec![]),
-            DualsOrF64::Dual(d) => Dual2::from(d),
-            DualsOrF64::Dual2(d) => d,
+            Number::F64(f) => Dual2::new(f, vec![]),
+            Number::Dual(d) => Dual2::from(d),
+            Number::Dual2(d) => d,
         }
     }
 }
 
-impl From<&DualsOrF64> for f64 {
-    fn from(value: &DualsOrF64) -> Self {
+impl From<&Number> for f64 {
+    fn from(value: &Number) -> Self {
         match value {
-            DualsOrF64::F64(f) => *f,
-            DualsOrF64::Dual(d) => d.real,
-            DualsOrF64::Dual2(d) => d.real,
+            Number::F64(f) => *f,
+            Number::Dual(d) => d.real,
+            Number::Dual2(d) => d.real,
         }
     }
 }
 
-impl From<&DualsOrF64> for Dual {
-    fn from(value: &DualsOrF64) -> Self {
+impl From<&Number> for Dual {
+    fn from(value: &Number) -> Self {
         match value {
-            DualsOrF64::F64(f) => Dual::new(*f, vec![]),
-            DualsOrF64::Dual(d) => d.clone(),
-            DualsOrF64::Dual2(d) => Dual::from(d),
+            Number::F64(f) => Dual::new(*f, vec![]),
+            Number::Dual(d) => d.clone(),
+            Number::Dual2(d) => Dual::from(d),
         }
     }
 }
 
-impl From<&DualsOrF64> for Dual2 {
-    fn from(value: &DualsOrF64) -> Self {
+impl From<&Number> for Dual2 {
+    fn from(value: &Number) -> Self {
         match value {
-            DualsOrF64::F64(f) => Dual2::new(*f, vec![]),
-            DualsOrF64::Dual(d) => Dual2::from(d),
-            DualsOrF64::Dual2(d) => d.clone(),
+            Number::F64(f) => Dual2::new(*f, vec![]),
+            Number::Dual(d) => Dual2::from(d),
+            Number::Dual2(d) => d.clone(),
         }
     }
 }
