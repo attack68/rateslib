@@ -1,10 +1,10 @@
-use rateslib::dual::{Dual, Number, NumericOps};
+use rateslib::dual::{Dual, Number, NumberOps};
 use std::time::SystemTime;
 
 fn ops<T>(a: &T, b: &T) -> T
 where
-    T: NumericOps<T>,
-    for<'a> &'a T: NumericOps<T>,
+    T: NumberOps<T>,
+    for<'a> &'a T: NumberOps<T>,
 {
     &(&(&(a + b) - a) * b) / a
 }
