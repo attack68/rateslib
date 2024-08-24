@@ -6,10 +6,14 @@ exclude = [".github/*", "benches/*", "notebooks/*", ".readthedocs.yaml",]
 
 [lib]
 name = "rateslib"
-path = "src/lib.rs"
+path = "rust/lib.rs"
 #crate-type = ["rlib"]
 #crate-type = ["cdylib"]  # for pyO3
 crate-type = ["lib"]
+
+[[bin]]
+name = "main"
+path = "rust/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
