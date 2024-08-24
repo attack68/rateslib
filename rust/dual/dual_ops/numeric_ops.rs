@@ -1,18 +1,18 @@
 use crate::dual::dual::{Dual, Dual2, Number};
 use std::ops::{Add, Div, Mul, Sub};
 
-pub trait FieldOps<T>:
+pub trait NumericOps<T>:
     Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Sized + Clone
 {
 }
-impl<'a, T: 'a> FieldOps<T> for &'a T where
+impl<'a, T: 'a> NumericOps<T> for &'a T where
     &'a T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T>
 {
 }
-impl FieldOps<Dual> for Dual {}
-impl FieldOps<Dual2> for Dual2 {}
-impl FieldOps<f64> for f64 {}
-impl FieldOps<Number> for Number {}
+impl NumericOps<Dual> for Dual {}
+impl NumericOps<Dual2> for Dual2 {}
+impl NumericOps<f64> for f64 {}
+impl NumericOps<Number> for Number {}
 
 #[cfg(test)]
 mod tests {
@@ -22,14 +22,14 @@ mod tests {
     fn test_fieldops() {
         fn test_ops<T>(a: &T, b: &T) -> T
         where
-            for<'a> &'a T: FieldOps<T>,
+            for<'a> &'a T: NumericOps<T>,
         {
             &(a + b) - a
         }
 
         fn test_ops2<T>(a: T, b: T) -> T
         where
-            T: FieldOps<T>,
+            T: NumericOps<T>,
         {
             (a.clone() + b) - a
         }

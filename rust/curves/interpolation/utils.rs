@@ -1,4 +1,4 @@
-use crate::dual::{FieldOps, MathFuncs};
+use crate::dual::{NumericOps, MathFuncs};
 use std::{
     cmp::{PartialEq, PartialOrd},
     ops::{Mul, Sub},
@@ -6,8 +6,8 @@ use std::{
 
 // pub(crate) fn linear_interp<T, U>(x1: &T, y1: &U, x2: &T, y2: &U, x: &T) -> U
 // where
-//     for<'a> &'a T: FieldOps<T>,
-//     for<'a> &'a U: FieldOps<U>,
+//     for<'a> &'a T: NumericOps<T>,
+//     for<'a> &'a U: NumericOps<U>,
 //     U: Mul<T, Output = U>,
 // {
 //     y1 + &((y2 - y1) * (&(x - x1) / &(x2 - x1)))
@@ -16,7 +16,7 @@ use std::{
 /// Calculate the linear interpolation between two coordinates.
 pub(crate) fn linear_interp<T>(x1: f64, y1: &T, x2: f64, y2: &T, x: f64) -> T
 where
-    for<'a> &'a T: FieldOps<T>,
+    for<'a> &'a T: NumericOps<T>,
     T: Mul<f64, Output = T>,
 {
     y1 + &((y2 - y1) * ((x - x1) / (x2 - x1)))
@@ -25,7 +25,7 @@ where
 /// Calculate the log-linear interpolation between two coordinates.
 pub(crate) fn log_linear_interp<T>(x1: f64, y1: &T, x2: f64, y2: &T, x: f64) -> T
 where
-    for<'a> &'a T: FieldOps<T>,
+    for<'a> &'a T: NumericOps<T>,
     T: Mul<f64, Output = T> + MathFuncs,
 {
     let (y1, y2) = (y1.log(), y2.log());
@@ -36,7 +36,7 @@ where
 /// Calculate the linear zero rate interpolation between two coordinates.
 pub(crate) fn linear_zero_interp<T>(x0: f64, x1: f64, y1: &T, x2: f64, y2: &T, x: f64) -> T
 where
-    for<'a> &'a T: FieldOps<T>,
+    for<'a> &'a T: NumericOps<T>,
     T: Mul<f64, Output = T> + MathFuncs + Sub + Clone,
 {
     let t1: f64 = x1 - x0;
