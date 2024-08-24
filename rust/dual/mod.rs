@@ -2,14 +2,13 @@
 //!
 //! # AD Architecture
 //!
-//! This library
-//!
-//! Create and use data types for calculating derivatives up to second order using automatic
-//! differentiation (AD). The type of AD used in *rateslib* is forward mode, dual number based.
-//!
-//! A first order dual number represents a function value and a linear manifold of the
-//! gradient at that point. A second order dual number represents a function value and
-//! a quadratic manifold of the gradient at that point.
+//! The entire *rateslib* library is built around three core numeric types: [f64],
+//! [Dual] and [Dual2]. Obviously [f64] allows for traditional computation, which benefits
+//! from efficient calculation leveraging BLAS, while [Dual] and [Dual2] reduce performance
+//! of calculation but provide efficient calculation of first order and second order
+//! derivatives, respectively. Derivatives are calculated using forward mode AD,
+//! similar, but not identical, to the
+//! [Julia ForwardDiff library](https://github.com/JuliaDiff/ForwardDiff.jl).
 //!
 //! Mathematical operations are defined to give dual numbers the ability to combine, and
 //! flexibly reference different variables at any point during calculations.
