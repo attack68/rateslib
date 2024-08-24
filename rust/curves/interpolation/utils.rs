@@ -1,4 +1,4 @@
-use crate::dual::{NumericOps, MathFuncs};
+use crate::dual::{MathFuncs, NumericOps};
 use std::{
     cmp::{PartialEq, PartialOrd},
     ops::{Mul, Sub},

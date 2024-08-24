@@ -21,8 +21,8 @@ pub mod linalg;
 pub(crate) mod linalg_py;
 
 pub use crate::dual::dual::{
-    set_order, set_order_clone, ADOrder, Dual, Dual2, NumericOps, Gradient1, Gradient2, MathFuncs,
-    Number, Vars, VarsRelationship,
+    set_order, set_order_clone, ADOrder, Dual, Dual2, Gradient1, Gradient2, MathFuncs, Number,
+    NumericOps, Vars, VarsRelationship,
 };
 
 /// Utility for creating an ordered list of variable tags from a string and enumerator

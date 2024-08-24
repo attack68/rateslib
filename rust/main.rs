@@ -1,4 +1,4 @@
-use rateslib::dual::{Dual, NumericOps, Number};
+use rateslib::dual::{Dual, Number, NumericOps};
 use std::time::SystemTime;
 
 fn ops<T>(a: &T, b: &T) -> T
