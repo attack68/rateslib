@@ -151,7 +151,9 @@ impl FXRates {
     fn fx_vector_py(&self) -> PyResult<Vec<Number>> {
         match &self.fx_array {
             NumberArray2::F64(arr) => Ok(arr.row(0).iter().map(|x| Number::F64(*x)).collect()),
-            NumberArray2::Dual(arr) => Ok(arr.row(0).iter().map(|x| Number::Dual(x.clone())).collect()),
+            NumberArray2::Dual(arr) => {
+                Ok(arr.row(0).iter().map(|x| Number::Dual(x.clone())).collect())
+            }
             NumberArray2::Dual2(arr) => Ok(arr
                 .row(0)
                 .iter()

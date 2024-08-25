@@ -1,5 +1,5 @@
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
-use crate::dual::{Dual, Dual2, Number, Gradient1, Gradient2, NumberMapping};
+use crate::dual::{Dual, Dual2, Gradient1, Gradient2, Number, NumberMapping};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
