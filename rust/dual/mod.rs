@@ -22,7 +22,7 @@ pub(crate) mod linalg_py;
 
 pub use crate::dual::dual::{
     set_order, set_order_clone, ADOrder, Dual, Dual2, Gradient1, Gradient2, MathFuncs, Number,
-    NumberOps, Vars, VarsRelationship, NumberMapping
+    NumberOps, Vars, VarsRelationship, NumberMapping, NumberArray2, NumberVec, NumberArray1,
 };
 
 /// Utility for creating an ordered list of variable tags from a string and enumerator

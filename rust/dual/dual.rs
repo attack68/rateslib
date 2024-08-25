@@ -28,7 +28,7 @@ pub struct Dual2 {
     pub(crate) dual2: Array2<f64>,
 }
 
-/// Container for the three core numeric types; `f64`, `Dual` and `Dual2`
+/// Container for the three core numeric types; [f64], [Dual] and [Dual2].
 #[derive(Debug, Clone, FromPyObject, Serialize, Deserialize)]
 pub enum Number {
     Dual(Dual),
@@ -36,12 +36,36 @@ pub enum Number {
     F64(f64),
 }
 
-/// Generic trait indicating a function exists to map one value to another preserving AD.
+/// Container for [Vec] of each core numeric type.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NumberVec {
+    F64(Vec<f64>),
+    Dual(Vec<Dual>),
+    Dual2(Vec<Dual2>),
+}
+
+/// Container for [Array1] of each core numeric type.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NumberArray1 {
+    F64(Array1<f64>),
+    Dual(Array1<Dual>),
+    Dual2(Array1<Dual2>),
+}
+
+/// Container for [Array2] of each core numeric type.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NumberArray2 {
+    F64(Array2<f64>),
+    Dual(Array2<Dual>),
+    Dual2(Array2<Dual2>),
+}
+
+/// Generic trait indicating a function exists to map one [Number] to another.
 ///
-/// An example of this trait is used by certain PPSplines indicating that an x-value as some DualsOrF64 value
-/// can be mapped under spline interpolation to some y-value which is another DualsOrF64 value.
-pub trait DualsOrF64Mapping {
-    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr>;
+/// An example of this trait is used by certain [PPSpline] indicating that an x-value as
+/// some [Number] can be mapped under spline interpolation to some y-value as another [Number].
+pub trait NumberMapping {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr>;
 }
 
 #[pyclass(module = "rateslib.rs")]

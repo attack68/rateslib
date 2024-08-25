@@ -13,15 +13,22 @@ use std::cmp::PartialEq;
 /// Define log-linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct LogCubicInterpolator<T: DualsOrF64Mapping> {
+pub struct LogCubicInterpolator<T: NumberMapping> {
     spline: T
 }
 
 #[pymethods]
-impl LogLinearInterpolator {
+impl<T> LogCubicInterpolator
+where          T: PartialOrd + Signed + Clone + Sum + Zero,
+   for<'a> &'a T: Sub<&'a T, Output = T>,
+   for<'a> &'a f64: Mul<&'a T, Output = T>,
+{
     #[new]
-    pub fn new() -> Self {
-        LogLinearInterpolator {}
+    pub fn new(t: Vec<f64>, c: Option<Vec<T>>) -> Self {
+        let spline: PPSpline<T> = PPSpline.new(3_usize, t, c);
+        LogCubicInterpolator {
+            spline
+        }
     }
 
     // Pickling
@@ -32,8 +39,8 @@ impl LogLinearInterpolator {
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
-    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
-        Ok(PyTuple::empty_bound(py))
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<(Vec<f64>, Option<Vec<T>>)> {
+        Ok((self.t.clone(), ))
     }
 }
 

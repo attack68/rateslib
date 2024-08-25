@@ -1,5 +1,5 @@
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
-use crate::dual::{Dual, Dual2, DualsOrF64, Gradient1, Gradient2, DualsOrF64Mapping};
+use crate::dual::{Dual, Dual2, Number, Gradient1, Gradient2, NumberMapping};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -273,12 +273,12 @@ where
     }
 }
 
-impl DualsOrF64Mapping for PPSpline<f64> {
-    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+impl NumberMapping for PPSpline<f64> {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr> {
         match x {
-            DualsOrF64::F64(f) => Ok(DualsOrF64::F64(self.ppdnev_single(f, 0_usize)?)),
-            DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
-            DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+            Number::F64(f) => Ok(Number::F64(self.ppdnev_single(f, 0_usize)?)),
+            Number::Dual(d) => Ok(Number::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            Number::Dual2(d) => Ok(Number::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
         }
     }
 }
@@ -313,12 +313,12 @@ impl PPSpline<f64> {
     }
 }
 
-impl DualsOrF64Mapping for PPSpline<Dual> {
-    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+impl NumberMapping for PPSpline<Dual> {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr> {
         match x {
-            DualsOrF64::F64(f) => Ok(DualsOrF64::Dual(self.ppdnev_single(f, 0_usize)?)),
-            DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
-            DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+            Number::F64(f) => Ok(Number::Dual(self.ppdnev_single(f, 0_usize)?)),
+            Number::Dual(d) => Ok(Number::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            Number::Dual2(d) => Ok(Number::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
         }
     }
 }
@@ -345,12 +345,12 @@ impl PPSpline<Dual> {
     }
 }
 
-impl DualsOrF64Mapping for PPSpline<Dual2> {
-    fn mapped_value(&self, x: &DualsOrF64) -> Result<DualsOrF64, PyErr> {
+impl NumberMapping for PPSpline<Dual2> {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr> {
         match x {
-            DualsOrF64::F64(f) => Ok(DualsOrF64::Dual2(self.ppdnev_single(f, 0_usize)?)),
-            DualsOrF64::Dual(d) => Ok(DualsOrF64::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
-            DualsOrF64::Dual2(d) => Ok(DualsOrF64::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+            Number::F64(f) => Ok(Number::Dual2(self.ppdnev_single(f, 0_usize)?)),
+            Number::Dual(d) => Ok(Number::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            Number::Dual2(d) => Ok(Number::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
         }
     }
 }
