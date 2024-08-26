@@ -1351,6 +1351,24 @@ class TestIndexFixedRateBond:
         ).rate(curves=[gbpi, gbp], metric="clean_price", fx=fxf)
         assert result == result2
 
+    def test_spec_kwargs(self):
+        # GH346
+        fixings = Series(data=[314.175, 314.54], index=[dt(2024, 9, 1), dt(2024, 10, 1)])
+        tii_0728 = IndexFixedRateBond(
+            effective=dt(2018, 7, 31),
+            termination=dt(2028, 7, 15),
+            spec="us_gb_tsy",
+            fixed_rate=0.75,
+            notional=-100e6,
+            curves="sofr",
+            index_lag=3,
+            index_method="monthly",
+            index_base=251.01658,
+            index_fixings=fixings,
+        )
+        result = tii_0728.ytm(100, dt(2024, 8, 26))
+        assert (result - 0.749935) < 1e-5
+
 
 class TestBill:
     def test_bill_discount_rate(self):
