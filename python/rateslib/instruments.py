@@ -9815,6 +9815,8 @@ class Portfolio(Sensitivities):
     """
 
     def __init__(self, instruments):
+        if not isinstance(instruments, list):
+            raise ValueError("`instruments` should be a list of Instruments.")
         self.instruments = instruments
 
     def npv(
