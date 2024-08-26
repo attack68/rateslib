@@ -334,7 +334,7 @@ class Sensitivities:
         base: str | NoInput = NoInput(0),
         local: bool = False,
         **kwargs,
-    ):
+    ) -> DataFrame:
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
         :class:`~rateslib.curves.Solver`.
