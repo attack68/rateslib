@@ -2,7 +2,7 @@
 //! currencies, measured at different settlement dates in time.
 
 use crate::dual::linalg::argabsmax;
-use crate::dual::{set_order_clone, ADOrder, Dual, Dual2, Number};
+use crate::dual::{set_order_clone, ADOrder, Dual, Dual2, Number, NumberArray2};
 use crate::json::JSON;
 use chrono::prelude::*;
 use indexmap::set::IndexSet;
@@ -24,16 +24,6 @@ pub use crate::fx::rates::fxpair::FXPair;
 pub(crate) mod fxrate;
 pub use crate::fx::rates::fxrate::FXRate;
 
-/// Two-dimensional data contain FX rate crosses with appropriate AD order.
-///
-/// The structure of these matrices enforce FX rate inversion: i.e. *L = 1 / U*.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum FXArray {
-    F64(Array2<f64>),
-    Dual(Array2<Dual>),
-    Dual2(Array2<Dual2>),
-}
-
 /// A multi-currency FX market deriving all crosses from a vector of `FXRate`s.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -42,7 +32,7 @@ pub struct FXRates {
     pub(crate) fx_rates: Vec<FXRate>,
     pub(crate) currencies: IndexSet<Ccy>,
     #[serde(skip)]
-    pub(crate) fx_array: FXArray,
+    pub(crate) fx_array: NumberArray2,
 }
 
 #[derive(Deserialize)]
@@ -135,9 +125,9 @@ impl FXRates {
         let dom_idx = self.currencies.get_index_of(lhs)?;
         let for_idx = self.currencies.get_index_of(rhs)?;
         match &self.fx_array {
-            FXArray::F64(arr) => Some(Number::F64(arr[[dom_idx, for_idx]])),
-            FXArray::Dual(arr) => Some(Number::Dual(arr[[dom_idx, for_idx]].clone())),
-            FXArray::Dual2(arr) => Some(Number::Dual2(arr[[dom_idx, for_idx]].clone())),
+            NumberArray2::F64(arr) => Some(Number::F64(arr[[dom_idx, for_idx]])),
+            NumberArray2::Dual(arr) => Some(Number::Dual(arr[[dom_idx, for_idx]].clone())),
+            NumberArray2::Dual2(arr) => Some(Number::Dual2(arr[[dom_idx, for_idx]].clone())),
         }
     }
 
@@ -171,27 +161,27 @@ impl FXRates {
 
     pub fn set_ad_order(&mut self, ad: ADOrder) -> Result<(), PyErr> {
         match (ad, &self.fx_array) {
-            (ADOrder::Zero, FXArray::F64(_))
-            | (ADOrder::One, FXArray::Dual(_))
-            | (ADOrder::Two, FXArray::Dual2(_)) => {
-                // leave the FXArray unchanged.
+            (ADOrder::Zero, NumberArray2::F64(_))
+            | (ADOrder::One, NumberArray2::Dual(_))
+            | (ADOrder::Two, NumberArray2::Dual2(_)) => {
+                // leave the NumberArray2 unchanged.
                 Ok(())
             }
-            (ADOrder::One, FXArray::F64(_)) => {
+            (ADOrder::One, NumberArray2::F64(_)) => {
                 // rebuild the derivatives
                 let fx_array = create_fx_array(&self.currencies, &self.fx_rates, ADOrder::One)?;
                 self.fx_array = fx_array;
                 Ok(())
             }
-            (ADOrder::Two, FXArray::F64(_)) => {
+            (ADOrder::Two, NumberArray2::F64(_)) => {
                 // rebuild the derivatives
                 let fx_array = create_fx_array(&self.currencies, &self.fx_rates, ADOrder::Two)?;
                 self.fx_array = fx_array;
                 Ok(())
             }
-            (ADOrder::One, FXArray::Dual2(arr)) => {
+            (ADOrder::One, NumberArray2::Dual2(arr)) => {
                 let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::Dual(
+                let fx_array = NumberArray2::Dual(
                     Array2::<Dual>::from_shape_vec(
                         (n, n),
                         arr.clone().into_iter().map(|d| d.into()).collect(),
@@ -201,10 +191,10 @@ impl FXRates {
                 self.fx_array = fx_array;
                 Ok(())
             }
-            (ADOrder::Zero, FXArray::Dual(arr)) => {
+            (ADOrder::Zero, NumberArray2::Dual(arr)) => {
                 // covert dual into f64
                 let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::F64(
+                let fx_array = NumberArray2::F64(
                     Array2::<f64>::from_shape_vec(
                         (n, n),
                         arr.clone().into_iter().map(|d| d.real).collect(),
@@ -214,10 +204,10 @@ impl FXRates {
                 self.fx_array = fx_array;
                 Ok(())
             }
-            (ADOrder::Zero, FXArray::Dual2(arr)) => {
+            (ADOrder::Zero, NumberArray2::Dual2(arr)) => {
                 // covert dual into f64
                 let n: usize = arr.len_of(Axis(0));
-                let fx_array = FXArray::F64(
+                let fx_array = NumberArray2::F64(
                     Array2::<f64>::from_shape_vec(
                         (n, n),
                         arr.clone().into_iter().map(|d| d.real).collect(),
@@ -227,7 +217,7 @@ impl FXRates {
                 self.fx_array = fx_array;
                 Ok(())
             }
-            (ADOrder::Two, FXArray::Dual(_)) => {
+            (ADOrder::Two, NumberArray2::Dual(_)) => {
                 // rebuild derivatives
                 let fx_array = create_fx_array(&self.currencies, &self.fx_rates, ADOrder::Two)?;
                 self.fx_array = fx_array;
@@ -343,7 +333,7 @@ fn create_fx_array(
     currencies: &IndexSet<Ccy>,
     fx_rates: &[FXRate],
     ad: ADOrder,
-) -> Result<FXArray, PyErr> {
+) -> Result<NumberArray2, PyErr> {
     let fx_pairs: Vec<FXPair> = fx_rates.iter().map(|x| x.pair).collect();
     let vars: Vec<String> = fx_pairs.iter().map(|x| format!("fx_{}", x)).collect();
     let mut edges = create_initial_edges(currencies, &fx_pairs);
@@ -362,7 +352,7 @@ fn create_fx_array(
                 edges.view_mut(),
                 HashSet::new(),
             )?;
-            Ok(FXArray::F64(fx_array_))
+            Ok(NumberArray2::F64(fx_array_))
         }
         ADOrder::One => {
             let fx_rates__: Vec<Dual> = fx_rates_.iter().map(Dual::from).collect();
@@ -373,7 +363,7 @@ fn create_fx_array(
                 edges.view_mut(),
                 HashSet::new(),
             )?;
-            Ok(FXArray::Dual(fx_array_))
+            Ok(NumberArray2::Dual(fx_array_))
         }
         ADOrder::Two => {
             let fx_rates__: Vec<Dual2> = fx_rates_.iter().map(Dual2::from).collect();
@@ -384,7 +374,7 @@ fn create_fx_array(
                 edges.view_mut(),
                 HashSet::new(),
             )?;
-            Ok(FXArray::Dual2(fx_array_))
+            Ok(NumberArray2::Dual2(fx_array_))
         }
     }
 }
@@ -415,7 +405,7 @@ mod tests {
         ]);
 
         let arr: Vec<f64> = match fxr.fx_array {
-            FXArray::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
+            NumberArray2::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
             _ => panic!("unreachable"),
         };
         assert!(arr

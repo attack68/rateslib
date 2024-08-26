@@ -1,7 +1,7 @@
 //! Wrapper module to export Rust FX rate data types to Python using pyo3 bindings.
 
-use crate::dual::{ADOrder, Number};
-use crate::fx::rates::{Ccy, FXArray, FXRate, FXRates};
+use crate::dual::{ADOrder, Number, NumberArray2};
+use crate::fx::rates::{Ccy, FXRate, FXRates};
 use chrono::prelude::*;
 use ndarray::Axis;
 use pyo3::prelude::*;
@@ -134,9 +134,9 @@ impl FXRates {
     #[pyo3(name = "ad")]
     fn ad_py(&self) -> PyResult<u8> {
         match &self.fx_array {
-            FXArray::F64(_) => Ok(0),
-            FXArray::Dual(_) => Ok(1),
-            FXArray::Dual2(_) => Ok(2),
+            NumberArray2::F64(_) => Ok(0),
+            NumberArray2::Dual(_) => Ok(1),
+            NumberArray2::Dual2(_) => Ok(2),
         }
     }
 
@@ -150,9 +150,11 @@ impl FXRates {
     #[pyo3(name = "fx_vector")]
     fn fx_vector_py(&self) -> PyResult<Vec<Number>> {
         match &self.fx_array {
-            FXArray::F64(arr) => Ok(arr.row(0).iter().map(|x| Number::F64(*x)).collect()),
-            FXArray::Dual(arr) => Ok(arr.row(0).iter().map(|x| Number::Dual(x.clone())).collect()),
-            FXArray::Dual2(arr) => Ok(arr
+            NumberArray2::F64(arr) => Ok(arr.row(0).iter().map(|x| Number::F64(*x)).collect()),
+            NumberArray2::Dual(arr) => {
+                Ok(arr.row(0).iter().map(|x| Number::Dual(x.clone())).collect())
+            }
+            NumberArray2::Dual2(arr) => Ok(arr
                 .row(0)
                 .iter()
                 .map(|x| Number::Dual2(x.clone()))
@@ -164,17 +166,17 @@ impl FXRates {
     #[pyo3(name = "fx_array")]
     fn fx_array_py(&self) -> PyResult<Vec<Vec<Number>>> {
         match &self.fx_array {
-            FXArray::F64(arr) => Ok(arr
+            NumberArray2::F64(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
                 .map(|row| row.iter().map(|d| Number::F64(*d)).collect())
                 .collect()),
-            FXArray::Dual(arr) => Ok(arr
+            NumberArray2::Dual(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
                 .map(|row| row.iter().map(|d| Number::Dual(d.clone())).collect())
                 .collect()),
-            FXArray::Dual2(arr) => Ok(arr
+            NumberArray2::Dual2(arr) => Ok(arr
                 .lanes(Axis(1))
                 .into_iter()
                 .map(|row| row.iter().map(|d| Number::Dual2(d.clone())).collect())

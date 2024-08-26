@@ -7,10 +7,30 @@ use std::cmp::PartialEq;
 use numpy::{PyArray2, ToPyArray};
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
+
+/// Container for the three core spline types; `f64`, `Dual` and `Dual2`
+#[derive(Clone, FromPyObject, Serialize, Deserialize)]
+pub enum Spline {
+    F64(PPSplineF64),
+    Dual(PPSplineDual),
+    Dual2(PPSplineDual2),
+}
+
+impl IntoPy<PyObject> for Spline {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            Spline::F64(s) => Py::new(py, s).unwrap().to_object(py),
+            Spline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
+            Spline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
+        }
+    }
+}
 
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {
-        #[pyclass]
+        #[pyclass(module = "rateslib.rs")]
+        #[derive(Clone, Deserialize, Serialize)]
         pub(crate) struct $name {
             inner: PPSpline<$type>,
         }
