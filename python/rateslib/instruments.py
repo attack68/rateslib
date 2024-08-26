@@ -10045,7 +10045,7 @@ def _push(spec: str | None, kwargs: dict):
         except KeyError:
             raise ValueError(f"Given `spec`, '{spec}', cannot be found in defaults.")
 
-        user = {k: v for k, v in kwargs.items() if v not in [NoInput(0), NoInput(1), NoInput(-1)]}
+        user = {k: v for k, v in kwargs.items() if not isinstance(v, NoInput)}
         return {**kwargs, **spec_kwargs, **user}
 
 
