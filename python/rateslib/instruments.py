@@ -334,7 +334,7 @@ class Sensitivities:
         base: str | NoInput = NoInput(0),
         local: bool = False,
         **kwargs,
-    ):
+    ) -> DataFrame:
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
         :class:`~rateslib.curves.Solver`.
@@ -9815,6 +9815,8 @@ class Portfolio(Sensitivities):
     """
 
     def __init__(self, instruments):
+        if not isinstance(instruments, list):
+            raise ValueError("`instruments` should be a list of Instruments.")
         self.instruments = instruments
 
     def npv(
@@ -10043,7 +10045,7 @@ def _push(spec: str | None, kwargs: dict):
         except KeyError:
             raise ValueError(f"Given `spec`, '{spec}', cannot be found in defaults.")
 
-        user = {k: v for k, v in kwargs.items() if v not in [NoInput(0), NoInput(1), NoInput(-1)]}
+        user = {k: v for k, v in kwargs.items() if not isinstance(v, NoInput)}
         return {**kwargs, **spec_kwargs, **user}
 
 

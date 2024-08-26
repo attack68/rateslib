@@ -51,6 +51,9 @@ email contact through **rateslib@gmail.com**.
      - *Dual* and *Dual2* fix support for pickling which allows multithreading across CPU pools.
    * - Bug
      - Expose :meth:`~rateslib.dual.gradient` as a method in the *rateslib* public API.
+   * - Bug
+     - :class:`~rateslib.instruments.IndexFixedRateBond` now correctly initialises when using a
+       :class:`pandas.Series` as ``index_fixings`` argument.
 
 1.3.0 (9th July 2024)
 ***********************

@@ -1,12 +1,15 @@
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
-use crate::dual::{Dual, Dual2, Gradient1, Gradient2};
+use crate::dual::{Dual, Dual2, Gradient1, Gradient2, Number, NumberMapping};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::PyErr;
-use std::iter::zip;
-use std::iter::Sum;
-use std::ops::{Mul, Sub};
+use serde::{Deserialize, Serialize};
+use std::{
+    cmp::PartialEq,
+    iter::{zip, Sum},
+    ops::{Mul, Sub},
+};
 
 /// Evaluate the `x` value on the `i`'th B-spline with order `k` and knot sequence `t`.
 ///
@@ -165,7 +168,7 @@ pub fn bspldnev_single_dual2(
 }
 
 /// A piecewise polynomial spline of given order and knot sequence.
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct PPSpline<T> {
     k: usize,
     t: Vec<f64>,
@@ -270,6 +273,16 @@ where
     }
 }
 
+impl NumberMapping for PPSpline<f64> {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr> {
+        match x {
+            Number::F64(f) => Ok(Number::F64(self.ppdnev_single(f, 0_usize)?)),
+            Number::Dual(d) => Ok(Number::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            Number::Dual2(d) => Ok(Number::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+        }
+    }
+}
+
 impl PPSpline<f64> {
     pub fn ppdnev_single_dual(&self, x: &Dual, m: usize) -> Result<Dual, PyErr> {
         let b: Array1<Dual> = Array1::from_vec(
@@ -300,6 +313,16 @@ impl PPSpline<f64> {
     }
 }
 
+impl NumberMapping for PPSpline<Dual> {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr> {
+        match x {
+            Number::F64(f) => Ok(Number::Dual(self.ppdnev_single(f, 0_usize)?)),
+            Number::Dual(d) => Ok(Number::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            Number::Dual2(d) => Ok(Number::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
+        }
+    }
+}
+
 impl PPSpline<Dual> {
     pub fn ppdnev_single_dual2(&self, _x: &Dual2, _m: usize) -> Result<Dual2, PyErr> {
         Err(PyTypeError::new_err(
@@ -318,6 +341,16 @@ impl PPSpline<Dual> {
             None => Err(PyValueError::new_err(
                 "Must call `csolve` before evaluating PPSpline.",
             )),
+        }
+    }
+}
+
+impl NumberMapping for PPSpline<Dual2> {
+    fn mapped_value(&self, x: &Number) -> Result<Number, PyErr> {
+        match x {
+            Number::F64(f) => Ok(Number::Dual2(self.ppdnev_single(f, 0_usize)?)),
+            Number::Dual(d) => Ok(Number::Dual(self.ppdnev_single_dual(d, 0_usize)?)),
+            Number::Dual2(d) => Ok(Number::Dual2(self.ppdnev_single_dual2(d, 0_usize)?)),
         }
     }
 }
@@ -343,8 +376,6 @@ impl PPSpline<Dual2> {
         }
     }
 }
-
-use std::cmp::PartialEq;
 
 impl<T> PartialEq for PPSpline<T>
 where
