@@ -1352,7 +1352,7 @@ class TestIndexFixedRateBond:
         assert result == result2
 
     def test_spec_kwargs(self):
-        # GH
+        # GH346
         fixings = Series(
             data=[314.175, 314.54],
             index=[dt(2024, 9, 1), dt(2024, 10, 1)]
