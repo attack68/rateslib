@@ -1391,7 +1391,7 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)):
+    def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)) -> DataFrame:
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
