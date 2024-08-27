@@ -6359,9 +6359,17 @@ class ZCIS(BaseDerivative):
         )
         if self.leg2_index_base is NoInput.blank:
             # must forecast for the leg
-            self.leg2.index_base = curves[2].index_value(
+            forecast_value = curves[2].index_value(
                 self.leg2.schedule.effective, self.leg2.index_method
             )
+            if abs(forecast_value) < 1e-13:
+                raise ValueError(
+                    "Forecasting the `index_base` for the ZCIS has yielded 0.0, which is infeasible.\n"
+                    "This might occur if the ZCIS starts in the past, or has a 'monthly' `index_method` "
+                    "which uses the first date in the start month which is in the past.\n"
+                    "A known `index_base` value should be input with the ZCIS specification."
+                )
+            self.leg2.index_base = forecast_value
         leg2_npv = self.leg2.npv(curves[2], curves[3])
 
         return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100

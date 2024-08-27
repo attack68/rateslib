@@ -1275,6 +1275,24 @@ class TestZCIS:
         result = zcis.rate(curves=[curve, curve, i_curve, curve])
         assert result > (prior + 100)
 
+    def test_solver_failure_unspecified_index_base(self, curve):
+        # GH 349
+        curve = Curve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.98})
+        i_curve = IndexCurve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
+        zcis = ZCIS(
+            effective=dt(2022, 1, 15),
+            termination="9m",
+            frequency="A",
+            convention="1+",
+            calendar="nyc",
+            leg2_index_method="monthly",
+            currency="usd",
+            curves=[curve, curve, i_curve, curve],
+            leg2_index_lag=3,
+        )
+        with pytest.raises(ValueError, match="Forecasting the `index_base`"):
+            zcis.rate()
+
 
 class TestValue:
     def test_npv_adelta_cashflows_raises(self):
