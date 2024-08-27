@@ -52,6 +52,8 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - Expose :meth:`~rateslib.dual.gradient` as a method in the *rateslib* public API.
    * - Bug
+     - Expose :class:`~rateslib.calendars.NamedCal` as a class in the *rateslib* public API.
+   * - Bug
      - :class:`~rateslib.instruments.IndexFixedRateBond` now correctly initialises when using a
        :class:`pandas.Series` as ``index_fixings`` argument.
 

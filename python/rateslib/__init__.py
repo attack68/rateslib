@@ -49,7 +49,15 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.calendars import Cal, UnionCal, add_tenor, create_calendar, dcf, get_calendar
+from rateslib.calendars import (
+    Cal,
+    NamedCal,
+    UnionCal,
+    add_tenor,
+    create_calendar,
+    dcf,
+    get_calendar,
+)
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -163,6 +171,7 @@ __all__ = [
     "dcf",
     "Cal",
     "UnionCal",
+    "NamedCal",
     # scheduling.py
     "Schedule",
     # curves.py
