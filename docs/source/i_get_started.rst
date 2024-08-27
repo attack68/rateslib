@@ -38,7 +38,7 @@ can be compiled locally by the *pip* installer.
    since then so a *conda installation* is not recommended but is still available
    from `Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_. If you would like to see
    up to date versions of *rateslib* added to *conda* please help
-   out `here! <https://github.com/attack68/rateslib/issues/191.`_.
+   out `here! <https://github.com/attack68/rateslib/issues/191>`_.
 
 .. code-block::
 
