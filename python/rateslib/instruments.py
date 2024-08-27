@@ -6364,10 +6364,10 @@ class ZCIS(BaseDerivative):
             )
             if abs(forecast_value) < 1e-13:
                 raise ValueError(
-                    "Forecasting the `index_base` for the ZCIS has yielded 0.0, which is infeasible.\n"
-                    "This might occur if the ZCIS starts in the past, or has a 'monthly' `index_method` "
-                    "which uses the 1st day of the effective month, which is in the past.\n"
-                    "A known `index_base` value should be input with the ZCIS specification."
+                    "Forecasting the `index_base` for the ZCIS yielded 0.0, which is infeasible.\n"
+                    "This might occur if the ZCIS starts in the past, or has a 'monthly' "
+                    "`index_method` which uses the 1st day of the effective month, which is in the "
+                    "past.\nA known `index_base` value should be input with the ZCIS specification."
                 )
             self.leg2.index_base = forecast_value
         leg2_npv = self.leg2.npv(curves[2], curves[3])
