@@ -194,3 +194,36 @@ TONA
 
    defaults.spec["jpy_irs"]
    IRS(dt(2000, 1, 1), "10y", spec="jpy_irs").kwargs
+
+AUD
+*****
+
+.. _spec-aud-irs:
+
+AONIA
+----------
+
+.. ipython:: python
+
+   defaults.spec["aud_irs"]
+   IRS(dt(2000, 1, 1), "10y", spec="aud_irs").kwargs
+
+.. _spec-aud-irs6:
+
+BBSW 6m
+--------
+
+.. ipython:: python
+
+   defaults.spec["aud_irs6"]
+   IRS(dt(2000, 1, 1), "10y", spec="aud_irs6").kwargs
+
+.. _spec-aud-irs3:
+
+BBSW 3m
+--------
+
+.. ipython:: python
+
+   defaults.spec["aud_irs3"]
+   IRS(dt(2000, 1, 1), "10y", spec="aud_irs3").kwargs
