@@ -727,7 +727,7 @@ class Curve(_Serialize):
                 v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
 
             nodes = self.nodes.copy()
-            for i, (k, v) in enumerate(nodes.items()):
+            for i, (k, _) in enumerate(nodes.items()):
                 nodes[k] = v_new[i]
 
             kwargs = {}
@@ -1122,7 +1122,7 @@ class Curve(_Serialize):
         upper_tenor = tenor.upper()
         x, y = self._plot_rates(upper_tenor, left, right)
         y_ = [y] if not difference else []
-        for i, comparator in enumerate(comparators):
+        for _, comparator in enumerate(comparators):
             if difference:
                 y_.append([self._plot_diff(_x, tenor, _y, comparator) for _x, _y in zip(x, y)])
             else:
