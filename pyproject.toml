@@ -101,18 +101,23 @@ select = [
     "F",
     # pyupgrade
     "UP",
-    #    # flake8-bugbear
-    #    "B",
+    # flake8-bugbear
+    "B",
     #    # flake8-simplify
     #    "SIM",
     # isort
     "I",
 ]
-ignore = []
+ignore = [
+    "B008",  # function calls in argument defaults, e.g. NoInput(0)
+    "B006",  # mutable data structures for argument defaults, e.g. []
+    "B904",  # raising within except clauses
+    "B028",  # no explicit stack level
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402"]
-"python/tests/*" = ["F401"]
+"python/tests/*" = ["F401", "B"]
 
 [tool.isort]
 profile = "black"
