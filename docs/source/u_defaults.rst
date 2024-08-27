@@ -149,7 +149,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - AUD
      - :ref:`syd <spec-aud-syd>`
-     -
+     - :ref:`aud_irs <spec-aud-irs>`, :ref:`aud_irs3 <spec-aud-irs3>`, :ref:`aud_irs6 <spec-aud-irs6>`
      -
      -
      -

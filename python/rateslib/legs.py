@@ -725,16 +725,16 @@ class FloatLegMixin:
         -------
         DataFrame
         """
-        df, _ = None, 0
+        df, counter = None, 0
         while df is None:
-            if type(self.periods[_]) is FloatPeriod:
-                df = self.periods[_].fixings_table(*args, **kwargs)
-            _ += 1
+            if type(self.periods[counter]) is FloatPeriod:
+                df = self.periods[counter].fixings_table(*args, **kwargs)
+            counter += 1
 
         n = len(self.periods)
-        for _ in range(_, n):
-            if type(self.periods[_]) is FloatPeriod:
-                df = pd.concat([df, self.periods[_].fixings_table(*args, **kwargs)])
+        for i in range(counter, n):
+            if type(self.periods[i]) is FloatPeriod:
+                df = pd.concat([df, self.periods[i].fixings_table(*args, **kwargs)])
         return df
 
     def _regular_period(

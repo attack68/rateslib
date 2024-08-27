@@ -1332,7 +1332,7 @@ def _generate_regular_schedule_unadjusted(
     _ = ueffective
     yield _
     cal_ = get_calendar(NoInput(0))
-    for i in range(int(n_periods)):
+    for _i in range(int(n_periods)):
         _ = cal_.add_months(
             _,
             defaults.frequency_months[frequency],

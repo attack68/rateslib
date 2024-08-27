@@ -6359,9 +6359,17 @@ class ZCIS(BaseDerivative):
         )
         if self.leg2_index_base is NoInput.blank:
             # must forecast for the leg
-            self.leg2.index_base = curves[2].index_value(
+            forecast_value = curves[2].index_value(
                 self.leg2.schedule.effective, self.leg2.index_method
             )
+            if abs(forecast_value) < 1e-13:
+                raise ValueError(
+                    "Forecasting the `index_base` for the ZCIS yielded 0.0, which is infeasible.\n"
+                    "This might occur if the ZCIS starts in the past, or has a 'monthly' "
+                    "`index_method` which uses the 1st day of the effective month, which is in the "
+                    "past.\nA known `index_base` value should be input with the ZCIS specification."
+                )
+            self.leg2.index_base = forecast_value
         leg2_npv = self.leg2.npv(curves[2], curves[3])
 
         return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
@@ -7457,7 +7465,7 @@ class XCS(BaseDerivative):
 
         _is_float_tgt_leg = "Float" in type(tgt_leg).__name__
         _is_float_alt_leg = "Float" in type(alt_leg).__name__
-        if not _is_float_alt_leg and getattr(alt_leg, "fixed_rate") is NoInput.blank:
+        if not _is_float_alt_leg and alt_leg.fixed_rate is NoInput.blank:
             raise ValueError(
                 "Cannot solve for a `fixed_rate` or `float_spread` where the "
                 "`fixed_rate` on the non-solvable leg is NoInput.blank."
@@ -7468,7 +7476,7 @@ class XCS(BaseDerivative):
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
         if not _is_float_tgt_leg:
-            tgt_leg_fixed_rate = getattr(tgt_leg, "fixed_rate")
+            tgt_leg_fixed_rate = tgt_leg.fixed_rate
             if tgt_leg_fixed_rate is NoInput.blank:
                 # set the target fixed leg to a null fixed rate for calculation
                 tgt_leg.fixed_rate = 0.0
@@ -7488,7 +7496,7 @@ class XCS(BaseDerivative):
         )
 
         specified_spd = 0.0
-        if _is_float_tgt_leg and getattr(tgt_leg, "float_spread") is not NoInput.blank:
+        if _is_float_tgt_leg and tgt_leg.float_spread is not NoInput.blank:
             specified_spd = tgt_leg.float_spread
         elif not _is_float_tgt_leg:
             specified_spd = tgt_leg.fixed_rate * 100
