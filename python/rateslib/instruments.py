@@ -7457,7 +7457,7 @@ class XCS(BaseDerivative):
 
         _is_float_tgt_leg = "Float" in type(tgt_leg).__name__
         _is_float_alt_leg = "Float" in type(alt_leg).__name__
-        if not _is_float_alt_leg and getattr(alt_leg, "fixed_rate") is NoInput.blank:
+        if not _is_float_alt_leg and alt_leg.fixed_rate is NoInput.blank:
             raise ValueError(
                 "Cannot solve for a `fixed_rate` or `float_spread` where the "
                 "`fixed_rate` on the non-solvable leg is NoInput.blank."
@@ -7468,7 +7468,7 @@ class XCS(BaseDerivative):
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
         if not _is_float_tgt_leg:
-            tgt_leg_fixed_rate = getattr(tgt_leg, "fixed_rate")
+            tgt_leg_fixed_rate = tgt_leg.fixed_rate
             if tgt_leg_fixed_rate is NoInput.blank:
                 # set the target fixed leg to a null fixed rate for calculation
                 tgt_leg.fixed_rate = 0.0
@@ -7488,7 +7488,7 @@ class XCS(BaseDerivative):
         )
 
         specified_spd = 0.0
-        if _is_float_tgt_leg and getattr(tgt_leg, "float_spread") is not NoInput.blank:
+        if _is_float_tgt_leg and tgt_leg.float_spread is not NoInput.blank:
             specified_spd = tgt_leg.float_spread
         elif not _is_float_tgt_leg:
             specified_spd = tgt_leg.fixed_rate * 100
