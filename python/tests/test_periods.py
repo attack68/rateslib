@@ -60,7 +60,6 @@ def rfr_curve():
 @pytest.fixture()
 def line_curve():
     nodes = {
-        dt(2021, 12, 31): -99,
         dt(2022, 1, 1): 1.00,
         dt(2022, 1, 2): 2.00,
         dt(2022, 1, 3): 3.00,
