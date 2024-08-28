@@ -957,10 +957,34 @@ class TestIRS:
             },
             id="curve",
         )
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed "):
             T_irs.cashflows(curves=par_curve)
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed "):
             T_irs.npv(curves=par_curve)
+
+    def test_no_rfr_fixings_raises2(self):
+        # GH 357
+        sofr = Curve(
+            id="sofr",
+            convention="Act360",
+            calendar="nyc",
+            modifier="MF",
+            interpolation="log_linear",
+            nodes={
+                dt(2023, 8, 21): 1.0,
+                dt(2026, 8, 25): 0.97,
+            },
+        )
+        irs = IRS(
+            effective=dt(2023, 8, 18),
+            termination=dt(2025, 8, 18),
+            notional=1e6,
+            curves=sofr,
+            fixed_rate=4.86,
+            spec="usd_irs",
+        )
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed "):
+            irs.npv()
 
 
 class TestIIRS:

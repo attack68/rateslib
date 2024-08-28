@@ -485,14 +485,14 @@ class Curve(_Serialize):
         # calendar = self.calendar if calendar is False else calendar
         # convention = self.convention if convention is None else convention
 
-        # Alternative solution to PR 172.
-        # if effective < self.node_dates[0]:
-        #     raise ValueError(
-        #         "`effective` date for rate period is before the initial node date of the Curve.\n"
-        #         "If you are trying to calculate a rate for an historical FloatPeriod have you "
-        #         "neglected to supply appropriate `fixings`?\n"
-        #         "See Documentation > Cookbook > Working with Fixings."
-        #     )
+        if effective < self.node_dates[0]:  # Alternative solution to PR 172.
+            return None
+            # raise ValueError(
+            #     "`effective` date for rate period is before the initial node date of the Curve.\n"
+            #     "If you are trying to calculate a rate for an historical FloatPeriod have you "
+            #     "neglected to supply appropriate `fixings`?\n"
+            #     "See Documentation > Cookbook > Working with Fixings."
+            # )
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
         try:
@@ -1413,6 +1413,8 @@ class LineCurve(Curve):
         -------
         float, Dual, or Dual2
         """
+        if effective < self.node_dates[0]:  # Alternative solution to PR 172.
+            return None
         return self[effective]
 
     def shift(
@@ -2186,6 +2188,9 @@ class CompositeCurve(IndexCurve):
         -------
         Dual, Dual2 or float
         """
+        if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
+            return None
+
         if self._base_type == "values":
             _ = 0.0
             for i in range(0, len(self.curves)):
@@ -2429,6 +2434,9 @@ class MultiCsaCurve(CompositeCurve):
         -------
         Dual, Dual2 or float
         """
+        if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
+            return None
+
         modifier = self.modifier if modifier is False else modifier
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
