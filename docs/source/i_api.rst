@@ -89,8 +89,8 @@ Highlighted private functions
 -----------------------------
 
 .. autosummary::
-   rateslib.scheduling._check_regular_swap
-   rateslib.scheduling._infer_stub_date
+   _check_regular_swap
+   _infer_stub_date
 
 .. toctree::
     :hidden:
@@ -141,8 +141,8 @@ Classes
 ^^^^^^^^
 
 .. autosummary::
-   ~rateslib.dual.Dual
-   ~rateslib.dual.Dual2
+   Dual
+   Dual2
 
 .. toctree::
     :maxdepth: 0
