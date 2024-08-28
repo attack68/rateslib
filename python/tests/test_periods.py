@@ -878,10 +878,15 @@ class TestFloatPeriod:
         result = period.rate(curve)
         assert result == expected
 
-    @pytest.mark.parametrize("curve_type", ["curve", "linecurve"])
+    @pytest.mark.parametrize("curve_type", ["linecurve"])
     def test_period_historic_fixings_series_missing_warns(self, curve_type, line_curve, rfr_curve):
+        #
+        # This test modified by PR 357. The warning is still produced but the code also now
+        # later errors due to the missing fixing and no forecasting method.
+        #
+
         curve = rfr_curve if curve_type == "curve" else line_curve
-        fixings = Series([99, 99, 2.5], index=[dt(1995, 12, 1), dt(2021, 12, 30), dt(2022, 1, 1)])
+        fixings = Series([4.0, 3.0, 2.5], index=[dt(1995, 12, 1), dt(2021, 12, 30), dt(2022, 1, 1)])
         period = FloatPeriod(
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
@@ -894,9 +899,12 @@ class TestFloatPeriod:
         )
         # expected = ((1 + 0.015 / 365) * (1 + 0.025 / 365) * (1 + 0.01 / 365) * (
         #             1 + 0.02 / 365) - 1) * 36500 / 4 + 1
-        with pytest.warns(UserWarning):
+
+        # with pytest.warns(UserWarning):
+        #     period.rate(curve)
+
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
             period.rate(curve)
-        # assert result == expected
 
     def test_fixing_with_float_spread_warning(self, curve):
         float_period = FloatPeriod(
