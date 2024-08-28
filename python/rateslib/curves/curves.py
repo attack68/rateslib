@@ -486,12 +486,13 @@ class Curve(_Serialize):
         # convention = self.convention if convention is None else convention
 
         if effective < self.node_dates[0]:  # Alternative solution to PR 172.
-            raise ValueError(
-                "`effective` date for rate period is before the initial node date of the Curve.\n"
-                "If you are trying to calculate a rate for an historical FloatPeriod have you "
-                "neglected to supply appropriate `fixings`?\n"
-                "See Documentation > Cookbook > Working with Fixings."
-            )
+            return None
+            # raise ValueError(
+            #     "`effective` date for rate period is before the initial node date of the Curve.\n"
+            #     "If you are trying to calculate a rate for an historical FloatPeriod have you "
+            #     "neglected to supply appropriate `fixings`?\n"
+            #     "See Documentation > Cookbook > Working with Fixings."
+            # )
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
         try:
