@@ -878,7 +878,7 @@ class TestFloatPeriod:
         result = period.rate(curve)
         assert result == expected
 
-    @pytest.mark.parametrize("curve_type", ["linecurve"])
+    @pytest.mark.parametrize("curve_type", ["linecurve", "curve"])
     def test_period_historic_fixings_series_missing_warns(self, curve_type, line_curve, rfr_curve):
         #
         # This test modified by PR 357. The warning is still produced but the code also now
