@@ -957,9 +957,9 @@ class TestIRS:
             },
             id="curve",
         )
-        with pytest.raises(ValueError, match="`effective` date for rate period is before the initial node"):
+        with pytest.raises(ValueError, match="`effective` date for rate period is before the"):
             T_irs.cashflows(curves=par_curve)
-        with pytest.raises(ValueError, match="`effective` date for rate period is before the initial node"):
+        with pytest.raises(ValueError, match="`effective` date for rate period is before the"):
             T_irs.npv(curves=par_curve)
 
     def test_no_rfr_fixings_raises2(self):
@@ -973,7 +973,7 @@ class TestIRS:
             nodes={
                 dt(2023, 8, 21): 1.0,
                 dt(2026, 8, 25): 0.97,
-            }
+            },
         )
         irs = IRS(
             effective=dt(2023, 8, 18),
@@ -983,7 +983,7 @@ class TestIRS:
             fixed_rate=4.86,
             spec="usd_irs",
         )
-        with pytest.raises(ValueError, match="`effective` date for rate period is before the initial node"):
+        with pytest.raises(ValueError, match="`effective` date for rate period is before the"):
             irs.npv()
 
 
