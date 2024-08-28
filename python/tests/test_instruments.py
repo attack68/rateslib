@@ -957,12 +957,13 @@ class TestIRS:
             },
             id="curve",
         )
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+        with pytest.raises(ValueError, match="`effective` date for rate period is before the initial node"):
             T_irs.cashflows(curves=par_curve)
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+        with pytest.raises(ValueError, match="`effective` date for rate period is before the initial node"):
             T_irs.npv(curves=par_curve)
 
     def test_no_rfr_fixings_raises2(self):
+        # GH 357
         sofr = Curve(
             id="sofr",
             convention="Act360",
@@ -982,8 +983,8 @@ class TestIRS:
             fixed_rate=4.86,
             spec="usd_irs",
         )
-        result = irs.npv(curves=sofr).real
-        pass
+        with pytest.raises(ValueError, match="`effective` date for rate period is before the initial node"):
+            irs.npv()
 
 
 class TestIIRS:
