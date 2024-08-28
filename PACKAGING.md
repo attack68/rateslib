@@ -70,3 +70,4 @@ To Make a New Release:
 4) Update the version test in test_default.py
 5) Add a new release table to the whats new doc page.
 6) Docs conf.py should record the release name version as "dev".
+7) spec loader dev flag should be True
