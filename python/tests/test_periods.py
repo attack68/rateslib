@@ -920,20 +920,9 @@ class TestFloatPeriod:
             result = float_period.rate(curve)
         assert result == 2.0
 
-    # @pytest.mark.skip(reason="str is an erroneous input to function: test redundant.")
-    # def test_float_period_rate_raises(self):
-    #     float_period = FloatPeriod(
-    #         start=dt(2022, 1, 4),
-    #         end=dt(2022, 4, 4),
-    #         payment=dt(2022, 4, 4),
-    #         frequency="Q",
-    #     )
-    #     with pytest.raises(TypeError, match="Curve must be of type"):
-    #         float_period.rate("bad_curve")
-
     def test_float_period_fixings_list_raises_on_ibor(self, curve, line_curve):
         with pytest.raises(ValueError, match="`fixings` cannot be supplied as list,"):
-            float_period = FloatPeriod(
+            FloatPeriod(
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),
