@@ -1,6 +1,6 @@
 [package]
 name = "rateslib"
-version = "1.4.0"
+version = "1.5.0"
 edition = "2021"
 exclude = [".github/*", "benches/*", "notebooks/*", ".readthedocs.yaml", "docs/*"]
 
@@ -50,9 +50,9 @@ default = ["abi3-py39", "pyo3-chrono", "pyo3-indexmap"]
 
 # -------------  When building commment this out and use the abi3-py39 feature in the above block.
 
-[dev-dependencies]
-criterion = { version = "0.4", features = ["html_reports"] }
+#[dev-dependencies]
+#criterion = { version = "0.4", features = ["html_reports"] }
 
-[[bench]]
-name = "my_benchmark"
-harness = false
+#[[bench]]
+#name = "my_benchmark"
+#harness = false

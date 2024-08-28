@@ -12,6 +12,16 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
+1.5.0 (no release date)
+************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+
 1.4.0 (28th Aug 2024)
 ***********************
 
