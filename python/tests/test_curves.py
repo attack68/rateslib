@@ -1574,7 +1574,6 @@ class TestCompositeCurve:
 
 
 class TestMultiCsaCurve:
-
     def test_historic_rate_is_none(self):
         c1 = Curve(
             {

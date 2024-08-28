@@ -12,7 +12,7 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
-1.4.0 (No release date)
+1.4.0 (28th Aug 2024)
 ***********************
 
 .. list-table::
