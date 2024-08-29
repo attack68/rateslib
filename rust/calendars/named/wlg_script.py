@@ -46,9 +46,7 @@ matariki_dates = [
     "2052-06-21",
 ]
 
-matariki_dict = {
-    k + 2022: datetime.strptime(v, "%Y-%m-%d") for k, v in enumerate(matariki_dates)
-}
+matariki_dict = {k + 2022: datetime.strptime(v, "%Y-%m-%d") for k, v in enumerate(matariki_dates)}
 
 
 def matariki_hol(dt: datetime) -> datetime:
