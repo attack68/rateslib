@@ -103,8 +103,10 @@ select = [
     "SIM",  # flake8-simplify
     "I",  # isort
     "N", # pep8 naming
+    # "C4",
 ]
 ignore = [
+    "C408",  # unnecessary dict call
     "N806", "N815", "N803", "N802",
     "SIM116",  # use a dict instead of successive ifs: off due to performance degradation.
     "SIM108",  # ternary operators: off due to code coverage degradation.
