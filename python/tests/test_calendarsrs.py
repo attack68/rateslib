@@ -134,7 +134,7 @@ class TestCal:
         cal = get_calendar("fed")
         assert cal.holidays[0] == dt(1970, 1, 1)
 
-    def test_fed_cal(self):
+    def test_wlg_cal(self):
         cal = get_calendar("wlg")
         assert cal.holidays[0] == dt(1970, 1, 1)
 

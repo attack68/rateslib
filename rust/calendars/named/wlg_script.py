@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pandas as pd
 from dateutil.relativedelta import MO
 from pandas.tseries.holiday import (
@@ -9,7 +11,6 @@ from pandas.tseries.holiday import (
     next_monday_or_tuesday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, DateOffset
-from datetime import datetime
 
 matariki_dates = [
     "2022-06-24",
