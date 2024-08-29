@@ -60,7 +60,6 @@ def rfr_curve():
 @pytest.fixture()
 def line_curve():
     nodes = {
-        dt(2021, 12, 31): -99,
         dt(2022, 1, 1): 1.00,
         dt(2022, 1, 2): 2.00,
         dt(2022, 1, 3): 3.00,
@@ -878,10 +877,15 @@ class TestFloatPeriod:
         result = period.rate(curve)
         assert result == expected
 
-    @pytest.mark.parametrize("curve_type", ["curve", "linecurve"])
+    @pytest.mark.parametrize("curve_type", ["linecurve", "curve"])
     def test_period_historic_fixings_series_missing_warns(self, curve_type, line_curve, rfr_curve):
+        #
+        # This test modified by PR 357. The warning is still produced but the code also now
+        # later errors due to the missing fixing and no forecasting method.
+        #
+
         curve = rfr_curve if curve_type == "curve" else line_curve
-        fixings = Series([99, 99, 2.5], index=[dt(1995, 12, 1), dt(2021, 12, 30), dt(2022, 1, 1)])
+        fixings = Series([4.0, 3.0, 2.5], index=[dt(1995, 12, 1), dt(2021, 12, 30), dt(2022, 1, 1)])
         period = FloatPeriod(
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
@@ -894,9 +898,12 @@ class TestFloatPeriod:
         )
         # expected = ((1 + 0.015 / 365) * (1 + 0.025 / 365) * (1 + 0.01 / 365) * (
         #             1 + 0.02 / 365) - 1) * 36500 / 4 + 1
-        with pytest.warns(UserWarning):
+
+        # with pytest.warns(UserWarning):
+        #     period.rate(curve)
+
+        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
             period.rate(curve)
-        # assert result == expected
 
     def test_fixing_with_float_spread_warning(self, curve):
         float_period = FloatPeriod(
@@ -913,20 +920,9 @@ class TestFloatPeriod:
             result = float_period.rate(curve)
         assert result == 2.0
 
-    # @pytest.mark.skip(reason="str is an erroneous input to function: test redundant.")
-    # def test_float_period_rate_raises(self):
-    #     float_period = FloatPeriod(
-    #         start=dt(2022, 1, 4),
-    #         end=dt(2022, 4, 4),
-    #         payment=dt(2022, 4, 4),
-    #         frequency="Q",
-    #     )
-    #     with pytest.raises(TypeError, match="Curve must be of type"):
-    #         float_period.rate("bad_curve")
-
     def test_float_period_fixings_list_raises_on_ibor(self, curve, line_curve):
         with pytest.raises(ValueError, match="`fixings` cannot be supplied as list,"):
-            float_period = FloatPeriod(
+            FloatPeriod(
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),

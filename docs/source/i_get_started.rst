@@ -31,9 +31,14 @@ use the source distribution directly. In this case you must first
 `install Rust <https://www.rust-lang.org/tools/install>`_ so that the rust extensions
 can be compiled locally by the *pip* installer.
 
-**Additionally**, for versions less than 1.2.0, it can be installed via the community ``conda-forge`` channel
-available from `Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_, although these older versions are less
-performant and contain less features.
+.. warning::
+
+   *Rateslib* is also available via the community ``conda-forge`` channel for Anaconda. **However**,
+   this is currently only for older versions: 1.1.1 and below. Significant development has occurred
+   since then so a *conda installation* is not recommended but is still available
+   from `Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_. If you would like to see
+   up to date versions of *rateslib* added to *conda* please help
+   out `here! <https://github.com/attack68/rateslib/issues/191>`_.
 
 .. code-block::
 

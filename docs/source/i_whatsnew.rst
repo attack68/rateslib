@@ -12,7 +12,17 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact through **rateslib@gmail.com**.
 
-1.4.0 (No release date)
+1.5.0 (no release date)
+************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+
+1.4.0 (28th Aug 2024)
 ***********************
 
 .. list-table::
@@ -57,8 +67,12 @@ email contact through **rateslib@gmail.com**.
      - :class:`~rateslib.instruments.IndexFixedRateBond` now correctly initialises when using a
        :class:`pandas.Series` as ``index_fixings`` argument.
    * - Bug
-     - :class:`~rateslib.instruments.ZCIS` now raises if an `index_base` cannot be forecast from an *IndexCurve*
+     - :class:`~rateslib.instruments.ZCIS` now raises if an ``index_base`` cannot be forecast from an *IndexCurve*
        and the value should be known and input directly, to avoid *Solver* calibration failures.
+   * - Bug
+     - ``npv`` and ``cashflows`` of a :class:`~rateslib.periods.FloatPeriod` now handle
+       error messages regarding missing RFR fixings for an historical period which is only
+       missing a single fixing.
 
 1.3.0 (9th July 2024)
 ***********************

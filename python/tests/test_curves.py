@@ -1175,6 +1175,15 @@ class TestIndexCurve:
         new_curve = curve.roll("1m")
         assert new_curve.ad == curve.ad
 
+    def test_historic_rate_is_none(self):
+        curve = IndexCurve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=100.0,
+            index_lag=3,
+            id="tags_",
+        )
+        assert curve.rate(dt(2021, 3, 4), "1b", "f") is None
+
 
 class TestCompositeCurve:
     def test_curve_df_based(self):
@@ -1538,6 +1547,56 @@ class TestCompositeCurve:
         cc = CompositeCurve([curve])
         with pytest.raises(TypeError, match="`index_value` not available"):
             cc.index_value(dt(2022, 1, 1))
+
+    def test_historic_rate_is_none(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        cc = CompositeCurve([c1, c2])
+        assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
+
+
+class TestMultiCsaCurve:
+    def test_historic_rate_is_none(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        cc = MultiCsaCurve([c1, c2])
+        assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
 
 
 class TestPlotCurve:
