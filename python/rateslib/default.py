@@ -316,7 +316,7 @@ Miscellaneous:\n
     'no_fx_fixings_for_xcs',
     'pool',         
 ]])}
-"""
+"""  # noqa: W291
         return _
 
 

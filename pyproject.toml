@@ -96,6 +96,7 @@ docstring-code-format = false
 [tool.ruff.lint]
 select = [
     "E",  # pycodestyle
+    "W",
     "F",  # Pyflakes
     "UP",  # pyupgrade
     "B",  # flake8-bugbear
