@@ -23,6 +23,7 @@ email contact through **rateslib@gmail.com**.
      - Description
    * - Calendars
      - Add a *"wlg"* calendar for New Zealand *IRS*.
+       (`363 <https://github.com/attack68/rateslib/pull/363>`_)
 
 1.4.0 (28th Aug 2024)
 ***********************
