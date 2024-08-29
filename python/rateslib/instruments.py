@@ -7323,9 +7323,9 @@ class XCS(BaseDerivative):
             return True
         if self._fixed_rate_mixin and self._leg2_fixed_rate_mixin:
             # Fixed/Fixed where one leg is unpriced.
-            if self.fixed_rate is NoInput.blank or self.leg2_fixed_rate is NoInput.blank:
-                return True
-            return False
+            if self.fixed_rate is NoInput.blank or self.leg2_fixed_rate is NoInput.blank:  # noqa: SIM103
+                return True  # noqa: SIM103
+            return False  # noqa: SIM103
         elif self._fixed_rate_mixin and self.fixed_rate is NoInput.blank:
             # Fixed/Float where fixed leg is unpriced
             return True
@@ -7336,16 +7336,12 @@ class XCS(BaseDerivative):
             return False
 
         # 2) leg1 is Float
-        # ruff: noqa: SIM103
-        if (
-            self._leg2_fixed_rate_mixin
-            and self.leg2_fixed_rate is NoInput.blank
-            or self._leg2_float_spread_mixin
-            and self.leg2_float_spread is NoInput.blank
-        ):
-            return True
-        else:
-            return False
+        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is NoInput.blank:  # noqa: SIM114, SIM103
+            return True  # noqa: SIM114, SIM103
+        elif self._leg2_float_spread_mixin and self.leg2_float_spread is NoInput.blank:  # noqa: SIM114, SIM103
+            return True  # noqa: SIM114, SIM103
+        else:  # noqa: SIM114, SIM103
+            return False  # noqa: SIM114, SIM103
 
     def _set_pricing_mid(
         self,
