@@ -18,3 +18,4 @@ Calendars
     calendars/cad_tro.rst
     calendars/jpy_tyo.rst
     calendars/aud_syd.rst
+    calendars/nzd_wlg.rst
