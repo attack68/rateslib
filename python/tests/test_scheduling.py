@@ -92,8 +92,8 @@ def test_get_unadjusted_roll(effective, termination, expected, expected2):
 
 
 def test_get_default_stub():
-    assert "SHORTFRONT" == _get_default_stub("FRONT", "SHORTFRONTLONGBACK")
-    assert "LONGBACK" == _get_default_stub("BACK", "SHORTFRONTLONGBACK")
+    assert _get_default_stub("FRONT", "SHORTFRONTLONGBACK") == "SHORTFRONT"
+    assert _get_default_stub("BACK", "SHORTFRONTLONGBACK") == "LONGBACK"
     assert f"{defaults.stub_length}FRONT" == _get_default_stub("FRONT", "FRONTBACK")
 
 

@@ -1190,9 +1190,11 @@ def forward_fx(
        })
        fxf.rate("usdgbp", dt(2022, 7, 1))
     """  # noqa: E501
-    if date == fx_settlement:
-        return fx_rate
-    elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:
+    if (
+        date == fx_settlement
+        or date == curve_domestic.node_dates[0]
+        and fx_settlement is NoInput.blank
+    ):
         return fx_rate
 
     _ = curve_domestic[date] / curve_foreign[date]

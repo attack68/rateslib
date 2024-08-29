@@ -331,7 +331,7 @@ class Curve(_Serialize):
             self.spline_endpoints = [_.lower() for _ in endpoints]
 
         self.t = t
-        self.c_init = False if c is NoInput.blank else True
+        self.c_init = c is not NoInput.blank
         if t is not NoInput.blank:
             self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
@@ -560,7 +560,7 @@ class Curve(_Serialize):
             Spline = PPSplineDual2
 
         t_posix = self.t_posix.copy()
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes.keys() if k >= self.t[0]]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint

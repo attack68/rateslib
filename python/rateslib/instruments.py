@@ -1296,9 +1296,9 @@ class BondMixin(_BondConventions):
             self.leg1.schedule.uschedule[prev_a_idx + 1], -self.kwargs["ex_div"], True
         )
         if self.calc_mode in []:  # currently no identified calc_modes
-            return True if settlement >= ex_div_date else False  # pragma: no cover
+            return settlement >= ex_div_date  # pragma: no cover
         else:
-            return True if settlement > ex_div_date else False
+            return settlement > ex_div_date
 
     def _accrued(self, settlement: datetime, func: callable):
         """func is the specific accrued function associated with the bond ``calc_mode``"""
@@ -3497,13 +3497,14 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         self._float_spread = float_spread
         self.leg1 = FloatLeg(**_get(self.kwargs, leg=1, filter=["ex_div", "settle", "calc_mode"]))
 
-        if "rfr" in self.leg1.fixing_method:
-            if self.kwargs["ex_div"] > (self.leg1.method_param + 1):
-                raise ValueError(
-                    "For RFR FRNs `ex_div` must be less than or equal to (`method_param` + 1) "
-                    "otherwise negative accrued payments cannot be explicitly "
-                    "determined due to unknown fixings."
-                )
+        if "rfr" in self.leg1.fixing_method and self.kwargs["ex_div"] > (
+            self.leg1.method_param + 1
+        ):
+            raise ValueError(
+                "For RFR FRNs `ex_div` must be less than or equal to (`method_param` + 1) "
+                "otherwise negative accrued payments cannot be explicitly "
+                "determined due to unknown fixings."
+            )
 
         if self.leg1.amortization != 0:
             # Note if amortization is added to FloatRateNote must systematically
@@ -7335,9 +7336,13 @@ class XCS(BaseDerivative):
             return False
 
         # 2) leg1 is Float
-        if self._leg2_fixed_rate_mixin and self.leg2_fixed_rate is NoInput.blank:
-            return True
-        elif self._leg2_float_spread_mixin and self.leg2_float_spread is NoInput.blank:
+        # ruff: noqa: SIM103
+        if (
+            self._leg2_fixed_rate_mixin
+            and self.leg2_fixed_rate is NoInput.blank
+            or self._leg2_float_spread_mixin
+            and self.leg2_float_spread is NoInput.blank
+        ):
             return True
         else:
             return False

@@ -118,14 +118,15 @@ class TestCurvesandSolver:
             result = _get_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
-        with pytest.warns():
-            with default_context("curve_not_in_solver", "warn"):
-                result = _get_curve_from_solver(no_curve, solver)
-                assert result == no_curve
+        with pytest.warns(), default_context("curve_not_in_solver", "warn"):
+            result = _get_curve_from_solver(no_curve, solver)
+            assert result == no_curve
 
-        with pytest.raises(ValueError, match="`curve` must be in `solver`"):
-            with default_context("curve_not_in_solver", "raise"):
-                _get_curve_from_solver(no_curve, solver)
+        with (
+            pytest.raises(ValueError, match="`curve` must be in `solver`"),
+            default_context("curve_not_in_solver", "raise"),
+        ):
+            _get_curve_from_solver(no_curve, solver)
 
         with pytest.raises(AttributeError, match="`curve` has no attribute `id`, likely it not"):
             _get_curve_from_solver(100.0, solver)
@@ -1639,13 +1640,17 @@ class TestNonMtmXCS:
             float_spread=0.0,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.npv([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.cashflows([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.cashflows([curve, curve, curve2, curve2])
 
         # with pytest.warns():
         #     with default_context("no_fx_fixings_for_xcs", "warn"):
@@ -1754,9 +1759,8 @@ class TestNonMtmXCS:
             payment_lag_exchange=0,
             notional=10e6,
         )
-        with default_context("no_fx_fixings_for_xcs", "warn"):
-            with pytest.warns(UserWarning):
-                xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
+        with default_context("no_fx_fixings_for_xcs", "warn"), pytest.warns(UserWarning):
+            xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
 
     def test_npv_fx_as_float_valid(self):
         xcs = XCS(
@@ -1875,13 +1879,17 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.npv([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.cashflows([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.cashflows([curve, curve, curve2, curve2])
 
     def test_nonmtmfixxcs_cashflows(self, curve, curve2):
         fxf = FXForwards(

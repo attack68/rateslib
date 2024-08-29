@@ -378,28 +378,7 @@ class Schedule:
                 "Must supply at least one stub date with dual sided stub type.\n"
                 "Require `front_stub` or `back_stub` or both."
             )
-        elif front_stub is NoInput.blank:
-            valid, parsed_args = _infer_stub_date(
-                self.effective,
-                self.termination,
-                self.frequency,
-                self.stub,
-                front_stub,
-                back_stub,
-                self.modifier,
-                self.eom,
-                roll,
-                self.calendar,
-            )
-            if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
-            else:
-                self.ueffective = parsed_args["ueffective"]
-                self.utermination = parsed_args["utermination"]
-                self.front_stub = parsed_args["front_stub"]
-                self.back_stub = parsed_args["back_stub"]
-                self.roll = parsed_args["roll"]
-        elif back_stub is NoInput.blank:
+        elif front_stub is NoInput.blank or back_stub is NoInput.blank:
             valid, parsed_args = _infer_stub_date(
                 self.effective,
                 self.termination,
@@ -891,9 +870,7 @@ def _is_invalid_very_short_stub(
     date1_ = calendar.roll(date_to_modify, _get_modifier(modifier, True), settlement=False)
     date2_ = calendar.roll(date_fixed, _get_modifier(modifier, True), settlement=False)
     # settlement calendar alignment is not enforced during schedule generation.
-    if date1_ == date2_:
-        return True  # date range created by stubs is too small and is invalid
-    return False
+    return date1_ == date2_  # True => date range created by stubs is too small and is invalid
 
 
 def _infer_stub_date(

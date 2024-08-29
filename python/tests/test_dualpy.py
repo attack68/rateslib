@@ -128,14 +128,14 @@ def test_neg(x_1, y_2):
 
 def test_eq_ne(x_1, y_1, y_2):
     # non-matching types
-    assert 0 != Dual(0, ["single_var"], [])
-    assert 0 != Dual2(0, ["single_var"], [], [])
+    assert Dual(0, ["single_var"], []) != 0
+    assert Dual2(0, ["single_var"], [], []) != 0
     # ints
-    assert 2 == Dual(2, [], [])
-    assert 2 == Dual2(2, [], [], [])
+    assert Dual(2, [], []) == 2
+    assert Dual2(2, [], [], []) == 2
     # floats
-    assert 3.3 == Dual(3.3, [], [])
-    assert 3.3 == Dual2(3.3, [], [], [])
+    assert Dual(3.3, [], []) == 3.3
+    assert Dual2(3.3, [], [], []) == 3.3
     # no type crossing
     with pytest.raises(TypeError):
         assert x_1 != y_1

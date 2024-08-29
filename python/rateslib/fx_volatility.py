@@ -1200,7 +1200,7 @@ def _delta_type_constants(delta_type, w, u):
     w: should be input as w_deli / w_spot
     u: should be input as K / f_d
     """
-    if delta_type == "forward":
+    if delta_type == "forward":  # ruff: noqa: SIM116
         return (0.5, 1.0, 1.0)
     elif delta_type == "spot":
         return (0.5, w, 1.0)
