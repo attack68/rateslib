@@ -102,8 +102,10 @@ select = [
     "B",  # flake8-bugbear
     "SIM",  # flake8-simplify
     "I",  # isort
+    "N", # pep8 naming
 ]
 ignore = [
+    "N806", "N815", "N803", "N802",
     "SIM116",  # use a dict instead of successive ifs: off due to performance degradation.
     "SIM108",  # ternary operators: off due to code coverage degradation.
     "B008",  # function calls in argument defaults, e.g. NoInput(0)
@@ -113,8 +115,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["E402"]
-"python/tests/*" = ["F401", "B"]
+"__init__.py" = ["E402", "N801"]
+"python/tests/*" = ["F401", "B", "N"]
 
 [tool.isort]
 profile = "black"
