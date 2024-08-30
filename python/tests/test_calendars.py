@@ -16,6 +16,7 @@ from rateslib.calendars import (
     create_calendar,
     dcf,
     get_calendar,
+    get_imm,
 )
 from rateslib.calendars.dcfs import _dcf_actacticma
 from rateslib.curves import Curve
@@ -570,3 +571,17 @@ def test_expiries_delivery_raises() -> None:
             "mf",
             False,
         )
+
+
+@pytest.mark.parametrize(("val, exp"), [
+    ("Z24", dt(2024, 12, 18)),
+    ("X89", dt(2089, 11, 16)),
+])
+def test_get_imm_api(val, exp):
+    result = get_imm(month=1, year=1, code=val)
+    assert result == exp
+
+
+def test_get_imm_api_no_code():
+    result = get_imm(month=11, year=2089)
+    assert result == dt(2089, 11, 16)
