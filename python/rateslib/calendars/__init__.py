@@ -293,6 +293,50 @@ def add_tenor(
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
 
 
+MONTHS = {
+    "F": 1,
+    "G": 2,
+    "H": 3,
+    "J": 4,
+    "K": 5,
+    "M": 6,
+    "N": 7,
+    "Q": 8,
+    "U": 9,
+    "V": 10,
+    "X": 11,
+    "Z": 12,
+}
+
+
+def get_imm(
+    month: int | NoInput = NoInput(0),
+    year: int | NoInput = NoInput(0),
+    code: str | NoInput = NoInput(0),
+) -> datetime:
+    """
+    Return an IMM date for a specified month.
+
+    Parameters
+    ----------
+    month: int
+        The month of the year in which the IMM date falls.
+    year: int
+        The year in which the IMM date falls.
+    code: str
+        Identifier in the form of a one digit month code and 21st century year, e.g. "U29".
+        If code is given ``month`` and ``year`` are unused.
+
+    Returns
+    -------
+    datetime
+    """
+    if code is not NoInput.blank:
+        year = int(code[1:]) + 2000
+        month = MONTHS[code[0].upper()]
+    return _get_imm(month, year)
+
+
 def _adjust_date(
     date: datetime,
     modifier: str,

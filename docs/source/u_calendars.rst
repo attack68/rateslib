@@ -27,6 +27,7 @@ Methods
 -------
 .. autosummary::
    rateslib.calendars.get_calendar
+   rateslib.calendars.get_imm
    rateslib.calendars.add_tenor
    rateslib.calendars.dcf
 
