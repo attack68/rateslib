@@ -2121,21 +2121,21 @@ class CompositeCurve(IndexCurve):
             raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
 
         types = [type(_) for _ in self.curves]
-        if any([_ is CompositeCurve for _ in types]):
+        if any(_ is CompositeCurve for _ in types):
             raise TypeError(
                 "Creating a CompositeCurve type containing sub CompositeCurve types is not "
                 "yet implemented."
             )
 
         if not (
-            all([_ is Curve or _ is ProxyCurve for _ in types])
-            or all([_ is LineCurve for _ in types])
-            or all([_ is IndexCurve for _ in types])
+            all(_ is Curve or _ is ProxyCurve for _ in types)
+            or all(_ is LineCurve for _ in types)
+            or all(_ is IndexCurve for _ in types)
         ):
             raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
 
         ini_dates = [_.node_dates[0] for _ in self.curves]
-        if not all([_ == ini_dates[0] for _ in ini_dates[1:]]):
+        if not all(_ == ini_dates[0] for _ in ini_dates[1:]):
             raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
 
         if type(self) is not MultiCsaCurve:  # for multi_csa DF curve do not check calendars
@@ -2152,7 +2152,7 @@ class CompositeCurve(IndexCurve):
     def _check_init_attribute(self, attr):
         """Ensure attributes are the same across curve collection"""
         attrs = [getattr(_, attr, None) for _ in self.curves]
-        if not all([_ == attrs[0] for _ in attrs[1:]]):
+        if not all(_ == attrs[0] for _ in attrs[1:]):
             raise ValueError(
                 f"Cannot composite curves with different attributes, got for '{attr}': {attrs},"
             )

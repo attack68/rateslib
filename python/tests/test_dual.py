@@ -536,7 +536,7 @@ def test_dual2_log_exp():
 def test_combined_vars_sorted(y_3):
     x = Dual2(2, vars=["a", "v0", "z"], dual=[1, 1, 1], dual2=[])
     result = x * y_3
-    assert set(result.vars) == set(["a", "v0", "v2", "z"])
+    assert set(result.vars) == {"a", "v0", "v2", "z"}
 
 
 @pytest.mark.parametrize(

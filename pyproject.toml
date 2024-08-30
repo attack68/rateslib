@@ -103,7 +103,8 @@ select = [
     "SIM",  # flake8-simplify
     "I",  # isort
     "N", # pep8 naming
-    # "C4",
+    "C4",  # flake8-comprehensions
+    "S",  # flake8-bandit
 ]
 ignore = [
     "C408",  # unnecessary dict call
@@ -118,7 +119,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
-"python/tests/*" = ["F401", "B", "N"]
+"python/tests/*" = ["F401", "B", "N", "S"]
 
 [tool.isort]
 profile = "black"

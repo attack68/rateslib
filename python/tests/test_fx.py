@@ -782,8 +782,7 @@ def test_delta_risk_equivalence():
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
-    assert set(result1.vars) == set(
-        [
+    assert set(result1.vars) == {
             "ee0",
             "ee1",
             "eu0",
@@ -794,8 +793,7 @@ def test_delta_risk_equivalence():
             "ne1",
             "uu0",
             "uu1",
-        ]
-    )
+        }
     assert abs(result1 - result2) < 1e-12
     assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 

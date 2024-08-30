@@ -931,7 +931,11 @@ def _infer_stub_date(
     if "FRONT" in stub and "BACK" in stub:  # stub is dual sided
         dead_front_stub, dead_back_stub = False, False
         if front_stub is NoInput.blank:
-            assert isinstance(back_stub, datetime)
+            if not isinstance(back_stub, datetime):
+                raise ValueError(
+                    "If dual sided stub and `front_stub` is not input, `back_stub` must be "
+                    "a specified datetime."
+                )
             valid, parsed_args = _check_regular_swap(
                 effective, back_stub, frequency, modifier, eom, roll, calendar
             )

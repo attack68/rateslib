@@ -1706,12 +1706,12 @@ class Solver(Gradients):
         currencies = list(npv.keys())
         local_keys = [(ccy, ccy) for ccy in currencies]
         base_keys = [] if base is NoInput.blank else [(ccy, base) for ccy in currencies]
-        all_keys = sorted(list(set(local_keys + base_keys)))
+        all_keys = sorted(set(local_keys + base_keys))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
         idx_tuples = [c + _ for c in all_keys for _ in inst_keys + fx_keys]
         ridx = MultiIndex.from_tuples(
-            [key for key in idx_tuples],
+            list(idx_tuples),
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
         if base is not NoInput.blank:
@@ -1722,7 +1722,7 @@ class Solver(Gradients):
                 )
             )
         cidx = MultiIndex.from_tuples(
-            [_ for _ in inst_keys + fx_keys], names=["type", "solver", "label"]
+            list(inst_keys + fx_keys), names=["type", "solver", "label"]
         )
         df = DataFrame(None, index=ridx, columns=cidx)
         for key, d in container.items():
@@ -2205,11 +2205,11 @@ def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, 
 
 
 def _is_any_dual(arr):
-    return any([isinstance(_, Dual) for _ in arr.flatten()])
+    return any(isinstance(_, Dual) for _ in arr.flatten())
 
 
 def _is_any_dual2(arr):
-    return any([isinstance(_, Dual2) for _ in arr.flatten()])
+    return any(isinstance(_, Dual2) for _ in arr.flatten())
 
 
 def quadratic_eqn(a, b, c, x0, raise_on_fail=True):

@@ -707,7 +707,7 @@ class FXDeltaVolSurface:
         self.delta_type = _validate_delta_type(delta_type)
         self.smiles = [
             FXDeltaVolSmile(
-                nodes={k: v for k, v in zip(self.delta_indexes, node_values[i, :])},
+                nodes=dict(zip(self.delta_indexes, node_values[i, :])),
                 expiry=expiry,
                 eval_date=self.eval_date,
                 delta_type=self.delta_type,
