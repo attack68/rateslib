@@ -86,7 +86,7 @@ def _get_fx_and_base(
                     "valid FXRates or FXForwards object to convert to "
                     f"currency ({currency}).\n"
                     "If you are using a `Solver` with multi-currency instruments have you "
-                    "forgotten to attach the FXForwards in the solver's `fx` argument?"
+                    "forgotten to attach the FXForwards in the solver's `fx` argument?",
                 )
             fx = 1.0
         else:
@@ -542,7 +542,7 @@ def _validate_float_args(
         raise ValueError(
             "`fixing_method` must be in {'rfr_payment_delay', "
             "'rfr_observation_shift', 'rfr_lockout', 'rfr_lookback', 'ibor'}, "
-            f"got '{fixing_method_}'."
+            f"got '{fixing_method_}'.",
         )
 
     if method_param is NoInput.blank:
@@ -554,11 +554,11 @@ def _validate_float_args(
             "`method_param` should not be used (or a value other than 0) when "
             f"using a `fixing_method` of 'rfr_payment_delay', got {method_param_}. "
             f"Configure the `payment_lag` option instead to have the "
-            f"appropriate effect."
+            f"appropriate effect.",
         )
     elif fixing_method_ == "rfr_lockout" and method_param_ < 1:
         raise ValueError(
-            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, ' f"got {method_param_}"
+            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, ' f"got {method_param_}",
         )
 
     if spread_compound_method is NoInput.blank:
@@ -573,7 +573,7 @@ def _validate_float_args(
         raise ValueError(
             "`spread_compound_method` must be in {'none_simple', "
             "'isda_compounding', 'isda_flat_compounding'}, "
-            f"got {spread_compound_method_}"
+            f"got {spread_compound_method_}",
         )
     return fixing_method_, method_param_, spread_compound_method_
 
@@ -1000,7 +1000,7 @@ class FloatPeriod(BasePeriod):
             except AttributeError:
                 raise ValueError(
                     "Must supply a valid curve for forecasting.\n"
-                    "Do not supply a dict of curves for RFR based methods."
+                    "Do not supply a dict of curves for RFR based methods.",
                 )
         elif "ibor" in self.fixing_method:
             method = {
@@ -1127,7 +1127,7 @@ class FloatPeriod(BasePeriod):
         dcf_vals = dcf_vals.set_axis(rates.index)
         if self.spread_compound_method != "none_simple":
             raise ValueError(
-                "`spread_compound` method must be 'none_simple' in an RFR averaging " "period."
+                "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
             return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
@@ -1170,7 +1170,7 @@ class FloatPeriod(BasePeriod):
             # this path not generally hit due to validation at initialisation
             raise ValueError(
                 "`spread_compound_method` must be in {'none_simple', "
-                "'isda_compounding', 'isda_flat_compounding'}."
+                "'isda_compounding', 'isda_flat_compounding'}.",
             )
 
     def fixings_table(
@@ -1332,7 +1332,7 @@ class FloatPeriod(BasePeriod):
                     "notional": -self.notional,
                     "dcf": [None],
                     "rates": [self.rate(curve)],
-                }
+                },
             ).set_index("obs_dates")
 
     def _rfr_fixings_array(
@@ -1381,7 +1381,7 @@ class FloatPeriod(BasePeriod):
             [  # calculate the dcf values from the dcf dates
                 dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
                 for i in range(len(dcf_dates.index) - 1)
-            ]
+            ],
         )
 
         rates = Series(NA, index=obs_dates[:-1])
@@ -1393,7 +1393,7 @@ class FloatPeriod(BasePeriod):
                 if not self.fixings.index.is_monotonic_increasing:
                     raise ValueError(
                         "`fixings` as a Series must have a monotonically increasing "
-                        "datetimeindex."
+                        "datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
                 fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
@@ -1409,7 +1409,7 @@ class FloatPeriod(BasePeriod):
                         "contains valid fixings the fault probably lies with "
                         "Rateslib calendar definitions and should be reported.\n"
                         "This error can avoided by excluding these fixings using "
-                        f"Series.pop().\n{e}"
+                        f"Series.pop().\n{e}",
                     )
 
                 # basic error checking for missing fixings and provide warning.
@@ -1428,7 +1428,7 @@ class FloatPeriod(BasePeriod):
                     pass
             else:
                 raise TypeError(
-                    "`fixings` should be of type scalar, None, list or Series."
+                    "`fixings` should be of type scalar, None, list or Series.",
                 )  # pragma: no cover
 
         # reindex the rates series getting missing values from the curves
@@ -1459,7 +1459,7 @@ class FloatPeriod(BasePeriod):
                     [
                         dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
                         for i in range(len(dcf_dates.index) - 1)
-                    ]
+                    ],
                 )
             v_with_r = Series([disc_curve[obs_dates[i]] for i in range(1, len(dcf_dates.index))])
 
@@ -1482,7 +1482,7 @@ class FloatPeriod(BasePeriod):
             else:
                 rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
             notional_exposure = Series(
-                [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(dcf_dates.index) - 1)]
+                [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(dcf_dates.index) - 1)],
             ).astype(float)
             v = disc_curve[self.payment]
             mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
@@ -1509,7 +1509,7 @@ class FloatPeriod(BasePeriod):
                 "RFRs could not be calculated, have you missed providing `fixings` or "
                 "does the `Curve` begin after the start of a `FloatPeriod` including "
                 "the `method_param` adjustment?\n"
-                "For further info see: Documentation > Cookbook > Working with fixings."
+                "For further info see: Documentation > Cookbook > Working with fixings.",
             )
 
         return rate, DataFrame(
@@ -1519,7 +1519,7 @@ class FloatPeriod(BasePeriod):
                 "dcf": dcf_vals,
                 "rates": rates.astype(float).reset_index(drop=True),
                 **extra_cols,
-            }
+            },
         )
 
     def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
@@ -1537,13 +1537,13 @@ class FloatPeriod(BasePeriod):
                 [  # calculate the dcf values from the dcf dates
                     dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
                     for i in range(len(dcf_dates.index) - 1)
-                ]
+                ],
             )
             obs_vals = Series(
                 [  # calculate the dcf values from the dcf dates
                     dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
                     for i in range(len(obs_dates.index) - 1)
-                ]
+                ],
             )
 
             # approximate DFs
@@ -1566,7 +1566,10 @@ class FloatPeriod(BasePeriod):
                 termination=obs_dates.iloc[-1],
             )
             r_bar, d, n = average_rate(
-                obs_dates.iloc[0], obs_dates.iloc[-1], curve.convention, rate
+                obs_dates.iloc[0],
+                obs_dates.iloc[-1],
+                curve.convention,
+                rate,
             )
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
@@ -1598,9 +1601,9 @@ class FloatPeriod(BasePeriod):
                     "dcf": dcf_vals,
                     "notional": notional_exposure,
                     "rates": Series(rate, index=obs_dates.index).astype(
-                        float
+                        float,
                     ),  # .apply(float, convert_dtype=float),
-                }
+                },
             )
 
             table = table.iloc[:-1]
@@ -1613,7 +1616,7 @@ class FloatPeriod(BasePeriod):
                     "notional": -self.notional,
                     "dcf": [None],
                     "rates": [self.rate(curve)],
-                }
+                },
             ).set_index("obs_dates")
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1672,7 +1675,7 @@ class FloatPeriod(BasePeriod):
             raise NotImplementedError(
                 "`fixing_method` should be in {'rfr_payment_delay', 'rfr_lockout', "
                 "'rfr_lookback', 'rfr_observation_shift'} or the same with '_avg' as "
-                "a suffix for averaging methods."
+                "a suffix for averaging methods.",
             )
 
         if endpoints:
@@ -1887,7 +1890,7 @@ class Cashflow:
         disc_curve: Curve | None = None,
         fx: float | FXRates | FXForwards | None = None,
         base: str | None = None,
-    ):
+    ) -> int:
         """
         Return the analytic delta of the *Cashflow*.
         See
@@ -2367,7 +2370,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         """
         return super().npv(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args, **kwargs) -> float:
         """
         Return the analytic delta of the *IndexCashflow*.
         See
@@ -2473,7 +2476,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         df, collateral = float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
         npv = float(
-            self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency]
+            self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency],
         )
 
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
@@ -2618,7 +2621,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return points_premium * 10000.0
         elif metric_ == "percent":
             currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(
-                self.pair, self.payment
+                self.pair,
+                self.payment,
             )
             return currency_premium / self.notional * 100
         else:
@@ -2813,7 +2817,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
         _[f"delta_{self.pair[:3]}"] = abs(self.notional) * _["delta"]
         _["gamma"] = self._analytic_gamma(
-            _is_spot, v_deli, v_spot, z_w, self.phi, d_plus, f_d, vol_sqrt_t
+            _is_spot,
+            v_deli,
+            v_spot,
+            z_w,
+            self.phi,
+            d_plus,
+            f_d,
+            vol_sqrt_t,
         )
         _[f"gamma_{self.pair[:3]}_1%"] = (
             _["gamma"] * abs(self.notional) * (f_t if _is_spot else f_d) * 0.01
@@ -2825,7 +2836,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
         _["_kega"] = self._analytic_kega(
-            z_u, z_w, eta, vol_, sqrt_t, f_d, self.phi, self.strike, d_eta
+            z_u,
+            z_w,
+            eta,
+            vol_,
+            sqrt_t,
+            f_d,
+            self.phi,
+            self.strike,
+            d_eta,
         )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
 
@@ -2933,17 +2952,28 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:  # then smile delta type unmatched: 2-d solver required
                 delta = z_w_0 * self.phi / 2.0
                 u, delta_idx = self._moneyness_from_delta_two_dimensional(
-                    delta, delta_type, vol, t_e, z_w
+                    delta,
+                    delta_type,
+                    vol,
+                    t_e,
+                    z_w,
                 )
         else:  # then delta type is adjusted,
             if eta_1 == -0.5:  # then smile type matches: use 1-d solver
                 u = self._moneyness_from_atm_delta_one_dimensional(
-                    delta_type, vol_delta_type, vol, t_e, z_w
+                    delta_type,
+                    vol_delta_type,
+                    vol,
+                    t_e,
+                    z_w,
                 )
                 delta_idx = z_w_1 * u * 0.5
             else:  # smile delta type unmatched: 2-d solver required
                 u, delta_idx = self._moneyness_from_atm_delta_two_dimensional(
-                    delta_type, vol, t_e, z_w
+                    delta_type,
+                    vol,
+                    t_e,
+                    z_w,
                 )
 
         return u * f, delta_idx
@@ -2981,12 +3011,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # then delta types are both adjusted, use 1-d solver.
         elif eta_0 == eta_1 and eta_0 == -0.5:
             u = self._moneyness_from_delta_one_dimensional(
-                delta, delta_type, vol_delta_type, vol, t_e, z_w
+                delta,
+                delta_type,
+                vol_delta_type,
+                vol,
+                t_e,
+                z_w,
             )
             delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * u * (self.phi + 1.0) * 0.5)
         else:  # delta adjustment types are different, use 2-d solver.
             u, delta_idx = self._moneyness_from_delta_two_dimensional(
-                delta, delta_type, vol, t_e, z_w
+                delta,
+                delta_type,
+                vol,
+                t_e,
+                z_w,
             )
 
         return u * f, delta_idx
@@ -3178,14 +3217,19 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         if root_solver["state"] == -1:
             raise ValueError(
-                f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}"
+                f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}",
             )
 
         u = root_solver["g"]
         return u
 
     def _moneyness_from_delta_two_dimensional(
-        self, delta, delta_type, vol: FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
+        self,
+        delta,
+        delta_type,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        z_w: DualTypes,
     ):
         def root2d(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u, delta_idx = g[0], g[1]
@@ -3250,13 +3294,17 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         if root_solver["state"] == -1:
             raise ValueError(
-                f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}"
+                f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}",
             )
         u, delta_idx = root_solver["g"][0], root_solver["g"][1]
         return u, delta_idx
 
     def _moneyness_from_atm_delta_two_dimensional(
-        self, delta_type, vol: FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
+        self,
+        delta_type,
+        vol: FXDeltaVolSmile,
+        t_e: DualTypes,
+        z_w: DualTypes,
     ):
         def root2d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
             u, delta_idx = g[0], g[1]
@@ -3314,7 +3362,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return u, delta_idx
 
     def _moneyness_from_delta_three_dimensional(
-        self, delta_type, vol: float | FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes
+        self,
+        delta_type,
+        vol: float | FXDeltaVolSmile,
+        t_e: DualTypes,
+        z_w: DualTypes,
     ):
         """
         Solve the ATM delta problem where delta is not explicit.
@@ -3407,7 +3459,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
             _, vol_, _ = vol.get_from_strike(
-                self.strike, f, disc_curve[self.delivery], disc_curve[spot], self.expiry
+                self.strike,
+                f,
+                disc_curve[self.delivery],
+                disc_curve[spot],
+                self.expiry,
             )
         else:
             vol_ = vol
@@ -3421,7 +3477,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _payoff_at_expiry(self, range: list[float] | NoInput = NoInput(0)):
         if self.strike is NoInput.blank:
             raise ValueError(
-                "Cannot return payoff for option without a specified `strike`."
+                "Cannot return payoff for option without a specified `strike`.",
             )  # pragma: no cover
         if range is NoInput.blank:
             x = np.linspace(0, 20, 1001)
@@ -3480,7 +3536,8 @@ def _disc_from_curve(curve: Curve, disc_curve: Curve | NoInput) -> Curve:
 
 
 def _disc_maybe_from_curve(
-    curve: Curve | NoInput | dict, disc_curve: Curve | NoInput
+    curve: Curve | NoInput | dict,
+    disc_curve: Curve | NoInput,
 ) -> Curve | NoInput:
     if disc_curve is NoInput.blank:
         if isinstance(curve, dict):

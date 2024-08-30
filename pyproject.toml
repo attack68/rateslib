@@ -104,12 +104,22 @@ select = [
     "UP",  # pyupgrade
     "B",  # flake8-bugbear
     "SIM",  # flake8-simplify
-    "I",  # isort
-    "N", # pep8 naming
     "C4",  # flake8-comprehensions
     "S",  # flake8-bandit
+    "PIE",  # flake8-pie
+    # "ANN",  # flake8-annotations  -- Requires work
+    # "A",  # flake8-builtins  -- Requires work
+    # "COM",  # flake8-commas  -- conflicts with ruff format
+    "Q",  # flake8-quotes
+    "PT",  # flake8-pytest-style
+    # "C90",  # mccabe complexity  -- Requires work
+    "I",  # isort
+    "N",  # pep8 naming
+    # "RUF",  # -- Requires work
 ]
 ignore = [
+    "PT011", # -- Requires work inputting match statements
+    "PIE790",  # unnecessary pass
     "C408",  # unnecessary dict call
     "N806", "N815", "N803", "N802",
     "SIM116",  # use a dict instead of successive ifs: off due to performance degradation.
@@ -122,7 +132,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
-"python/tests/*" = ["F401", "B", "N", "S"]
+"python/tests/*" = ["F401", "B", "N", "S", "ANN"]
 
 [tool.isort]
 profile = "black"

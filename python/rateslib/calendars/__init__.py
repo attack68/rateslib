@@ -132,7 +132,7 @@ def dcf(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
             "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
             "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
-            "'ActActISMA', 'ActActBond'}"
+            "'ActActISMA', 'ActActBond'}",
         )
 
 
@@ -268,15 +268,26 @@ def add_tenor(
     elif "Y" in tenor:
         months = int(float(tenor[:-1]) * 12)
         return cal_.add_months(
-            start, months, _get_modifier(modifier, True), _get_rollday(roll), settlement
+            start,
+            months,
+            _get_modifier(modifier, True),
+            _get_rollday(roll),
+            settlement,
         )
     elif "M" in tenor:
         return cal_.add_months(
-            start, int(tenor[:-1]), _get_modifier(modifier, True), _get_rollday(roll), settlement
+            start,
+            int(tenor[:-1]),
+            _get_modifier(modifier, True),
+            _get_rollday(roll),
+            settlement,
         )
     elif "W" in tenor:
         return cal_.add_days(
-            start, int(tenor[:-1]) * 7, _get_modifier(modifier, mod_days), settlement
+            start,
+            int(tenor[:-1]) * 7,
+            _get_modifier(modifier, mod_days),
+            settlement,
         )
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
@@ -496,7 +507,7 @@ def _get_fx_expiry_and_delivery(
                 raise ValueError(
                     "Cannot determine FXOption expiry and delivery with given parameters.\n"
                     "Supply a `delivery_lag` as integer business days and not a datetime, when "
-                    "using a string tenor `expiry`."
+                    "using a string tenor `expiry`.",
                 )
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)

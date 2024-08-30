@@ -65,7 +65,7 @@ class Gradients:
         if self._J2 is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}."
+                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}.",
                 )
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
@@ -232,7 +232,7 @@ class Gradients:
         if self._J2_pre is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}."
+                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}.",
                 )
 
             J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
@@ -268,7 +268,7 @@ class Gradients:
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         all_gradients = np.array(
-            [gradient(rate, self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre]
+            [gradient(rate, self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre],
         ).swapaxes(0, 2)
 
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
@@ -290,7 +290,8 @@ class Gradients:
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         grad_f_f_rT = np.array([gradient(rate, fx_vars, order=2) for rate in self.r_pre]).swapaxes(
-            0, 2
+            0,
+            2,
         )
         return grad_f_f_rT
 
@@ -969,7 +970,7 @@ class Solver(Gradients):
         if len(set([self.id] + [p.id for p in self.pre_solvers])) < 1 + len(self.pre_solvers):
             raise ValueError(
                 "Solver `id`s must be unique when supplying `pre_solvers`, "
-                f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}"
+                f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}",
             )
 
         # validate `s` and `instruments` with a naive length comparison
@@ -1031,7 +1032,7 @@ class Solver(Gradients):
                 for curve in curves
                 if type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
                 # Proxy and Composite curves added to the collection without variables
-            }
+            },
         )
         curve_collection.extend(curves)
         for curve1, curve2 in combinations(curve_collection, 2):
@@ -1039,7 +1040,7 @@ class Solver(Gradients):
                 raise ValueError(
                     "`curves` must each have their own unique `id`. If using "
                     "pre-solvers as part of a dependency chain a curve can only be "
-                    "specified as a variable in one solver."
+                    "specified as a variable in one solver.",
                 )
         self.pre_variables += self.variables
         self.pre_instrument_labels += tuple((self.id, lbl) for lbl in self.instrument_labels)
@@ -1102,7 +1103,7 @@ class Solver(Gradients):
                 raise ValueError(
                     "`Instrument` supplied to `Solver` as tuple must be a 3-tuple of "
                     "signature: (Instrument, positional args[tuple], keyword "
-                    "args[dict])."
+                    "args[dict]).",
                 )
             ret0, ret1, ret2 = value[0], tuple(), {"solver": self, "fx": self.fx}
             if not (value[1] is None or value[1] == ()):
@@ -1472,7 +1473,9 @@ class Solver(Gradients):
                 f = fx.rate(f"{ccy}{base}")
                 container[("instruments", ccy, base)] = (
                     self.grad_s_Pbase(
-                        npv[ccy], container[("instruments", ccy, ccy)] / inst_scalar, f
+                        npv[ccy],
+                        container[("instruments", ccy, ccy)] / inst_scalar,
+                        f,
                     )
                     * inst_scalar
                 )
@@ -1487,7 +1490,8 @@ class Solver(Gradients):
             names=["type", "solver", "label"],
         )
         fx_idx = MultiIndex.from_tuples(
-            [("fx", "fx", f[3:]) for f in fx_vars], names=["type", "solver", "label"]
+            [("fx", "fx", f[3:]) for f in fx_vars],
+            names=["type", "solver", "label"],
         )
         indexes = {"instruments": inst_idx, "fx": fx_idx}
         r_idx = inst_idx.append(fx_idx)
@@ -1506,7 +1510,7 @@ class Solver(Gradients):
         if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
             raise ValueError(
                 "`base` is given but `fx` is not and Solver does not "
-                "contain an attached FXForwards object."
+                "contain an attached FXForwards object.",
             )
         elif fx is NoInput.blank:
             fx = self.fx
@@ -1662,16 +1666,18 @@ class Solver(Gradients):
         for ccy in npv:
             container[(ccy, ccy)] = {}
             container[(ccy, ccy)]["instruments", "instruments"] = self.grad_s_sT_Ploc(
-                npv[ccy]
+                npv[ccy],
             ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
             container[(ccy, ccy)]["fx", "instruments"] = self.grad_f_sT_Ploc(
-                npv[ccy], fx_vars
+                npv[ccy],
+                fx_vars,
             ) * np.matmul(fx_scalar[:, None], inst_scalar[None, :])
             container[(ccy, ccy)]["instruments", "fx"] = container[(ccy, ccy)][
                 ("fx", "instruments")
             ].T
             container[(ccy, ccy)]["fx", "fx"] = self.grad_f_fT_Ploc(npv[ccy], fx_vars) * np.matmul(
-                fx_scalar[:, None], fx_scalar[None, :]
+                fx_scalar[:, None],
+                fx_scalar[None, :],
             )
 
             if base is not NoInput.blank and base != ccy:
@@ -1719,18 +1725,16 @@ class Solver(Gradients):
                 MultiIndex.from_tuples(
                     [("all", base) + _ for _ in inst_keys + fx_keys],
                     names=["local_ccy", "display_ccy", "type", "solver", "label"],
-                )
+                ),
             )
-        cidx = MultiIndex.from_tuples(
-            list(inst_keys + fx_keys), names=["type", "solver", "label"]
-        )
+        cidx = MultiIndex.from_tuples(list(inst_keys + fx_keys), names=["type", "solver", "label"])
         df = DataFrame(None, index=ridx, columns=cidx)
         for key, d in container.items():
             array = np.block(
                 [
                     [d[("instruments", "instruments")], d[("instruments", "fx")]],
                     [d[("fx", "instruments")], d[("fx", "fx")]],
-                ]
+                ],
             )
             locator = key + (slice(None), slice(None), slice(None))
 
@@ -1810,9 +1814,9 @@ class Solver(Gradients):
         r_0 = self.r_pre
         r_1 = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
-            ]
+            ],
         )
         return DataFrame(
             (r_1 - r_0) * 100 / np.array(self.pre_rate_scalars),
@@ -1903,9 +1907,9 @@ class Solver(Gradients):
         # Get the instrument rates for self solver evaluated using the curves and links of other
         r = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
-            ]
+            ],
         )
         # Get the gradient of these rates with respect to the variable in other
         grad_v_rT = np.array([gradient(_, solver.pre_variables) for _ in r]).T
@@ -2193,7 +2197,7 @@ def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, 
         print(
             f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "
             f"({algo}), `f_val`: {func_val}, "
-            f"`time`: {time:.4f}s"
+            f"`time`: {time:.4f}s",
         )
     return {
         "status": STATE_MAP[state][0],
@@ -2253,7 +2257,12 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
             raise ValueError("`quadratic_eqn` has failed to solve: discriminant is less than zero.")
         else:
             return _solver_result(
-                state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn"
+                state=-1,
+                i=0,
+                func_val=1e308,
+                time=0.0,
+                log=True,
+                algo="quadratic_eqn",
             )
 
     if abs(a) > 1e-15:  # machine tolerance on normal float64 is 2.22e-16
@@ -2262,17 +2271,32 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
         _2 = (-b - sqrt_d) / (2 * a)
         if abs(x0 - _1) < abs(x0 - _2):
             return _solver_result(
-                state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn"
+                state=3,
+                i=1,
+                func_val=_1,
+                time=0.0,
+                log=False,
+                algo="quadratic_eqn",
             )
         else:
             return _solver_result(
-                state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn"
+                state=3,
+                i=1,
+                func_val=_2,
+                time=0.0,
+                log=False,
+                algo="quadratic_eqn",
             )
     else:
         # 'a' is considered too close to zero for the quadratic eqn, solve the linear eqn
         # to avoid division by zero errors
         return _solver_result(
-            state=3, i=1, func_val=-c / b, time=0.0, log=False, algo="quadratic_eqn->linear_eqn"
+            state=3,
+            i=1,
+            func_val=-c / b,
+            time=0.0,
+            log=False,
+            algo="quadratic_eqn->linear_eqn",
         )
 
 

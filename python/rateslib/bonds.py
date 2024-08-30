@@ -52,7 +52,10 @@ class _AccruedAndYTMMethods:
         return r / s
 
     def _acc_linear_proportion_by_days_long_stub_split(
-        self, settlement: datetime, acc_idx: int, *args
+        self,
+        settlement: datetime,
+        acc_idx: int,
+        *args,
     ):
         """
         For long stub periods this splits the accrued interest into two components.
@@ -177,7 +180,13 @@ class _AccruedAndYTMMethods:
             return self._v1_simple(ytm, f, settlement, acc_idx, v, accrual, *args)
         else:
             return self._v1_compounded_by_remaining_accrual_fraction(
-                ytm, f, settlement, acc_idx, v, accrual, *args
+                ytm,
+                f,
+                settlement,
+                acc_idx,
+                v,
+                accrual,
+                *args,
             )
 
     def _v1_comp_stub_act365f(
@@ -193,7 +202,13 @@ class _AccruedAndYTMMethods:
         """Compounds the yield. In a stub period the act365f DCF is used"""
         if not self.leg1.periods[acc_idx].stub:
             return self._v1_compounded_by_remaining_accrual_fraction(
-                ytm, f, settlement, acc_idx, v, accrual, *args
+                ytm,
+                f,
+                settlement,
+                acc_idx,
+                v,
+                accrual,
+                *args,
             )
         else:
             fd0 = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
