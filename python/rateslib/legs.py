@@ -24,6 +24,7 @@ import abc
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
+from typing import NoReturn
 
 import pandas as pd
 from pandas import DataFrame, Series
@@ -230,11 +231,13 @@ class BaseLeg(metaclass=ABCMeta):
                 Cashflow(
                     -self.notional,
                     self.schedule.calendar.lag(
-                        self.schedule.aschedule[0], self.payment_lag_exchange, True
+                        self.schedule.aschedule[0],
+                        self.payment_lag_exchange,
+                        True,
                     ),
                     self.currency,
                     "Exchange",
-                )
+                ),
             ]
             if self.initial_exchange
             else []
@@ -256,7 +259,9 @@ class BaseLeg(metaclass=ABCMeta):
                 Cashflow(
                     self.amortization,
                     self.schedule.calendar.lag(
-                        self.schedule.aschedule[i + 1], self.payment_lag_exchange, True
+                        self.schedule.aschedule[i + 1],
+                        self.payment_lag_exchange,
+                        True,
                     ),
                     self.currency,
                     "Amortization",
@@ -277,11 +282,13 @@ class BaseLeg(metaclass=ABCMeta):
                 Cashflow(
                     self.notional - self.amortization * (self.schedule.n_periods - 1),
                     self.schedule.calendar.lag(
-                        self.schedule.aschedule[-1], self.payment_lag_exchange, True
+                        self.schedule.aschedule[-1],
+                        self.payment_lag_exchange,
+                        True,
                     ),
                     self.currency,
                     "Exchange",
-                )
+                ),
             )
 
     # @abstractmethod
@@ -381,7 +388,11 @@ class BaseLeg(metaclass=ABCMeta):
         return _
 
     def _spread_isda_dual2(
-        self, target_npv, fore_curve, disc_curve, fx=NoInput(0)
+        self,
+        target_npv,
+        fore_curve,
+        disc_curve,
+        fx=NoInput(0),
     ):  # pragma: no cover
         # This method is unused and untested, superseded by _spread_isda_approx_rate
 
@@ -1246,7 +1257,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         else:
             return fx * value
 
-    def fixings_table(self, curve: Curve):  # pragma: no cover
+    def fixings_table(self, curve: Curve) -> NoReturn:  # pragma: no cover
         """Not yet implemented for ZeroFloatLeg"""
         # TODO: fixing table for ZeroFloatLeg
         raise NotImplementedError("fixings table on ZeroFloatLeg.")
@@ -1326,7 +1337,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
                 defaults.headers["fx"]: float(fx),
                 defaults.headers["npv_fx"]: npv_fx,
                 defaults.headers["collateral"]: collateral,
-            }
+            },
         ]
         return DataFrame.from_records(seq)
 
@@ -1391,7 +1402,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
             raise ValueError(
                 "`frequency` for a ZeroFixedLeg should not be 'Z'. The Leg is zero frequency by "
                 "construction. Set the `frequency` equal to the compounding frequency of the "
-                "expressed fixed rate, e.g. 'S' for semi-annual compounding."
+                "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
             )
 
     def _set_periods(self):
@@ -1409,7 +1420,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
                 stub=False,
                 roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
-            )
+            ),
         ]
 
     @property
@@ -1490,7 +1501,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
                 defaults.headers["fx"]: float(fx),
                 defaults.headers["npv_fx"]: npv_fx,
                 defaults.headers["collateral"]: collateral,
-            }
+            },
         ]
         return DataFrame.from_records(seq)
 
@@ -1677,7 +1688,7 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         _["Period"] = None
         return _
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args, **kwargs) -> float:
         """
         Return the analytic delta of the *ZeroIndexLeg* via summing all periods.
 
@@ -1808,7 +1819,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
             raise NotImplementedError(
                 "Cannot construct `IndexFixedLeg` with `initial_exchange` "
                 "due to not implemented `index_fixings` input argument applicable to "
-                "the indexing-up the initial exchange."
+                "the indexing-up the initial exchange.",
             )
             # self.periods.append(
             #     IndexCashflow(
@@ -1877,7 +1888,9 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                 IndexCashflow(
                     notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
                     payment=self.schedule.calendar.lag(
-                        self.schedule.aschedule[-1], self.payment_lag_exchange, True
+                        self.schedule.aschedule[-1],
+                        self.payment_lag_exchange,
+                        True,
                     ),
                     currency=self.currency,
                     stub_type="Exchange",
@@ -1885,7 +1898,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                     index_base=self.index_base,
                     index_fixings=self.index_fixings,
                     index_method=self.index_method,
-                )
+                ),
             )
 
     def npv(self, *args, **kwargs):
@@ -1985,7 +1998,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                     raise ValueError(
                         "A Series is provided for FX fixings but the required exchange "
                         f"settlement date, {required_date.strftime('%Y-%d-%m')}, is not "
-                        f"available within the Series."
+                        f"available within the Series.",
                     )
         return fixings_list
 
@@ -2036,16 +2049,18 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                     fx.rate(
                         self.alt_currency + self.currency,
                         self.schedule.calendar.lag(
-                            self.schedule.aschedule[i], self.payment_lag_exchange, True
+                            self.schedule.aschedule[i],
+                            self.payment_lag_exchange,
+                            True,
                         ),
-                    )
+                    ),
                 )
         elif n_req > 0:  # only check if unknown fixings are required
             if defaults.no_fx_fixings_for_xcs.lower() == "raise":
                 raise ValueError(
                     "`fx` is required when `fx_fixings` are not pre-set and "
                     "if rateslib option `no_fx_fixings_for_xcs` is set to "
-                    "'raise'."
+                    "'raise'.",
                 )
             if n_given == 0:
                 if defaults.no_fx_fixings_for_xcs.lower() == "warn":
@@ -2078,12 +2093,14 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 Cashflow(
                     -self.notional,
                     self.schedule.calendar.lag(
-                        self.schedule.aschedule[0], self.payment_lag_exchange, True
+                        self.schedule.aschedule[0],
+                        self.payment_lag_exchange,
+                        True,
                     ),
                     self.currency,
                     "Exchange",
                     fx_fixings[0],
-                )
+                ),
             ]
             if self.initial_exchange
             else []
@@ -2104,7 +2121,9 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             Cashflow(
                 -notionals[i + 1] + notionals[i],
                 self.schedule.calendar.lag(
-                    self.schedule.aschedule[i + 1], self.payment_lag_exchange, True
+                    self.schedule.aschedule[i + 1],
+                    self.payment_lag_exchange,
+                    True,
                 ),
                 self.currency,
                 "Mtm",
@@ -2121,12 +2140,14 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             Cashflow(
                 notionals[-1],
                 self.schedule.calendar.lag(
-                    self.schedule.aschedule[-1], self.payment_lag_exchange, True
+                    self.schedule.aschedule[-1],
+                    self.payment_lag_exchange,
+                    True,
                 ),
                 self.currency,
                 "Exchange",
                 fx_fixings[-1],
-            )
+            ),
         )
 
     def npv(
@@ -2345,7 +2366,7 @@ class CustomLeg(BaseLeg):
     def __init__(self, periods):
         if not all(isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods):
             raise ValueError(
-                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}."
+                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}.",
             )
         self._set_periods(periods)
 

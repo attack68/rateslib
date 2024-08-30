@@ -264,7 +264,7 @@ class FXRates:
         )
         return restated_fx_rates
 
-    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
+    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)) -> None:
         """
         Update all or some of the FX rates of the instance with new market data.
 

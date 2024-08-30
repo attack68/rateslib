@@ -260,7 +260,7 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     if types in [(Dual, float), (Dual2, float)]:
         raise TypeError(
             "Not implemented for type crossing. Use (Dual, Dual) or (Dual2, Dual2). It is no less"
-            "efficient to preconvert `b` to dual types and then solve."
+            "efficient to preconvert `b` to dual types and then solve.",
         )
 
     map = {float: 0, Dual: 1, Dual2: 2}

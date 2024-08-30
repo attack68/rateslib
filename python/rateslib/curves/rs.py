@@ -68,7 +68,7 @@ class CurveRs:
         return self.obj.nodes
 
     @property
-    def ad(self):
+    def ad(self) -> int:
         _ = self.obj.ad
         if _ == ADOrder.One:
             return 1
