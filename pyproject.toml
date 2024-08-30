@@ -110,6 +110,7 @@ select = [
     # "C90",  # mccabe complexity  -- Requires work
     "I",  # isort
     "N",  # pep8 naming
+    # "RUF",  # -- Requires work
 ]
 ignore = [
     "PIE790",  # unnecessary pass
