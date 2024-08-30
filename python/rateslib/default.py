@@ -264,7 +264,7 @@ class Defaults:
            defaults.reset_defaults()
         """
         base = Defaults()
-        for attr in [_ for _ in dir(self) if "__" != _[:2]]:
+        for attr in [_ for _ in dir(self) if _[:2] != "__"]:
             setattr(self, attr, getattr(base, attr))
 
     def print(self):
@@ -316,7 +316,7 @@ Miscellaneous:\n
     'no_fx_fixings_for_xcs',
     'pool',         
 ]])}
-"""
+"""  # noqa: W291
         return _
 
 

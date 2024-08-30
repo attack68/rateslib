@@ -1422,13 +1422,14 @@ class TestFloatLegExchangeMtm:
             fx_fixings=fx_fixings,
         )
 
-        with pytest.warns(UserWarning):
-            with default_context("no_fx_fixings_for_xcs", "warn"):
-                float_leg_exch.npv(curve)
+        with pytest.warns(UserWarning), default_context("no_fx_fixings_for_xcs", "warn"):
+            float_leg_exch.npv(curve)
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` are"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                float_leg_exch.npv(curve)
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` are"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            float_leg_exch.npv(curve)
 
     def test_mtm_leg_fx_fixings_series_raises(self):
         with pytest.raises(ValueError, match="A Series is provided for FX fixings but"):

@@ -167,19 +167,19 @@ def test_copy():
 
 def test_spline_equality_type():
     spline = PPSplineF64(k=1, t=[1, 2])
-    assert not "bad" == spline
+    assert spline != "bad"
 
     spline2 = PPSplineF64(k=1, t=[1, 2, 3])
-    assert not spline == spline2
+    assert spline != spline2
 
     spline3 = PPSplineF64(k=1, t=[1, 3, 5])
-    assert not spline2 == spline3
+    assert spline2 != spline3
 
     spline4 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert not spline3 == spline4
+    assert spline3 != spline4
 
     spline5 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert not spline4 == spline5
+    assert spline4 != spline5
 
     spline6 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
     spline7 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])

@@ -88,9 +88,9 @@ def test_neg(x_1):
 
 def test_eq_ne(x_1):
     # non-matching types
-    assert 0 != Dual(0, ["single_var"], [])
+    assert Dual(0, ["single_var"], []) != 0
     # floats
-    assert 2.0 == Dual(2, [], [])
+    assert Dual(2, [], []) == 2.0
     assert Dual(2, [], []) == 2.0
     # equality
     assert x_1 == Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
@@ -103,25 +103,25 @@ def test_eq_ne(x_1):
 def test_lt():
     assert Dual(1, ["x"], []) < Dual(2, ["y"], [])
     assert Dual(1, ["x"], []) < 10
-    assert 0.5 < Dual(1, ["x"], [])
+    assert Dual(1, ["x"], []) > 0.5
 
 
 def test_le():
     assert Dual(1.0, ["x"], []) <= Dual(1.0, ["y"], [])
     assert Dual(1, ["x"], []) <= 1.0
-    assert 1.0 <= Dual(1.0, ["x"], [])
+    assert Dual(1.0, ["x"], []) >= 1.0
 
 
 def test_gt():
     assert Dual(3, ["x"], []) > Dual(2, ["y"], [])
     assert Dual(1, ["x"], []) > 0.5
-    assert 0.5 > Dual(0.3, ["x"], [])
+    assert Dual(0.3, ["x"], []) < 0.5
 
 
 def test_ge():
     assert Dual(1.0, ["x"], []) >= Dual(1.0, ["y"], [])
     assert Dual(1, ["x"], []) >= 1.0
-    assert 1.0 >= Dual(1.0, ["x"], [])
+    assert Dual(1.0, ["x"], []) <= 1.0
 
 
 @pytest.mark.parametrize(

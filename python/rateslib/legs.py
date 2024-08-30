@@ -245,7 +245,7 @@ class BaseLeg(metaclass=ABCMeta):
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
                 payment=period[defaults.headers["payment"]],
-                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                stub=period[defaults.headers["stub_type"]] == "Stub",
                 notional=self.notional - self.amortization * i,
                 iterator=i,
             )
@@ -340,9 +340,13 @@ class BaseLeg(metaclass=ABCMeta):
         -------
         bool
         """
-        if "Float" in type(self).__name__:
-            if "rfr" in self.fixing_method and self.spread_compound_method != "none_simple":
-                return False
+        # ruff: noqa: SIM103
+        if (
+            "Float" in type(self).__name__
+            and "rfr" in self.fixing_method
+            and self.spread_compound_method != "none_simple"
+        ):
+            return False
         return True
 
     def _spread_isda_approximated_rate(self, target_npv, fore_curve, disc_curve):
@@ -1179,7 +1183,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
                 convention=self.convention,
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
-                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                stub=period[defaults.headers["stub_type"]] == "Stub",
                 roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
                 fixing_method=self.fixing_method,
@@ -1836,7 +1840,7 @@ class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
                 currency=self.currency,
                 termination=self.schedule.termination,
                 frequency=self.schedule.frequency,
-                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                stub=period[defaults.headers["stub_type"]] == "Stub",
                 roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
                 index_base=self.index_base,
@@ -2090,7 +2094,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
                 payment=period[defaults.headers["payment"]],
-                stub=True if period[defaults.headers["stub_type"]] == "Stub" else False,
+                stub=period[defaults.headers["stub_type"]] == "Stub",
                 notional=notionals[i],
                 iterator=i,
             )

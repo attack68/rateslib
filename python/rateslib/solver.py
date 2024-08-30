@@ -1510,14 +1510,14 @@ class Solver(Gradients):
             )
         elif fx is NoInput.blank:
             fx = self.fx
-        elif fx is not NoInput.blank and self.fx is not NoInput.blank:
-            if id(fx) != id(self.fx):
-                warnings.warn(
-                    "Solver contains an `fx` attribute but an `fx` argument has been "
-                    "supplied which is not the same. This can lead to risk sensitivity "
-                    "inconsistencies, mathematically.",
-                    UserWarning,
-                )
+        elif fx is not NoInput.blank and self.fx is not NoInput.blank and id(fx) != id(self.fx):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which is not the same. This can lead to risk sensitivity "
+                "inconsistencies, mathematically.",
+                UserWarning,
+            )
+
         if base is not NoInput.blank:
             base = base.lower()
         return base, fx
