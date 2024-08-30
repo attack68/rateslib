@@ -573,10 +573,13 @@ def test_expiries_delivery_raises() -> None:
         )
 
 
-@pytest.mark.parametrize(("val, exp"), [
-    ("Z24", dt(2024, 12, 18)),
-    ("X89", dt(2089, 11, 16)),
-])
+@pytest.mark.parametrize(
+    ("val", "exp"),
+    [
+        ("Z24", dt(2024, 12, 18)),
+        ("X89", dt(2089, 11, 16)),
+    ],
+)
 def test_get_imm_api(val, exp):
     result = get_imm(month=1, year=1, code=val)
     assert result == exp

@@ -312,7 +312,7 @@ MONTHS = {
 def get_imm(
     month: int | NoInput = NoInput(0),
     year: int | NoInput = NoInput(0),
-    code: str | NoInput = NoInput(0)
+    code: str | NoInput = NoInput(0),
 ) -> datetime:
     """
     Return an IMM date for a specified month.
