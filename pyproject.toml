@@ -103,6 +103,7 @@ select = [
     "SIM",  # flake8-simplify
     "C4",  # flake8-comprehensions
     "S",  # flake8-bandit
+    "PIE",  # flake8-pie
     # "ANN",  # flake8-annotations  -- Requires work
     # "A",  # flake8-builtins  -- Requires work
     # "COM",  # flake8-commas  -- conflicts with ruff format
@@ -111,6 +112,7 @@ select = [
     "N",  # pep8 naming
 ]
 ignore = [
+    "PIE790",  # unnecessary pass
     "C408",  # unnecessary dict call
     "N806", "N815", "N803", "N802",
     "SIM116",  # use a dict instead of successive ifs: off due to performance degradation.

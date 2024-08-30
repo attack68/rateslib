@@ -1779,7 +1779,7 @@ class IndexCurve(Curve):
         self.index_base = index_base
         if self.index_base is NoInput.blank:
             raise ValueError("`index_base` must be given for IndexCurve.")
-        super().__init__(*args, **{**{"interpolation": "linear_index"}, **kwargs})
+        super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
 
     def index_value(self, date: datetime, interpolation: str = "daily"):
         """
@@ -2194,7 +2194,7 @@ class CompositeCurve(IndexCurve):
 
         if self._base_type == "values":
             _ = 0.0
-            for i in range(0, len(self.curves)):
+            for i in range(len(self.curves)):
                 _ += self.curves[i].rate(effective, termination, modifier)
             return _
         elif self._base_type == "dfs":

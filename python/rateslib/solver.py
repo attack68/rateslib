@@ -1814,7 +1814,7 @@ class Solver(Gradients):
         r_0 = self.r_pre
         r_1 = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
             ],
         )
@@ -1907,7 +1907,7 @@ class Solver(Gradients):
         # Get the instrument rates for self solver evaluated using the curves and links of other
         r = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
             ],
         )
