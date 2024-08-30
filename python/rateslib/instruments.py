@@ -4622,8 +4622,8 @@ class BondFuture(Sensitivities):
             ctd_index_ = implied_repo.index(max(implied_repo))
             return ctd_index_
         else:
-            _ = {i: v for (i, v) in zip(range(len(implied_repo)), implied_repo)}
-            _ = {k: v for k, v in sorted(_.items(), key=lambda item: -item[1])}
+            _ = dict(zip(range(len(implied_repo)), implied_repo))
+            _ = dict(sorted(_.items(), key=lambda item: -item[1]))
             return list(_.keys())
 
     # Digital Methods
@@ -7711,7 +7711,7 @@ class FXSwap(XCS):
         if all(is_none) or not any(is_none):
             self._is_split = True
         elif split_notional is NoInput.blank and not any(
-            [_ is NoInput.blank for _ in [fx_fixings, points]]
+            _ is NoInput.blank for _ in [fx_fixings, points]
         ):
             self._is_split = False
         elif fx_fixings is not NoInput.blank:
