@@ -24,7 +24,7 @@ from rateslib.legs import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -165,7 +165,7 @@ class TestFloatLeg:
         assert float_leg.periods[2].fixings is NoInput(0)
 
     @pytest.mark.parametrize(
-        "method, param",
+        ("method", "param"),
         [
             ("rfr_payment_delay", NoInput(0)),
             ("rfr_lockout", 1),
@@ -315,7 +315,7 @@ class TestFloatLeg:
         assert float_leg.periods[0].float_spread == 2.0
 
     @pytest.mark.parametrize(
-        "method, spread_method, expected",
+        ("method", "spread_method", "expected"),
         [
             ("ibor", NoInput(0), True),
             ("rfr_payment_delay", "none_simple", True),
@@ -337,7 +337,7 @@ class TestFloatLeg:
         assert float_leg._is_linear is expected
 
     @pytest.mark.parametrize(
-        "method, expected",
+        ("method", "expected"),
         [
             ("ISDA_compounding", 357.7055853),
             ("ISDA_flat_compounding", 360.658902),
@@ -368,7 +368,7 @@ class TestFloatLeg:
             FloatLeg(dt(2022, 2, 1), "9M", "Q", fixing_method="bad")
 
     @pytest.mark.parametrize(
-        "eff, term, freq, stub, expected",
+        ("eff", "term", "freq", "stub", "expected"),
         [
             (
                 dt(2022, 1, 1),
@@ -405,7 +405,7 @@ class TestFloatLeg:
         assert leg.schedule.uschedule == expected
 
     @pytest.mark.parametrize(
-        "eff, term, freq, stub, expected",
+        ("eff", "term", "freq", "stub", "expected"),
         [
             (
                 dt(2022, 1, 1),
@@ -442,7 +442,7 @@ class TestFloatLeg:
         assert leg.schedule.aschedule == expected
 
     @pytest.mark.parametrize(
-        "eff, term, freq, stub, expected",
+        ("eff", "term", "freq", "stub", "expected"),
         [
             (
                 dt(2022, 1, 1),
@@ -663,7 +663,7 @@ class TestZeroFloatLeg:
 
 class TestZeroFixedLeg:
     @pytest.mark.parametrize(
-        "freq, cash, rate",
+        ("freq", "cash", "rate"),
         [
             ("A", 13140821.29, 2.50),
             ("S", 13227083.80, 2.50),
@@ -757,7 +757,7 @@ class TestZeroFixedLeg:
 
 class TestZeroIndexLeg:
     @pytest.mark.parametrize(
-        "index_base, index_fixings, meth, exp",
+        ("index_base", "index_fixings", "meth", "exp"),
         [
             (NoInput(0), NoInput(0), "monthly", -61855.670),
             (NoInput(0), NoInput(0), "daily", -61782.379),
@@ -1149,7 +1149,7 @@ class TestIndexFixedLegExchange:
 
 class TestIndexFixedLeg:
     @pytest.mark.parametrize(
-        "i_fixings, meth",
+        ("i_fixings", "meth"),
         [
             (NoInput(0), "daily"),
             ([210, 220, 230], "daily"),
@@ -1215,7 +1215,7 @@ class TestIndexFixedLeg:
         for key in set(expected.keys()) & set(flow.keys()):
             assert equals_with_tol(expected[key], flow[key])
 
-    @pytest.mark.parametrize("meth, exp", [("daily", 230.0), ("monthly", 227.91208)])
+    @pytest.mark.parametrize(("meth", "exp"), [("daily", 230.0), ("monthly", 227.91208)])
     def test_missing_fixings(self, meth, exp) -> None:
         i_fixings = Series(
             [210, 220],
@@ -1288,7 +1288,7 @@ class TestIndexFixedLeg:
         assert leg.periods[0].index_base == 200.0
 
     @pytest.mark.parametrize(
-        "i_base, exp",
+        ("i_base", "exp"),
         [
             (Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]), 200.0),
             (Series([1.0, 2.0], index=[dt(2000, 1, 1), dt(2000, 12, 1)]), NoInput(0)),
@@ -1325,7 +1325,7 @@ class TestIndexFixedLeg:
 
 class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
-        "fx_fixings, exp",
+        ("fx_fixings", "exp"),
         [
             (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
             ([1.5], [1.5, NoInput(0), NoInput(0)]),
@@ -1411,7 +1411,7 @@ class TestFloatLegExchangeMtm:
         assert abs(npv2 - npv - 100) < 0.01
 
     @pytest.mark.parametrize(
-        "fx_fixings, exp",
+        ("fx_fixings", "exp"),
         [
             (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
             ([1.5], [1.5, NoInput(0), NoInput(0)]),
@@ -1607,7 +1607,7 @@ def test_custom_leg() -> None:
 
 
 @pytest.mark.parametrize(
-    "fx_fixings, exp",
+    ("fx_fixings", "exp"),
     [
         (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
         ([1.5], [1.5, NoInput(0), NoInput(0)]),
@@ -1659,7 +1659,7 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp) -> None:
     assert fixed_leg_exch.periods[-1].notional == 10e6 * rate[1]
 
 
-@pytest.mark.parametrize("type_", (FloatLegMtm, FixedLegMtm))
+@pytest.mark.parametrize("type_", [FloatLegMtm, FixedLegMtm])
 def test_mtm_leg_raises(type_) -> None:
     with pytest.raises(ValueError, match="`amortization`"):
         type_(
@@ -1689,7 +1689,7 @@ def test_mtm_leg_raises(type_) -> None:
 
 
 @pytest.mark.parametrize(
-    "type_, expected, kw",
+    ("type_", "expected", "kw"),
     [
         (FloatLegMtm, [522.324262, 522.324262], {"float_spread": 1.0}),
         (FixedLegMtm, [522.324262, 53772.226595], {"fixed_rate": 2.5}),
@@ -1733,7 +1733,7 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw) -> None:
 
 
 @pytest.mark.parametrize(
-    "klass, kwargs, expected",
+    ("klass", "kwargs", "expected"),
     [
         (IndexFixedLeg, {}, [200.0, 300.0, 400.0]),
         (
@@ -1766,7 +1766,7 @@ def test_set_index_fixings_series_leg_types(klass, kwargs, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "klass, kwargs, expected",
+    ("klass", "kwargs", "expected"),
     [
         (IndexFixedLeg, {"index_fixings": [200.0, 300.0, 400.0]}, [200.0, 300.0, 400.0]),
         (
@@ -1798,7 +1798,7 @@ def test_set_index_fixings_list_leg_types(klass, kwargs, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "klass, kwargs, expected",
+    ("klass", "kwargs", "expected"),
     [
         (IndexFixedLeg, {"index_fixings": 200.0}, [200.0, NoInput(0), NoInput(0)]),
         (

@@ -6,18 +6,18 @@ from rateslib.dual import Dual, Dual2, gradient, set_order_convert
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
-@pytest.fixture()
+@pytest.fixture
 def t():
     return np.array([1, 1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4])
 
 
-@pytest.fixture()
+@pytest.fixture
 def x():
     return np.linspace(1, 4, 7)
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([1.0, 0.125, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([0.0, 0.375, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -36,7 +36,7 @@ def test_individual_bsplines(t, x, i, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([-3.0, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([3.0, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -55,7 +55,7 @@ def test_first_derivative_endpoint_support(t, x, i, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([6.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([-12.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -74,7 +74,7 @@ def test_second_derivative_endpoint_support(t, x, i, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([-6.0, -6.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([18.0, 18.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -143,7 +143,7 @@ def test_csolve_lsq() -> None:
 
 
 @pytest.mark.parametrize(
-    "tau, val, allow",
+    ("tau", "val", "allow"),
     [
         ([0, 1, 2, 3], [0, 0, 2, 2, 5], False),
         ([0, 1, 2, 3, 5], [0, 0, 2, 2], False),
@@ -187,7 +187,7 @@ def test_spline_equality_type() -> None:
 
 
 @pytest.mark.parametrize(
-    "klass, order",
+    ("klass", "order"),
     [
         (PPSplineF64, 0),
         (PPSplineDual, 1),
@@ -206,7 +206,7 @@ def test_dual_AD(klass, order) -> None:
 
 
 @pytest.mark.parametrize(
-    "klass, order",
+    ("klass", "order"),
     [
         (PPSplineF64, 0),
         (PPSplineDual2, 2),

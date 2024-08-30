@@ -24,7 +24,7 @@ from rateslib.periods import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -35,12 +35,12 @@ def curve():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxr():
     return FXRates({"usdnok": 10.0})
 
 
-@pytest.fixture()
+@pytest.fixture
 def rfr_curve():
     v1 = 1 / (1 + 0.01 / 365)
     v2 = v1 / (1 + 0.02 / 365)
@@ -57,7 +57,7 @@ def rfr_curve():
     return Curve(nodes=nodes, interpolation="log_linear", convention="act365f")
 
 
-@pytest.fixture()
+@pytest.fixture
 def line_curve():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -126,7 +126,7 @@ class TestFloatPeriod:
         assert float_period.cashflow(None) is None
 
     @pytest.mark.parametrize(
-        "spread_method, float_spread, expected",
+        ("spread_method", "float_spread", "expected"),
         [
             ("none_simple", 100.0, 24744.478172244584),
             ("isda_compounding", 0.0, 24744.478172244584),
@@ -156,7 +156,7 @@ class TestFloatPeriod:
         assert abs(result - expected) < 1e-7
 
     @pytest.mark.parametrize(
-        "spread, crv, fx",
+        ("spread", "crv", "fx"),
         [
             (4.00, True, 2.0),
             (NoInput(0), False, 2.0),
@@ -599,7 +599,7 @@ class TestFloatPeriod:
 
     @pytest.mark.parametrize("curve_type", ["curve", "linecurve"])
     @pytest.mark.parametrize(
-        "method, expected, expected_date",
+        ("method", "expected", "expected_date"),
         [
             ("rfr_payment_delay", [1000000, 1000082, 1000191, 1000561], dt(2022, 1, 6)),
             ("rfr_observation_shift", [1499240, 1499281, 1499363, 1499486], dt(2022, 1, 4)),
@@ -686,7 +686,7 @@ class TestFloatPeriod:
             period._rfr_fixings_array(rfr_curve)
 
     @pytest.mark.parametrize(
-        "method, param, expected",
+        ("method", "param", "expected"),
         [
             ("rfr_payment_delay", 0, 1000000),
             ("rfr_observation_shift", 1, 333319),
@@ -714,7 +714,7 @@ class TestFloatPeriod:
         assert abs(result["notional"].iloc[0] - expected) < 1
 
     @pytest.mark.parametrize(
-        "method, expected",
+        ("method", "expected"),
         [
             (
                 "none_simple",
@@ -979,7 +979,7 @@ class TestFloatPeriod:
             float_period.rate(line_curve)
 
     @pytest.mark.parametrize(
-        "meth, exp",
+        ("meth", "exp"),
         [
             (
                 "rfr_payment_delay",
@@ -1047,7 +1047,7 @@ class TestFloatPeriod:
         assert_frame_equal(result, exp)
 
     @pytest.mark.parametrize(
-        "method, param",
+        ("method", "param"),
         [
             ("rfr_payment_delay", NoInput(0)),
             ("rfr_lookback", 4),
@@ -1056,7 +1056,7 @@ class TestFloatPeriod:
         ],
     )
     @pytest.mark.parametrize(
-        "scm, spd",
+        ("scm", "spd"),
         [
             ("none_simple", 1000.0),
             ("isda_compounding", 1000.0),
@@ -1095,7 +1095,7 @@ class TestFloatPeriod:
         assert_frame_equal(result, expected, rtol=1e-2)
 
     @pytest.mark.parametrize(
-        "method, param",
+        ("method", "param"),
         [
             ("rfr_payment_delay_avg", None),
             ("rfr_lookback_avg", 4),
@@ -1160,7 +1160,7 @@ class TestFloatPeriod:
             period.rate(curve)
 
     @pytest.mark.parametrize(
-        "scm, exp",
+        ("scm", "exp"),
         [
             ("none_simple", True),
             ("isda_compounding", False),
@@ -1288,7 +1288,7 @@ class TestFloatPeriod:
         assert abs(result - expected) < 1e-5
 
     @pytest.mark.parametrize(
-        "meth, param, exp",
+        ("meth", "param", "exp"),
         [
             ("rfr_payment_delay", NoInput(0), 3.1183733605),
             ("rfr_observation_shift", 2, 3.085000395),
@@ -1442,7 +1442,7 @@ class TestFixedPeriod:
         assert abs(result - 247444.78172244584) < 1e-7
 
     @pytest.mark.parametrize(
-        "rate, crv, fx",
+        ("rate", "crv", "fx"),
         [
             (4.00, True, 2.0),
             (NoInput(0), False, 2.0),
@@ -1538,7 +1538,7 @@ class TestCashflow:
         assert cashflow.analytic_delta(curve) == 0
 
     @pytest.mark.parametrize(
-        "crv, fx",
+        ("crv", "fx"),
         [
             (True, 2.0),
             (False, 2.0),
@@ -1586,8 +1586,7 @@ class TestCashflow:
 
     def test_cashflow_npv_raises(self, curve) -> None:
         with pytest.raises(TypeError, match="`curves` have not been supplied correctly."):
-            cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
-            cashflow.npv()
+            Cashflow(notional=1e6, payment=dt(2022, 1, 1)).npv()
         cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
         assert cashflow.analytic_delta(curve) == 0
 
@@ -1600,7 +1599,7 @@ class TestCashflow:
 
 class TestIndexFixedPeriod:
     @pytest.mark.parametrize(
-        "method, expected",
+        ("method", "expected"),
         [("daily", 201.00502512562812), ("monthly", 200.98317675333183)],
     )
     def test_period_rate(self, method, expected) -> None:
@@ -1673,7 +1672,7 @@ class TestIndexFixedPeriod:
         assert abs(result - 247444.78172244584 * 300.0 / 200.0) < 1e-7
 
     @pytest.mark.parametrize(
-        "fixings, method",
+        ("fixings", "method"),
         [
             (300.0, "daily"),
             (
@@ -1963,7 +1962,7 @@ def test_base_period_dates_raise() -> None:
         _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), "Q")
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
@@ -1983,7 +1982,7 @@ def fxfo():
     return fxf
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxvs():
     vol_ = FXDeltaVolSmile(
         nodes={
@@ -2001,7 +2000,7 @@ def fxvs():
 class TestFXOption:
     # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
     @pytest.mark.parametrize(
-        "pay, k, exp_pts, exp_prem, dlty, exp_dl",
+        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
@@ -2060,7 +2059,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "pay, k, exp_pts, exp_prem, dlty, exp_dl",
+        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
             (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "spot_pa", 0.243588),
             (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "forward_pa", 0.245175),
@@ -2365,7 +2364,7 @@ class TestFXOption:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "dlty, delta, exp_k",
+        ("dlty", "delta", "exp_k"),
         [
             ("forward", 0.25, 1.101271021340),
             ("forward_pa", 0.25, 1.10023348001),

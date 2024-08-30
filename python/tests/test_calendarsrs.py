@@ -22,17 +22,17 @@ def test_modifier_pickle(modifier) -> None:
     assert modifier == pickle.loads(pickle.dumps(modifier))
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_cal():
     return Cal([dt(2015, 9, 5), dt(2015, 9, 7)], [5, 6])  # Saturday and Monday
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_union(simple_cal):
     return UnionCal([simple_cal], None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def multi_union(simple_cal):
     add_cal = Cal([dt(2015, 9, 3), dt(2015, 9, 8)], [5, 6])
     return UnionCal([simple_cal, add_cal], None)
@@ -66,9 +66,8 @@ class TestCal:
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
     @pytest.mark.parametrize(
-        "start, days, expected",
+        ("start", "days", "expected"),
         [
-            (dt(2015, 9, 4), 0, dt(2015, 9, 4)),
             (dt(2015, 9, 4), 0, dt(2015, 9, 4)),
             (dt(2015, 9, 4), 1, dt(2015, 9, 8)),
             (dt(2015, 9, 8), -1, dt(2015, 9, 4)),
@@ -88,7 +87,7 @@ class TestCal:
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
     @pytest.mark.parametrize(
-        "start, months, expected",
+        ("start", "months", "expected"),
         [
             (dt(2015, 9, 4), 2, dt(2015, 11, 4)),
             (dt(2015, 9, 4), 36, dt(2018, 9, 4)),
@@ -112,7 +111,7 @@ class TestCal:
         pickle.loads(pickled_cal)
 
     @pytest.mark.parametrize(
-        "cal, exp",
+        ("cal", "exp"),
         [
             ("basic", [dt(2015, 9, 5), dt(2015, 9, 7)]),
             ("union", [dt(2015, 9, 3), dt(2015, 9, 5), dt(2015, 9, 7), dt(2015, 9, 8)]),
@@ -152,7 +151,7 @@ class TestCal:
             from_json('{"UnionCal":{"settlement_calendars":[]}}')
 
     @pytest.mark.parametrize(
-        "left, right, expected",
+        ("left", "right", "expected"),
         [
             (Cal([], [5, 6]), Cal([], [5, 6]), True),
             (Cal([dt(2006, 1, 2)], [5, 6]), Cal([dt(2006, 1, 2)], [5, 6]), True),

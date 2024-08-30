@@ -22,7 +22,7 @@ from rateslib.instruments import IRS
 from rateslib.solver import Solver
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     return Curve(
         nodes={
@@ -36,7 +36,7 @@ def curve():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def line_curve():
     return LineCurve(
         nodes={
@@ -49,7 +49,7 @@ def line_curve():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def index_curve():
     return IndexCurve(
         nodes={
@@ -71,7 +71,7 @@ def test_flat_interp(method) -> None:
     assert interpolate(1.5, 1, 5, 2, 10, "flat_backward") == 10
 
 
-@pytest.mark.parametrize("curve_style, expected", [("df", 0.995), ("line", 2.005)])
+@pytest.mark.parametrize(("curve_style", "expected"), [("df", 0.995), ("line", 2.005)])
 def test_linear_interp(curve_style, expected, curve, line_curve) -> None:
     if curve_style == "df":
         obj = curve
@@ -109,7 +109,7 @@ def test_line_curve_rate(line_curve) -> None:
 
 
 @pytest.mark.parametrize(
-    "scm, exp",
+    ("scm", "exp"),
     [
         ("none_simple", 5.56617834937),
         ("isda_flat_compounding", 5.57234801943),
@@ -128,7 +128,7 @@ def test_curve_rate_raises(curve) -> None:
 
 
 @pytest.mark.parametrize(
-    "li, ll, val, expected",
+    ("li", "ll", "val", "expected"),
     [
         ([0, 1, 2, 3, 4], 5, 0, 0),
         ([0, 1, 2, 3, 4], 5, 0.5, 0),
@@ -271,7 +271,7 @@ def test_copy_curve(curve, line_curve) -> None:
 
 
 @pytest.mark.parametrize(
-    "attr, val",
+    ("attr", "val"),
     [
         ("nodes", {dt(2022, 3, 1): 1.00}),
         ("interpolation", "log_linear"),
@@ -428,7 +428,7 @@ def test_curve_none_return(curve) -> None:
 
 
 @pytest.mark.parametrize(
-    "endpoints, expected",
+    ("endpoints", "expected"),
     [
         ("natural", [1.0, 0.995913396831872, 0.9480730429565414, 0.95]),
         ("not_a_knot", [1.0, 0.9967668788593117, 0.9461282456344617, 0.95]),
@@ -822,7 +822,7 @@ def test_indexcurve_shift_dual_input() -> None:
 
 
 @pytest.mark.parametrize(
-    "crv, t, tol",
+    ("crv", "t", "tol"),
     [
         (
             Curve(
@@ -1347,7 +1347,7 @@ class TestCompositeCurve:
             CompositeCurve([curve, line_curve])
 
     @pytest.mark.parametrize(
-        "attribute, val",
+        ("attribute", "val"),
         [
             ("modifier", ["MF", "MP"]),
             ("calendar", ["ldn", "tgt"]),
@@ -1377,7 +1377,9 @@ class TestCompositeCurve:
         with pytest.raises(ValueError, match="`curves` must share the same ini"):
             CompositeCurve([c1, c2])
 
-    @pytest.mark.parametrize("lag, base", [([2, 3], [100.0, 100.0]), ([3, 3], [100.0, 100.001])])
+    @pytest.mark.parametrize(
+        ("lag", "base"), [([2, 3], [100.0, 100.0]), ([3, 3], [100.0, 100.001])]
+    )
     def test_index_curves_raises(self, lag, base) -> None:
         ic1 = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},

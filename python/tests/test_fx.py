@@ -214,19 +214,19 @@ def test_set_ad_order_second_order_gradients() -> None:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdusd():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.99}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def eureur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.997}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
     return Curve(nodes=nodes, interpolation="log_linear")

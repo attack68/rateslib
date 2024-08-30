@@ -18,7 +18,7 @@ from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate
 from rateslib.periods import FXPutPeriod
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
@@ -66,7 +66,7 @@ class TestFXDeltaVolSmile:
         assert abs(put_vol[1] - call_vol[1]) < 1e-9
 
     @pytest.mark.parametrize(
-        "var, idx, val",
+        ("var", "idx", "val"),
         [("vol0", 0.25, 10.15), ("vol1", 0.5, 7.8), ("vol2", 0.75, 8.9)],
     )
     @pytest.mark.parametrize("k", [0.9, 1.0, 1.05, 1.10, 1.4])
@@ -192,7 +192,7 @@ class TestFXDeltaVolSmile:
     #     assert abs(result - exp) < 1e-10
 
     @pytest.mark.parametrize(
-        "delta_type, smile_type, k",
+        ("delta_type", "smile_type", "k"),
         [
             ("forward", "forward_pa", 0.8),
             ("forward", "spot_pa", 0.8),
@@ -294,7 +294,7 @@ class TestFXDeltaVolSmile:
         expected = 10.0
         assert (result - expected) < 0.01
 
-    @pytest.mark.parametrize("delta_type, exp", [("spot", 10.00000489), ("forward", 10.0)])
+    @pytest.mark.parametrize(("delta_type", "exp"), [("spot", 10.00000489), ("forward", 10.0)])
     def test_get_from_similar_delta(self, delta_type, exp) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 11.0, 0.5: 10.0, 0.75: 11.0},

@@ -9,12 +9,12 @@ from rateslib.rs import ADOrder, from_json
 DUAL_CORE_PY = False
 
 
-@pytest.fixture()
+@pytest.fixture
 def x_1():
     return Dual(1, vars=["v0", "v1"], dual=[1, 2])
 
 
-@pytest.fixture()
+@pytest.fixture
 def x_2():
     return Dual(2, vars=["v0", "v2"], dual=[0, 3])
 
@@ -69,7 +69,7 @@ def test_dual_str(x_1) -> None:
 
 @pytest.mark.skipif(DUAL_CORE_PY, reason="Gradient comparison cannot compare Py and Rs Duals.")
 @pytest.mark.parametrize(
-    "vars, expected",
+    ("vars", "expected"),
     [
         (["v1"], 2.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
@@ -125,7 +125,7 @@ def test_ge() -> None:
 
 
 @pytest.mark.parametrize(
-    "op, expected",
+    ("op", "expected"),
     [
         ("__add__", Dual(3, vars=["v0", "v1", "v2"], dual=[1, 2, 3])),
         ("__sub__", Dual(-1, vars=["v0", "v1", "v2"], dual=[1, 2, -3])),
@@ -139,7 +139,7 @@ def test_ops(x_1, x_2, op, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "op, expected",
+    ("op", "expected"),
     [
         ("__add__", Dual(1 + 2.5, vars=["v0", "v1"], dual=[1, 2])),
         ("__sub__", Dual(1 - 2.5, vars=["v0", "v1"], dual=[1, 2])),
@@ -174,7 +174,7 @@ def test_power_identity(x_1) -> None:
 
 
 @pytest.mark.parametrize(
-    "power, expected",
+    ("power", "expected"),
     [
         (1, (2, 1)),
         (2, (4, 4)),

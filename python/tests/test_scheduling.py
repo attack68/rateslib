@@ -33,7 +33,7 @@ def cal_():
 
 
 @pytest.mark.parametrize(
-    "dt1, dt2, fm, expected",
+    ("dt1", "dt2", "fm", "expected"),
     [
         (dt(2022, 3, 16), dt(2022, 6, 30), 3, True),
         (dt(2022, 3, 16), dt(2024, 9, 10), 3, True),
@@ -49,7 +49,7 @@ def test_is_divisible_months(dt1, dt2, fm, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "date, expected",
+    ("date", "expected"),
     [
         (dt(2022, 2, 28), 0),
         (dt(2024, 2, 28), 1),
@@ -72,7 +72,7 @@ def test_get_date_category_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "effective, termination, expected, expected2",
+    ("effective", "termination", "expected", "expected2"),
     [
         (dt(2022, 2, 22), dt(2024, 2, 22), 22, 22),
         (dt(2022, 2, 22), dt(2024, 2, 15), 0, 0),
@@ -98,7 +98,7 @@ def test_get_default_stub() -> None:
 
 
 @pytest.mark.parametrize(
-    "e, t, stub, exp_roll, exp_stub",
+    ("e", "t", "stub", "exp_roll", "exp_stub"),
     [
         (dt(2022, 2, 26), dt(2024, 4, 22), "SHORTFRONT", 22, dt(2022, 4, 22)),
         (dt(2022, 2, 26), dt(2024, 4, 22), "LONGFRONT", 22, dt(2022, 7, 22)),
@@ -129,7 +129,7 @@ def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_) -> None:
 
 
 @pytest.mark.parametrize(
-    "e, t, stub, exp_roll, exp_stub",
+    ("e", "t", "stub", "exp_roll", "exp_stub"),
     [
         (dt(2022, 2, 26), dt(2024, 2, 26), "SHORTFRONT", 26, NoInput(0)),
         (dt(2022, 2, 26), dt(2024, 2, 26), "LONGFRONT", 26, NoInput(0)),
@@ -194,7 +194,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
 
 
 @pytest.mark.parametrize(
-    "e, t, stub",
+    ("e", "t", "stub"),
     [
         (dt(2022, 2, 26), dt(2024, 4, 22), "SHORTFRONT"),
         (dt(2022, 2, 26), dt(2024, 4, 22), "LONGFRONT"),
@@ -208,7 +208,7 @@ def test_infer_stub_date_invalid_roll(e, t, stub, cal_) -> None:
 
 
 @pytest.mark.parametrize(
-    "e, fs, t, stub, exp_roll, exp_stub",
+    ("e", "fs", "t", "stub", "exp_roll", "exp_stub"),
     [
         (dt(2022, 1, 1), dt(2022, 2, 26), dt(2024, 4, 26), "FRONTSHORTBACK", 26, dt(2024, 2, 26)),
         (dt(2022, 1, 1), dt(2022, 2, 26), dt(2024, 4, 26), "FRONTLONGBACK", 26, dt(2023, 11, 26)),
@@ -225,7 +225,7 @@ def test_infer_stub_date_dual_sided(e, fs, t, stub, exp_roll, exp_stub, cal_) ->
 
 
 @pytest.mark.parametrize(
-    "e, bs, t, stub, exp_roll, exp_stub",
+    ("e", "bs", "t", "stub", "exp_roll", "exp_stub"),
     [
         (dt(2022, 1, 1), dt(2024, 2, 26), dt(2024, 4, 26), "SHORTFRONTBACK", 26, dt(2022, 2, 26)),
         (dt(2022, 1, 1), dt(2024, 2, 26), dt(2024, 4, 26), "LONGFRONTBACK", 26, dt(2022, 5, 26)),
@@ -355,7 +355,7 @@ def test_schedule_raises(cal_) -> None:
 
 
 @pytest.mark.parametrize(
-    "eff, term, f, roll, exp",
+    ("eff", "term", "f", "roll", "exp"),
     [
         (dt(2022, 3, 16), dt(2022, 6, 30), "S", NoInput(0), False),  # frequency
         (dt(2022, 3, 15), dt(2022, 9, 21), "Q", "imm", False),  # non-imm eff
@@ -383,7 +383,7 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp) -> None:
 
 
 @pytest.mark.parametrize(
-    "eff, term, f, m, roll, exp",
+    ("eff", "term", "f", "m", "roll", "exp"),
     [
         (dt(2022, 3, 16), dt(2022, 6, 30), "S", "NONE", NoInput(0), False),  # frequency
         (dt(2022, 3, 15), dt(2022, 9, 21), "Q", "NONE", "imm", False),  # non-imm eff
@@ -413,7 +413,7 @@ def test_check_regular_swap(eff, term, f, m, roll, exp, cal_) -> None:
 
 # 12th and 13th of Feb and March are Saturday and Sunday
 @pytest.mark.parametrize(
-    "eff, term, roll, e_bool, e_ueff, e_uterm, e_roll",
+    ("eff", "term", "roll", "e_bool", "e_ueff", "e_uterm", "e_roll"),
     [
         (dt(2022, 2, 11), dt(2022, 3, 11), 11, True, dt(2022, 2, 11), dt(2022, 3, 11), 11),
         (dt(2022, 2, 14), dt(2022, 3, 14), 14, True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
@@ -440,7 +440,7 @@ def test_check_regular_swap_mf(eff, term, roll, e_bool, e_ueff, e_uterm, e_roll,
 
 
 @pytest.mark.parametrize(
-    "date, modifier, expected",
+    ("date", "modifier", "expected"),
     [
         (dt(2022, 1, 3), "F", [dt(2022, 1, 3)]),
         (dt(2022, 1, 4), "F", [dt(2022, 1, 4), dt(2022, 1, 3), dt(2022, 1, 2), dt(2022, 1, 1)]),
@@ -458,7 +458,7 @@ def test_unadjusted_date_alternatives(date, modifier, cal_, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "effective, termination, uf, ub, roll, expected",
+    ("effective", "termination", "uf", "ub", "roll", "expected"),
     [
         (
             dt(2023, 2, 4),
@@ -502,7 +502,7 @@ def test_generate_irregular_uschedule(effective, termination, uf, ub, roll, expe
 
 
 @pytest.mark.parametrize(
-    "effective, termination, roll, expected",
+    ("effective", "termination", "roll", "expected"),
     [
         (dt(2023, 3, 4), dt(2023, 9, 4), 4, [dt(2023, 3, 4), dt(2023, 6, 4), dt(2023, 9, 4)]),
         (dt(2023, 3, 6), dt(2023, 9, 6), 6, [dt(2023, 3, 6), dt(2023, 6, 6), dt(2023, 9, 6)]),
@@ -545,7 +545,7 @@ def test_generate_regular_uschedule(effective, termination, roll, expected) -> N
 
 
 @pytest.mark.parametrize(
-    "month, year, roll, expected",
+    ("month", "year", "roll", "expected"),
     [
         (2, 2022, "eom", dt(2022, 2, 28)),
         (2, 2024, "eom", dt(2024, 2, 29)),
@@ -562,7 +562,7 @@ def test_get_roll(month, year, roll, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "effective, termination, frequency, expected",
+    ("effective", "termination", "frequency", "expected"),
     [
         (dt(2022, 2, 15), dt(2022, 8, 28), "M", 6),
         (dt(2022, 2, 15), dt(2022, 8, 28), "Q", 2),
@@ -582,7 +582,7 @@ def test_regular_n_periods_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "eff, term, freq, ss, eom, roll, expected",
+    ("eff", "term", "freq", "ss", "eom", "roll", "expected"),
     [
         (dt(2022, 1, 1), dt(2023, 2, 15), "M", "FRONT", False, NoInput(0), dt(2022, 1, 15)),
         (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "FRONT", False, NoInput(0), dt(2022, 2, 15)),
@@ -603,7 +603,7 @@ def test_get_unadjusted_short_stub_date(eff, term, freq, ss, eom, roll, expected
 
 
 @pytest.mark.parametrize(
-    "eff, term, freq, stub, eom, roll, expected",
+    ("eff", "term", "freq", "stub", "eom", "roll", "expected"),
     [
         (dt(2022, 1, 1), dt(2023, 2, 15), "M", "SHORTFRONT", False, NoInput(0), dt(2022, 1, 15)),
         (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "SHORTFRONT", False, NoInput(0), dt(2022, 2, 15)),
@@ -625,7 +625,7 @@ def test_get_unadjusted_stub_date_mirror(eff, term, freq, stub, eom, roll, expec
 
 
 @pytest.mark.parametrize(
-    "eff, term, freq, stub, eom, roll, expected",
+    ("eff", "term", "freq", "stub", "eom", "roll", "expected"),
     [
         (dt(2022, 1, 1), dt(2023, 2, 15), "M", "LONGFRONT", False, NoInput(0), dt(2022, 2, 15)),
         (dt(2022, 1, 1), dt(2023, 2, 15), "Q", "LONGFRONT", False, NoInput(0), dt(2022, 5, 15)),
@@ -647,7 +647,7 @@ def test_get_unadjusted_stub_date_long(eff, term, freq, stub, eom, roll, expecte
 
 
 @pytest.mark.parametrize(
-    "e, t, r, exp_roll, exp_ue, exp_ut",
+    ("e", "t", "r", "exp_roll", "exp_ue", "exp_ut"),
     [
         (dt(2020, 8, 31), dt(2021, 2, 26), NoInput(0), 31, dt(2020, 8, 31), dt(2021, 2, 28)),
         (dt(2021, 2, 26), dt(2021, 8, 31), NoInput(0), 31, dt(2021, 2, 28), dt(2021, 8, 31)),
@@ -662,7 +662,7 @@ def test_schedule_eom(e, t, r, exp_roll, exp_ue, exp_ut, cal_) -> None:
 
 
 @pytest.mark.parametrize(
-    "e, t, r, exp_roll, exp_ue, exp_ut",
+    ("e", "t", "r", "exp_roll", "exp_ue", "exp_ut"),
     [
         (dt(2020, 8, 31), dt(2021, 2, 26), NoInput(0), 31, dt(2020, 8, 31), dt(2021, 2, 28)),
         (dt(2021, 2, 26), dt(2021, 8, 31), NoInput(0), 31, dt(2021, 2, 28), dt(2021, 8, 31)),
@@ -705,7 +705,7 @@ def test_schedule_bad_stub_combinations_raise2() -> None:
 
 
 @pytest.mark.parametrize(
-    "st, fs, bs",
+    ("st", "fs", "bs"),
     [
         ("FRONTBACK", NoInput(0), dt(2023, 1, 1)),
         ("FRONTBACK", dt(2022, 2, 1), NoInput(0)),
@@ -728,7 +728,7 @@ def test_schedule_combinations_valid(st, fs, bs) -> None:
 
 
 @pytest.mark.parametrize(
-    "st, fs, bs, roll",
+    ("st", "fs", "bs", "roll"),
     [
         ("FRONTBACK", NoInput(0), dt(2023, 1, 15), 20),
         ("FRONTBACK", dt(2022, 2, 1), NoInput(0), 20),
@@ -763,7 +763,7 @@ def test_schedule_n_periods() -> None:
 
 
 @pytest.mark.parametrize(
-    "ue, ut, exp",
+    ("ue", "ut", "exp"),
     [
         (dt(2023, 3, 17), dt(2023, 12, 20), dt(2023, 9, 20)),
         (dt(2022, 12, 19), dt(2023, 12, 20), dt(2023, 3, 15)),
@@ -775,7 +775,7 @@ def test_get_unadjusted_long_stub_imm(ue, ut, exp) -> None:
 
 
 @pytest.mark.parametrize(
-    "ue, ut, exp",
+    ("ue", "ut", "exp"),
     [
         (dt(2023, 3, 17), dt(2023, 12, 20), dt(2023, 6, 21)),  # PR #9
     ],
@@ -882,7 +882,7 @@ def test_dead_stubs() -> None:
 
 
 @pytest.mark.parametrize(
-    "mode, end, roll",
+    ("mode", "end", "roll"),
     [
         (NoInput(0), dt(2025, 8, 17), 17),
         ("swaps_align", dt(2025, 8, 17), 17),

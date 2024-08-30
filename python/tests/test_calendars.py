@@ -29,7 +29,7 @@ def cal_():
 
 
 @pytest.mark.parametrize(
-    "date, expected",
+    ("date", "expected"),
     [
         (dt(2022, 1, 1), True),  # sat
         (dt(2022, 1, 2), True),  # sun
@@ -95,7 +95,7 @@ def test_add_tenor_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "tenor, expected",
+    ("tenor", "expected"),
     [
         ("1M", dt(2022, 1, 31)),
         ("2m", dt(2022, 2, 28)),
@@ -112,7 +112,7 @@ def test_add_tenor(tenor, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "tenor, expected, roll",
+    ("tenor", "expected", "roll"),
     [
         ("-1M", dt(2022, 1, 31), "eom"),
         ("-1M", dt(2022, 1, 28), NoInput(0)),
@@ -130,7 +130,7 @@ def test_add_negative_tenor(tenor, expected, roll) -> None:
 
 
 @pytest.mark.parametrize(
-    "date, tenor, mod, roll, cal, expected",
+    ("date", "tenor", "mod", "roll", "cal", "expected"),
     [
         (dt(1990, 9, 28), "-6m", "NONE", 31, NoInput(0), dt(1990, 3, 31)),
         (dt(1990, 9, 28), "-6m", "NONE", 29, NoInput(0), dt(1990, 3, 29)),
@@ -147,7 +147,7 @@ def test_add_tenor_special_cases(date, tenor, mod, roll, cal, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "month, year, expected",
+    ("month", "year", "expected"),
     [
         (2, 2022, dt(2022, 2, 28)),
         (2, 2024, dt(2024, 2, 29)),
@@ -160,7 +160,7 @@ def test_get_eom(month, year, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "date, modifier, expected",
+    ("date", "modifier", "expected"),
     [
         (dt(2022, 1, 3), "NONE", dt(2022, 1, 3)),
         (dt(2022, 1, 3), "F", dt(2022, 1, 4)),
@@ -190,7 +190,7 @@ def test_adjust_date_raises() -> None:
 
 
 @pytest.mark.parametrize(
-    "modifier, expected",
+    ("modifier", "expected"),
     [
         ("None", dt(2022, 1, 3)),
         ("F", dt(2022, 1, 4)),
@@ -205,7 +205,7 @@ def test_modifiers_som(cal_, modifier, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "modifier, expected",
+    ("modifier", "expected"),
     [
         ("None", dt(2021, 2, 28)),
         ("F", dt(2021, 3, 1)),
@@ -220,7 +220,7 @@ def test_modifiers_eom(cal_, modifier, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "date, expected",
+    ("date", "expected"),
     [
         (dt(2022, 3, 16), True),
         (dt(2022, 6, 15), True),
@@ -240,7 +240,7 @@ def test_is_imm_hmuz() -> None:
 
 
 @pytest.mark.parametrize(
-    "month, year, expected",
+    ("month", "year", "expected"),
     [
         (3, 2022, dt(2022, 3, 16)),
         (6, 2022, dt(2022, 6, 15)),
@@ -254,7 +254,7 @@ def test_get_imm(month, year, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "date, expected",
+    ("date", "expected"),
     [
         (dt(2022, 1, 1), (True, False)),
         (dt(2022, 2, 28), (False, True)),
@@ -267,7 +267,7 @@ def test_is_eom_som(date, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "start, end, conv, expected",
+    ("start", "end", "conv", "expected"),
     [
         (dt(2022, 1, 1), dt(2022, 4, 1), "ACT365F", 0.2465753424657534),
         (dt(2021, 1, 1), dt(2022, 4, 1), "ACT365F+", 1.2465753424657535),
@@ -292,7 +292,7 @@ def test_dcf(start, end, conv, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "start, end, conv, expected, freq_m, term, stub",
+    ("start", "end", "conv", "expected", "freq_m", "term", "stub"),
     [
         (dt(2022, 6, 30), dt(2022, 7, 31), "30360", 1 / 12, NoInput(0), None, None),
         (dt(2022, 6, 30), dt(2022, 7, 31), "30E360", 1 / 12, NoInput(0), None, None),
@@ -396,7 +396,7 @@ def test_dcf_special(start, end, conv, expected, freq_m, term, stub) -> None:
 
 
 @pytest.mark.parametrize(
-    "conv, freq_m, term, stub",
+    ("conv", "freq_m", "term", "stub"),
     [
         ("ACTACTICMA", NoInput(0), NoInput(0), NoInput(0)),
         ("ACTACTICMA", 3, NoInput(0), NoInput(0)),
@@ -411,7 +411,7 @@ def test_dcf_raises(conv, freq_m, term, stub) -> None:
 
 
 @pytest.mark.parametrize(
-    "start, end, expected",
+    ("start", "end", "expected"),
     [
         (dt(2000, 1, 1), dt(2000, 1, 4), 1.0 / 252.0),
         (dt(2000, 1, 2), dt(2000, 1, 4), 1.0 / 252.0),
@@ -438,7 +438,7 @@ def test_bus252(start, end, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "d1, d2, exp",
+    ("d1", "d2", "exp"),
     [
         (dt(2009, 3, 1), dt(2012, 1, 15), (2, 10)),
         (dt(2008, 12, 1), dt(2013, 10, 31), (4, 10)),
@@ -452,7 +452,7 @@ def test_get_years_and_months(d1, d2, exp) -> None:
 
 
 @pytest.mark.parametrize(
-    "s, e, t, exp",
+    ("s", "e", "t", "exp"),
     [
         (dt(2024, 2, 29), dt(2024, 5, 29), dt(2024, 5, 29), 0.24657534),
         (dt(2021, 2, 28), dt(2024, 5, 29), dt(2024, 5, 29), 3.24863387),
@@ -540,7 +540,7 @@ def test_add_and_get_custom_calendar() -> None:
 
 
 @pytest.mark.parametrize(
-    "eval, delivery, expiry, expected_expiry",
+    ("eval", "delivery", "expiry", "expected_expiry"),
     [
         (dt(2024, 5, 2), 2, "2m", dt(2024, 7, 4)),
         (dt(2024, 4, 30), 2, "2m", dt(2024, 7, 1)),

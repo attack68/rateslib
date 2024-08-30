@@ -24,7 +24,6 @@ from rateslib.rs import Convention
     "convention",
     [
         Convention.One,
-        Convention.One,
         Convention.OnePlus,
         Convention.Act365F,
         Convention.Act365FPlus,
@@ -43,7 +42,7 @@ def test_pickle_convention(convention) -> None:
     assert convention == pickle.loads(pickle.dumps(convention))
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     return CurveObj(
         nodes={
@@ -59,7 +58,7 @@ def curve():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def curvers():
     return CurveRs(
         nodes={
@@ -72,7 +71,7 @@ def curvers():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def indexcurvers():
     return CurveObj(
         nodes={
@@ -90,7 +89,7 @@ def indexcurvers():
 
 
 @pytest.mark.parametrize(
-    "name, expected",
+    ("name", "expected"),
     [
         ("linear", LinearInterpolator),
         ("log_linear", LogLinearInterpolator),

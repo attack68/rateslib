@@ -43,7 +43,7 @@ from rateslib.instruments import (
 from rateslib.solver import Solver
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -55,7 +55,7 @@ def curve():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve2():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -66,25 +66,25 @@ def curve2():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdusd():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.99}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def eureur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.997}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_solver():
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0, dt(2024, 1, 1): 1.0}, id="curve")
     solver = Solver(
@@ -638,7 +638,7 @@ class TestNullPricing:
         assert abs(result3) < 1e-3
 
     @pytest.mark.parametrize(
-        "inst, param",
+        ("inst", "param"),
         [
             (IRS(dt(2022, 7, 1), "3M", "A", curves="usdusd"), "fixed_rate"),
             (FRA(dt(2022, 7, 1), "3M", "Q", curves="usdusd"), "fixed_rate"),
@@ -697,7 +697,7 @@ class TestNullPricing:
         assert_frame_equal(unpriced_delta, priced_delta)
 
     @pytest.mark.parametrize(
-        "inst, param",
+        ("inst", "param"),
         [
             (
                 FXSwap(
@@ -745,7 +745,7 @@ class TestNullPricing:
 
 class TestIRS:
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, 4.03637780),
             (3, 4.03, 4.06637780),
@@ -769,7 +769,7 @@ class TestIRS:
         assert abs(result - expected) < 1e-7
 
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, -0.63777963),
             (200, 4.03, -0.63777963),
@@ -800,7 +800,7 @@ class TestIRS:
         assert abs(validate) < 1e-8
 
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, -0.6322524949759807),  # note this is the closest solution
             (
@@ -835,7 +835,7 @@ class TestIRS:
         assert abs(validate) < 5e2
 
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, -0.63500600),  # note this is the closest solution
             (
@@ -1270,7 +1270,7 @@ class TestFRA:
         fra.fixed_rate = NoInput(0)  # fixed rate set back to initial
         assert abs(fra.npv(curve)) < 1e-9
 
-    @pytest.mark.parametrize("eom, exp", [(True, dt(2021, 5, 31)), (False, dt(2021, 5, 26))])
+    @pytest.mark.parametrize(("eom", "exp"), [(True, dt(2021, 5, 31)), (False, dt(2021, 5, 26))])
     def test_fra_roll_inferral(self, eom, exp) -> None:
         fra = FRA(
             effective=dt(2021, 2, 26),
@@ -1283,7 +1283,7 @@ class TestFRA:
 
 
 class TestZCS:
-    @pytest.mark.parametrize("freq, exp", [("Q", 3.529690979), ("S", 3.54526437721296)])
+    @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.529690979), ("S", 3.54526437721296)])
     def test_zcs_rate(self, freq, exp) -> None:
         usd = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.85, dt(2032, 1, 1): 0.70},
@@ -1429,7 +1429,7 @@ class TestFXExchange:
         assert_frame_equal(result, expected, rtol=1e-6)
 
     @pytest.mark.parametrize(
-        "base, fx",
+        ("base", "fx"),
         [
             ("eur", 1.20),
             ("usd", 1.20),
@@ -1627,7 +1627,7 @@ class TestNonMtmXCS:
         assert xcs.leg2_notional == -2e6
 
     @pytest.mark.parametrize(
-        "float_spd, compound, expected",
+        ("float_spd", "compound", "expected"),
         [
             (10, "none_simple", 10.160794),
             (100, "none_simple", 101.60794),
@@ -1864,7 +1864,7 @@ class TestNonMtmXCS:
 
 class TestNonMtmFixedFloatXCS:
     @pytest.mark.parametrize(
-        "float_spd, compound, expected",
+        ("float_spd", "compound", "expected"),
         [
             (10, "none_simple", 6.70955968),
             (100, "isda_compounding", 7.62137047),
@@ -2281,7 +2281,7 @@ class TestXCS:
             )
 
     @pytest.mark.parametrize(
-        "float_spd, compound, expected",
+        ("float_spd", "compound", "expected"),
         [
             (10, "none_simple", 9.97839804),
             (100, "none_simple", 99.78398037),
@@ -2511,7 +2511,7 @@ class TestFXSwap:
         assert abs(fxs.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)) < 1e-7
 
     @pytest.mark.parametrize(
-        "points, split_notional",
+        ("points", "split_notional"),
         [(100, 1e6), (NoInput(0), 1e6), (100, NoInput(0))],
     )
     def test_fxswap_points_raises(self, points, split_notional) -> None:
@@ -2569,7 +2569,7 @@ class TestFXSwap:
             assert fxs._is_split is True
 
     @pytest.mark.parametrize(
-        "fx_fixings, points, split_notional, expected",
+        ("fx_fixings", "points", "split_notional", "expected"),
         [
             (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [-1712.833785])),
             (11.0, 1800.0, NoInput(0), Dual(-3734.617680, ["fx_usdnok"], [3027.88203904])),
@@ -2822,7 +2822,7 @@ class TestPricingMechanism:
         ob.cashflows()
 
     @pytest.mark.parametrize(
-        "klass, kwargs",
+        ("klass", "kwargs"),
         [
             (XCS, {"fixed": False, "leg2_fixed": False, "leg2_mtm": False}),
             (XCS, {"fixed": True, "leg2_fixed": False, "leg2_mtm": False, "fixed_rate": 2.0}),
@@ -2968,7 +2968,8 @@ class TestPortfolio:
         )
         pf = Portfolio([irs, irs2])
         result = pf.npv(solver=combined_solver, local=True)
-        assert "eur" in result and "usd" in result
+        assert "eur" in result
+        assert "usd" in result
 
         # the following should execute without warnings
         pf.delta(solver=combined_solver)
@@ -3307,7 +3308,7 @@ class TestSpec:
 
 
 @pytest.mark.parametrize(
-    "inst, expected",
+    ("inst", "expected"),
     [
         (
             IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
@@ -3485,7 +3486,7 @@ def test_fx_settlements_table_no_fxf() -> None:
     assert abs(result.iloc[3, 0] - 69.49810) < 1e-5
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
@@ -3508,7 +3509,7 @@ def fxfo():
 class TestFXOptions:
     # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
     @pytest.mark.parametrize(
-        "pay, k, exp_pts, exp_prem, dlty, exp_dl",
+        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
@@ -3558,7 +3559,7 @@ class TestFXOptions:
         assert abs(result - exp_prem) < 1e-2
 
     @pytest.mark.parametrize(
-        "pay, k, exp_pts, exp_prem, dlty, exp_dl",
+        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
             (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "spot", 0.243588),
             (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "forward", 0.245175),
@@ -3651,7 +3652,7 @@ class TestFXOptions:
         assert_frame_equal(result, expected)
 
     @pytest.mark.parametrize(
-        "ccy, exp_rate, exp_strike",
+        ("ccy", "exp_rate", "exp_strike"),
         [
             ("usd", 70.180131, 1.10101920113408469),
             ("eur", 0.680949, 1.099976),
@@ -3902,7 +3903,7 @@ class TestFXOptions:
             FXCall(pair="eurusd", expiry=dt(2023, 6, 16), strike="25d", premium=0.0)
 
     @pytest.mark.parametrize(
-        "notn, expected, phi",
+        ("notn", "expected", "phi"),
         [
             (1e6, [0.5, 500000], 1.0),
             (2e6, [0.5, 1000000], 1.0),
@@ -4003,7 +4004,7 @@ class TestFXOptions:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "eval, eom, expected",
+        ("eval", "eom", "expected"),
         [
             (
                 dt(2024, 4, 26),
@@ -4032,7 +4033,7 @@ class TestFXOptions:
 
 class TestRiskReversal:
     @pytest.mark.parametrize(
-        "metric, expected",
+        ("metric", "expected"),
         [
             ("pips_or_%", -13.795465),
             ("vol", -1.25),
@@ -4055,7 +4056,7 @@ class TestRiskReversal:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "prem, prem_ccy, local, exp",
+        ("prem", "prem_ccy", "local", "exp"),
         [
             ((NoInput(0), NoInput(0)), NoInput(0), False, 0.0),
             ((NoInput(0), NoInput(0)), "eur", False, 0.0),
@@ -4124,7 +4125,7 @@ class TestRiskReversal:
             )
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             (1e6, [0.5, -1.329654, -0.035843], [500000, -14194.192533, -358.428628]),
             (2e6, [0.5, -1.329654, -0.035843], [1000000, -28388.384, -716.8572]),
@@ -4167,7 +4168,7 @@ class TestRiskReversal:
 
 class TestFXStraddle:
     @pytest.mark.parametrize(
-        "dlty, strike, ccy, exp",
+        ("dlty", "strike", "ccy", "exp"),
         [
             # ("forward", ["50d", "-50d"], "usd", [1.068856203, 1.068856203]),
             # ("spot", ["50d", "-50d"], "usd", [1.06841799, 1.069294591]),
@@ -4211,7 +4212,7 @@ class TestFXStraddle:
         assert abs(put_k - exp[1]) < 1e-7
 
     @pytest.mark.parametrize(
-        "metric, expected",
+        ("metric", "expected"),
         [
             ("pips_or_%", 337.998151),
             ("vol", 7.9),
@@ -4249,7 +4250,7 @@ class TestFXStraddle:
             )
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             (1e6, [0.0, 19.086488, 0.422238], [0, 203750.1688, 4222.379]),
             (2e6, [0.0, 19.086488, 0.422238], [0, 407500.336, 8444.758]),
@@ -4292,7 +4293,7 @@ class TestFXStraddle:
 
 class TestFXStrangle:
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.02, 1.10], "usd"),
             (["-20d", "20d"], "usd"),
@@ -4581,7 +4582,7 @@ class TestFXStrangle:
         assert abs(premium - premium_vol) < 5e-2
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             (1e6, [-0.026421, 10.217368, 0.294605], [-26421.408, 109071.429, 2946.046]),
             (2e6, [-0.026421, 10.217368, 0.294605], [-52842.816, 218142.858, 5892.092]),
@@ -4641,7 +4642,7 @@ class TestFXStrangle:
 
 class TestFXBrokerFly:
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.024, 1.0683, 1.116], "usd"),
             (["-20d", "atm_delta", "20d"], "usd"),
@@ -4682,7 +4683,7 @@ class TestFXBrokerFly:
         assert abs(result - approx_expected) < 0.16
 
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.024, 1.0683, 1.116], "usd"),
             (["-20d", "atm_delta", "20d"], "usd"),
@@ -4721,7 +4722,7 @@ class TestFXBrokerFly:
         assert abs(result - expected[0]) < expected[1]
 
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.024, 1.0683, 1.116], "usd"),
             (["-20d", "atm_delta", "20d"], "usd"),
@@ -4787,7 +4788,7 @@ class TestFXBrokerFly:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             ([1e6, NoInput(0)], [-0.026421, -3.099693, 0.000000], [-26421.408, -33089.534, 0.000]),
             ([2e6, NoInput(0)], [-0.026421, -3.099693, 0.000000], [-52842.816, -66179.068, 0.000]),

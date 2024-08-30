@@ -17,37 +17,37 @@ from rateslib.dual import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def x_1():
     return Dual(1, vars=["v0", "v1"], dual=[1, 2])
 
 
-@pytest.fixture()
+@pytest.fixture
 def x_2():
     return Dual(2, vars=["v0", "v2"], dual=[0, 3])
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_1():
     return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=[])
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_2():
     return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=[1.0, 1.0, 1.0, 1.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_3():
     return Dual2(2, vars=["v0", "v2"], dual=[0, 3], dual2=[1.0, 1.0, 1.0, 1.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def A():
     return np.random.randn(25).reshape(5, 5)
 
 
-@pytest.fixture()
+@pytest.fixture
 def A_sparse():
     return np.array(
         [
@@ -64,7 +64,7 @@ def A_sparse():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def b():
     return np.random.randn(5).reshape(5, 1)
 
@@ -207,7 +207,7 @@ def test_dual_raises(x_1) -> None:
 
 
 @pytest.mark.parametrize(
-    "op, expected",
+    ("op", "expected"),
     [
         ("__add__", Dual(3, vars=["v0", "v1", "v2"], dual=np.array([1, 2, 3]))),
         ("__sub__", Dual(-1, vars=["v0", "v1", "v2"], dual=np.array([1, 2, -3]))),
@@ -226,7 +226,7 @@ def test_op_inversions(x_1, x_2) -> None:
 
 
 @pytest.mark.parametrize(
-    "op, expected",
+    ("op", "expected"),
     [
         ("__add__", Dual2(3, ["v0", "v1", "v2"], [1, 2, 3], [2, 1, 1, 1, 1, 0, 1, 0, 1])),
         ("__sub__", Dual2(-1, ["v0", "v1", "v2"], [1, 2, -3], [0, 1, -1, 1, 1, 0, -1, 0, -1])),
@@ -266,7 +266,7 @@ def test_power_identity(x_1, y_2) -> None:
 
 
 @pytest.mark.parametrize(
-    "op, expected",
+    ("op", "expected"),
     [
         ("__add__", Dual(1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]))),
         ("__sub__", Dual(1 - 2.5, vars=["v0", "v1"], dual=np.array([1, 2]))),
@@ -280,7 +280,7 @@ def test_left_op_with_float(x_1, op, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    "op, expected",
+    ("op", "expected"),
     [
         ("__add__", Dual2(1 + 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])),
         (
@@ -423,7 +423,7 @@ def test_dual2_second_derivatives3() -> None:
 
 
 @pytest.mark.parametrize(
-    "power, expected",
+    ("power", "expected"),
     [
         (1, (2, 1, 0)),
         (2, (4, 4, 2)),
@@ -597,7 +597,7 @@ def test_downcast_vars() -> None:
     assert z.__downcast_vars__().vars == ("y", "z")
 
 
-@pytest.mark.parametrize("base, exponent", [(1, 1), (1, 0), (0, 1), (0, 0)])
+@pytest.mark.parametrize(("base", "exponent"), [(1, 1), (1, 0), (0, 1), (0, 0)])
 def test_powers_bad_type(base, exponent, x_1, y_1) -> None:
     base = x_1 if base else y_1
     exponent = x_1 if exponent else y_1

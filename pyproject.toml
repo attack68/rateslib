@@ -107,12 +107,15 @@ select = [
     # "ANN",  # flake8-annotations  -- Requires work
     # "A",  # flake8-builtins  -- Requires work
     # "COM",  # flake8-commas  -- conflicts with ruff format
+    "Q",  # flake8-quotes
+    "PT",  # flake8-pytest-style
     # "C90",  # mccabe complexity  -- Requires work
     "I",  # isort
     "N",  # pep8 naming
     # "RUF",  # -- Requires work
 ]
 ignore = [
+    "PT011", # -- Requires work inputting match statements
     "PIE790",  # unnecessary pass
     "C408",  # unnecessary dict call
     "N806", "N815", "N803", "N802",
