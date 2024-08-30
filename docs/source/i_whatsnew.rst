@@ -21,6 +21,9 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Bug
+     - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
+       `(368) <https://github.com/attack68/rateslib/pull/368>`_
 
 1.4.0 (28th Aug 2024)
 ***********************
