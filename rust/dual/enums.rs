@@ -1,5 +1,5 @@
 use crate::dual::{Dual, Dual2};
-use crate::splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2};
+use crate::splines::spline_py::{PPSplineDual, PPSplineDual2, PPSplineF64};
 use ndarray::{Array1, Array2};
 use pyo3::{pyclass, FromPyObject, PyErr};
 use serde::{Deserialize, Serialize};

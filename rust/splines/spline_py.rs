@@ -1,9 +1,9 @@
 //! Wrapper to export spline functionality to Python
 
 use crate::dual::{Dual, Dual2, Number, NumberPPSpline};
-use crate::splines::spline::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
-use crate::json::JSON;
 use crate::json::json_py::DeserializedObj;
+use crate::json::JSON;
+use crate::splines::spline::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
 
 use numpy::{PyArray2, ToPyArray};
