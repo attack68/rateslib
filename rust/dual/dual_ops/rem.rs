@@ -133,4 +133,21 @@ mod tests {
         let d2 = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let _ = d % d2;
     }
+
+    #[test]
+    fn test_enum_f64() {
+        let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let res = 2.0_f64 % d;
+        assert_eq!(
+            res,
+            Number::Dual(2.0 % Dual::new(3.0, vec!["x".to_string()]))
+        );
+
+        let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let res = d % 2.0_f64;
+        assert_eq!(
+            res,
+            Number::Dual(Dual::new(3.0, vec!["x".to_string()]) % 2.0)
+        );
+    }
 }
