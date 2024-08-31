@@ -19,7 +19,7 @@ macro_rules! create_interface {
             inner: PPSpline<$type>,
         }
 
-        impl JSON for $name{}
+        // impl JSON for $name{}
 
         #[pymethods]
         impl $name {

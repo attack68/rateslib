@@ -378,7 +378,7 @@ impl PPSpline<Dual2> {
     }
 }
 
-impl<T: Serialize + for<'de> Deserialize<'de>> JSON for PPSpline<T> {}
+// impl<T: Serialize + for<'de> Deserialize<'de>> JSON for PPSpline<T> {}
 
 impl<T> PartialEq for PPSpline<T>
 where
