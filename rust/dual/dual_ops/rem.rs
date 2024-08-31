@@ -39,6 +39,24 @@ impl_op_ex!(% |a: &Number, b: &Number| -> Number {
     }
 });
 
+// Rem for Number
+impl_op_ex!(% |a: &Number, b: &f64| -> Number {
+    match a {
+        Number::F64(f) => Number::F64(f % b),
+        Number::Dual(d) => Number::Dual(d % b),
+        Number::Dual2(d) => Number::Dual2(d % b),
+    }
+});
+
+// Rem for Number
+impl_op_ex!(% |a: &f64, b: &Number| -> Number {
+    match b {
+        Number::F64(f) => Number::F64(a % f),
+        Number::Dual(d) => Number::Dual(a % d),
+        Number::Dual2(d) => Number::Dual2(a % d),
+    }
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;

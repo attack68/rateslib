@@ -126,14 +126,22 @@ macro_rules! math_func {
             Number::Dual(d) => Number::Dual(d.$name()),
             Number::Dual2(d) => Number::Dual2(d.$name()),
         }
-    }
+    };
 }
 
 impl MathFuncs for Number {
-    fn inv_norm_cdf(&self) -> Self { math_func!(self, inv_norm_cdf) }
-    fn norm_cdf(&self) -> Self { math_func!(self, norm_cdf) }
-    fn exp(&self) -> Self { math_func!(self, exp) }
-    fn log(&self) -> Self { math_func!(self, log) }
+    fn inv_norm_cdf(&self) -> Self {
+        math_func!(self, inv_norm_cdf)
+    }
+    fn norm_cdf(&self) -> Self {
+        math_func!(self, norm_cdf)
+    }
+    fn exp(&self) -> Self {
+        math_func!(self, exp)
+    }
+    fn log(&self) -> Self {
+        math_func!(self, log)
+    }
 }
 
 #[cfg(test)]
