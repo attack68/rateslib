@@ -62,7 +62,7 @@ impl Pow<f64> for Number {
         match self {
             Number::F64(f) => Number::F64(f.pow(power)),
             Number::Dual(d) => Number::Dual(d.pow(power)),
-            Number::Dual2(d)  => Number::Dual2(d.pow(power)),
+            Number::Dual2(d) => Number::Dual2(d.pow(power)),
         }
     }
 }
@@ -73,7 +73,7 @@ impl Pow<f64> for &Number {
         match self {
             Number::F64(f) => Number::F64(f.pow(power)),
             Number::Dual(d) => Number::Dual(d.pow(power)),
-            Number::Dual2(d)  => Number::Dual2(d.pow(power)),
+            Number::Dual2(d) => Number::Dual2(d.pow(power)),
         }
     }
 }
@@ -130,15 +130,9 @@ mod tests {
     fn test_enum() {
         let f = Number::F64(2.0);
         let d = Dual::new(3.0, vec!["x".to_string()]);
-        assert_eq!(
-            Number::F64(4.0_f64),
-            f.pow(2.0_f64)
-        );
+        assert_eq!(Number::F64(4.0_f64), f.pow(2.0_f64));
 
         let res = (&d).pow(2.0_f64);
-        assert_eq!(
-            Number::Dual(res),
-            Number::Dual(d).pow(2.0_f64)
-        );
+        assert_eq!(Number::Dual(res), Number::Dual(d).pow(2.0_f64));
     }
 }

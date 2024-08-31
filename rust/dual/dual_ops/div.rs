@@ -1,5 +1,5 @@
 use crate::dual::dual::{Dual, Dual2};
-use crate::dual::enums::{Number};
+use crate::dual::enums::Number;
 use auto_ops::impl_op_ex;
 use num_traits::Pow;
 use std::sync::Arc;

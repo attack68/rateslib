@@ -1,4 +1,4 @@
-//! Perform linear algebra operations involving Arrays of `f64`, `Dual` and `Dual2`.
+//! Perform linear algebra operations involving Arrays of [f64], [Dual](crate::dual::Dual) and [Dual2](crate::dual::Dual2).
 
 mod linalg_dual;
 mod linalg_f64;

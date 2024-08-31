@@ -1,8 +1,8 @@
-use ndarray::{Array1, Array2};
-use pyo3::{FromPyObject, pyclass, PyErr};
-use serde::{Deserialize, Serialize};
 use crate::dual::{Dual, Dual2};
 use crate::splines::PPSpline;
+use ndarray::{Array1, Array2};
+use pyo3::{pyclass, FromPyObject, PyErr};
+use serde::{Deserialize, Serialize};
 
 /// Defines the order of gradients available in a calculation with AD.
 #[pyclass(module = "rateslib.rs")]
