@@ -209,6 +209,9 @@ mod tests {
 
         let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let res = d / 2.0_f64;
-        assert_eq!(res, Number::Dual(Dual::new(3.0, vec!["x".to_string()]) / 2.0));
+        assert_eq!(
+            res,
+            Number::Dual(Dual::new(3.0, vec!["x".to_string()]) / 2.0)
+        );
     }
 }

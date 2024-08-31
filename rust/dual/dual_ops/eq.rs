@@ -94,8 +94,8 @@ impl PartialEq<f64> for Number {
     fn eq(&self, other: &f64) -> bool {
         match self {
             Number::F64(f) => f == other,
-            Number::Dual(d)=> d == other,
-            Number::Dual2(d)=> d == other,
+            Number::Dual(d) => d == other,
+            Number::Dual2(d) => d == other,
         }
     }
 }
