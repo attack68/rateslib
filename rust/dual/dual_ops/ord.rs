@@ -1,4 +1,5 @@
-use crate::dual::dual::{Dual, Dual2, Number};
+use crate::dual::dual::{Dual, Dual2};
+use crate::dual::enums::Number;
 use std::cmp::Ordering;
 
 /// Compares `Dual` by `real` component only.

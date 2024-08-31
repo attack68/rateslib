@@ -19,10 +19,16 @@ mod dual_ops;
 pub(crate) mod dual_py;
 pub mod linalg;
 pub(crate) mod linalg_py;
+mod enums;
 
 pub use crate::dual::dual::{
-    set_order, set_order_clone, ADOrder, Dual, Dual2, Gradient1, Gradient2, MathFuncs, Number,
-    NumberArray1, NumberArray2, NumberMapping, NumberOps, NumberVec, Vars, VarsRelationship,
+    set_order, set_order_clone, Dual, Dual2, Gradient1, Gradient2, MathFuncs,
+    NumberOps, Vars, VarsRelationship,
+};
+
+pub use crate::dual::enums::{
+    ADOrder, Number,
+    NumberArray1, NumberArray2, NumberMapping, NumberVec,
 };
 
 /// Utility for creating an ordered list of variable tags from a string and enumerator

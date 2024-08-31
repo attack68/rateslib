@@ -168,7 +168,7 @@ pub fn bspldnev_single_dual2(
 }
 
 /// A piecewise polynomial spline of given order and knot sequence.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PPSpline<T> {
     k: usize,
     t: Vec<f64>,
