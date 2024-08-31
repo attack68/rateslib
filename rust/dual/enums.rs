@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::dual::{Dual, Dual2};
 use crate::splines::PPSpline;
 
+/// Defines the order of gradients available in a calculation with AD.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ADOrder {
