@@ -5,7 +5,7 @@
 //! The entire *rateslib* library is built around three core numeric types: [f64],
 //! [Dual] and [Dual2]. Obviously [f64] allows for traditional computation, which benefits
 //! from efficient calculation leveraging BLAS, while [Dual] and [Dual2] reduce performance
-//! of calculation but provide efficient calculation of first order and second order
+//! of traditional calculation but provide efficient calculation of first order and second order
 //! derivatives, respectively. Derivatives are calculated using forward mode AD,
 //! similar, but not identical, to the
 //! [Julia ForwardDiff library](https://github.com/JuliaDiff/ForwardDiff.jl).
@@ -13,6 +13,8 @@
 //! Mathematical operations are defined to give dual numbers the ability to combine, and
 //! flexibly reference different variables at any point during calculations.
 //!
+
+pub mod docs;
 
 mod dual;
 mod dual_ops;
@@ -28,7 +30,7 @@ pub use crate::dual::dual::{
 
 pub use crate::dual::enums::{
     ADOrder, Number,
-    NumberArray1, NumberArray2, NumberMapping, NumberVec,
+    NumberArray1, NumberArray2, NumberMapping, NumberVec, NumberPPSpline
 };
 
 /// Utility for creating an ordered list of variable tags from a string and enumerator
