@@ -1,6 +1,5 @@
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
 use crate::dual::{Dual, Dual2, Gradient1, Gradient2, Number, NumberMapping};
-use crate::json::JSON;
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
@@ -377,8 +376,6 @@ impl PPSpline<Dual2> {
         }
     }
 }
-
-// impl<T: Serialize + for<'de> Deserialize<'de>> JSON for PPSpline<T> {}
 
 impl<T> PartialEq for PPSpline<T>
 where
