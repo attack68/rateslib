@@ -54,7 +54,7 @@ class Fixings:
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
             df = read_csv(target)
             df["reference_date"] = df["reference_date"].map(
-                lambda x: datetime.strptime(x, "%d-%m-%Y")
+                lambda x: datetime.strptime(x, "%d-%m-%Y"),
             )
             df = df.set_index("reference_date")
         else:
@@ -74,7 +74,7 @@ class Fixings:
                 "Create a CSV file in the directory with the above name and the exact "
                 "template structure:\n###################\n"
                 "reference_date,rate\n26-08-2023,5.6152\n27-08-2023,5.6335\n##################\n"
-                "For further info see 'Working with Fixings' in the documentation cookbook."
+                "For further info see 'Working with Fixings' in the documentation cookbook.",
             )
 
         self.loaded[item] = s
@@ -252,7 +252,7 @@ class Defaults:
 
         self.spec = INSTRUMENT_SPECS
 
-    def reset_defaults(self):
+    def reset_defaults(self) -> None:
         """
         Revert defaults back to their initialisation status.
 
@@ -264,7 +264,7 @@ class Defaults:
            defaults.reset_defaults()
         """
         base = Defaults()
-        for attr in [_ for _ in dir(self) if "__" != _[:2]]:
+        for attr in [_ for _ in dir(self) if _[:2] != "__"]:
             setattr(self, attr, getattr(base, attr))
 
     def print(self):
@@ -316,7 +316,7 @@ Miscellaneous:\n
     'no_fx_fixings_for_xcs',
     'pool',         
 ]])}
-"""
+"""  # noqa: W291
         return _
 
 

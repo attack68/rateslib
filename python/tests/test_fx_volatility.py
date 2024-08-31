@@ -18,14 +18,18 @@ from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate
 from rateslib.periods import FXPutPeriod
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752},
+        calendar="tgt",
+        id="eureur",
     )
     usdusd = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271},
+        calendar="nyc",
+        id="usdusd",
     )
     eurusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd")
     fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
@@ -36,7 +40,7 @@ def fxfo():
 
 class TestFXDeltaVolSmile:
     @pytest.mark.parametrize("k", [0.2, 0.8, 0.9, 1.0, 1.05, 1.10, 1.25, 1.5, 9.0])
-    def test_get_from_strike(self, fxfo, k):
+    def test_get_from_strike(self, fxfo, k) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
@@ -62,10 +66,11 @@ class TestFXDeltaVolSmile:
         assert abs(put_vol[1] - call_vol[1]) < 1e-9
 
     @pytest.mark.parametrize(
-        "var, idx, val", [("vol0", 0.25, 10.15), ("vol1", 0.5, 7.8), ("vol2", 0.75, 8.9)]
+        ("var", "idx", "val"),
+        [("vol0", 0.25, 10.15), ("vol1", 0.5, 7.8), ("vol2", 0.75, 8.9)],
     )
     @pytest.mark.parametrize("k", [0.9, 1.0, 1.05, 1.10, 1.4])
-    def test_get_from_strike_ad(self, fxfo, var, idx, val, k):
+    def test_get_from_strike_ad(self, fxfo, var, idx, val, k) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
@@ -104,7 +109,7 @@ class TestFXDeltaVolSmile:
             (["vol1", 7.8, 0.5], ["vol2", 8.9, 0.75]),
         ],
     )
-    def test_get_from_strike_ad_2(self, fxfo, k, cross):
+    def test_get_from_strike_ad_2(self, fxfo, k, cross) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
@@ -187,7 +192,7 @@ class TestFXDeltaVolSmile:
     #     assert abs(result - exp) < 1e-10
 
     @pytest.mark.parametrize(
-        "delta_type, smile_type, k",
+        ("delta_type", "smile_type", "k"),
         [
             ("forward", "forward_pa", 0.8),
             ("forward", "spot_pa", 0.8),
@@ -223,7 +228,7 @@ class TestFXDeltaVolSmile:
             ("spot_pa", "spot", 1.2),
         ],
     )
-    def test_convert_delta_put2(self, fxfo, delta_type, smile_type, k):
+    def test_convert_delta_put2(self, fxfo, delta_type, smile_type, k) -> None:
         # Test the _convert_delta method of a DeltaVolSmile
 
         fxo1 = FXPutPeriod(
@@ -277,7 +282,7 @@ class TestFXDeltaVolSmile:
         )
         assert abs(result + smile_delta) < 1e-10
 
-    def test_get_from_unsimilar_delta(self):
+    def test_get_from_unsimilar_delta(self) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
             delta_type="forward",
@@ -289,8 +294,8 @@ class TestFXDeltaVolSmile:
         expected = 10.0
         assert (result - expected) < 0.01
 
-    @pytest.mark.parametrize("delta_type, exp", [("spot", 10.00000489), ("forward", 10.0)])
-    def test_get_from_similar_delta(self, delta_type, exp):
+    @pytest.mark.parametrize(("delta_type", "exp"), [("spot", 10.00000489), ("forward", 10.0)])
+    def test_get_from_similar_delta(self, delta_type, exp) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 11.0, 0.5: 10.0, 0.75: 11.0},
             delta_type="forward",
@@ -301,7 +306,7 @@ class TestFXDeltaVolSmile:
         result = fxvs.get(0.5, delta_type, 1.0, 0.99, 0.991, 1.02)
         assert abs(result - exp) < 1e-6
 
-    def test_set_same_ad_order(self):
+    def test_set_same_ad_order(self) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
             delta_type="forward",
@@ -313,7 +318,7 @@ class TestFXDeltaVolSmile:
         assert fxvs._set_ad_order(1) is None
         assert fxvs.nodes[0.25] == Dual(10.0, ["vol0"], [])
 
-    def test_set_ad_order_raises(self):
+    def test_set_ad_order_raises(self) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
             delta_type="forward",
@@ -325,7 +330,7 @@ class TestFXDeltaVolSmile:
         with pytest.raises(ValueError, match="`order` can only be in"):
             fxvs._set_ad_order(10)
 
-    def test_iter_raises(self):
+    def test_iter_raises(self) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.5: 1.0},
             delta_type="forward",
@@ -337,7 +342,7 @@ class TestFXDeltaVolSmile:
 
 
 class TestFXDeltaVolSurface:
-    def test_expiry_before_eval(self):
+    def test_expiry_before_eval(self) -> None:
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
             expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
@@ -348,7 +353,7 @@ class TestFXDeltaVolSurface:
         with pytest.raises(ValueError, match="`expiry` before the `eval_date` of"):
             fxvs.get_smile(dt(2022, 1, 1))
 
-    def test_smile_0_no_interp(self):
+    def test_smile_0_no_interp(self) -> None:
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
             expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
@@ -368,7 +373,7 @@ class TestFXDeltaVolSurface:
         assert result.delta_type == expected.delta_type
         assert result.eval_date == expected.eval_date
 
-    def test_smile_end_no_interp(self):
+    def test_smile_end_no_interp(self) -> None:
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
             expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
@@ -388,7 +393,7 @@ class TestFXDeltaVolSurface:
         assert result.delta_type == expected.delta_type
         assert result.eval_date == expected.eval_date
 
-    def test_smile_tot_var_lin_interp(self):
+    def test_smile_tot_var_lin_interp(self) -> None:
         # See Foreign Exchange Option Pricing: Iain Clarke Table 4.5
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
@@ -410,7 +415,7 @@ class TestFXDeltaVolSurface:
         assert result.delta_type == expected.delta_type
         assert result.eval_date == expected.eval_date
 
-    def test_smile_from_exact_expiry(self):
+    def test_smile_from_exact_expiry(self) -> None:
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
             expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
@@ -434,7 +439,7 @@ class TestFXDeltaVolSurface:
         assert result.eval_date == expected.eval_date
         assert result.id == expected.id
 
-    def test_get_vol_from_strike(self):
+    def test_get_vol_from_strike(self) -> None:
         # from a surface creates a smile and then re-uses methods
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
@@ -448,7 +453,7 @@ class TestFXDeltaVolSurface:
         expected = 17.882603173
         assert abs(result - expected) < 1e-8
 
-    def test_get_vol_from_strike_raises(self):
+    def test_get_vol_from_strike_raises(self) -> None:
         # from a surface creates a smile and then re-uses methods
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
@@ -460,7 +465,7 @@ class TestFXDeltaVolSurface:
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
             fxvs.get_from_strike(1.05, 1.03, 0.99, 0.999)
 
-    def test_set_node_vector(self):
+    def test_set_node_vector(self) -> None:
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
             expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
@@ -475,7 +480,7 @@ class TestFXDeltaVolSurface:
         for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values()):
             assert abs(v1 - v2) < 1e-10
 
-    def test_expiries_unsorted(self):
+    def test_expiries_unsorted(self) -> None:
         with pytest.raises(ValueError, match="Surface `expiries` are not sorted or"):
             FXDeltaVolSurface(
                 delta_indexes=[0.25, 0.5, 0.75],
@@ -485,7 +490,7 @@ class TestFXDeltaVolSurface:
                 delta_type="forward",
             )
 
-    def test_set_weights(self):
+    def test_set_weights(self) -> None:
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
             expiries=[dt(2024, 1, 1), dt(2024, 2, 1), dt(2024, 3, 1)],
@@ -506,7 +511,7 @@ class TestFXDeltaVolSurface:
             assert abs(fxvs.weights[fxvs.eval_date : e].sum() - (e - fxvs.eval_date).days) < 1e-13
 
     @pytest.mark.parametrize("scalar", [1.0, 0.5])
-    def test_weights_get_vol(self, scalar):
+    def test_weights_get_vol(self, scalar) -> None:
         # from a surface creates a smile and then re-uses methods
         fxvs = FXDeltaVolSurface(
             delta_indexes=[0.25, 0.5, 0.75],
@@ -531,7 +536,7 @@ class TestFXDeltaVolSurface:
         # This result is not exact because the shape of the spline changes
         assert abs(expected - result2[1]) < 5e-2
 
-    def test_weights_get_vol_clark(self):
+    def test_weights_get_vol_clark(self) -> None:
         cal = get_calendar("bus")
         weights = Series(0.0, index=cal.cal_date_range(dt(2024, 2, 9), dt(2024, 3, 9)))
         weights.update(Series(1.0, index=cal.bus_date_range(dt(2024, 2, 9), dt(2024, 3, 8))))
@@ -588,6 +593,6 @@ class TestFXDeltaVolSurface:
             assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
 
 
-def test_validate_delta_type():
+def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
         _validate_delta_type("BAD_TYPE")
