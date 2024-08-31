@@ -97,7 +97,7 @@ impl_op_ex!(-|a: &Number, b: &Number| -> Number {
 });
 
 // Sub for Number
-impl_op_ex!(- |a: &Number, b: &f64| -> Number {
+impl_op_ex!(-|a: &Number, b: &f64| -> Number {
     match a {
         Number::F64(f) => Number::F64(f - b),
         Number::Dual(d) => Number::Dual(d - b),
@@ -106,7 +106,7 @@ impl_op_ex!(- |a: &Number, b: &f64| -> Number {
 });
 
 // Sub for Number
-impl_op_ex!(- |a: &f64, b: &Number| -> Number {
+impl_op_ex!(-|a: &f64, b: &Number| -> Number {
     match b {
         Number::F64(f) => Number::F64(a - f),
         Number::Dual(d) => Number::Dual(a - d),
@@ -233,7 +233,10 @@ mod tests {
     fn test_enum_f64() {
         let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let res = 2.5_f64 - d;
-        assert_eq!(res, Number::Dual(Dual::new(0.5, vec!["x".to_string()])*-1.0));
+        assert_eq!(
+            res,
+            Number::Dual(Dual::new(0.5, vec!["x".to_string()]) * -1.0)
+        );
 
         let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let res = d - 2.5_f64;
