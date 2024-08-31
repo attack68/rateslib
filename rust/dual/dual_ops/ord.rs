@@ -59,6 +59,26 @@ impl PartialOrd<Number> for Number {
     }
 }
 
+impl PartialOrd<f64> for Number {
+    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
+        match self {
+            Number::F64(f) => f.partial_cmp(other),
+            Number::Dual(d) => d.partial_cmp(other),
+            Number::Dual2(d) => d.partial_cmp(other),
+        }
+    }
+}
+
+impl PartialOrd<Number> for f64 {
+    fn partial_cmp(&self, other: &Number) -> Option<Ordering> {
+        match other {
+            Number::F64(f) => self.partial_cmp(f),
+            Number::Dual(d) => self.partial_cmp(d),
+            Number::Dual2(d) => self.partial_cmp(d),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,5 +163,11 @@ mod tests {
         let d2 = Number::Dual2(Dual2::new(2.5_f64, vec![]));
         let d = Number::Dual(Dual::new(2.5_f64, vec![]));
         assert!(d <= d2);
+    }
+
+    #[test]
+    fn test_cross_enum_f64() {
+        let d2 = Number::Dual2(Dual2::new(2.5_f64, vec![]));
+        assert!(d2 <= 3.0_f64);
     }
 }

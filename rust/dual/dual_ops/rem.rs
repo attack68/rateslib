@@ -39,6 +39,24 @@ impl_op_ex!(% |a: &Number, b: &Number| -> Number {
     }
 });
 
+// Rem for Number
+impl_op_ex!(% |a: &Number, b: &f64| -> Number {
+    match a {
+        Number::F64(f) => Number::F64(f % b),
+        Number::Dual(d) => Number::Dual(d % b),
+        Number::Dual2(d) => Number::Dual2(d % b),
+    }
+});
+
+// Rem for Number
+impl_op_ex!(% |a: &f64, b: &Number| -> Number {
+    match b {
+        Number::F64(f) => Number::F64(a % f),
+        Number::Dual(d) => Number::Dual(a % d),
+        Number::Dual2(d) => Number::Dual2(a % d),
+    }
+});
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,5 +132,22 @@ mod tests {
         let d = Number::Dual2(Dual2::new(2.0, vec!["y".to_string()]));
         let d2 = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let _ = d % d2;
+    }
+
+    #[test]
+    fn test_enum_f64() {
+        let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let res = 2.0_f64 % d;
+        assert_eq!(
+            res,
+            Number::Dual(2.0 % Dual::new(3.0, vec!["x".to_string()]))
+        );
+
+        let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let res = d % 2.0_f64;
+        assert_eq!(
+            res,
+            Number::Dual(Dual::new(3.0, vec!["x".to_string()]) % 2.0)
+        );
     }
 }

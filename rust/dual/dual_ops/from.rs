@@ -148,11 +148,41 @@ impl From<&Number> for Dual2 {
     }
 }
 
-// impl From<Dual2> for Dual2 {
-//     fn from(value: Dual2) -> Self {
-//         value.clone()
-//     }
-// }
+impl From<&f64> for Number {
+    fn from(value: &f64) -> Self {
+        Number::F64(*value)
+    }
+}
+
+impl From<f64> for Number {
+    fn from(value: f64) -> Self {
+        Number::F64(value)
+    }
+}
+
+impl From<&Dual> for Number {
+    fn from(value: &Dual) -> Self {
+        Number::Dual(value.clone())
+    }
+}
+
+impl From<Dual> for Number {
+    fn from(value: Dual) -> Self {
+        Number::Dual(value)
+    }
+}
+
+impl From<&Dual2> for Number {
+    fn from(value: &Dual2) -> Self {
+        Number::Dual2(value.clone())
+    }
+}
+
+impl From<Dual2> for Number {
+    fn from(value: Dual2) -> Self {
+        Number::Dual2(value)
+    }
+}
 
 #[cfg(test)]
 mod tests {
