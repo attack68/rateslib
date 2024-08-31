@@ -1,4 +1,5 @@
-use crate::dual::dual::{Dual, Dual2, Number, Vars, VarsRelationship};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
+use crate::dual::enums::Number;
 
 /// Measures value equivalence of `Dual`.
 ///
