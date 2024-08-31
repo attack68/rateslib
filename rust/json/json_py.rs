@@ -5,6 +5,7 @@ use crate::calendars::{Cal, NamedCal, UnionCal};
 use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
+use crate::splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2};
 use crate::json::JSON;
 use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;
@@ -24,6 +25,9 @@ pub(crate) enum DeserializedObj {
     NamedCal(NamedCal),
     FXRates(FXRates),
     Curve(Curve),
+    PPSplineF64(PPSplineF64),
+    PPSplineDual(PPSplineDual),
+    PPSplineDual2(PPSplineDual2),
 }
 
 impl IntoPy<PyObject> for DeserializedObj {
@@ -36,6 +40,9 @@ impl IntoPy<PyObject> for DeserializedObj {
             DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::Curve(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::PPSplineF64(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::PPSplineDual(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::PPSplineDual2(v) => Py::new(py, v).unwrap().to_object(py),
         }
     }
 }

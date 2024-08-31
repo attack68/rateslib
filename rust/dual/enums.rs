@@ -1,5 +1,5 @@
 use crate::dual::{Dual, Dual2};
-use crate::splines::PPSpline;
+use crate::splines::spline_py::{PPSplineF64, PPSplineDual, PPSplineDual2};
 use ndarray::{Array1, Array2};
 use pyo3::{pyclass, FromPyObject, PyErr};
 use serde::{Deserialize, Serialize};
@@ -49,11 +49,11 @@ pub enum NumberArray2 {
 }
 
 /// Container for [PPSpline] of each core numeric type.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, FromPyObject, Serialize, Deserialize)]
 pub enum NumberPPSpline {
-    F64(PPSpline<f64>),
-    Dual(PPSpline<Dual>),
-    Dual2(PPSpline<Dual2>),
+    F64(PPSplineF64),
+    Dual(PPSplineDual),
+    Dual2(PPSplineDual2),
 }
 
 /// Generic trait indicating a function exists to map one [Number] to another.

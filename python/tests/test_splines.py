@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from rateslib.dual import Dual, Dual2, gradient, set_order_convert
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
+from rateslib.json import from_json
 
 
 @pytest.fixture
@@ -285,3 +286,14 @@ def test_bsplmatrix() -> None:
     tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
     matrix = spline.bsplmatrix(tau, 0, 0)
     assert matrix.shape == (8, 8)
+
+
+def test_json_round_trip() -> None:
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    tau = np.array([0, 1, 3, 4])
+    val = np.array([0, 0, 2, 2])
+    bs = PPSplineF64(k=4, t=t, c=None)
+    bs.csolve(tau, val, 0, 0, False)  # values solve spline
+    result = bs.to_json()
+    obj = from_json(result)
+    assert bs == obj

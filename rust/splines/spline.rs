@@ -5,6 +5,7 @@ use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::PyErr;
 use serde::{Deserialize, Serialize};
+use crate::json::JSON;
 use std::{
     cmp::PartialEq,
     iter::{zip, Sum},
@@ -376,6 +377,8 @@ impl PPSpline<Dual2> {
         }
     }
 }
+
+impl<T: Serialize + for <'de> Deserialize<'de>> JSON for PPSpline<T> {}
 
 impl<T> PartialEq for PPSpline<T>
 where
