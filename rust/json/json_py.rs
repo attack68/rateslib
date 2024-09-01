@@ -1,5 +1,9 @@
 //! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
 //! bindings.
+//!
+//! Any pyclass that is serializable is added as a DeserializedObj and then converted to JSON.
+//! Having been deserialized it is matched, unpacked and passed back to Python.
+//!
 
 use crate::calendars::{Cal, NamedCal, UnionCal};
 use crate::curves::curve_py::Curve;
