@@ -614,4 +614,5 @@ mod tests {
     fn backwards_definition() {
         let _pp1 = PPSpline::<f64>::new(4, vec![3., 3., 3., 3., 2., 1., 1., 1., 1.], None);
     }
+
 }
