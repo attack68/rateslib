@@ -304,3 +304,9 @@ def test_json_round_trip() -> None:
     result = bs.to_json()
     obj = from_json(result)
     assert bs == obj
+
+
+def test_should_raise_bad_solve() -> None:
+    pps = PPSplineF64(k=4, t=[1, 1, 1, 1, 4, 4, 4, 4], c=None)
+    with pytest.raises(ValueError):
+        pps.csolve(np.array([0, 1, 3, 4]), np.array([0, 0, 2, 2]), 0, 0, False)

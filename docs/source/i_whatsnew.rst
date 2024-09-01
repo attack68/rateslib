@@ -25,7 +25,7 @@ email contact through **rateslib@gmail.com**.
      - Add a method, :meth:`~rateslib.calendars.get_imm`, to calculate IMM dates.
        `(371) <https://github.com/attack68/rateslib/pull/371>`_
    * - Serialization
-     - *PPSplines* are now serializable. Read more at
+     - *PPSplines* are now serializable. Read more :ref:`here <serialization-doc>`.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
    * - Refactor
      - :red:`Minor Breaking Change!` *PPSpline* equality is now *True* if both spline
