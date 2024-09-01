@@ -1,16 +1,13 @@
 # globals namespace
 from rateslib.curves.rs import CurveRs
 from rateslib.fx import FXRates
-# from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 from rateslib.rs import from_json as from_json_rs
 
 NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,
     "Curve": CurveRs,
-    # "PPSplineF64": PPSplineF64,
-    # "PPSplineDual": PPSplineDual,
-    # "PPSplineDual2": PPSplineDual2,
 }
+
 
 def from_json(json: str):
     """
