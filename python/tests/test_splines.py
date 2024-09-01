@@ -306,7 +306,7 @@ def test_json_round_trip() -> None:
     assert bs == obj
 
 
-@pytest.skip(reason="TODO: devise a post solve check for NaN.")
+@pytest.mark.skip(reason="TODO: devise a post solve check for NaN.")
 def test_should_raise_bad_solve() -> None:
     pps = PPSplineF64(k=4, t=[1, 1, 1, 1, 4, 4, 4, 4], c=None)
     with pytest.raises(ValueError):
