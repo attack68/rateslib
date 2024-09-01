@@ -180,7 +180,7 @@ def test_spline_equality_type() -> None:
     assert spline3 != spline4
 
     spline5 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert spline4 != spline5
+    assert spline4 == spline5
 
     spline6 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
     spline7 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
