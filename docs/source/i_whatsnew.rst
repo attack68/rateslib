@@ -22,6 +22,9 @@ email contact through **rateslib@gmail.com**.
    * - Feature
      - Description
    * - Calendars
+     - Add a *"wlg"* calendar for New Zealand *IRS*.
+       (`363 <https://github.com/attack68/rateslib/pull/363>`_)
+   * - Calendars
      - Add a method, :meth:`~rateslib.calendars.get_imm`, to calculate IMM dates.
        `(371) <https://github.com/attack68/rateslib/pull/371>`_
    * - Serialization

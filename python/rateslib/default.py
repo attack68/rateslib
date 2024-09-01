@@ -115,6 +115,7 @@ class Defaults:
             "tro": get_named_calendar("tro"),
             "tyo": get_named_calendar("tyo"),
             "syd": get_named_calendar("syd"),
+            "wlg": get_named_calendar("wlg"),
         }
         self.frequency_months = {
             "M": 1,
