@@ -9,6 +9,7 @@ html[data-theme="light"] {
   --pst-color-link-hover: darkorange;
   --pst-heading-color: #459db9;
   --pst-color-inline-code: darkorange;
+  --pst-color-table-row-hover-bg: #459db92b; /* #ff8c001c; */
 }
 
 a {
