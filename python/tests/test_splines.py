@@ -3,8 +3,8 @@ import copy
 import numpy as np
 import pytest
 from rateslib.dual import Dual, Dual2, gradient, set_order_convert
-from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 from rateslib.json import from_json
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
 @pytest.fixture

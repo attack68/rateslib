@@ -24,6 +24,13 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - Add a method, :meth:`~rateslib.calendars.get_imm`, to calculate IMM dates.
        `(371) <https://github.com/attack68/rateslib/pull/371>`_
+   * - Serialization
+     - *PPSplines* are now serializable. Read more at
+       `(374) <https://github.com/attack68/rateslib/pull/374>`_
+   * - Refactor
+     - :red:`Minor Breaking Change!` *PPSpline* equality is now *True* if both spline
+       coefficients are unsolved, i.e. *None*.
+       `(374) <https://github.com/attack68/rateslib/pull/374>`_
    * - Bug
      - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
        `(368) <https://github.com/attack68/rateslib/pull/368>`_
