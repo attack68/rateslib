@@ -100,7 +100,7 @@ class FXForwards:
         fx_rates: FXRates | list[FXRates] | NoInput = NoInput(0),
         fx_curves: dict | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ):
+    ) -> None:
         """
         Update the FXForward object with the latest FX rates and FX curves values.
 
@@ -238,7 +238,8 @@ class FXForwards:
                 # dependency of FXRates with fx_curves.
                 if flag == 0:
                     sub_curves = self._get_curves_for_currencies(
-                        self.fx_curves, fx_rates_obj.currencies_list
+                        self.fx_curves,
+                        fx_rates_obj.currencies_list,
                     )
                     acyclic_fxf: FXForwards = FXForwards(
                         fx_rates=fx_rates_obj,
@@ -262,7 +263,8 @@ class FXForwards:
                     ]
                     pre_rates = {
                         f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
-                            f"{overlapping_currencies[0]}{ccy}", fx_rates_obj.settlement
+                            f"{overlapping_currencies[0]}{ccy}",
+                            fx_rates_obj.settlement,
                         )
                         for ccy in pre_currencies
                     }
@@ -271,11 +273,12 @@ class FXForwards:
                         settlement=fx_rates_obj.settlement,
                     )
                     sub_curves = self._get_curves_for_currencies(
-                        self.fx_curves, fx_rates_obj.currencies_list + pre_currencies
+                        self.fx_curves,
+                        fx_rates_obj.currencies_list + pre_currencies,
                     )
                     acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
                     settlement_pairs.update(
-                        {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs}
+                        {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
                     )
 
             if base is not NoInput.blank:
@@ -297,7 +300,9 @@ class FXForwards:
             self.q = len(self.currencies.keys())
             self.currencies_list: list[str] = list(self.currencies.keys())
             self.transform = self._get_forwards_transformation_matrix(
-                self.q, self.currencies, self.fx_curves
+                self.q,
+                self.currencies,
+                self.fx_curves,
             )
             self.base: str = self.fx_rates.base if base is NoInput.blank else base
             self.pairs = self.fx_rates.pairs
@@ -341,12 +346,12 @@ class FXForwards:
         if T.sum() > (2 * q) - 1:
             raise ValueError(
                 f"`fx_curves` is overspecified. {2 * q - 1} curves are expected "
-                f"but {len(fx_curves.keys())} provided."
+                f"but {len(fx_curves.keys())} provided.",
             )
         elif T.sum() < (2 * q) - 1:
             raise ValueError(
                 f"`fx_curves` is underspecified. {2 * q -1} curves are expected "
-                f"but {len(fx_curves.keys())} provided."
+                f"but {len(fx_curves.keys())} provided.",
             )
         elif np.linalg.matrix_rank(T) != q:
             raise ValueError("`fx_curves` contains co-dependent rates.")
@@ -416,7 +421,11 @@ class FXForwards:
                     recursive_path_app = recursive_path + [{axis: path_idx}]
                     traced_paths_app = traced_paths + [path_idx]
                     recursion = FXForwards._get_recursive_chain(
-                        T, path_idx, search_idx, traced_paths_app, recursive_path_app
+                        T,
+                        path_idx,
+                        search_idx,
+                        traced_paths_app,
+                        recursive_path_app,
                     )
                     if recursion[0]:
                         return recursion
@@ -448,7 +457,7 @@ class FXForwards:
                 if settlement is NoInput.blank or settlement is None:
                     raise ValueError(
                         "`fx_rates` as FXRates supplied to FXForwards must contain a "
-                        "`settlement` argument."
+                        "`settlement` argument.",
                     )
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
@@ -606,7 +615,7 @@ class FXForwards:
             value = Dual(value, [], [])
         base = self.base if base is NoInput.blank else base.lower()
         _ = np.array(
-            [0 if ccy != base else float(value) for ccy in self.currencies_list]
+            [0 if ccy != base else float(value) for ccy in self.currencies_list],
         )  # this is an NPV so is assumed to be immediate settlement
 
         if isinstance(self.fx_rates, list):
@@ -1190,10 +1199,10 @@ def forward_fx(
        })
        fxf.rate("usdgbp", dt(2022, 7, 1))
     """  # noqa: E501
-    if date == fx_settlement:
-        return fx_rate
-    elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:
-        return fx_rate
+    if date == fx_settlement:  # noqa: SIM114
+        return fx_rate  # noqa: SIM114
+    elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:  # noqa: SIM114
+        return fx_rate  # noqa: SIM114
 
     _ = curve_domestic[date] / curve_foreign[date]
     if fx_settlement is not NoInput.blank:

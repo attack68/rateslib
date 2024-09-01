@@ -1,4 +1,5 @@
-use crate::dual::dual::{Dual, Dual2, Number};
+use crate::dual::dual::{Dual, Dual2};
+use crate::dual::enums::Number;
 use std::cmp::Ordering;
 
 /// Compares `Dual` by `real` component only.
@@ -54,6 +55,26 @@ impl PartialOrd<Number> for Number {
                 panic!("Cannot mix dual types: Dual2 compare Dual")
             }
             (Number::Dual2(d), Number::Dual2(d2)) => d.partial_cmp(d2),
+        }
+    }
+}
+
+impl PartialOrd<f64> for Number {
+    fn partial_cmp(&self, other: &f64) -> Option<Ordering> {
+        match self {
+            Number::F64(f) => f.partial_cmp(other),
+            Number::Dual(d) => d.partial_cmp(other),
+            Number::Dual2(d) => d.partial_cmp(other),
+        }
+    }
+}
+
+impl PartialOrd<Number> for f64 {
+    fn partial_cmp(&self, other: &Number) -> Option<Ordering> {
+        match other {
+            Number::F64(f) => self.partial_cmp(f),
+            Number::Dual(d) => self.partial_cmp(d),
+            Number::Dual2(d) => self.partial_cmp(d),
         }
     }
 }
@@ -142,5 +163,11 @@ mod tests {
         let d2 = Number::Dual2(Dual2::new(2.5_f64, vec![]));
         let d = Number::Dual(Dual::new(2.5_f64, vec![]));
         assert!(d <= d2);
+    }
+
+    #[test]
+    fn test_cross_enum_f64() {
+        let d2 = Number::Dual2(Dual2::new(2.5_f64, vec![]));
+        assert!(d2 <= 3.0_f64);
     }
 }

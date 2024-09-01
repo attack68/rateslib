@@ -1,4 +1,5 @@
 use crate::dual::dual::{Dual, Dual2};
+use crate::dual::enums::Number;
 use crate::dual::linalg::fouter11_;
 use num_traits::Pow;
 use statrs::distribution::{ContinuousCDF, Normal};
@@ -115,6 +116,31 @@ impl MathFuncs for f64 {
     }
     fn log(&self) -> Self {
         f64::ln(*self)
+    }
+}
+
+macro_rules! math_func {
+    ($self: ident, $name: ident) => {
+        match $self {
+            Number::F64(f) => Number::F64(f.$name()),
+            Number::Dual(d) => Number::Dual(d.$name()),
+            Number::Dual2(d) => Number::Dual2(d.$name()),
+        }
+    };
+}
+
+impl MathFuncs for Number {
+    fn inv_norm_cdf(&self) -> Self {
+        math_func!(self, inv_norm_cdf)
+    }
+    fn norm_cdf(&self) -> Self {
+        math_func!(self, norm_cdf)
+    }
+    fn exp(&self) -> Self {
+        math_func!(self, exp)
+    }
+    fn log(&self) -> Self {
+        math_func!(self, log)
     }
 }
 

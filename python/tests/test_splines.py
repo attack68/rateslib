@@ -3,21 +3,22 @@ import copy
 import numpy as np
 import pytest
 from rateslib.dual import Dual, Dual2, gradient, set_order_convert
+from rateslib.json import from_json
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
-@pytest.fixture()
+@pytest.fixture
 def t():
     return np.array([1, 1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4])
 
 
-@pytest.fixture()
+@pytest.fixture
 def x():
     return np.linspace(1, 4, 7)
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([1.0, 0.125, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([0.0, 0.375, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -29,14 +30,14 @@ def x():
         (7, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.125, 1.0])),
     ],
 )
-def test_individual_bsplines(t, x, i, expected):
+def test_individual_bsplines(t, x, i, expected) -> None:
     bs = PPSplineF64(k=4, t=t)
     result = bs.bsplev(x, i=i)
     assert (result == expected).all()
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([-3.0, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([3.0, -0.75, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -48,14 +49,14 @@ def test_individual_bsplines(t, x, i, expected):
         (7, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.75, 3.0])),
     ],
 )
-def test_first_derivative_endpoint_support(t, x, i, expected):
+def test_first_derivative_endpoint_support(t, x, i, expected) -> None:
     bs = PPSplineF64(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=1)
     assert (result == expected).all()
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([6.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([-12.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -67,14 +68,14 @@ def test_first_derivative_endpoint_support(t, x, i, expected):
         (7, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 6.0])),
     ],
 )
-def test_second_derivative_endpoint_support(t, x, i, expected):
+def test_second_derivative_endpoint_support(t, x, i, expected) -> None:
     bs = PPSplineF64(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=2)
     assert (result == expected).all()
 
 
 @pytest.mark.parametrize(
-    "i, expected",
+    ("i", "expected"),
     [
         (0, np.array([-6.0, -6.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
         (1, np.array([18.0, 18.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
@@ -86,13 +87,13 @@ def test_second_derivative_endpoint_support(t, x, i, expected):
         (7, np.array([0.0, 0.0, 0.0, 0.0, 6.0, 6.0, 6.0])),
     ],
 )
-def test_third_derivative_endpoint_support(t, x, i, expected):
+def test_third_derivative_endpoint_support(t, x, i, expected) -> None:
     bs = PPSplineF64(k=4, t=t)
     result = bs.bspldnev(x, i=i, m=3)
     assert (result == expected).all()
 
 
-def test_fourth_derivative_endpoint_support(t, x):
+def test_fourth_derivative_endpoint_support(t, x) -> None:
     bs = PPSplineF64(k=4, t=t)
     expected = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     for i in range(8):
@@ -100,7 +101,7 @@ def test_fourth_derivative_endpoint_support(t, x):
         assert test.all()
 
 
-def test_ppdnev(t):
+def test_ppdnev(t) -> None:
     bs = PPSplineF64(k=4, t=t, c=[1, 2, -1, 2, 1, 1, 2, 2.0])
     r1 = bs.ppdnev_single(1.1, 2)
     r2 = bs.ppdnev_single(1.8, 2)
@@ -109,7 +110,7 @@ def test_ppdnev(t):
     assert (result == np.array([r1, r2, r3])).all()
 
 
-def test_ppev(t):
+def test_ppev(t) -> None:
     bs = PPSplineF64(k=4, t=t, c=[1, 2, -1, 2, 1, 1, 2, 2.0])
     r1 = bs.ppev_single(1.1)
     r2 = bs.ppev_single(1.8)
@@ -118,7 +119,7 @@ def test_ppev(t):
     assert (result == np.array([r1, r2, r3])).all()
 
 
-def test_csolve():
+def test_csolve() -> None:
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array([0, 1, 3, 4])
     val = np.array([0, 0, 2, 2])
@@ -130,7 +131,7 @@ def test_csolve():
         assert abs(expected[i] - res) < 1e-7
 
 
-def test_csolve_lsq():
+def test_csolve_lsq() -> None:
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array([0, 1, 2, 3, 4])
     val = np.array([0, 0, 1.5, 2, 2])
@@ -143,14 +144,14 @@ def test_csolve_lsq():
 
 
 @pytest.mark.parametrize(
-    "tau, val, allow",
+    ("tau", "val", "allow"),
     [
         ([0, 1, 2, 3], [0, 0, 2, 2, 5], False),
         ([0, 1, 2, 3, 5], [0, 0, 2, 2], False),
         ([0, 1, 2, 3], [0, 0, 2, 2, 5], True),
     ],
 )
-def test_csolve_raises(tau, val, allow):
+def test_csolve_raises(tau, val, allow) -> None:
     t = [0, 0, 0, 0, 4, 4, 4, 4]
     tau = np.array(tau)
     val = np.array(val)
@@ -159,27 +160,27 @@ def test_csolve_raises(tau, val, allow):
         bs.csolve(tau, val, 0, 0, allow_lsq=allow)
 
 
-def test_copy():
+def test_copy() -> None:
     bs = PPSplineF64(k=2, t=[1, 1, 2, 3, 3], c=[1, 2, 3])
     bsc = copy.copy(bs)
     assert id(bs) != id(bsc)
 
 
-def test_spline_equality_type():
+def test_spline_equality_type() -> None:
     spline = PPSplineF64(k=1, t=[1, 2])
-    assert not "bad" == spline
+    assert spline != "bad"
 
     spline2 = PPSplineF64(k=1, t=[1, 2, 3])
-    assert not spline == spline2
+    assert spline != spline2
 
     spline3 = PPSplineF64(k=1, t=[1, 3, 5])
-    assert not spline2 == spline3
+    assert spline2 != spline3
 
     spline4 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert not spline3 == spline4
+    assert spline3 != spline4
 
     spline5 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert not spline4 == spline5
+    assert spline4 == spline5
 
     spline6 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
     spline7 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
@@ -187,13 +188,13 @@ def test_spline_equality_type():
 
 
 @pytest.mark.parametrize(
-    "klass, order",
+    ("klass", "order"),
     [
         (PPSplineF64, 0),
         (PPSplineDual, 1),
     ],
 )
-def test_dual_AD(klass, order):
+def test_dual_AD(klass, order) -> None:
     sp = klass(
         t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
@@ -206,13 +207,13 @@ def test_dual_AD(klass, order):
 
 
 @pytest.mark.parametrize(
-    "klass, order",
+    ("klass", "order"),
     [
         (PPSplineF64, 0),
         (PPSplineDual2, 2),
     ],
 )
-def test_dual2_AD(klass, order):
+def test_dual2_AD(klass, order) -> None:
     sp = klass(
         t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
@@ -228,13 +229,14 @@ def test_dual2_AD(klass, order):
     assert abs(dual_deriv2 - 9.0 * analytic_deriv2) < 1e-9
 
     dual_deriv_x = gradient(
-        sp.ppev_single_dual2(Dual2(3.5, ["x1", "x2"], [3.0, 1.5], [1, 1, 1, 1])), order=2
+        sp.ppev_single_dual2(Dual2(3.5, ["x1", "x2"], [3.0, 1.5], [1, 1, 1, 1])),
+        order=2,
     )[0, 1]
     analytic_deriv_x = analytic_deriv2 * 3.0 * 1.5 + analytic_deriv * 2.0
     assert abs(dual_deriv_x - analytic_deriv_x) < 1e-9
 
 
-def test_dual_AD_raises():
+def test_dual_AD_raises() -> None:
     sp = PPSplineDual(
         t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
@@ -250,7 +252,7 @@ def test_dual_AD_raises():
         sp.ppev_single_dual(Dual2(3.5, ["x"], [], []))
 
 
-def test_dual2_AD_raises():
+def test_dual2_AD_raises() -> None:
     sp = PPSplineDual2(
         t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
@@ -266,7 +268,7 @@ def test_dual2_AD_raises():
         sp.ppev_single_dual2(Dual(3.5, ["x"], []))
 
 
-def test_dual_float_raises():
+def test_dual_float_raises() -> None:
     sp = PPSplineDual(
         t=[0, 0, 0, 0, 1, 3, 4, 4, 4, 4],
         k=4,
@@ -278,9 +280,34 @@ def test_dual_float_raises():
         sp.csolve([0, 0, 1, 3, 4, 4], [0.0, y0, y1, y2, y3, _0], 2, 2, False)
 
 
-def test_bsplmatrix():
+def test_bsplmatrix() -> None:
     t = [1, 1, 1, 1, 2, 2, 2, 3, 4, 4, 4, 4]
     spline = PPSplineF64(k=4, t=t)
     tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
     matrix = spline.bsplmatrix(tau, 0, 0)
     assert matrix.shape == (8, 8)
+
+
+def test_json_round_trip() -> None:
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    tau = np.array([0, 1, 3, 4])
+    val = np.array([0, 0, 2, 2])
+    bs = PPSplineF64(k=4, t=t, c=None)
+    bs.csolve(tau, val, 0, 0, False)  # values solve spline
+    result = bs.to_json()
+    obj = from_json(result)
+    assert bs == obj
+
+    # test unsolved
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    bs = PPSplineF64(k=4, t=t, c=None)
+    result = bs.to_json()
+    obj = from_json(result)
+    assert bs == obj
+
+
+@pytest.mark.skip(reason="TODO: devise a post solve check for NaN.")
+def test_should_raise_bad_solve() -> None:
+    pps = PPSplineF64(k=4, t=[1, 1, 1, 1, 4, 4, 4, 4], c=None)
+    with pytest.raises(ValueError):
+        pps.csolve(np.array([0, 1, 3, 4]), np.array([0, 0, 2, 2]), 0, 0, False)

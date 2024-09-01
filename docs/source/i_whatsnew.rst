@@ -24,6 +24,19 @@ email contact through **rateslib@gmail.com**.
    * - Calendars
      - Add a *"wlg"* calendar for New Zealand *IRS*.
        (`363 <https://github.com/attack68/rateslib/pull/363>`_)
+   * - Calendars
+     - Add a method, :meth:`~rateslib.calendars.get_imm`, to calculate IMM dates.
+       `(371) <https://github.com/attack68/rateslib/pull/371>`_
+   * - Serialization
+     - *PPSplines* are now serializable. Read more :ref:`here <serialization-doc>`.
+       `(374) <https://github.com/attack68/rateslib/pull/374>`_
+   * - Refactor
+     - :red:`Minor Breaking Change!` *PPSpline* equality is now *True* if both spline
+       coefficients are unsolved, i.e. *None*.
+       `(374) <https://github.com/attack68/rateslib/pull/374>`_
+   * - Bug
+     - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
+       `(368) <https://github.com/attack68/rateslib/pull/368>`_
 
 1.4.0 (28th Aug 2024)
 ***********************
