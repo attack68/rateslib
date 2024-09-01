@@ -133,7 +133,6 @@ class TestCal:
         cal = get_calendar("fed")
         assert cal.holidays[0] == dt(1970, 1, 1)
 
-    def test_json_round_trip(self, simple_cal) -> None:
     def test_wlg_cal(self):
         cal = get_calendar("wlg")
         assert cal.holidays[0] == dt(1970, 1, 1)
