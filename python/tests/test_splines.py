@@ -297,3 +297,10 @@ def test_json_round_trip() -> None:
     result = bs.to_json()
     obj = from_json(result)
     assert bs == obj
+
+    # test unsolved
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    bs = PPSplineF64(k=4, t=t, c=None)
+    result = bs.to_json()
+    obj = from_json(result)
+    assert bs == obj
