@@ -29,7 +29,7 @@ pub use crate::dual::dual::{
 };
 
 pub use crate::dual::enums::{
-    ADOrder, Number, NumberArray1, NumberArray2, NumberMapping, NumberPPSpline, NumberVec,
+    ADOrder, Number, NumberArray1, NumberArray2, NumberMapping, NumberVec,
 };
 
 /// Utility for creating an ordered list of variable tags from a string and enumerator

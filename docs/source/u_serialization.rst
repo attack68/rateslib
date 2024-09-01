@@ -7,6 +7,7 @@
    from rateslib.dual import Dual, Dual2
    from rateslib.calendars import Cal, UnionCal, NamedCal
    from rateslib.fx import FXRates
+   from rateslib.splines import PPSplineF64
    from datetime import datetime as dt
 
 ****************************
@@ -85,6 +86,20 @@ Calendar serialization is useful for saving and loading custom calendar objects.
    # serializing NamedCal remains consistent to the pre-compiled calendars for the version of rateslib
    named_cal = NamedCal("tgt")
    named_cal.to_json()
+
+PPSplines
+---------
+
+*PPSpline* serialization is added as a pre-requisite to add *Curve* serialization.
+
+.. ipython:: python
+
+   pps = PPSplineF64(k=4, t=[0,0,0,0,4,4,4,4], c=None)
+   pps.csolve(np.array([0, 1, 3, 4]), np.array([0, 0, 2, 2]), 0, 0, False)
+   pps.to_json()
+
+   from_json(pps.to_json())
+
 
 FXRates
 --------

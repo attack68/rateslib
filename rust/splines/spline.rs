@@ -392,7 +392,9 @@ where
         }
         match (&self.c, &other.c) {
             (Some(c1), Some(c2)) => c1.eq(&c2),
-            _ => false, // if any c is None then false
+            (Some(_c), None) => false,
+            (None, Some(_c)) => false,
+            (None, None) => true,
         }
     }
 }
@@ -599,10 +601,12 @@ mod tests {
     fn partialeq_() {
         let pp1 = PPSpline::<f64>::new(2, vec![1., 1., 2., 2.], None);
         let pp2 = PPSpline::<f64>::new(2, vec![1., 1., 2., 2.], None);
-        assert!(pp1 != pp2);
-        let pp1 = PPSpline::new(2, vec![1., 1., 2., 2.], Some(vec![1.5, 0.2]));
-        let pp2 = PPSpline::new(2, vec![1., 1., 2., 2.], Some(vec![1.5, 0.2]));
         assert!(pp1 == pp2);
+        let pp3 = PPSpline::new(2, vec![1., 1., 2., 2.], Some(vec![1.5, 0.2]));
+        let pp4 = PPSpline::new(2, vec![1., 1., 2., 2.], Some(vec![1.5, 0.2]));
+        assert!(pp3 == pp4);
+        assert!(pp3 != pp2);
+        assert!(pp1 != pp4);
     }
 
     #[test]
