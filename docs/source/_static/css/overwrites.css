@@ -10,7 +10,7 @@ html[data-theme="light"] {
   --pst-heading-color: #459db9;
   --pst-color-inline-code: darkorange;
   --pst-color-table-row-hover-bg: #459db92b; /* #ff8c001c; */
-  --pst-color-table-row-zebra-low-gb: #fcfcfc;
+  --pst-color-table-row-zebra-low-bg: #f3f4f540;
 }
 
 a {
