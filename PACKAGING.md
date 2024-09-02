@@ -29,6 +29,9 @@ On "release branch":
 5) Run `cargo test --lib` to check consistency
 6) Ensure the Cargo.toml file has active abi3-py39 features.
 7) Comment out the benchmark code and dev section code (otherwise source distribution will not run)
+8) Consider pinning requirements versions (and/or development versions) or make a comment on the
+   precise version that was used to build the package. That way future devs can rebuild a package
+   exactly. Possibly add a pip freeze file for record.
 
 pip install twine (if necessary)
 
