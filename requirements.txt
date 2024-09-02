@@ -5,17 +5,17 @@ matplotlib>=3.5.1,<4.0
 
 # development
 maturin>=1.6.0,<2.0
-pytest>=8.2.2,<9.0
-coverage>=7.5.3,<8.0  # for test and code monitoring
+pytest>=8.3.2,<9.0
+coverage>=7.6.1,<8.0  # for test and code monitoring
 
 # doc building
-sphinx>=7.1.0,<8.0
+sphinx>=8.0,<9.0
 sphinx-automodapi>=0.16.0,<1.0
-pydata-sphinx-theme>=0.14.3,<1.0
-nbsphinx>=0.9.4,<1.0
+pydata-sphinx-theme>=0.15.4,<1.0
+nbsphinx>=0.9.5,<1.0
 pickleshare>=0.7.5,<1.0
 
-ruff>=0.5.6,<1.0  # for code linting
+ruff>=0.6.3,<1.0  # for code linting
 # mypy>=1.7.0  # for type checking
 
 jupyterlab>=4.0,<5.0
