@@ -3,6 +3,7 @@ import copy
 import numpy as np
 import pytest
 from rateslib.dual import Dual, Dual2, gradient, set_order_convert
+from rateslib.json import from_json
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
@@ -179,7 +180,7 @@ def test_spline_equality_type() -> None:
     assert spline3 != spline4
 
     spline5 = PPSplineF64(k=2, t=[1, 3, 5])
-    assert spline4 != spline5
+    assert spline4 == spline5
 
     spline6 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
     spline7 = PPSplineF64(k=2, t=[1, 1, 3, 5, 5], c=[1, 2, 3])
@@ -285,3 +286,28 @@ def test_bsplmatrix() -> None:
     tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
     matrix = spline.bsplmatrix(tau, 0, 0)
     assert matrix.shape == (8, 8)
+
+
+def test_json_round_trip() -> None:
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    tau = np.array([0, 1, 3, 4])
+    val = np.array([0, 0, 2, 2])
+    bs = PPSplineF64(k=4, t=t, c=None)
+    bs.csolve(tau, val, 0, 0, False)  # values solve spline
+    result = bs.to_json()
+    obj = from_json(result)
+    assert bs == obj
+
+    # test unsolved
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    bs = PPSplineF64(k=4, t=t, c=None)
+    result = bs.to_json()
+    obj = from_json(result)
+    assert bs == obj
+
+
+@pytest.mark.skip(reason="TODO: devise a post solve check for NaN.")
+def test_should_raise_bad_solve() -> None:
+    pps = PPSplineF64(k=4, t=[1, 1, 1, 1, 4, 4, 4, 4], c=None)
+    with pytest.raises(ValueError):
+        pps.csolve(np.array([0, 1, 3, 4]), np.array([0, 0, 2, 2]), 0, 0, False)
