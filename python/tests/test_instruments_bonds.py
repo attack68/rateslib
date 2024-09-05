@@ -1089,6 +1089,18 @@ class TestFixedRateBond:
         )
         assert frb.leg1.periods[1].payment == dt(2001, 1, 2)
 
+    def test_ytm_initial_value(self):
+        bond = FixedRateBond(
+            effective=dt(2000, 1, 1),
+            termination="4y",
+            frequency="S",
+            calendar="all",
+            convention="ActActICMA",
+            fixed_rate=10.0
+        )
+        y = bond.ytm(106, dt(2000, 8, 1), False)
+        pass
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:

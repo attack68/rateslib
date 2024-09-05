@@ -2513,7 +2513,18 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
+        acc_idx = self._period_index(settlement)
+        n = len(self.leg1.periods) - 1 - acc_idx
+        acc_frac = self._accrued_fraction(settlement, self.calc_mode, acc_idx)
+
+        x0 = _ytm_guess(
+            g=self.leg1.fixed_rate,  #  * defaults.frequency_months[self.leg1.schedule.frequency] / 12.0,
+            c=100.0,
+            cp=price if not dirty else price - self.accrued(settlement),
+            l=n-acc_frac,  # TODO: this ignores if the final period is a stub
+        ) * 100.0
+        # x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
+        x = _ytm_quadratic_converger2(root, x0, 0.75*x0 -0.5, 1.25*x0+0.5 )
 
         if isinstance(price, Dual):
             # use the inverse function theorem to express x as a Dual
@@ -10255,6 +10266,29 @@ class Portfolio(Sensitivities):
 #         tol
 #     )
 
+
+def _ytm_guess(g: float, c: float, cp: float, l: float) -> float:
+    """
+    Initial Guess taken from "Bond Markets: Structures and Yield Calculations".
+
+    Parameters
+    ----------
+    g: float
+        Normal coupon payment for the compounding period.
+    c: float
+        Redemption value.
+    cp: float
+        Clean price.
+    l: float
+        Lifetime: number of whole coupon periods + fractional periods -1.
+
+    Returns
+    --------
+    float
+    """
+    _ = g / cp
+    _ += (c / cp) ** (1 / l)
+    return _ - 1.0
 
 def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
     """
