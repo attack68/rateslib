@@ -975,7 +975,10 @@ class Solver(Gradients):
 
         # validate `s` and `instruments` with a naive length comparison
         if len(s) != len(instruments):
-            raise ValueError("`instrument_rates` must be same length as `instruments`.")
+            raise ValueError(
+                f"`s: {len(s)}` (rates)  must be same length as "
+                f"`instruments: {len(instruments)}`."
+            )
         self.s = np.asarray(s)
 
         # validate `instrument_labels` if given is same length as `m`
