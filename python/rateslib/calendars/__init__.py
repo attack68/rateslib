@@ -405,6 +405,11 @@ def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+def _is_day_type_tenor(tenor: str) -> bool:
+    tenor_ = tenor.upper()
+    return "D" in tenor_ or "B" in tenor_ or "W" in tenor_
+
+
 def _is_imm(date: datetime, hmuz=False) -> bool:
     """
     Test whether a given date is an IMM date, defined as third wednesday in month.

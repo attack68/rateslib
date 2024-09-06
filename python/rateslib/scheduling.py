@@ -15,6 +15,7 @@ from rateslib.calendars import (
     _get_modifier,
     _get_roll,
     _get_rollday,
+    _is_day_type_tenor,
     _is_eom,
     _is_eom_cal,
     _is_imm,
@@ -319,18 +320,34 @@ class Schedule:
         self.effective: datetime = effective_
 
         if isinstance(termination, str):
-            # if termination is string the end date is calculated as unadjusted
-            if self.eom and roll is NoInput.blank and _is_eom_cal(self.effective, self.calendar):
-                roll_ = 31
+            if _is_day_type_tenor(termination):
+                termination_: datetime = add_tenor(
+                    start=self.effective,
+                    tenor=termination,
+                    modifier=self.modifier,
+                    calendar=self.calendar,
+                    roll=NoInput(0),
+                    settlement=False,
+                    mod_days=False,
+                )
             else:
-                roll_ = roll
-            termination_: datetime = add_tenor(
-                self.effective,
-                termination,
-                "NONE",
-                NoInput(0),
-                roll_,
-            )
+                # if termination is string the end date is calculated as unadjusted, which will
+                # be used later according to roll inference rules, for monthly and yearly tenors.
+                if (
+                    self.eom
+                    and roll is NoInput.blank
+                    and _is_eom_cal(self.effective, self.calendar)
+                ):
+                    roll_ = 31
+                else:
+                    roll_ = roll
+                termination_ = add_tenor(
+                    self.effective,
+                    termination,
+                    "NONE",
+                    self.calendar,  # calendar is unused for NONE type modifier
+                    roll_,
+                )
         else:
             termination_ = termination
         self.termination: datetime = termination_

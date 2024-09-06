@@ -9,6 +9,7 @@ from rateslib.calendars import (
     _get_fx_expiry_and_delivery,
     _get_imm,
     _get_years_and_months,
+    _is_day_type_tenor,
     _is_eom,
     _is_imm,
     _is_som,
@@ -588,3 +589,13 @@ def test_get_imm_api(val, exp):
 def test_get_imm_api_no_code():
     result = get_imm(month=11, year=2089)
     assert result == dt(2089, 11, 16)
+
+
+@pytest.mark.parametrize("tenor", ["1B", "1b", "3D", "3d", "2W", "2w"])
+def test_is_day_type_tenor(tenor):
+    assert _is_day_type_tenor(tenor)
+
+
+@pytest.mark.parametrize("tenor", ["1M", "1m", "4Y", "4y"])
+def test_is_not_day_type_tenor(tenor):
+    assert not _is_day_type_tenor(tenor)
