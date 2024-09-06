@@ -328,7 +328,7 @@ class Schedule:
                 self.effective,
                 termination,
                 "NONE",
-                NoInput(0),
+                self.calendar,
                 roll_,
             )
         else:
