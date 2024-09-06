@@ -1,5 +1,11 @@
 .. RatesLib documentation master file.
 
+.. ipython:: python
+   :suppress:
+
+   from rateslib import FixedRateBond, dt
+
+
 .. raw:: html
 
    <div style="text-align: center; padding: 2em 0em 3em;">
@@ -22,17 +28,22 @@
    <a class="github-button" href="https://github.com/attack68/rateslib/issues" data-icon="octicon-issue-opened" data-size="large" data-show-count="true" aria-label="Issue attack68/rateslib on GitHub">Issue</a>
    </div>
 
-``Rateslib`` is a state-of-the-art **fixed income library** designed for Python.
+*Rateslib* is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
-with a high level, well documented API.
+with a high level, well documented API. *Rateslib* is not freely licensed, it is copyrightable
+software provided as below.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
 .. raw:: html
 
    <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
       <thead style="background-color: #ebf0f4;">
         <tr>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic, Personal, or Educational Use</th>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use: Banks, Funds, Accountants, Treasuries</th>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic or Home Educational Use</th>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use by Anyone in: Banks, Funds, Accountants, Treasuries</th>
         </tr>
       </thead>
       <tbody>
@@ -50,9 +61,49 @@ with a high level, well documented API.
       </tbody>
    </table>
 
-The techniques and object interaction within *rateslib* were inspired by
-the requirements of multi-disciplined fixed income teams working, both cooperatively
-and independently, within global investment banks.
+.. The techniques and object interaction within *rateslib* were inspired by
+   the requirements of multi-disciplined fixed income teams working, both cooperatively
+   and independently, within global investment banks.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 2em 0em 3em;"></div>
+
+.. container:: twocol
+
+   .. container:: leftside50
+
+      .. image:: _static/rateslib_excel_logo_label.png
+         :align: center
+         :alt: Excel bindings for rateslib
+         :width: 203
+         :target: http://rateslib.tradinginterestrates.com/rlxl/
+
+      .. raw:: html
+
+         <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
+         <a href="http://rateslib.tradinginterestrates.com/rlxl/">Rateslib-excel</a> provides Excel bindings to use
+         all of <span style="font-style: italic;">rateslib's</span> functionality in Excel.
+         </div>
+
+
+   .. container:: rightside50
+
+      .. image:: _static/rateslib_rs_logo_label.png
+         :align: center
+         :alt: Rust codebase for rateslib
+         :width: 203
+
+      .. raw:: html
+
+         <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
+         <a href="http://rateslib.tradinginterestrates.com/rlxl/">Rateslib-rs</a> is the backend codebase
+         for parts of <span style="font-style: italic;">rateslib</span> written in Rust using PyO3.
+         </div>
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 2em 0em 3em;"></div>
 
 Highlights
 ==========
