@@ -1040,6 +1040,10 @@ class TestIRS:
         irs = IRS(dt(2024, 12, 30), "1b", spec="sek_irs")  # 31st is a holiday.
         assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
 
+    def test_1d_tenor_swaps(self):
+        irs = IRS(dt(2024, 12, 30), "1d", spec="sek_irs")  # 31st is a holiday.
+        assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
