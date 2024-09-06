@@ -15,11 +15,11 @@ from rateslib.calendars import (
     _get_modifier,
     _get_roll,
     _get_rollday,
+    _is_day_type_tenor,
     _is_eom,
     _is_eom_cal,
     _is_imm,
     _is_som,
-    _is_day_type_tenor,
     add_tenor,
     get_calendar,
 )
@@ -333,7 +333,11 @@ class Schedule:
             else:
                 # if termination is string the end date is calculated as unadjusted, which will
                 # be used later according to roll inference rules, for monthly and yearly tenors.
-                if self.eom and roll is NoInput.blank and _is_eom_cal(self.effective, self.calendar):
+                if (
+                    self.eom
+                    and roll is NoInput.blank
+                    and _is_eom_cal(self.effective, self.calendar)
+                ):
                     roll_ = 31
                 else:
                     roll_ = roll

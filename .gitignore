@@ -111,7 +111,7 @@ benchmarks/
 .env
 .venv
 env/
-venv/
+venv*/
 venv11/
 venv311/
 venv312/
