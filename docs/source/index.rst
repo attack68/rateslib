@@ -67,7 +67,20 @@ software provided as below.
 
 .. raw:: html
 
-   <div class="clear" style="text-align: center; padding: 2em 0em 3em;"></div>
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
+
+Highlights
+==========
+
+*Other interface bindings*
+----------------------------
+
+Extension websites provide the documentation for using *rateslib* in other ways than directly
+with Python.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
 .. container:: twocol
 
@@ -93,20 +106,19 @@ software provided as below.
          :align: center
          :alt: Rust codebase for rateslib
          :width: 203
+         :target: http://rateslib.tradinginterestrates.com/rlrs/rateslib/
 
       .. raw:: html
 
          <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="http://rateslib.tradinginterestrates.com/rlxl/">Rateslib-rs</a> is the backend codebase
+         <a href="http://rateslib.tradinginterestrates.com/rlrs/rateslib/">Rateslib-rs</a> is the backend codebase
          for parts of <span style="font-style: italic;">rateslib</span> written in Rust using PyO3.
          </div>
 
 .. raw:: html
 
-   <div class="clear" style="text-align: center; padding: 2em 0em 3em;"></div>
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
-Highlights
-==========
 
 *Curve construction is simple but has huge flexibility*
 --------------------------------------------------------
