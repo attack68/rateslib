@@ -34,6 +34,10 @@ email contact through **rateslib@gmail.com**.
    * - Bug
      - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
        `(368) <https://github.com/attack68/rateslib/pull/368>`_
+   * - Bug
+     - Creating *IRS* or similar *Instruments* with a ``termination`` of "1b" or business days
+       now correctly uses the specified calendar.
+       `(378) <https://github.com/attack68/rateslib/pull/378>`_
 
 1.4.0 (28th Aug 2024)
 ***********************
