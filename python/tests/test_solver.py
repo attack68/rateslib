@@ -285,7 +285,7 @@ def test_large_spline_solver() -> None:
 
 
 def test_solver_raises_len() -> None:
-    with pytest.raises(ValueError, match="`instrument_rates` must be same length"):
+    with pytest.raises(ValueError, match="`s: 2` (rates)  must be same length as `instruments: 1"):
         Solver(
             instruments=[1],
             s=[1, 2],
