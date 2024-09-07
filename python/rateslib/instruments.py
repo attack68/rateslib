@@ -10260,30 +10260,6 @@ class Portfolio(Sensitivities):
 #     )
 
 
-def _ytm_guess(g: float, c: float, cp: float, l: float) -> float:
-    """
-    Initial Guess taken from "Bond Markets: Structures and Yield Calculations".
-
-    Parameters
-    ----------
-    g: float
-        Normal coupon payment for the compounding period.
-    c: float
-        Redemption value.
-    cp: float
-        Clean price.
-    l: float
-        Lifetime: number of whole coupon periods + fractional periods -1.
-
-    Returns
-    --------
-    float
-    """
-    _ = g / cp
-    _ += (c / cp) ** (1 / l)
-    return _ - 1.0
-
-
 def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
     """
     Convert a price from yield function `f` into a quadratic approximation and
