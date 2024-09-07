@@ -2513,10 +2513,6 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        acc_idx = self._period_index(settlement)
-        n = len(self.leg1.periods) - 1 - acc_idx
-        acc_frac = self._accrued_fraction(settlement, self.calc_mode, acc_idx)
-
         x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
 
         if isinstance(price, Dual):
