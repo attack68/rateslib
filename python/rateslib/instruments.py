@@ -10295,6 +10295,8 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
     c = np.linalg.solve(_A, _b)
     y = c[2, 0]
     f_ = f(y)
+    if abs(f_) < tol:
+        return y
 
     pad = min(tol * 1e8, 0.0001, abs(f_ * 1e4))  # avoids singular matrix error
     if y <= y0:
