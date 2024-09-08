@@ -2458,7 +2458,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
-    def ytm(self, price: float, settlement: datetime, dirty: bool = False):
+    def ytm(self, price: DualTypes, settlement: datetime, dirty: bool = False) -> DualTypes:
         """
         Calculate the yield-to-maturity of the security given its price.
 
@@ -10262,9 +10262,9 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
     determine the root, yield, which matches the target price.
     """
     # allow function values to be passed recursively to avoid re-calculation
-    f0 = f(y0) if f0 is None else f0
-    f1 = f(y1) if f1 is None else f1
-    f2 = f(y2) if f2 is None else f2
+    f0 = f0 if f0 is not None else f(y0)
+    f1 = f1 if f1 is not None else f(y1)
+    f2 = f2 if f2 is not None else f(y2)
 
     if f0 < 0 and f1 < 0 and f2 < 0:
         # reassess initial values

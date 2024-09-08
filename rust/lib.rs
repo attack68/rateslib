@@ -1,4 +1,8 @@
 //! This is the documentation for rateslib-rs
+//!
+//! <div class="warning">This library is in development. Only parts of *rateslib (Python)* have been ported
+//! successfully, completely and with sound documentation to Rust.</div>
+
 
 #![doc(html_favicon_url = "https://rateslib.readthedocs.io/en/stable/_static/favicon.ico")]
 // #![doc(html_logo_url = "https://rateslib.readthedocs.io/en/stable/_static/rateslib_logo2a.png")]
