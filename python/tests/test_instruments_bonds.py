@@ -1093,7 +1093,12 @@ class TestFixedRateBond:
         NUMBER = 75
         START = dt(2000, 1, 1)
         TENORS = ["2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y", "15y"]
-        COUPS = [1.0, 2.0, 3.0, 4.0,]
+        COUPS = [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+        ]
         RAND_PRICES = np.random.rand(NUMBER) * 150 + 25.0
         BONDS = [
             FixedRateBond(
@@ -1101,7 +1106,8 @@ class TestFixedRateBond:
                 termination=TENORS[i % 10],
                 spec="us_gb",
                 fixed_rate=COUPS[i % 4],
-            ) for i in range(NUMBER)
+            )
+            for i in range(NUMBER)
         ]
         for i in range(NUMBER):
             BONDS[i].ytm(price=RAND_PRICES[i], settlement=dt(2001, 8, 30))
