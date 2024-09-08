@@ -31,7 +31,7 @@ class _AccruedAndYTMMethods:
         Branches to a calculation based on the bond `calc_mode`.
         """
         try:
-            func = getattr(self, f"_{calc_mode}")["accrual_mode"]
+            func = getattr(self, f"_{calc_mode}")["accrual"]
             # func = getattr(self, self._acc_frac_mode_map[calc_mode])
             return func(settlement, acc_idx)
         except KeyError:
