@@ -885,7 +885,7 @@ class Solver(Gradients):
     Notes
     -----
     Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant DF node values on each *Curve* simultaneously by calling :meth:`iterate`.
+    relevant node values on each *Curve* (or *Surface*) simultaneously by calling :meth:`iterate`.
 
     Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
     preset at initialisation, and can then be used directly (as shown in some examples).
@@ -898,40 +898,13 @@ class Solver(Gradients):
 
     - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
 
+
+
     Examples
     --------
 
     See the documentation user guide :ref:`here <c-solver-doc>`.
 
-    Attributes
-    ----------
-    curves : dict
-    instruments : sequence
-    weights : sequence
-    s : sequence
-    algorithm : str
-    fx : FXForwards
-    id : str
-    tol : float
-    max_iter : int
-    n : int
-        The total number of curve variables to solve for.
-    m : int
-        The total number of calibrating instruments provided to the Solver.
-    W : 2d array
-        A diagonal array constructed from ``weights``.
-    variables : list[str]
-        List of variable name tags used in extracting derivatives automatically.
-    instrument_labels : list[str]
-        List of calibrating instrument names for delta risk visualization.
-    pre_solvers : list
-    pre_variables : list[str]
-        List of variable name tags used in extracting derivatives automatically.
-    pre_m : int
-        The total number of calibrating instruments provided to the Solver including
-        those in pre-solvers
-    pre_n : int
-        The total number of curve variables solved for, including those in pre-solvers.
     """
 
     _grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
@@ -1064,7 +1037,7 @@ class Solver(Gradients):
 
         # TODO need to check curves associated with fx object and set order.
         # self._reset_properties_()  performed in iterate
-        self.result = {
+        self._result = {
             "status": "INITIALISED",
             "state": 0,
             "g": None,
@@ -1163,6 +1136,19 @@ class Solver(Gradients):
 
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
+
+    @property
+    def result(self):
+        """
+        Show statistics relevant to the last *Solver* iteration.
+
+        Valid *Solver* states are:
+
+        - 1: Success within tolerance of objective function close to zero.
+        - 2: Success within tolerance of successive iteration values.
+        - -1: Failed to satisfy tolerance after maximal allowed iteration.
+        """
+        return self._result
 
     @property
     def v(self):
@@ -1370,7 +1356,7 @@ class Solver(Gradients):
         return self._solver_result(-1, self.max_iter, time() - t0)
 
     def _solver_result(self, state: int, i: int, time: float):
-        self.result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
+        self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
         return None
 
     def _update_curves_with_parameters(self, v_new):
