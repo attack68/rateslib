@@ -898,8 +898,6 @@ class Solver(Gradients):
 
     - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
 
-
-
     Examples
     --------
 
