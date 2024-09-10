@@ -975,13 +975,19 @@ class Solver(Gradients):
 
         # validate `s` and `instruments` with a naive length comparison
         if len(s) != len(instruments):
-            raise ValueError("`instrument_rates` must be same length as `instruments`.")
+            raise ValueError(
+                f"`s: {len(s)}` (rates)  must be same length as "
+                f"`instruments: {len(instruments)}`."
+            )
         self.s = np.asarray(s)
 
         # validate `instrument_labels` if given is same length as `m`
         if instrument_labels is not NoInput.blank:
             if self.m != len(instrument_labels):
-                raise ValueError("`instrument_labels` must have length `instruments`.")
+                raise ValueError(
+                    f"`instrument_labels: {len(instrument_labels)}` must be same length as "
+                    f"`instruments: {len(instruments)}`."
+                )
             else:
                 self.instrument_labels = tuple(instrument_labels)
         else:
@@ -991,7 +997,10 @@ class Solver(Gradients):
             self.weights = np.ones(len(instruments))
         else:
             if len(weights) != self.m:
-                raise ValueError("`weights` must be same length as `instruments`.")
+                raise ValueError(
+                    f"`weights: {len(weights)}` must be same length as "
+                    f"`instruments: {len(instruments)}`."
+                )
             self.weights = np.asarray(weights)
         self.W = np.diag(self.weights)
 

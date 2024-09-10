@@ -34,9 +34,17 @@ email contact through **rateslib@gmail.com**.
      - :red:`Minor Breaking Change!` *PPSpline* equality is now *True* if both spline
        coefficients are unsolved, i.e. *None*.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
+   * - Performance
+     - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
+       500us on average.
+       `(380) <https://github.com/attack68/rateslib/pull/380>`_
    * - Bug
      - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
        `(368) <https://github.com/attack68/rateslib/pull/368>`_
+   * - Bug
+     - Creating *IRS* or similar *Instruments* with a ``termination`` of "1b" or business days
+       now correctly uses the specified calendar.
+       `(378) <https://github.com/attack68/rateslib/pull/378>`_
 
 1.4.0 (28th Aug 2024)
 ***********************
