@@ -32,7 +32,11 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
     "sphinx_automodapi.automodapi",
     "nbsphinx",
+    "sphinx.ext.intersphinx",
 ]
+intersphinx_mapping = {
+    "rateslibxl": ("http://rateslib.tradinginterestrates.com/rlxl", None),
+}
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 

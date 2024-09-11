@@ -21,6 +21,14 @@ These functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way and give typical examples how they
 are used in practice.
 
+.. |ico3| image:: _static/rlxl32.png
+   :height: 20px
+
+.. note::
+
+   If you see this icon |ico3| at any point after a section it will link to a section in the
+   *rateslib-excel* documentation which may demonstrate the equivalent Python example in Excel.
+
 Let's start with the fundamental constructors *Curve* and *Instrument*.
 
 A trivial example
@@ -70,9 +78,20 @@ the generated cashflows.
 
    irs.cashflows(usd_curve)
 
+.. image:: _static/rlxl32.png
+  :align: right
+  :alt: Rateslib-excel introductory example
+  :width: 20
+  :target: http://rateslib.tradinginterestrates.com/rlxl/z_introduction.html
+
+.. raw:: html
+
+   <div class="clear"></div>
+
 If instead of this trivial, minimalist example you would like to see a real world
 example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
 click the link.
+
 
 Quick look at FX
 ==================
