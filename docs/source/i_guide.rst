@@ -79,14 +79,14 @@ the generated cashflows.
    irs.cashflows(usd_curve)
 
 .. image:: _static/rlxl32.png
-  :align: right
+  :align: center
   :alt: Rateslib-excel introductory example
   :width: 20
   :target: http://rateslib.tradinginterestrates.com/rlxl/z_introduction.html
 
 .. raw:: html
 
-   <div class="clear"></div>
+   <div class="clear" style="padding-bottom: 1em;"></div>
 
 If instead of this trivial, minimalist example you would like to see a real world
 example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
@@ -115,6 +115,16 @@ We now have a mechanism by which to specify values in other currencies.
 
    irs.npv(usd_curve, fx=fxr, base="usd")
    irs.npv(usd_curve, fx=fxr, base="eur")
+
+.. image:: _static/rlxl32.png
+  :align: center
+  :alt: Rateslib-excel introductory example
+  :width: 20
+  :target: http://rateslib.tradinginterestrates.com/rlxl/z_introduction_fx.html
+
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
 
 One observes that the value returned here is not a float but a :class:`~rateslib.dual.Dual`
 which is part of *rateslib's* AD framework. This is the first example of capturing a
