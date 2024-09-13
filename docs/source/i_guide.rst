@@ -176,7 +176,7 @@ used in the example above (as expected).
 
    fxs = FXSwap(
        effective=dt(2022, 2, 1),
-       termination="3m",
+       termination="3m",  # May-1 is a holiday, May-2 is business end date.
        pair="eurusd",
        notional=20e6,
        calendar="tgt|fed",
