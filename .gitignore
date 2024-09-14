@@ -150,4 +150,5 @@ scratch6.py
 
 .idea/
 /*.ipynb
-Carlo.lock
+Cargo.lock
+.devcontainer
