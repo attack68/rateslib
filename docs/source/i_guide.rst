@@ -332,6 +332,16 @@ a set of prices, ``s``. The calibrating *Instruments* associated with those pric
        id="us_rates"
    )
 
+.. image:: _static/rlxl32.png
+  :align: center
+  :alt: Rateslib-excel Solver introduction
+  :width: 20
+  :target: https://rateslib.com/excel/latest/z_introduction_solver.html
+
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
+
 Solving was a success! Observe that the DFs on the *Curve* have been updated:
 
 .. ipython:: python
