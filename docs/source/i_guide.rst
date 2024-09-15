@@ -258,6 +258,10 @@ risk calculations.
   :alt: US Treasury example using the FixedRateBond class
   :width: 611
 
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
+
 .. image:: _static/rlxl32.png
   :align: center
   :alt: Rateslib-excel FixedRateBond introduction
