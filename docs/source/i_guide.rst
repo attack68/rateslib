@@ -168,6 +168,16 @@ Curve for EUR cashflows, collateralised in USD**, and similarly for other entrie
    fxf.rate("eurusd", settlement=dt(2023, 1, 1))
    fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 1)])
 
+.. image:: _static/rlxl32.png
+  :align: center
+  :alt: Rateslib-excel FXForwards introduction
+  :width: 20
+  :target: https://rateslib.com/excel/latest/z_introduction_fx_forwards.html
+
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
+
 *FXForwards* objects are comprehensive and more information regarding all of the
 :ref:`FX features<fx-doc>` is available in this link.
 
@@ -212,6 +222,16 @@ used in the example above (as expected).
    )
    fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
 
+.. image:: _static/rlxl32.png
+  :align: center
+  :alt: Rateslib-excel FXSwap introduction
+  :width: 20
+  :target: https://rateslib.com/excel/latest/z_fxswap_intro.html
+
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
+
 Securities and bonds
 --------------------
 
@@ -237,6 +257,16 @@ risk calculations.
 .. image:: _static/ust_10y.gif
   :alt: US Treasury example using the FixedRateBond class
   :width: 611
+
+.. image:: _static/rlxl32.png
+  :align: center
+  :alt: Rateslib-excel FixedRateBond introduction
+  :width: 20
+  :target: https://rateslib.com/excel/latest/z_bond_intro.html
+
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
 
 .. toctree::
     :hidden:
