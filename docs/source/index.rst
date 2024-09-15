@@ -90,12 +90,12 @@ with Python.
          :align: center
          :alt: Excel bindings for rateslib
          :width: 203
-         :target: http://rateslib.tradinginterestrates.com/rlxl/
+         :target: https://rateslib.com/excel/latest/
 
       .. raw:: html
 
          <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="http://rateslib.tradinginterestrates.com/rlxl/">Rateslib-excel</a> provides Excel bindings to use
+         <a href="https://rateslib.com/excel/latest/">Rateslib-excel</a> provides Excel bindings to use
          all of <span style="font-style: italic;">rateslib's</span> functionality in Excel.
          </div>
 
@@ -106,12 +106,12 @@ with Python.
          :align: center
          :alt: Rust codebase for rateslib
          :width: 203
-         :target: http://rateslib.tradinginterestrates.com/rlrs/rateslib/
+         :target: https://rateslib.com/rs/latest/rateslib
 
       .. raw:: html
 
          <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="http://rateslib.tradinginterestrates.com/rlrs/rateslib/">Rateslib-rs</a> is the backend codebase
+         <a href="https://rateslib.com/rs/latest/rateslib/">Rateslib-rs</a> is the backend codebase
          for parts of <span style="font-style: italic;">rateslib</span> written in Rust using PyO3.
          </div>
 

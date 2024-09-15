@@ -82,7 +82,7 @@ the generated cashflows.
   :align: center
   :alt: Rateslib-excel introductory example
   :width: 20
-  :target: http://rateslib.tradinginterestrates.com/rlxl/z_introduction.html
+  :target: https://rateslib.com/excel/latest/z_introduction.html
 
 .. raw:: html
 
@@ -120,7 +120,7 @@ We now have a mechanism by which to specify values in other currencies.
   :align: center
   :alt: Rateslib-excel introductory example
   :width: 20
-  :target: http://rateslib.tradinginterestrates.com/rlxl/z_introduction_fx.html
+  :target: https://rateslib.com/excel/latest/z_introduction_fx.html
 
 .. raw:: html
 

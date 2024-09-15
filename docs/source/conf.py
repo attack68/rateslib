@@ -35,7 +35,7 @@ extensions = [
     "sphinx.ext.intersphinx",
 ]
 intersphinx_mapping = {
-    "rateslibxl": ("http://rateslib.tradinginterestrates.com/rlxl", None),
+    "rateslibxl": ("https://rateslib.com/excel/latest/", None),
 }
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
