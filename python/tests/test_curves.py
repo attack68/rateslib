@@ -1114,6 +1114,37 @@ def test_curve_zero_width_rate_raises(curve) -> None:
         curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
 
 
+class TestCurve:
+
+    def test_repr(self):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="sofr",
+        )
+        expected = f"<rl.Curve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+
+class TestLineCurve:
+
+    def test_repr(self):
+        curve = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="libor1m"
+        )
+        expected = f"<rl.LineCurve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+
+
 class TestIndexCurve:
     def test_curve_translate_knots_raises(self, curve) -> None:
         curve = Curve(
