@@ -1930,8 +1930,8 @@ class CompositeCurve(IndexCurve):
 
     .. ipython:: python
        :suppress:
-    
-       from datetime import datetime as dt 
+
+       from datetime import datetime as dt
 
     .. ipython:: python
 
