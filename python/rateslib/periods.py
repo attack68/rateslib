@@ -2450,6 +2450,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
         self.metric = metric
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
     def cashflows(
         self,
         disc_curve: Curve,

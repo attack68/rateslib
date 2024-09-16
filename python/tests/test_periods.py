@@ -73,6 +73,10 @@ def line_curve():
     FixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
     Cashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd"),
     IndexCashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd", index_base=100.0),
+    IndexFixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
+    FloatPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m"),
+    FXCallPeriod(pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)),
+    FXCallPeriod(pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)),
 ])
 def test_repr(object):
     result = object.__repr__()

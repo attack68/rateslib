@@ -35,17 +35,13 @@ email contact through **rateslib@gmail.com**.
        coefficients are unsolved, i.e. *None*.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
    * - Refactor
-     - The ``__repr__`` method of *Curve* types is changed for better display in associated
+     - The ``__repr__`` method of all *Curve* types, *FXRates* and *FXForwards* types, the *Solver*,
+       and all *Period* types are changed for better display in associated
        packages.
        `(387) <https://github.com/attack68/rateslib/pull/387>`_
-   * - Refactor
-     - The ``__repr__`` method of *FXRates* and *FXForwards* types is changed for better
-       display in associated packages.
        `(388) <https://github.com/attack68/rateslib/pull/388>`_
-   * - Refactor
-     - The ``__repr__`` method of *Solver* types is changed for better
-       display in associated packages.
        `(389) <https://github.com/attack68/rateslib/pull/389>`_
+       `(390) <https://github.com/attack68/rateslib/pull/390>`_
    * - Performance
      - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
        500us on average.
