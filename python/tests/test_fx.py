@@ -244,6 +244,42 @@ def usdeur():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
+def test_fxforwards_repr(usdusd, eureur, usdeur) -> None:
+    fxf = FXForwards(
+        FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
+        {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
+    )
+    result = fxf.__repr__()
+    expected = f"<rl.FXForwards:[usd,eur] at {hex(id(fxf))}>"
+    assert result == expected
+
+    fxf = FXForwards(
+        FXRates({
+            "usdeur": 2.0,
+            "usdgbp": 3.0,
+            "usdaud": 4.0,
+            "usdnok": 5.0,
+            "usdsek": 6.0,
+        }, settlement=dt(2022, 1, 3)),
+        {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "gbpgbp": usdusd,
+            "audaud": eureur,
+            "noknok": usdusd,
+            "seksek": eureur,
+            "usdeur": usdeur,
+            "usdaud": usdusd,
+            "eurnok": eureur,
+            "eursek": usdeur,
+            "eurgbp": usdusd,
+        },
+    )
+    result = fxf.__repr__()
+    expected = f"<rl.FXForwards:[usd,eur,+4 others] at {hex(id(fxf))}>"
+    assert result == expected
+
+
 def test_fxforwards_rates_unequal(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),

@@ -41,7 +41,7 @@ email contact through **rateslib@gmail.com**.
    * - Refactor
      - The ``__repr__`` method of *FXRates* and *FXForwards* types is changed for better
        display in associated packages.
-       `(387) <https://github.com/attack68/rateslib/pull/387>`_
+       `(388) <https://github.com/attack68/rateslib/pull/388>`_
    * - Performance
      - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
        500us on average.
