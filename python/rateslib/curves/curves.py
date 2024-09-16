@@ -2658,7 +2658,7 @@ class ProxyCurve(Curve):
         calendar: CalInput | bool | NoInput = False,
         id: str | NoInput = NoInput(0),
     ):
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
         self._is_proxy = True
