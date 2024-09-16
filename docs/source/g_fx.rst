@@ -35,6 +35,14 @@ expected to be used for spot FX rates, and for value conversion from one currenc
    fxr = FXRates(fx_rates={"audusd": 0.62}, settlement=dt(2003, 4, 7))
    fxr.rates_table()
 
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_introduction_fx.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel introductory example" width="20">
+     </a>
+   </div>
+
 :ref:`Read more here<fxr-doc>` about these and other methods of the *FXRates* class .
 
 FX Forwards

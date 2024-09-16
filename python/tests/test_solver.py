@@ -161,12 +161,7 @@ def test_solver_repr():
         (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
     ]
     s = np.array([1.0, 1.6, 2.0])
-    solver = Solver(
-        curves=[curve],
-        instruments=instruments,
-        s=s,
-        id="S_ID"
-    )
+    solver = Solver(curves=[curve], instruments=instruments, s=s, id="S_ID")
     result = solver.__repr__()
     expected = f"<rl.Solver:S_ID at {hex(id(solver))}>"
     assert result == expected

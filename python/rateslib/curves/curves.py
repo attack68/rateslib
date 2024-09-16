@@ -1929,6 +1929,11 @@ class CompositeCurve(IndexCurve):
     mathematically derive.
 
     .. ipython:: python
+       :suppress:
+
+       from datetime import datetime as dt
+
+    .. ipython:: python
 
        from rateslib.curves import LineCurve, CompositeCurve
        line_curve1 = LineCurve(
