@@ -46,6 +46,18 @@ def test_rates() -> None:
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
 
 
+def test_rates_repr():
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+    result = fxr.__repr__()
+    expected = f"<rl.FXRates:[usd,eur,gbp] at {hex(id(fxr))}>"
+    assert result == expected
+
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5, "audcad": 2.6, "usdaud": 1.2, "cadjpy": 100})
+    result = fxr.__repr__()
+    expected = f"<rl.FXRates:[usd,eur,+4 others] at {hex(id(fxr))}>"
+    assert result == expected
+
+
 def test_fx_update_blank() -> None:
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     result = fxr.update()
@@ -230,6 +242,42 @@ def eureur():
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
     return Curve(nodes=nodes, interpolation="log_linear")
+
+
+def test_fxforwards_repr(usdusd, eureur, usdeur) -> None:
+    fxf = FXForwards(
+        FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
+        {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
+    )
+    result = fxf.__repr__()
+    expected = f"<rl.FXForwards:[usd,eur] at {hex(id(fxf))}>"
+    assert result == expected
+
+    fxf = FXForwards(
+        FXRates({
+            "usdeur": 2.0,
+            "usdgbp": 3.0,
+            "usdaud": 4.0,
+            "usdnok": 5.0,
+            "usdsek": 6.0,
+        }, settlement=dt(2022, 1, 3)),
+        {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "gbpgbp": usdusd,
+            "audaud": eureur,
+            "noknok": usdusd,
+            "seksek": eureur,
+            "usdeur": usdeur,
+            "usdaud": usdusd,
+            "eurnok": eureur,
+            "eursek": usdeur,
+            "eurgbp": usdusd,
+        },
+    )
+    result = fxf.__repr__()
+    expected = f"<rl.FXForwards:[usd,eur,+4 others] at {hex(id(fxf))}>"
+    assert result == expected
 
 
 def test_fxforwards_rates_unequal(usdusd, eureur, usdeur) -> None:
