@@ -34,6 +34,10 @@ email contact through **rateslib@gmail.com**.
      - :red:`Minor Breaking Change!` *PPSpline* equality is now *True* if both spline
        coefficients are unsolved, i.e. *None*.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
+   * - Refactor
+     - The ``__repr__`` method of *Curve* types is changed for better display in associated
+       packages.
+       `(387) <https://github.com/attack68/rateslib/pull/387>`_
    * - Performance
      - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
        500us on average.
