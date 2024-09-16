@@ -192,6 +192,11 @@ class BasePeriod(metaclass=ABCMeta):
 
     def __repr__(self):
         return (
+            f"<rl.{type(self).__name__} at {hex(id(self))}>"
+        )
+
+    def __str__(self):
+        return (
             f"<{type(self).__name__}: {self.start.strftime('%Y-%m-%d')}->"
             f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
         )
@@ -1805,6 +1810,9 @@ class Cashflow:
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.stub_type = stub_type
         self._rate = rate if rate is NoInput.blank else float(rate)
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def rate(self):
         """

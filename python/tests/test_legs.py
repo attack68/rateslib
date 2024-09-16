@@ -482,7 +482,7 @@ class TestFloatLeg:
             calendar="bus",
         )
         for i in range(2):
-            assert leg.periods[i].__repr__() == expected[i].__repr__()
+            assert leg.periods[i].__str__() == expected[i].__str__()
 
     def test_spread_compound_method_raises(self) -> None:
         with pytest.raises(ValueError, match="`spread_compound_method`"):
