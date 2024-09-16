@@ -146,7 +146,7 @@ class FXRates:
                 f"others] at {hex(id(self))}>"
             )
         else:
-            return f"<rl.FXRates:[{",".join(self.currencies_list)}] at {hex(id(self))}>"
+            return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @property
     def fx_array(self):
