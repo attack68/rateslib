@@ -139,6 +139,15 @@ class FXRates:
         obj.__init_post_obj__()
         return obj
 
+    def __repr__(self):
+        if len(self.currencies_list) > 5:
+            return (
+                f"<rl.FXRates:[{",".join(self.currencies_list[:2])},+{len(self.currencies_list)-2} "
+                f"others] at {hex(id(self))}>"
+            )
+        else:
+            return f"<rl.FXRates:[{",".join(self.currencies_list)}] at {hex(id(self))}>"
+
     @property
     def fx_array(self):
         if self._fx_array is None:

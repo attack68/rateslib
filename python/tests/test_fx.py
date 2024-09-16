@@ -46,6 +46,18 @@ def test_rates() -> None:
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
 
 
+def test_rates_repr():
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+    result = fxr.__repr__()
+    expected = f"<rl.FXRates:[usd,eur,gbp] at {hex(id(fxr))}>"
+    assert result == expected
+
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5, "audcad": 2.6, "usdaud": 1.2, "cadjpy": 100})
+    result = fxr.__repr__()
+    expected = f"<rl.FXRates:[usd,eur,+4 others] at {hex(id(fxr))}>"
+    assert result == expected
+
+
 def test_fx_update_blank() -> None:
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     result = fxr.update()
