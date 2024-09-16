@@ -2,16 +2,16 @@
 
 use crate::dual::{ADOrder, Number, NumberArray2};
 use crate::fx::rates::{Ccy, FXRate, FXRates};
-use chrono::prelude::*;
 use bincode::{deserialize, serialize};
+use chrono::prelude::*;
 use ndarray::Axis;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
 // use pyo3::exceptions::PyValueError;
-use pyo3::types::PyBytes;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
+use pyo3::types::PyBytes;
 
 #[pymethods]
 impl Ccy {
@@ -116,7 +116,12 @@ impl FXRate {
         Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(String, String, Number, Option<NaiveDateTime>)> {
-        Ok(((*(self.pair.0.name)).clone(), (*(self.pair.1.name)).clone(), self.rate.clone(), self.settlement))
+        Ok((
+            (*(self.pair.0.name)).clone(),
+            (*(self.pair.1.name)).clone(),
+            self.rate.clone(),
+            self.settlement,
+        ))
     }
 }
 
