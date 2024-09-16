@@ -326,7 +326,7 @@ class FXForwards:
                 f"+{len(self.currencies_list)-2} others] at {hex(id(self))}>"
             )
         else:
-            return f"<rl.FXForwards:[{",".join(self.currencies_list)}] at {hex(id(self))}>"
+            return f"<rl.FXForwards:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @staticmethod
     def _get_curves_for_currencies(fx_curves, currencies):
