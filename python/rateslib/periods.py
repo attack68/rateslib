@@ -191,9 +191,7 @@ class BasePeriod(metaclass=ABCMeta):
         self.calendar = calendar
 
     def __repr__(self):
-        return (
-            f"<rl.{type(self).__name__} at {hex(id(self))}>"
-        )
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def __str__(self):
         return (
