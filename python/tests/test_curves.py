@@ -1114,6 +1114,36 @@ def test_curve_zero_width_rate_raises(curve) -> None:
         curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
 
 
+class TestCurve:
+    def test_repr(self):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="sofr",
+        )
+        expected = f"<rl.Curve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+
+
+class TestLineCurve:
+    def test_repr(self):
+        curve = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="libor1m",
+        )
+        expected = f"<rl.LineCurve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+
+
 class TestIndexCurve:
     def test_curve_translate_knots_raises(self, curve) -> None:
         curve = Curve(
@@ -1185,6 +1215,13 @@ class TestIndexCurve:
             id="tags_",
         )
         assert curve.rate(dt(2021, 3, 4), "1b", "f") is None
+
+    def test_repr(self):
+        curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
+        )
+        expected = f"<rl.IndexCurve:us_cpi at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
 
 
 class TestCompositeCurve:
@@ -1420,6 +1457,179 @@ class TestCompositeCurve:
         with pytest.raises(ValueError, match="`interpolation` for `index_value` must"):
             cc.index_value(dt(2022, 1, 31), interpolation="bad interp")
 
+    def test_composite_curve_proxies(self) -> None:
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.992}, id="eu")
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1)),
+            fx_curves={
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+        pc = MultiCsaCurve([uu, fxf.curve("usd", "eur")])
+        result = pc[dt(2023, 1, 1)]
+        expected = 0.98900
+        assert abs(result - expected) < 1e-4
+
+        pc = MultiCsaCurve(
+            [
+                fxf.curve("usd", "eur"),
+                uu,
+            ],
+        )
+        result = pc[dt(2023, 1, 1)]
+        assert abs(result - expected) < 1e-4
+
+    def test_composite_curve_no_index_value_raises(self, curve) -> None:
+        cc = CompositeCurve([curve])
+        with pytest.raises(TypeError, match="`index_value` not available"):
+            cc.index_value(dt(2022, 1, 1))
+
+    def test_historic_rate_is_none(self) -> None:
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        cc = CompositeCurve([c1, c2])
+        assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
+
+    def test_repr(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            t=[
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+            ],
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        curve = CompositeCurve([curve1, curve2])
+        expected = f"<rl.CompositeCurve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+        assert isinstance(curve.id, str)
+
+
+class TestMultiCsaCurve:
+    def test_historic_rate_is_none(self) -> None:
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        cc = MultiCsaCurve([c1, c2])
+        assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
+
+    def test_multi_raises(self, line_curve, curve) -> None:
+        with pytest.raises(TypeError, match="Multi-CSA curves must"):
+            MultiCsaCurve([line_curve])
+
+        with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
+            MultiCsaCurve([curve], multi_csa_max_step=3, multi_csa_min_step=4)
+
+    def test_multi_csa_shift(self) -> None:
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        c3 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99979455,  # 3.5%
+                dt(2022, 1, 4): 0.99969869,  # 3.5%
+                dt(2022, 1, 5): 0.99958915,  # 4%
+            },
+            convention="Act365F",
+        )
+        cc = MultiCsaCurve([c1, c2, c3])
+        cc_shift = cc.shift(100, composite=False)
+        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
+            r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
+            r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
+            r3 = cc_shift.rate(dt(2022, 1, 3), "1d")
+            r4 = cc_shift.rate(dt(2022, 1, 4), "1d")
+
+        assert abs(r1 - 5.0) < 1e-3
+        assert abs(r2 - 4.5) < 1e-3
+        assert abs(r3 - 4.5) < 1e-3
+        assert abs(r4 - 5.0) < 1e-3
+
     def test_multi_csa(self) -> None:
         c1 = Curve(
             {
@@ -1474,40 +1684,7 @@ class TestCompositeCurve:
 
         assert abs(r1 - 1.448374) < 1e-3
 
-    def test_composite_curve_proxies(self) -> None:
-        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
-        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="ee")
-        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.992}, id="eu")
-        fxf = FXForwards(
-            fx_rates=FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 1)),
-            fx_curves={
-                "usdusd": uu,
-                "eureur": ee,
-                "eurusd": eu,
-            },
-        )
-        pc = MultiCsaCurve([uu, fxf.curve("usd", "eur")])
-        result = pc[dt(2023, 1, 1)]
-        expected = 0.98900
-        assert abs(result - expected) < 1e-4
-
-        pc = MultiCsaCurve(
-            [
-                fxf.curve("usd", "eur"),
-                uu,
-            ],
-        )
-        result = pc[dt(2023, 1, 1)]
-        assert abs(result - expected) < 1e-4
-
-    def test_multi_raises(self, line_curve, curve) -> None:
-        with pytest.raises(TypeError, match="Multi-CSA curves must"):
-            MultiCsaCurve([line_curve])
-
-        with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
-            MultiCsaCurve([curve], multi_csa_max_step=3, multi_csa_min_step=4)
-
-    def test_multi_csa_shift(self) -> None:
+    def test_repr(self):
         c1 = Curve(
             {
                 dt(2022, 1, 1): 1.0,
@@ -1538,73 +1715,30 @@ class TestCompositeCurve:
             },
             convention="Act365F",
         )
-        cc = MultiCsaCurve([c1, c2, c3])
-        cc_shift = cc.shift(100, composite=False)
-        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
-            r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
-            r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
-            r3 = cc_shift.rate(dt(2022, 1, 3), "1d")
-            r4 = cc_shift.rate(dt(2022, 1, 4), "1d")
+        curve = MultiCsaCurve([c1, c2, c3])
+        expected = f"<rl.MultiCsaCurve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+        assert isinstance(curve.id, str)
 
-        assert abs(r1 - 5.0) < 1e-3
-        assert abs(r2 - 4.5) < 1e-3
-        assert abs(r3 - 4.5) < 1e-3
-        assert abs(r4 - 5.0) < 1e-3
 
-    def test_composite_curve_no_index_value_raises(self, curve) -> None:
-        cc = CompositeCurve([curve])
-        with pytest.raises(TypeError, match="`index_value` not available"):
-            cc.index_value(dt(2022, 1, 1))
-
-    def test_historic_rate_is_none(self) -> None:
-        c1 = Curve(
+class TestProxyCurve:
+    def test_repr(self) -> None:
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
             {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99997260,  # 1%
-                dt(2022, 1, 3): 0.99991781,  # 2%
-                dt(2022, 1, 4): 0.99983564,  # 3%
-                dt(2022, 1, 5): 0.99972608,  # 4%
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
             },
-            convention="Act365F",
         )
-        c2 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99989042,  # 4%
-                dt(2022, 1, 3): 0.99980825,  # 3%
-                dt(2022, 1, 4): 0.99975347,  # 2%
-                dt(2022, 1, 5): 0.99972608,  # 1%
-            },
-            convention="Act365F",
-        )
-        cc = CompositeCurve([c1, c2])
-        assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
-
-
-class TestMultiCsaCurve:
-    def test_historic_rate_is_none(self) -> None:
-        c1 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99997260,  # 1%
-                dt(2022, 1, 3): 0.99991781,  # 2%
-                dt(2022, 1, 4): 0.99983564,  # 3%
-                dt(2022, 1, 5): 0.99972608,  # 4%
-            },
-            convention="Act365F",
-        )
-        c2 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99989042,  # 4%
-                dt(2022, 1, 3): 0.99980825,  # 3%
-                dt(2022, 1, 4): 0.99975347,  # 2%
-                dt(2022, 1, 5): 0.99972608,  # 1%
-            },
-            convention="Act365F",
-        )
-        cc = MultiCsaCurve([c1, c2])
-        assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
+        curve = fxf.curve("cad", "eur")
+        expected = f"<rl.ProxyCurve:{curve.id} at {hex(id(curve))}>"
+        assert curve.__repr__() == expected
+        assert isinstance(curve.id, str)
 
 
 class TestPlotCurve:
