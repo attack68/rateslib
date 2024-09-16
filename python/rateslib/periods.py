@@ -191,6 +191,9 @@ class BasePeriod(metaclass=ABCMeta):
         self.calendar = calendar
 
     def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
+    def __str__(self):
         return (
             f"<{type(self).__name__}: {self.start.strftime('%Y-%m-%d')}->"
             f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
@@ -1806,6 +1809,9 @@ class Cashflow:
         self.stub_type = stub_type
         self._rate = rate if rate is NoInput.blank else float(rate)
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
     def rate(self):
         """
         Return the associated rate initialised with the *Cashflow*. Not used for calculations.
@@ -2441,6 +2447,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
         )
         self.metric = metric
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def cashflows(
         self,
