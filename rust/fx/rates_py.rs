@@ -3,12 +3,13 @@
 use crate::dual::{ADOrder, Number, NumberArray2};
 use crate::fx::rates::{Ccy, FXRate, FXRates};
 use chrono::prelude::*;
+use bincode::{deserialize, serialize};
 use ndarray::Axis;
 use pyo3::prelude::*;
 // use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
 // use pyo3::exceptions::PyValueError;
-// use pyo3::types::PyFloat;
+use pyo3::types::PyBytes;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 
@@ -31,6 +32,18 @@ impl Ccy {
 
     fn __eq__(&self, other: &Self) -> bool {
         self.name == other.name
+    }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(String,)> {
+        Ok(((*(self.name)).clone(),))
     }
 }
 
@@ -92,6 +105,18 @@ impl FXRate {
 
     fn __eq__(&self, other: &Self) -> bool {
         self == other
+    }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(String, String, Number, Option<NaiveDateTime>)> {
+        Ok(((*(self.pair.0.name)).clone(), (*(self.pair.1.name)).clone(), self.rate.clone(), self.settlement))
     }
 }
 
@@ -216,10 +241,20 @@ impl FXRates {
         }
     }
 
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(Vec<FXRate>, Option<Ccy>)> {
+        Ok((self.fx_rates.clone(), Some(self.currencies[0])))
+    }
+
     // Equality
     fn __eq__(&self, other: FXRates) -> bool {
-        println!("{:?}", self);
-        println!("{:?}", other);
         self.eq(&other)
     }
 
