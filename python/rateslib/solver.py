@@ -1044,6 +1044,9 @@ class Solver(Gradients):
         }
         self.iterate()
 
+    def __repr__(self):
+        return f"<rl.Solver:{self.id} at {hex(id(self))}>"
+
     def _parse_instrument(self, value):
         """
         Parses different input formats for an instrument given to the ``Solver``.
