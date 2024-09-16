@@ -22,7 +22,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
-from rateslib.default import NoInput, plot, _drb
+from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64

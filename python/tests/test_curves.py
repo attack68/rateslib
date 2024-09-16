@@ -1115,7 +1115,6 @@ def test_curve_zero_width_rate_raises(curve) -> None:
 
 
 class TestCurve:
-
     def test_repr(self):
         curve = Curve(
             nodes={
@@ -1131,7 +1130,6 @@ class TestCurve:
 
 
 class TestLineCurve:
-
     def test_repr(self):
         curve = LineCurve(
             nodes={
@@ -1140,7 +1138,7 @@ class TestLineCurve:
                 dt(2024, 1, 1): 0.965,
                 dt(2025, 1, 1): 0.955,
             },
-            id="libor1m"
+            id="libor1m",
         )
         expected = f"<rl.LineCurve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
@@ -1220,9 +1218,7 @@ class TestIndexCurve:
 
     def test_repr(self):
         curve = IndexCurve(
-            nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
-            index_base=200.0,
-            id="us_cpi"
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
         )
         expected = f"<rl.IndexCurve:us_cpi at {hex(id(curve))}>"
         assert expected == curve.__repr__()
@@ -1726,7 +1722,6 @@ class TestMultiCsaCurve:
 
 
 class TestProxyCurve:
-
     def test_repr(self) -> None:
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
