@@ -51,6 +51,10 @@ email contact through **rateslib@gmail.com**.
        500us on average.
        `(380) <https://github.com/attack68/rateslib/pull/380>`_
    * - Bug
+     - :class:`~rateslib.fx.FXRates` fix support for pickling which allows multithreading across CPU pools or
+       external serialization.
+       `(393) <https://github.com/attack68/rateslib/pull/393>`_
+   * - Bug
      - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
        `(368) <https://github.com/attack68/rateslib/pull/368>`_
    * - Bug
