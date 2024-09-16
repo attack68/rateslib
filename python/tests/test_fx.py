@@ -254,13 +254,16 @@ def test_fxforwards_repr(usdusd, eureur, usdeur) -> None:
     assert result == expected
 
     fxf = FXForwards(
-        FXRates({
-            "usdeur": 2.0,
-            "usdgbp": 3.0,
-            "usdaud": 4.0,
-            "usdnok": 5.0,
-            "usdsek": 6.0,
-        }, settlement=dt(2022, 1, 3)),
+        FXRates(
+            {
+                "usdeur": 2.0,
+                "usdgbp": 3.0,
+                "usdaud": 4.0,
+                "usdnok": 5.0,
+                "usdsek": 6.0,
+            },
+            settlement=dt(2022, 1, 3),
+        ),
         {
             "usdusd": usdusd,
             "eureur": eureur,

@@ -98,3 +98,7 @@ table.scrollwide td {
   white-space: normal;
   max-width:96px;
 }
+
+.bd-header {
+  background-color: #c4dfe9 !important;
+}
