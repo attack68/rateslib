@@ -46,6 +46,14 @@ def test_rates() -> None:
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
 
 
+def test_fxrates_pickle():
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5}, settlement=dt(2002, 1, 1))
+    import pickle
+    pickled = pickle.dumps(fxr)
+    result = pickle.loads(pickled)
+    assert result == fxr
+
+
 def test_rates_repr():
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     result = fxr.__repr__()
