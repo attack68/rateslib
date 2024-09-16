@@ -45,6 +45,12 @@ email contact through **rateslib@gmail.com**.
      - Creating *IRS* or similar *Instruments* with a ``termination`` of "1b" or business days
        now correctly uses the specified calendar.
        `(378) <https://github.com/attack68/rateslib/pull/378>`_
+   * - Bug
+     - :class:`~rateslib.curves.ProxyCurve`, :class:`~rateslib.curves.CompositeCurve`, and
+       :class:`~rateslib.curves.MultiCsaCurve` now correctly initialise a randomised curve ``id``
+       when one is not provided.
+       `(387) <https://github.com/attack68/rateslib/pull/387>`_
+
 
 1.4.0 (28th Aug 2024)
 ***********************

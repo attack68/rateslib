@@ -1129,6 +1129,7 @@ class TestCurve:
         expected = f"<rl.Curve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
 
+
 class TestLineCurve:
 
     def test_repr(self):
@@ -1554,6 +1555,7 @@ class TestCompositeCurve:
         curve = CompositeCurve([curve1, curve2])
         expected = f"<rl.CompositeCurve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
+        assert isinstance(curve.id, str)
 
 
 class TestMultiCsaCurve:
@@ -1720,6 +1722,28 @@ class TestMultiCsaCurve:
         curve = MultiCsaCurve([c1, c2, c3])
         expected = f"<rl.MultiCsaCurve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
+        assert isinstance(curve.id, str)
+
+
+class TestProxyCurve:
+
+    def test_repr(self) -> None:
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+            },
+        )
+        curve = fxf.curve("cad", "eur")
+        expected = f"<rl.ProxyCurve:{curve.id} at {hex(id(curve))}>"
+        assert curve.__repr__() == expected
+        assert isinstance(curve.id, str)
 
 
 class TestPlotCurve:
