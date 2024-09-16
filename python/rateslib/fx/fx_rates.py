@@ -142,7 +142,7 @@ class FXRates:
     def __repr__(self):
         if len(self.currencies_list) > 5:
             return (
-                f"<rl.FXRates:[{",".join(self.currencies_list[:2])},+{len(self.currencies_list)-2} "
+                f"<rl.FXRates:[{','.join(self.currencies_list[:2])},+{len(self.currencies_list)-2} "
                 f"others] at {hex(id(self))}>"
             )
         else:
