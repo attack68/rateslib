@@ -13,7 +13,7 @@ from rateslib import *
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'RatesLib'
+project = 'Rateslib'
 copyright = '2022, JHM Darbyshire'
 author = 'JHM Darbyshire'
 release = 'dev'
@@ -32,7 +32,11 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
     "sphinx_automodapi.automodapi",
     "nbsphinx",
+    "sphinx.ext.intersphinx",
 ]
+intersphinx_mapping = {
+    "rateslibxl": ("https://rateslib.com/excel/latest/", None),
+}
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 

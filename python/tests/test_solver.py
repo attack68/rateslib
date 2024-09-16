@@ -145,6 +145,28 @@ def test_basic_solver(algo) -> None:
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
 
 
+def test_solver_repr():
+    curve = Curve(
+        {
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2025, 1, 1): 1.0,
+        },
+        id="v",
+    )
+    instruments = [
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+    ]
+    s = np.array([1.0, 1.6, 2.0])
+    solver = Solver(curves=[curve], instruments=instruments, s=s, id="S_ID")
+    result = solver.__repr__()
+    expected = f"<rl.Solver:S_ID at {hex(id(solver))}>"
+    assert result == expected
+
+
 @pytest.mark.parametrize("algo", ["gauss_newton", "levenberg_marquardt", "gradient_descent"])
 def test_solver_reiterate(algo) -> None:
     # test that curves are properly updated by a reiterate

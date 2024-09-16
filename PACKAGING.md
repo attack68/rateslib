@@ -72,3 +72,13 @@ To Make a New Release:
 5) Add a new release table to the whats new doc page.
 6) Docs conf.py should record the release name version as "dev".
 7) spec loader dev flag should be True
+
+DOCS interactions:
+
+There should always be a /latest/ release named "dev" for rateslib and rateslib-excel.
+Each "dev" release can point to each other's hyperlinks on the /latest/ directory.
+For rateslib-excel the files it points towards at rateslib should be for a specific version. This is usually 
+configurable in the conf intersphinx section.
+The video tutorials in the rateslib-excel docs that are pointed to from rateslib can be the /latest/ files.
+
+

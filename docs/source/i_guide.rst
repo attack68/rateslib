@@ -21,6 +21,14 @@ These functionalities are interlinked and potentially dependent upon each
 other. This guide's intention is to introduce them in a structured way and give typical examples how they
 are used in practice.
 
+.. |ico3| image:: _static/rlxl32.png
+   :height: 20px
+
+.. note::
+
+   If you see this icon |ico3| at any point after a section it will link to a section in the
+   *rateslib-excel* documentation which may demonstrate the equivalent Python example in Excel.
+
 Let's start with the fundamental constructors *Curve* and *Instrument*.
 
 A trivial example
@@ -70,9 +78,18 @@ the generated cashflows.
 
    irs.cashflows(usd_curve)
 
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_introduction.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel introductory example" width="20">
+     </a>
+   </div>
+
 If instead of this trivial, minimalist example you would like to see a real world
 example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
 click the link.
+
 
 Quick look at FX
 ==================
@@ -96,6 +113,14 @@ We now have a mechanism by which to specify values in other currencies.
 
    irs.npv(usd_curve, fx=fxr, base="usd")
    irs.npv(usd_curve, fx=fxr, base="eur")
+
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_introduction_fx.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel introductory example" width="20">
+     </a>
+   </div>
 
 One observes that the value returned here is not a float but a :class:`~rateslib.dual.Dual`
 which is part of *rateslib's* AD framework. This is the first example of capturing a
@@ -139,6 +164,14 @@ Curve for EUR cashflows, collateralised in USD**, and similarly for other entrie
    fxf.rate("eurusd", settlement=dt(2023, 1, 1))
    fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 1)])
 
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_introduction_fx_forwards.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel FXForwards introduction" width="20">
+     </a>
+   </div>
+
 *FXForwards* objects are comprehensive and more information regarding all of the
 :ref:`FX features<fx-doc>` is available in this link.
 
@@ -176,12 +209,20 @@ used in the example above (as expected).
 
    fxs = FXSwap(
        effective=dt(2022, 2, 1),
-       termination="3m",
+       termination="3m",  # May-1 is a holiday, May-2 is business end date.
        pair="eurusd",
        notional=20e6,
        calendar="tgt|fed",
    )
    fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_fxswap_intro.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel FXSwap introduction" width="20">
+     </a>
+   </div>
 
 Securities and bonds
 --------------------
@@ -208,6 +249,18 @@ risk calculations.
 .. image:: _static/ust_10y.gif
   :alt: US Treasury example using the FixedRateBond class
   :width: 611
+
+.. raw:: html
+
+   <div class="clear" style="padding-bottom: 1em;"></div>
+
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_bond_intro.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel FixedRateBond introduction" width="20">
+     </a>
+   </div>
 
 .. toctree::
     :hidden:
@@ -268,6 +321,14 @@ a set of prices, ``s``. The calibrating *Instruments* associated with those pric
        instrument_labels=["6M", "1Y"],
        id="us_rates"
    )
+
+.. raw:: html
+
+   <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_introduction_solver.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="Rateslib-excel Solver introduction" width="20">
+     </a>
+   </div>
 
 Solving was a success! Observe that the DFs on the *Curve* have been updated:
 

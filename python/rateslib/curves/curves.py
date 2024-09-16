@@ -23,7 +23,7 @@ from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_ca
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
 from rateslib.curves.rs import CurveObj, LogLinearInterpolator, _get_interpolator
-from rateslib.default import NoInput, plot
+from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import (
     ADOrder,
     Dual,
@@ -170,6 +170,9 @@ class _Serialize:
         self.csolve()
         return None
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
+
 
 class Curve(_Serialize):
     """
@@ -306,7 +309,7 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
-        id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
+        id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         interpolator = self._validate_curve_interpolation(interpolation)
         self.obj = CurveObj(nodes, interpolator, _get_adorder(ad), id)
 
@@ -1977,6 +1980,11 @@ class CompositeCurve(IndexCurve):
     mathematically derive.
 
     .. ipython:: python
+       :suppress:
+
+       from datetime import datetime as dt
+
+    .. ipython:: python
 
        from rateslib.curves import LineCurve, CompositeCurve
        line_curve1 = LineCurve(
@@ -2147,7 +2155,7 @@ class CompositeCurve(IndexCurve):
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
     ) -> None:
-        self._id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
@@ -2710,7 +2718,7 @@ class ProxyCurve(Curve):
         calendar: CalInput | bool | NoInput = False,
         id: str | NoInput = NoInput(0),
     ):
-        self._id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
         self._is_proxy = True

@@ -13,8 +13,8 @@ No-Derivatives 4.0 International Licence**.
    <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
       <thead style="background-color: #ebf0f4;">
         <tr>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic, Personal, or Educational Use</th>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use: Banks, Funds, Accountants, Treasuries</th>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic or Home Educational Use</th>
+          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use by Anyone in: Banks, Funds, Accountants, Treasuries</th>
         </tr>
       </thead>
       <tbody>
@@ -43,7 +43,7 @@ No-Derivatives 4.0 International Licence**.
 
 .. warning::
 
-   This means that you **cannot**;
+   This means that you **cannot** (without a licence extension);
 
    - Use the library or code for any form of commercial or profit based activity. You cannot use it
      inside a bank, fund company, brokerage firm, or any form of investment firm where

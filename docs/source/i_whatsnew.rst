@@ -34,10 +34,22 @@ email contact through **rateslib@gmail.com**.
      - :red:`Minor Breaking Change!` *PPSpline* equality is now *True* if both spline
        coefficients are unsolved, i.e. *None*.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
+   * - Refactor
+     - The ``__repr__`` method of all *Curve* types, *FXRates* and *FXForwards* types, the *Solver*,
+       and all *Period* types are changed for better display in associated
+       packages.
+       `(387) <https://github.com/attack68/rateslib/pull/387>`_
+       `(388) <https://github.com/attack68/rateslib/pull/388>`_
+       `(389) <https://github.com/attack68/rateslib/pull/389>`_
+       `(390) <https://github.com/attack68/rateslib/pull/390>`_
    * - Performance
      - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
        500us on average.
        `(380) <https://github.com/attack68/rateslib/pull/380>`_
+   * - Bug
+     - :class:`~rateslib.fx.FXRates` fix support for pickling which allows multithreading across CPU pools or
+       external serialization.
+       `(393) <https://github.com/attack68/rateslib/pull/393>`_
    * - Bug
      - The ``eom`` parameter for spec *"us_gb"* and *"us_gb_tsy"* and associated aliases is corrected to *True*.
        `(368) <https://github.com/attack68/rateslib/pull/368>`_
@@ -45,6 +57,12 @@ email contact through **rateslib@gmail.com**.
      - Creating *IRS* or similar *Instruments* with a ``termination`` of "1b" or business days
        now correctly uses the specified calendar.
        `(378) <https://github.com/attack68/rateslib/pull/378>`_
+   * - Bug
+     - :class:`~rateslib.curves.ProxyCurve`, :class:`~rateslib.curves.CompositeCurve`, and
+       :class:`~rateslib.curves.MultiCsaCurve` now correctly initialise a randomised curve ``id``
+       when one is not provided.
+       `(387) <https://github.com/attack68/rateslib/pull/387>`_
+
 
 1.4.0 (28th Aug 2024)
 ***********************

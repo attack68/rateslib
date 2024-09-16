@@ -69,6 +69,30 @@ def line_curve():
     return LineCurve(nodes=nodes, interpolation="linear", convention="act365f")
 
 
+@pytest.mark.parametrize(
+    "object",
+    [
+        FixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
+        Cashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd"),
+        IndexCashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd", index_base=100.0),
+        IndexFixedPeriod(
+            dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0
+        ),
+        FloatPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m"),
+        FXCallPeriod(
+            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+        ),
+        FXPutPeriod(
+            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+        ),
+    ],
+)
+def test_repr(object):
+    result = object.__repr__()
+    expected = f"<rl.{type(object).__name__} at {hex(id(object))}>"
+    assert result == expected
+
+
 class TestFXandBase:
     def test_fx_and_base_raise(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="curve")
