@@ -100,6 +100,66 @@ def simple_solver():
     return solver
 
 
+@pytest.mark.parametrize(
+    "inst",
+    [
+        IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        STIRFuture(
+            dt(2022, 3, 16),
+            dt(2022, 6, 15),
+            "Q",
+            curves="eureur",
+            bp_value=25.0,
+            contracts=-1,
+        ),
+        FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        SBS(
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            curves=["eureur", "eureur", "eurusd", "eureur"],
+            notional=-1e6,
+        ),
+        ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        ZCIS(dt(2022, 1, 1), "1Y", "A", curves=["usdusd", "usdusd", "eu_cpi", "usdusd"]),
+        IIRS(
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            curves=["eu_cpi", "eureur", "eureur", "eureur"],
+            notional=1e6,
+        ),
+        XCS(  # XCS - FloatFloat
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            currency="usd",
+            leg2_currency="eur",
+            curves=["usdusd", "usdusd", "eureur", "eurusd"],
+            notional=1e6,
+        ),
+        FXSwap(
+            dt(2022, 7, 1),
+            "3M",
+            currency="usd",
+            leg2_currency="eur",
+            curves=["usdusd", "usdusd", "eureur", "eureur"],
+            notional=-1e6,
+        ),
+        FXExchange(
+            settlement=dt(2022, 10, 1),
+            pair="eurusd",
+            curves=[None, "eureur", None, "usdusd"],
+            notional=-1e6 * 25 / 74.27,
+        ),
+    ],
+)
+def test_instrument_repr(inst):
+    result = inst.__repr__()
+    expected = f"<rl.{type(inst).__name__} at {hex(id(inst))}>"
+    assert result == expected
+
+
 class TestCurvesandSolver:
     def test_get_curve_from_solver(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")

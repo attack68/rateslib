@@ -49,6 +49,7 @@ def test_rates() -> None:
 def test_fxrates_pickle():
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5}, settlement=dt(2002, 1, 1))
     import pickle
+
     pickled = pickle.dumps(fxr)
     result = pickle.loads(pickled)
     assert result == fxr

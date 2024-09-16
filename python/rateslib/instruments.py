@@ -857,6 +857,9 @@ class BaseMixin:
         """
         pass  # pragma: no cover
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
 
 class Value(BaseMixin):
     """
