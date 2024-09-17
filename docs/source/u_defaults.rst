@@ -247,6 +247,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/fra.rst
     spec/fixedratebond.rst
     spec/bill.rst
+    spec/stir.rst
 
 
 The NoInput argument
