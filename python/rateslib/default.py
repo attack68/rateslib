@@ -321,10 +321,11 @@ Miscellaneous:\n
         return _
 
 
-def plot(x, y: list, labels=[]):
+def plot(x, y: list, labels=NoInput(0)):
     import matplotlib.dates as mdates  # type: ignore[import]
     import matplotlib.pyplot as plt  # type: ignore[import]
 
+    labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
     for _y in y:
@@ -346,7 +347,7 @@ def plot(x, y: list, labels=[]):
     return fig, ax, lines
 
 
-def plot3d(x, y, z, labels=[]):
+def plot3d(x, y, z, labels=None):
     import matplotlib.pyplot as plt  # type: ignore[import]
     from matplotlib import cm  # type: ignore[import]
 

@@ -580,29 +580,29 @@ def test_fxforwards_position_not_dual(usdusd, eureur, usdeur) -> None:
 
 def test_recursive_chain() -> None:
     T = np.array([[1, 1], [0, 1]])
-    result = FXForwards._get_recursive_chain(T, 1, 0)
+    result = FXForwards._get_recursive_chain(T, 1, 0, [], [])
     expected = True, [{"col": 0}]
     assert result == expected
 
-    result = FXForwards._get_recursive_chain(T, 0, 1)
+    result = FXForwards._get_recursive_chain(T, 0, 1, [], [])
     expected = True, [{"row": 1}]
     assert result == expected
 
 
 def test_recursive_chain3() -> None:
     T = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 2, 0)
+    result = FXForwards._get_recursive_chain(T, 2, 0, [], [])
     expected = True, [{"col": 1}, {"col": 0}]
     assert result == expected
 
-    result = FXForwards._get_recursive_chain(T, 0, 2)
+    result = FXForwards._get_recursive_chain(T, 0, 2, [], [])
     expected = True, [{"row": 1}, {"row": 2}]
     assert result == expected
 
 
 def test_recursive_chain_interim_broken_path() -> None:
     T = np.array([[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 0, 3)
+    result = FXForwards._get_recursive_chain(T, 0, 3, [], [])
     expected = True, [{"row": 2}, {"row": 3}]
     assert result == expected
 

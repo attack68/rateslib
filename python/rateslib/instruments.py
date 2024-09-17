@@ -9062,15 +9062,15 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args,
-        strike=[NoInput(0), NoInput(0)],
-        premium=[NoInput(0), NoInput(0)],
+        strike=(NoInput(0), NoInput(0)),
+        premium=(NoInput(0), NoInput(0)),
         metric: str = "vol",
         **kwargs,
     ):
         super(FXOptionStrat, self).__init__(
             *args,
-            strike=strike,
-            premium=premium,
+            strike=list(strike),
+            premium=list(premium),
             **kwargs,
         )
         self.kwargs["metric"] = metric
@@ -9158,8 +9158,8 @@ class FXStraddle(FXOptionStrat, FXOption):
     rate_weight_vol = [0.5, 0.5]
     _rate_scalar = 100.0
 
-    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], metric="vol", **kwargs):
-        super(FXOptionStrat, self).__init__(*args, premium=premium, **kwargs)
+    def __init__(self, *args, premium=(NoInput(0), NoInput(0)), metric="vol", **kwargs):
+        super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)
         self.kwargs["metric"] = metric
         self.periods = [
             FXPut(
@@ -9260,12 +9260,14 @@ class FXStrangle(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args,
-        strike=[NoInput(0), NoInput(0)],
-        premium=[NoInput(0), NoInput(0)],
+        strike=(NoInput(0), NoInput(0)),
+        premium=(NoInput(0), NoInput(0)),
         metric="single_vol",
         **kwargs,
     ):
-        super(FXOptionStrat, self).__init__(*args, strike=strike, premium=premium, **kwargs)
+        super(FXOptionStrat, self).__init__(
+            *args, strike=list(strike), premium=list(premium), **kwargs
+        )
         self.kwargs["metric"] = metric
         self._is_fixed_delta = [
             isinstance(self.kwargs["strike"][0], str)
@@ -9593,17 +9595,17 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args,
-        strike=[NoInput(0), NoInput(0), NoInput(0)],
-        premium=[NoInput(0), NoInput(0), NoInput(0), NoInput(0)],
-        notional=[NoInput(0), NoInput(0)],
+        strike=(NoInput(0), NoInput(0), NoInput(0)),
+        premium=(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
+        notional=(NoInput(0), NoInput(0)),
         metric="single_vol",
         **kwargs,
     ):
         super(FXOptionStrat, self).__init__(
             *args,
-            premium=premium,
-            strike=strike,
-            notional=notional,
+            premium=list(premium),
+            strike=list(strike),
+            notional=list(notional),
             **kwargs,
         )
         self.kwargs["notional"][1] = (
@@ -10334,7 +10336,7 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         )  # pragma: no cover
 
 
-def _get(kwargs: dict, leg: int = 1, filter=[]):
+def _get(kwargs: dict, leg: int = 1, filter=()):
     """
     A parser to return kwarg dicts for relevant legs.
     Internal structuring only.

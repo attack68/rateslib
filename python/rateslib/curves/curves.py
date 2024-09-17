@@ -1091,9 +1091,9 @@ class Curve(_Serialize):
         tenor: str,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[Curve] = [],
+        comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
-        labels: list[str] = [],
+        labels: list[str] | NoInput = NoInput(0),
     ):
         """
         Plot given forward tenor rates from the curve.
@@ -1123,6 +1123,8 @@ class Curve(_Serialize):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
         upper_tenor = tenor.upper()
         x, y = self._plot_rates(upper_tenor, left, right)
         y_ = [y] if not difference else []
@@ -1840,9 +1842,9 @@ class IndexCurve(Curve):
         self,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[Curve] = [],
+        comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
-        labels: list[str] = [],
+        labels: list[str] | NoInput = NoInput(0),
     ):
         """
         Plot given forward tenor rates from the curve.
@@ -1872,6 +1874,8 @@ class IndexCurve(Curve):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
         if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
@@ -2679,6 +2683,8 @@ class ProxyCurve(Curve):
             self.fx_forwards.transform,
             self.coll_idx,
             self.cash_idx,
+            [],
+            [],
         )[1]
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 

@@ -125,7 +125,7 @@ ignore = [
     "SIM116",  # use a dict instead of successive ifs: off due to performance degradation.
     "SIM108",  # ternary operators: off due to code coverage degradation.
     "B008",  # function calls in argument defaults, e.g. NoInput(0)
-    "B006",  # mutable data structures for argument defaults, e.g. []
+    # "B006",  # mutable data structures for argument defaults, e.g. []
     "B904",  # raising within except clauses
     "B028",  # no explicit stack level
 ]
