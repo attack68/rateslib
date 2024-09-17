@@ -2679,6 +2679,8 @@ class ProxyCurve(Curve):
             self.fx_forwards.transform,
             self.coll_idx,
             self.cash_idx,
+            [],
+            [],
         )[1]
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 

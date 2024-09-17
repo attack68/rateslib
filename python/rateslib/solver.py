@@ -913,7 +913,7 @@ class Solver(Gradients):
         curves: list | tuple = (),
         surfaces: list | tuple = (),
         instruments: tuple[tuple] | list[tuple] = (),
-        s: list[float] = [],
+        s: tuple[float] | list[float] = (),
         weights: list | NoInput = NoInput(0),
         algorithm: str | NoInput = NoInput(0),
         fx: FXForwards | FXRates | NoInput = NoInput(0),

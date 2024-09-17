@@ -371,8 +371,8 @@ class FXForwards:
         T: np.ndarray,
         start_idx: int,
         search_idx: int,
-        traced_paths: list[int] = [],
-        recursive_path: list[dict] = [],
+        traced_paths: list[int],
+        recursive_path: list[dict],
     ) -> tuple[bool, list[dict]]:
         """
         Recursively calculate map from a cash currency to another via collateral curves.
@@ -531,7 +531,7 @@ class FXForwards:
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
             if path is NoInput.blank:
-                path = self._get_recursive_chain(self.transform, f_idx, d_idx)[1]
+                path = self._get_recursive_chain(self.transform, f_idx, d_idx, [], [])[1]
             return d_idx, f_idx, path
 
         # perform a fast conversion if settlement aligns with known dates,
@@ -870,7 +870,7 @@ class FXForwards:
         """
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         cash_idx, coll_idx = self.currencies[cash_ccy], self.currencies[coll_ccy]
-        path = self._get_recursive_chain(self.transform, coll_idx, cash_idx)[1]
+        path = self._get_recursive_chain(self.transform, coll_idx, cash_idx, [], [])[1]
         end = list(self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.keys())[-1]
         days = (end - self.immediate).days
         nodes = {
