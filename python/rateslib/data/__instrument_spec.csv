@@ -2,8 +2,8 @@
 meta,meta,currency,str,TES,usd,usd,gbp,eur,sek,nok,chf,cad,cad,jpy,aud,aud,aud,eur,eur,eur,sek,nok,nok,eur/usd,gbp/usd,eur/gbp,gbp/eur,jpy/usd,eur,gbp,usd,gbp,sek_iirs,eur,nok,usd,usd,gbp,eur,eur,eur,eur,sek,nok,cad,usd,sek,gbp,sek,eur,eur,eur,nok,nok,usd,usd,usd,eur,eur,eur,gbp
 meta,meta,instrument,str,none,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,irs,xcs,xcs,xcs,xcs,xcs,zcis,zcis,zcis,zcs,iirs,sbs,sbs,frb,frb,frb,frb,frb,frb,frb,frb,frb,frb,bill,bill,ifrb,fra,fra,fra,fra,fra,fra,frn,stir,stir,stir,stir,stir,stir
 meta,meta,sub_type,str,none,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-meta,meta,bloomberg_ticker,str,none,usosfr,usosfr,bpsws,eeswe,sksws,nks,sfsnt,cdso,cdso,jyso,,,,eusa,eusw_v3,,sksw,nksw_v3,nksw,euxoqq,bpxoqq,ebxoqq,ebxoqq,jybss,euswi,bpswit,usswit,,,,,,,,,,,,,,,,,,,,,,,,,SFR,SF1,KTR,,ER,SFI
-meta,meta,eval,str,none,2b,2b,0b,2b,2b,2b,2b,1b,1b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2bx15,0bx15,2b,0b,2b,2b,2b,,,,,,,,,,,,,,,,,,,,,3m SOFR Futures convention,1m Avergaed SOFR Futures,3m ESTR Futures,1m Averaged ESTR futures,Euribor 3m Futures,SONIA 3m Futures
+meta,meta,bloomberg_ticker,str,none,usosfr,usosfr,bpsws,eeswe,sksws,nks,sfsnt,cdso,cdso,jyso,adsw,adsw_q,adso,eusa,eusw_v3,,sksw,nksw_v3,nksw,euxoqq,bpxoqq,ebxoqq,ebxoqq,jybss,euswi,bpswit,usswit,,,,,,,,,,,,,,,,,,,,,,,,,SFR,SF1,KTR,,ER,SFI
+meta,meta,eval,str,none,2b,2b,0b,2b,2b,2b,2b,1b,1b,2b,1b,1b,1b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2b,2bx15,0bx15,2b,0b,2b,2b,2b,,,,,,,,,,,,,,,,,,,,,3m SOFR Futures convention,1m Avergaed SOFR Futures,3m ESTR Futures,1m Averaged ESTR futures,Euribor 3m Futures,SONIA 3m Futures
 meta,meta,description,str,A test column,SOFR IRS conventions,SOFR IRS conventions,SONIA IRS conventions,ESTR IRS conventions,SWESTR IRS conventions,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg1,effective,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 base_derivative,leg1,termination,str,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,3m,3m,6m,1m,3m,6m,,,,,,,
@@ -40,13 +40,13 @@ float,leg1,float_spread,float,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 float,leg1,spread_compound_method,str,,,,,,,,,,,,,,,,,,,,,none_simple,none_simple,none_simple,none_simple,none_simple,,,,,,none_simple,none_simple,,,,,,,,,,,,,,,,,,,,none_simple,,,,,,
 float,leg1,fixings,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 float,leg1,fixing_method,str,,,,,,,,,,,,,,,,,,,,,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,,,,,,ibor,ibor,,,,,,,,,,,,,,,,,,,,rfr_observation_shift,,,,,,
-float,leg1,method_param,int,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,2,2,,,,,,,,,,,,,,,,,,,,5,,,,,,
+float,leg1,method_param,int,,,,,,,,,,,,,,,,,,,,,0,0,0,0,0,,,,,,2,2,,,,,,,,,,,,,,,,,,,,5,,,,,,
 fixed,leg2,fixed_rate,float,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 float,leg2,float_spread,float,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 float,leg2,spread_compound_method,str,,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,,,,none_simple,none_simple,none_simple,none_simple,,,,,,,,,,,,,,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple,,none_simple,none_simple,none_simple,none_simple,none_simple,none_simple
 float,leg2,fixings,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-float,leg2,fixing_method,str,,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,ibor,ibor,rfr_payment_delay,ibor,ibor,ibor,ibor,ibor,ibor,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,,,,rfr_payment_delay,ibor,ibor,ibor,,,,,,,,,,,,,,ibor,ibor,ibor,ibor,ibor,ibor,,rfr_payment_delay,rfr_payment_delay_avg,rfr_payment_delay,rfr_payment_delay_avg,rfr_payment_delay,rfr_payment_delay
-float,leg2,method_param,int,,,,,,,,,,,,2,2,,2,2,2,2,2,2,,,,,,,,,,2,2,2,,,,,,,,,,,,,,2,2,2,2,2,2,,,,,,,
+float,leg2,fixing_method,str,,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,ibor,ibor,rfr_payment_delay,ibor,ibor,ibor,ibor,ibor,ibor,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,rfr_payment_delay,,,,rfr_payment_delay,ibor,ibor,ibor,,,,,,,,,,,,,,ibor,ibor,ibor,ibor,ibor,ibor,,rfr_payment_delay,rfr_payment_delay_avg,rfr_payment_delay,rfr_payment_delay_avg,ibor,rfr_payment_delay
+float,leg2,method_param,int,,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,,,,0,2,2,2,,,,,,,,,,,,,,2,2,2,2,2,2,,0,0,0,0,2,0
 exchange,leg1,initial_exchange,bool,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,,,,,,,,,,,,,
 exchange,leg1,final_exchange,bool,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE,,,,,,,,,,,,,
 exchange,leg2,initial_exchange,bool,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
