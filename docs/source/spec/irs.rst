@@ -227,3 +227,26 @@ BBSW 3m
 
    defaults.spec["aud_irs3"]
    IRS(dt(2000, 1, 1), "10y", spec="aud_irs3").kwargs
+
+NZD
+*****
+
+.. _spec-nzd-irs6:
+
+NFIX 6m
+--------
+
+.. ipython:: python
+
+   defaults.spec["nzd_irs6"]
+   IRS(dt(2000, 1, 1), "10y", spec="nzd_irs6").kwargs
+
+.. _spec-nzd-irs3:
+
+NFIX 3m
+--------
+
+.. ipython:: python
+
+   defaults.spec["nzd_irs3"]
+   IRS(dt(2000, 1, 1), "10y", spec="nzd_irs3").kwargs
