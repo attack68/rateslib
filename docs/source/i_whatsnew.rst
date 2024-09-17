@@ -62,6 +62,10 @@ email contact through **rateslib@gmail.com**.
        :class:`~rateslib.curves.MultiCsaCurve` now correctly initialise a randomised curve ``id``
        when one is not provided.
        `(387) <https://github.com/attack68/rateslib/pull/387>`_
+   * - Bug
+     - Altered the *default specs* for ``eur_stir3`` to reflect a EURIBOR settlement, and
+       ``aud_irs3`` to reflect a no-lagged publication.
+       `(395) <https://github.com/attack68/rateslib/pull/395>`_
 
 
 1.4.0 (28th Aug 2024)
