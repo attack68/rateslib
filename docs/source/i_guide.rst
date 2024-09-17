@@ -424,7 +424,7 @@ expressed in arbitrary currencies. See the
 
 Performance wise, because *rateslib* uses dual number AD upto 2nd order, combined with the
 appropriate analysis, it is shown to calculate a 150x150 *Instrument* cross-gamma grid
-(22,500 elements) from a calculated portfolio NPV in approximately 1 second.
+(22,500 elements) from a calculated portfolio NPV in approximately 250ms.
 
 .. toctree::
     :hidden:
