@@ -161,7 +161,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - NZD
      - :ref:`wlg <spec-nzd-wlg>`
-     -
+     - :ref:`nzd_irs3 <spec-nzd-irs3>`, :ref:`nzd_irs6 <spec-nzd-irs6>`
      -
      -
      -
