@@ -399,15 +399,15 @@ of three things:
 3) Define some reference to a *Curves* mapping with strings using ``curves="my_curve_id"``.
 
 
-If you do *1)* then you have to provide *Curves* at price
+If you do *1)* then you must provide *Curves* at price
 time: ``instrument.npv(curves=my_curve)``.
 
 If you do *2)* then you do not need to provide anything further at price time:
-``instrument.npv()``, or can provide new *Curves* directly, like for *1)*, as an override.
+``instrument.npv()``. But you still can provide *Curves* directly, like for *1)*, as an override.
 
 If you do *3)* then you can provide a :class:`~rateslib.solver.Solver` which contains the *Curves* and will
-resolve the string mapping: ``instrument.npv(solver=my_solver)``. Or you can also provide *Curves*
-directly, like for *1)*.
+resolve the string mapping: ``instrument.npv(solver=my_solver)``. But you can also provide *Curves*
+directly, like for *1)*, as an override.
 
 **Best practice** in *rateslib* is to use *3)*. This is the safest and most flexible approach and
 designed to work best with risk sensitivity calculations also.
