@@ -13,6 +13,14 @@
 Replicating a SOFR Curve & Swap from Bloomberg's SWPM
 ******************************************************
 
+.. raw:: html
+
+   <div style="width: 100%; padding: 1em 0em 1em; text-align: center;">
+     <a href="https://rateslib.com/excel/latest/z_swpm.html" target="_blank">
+       <img src="_static/rlxl32.png" alt="SWPM type Curve in Excel using rateslib-excel" width="20">
+     </a>
+   </div>
+
 At a point in time on Thu 17th Aug 2023 loading the SWPM function in Bloomberg
 presented the following default SOFR curve data:
 
