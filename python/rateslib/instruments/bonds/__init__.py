@@ -8,6 +8,101 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import index_left
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
+from rateslib.instruments.bonds.accrual_convs import (
+    _acc_30e360,
+    _acc_act365_with_1y_and_stub_adjustment,
+    _acc_linear_proportion_by_days,
+    _acc_linear_proportion_by_days_long_stub_split,
+)
+
+ACC_FRAC_FUNCS = {
+    "linear_days": _acc_linear_proportion_by_days,
+    "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
+    "30e360": _acc_30e360,
+    "act365_1y_stub": _acc_act365_with_1y_and_stub_adjustment,
+}
+
+
+class BondConvention:
+    """
+    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond` type.
+
+    Parameters
+    ----------
+    accrual_type: str,
+        The calculation type for accrued interest.
+    v1_type: str
+        The calculation function that defines discounting of the first period of the YTM formula.
+    v2_type: str
+        The calculation function that defines discounting of the regular periods of the YTM formula.
+    v3_type: str
+        The calculation function that defines discounting of the last period of the YTM formula.
+
+    Notes
+    -------
+
+    **Accrual Functions**
+
+    These functions return the fraction of a bond cashflow that is attributed to the settlement
+    date of a transaction as accrued interest. 
+
+    - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
+      end coupon dates of the coupon period, and applies that proportion to the cashflow, which is
+      calculated separately using the conventions for the bond. (Typically used by many bonds, e.g.
+      UK and German GBs)
+      
+      .. math::
+      
+         \\text{accrual fraction} &= r / s \\\\
+         \\text{where,} \\\\
+         r = \\text{Calendar days between last coupon (unadjusted) and settlement \\\\
+         s = \\text{Calendar days between unadjusted coupon dates \\\\
+      
+    - *"linear_days_long_front_split"*: Is the same as above, **except** in the case of long
+      stub periods, which are treated as front stubs. (Primarily implemented to satisfy the
+      US Treasury calculations in Section 31B ii A.356)
+    - *"30e360"*: Ignores the coupon convention on the bond and calculates accrued from the
+      unadjusted last coupon date to settlement with a 30e360 day count convention. (Used by
+      Swedish GBs)
+    - *"Act365_1y_stub"*: Ignores the coupon convention on the bond and calculates accrued from
+      the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
+      periods are adjusted to use *'linear_days'* and periods longer than 1y have additional
+      adjustment. (Used by Canadian GBs)
+
+    **Discounting Functions for YTM Calculation**
+
+    Yield-to-maturity is calculated using the below formula, where specific functions derive
+    some values based on the conventions of a given bond.
+
+    .. math::
+
+       P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
+       P &= v_1 \\left ( c_1 + v3(c_2 + 100) \\right ), \\quad n = 2 \\\\
+       P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
+    where,
+
+    .. math::
+
+       P &= \\text{Dirty price}, \\; n = \\text{Coupon periods remaining} \\\\
+       c_1 &= \\text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\\\
+       c_i &= i \\text{'th cashflow (per 100) on subsequent coupon dates} \\\\
+       v_1 &= \\text{Discount value for the initial, possibly stub, period} \\\\
+       v_2 &= \\text{Discount value for the interim regular periods} \\\\
+       v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
+
+    **v1** Functions
+
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        accrual_type: str,
+        v1_type: str,
+        v2_type: str,
+        v3_type: str,
+    ):
+        self._acc_frac_func = ACC_FRAC_FUNCS[accrual_type.lower()]
+        pass
 
 
 class _AccruedAndYTMMethods:
