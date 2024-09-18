@@ -1,6 +1,7 @@
-from rateslib.dual import DualTypes
-from rateslib.calendars import dcf
 from datetime import datetime
+
+from rateslib.calendars import dcf
+from rateslib.dual import DualTypes
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised
@@ -27,6 +28,7 @@ def _v2_annual(obj, ytm: DualTypes, f: int, *args):
 The calculations for v1 allow more inputs in order to avoid repeat calculations in the chain.
 """
 
+
 def _v1_compounded_by_remaining_accrual_fraction(
     obj,
     ytm: DualTypes,
@@ -52,7 +54,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
     else:
         # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
         fd0 = 1 - acc_frac
-    return v2 ** fd0
+    return v2**fd0
 
 
 def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
@@ -112,7 +114,8 @@ def _v1_comp_stub_act365f(
         )
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
-        return v2 ** fd0
+        return v2**fd0
+
 
 def _v1_simple(
     obj,
@@ -169,14 +172,14 @@ def _v1_simple_1y_adjustment(
 
 
 def _v3_compounded(
-        obj,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v2: DualTypes,
-        *args,
-    ):
+    obj,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    *args,
+):
     """
     Final period uses a compounding approach where the power is determined by the DCF of that
     period under the bond's specified convention.
@@ -187,7 +190,7 @@ def _v3_compounded(
         fd0 = obj.leg1.periods[acc_idx].dcf * f
     else:
         fd0 = 1
-    return v2 ** fd0
+    return v2**fd0
 
 
 def _v3_30e360_u_simple(
@@ -220,4 +223,3 @@ def _v3_simple(
 ):
     v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)
     return v_
-
