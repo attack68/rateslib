@@ -8,7 +8,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import index_left
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
-from rateslib.instruments.bonds.accrual_convs import (
+from rateslib.instruments.bonds.accrual_conventions import (
     _acc_30e360,
     _acc_act365_with_1y_and_stub_adjustment,
     _acc_linear_proportion_by_days,
