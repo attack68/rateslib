@@ -110,13 +110,31 @@ class BondConvention:
 
     def __init__(
         self,
-        accrual_type: str,
+        settle_accrual_type: str,
+        ytm_accrual_type: str,
         v1_type: str,
         v2_type: str,
         v3_type: str,
     ):
-        self._acc_frac_func = ACC_FRAC_FUNCS[accrual_type.lower()]
+        self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
+        self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
+
+        self._kwargs: dict = {
+            "settle_accrual": settle_accrual_type,
+            "ytm_accrual": ytm_accrual_type,
+            "v1": v1_type,
+            "v2": v2_type,
+            "v3": v3_type,
+        }
+
         pass
+
+    @property
+    def kwargs(self) -> dict:
+        """
+        Return the named input parameters for the *BondConvention*.
+        """
+        return self._kwargs
 
 
 class _AccruedAndYTMMethods:
