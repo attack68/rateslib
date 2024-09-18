@@ -23,7 +23,6 @@ from pandas import DataFrame, MultiIndex, Series, concat, isna
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.instruments.bonds import _BondConventions, BondConvention
 from rateslib.calendars import (
     _get_fx_expiry_and_delivery,
     _get_years_and_months,
@@ -36,6 +35,7 @@ from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
+from rateslib.instruments.bonds import BondConvention, _BondConventions
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
