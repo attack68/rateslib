@@ -73,7 +73,7 @@ def _acc_linear_proportion_by_days_long_stub_split(
                 _ = r_ / s_ + (s - r) / s
                 return _ / (obj.leg1.periods[acc_idx].dcf * f)
 
-    return obj._acc_linear_proportion_by_days(settlement, acc_idx, *args)
+    return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
 
 def _acc_30e360(obj, settlement: datetime, acc_idx: int, *args):
@@ -81,7 +81,11 @@ def _acc_30e360(obj, settlement: datetime, acc_idx: int, *args):
     Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
     [Designed primarily for Swedish Government Bonds]
+
+    If stub revert to linear proportioning.
     """
+    if obj.leg1.periods[acc_idx].stub:
+        return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
     _ = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
     _ = 1 - _
@@ -97,14 +101,14 @@ def _acc_act365_with_1y_and_stub_adjustment(obj, settlement: datetime, acc_idx: 
     [this is primarily designed for Canadian Government Bonds]
     """
     if obj.leg1.periods[acc_idx].stub:
-        return obj._acc_linear_proportion_by_days(settlement, acc_idx)
+        return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
-    r = settlement - obj.leg1.schedule.uschedule[acc_idx]
-    s = obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]
+    r = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+    s = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
     if r == s:
         _ = 1.0  # then settlement falls on the coupon date
-    elif r.days > 365.0 / f:
-        _ = 1.0 - ((s - r).days * f) / 365.0  # counts remaining days
+    elif r > 365.0 / f:
+        _ = 1.0 - ((s - r) * f) / 365.0  # counts remaining days
     else:
-        _ = f * r.days / 365.0
+        _ = f * r / 365.0
     return _

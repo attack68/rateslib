@@ -19,7 +19,7 @@ ACC_FRAC_FUNCS = {
     "linear_days": _acc_linear_proportion_by_days,
     "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
     "30e360": _acc_30e360,
-    "act365_1y_stub": _acc_act365_with_1y_and_stub_adjustment,
+    "act365_1y": _acc_act365_with_1y_and_stub_adjustment,
 }
 
 
@@ -43,8 +43,8 @@ class BondConvention:
 
     **Accrual Functions**
 
-    These functions return the fraction of a bond cashflow that is attributed to the settlement
-    date of a transaction as accrued interest. 
+    These functions return the **fraction** of a bond cashflow that is attributed to the settlement
+    date, in order to determine accrued interest. The available input options are; 
 
     - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
       end coupon dates of the coupon period, and applies that proportion to the cashflow, which is
@@ -52,23 +52,37 @@ class BondConvention:
       UK and German GBs)
       
       .. math::
-      
-         \\text{accrual fraction} &= r / s \\\\
-         \\text{where,} \\\\
-         r = \\text{Calendar days between last coupon (unadjusted) and settlement \\\\
-         s = \\text{Calendar days between unadjusted coupon dates \\\\
+       
+         &\\text{Accrual fraction} = r / s \\\\
+         &\\text{where,} \\\\
+         &r = \\text{Calendar days between last coupon (unadjusted) and settlement} \\\\
+         &s = \\text{Calendar days between unadjusted coupon dates} \\\\
       
     - *"linear_days_long_front_split"*: Is the same as above, **except** in the case of long
       stub periods, which are treated as front stubs. (Primarily implemented to satisfy the
       US Treasury calculations in Section 31B ii A.356)
     - *"30e360"*: Ignores the coupon convention on the bond and calculates accrued from the
-      unadjusted last coupon date to settlement with a 30e360 day count convention. (Used by
-      Swedish GBs)
-    - *"Act365_1y_stub"*: Ignores the coupon convention on the bond and calculates accrued from
+      unadjusted last coupon date to settlement with a 30e360 day count convention, **except**
+      stubs revert to *'linear_days'*. (Used by Swedish GBs)
+      
+      .. math::
+       
+         &\\text{Accrual fraction} =  1 - d f  \\\\
+         &\\text{where,} \\\\
+         &d = \\text{30e360 DCF between settlement and next unadjusted coupon date} \\\\
+         &f = \\text{Number of regular coupon periods per year} \\\\
+      
+    - *"Act365_1y"*: Ignores the coupon convention on the bond and calculates accrued from
       the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
       periods are adjusted to use *'linear_days'* and periods longer than 1y have additional
       adjustment. (Used by Canadian GBs)
-
+      
+      .. math::
+       
+         & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
+         & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
+         & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
+         
     **Discounting Functions for YTM Calculation**
 
     Yield-to-maturity is calculated using the below formula, where specific functions derive
