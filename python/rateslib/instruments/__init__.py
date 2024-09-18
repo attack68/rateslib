@@ -35,7 +35,7 @@ from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.bonds import BondConvention, _BondConventions
+from rateslib.instruments.bonds import _BondConventions
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -10441,7 +10441,6 @@ __all__ = [
     "BaseDerivative",
     "BaseMixin",
     "Bill",
-    "BondConvention",
     "BondMixin",
     "BondFuture",
     "FRA",
