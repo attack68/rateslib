@@ -14,12 +14,43 @@ from rateslib.instruments.bonds.accrual_conventions import (
     _acc_linear_proportion_by_days,
     _acc_linear_proportion_by_days_long_stub_split,
 )
+from rateslib.instruments.bonds.discount_conventions import (
+    _v1_compounded_by_remaining_accrual_fraction,
+    _v1_simple,
+    _v1_comp_stub_act365f,
+    _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+    _v1_simple_1y_adjustment,
+    _v2_,
+    _v2_annual,
+    _v3_simple,
+    _v3_compounded,
+    _v3_30e360_u_simple
+)
 
 ACC_FRAC_FUNCS = {
     "linear_days": _acc_linear_proportion_by_days,
     "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
     "30e360": _acc_30e360,
-    "act365_1y": _acc_act365_with_1y_and_stub_adjustment,
+    "act365f_1y": _acc_act365_with_1y_and_stub_adjustment,
+}
+
+V1_FUNCS = {
+    "compounding": _v1_compounded_by_remaining_accrual_fraction,
+    "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+    "compounding_stub_act365f": _v1_comp_stub_act365f,
+    "simple": _v1_simple,
+    "simple_long_stub_compounding": _v1_simple_1y_adjustment,
+}
+
+V2_FUNCS = {
+    "regular": _v2_,
+    "annual": _v2_annual,
+}
+
+V3_FUNCS = {
+    "compounding": _v3_compounded,
+    "simple": _v3_simple,
+    "simple_30e360": _v3_30e360_u_simple,
 }
 
 
@@ -118,6 +149,9 @@ class BondConvention:
     ):
         self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
         self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
+        self._v1 = V1_FUNCS[v1_type.lower()]
+        self._v2 = V2_FUNCS[v2_type.lower()]
+        self._v3 = V3_FUNCS[v3_type.lower()]
 
         self._kwargs: dict = {
             "settle_accrual": settle_accrual_type,
@@ -127,14 +161,99 @@ class BondConvention:
             "v3": v3_type,
         }
 
-        pass
-
     @property
     def kwargs(self) -> dict:
         """
         Return the named input parameters for the *BondConvention*.
         """
         return self._kwargs
+
+UK_GB = BondConvention(
+    # UK government bond conventions
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
+US_GB = BondConvention(
+    # US Treasury street convention
+    settle_accrual_type="linear_days_long_front_split",
+    ytm_accrual_type="linear_days_long_front_split",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
+US_GB_TSY = BondConvention(
+    # US Treasury treasury convention
+    settle_accrual_type="linear_days_long_front_split",
+    ytm_accrual_type="linear_days_long_front_split",
+    v1_type="simple_long_stub_compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
+SE_GB = BondConvention(
+    # Swedish government bonds
+    settle_accrual_type="30e360",
+    ytm_accrual_type="30e360",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="simple_30e360",
+)
+
+CA_GB = BondConvention(
+    # Canadian government bonds
+    settle_accrual_type="act365f_1y",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="simple_30e360",
+)
+
+DE_GB = BondConvention(
+    # German government bonds
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
+FR_GB = BondConvention(
+    # French OATs
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
+IT_GB = BondConvention(
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding_final_simple",
+    v2_type="annual",
+    v3_type="compounding",
+)
+
+NO_GB = BondConvention(
+    settle_accrual_type="act365f_1y",
+    ytm_accrual_type="act365f_1y",
+    v1_type="compounding_stub_act365f",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
+NL_GB = BondConvention(
+    settle_accrual_type="linear_days_long_front_split",
+    ytm_accrual_type="linear_days_long_front_split",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
 
 class _AccruedAndYTMMethods:
