@@ -5,8 +5,7 @@
 
    import warnings
    warnings.filterwarnings('always')
-   from rateslib.solver import *
-   from rateslib.instruments import *
+   from rateslib import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -130,8 +129,7 @@ the optimizer will update the curves.
 
 .. plot::
 
-   from rateslib.curves import *
-   from rateslib.instruments import *
+   from rateslib import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -190,8 +188,7 @@ calibrated.
 
 .. plot::
 
-   from rateslib.curves import *
-   from rateslib.instruments import *
+   from rateslib import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -389,8 +386,7 @@ example we establish a new cash-collateral discount curve and use
 
 .. plot::
 
-   from rateslib.curves import *
-   from rateslib.instruments import *
+   from rateslib import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -562,8 +558,7 @@ We can plot all five curves defined above by the 3 fundamental curves,
 
 .. plot::
 
-   from rateslib.curves import *
-   from rateslib.instruments import *
+   from rateslib import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -594,8 +589,7 @@ We can plot all five curves defined above by the 3 fundamental curves,
 
 .. plot::
 
-   from rateslib.curves import *
-   from rateslib.instruments import *
+   from rateslib import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np

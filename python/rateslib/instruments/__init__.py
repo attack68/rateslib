@@ -1,5 +1,12 @@
 # Sphinx substitutions
 
+"""
+.. ipython:: python
+   :suppress:
+
+   from rateslib import *
+"""
+
 from __future__ import annotations
 
 import abc
@@ -16,7 +23,7 @@ from pandas import DataFrame, MultiIndex, Series, concat, isna
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.bonds import _BondConventions
+from rateslib.instruments.bonds import _BondConventions, BondConvention
 from rateslib.calendars import (
     _get_fx_expiry_and_delivery,
     _get_years_and_months,
@@ -4867,7 +4874,7 @@ class BondFuture(Sensitivities):
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     """
-    Abstract base class with common parameters for many ``Derivative`` subclasses.
+    Abstract base class with common parameters for many *Derivative* subclasses.
 
     Parameters
     ----------
@@ -6859,8 +6866,8 @@ class SBS(BaseDerivative):
 
 class FRA(Sensitivities, BaseMixin):
     """
-    Create a forward rate agreement composing single period :class:`~rateslib.periods.FixedLeg`
-    and :class:`~rateslib.periods.FloatLeg` valued in a customised manner.
+    Create a forward rate agreement composing single period :class:`~rateslib.legs.FixedLeg`
+    and :class:`~rateslib.legs.FloatLeg` valued in a customised manner.
 
     Parameters
     ----------
@@ -10428,3 +10435,40 @@ def _upper(val: str | NoInput):
     if isinstance(val, str):
         return val.upper()
     return val
+
+
+__all__ = [
+    "BaseDerivative",
+    "BaseMixin",
+    "Bill",
+    "BondConvention",
+    "BondMixin",
+    "BondFuture",
+    "FRA",
+    "FXBrokerFly",
+    "FXCall",
+    "FXExchange",
+    "FXOption",
+    "FXOptionStrat",
+    "FXPut",
+    "FXRiskReversal",
+    "FXStraddle",
+    "FXStrangle",
+    "FXSwap",
+    "FixedRateBond",
+    "FloatRateNote",
+    "Fly",
+    "IIRS",
+    "IRS",
+    "IndexFixedRateBond",
+    "Portfolio",
+    "SBS",
+    "STIRFuture",
+    "Sensitivities",
+    "Spread",
+    "Value",
+    "VolValue",
+    "XCS",
+    "ZCIS",
+    "ZCS",
+]

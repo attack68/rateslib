@@ -520,3 +520,4 @@ class _BondConventions(_AccruedAndYTMMethods):
     def _uktb(self):
         """deprecated alias"""
         return self._uk_gbb
+
