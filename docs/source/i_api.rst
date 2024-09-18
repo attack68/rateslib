@@ -260,46 +260,6 @@ Instruments
    :no-heading:
    :inherited-members:
    :no-inheritance-diagram:
-   :skip: NoInput
-   :skip: IndexCurve
-   :skip: IndexFixedLeg
-   :skip: IndexMixin
-   :skip: ZeroIndexLeg
-   :skip: forward_fx
-   :skip: abstractmethod
-   :skip: add_tenor
-   :skip: concat
-   :skip: dcf
-   :skip: get_calendar
-   :skip: index_left
-   :skip: ABCMeta
-   :skip: Curve
-   :skip: CustomBusinessDay
-   :skip: MultiIndex
-   :skip: DataFrame
-   :skip: Dual
-   :skip: Dual2
-   :skip: FXRates
-   :skip: FXForwards
-   :skip: Series
-   :skip: datetime
-   :skip: Cashflow
-   :skip: FloatPeriod
-   :skip: FixedLeg
-   :skip: FixedLegMtm
-   :skip: FloatLeg
-   :skip: FloatLegMtm
-   :skip: ZeroFloatLeg
-   :skip: LineCurve
-   :skip: Solver
-   :skip: ZeroFixedLeg
-   :skip: forward_fx
-   :skip: partial
-   :skip: timedelta
-   :skip: FXCallPeriod
-   :skip: FXDeltaVolSmile
-   :skip: FXDeltaVolSurface
-   :skip: FXPutPeriod
 
 Class Inheritance Diagram
 --------------------------
