@@ -35,7 +35,7 @@ from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.bonds import BondConvention, _BondConventions
+from rateslib.instruments.bonds import BondCalcMode, _BondConventions, CALC_MODE_MAP
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -2290,7 +2290,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         fixed_rate: float | NoInput = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BondCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
@@ -2335,7 +2335,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = self.kwargs["calc_mode"].lower()
+        if isinstance(self.kwargs["calc_mode"], str):
+            self.calc_mode = CALC_MODE_MAP[self.kwargs["calc_mode"].lower()]
+        else:
+            self.calc_mode = self.kwargs["calc_mode"]
         self.curves = curves
         self.spec = spec
 

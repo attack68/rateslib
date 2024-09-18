@@ -54,7 +54,7 @@ V3_FUNCS = {
 }
 
 
-class BondConvention:
+class BondCalcMode:
     """
     Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond` type.
 
@@ -164,12 +164,12 @@ class BondConvention:
     @property
     def kwargs(self) -> dict:
         """
-        Return the named input parameters for the *BondConvention*.
+        Return the named input parameters for the *BondCalcMode*.
         """
         return self._kwargs
 
 
-UK_GB = BondConvention(
+UK_GB = BondCalcMode(
     # UK government bond conventions
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
@@ -178,7 +178,7 @@ UK_GB = BondConvention(
     v3_type="compounding",
 )
 
-US_GB = BondConvention(
+US_GB = BondCalcMode(
     # US Treasury street convention
     settle_accrual_type="linear_days_long_front_split",
     ytm_accrual_type="linear_days_long_front_split",
@@ -187,7 +187,7 @@ US_GB = BondConvention(
     v3_type="compounding",
 )
 
-US_GB_TSY = BondConvention(
+US_GB_TSY = BondCalcMode(
     # US Treasury treasury convention
     settle_accrual_type="linear_days_long_front_split",
     ytm_accrual_type="linear_days_long_front_split",
@@ -196,7 +196,7 @@ US_GB_TSY = BondConvention(
     v3_type="compounding",
 )
 
-SE_GB = BondConvention(
+SE_GB = BondCalcMode(
     # Swedish government bonds
     settle_accrual_type="30e360",
     ytm_accrual_type="30e360",
@@ -205,7 +205,7 @@ SE_GB = BondConvention(
     v3_type="simple_30e360",
 )
 
-CA_GB = BondConvention(
+CA_GB = BondCalcMode(
     # Canadian government bonds
     settle_accrual_type="act365f_1y",
     ytm_accrual_type="linear_days",
@@ -214,7 +214,7 @@ CA_GB = BondConvention(
     v3_type="simple_30e360",
 )
 
-DE_GB = BondConvention(
+DE_GB = BondCalcMode(
     # German government bonds
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
@@ -223,7 +223,7 @@ DE_GB = BondConvention(
     v3_type="compounding",
 )
 
-FR_GB = BondConvention(
+FR_GB = BondCalcMode(
     # French OATs
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
@@ -232,7 +232,7 @@ FR_GB = BondConvention(
     v3_type="compounding",
 )
 
-IT_GB = BondConvention(
+IT_GB = BondCalcMode(
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
     v1_type="compounding_final_simple",
@@ -240,7 +240,7 @@ IT_GB = BondConvention(
     v3_type="compounding",
 )
 
-NO_GB = BondConvention(
+NO_GB = BondCalcMode(
     settle_accrual_type="act365f_1y",
     ytm_accrual_type="act365f_1y",
     v1_type="compounding_stub_act365f",
@@ -248,7 +248,7 @@ NO_GB = BondConvention(
     v3_type="compounding",
 )
 
-NL_GB = BondConvention(
+NL_GB = BondCalcMode(
     settle_accrual_type="linear_days_long_front_split",
     ytm_accrual_type="linear_days_long_front_split",
     v1_type="compounding_final_simple",
@@ -256,6 +256,25 @@ NL_GB = BondConvention(
     v3_type="compounding",
 )
 
+CALC_MODE_MAP = {
+    "uk_gb": UK_GB,
+    "us_gb": US_GB,
+    "de_gb": DE_GB,
+    "fr_gb": FR_GB,
+    "nl_gb": NL_GB,
+    "no_gb": NO_GB,
+    "se_gb": SE_GB,
+    "us_gb_tsy": US_GB_TSY,
+    "it_gb": IT_GB,
+    "ca_gb": CA_GB,
+
+    # aliases
+    "ukg": UK_GB,
+    "cadgb": CA_GB,
+    "ust": US_GB,
+    "ust_31bii": US_GB_TSY,
+    "sgb": SE_GB
+}
 
 class _AccruedAndYTMMethods:
     def _period_index(self, settlement: datetime):
