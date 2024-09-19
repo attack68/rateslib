@@ -24,7 +24,7 @@ email contact through **rateslib@gmail.com**.
    * - Instruments
      - Added *"nzd_irs3"*, *"nzd_irs6"*, *"se_gbb"* and *"uk_gbb"* to available ``spec`` defaults.
        (`397 <https://github.com/attack68/rateslib/pull/397>`_)
-       (`397 <https://github.com/attack68/rateslib/pull/397>`_)
+       (`403 <https://github.com/attack68/rateslib/pull/403>`_)
    * - Calendars
      - Add a *"wlg"* calendar for New Zealand *IRS*.
        (`363 <https://github.com/attack68/rateslib/pull/363>`_)
