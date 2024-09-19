@@ -181,13 +181,15 @@ class BillCalcMode:
         self,
         price_type: str,
         price_accrual_type: str,
-        ytm_clone_mode: str | BondCalcMode,
-        ytm_frequency: str
+        # ytm_clone_mode: str | BondCalcMode,
+        # ytm_frequency: str,
+        ytm_clone_kwargs: dict,
     ):
         self._price_type = price_type
         self._price_accrual_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
-        self._ytm_clone = _get_bond_calc_mode(ytm_clone_mode)
-        self._ytm_frequency = ytm_frequency
+        # self._ytm_clone = _get_bond_calc_mode(ytm_clone_mode)
+        # self._ytm_frequency = ytm_frequency
+        self._ytm_clone_kwargs = ytm_clone_kwargs
 
 
 UK_GB = BondCalcMode(
@@ -280,22 +282,19 @@ NL_GB = BondCalcMode(
 UK_GBB = BillCalcMode(
     price_type="simple",
     price_accrual_type="linear_days",
-    ytm_clone_mode=UK_GB,
-    ytm_frequency="s",
+    ytm_clone_kwargs=defaults.spec["uk_gb"],
 )
 
 US_GBB = BillCalcMode(
     price_type="discount",
     price_accrual_type="linear_days",
-    ytm_clone_mode=US_GB,
-    ytm_frequency="s",
+    ytm_clone_kwargs=defaults.spec["us_gb"],
 )
 
 SE_GBB = BillCalcMode(
     price_type="simple",
     price_accrual_type="linear_days",
-    ytm_clone_mode=SE_GB,
-    ytm_frequency="a",
+    ytm_clone_kwargs=defaults.spec["se_gb"],
 )
 
 BOND_MODE_MAP = {
@@ -649,193 +648,3 @@ class _AccruedAndYTMMethods:
     # ):
     #     v_ = 1 / (1 + self.leg1.periods[-2].dcf * ytm / 100.0)
     #     return v_
-
-
-class _BondConventions(_AccruedAndYTMMethods):
-    """
-    Contains calculation conventions and specifies calculation modes for different bonds
-    of different jurisdictions.
-
-    For FixedRateBonds the conventions are as follows:
-
-    {
-        "accrual": callable that returns a fraction of a period to determine accrued interest.
-        "v1": discounting function for the first cashflow of a bond.
-        "v2": discounting function for intermediate cashflows of a bond.
-        "v3": discounting function for the last cashflow of a bond.
-    }
-    """
-
-    # FixedRateBonds
-
-    @property
-    def _uk_gb(self):
-        """Mode used for UK Gilts"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _us_gb(self):
-        """Street convention for US Treasuries"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _us_gb_tsy(self):
-        """Treasury convention for US Treasuries"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_simple_1y_adjustment,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _se_gb(self):
-        """Mode used for Swedish GBs."""
-        return {
-            "accrual": self._acc_30e360,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_30e360_u_simple,
-        }
-
-    @property
-    def _ca_gb(self):
-        """Mode used for Canadian GBs."""
-        return {
-            "accrual": self._acc_act365_with_1y_and_stub_adjustment,
-            "ytm_accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_30e360_u_simple,
-        }
-
-    @property
-    def _de_gb(self):
-        """Mode used for German GBs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _fr_gb(self):
-        """Mode used for French OATs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _it_gb(self):
-        """Mode used for Italian BTPs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-            "v2": self._v2_annual,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _no_gb(self):
-        """Mode used for Norwegian GBs."""
-        return {
-            "accrual": self._acc_act365_with_1y_and_stub_adjustment,
-            "v1": self._v1_comp_stub_act365f,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    @property
-    def _nl_gb(self):
-        """Mode used for Dutch GBs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
-
-    # Bills
-
-    @property
-    def _us_gbb(self):
-        """Mode used for US T-Bills"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "price_type": self._price_discount,
-            "ytm_clone": "us_gb",
-        }
-
-    @property
-    def _se_gbb(self):
-        """Mode used for Swedish T-Bills"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "price_type": self._price_simple,
-            "ytm_clone": "se_gb",
-        }
-
-    @property
-    def _uk_gbb(self):
-        """Mode used for UK T-Bills"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "price_type": self._price_simple,
-            "ytm_clone": "uk_gb",
-        }
-
-    ### Deprecated Aliases
-
-    @property
-    def _ukg(self):
-        """deprecated alias"""
-        return self._uk_gb
-
-    @property
-    def _ust(self):
-        """deprecated alias"""
-        return self._us_gb
-
-    @property
-    def _ustb(self):
-        """deprecated alias"""
-        return self._us_gbb
-
-    @property
-    def _ust_31bii(self):
-        """deprecated alias"""
-        return self._us_gb_tsy
-
-    @property
-    def _sgb(self):
-        """deprecated alias"""
-        return self._se_gb
-
-    @property
-    def _cadgb(self):
-        """deprecated alias"""
-        return self._ca_gb
-
-    @property
-    def _sgbb(self):
-        """deprecated alias"""
-        return self._se_gbb
-
-    @property
-    def _uktb(self):
-        """deprecated alias"""
-        return self._uk_gbb

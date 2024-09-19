@@ -37,7 +37,7 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
 from rateslib.instruments.bonds import (
     BondCalcMode,
-    _BondConventions,
+    _AccruedAndYTMMethods,
     BOND_MODE_MAP,
     BillCalcMode,
     BILL_MODE_MAP,
@@ -1312,7 +1312,7 @@ class FXExchange(Sensitivities, BaseMixin):
 # Securities
 
 
-class BondMixin(_BondConventions):
+class BondMixin(_AccruedAndYTMMethods):
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -2824,7 +2824,7 @@ class IndexFixedRateBond(FixedRateBond):
         index_lag: int | NoInput = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BondCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
@@ -2875,7 +2875,7 @@ class IndexFixedRateBond(FixedRateBond):
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.calc_mode = BOND_MODE_MAP[self.kwargs["calc_mode"].lower()]
         self.curves = curves
         self.spec = spec
 
@@ -3193,7 +3193,7 @@ class Bill(FixedRateBond):
             spec=spec,
         )
         self.kwargs["frequency"] = _drb(
-            self.calc_mode._ytm_frequency,
+            self.calc_mode._ytm_clone_kwargs["frequency"],
             frequency,
         )
 
@@ -3269,7 +3269,7 @@ class Bill(FixedRateBond):
         elif metric == "simple_rate":
             return self.simple_rate(price, settlement)
         elif metric == "ytm":
-            return self.ytm(price, settlement, False)
+            return self.ytm(price, settlement, NoInput(0))
         raise ValueError("`metric` must be in {'price', 'discount_rate', 'ytm', 'simple_rate'}")
 
     def simple_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -3358,7 +3358,7 @@ class Bill(FixedRateBond):
         self,
         price: DualTypes,
         settlement: datetime,
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BillCalcMode | NoInput = NoInput(0),
     ):
         """
         Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
@@ -3386,13 +3386,14 @@ class Bill(FixedRateBond):
         with a regular 0% coupon measured from the termination date of the bill.
         """
 
-        if isinstance(calc_mode, str):
-            calc_mode = calc_mode.lower()
-            freq = defaults.spec[getattr(self, f"_{calc_mode}")["ytm_clone"]]["frequency"]
-        else:
+        if calc_mode is NoInput.blank:
             calc_mode = self.calc_mode
             # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
             freq = self.kwargs["frequency"]
+        else:
+            if isinstance(calc_mode, str):
+                calc_mode = BILL_MODE_MAP[calc_mode.lower()]
+            freq = calc_mode._ytm_clone_kwargs["frequency"]
 
         frequency_months = defaults.frequency_months[freq.upper()]
         quasi_start = self.leg1.schedule.termination
@@ -3408,7 +3409,11 @@ class Bill(FixedRateBond):
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=getattr(self, f"_{calc_mode}")["ytm_clone"],
+            **_get(
+                calc_mode._ytm_clone_kwargs,
+                leg=1,
+                filter=["initial_exchange", "final_exchange", "payment_lag_exchange"]
+            ),
         )
         return equiv_bond.ytm(price, settlement)
 
@@ -3787,7 +3792,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         """  # noqa: E501
         if self.leg1.fixing_method == "ibor":
             acc_idx = self._period_index(settlement)
-            frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, acc_idx)
+            frac = self.calc_mode._settle_acc_frac_func(self, settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
@@ -10456,7 +10461,8 @@ __all__ = [
     "BaseMixin",
     "Bill",
     "BondMixin",
-    "BondConvention",
+    "BondCalcMode",
+    "BillCalcMode"
     "BondFuture",
     "FRA",
     "FXBrokerFly",
