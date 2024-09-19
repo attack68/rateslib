@@ -181,15 +181,23 @@ class BillCalcMode:
         self,
         price_type: str,
         price_accrual_type: str,
-        # ytm_clone_mode: str | BondCalcMode,
-        # ytm_frequency: str,
-        ytm_clone_kwargs: dict,
+        ytm_clone_kwargs: dict | str,
     ):
         self._price_type = price_type
         self._price_accrual_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
-        # self._ytm_clone = _get_bond_calc_mode(ytm_clone_mode)
-        # self._ytm_frequency = ytm_frequency
-        self._ytm_clone_kwargs = ytm_clone_kwargs
+        if isinstance(ytm_clone_kwargs, dict):
+            self._ytm_clone_kwargs = ytm_clone_kwargs
+        else:
+            self._ytm_clone_kwargs = defaults.spec[ytm_clone_kwargs]
+        self._kwargs = {
+            "price_type": price_type,
+            "price_accrual_type": price_accrual_type,
+            "ytm_clone": "Custom dict" if isinstance(ytm_clone_kwargs, dict) else ytm_clone_kwargs
+        }
+
+    @property
+    def kwargs(self):
+        return self._kwargs
 
 
 UK_GB = BondCalcMode(
@@ -256,6 +264,7 @@ FR_GB = BondCalcMode(
 )
 
 IT_GB = BondCalcMode(
+    # Italian GBs
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
     v1_type="compounding_final_simple",
@@ -264,6 +273,7 @@ IT_GB = BondCalcMode(
 )
 
 NO_GB = BondCalcMode(
+    # Norwegian GBs
     settle_accrual_type="act365f_1y",
     ytm_accrual_type="act365f_1y",
     v1_type="compounding_stub_act365f",
@@ -272,6 +282,7 @@ NO_GB = BondCalcMode(
 )
 
 NL_GB = BondCalcMode(
+    # Dutch GBs
     settle_accrual_type="linear_days_long_front_split",
     ytm_accrual_type="linear_days_long_front_split",
     v1_type="compounding_final_simple",
@@ -280,21 +291,24 @@ NL_GB = BondCalcMode(
 )
 
 UK_GBB = BillCalcMode(
+    # UK T-bills
     price_type="simple",
     price_accrual_type="linear_days",
-    ytm_clone_kwargs=defaults.spec["uk_gb"],
+    ytm_clone_kwargs="uk_gb",
 )
 
 US_GBB = BillCalcMode(
+    # US T-bills
     price_type="discount",
     price_accrual_type="linear_days",
-    ytm_clone_kwargs=defaults.spec["us_gb"],
+    ytm_clone_kwargs="us_gb",
 )
 
 SE_GBB = BillCalcMode(
+    # Swedish T-bills
     price_type="simple",
     price_accrual_type="linear_days",
-    ytm_clone_kwargs=defaults.spec["se_gb"],
+    ytm_clone_kwargs="se_gb",
 )
 
 BOND_MODE_MAP = {
