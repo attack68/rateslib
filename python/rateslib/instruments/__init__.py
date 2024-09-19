@@ -1362,7 +1362,7 @@ class BondMixin(_BondConventions):
     def _accrued(self, settlement: datetime, func: callable):
         """func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
-        frac = func(settlement, acc_idx)
+        frac = func(self, settlement, acc_idx)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period
         _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
@@ -1384,9 +1384,9 @@ class BondMixin(_BondConventions):
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         acc_idx = self._period_index(settlement)
 
-        v2 = f2(ytm, f, settlement, acc_idx)
-        v1 = f1(ytm, f, settlement, acc_idx, v2, accrual)
-        v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
+        v2 = f2(self, ytm, f, settlement, acc_idx)
+        v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual)
+        v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d = 0
@@ -1430,16 +1430,16 @@ class BondMixin(_BondConventions):
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        calc_mode = _drb("default", calc_mode)
+        calc_mode_ = _drb("default", calc_mode)
+        if isinstance(calc_mode_, str):
+            calc_mode_ = CALC_MODE_MAP[calc_mode_]
         try:
-            method = getattr(self, f"_{calc_mode}")
-            accrual = method.get("ytm_accrual", method.get("accrual"))
             func = partial(
                 self._generic_ytm,
-                f1=method["v1"],
-                f2=method["v2"],
-                f3=method["v3"],
-                accrual=accrual,
+                f1=calc_mode_._v1,
+                f2=calc_mode_._v2,
+                f3=calc_mode_._v3,
+                accrual=calc_mode_._ytm_acc_frac_func,
             )
             return func(ytm, settlement, dirty)
         except KeyError:
@@ -2373,7 +2373,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """  # noqa: E501
-        return self._accrued(settlement, getattr(self, f"_{self.calc_mode}")["accrual"])
+        return self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
 
     def rate(
         self,
