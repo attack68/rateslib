@@ -195,7 +195,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - GBP
      - :ref:`uk_gb <spec-uk-gb>`
-     -
+     - :ref:`uk_gbb <spec-uk-gbb>`
      -
      -
    * - CHF
@@ -205,7 +205,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - SEK
      - :ref:`se_gb <spec-se-gb>`
-     -
+     - :ref:`se_gbb <spec-se-gbb>`
      -
      -
    * - NOK

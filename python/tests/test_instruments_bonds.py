@@ -1694,6 +1694,14 @@ class TestBill:
         bill2 = Bill(dt(2001, 1, 1), "3m", spec="uk_gbb")
         assert bill.rate(99.0, dt(2001, 2, 4)) == bill2.rate(99.0, dt(2001, 2, 4))
 
+    def test_us_gbb_eom(self):
+        b = Bill(dt(2023, 2, 28), "3m", spec="us_gbb")
+        assert b.leg1.periods[0].end == dt(2023, 5, 31)
+
+    def test_se_gbb_eom(self):
+        b = Bill(dt(2023, 2, 28), "3m", spec="se_gbb")
+        assert b.leg1.periods[0].end == dt(2023, 5, 28)
+
 
 class TestFloatRateNote:
     @pytest.mark.parametrize(
