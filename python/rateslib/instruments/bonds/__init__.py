@@ -1,13 +1,7 @@
 # This file contains bond convention outlines
 from __future__ import annotations
 
-from datetime import datetime
-
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf
-from rateslib.curves import index_left
-from rateslib.default import NoInput
-from rateslib.dual import DualTypes
 from rateslib.instruments.bonds.accrual_conventions import (
     _acc_30e360,
     _acc_act365_with_1y_and_stub_adjustment,
@@ -176,7 +170,6 @@ class BondCalcMode:
 
 
 class BillCalcMode:
-
     def __init__(
         self,
         price_type: str,
@@ -192,7 +185,7 @@ class BillCalcMode:
         self._kwargs = {
             "price_type": price_type,
             "price_accrual_type": price_accrual_type,
-            "ytm_clone": "Custom dict" if isinstance(ytm_clone_kwargs, dict) else ytm_clone_kwargs
+            "ytm_clone": "Custom dict" if isinstance(ytm_clone_kwargs, dict) else ytm_clone_kwargs,
         }
 
     @property
@@ -322,20 +315,18 @@ BOND_MODE_MAP = {
     "us_gb_tsy": US_GB_TSY,
     "it_gb": IT_GB,
     "ca_gb": CA_GB,
-
     # aliases
     "ukg": UK_GB,
     "cadgb": CA_GB,
     "ust": US_GB,
     "ust_31bii": US_GB_TSY,
-    "sgb": SE_GB
+    "sgb": SE_GB,
 }
 
 BILL_MODE_MAP = {
     "uk_gbb": UK_GBB,
     "us_gbb": US_GBB,
     "se_gbb": SE_GBB,
-
     # aliases
     "ustb": US_GBB,
     "uktb": UK_GBB,

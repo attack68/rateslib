@@ -36,10 +36,10 @@ from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
 from rateslib.instruments.bonds import (
-    BondCalcMode,
+    BILL_MODE_MAP,
     BOND_MODE_MAP,
     BillCalcMode,
-    BILL_MODE_MAP,
+    BondCalcMode,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -1312,7 +1312,6 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class BondMixin:
-
     def _period_index(self, settlement: datetime):
         """
         Get the coupon period index for that which the settlement date fall within.
@@ -1338,7 +1337,6 @@ class BondMixin:
     #         return func(settlement, acc_idx)
     #     except KeyError:
     #         raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
-
 
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
@@ -3439,7 +3437,7 @@ class Bill(FixedRateBond):
             **_get(
                 calc_mode._ytm_clone_kwargs,
                 leg=1,
-                filter=["initial_exchange", "final_exchange", "payment_lag_exchange"]
+                filter=["initial_exchange", "final_exchange", "payment_lag_exchange"],
             ),
         )
         return equiv_bond.ytm(price, settlement)
@@ -10496,8 +10494,7 @@ __all__ = [
     "Bill",
     "BondMixin",
     "BondCalcMode",
-    "BillCalcMode"
-    "BondFuture",
+    "BillCalcMode" "BondFuture",
     "FRA",
     "FXBrokerFly",
     "FXCall",
