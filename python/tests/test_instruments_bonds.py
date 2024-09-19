@@ -1137,8 +1137,6 @@ class TestFixedRateBond:
         assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
 
 
-
-
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
         # test pricing functions against Nominal Gilt Example prices from UK DMO
