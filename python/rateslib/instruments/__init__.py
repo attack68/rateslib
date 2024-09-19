@@ -37,7 +37,6 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
 from rateslib.instruments.bonds import (
     BondCalcMode,
-    _AccruedAndYTMMethods,
     BOND_MODE_MAP,
     BillCalcMode,
     BILL_MODE_MAP,
@@ -1312,7 +1311,35 @@ class FXExchange(Sensitivities, BaseMixin):
 # Securities
 
 
-class BondMixin(_AccruedAndYTMMethods):
+class BondMixin:
+
+    def _period_index(self, settlement: datetime):
+        """
+        Get the coupon period index for that which the settlement date fall within.
+        Uses unadjusted dates.
+        """
+        _ = index_left(
+            self.leg1.schedule.uschedule,
+            len(self.leg1.schedule.uschedule),
+            settlement,
+        )
+        return _
+
+    # def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
+    #     """
+    #     Return the accrual fraction of period between last coupon and settlement and
+    #     coupon period left index.
+    #
+    #     Branches to a calculation based on the bond `calc_mode`.
+    #     """
+    #     try:
+    #         func = getattr(self, f"_{calc_mode}")["accrual"]
+    #         # func = getattr(self, self._acc_frac_mode_map[calc_mode])
+    #         return func(settlement, acc_idx)
+    #     except KeyError:
+    #         raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
+
+
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -3608,7 +3635,14 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         elif self.kwargs["frequency"].lower() == "z":
             raise ValueError("FloatRateNote `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = self.kwargs["calc_mode"].lower()
+        if isinstance(self.kwargs["calc_mode"], str):
+            map_ = {
+                "FloatRateNote": BOND_MODE_MAP,
+            }
+            self.calc_mode = map_[type(self).__name__][self.kwargs["calc_mode"].lower()]
+        else:
+            self.calc_mode = self.kwargs["calc_mode"]
+
         self.curves = curves
         self.spec = spec
 
