@@ -1623,6 +1623,14 @@ class TestBill:
         result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
         assert result == 0.4985413405436174
 
+    def test_us_gbb_eom(self):
+        b = Bill(dt(2023, 2, 28), "3m", spec="us_gbb")
+        assert b.leg1.periods[0].end == dt(2023, 5, 31)
+
+    def test_se_gbb_eom(self):
+        b = Bill(dt(2023, 2, 28), "3m", spec="se_gbb")
+        assert b.leg1.periods[0].end == dt(2023, 5, 28)
+
 
 class TestFloatRateNote:
     @pytest.mark.parametrize(
