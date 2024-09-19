@@ -40,6 +40,7 @@ from rateslib.instruments.bonds import (
     BOND_MODE_MAP,
     BillCalcMode,
     BondCalcMode,
+    _get_calc_mode_for_class,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -1454,14 +1455,14 @@ class BondMixin:
         self,
         ytm: float,
         settlement: datetime,
-        calc_mode: str | NoInput,
+        calc_mode: str | BondCalcMode | NoInput,
         dirty: bool = False,
     ):
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        calc_mode_ = _drb("default", calc_mode)
+        calc_mode_ = _drb(self.calc_mode, calc_mode)
         if isinstance(calc_mode_, str):
             calc_mode_ = BOND_MODE_MAP[calc_mode_]
         try:
@@ -2366,14 +2367,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
-        if isinstance(self.kwargs["calc_mode"], str):
-            map_ = {
-                "FixedRateBond": BOND_MODE_MAP,
-                "Bill": BILL_MODE_MAP,
-            }
-            self.calc_mode = map_[type(self).__name__][self.kwargs["calc_mode"].lower()]
-        else:
-            self.calc_mode = self.kwargs["calc_mode"]
+        self.calc_mode = _get_calc_mode_for_class(self, self.kwargs["calc_mode"])
 
         self.curves = curves
         self.spec = spec
@@ -2900,7 +2894,8 @@ class IndexFixedRateBond(FixedRateBond):
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = BOND_MODE_MAP[self.kwargs["calc_mode"].lower()]
+        self.calc_mode = _get_calc_mode_for_class(self, self.kwargs["calc_mode"])
+
         self.curves = curves
         self.spec = spec
 

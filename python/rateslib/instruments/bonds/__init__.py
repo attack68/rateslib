@@ -54,6 +54,20 @@ def _get_bond_calc_mode(calc_mode: str | BondCalcMode) -> BondCalcMode:
     return calc_mode
 
 
+def _get_calc_mode_for_class(
+    obj, calc_mode: str | BondCalcMode | BillCalcMode
+) -> BondCalcMode | BillCalcMode:
+    if isinstance(calc_mode, str):
+        map_ = {
+            "FixedRateBond": BOND_MODE_MAP,
+            "Bill": BILL_MODE_MAP,
+            "FloatRateNote": BOND_MODE_MAP,
+            "IndexFixedRateBond": BOND_MODE_MAP,
+        }
+        return map_[type(obj).__name__][calc_mode.lower()]
+    return calc_mode
+
+
 class BondCalcMode:
     """
     Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond` type.
