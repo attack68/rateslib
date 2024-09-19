@@ -1114,6 +1114,7 @@ class TestFixedRateBond:
 
     def test_custom_calc_mode(self):
         from rateslib.instruments.bonds import BondCalcMode
+
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
             ytm_accrual_type="linear_days",
@@ -1449,6 +1450,7 @@ class TestIndexFixedRateBond:
 
     def test_custom_calc_mode(self):
         from rateslib.instruments.bonds import BondCalcMode
+
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
             ytm_accrual_type="linear_days",
@@ -1468,7 +1470,9 @@ class TestIndexFixedRateBond:
             fixed_rate=1.0,
             index_base=100.0,
         )
-        bond2 = IndexFixedRateBond(dt(2001, 1, 1), "10y", spec="uk_gb", fixed_rate=1.0, index_base=100.0)
+        bond2 = IndexFixedRateBond(
+            dt(2001, 1, 1), "10y", spec="uk_gb", fixed_rate=1.0, index_base=100.0
+        )
         assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
         assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
 
@@ -1673,12 +1677,10 @@ class TestBill:
         assert result == 0.4985413405436174
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BondCalcMode
-        from rateslib.instruments.bonds import BillCalcMode
+        from rateslib.instruments.bonds import BillCalcMode, BondCalcMode
+
         cm = BillCalcMode(
-            price_type = "simple",
-            price_accrual_type = "linear_days",
-            ytm_clone_kwargs = "uk_gb"
+            price_type="simple", price_accrual_type="linear_days", ytm_clone_kwargs="uk_gb"
         )
         bill = Bill(
             effective=dt(2001, 1, 1),
