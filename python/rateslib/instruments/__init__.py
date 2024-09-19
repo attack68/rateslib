@@ -3287,7 +3287,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
@@ -3306,7 +3306,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
@@ -3341,16 +3341,16 @@ class Bill(FixedRateBond):
         """
         if not isinstance(calc_mode, str):
             calc_mode = self.calc_mode
-        price_func = getattr(self, f"_{calc_mode}")["price_type"]
+        price_func = getattr(self, f"_price_{self.calc_mode._price_type}")
         return price_func(rate, settlement)
 
     def _price_discount(self, rate: DualTypes, settlement: datetime):
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime):
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 

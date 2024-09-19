@@ -180,10 +180,12 @@ class BillCalcMode:
     def __init__(
         self,
         price_type: str,
+        price_accrual_type: str,
         ytm_clone_mode: str | BondCalcMode,
         ytm_frequency: str
     ):
-        self._price_func = price_type
+        self._price_type = price_type
+        self._price_accrual_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
         self._ytm_clone = _get_bond_calc_mode(ytm_clone_mode)
         self._ytm_frequency = ytm_frequency
 
@@ -277,18 +279,21 @@ NL_GB = BondCalcMode(
 
 UK_GBB = BillCalcMode(
     price_type="simple",
+    price_accrual_type="linear_days",
     ytm_clone_mode=UK_GB,
     ytm_frequency="s",
 )
 
 US_GBB = BillCalcMode(
     price_type="discount",
+    price_accrual_type="linear_days",
     ytm_clone_mode=US_GB,
     ytm_frequency="s",
 )
 
 SE_GBB = BillCalcMode(
     price_type="simple",
+    price_accrual_type="linear_days",
     ytm_clone_mode=SE_GB,
     ytm_frequency="a",
 )
