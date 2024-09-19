@@ -1112,6 +1112,32 @@ class TestFixedRateBond:
         for i in range(NUMBER):
             BONDS[i].ytm(price=RAND_PRICES[i], settlement=dt(2001, 8, 30))
 
+    def test_custom_calc_mode(self):
+        from rateslib.instruments.bonds import BondCalcMode
+        cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type="compounding",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+        bond = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination="10y",
+            frequency="s",
+            calendar="ldn",
+            convention="ActActICMA",
+            modifier="none",
+            settle=1,
+            calc_mode=cm,
+            fixed_rate=1.0,
+        )
+        bond2 = FixedRateBond(dt(2001, 1, 1), "10y", spec="uk_gb", fixed_rate=1.0)
+        assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
+        assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
+
+
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
