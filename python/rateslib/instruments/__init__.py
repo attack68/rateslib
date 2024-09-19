@@ -35,7 +35,13 @@ from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.bonds import BondCalcMode, _BondConventions, CALC_MODE_MAP
+from rateslib.instruments.bonds import (
+    BondCalcMode,
+    _BondConventions,
+    BOND_MODE_MAP,
+    BillCalcMode,
+    BILL_MODE_MAP,
+)
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -1432,7 +1438,7 @@ class BondMixin(_BondConventions):
         """
         calc_mode_ = _drb("default", calc_mode)
         if isinstance(calc_mode_, str):
-            calc_mode_ = CALC_MODE_MAP[calc_mode_]
+            calc_mode_ = BOND_MODE_MAP[calc_mode_]
         try:
             func = partial(
                 self._generic_ytm,
@@ -2336,9 +2342,14 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
         if isinstance(self.kwargs["calc_mode"], str):
-            self.calc_mode = CALC_MODE_MAP[self.kwargs["calc_mode"].lower()]
+            map_ = {
+                "FixedRateBond": BOND_MODE_MAP,
+                "Bill": BILL_MODE_MAP,
+            }
+            self.calc_mode = map_[type(self).__name__][self.kwargs["calc_mode"].lower()]
         else:
             self.calc_mode = self.kwargs["calc_mode"]
+
         self.curves = curves
         self.spec = spec
 
@@ -3154,7 +3165,7 @@ class Bill(FixedRateBond):
         currency: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         settle: str | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BillCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
@@ -3182,7 +3193,7 @@ class Bill(FixedRateBond):
             spec=spec,
         )
         self.kwargs["frequency"] = _drb(
-            defaults.spec[getattr(self, f"_{self.kwargs['calc_mode']}")["ytm_clone"]]["frequency"],
+            self.calc_mode._ytm_frequency,
             frequency,
         )
 
