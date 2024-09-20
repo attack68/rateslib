@@ -71,7 +71,7 @@ def _get_calc_mode_for_class(
 class BondCalcMode:
     """
     Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond`,
-    :class:`~rateslib.instruments.IndexFixedRateBond` and 
+    :class:`~rateslib.instruments.IndexFixedRateBond` and
     :class:`~rateslib.instruments.FloatRateNote` types.
 
     Parameters
@@ -80,7 +80,7 @@ class BondCalcMode:
         The calculation type for accrued interest for physical settlement.
     ytm_accrual_type: str
         The calculation method for accrued interest used in the YTM formula. Often the same
-        as above but not always (e.g. Canadian GBs). 
+        as above but not always (e.g. Canadian GBs).
     v1_type: str
         The calculation function that defines discounting of the first period of the YTM formula.
     v2_type: str
@@ -160,28 +160,28 @@ class BondCalcMode:
     - "compounding_stub_act365f": stub exponents use *act365f* convention to derive.
     - "compounding_final_simple": uses *simple* method only for the final period of the bond.
     - "simple": calculation uses a simple interest formula.
-    - "simple_long_stub_compounding": uses simple interest formula except for long stubs which 
+    - "simple_long_stub_compounding": uses simple interest formula except for long stubs which
       are combined with compounding formula for the regular period of the stub.
-      
+
     **v2** Functions
-    
+
     - *"regular"*: uses the traditional discounting function per the frequency of coupons:
-    
+
       .. math::
-      
+
          v_2 = \\frac{1}{1 + \\frac{y}{f}}
-    
+
     - *"annual"*: assumes an annually expressed YTM disregarding the actual coupon frequency:
-    
+
       .. math::
-      
-         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {\\frac{1}{f}}      
+
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {\\frac{1}{f}}
 
     **v3** Functions
-    
+
     - "compounding"
     - "simple"
-    - "simple_30e360": the final period uses simple interest with a DCF calculated 
+    - "simple_30e360": the final period uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
 
     """  # noqa: E501
@@ -225,7 +225,23 @@ class BillCalcMode:
     ytm_clone_kwargs: dict | str,
         A list of bond keyword arguments, or the ``spec`` for a given bond for which
         a replicable zero coupon bond is constructed and its YTM calculated as comparison.
+
+    Notes
+    ------
+
+    - *"simple"*: uses simple interest formula:
+
+      .. math::
+
+         P = \\frac{100}{1+r_{simple}d}
+
+    - *"discount*": uses a discount rate:
+
+      .. math::
+
+         P = 100 ( 1 - r_{discount} d )
     """
+
     def __init__(
         self,
         price_type: str,
