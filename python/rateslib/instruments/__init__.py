@@ -3307,7 +3307,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
@@ -3326,7 +3326,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
@@ -3365,12 +3365,12 @@ class Bill(FixedRateBond):
         return price_func(rate, settlement)
 
     def _price_discount(self, rate: DualTypes, settlement: datetime):
-        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime):
-        acc_frac = self.calc_mode._price_accrual_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
@@ -10489,7 +10489,8 @@ __all__ = [
     "Bill",
     "BondMixin",
     "BondCalcMode",
-    "BillCalcMode" "BondFuture",
+    "BillCalcMode",
+    "BondFuture",
     "FRA",
     "FXBrokerFly",
     "FXCall",

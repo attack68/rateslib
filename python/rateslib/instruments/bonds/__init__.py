@@ -191,7 +191,7 @@ class BillCalcMode:
         ytm_clone_kwargs: dict | str,
     ):
         self._price_type = price_type
-        self._price_accrual_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
+        self._settle_acc_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
         if isinstance(ytm_clone_kwargs, dict):
             self._ytm_clone_kwargs = ytm_clone_kwargs
         else:
