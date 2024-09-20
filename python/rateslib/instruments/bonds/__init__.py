@@ -70,12 +70,17 @@ def _get_calc_mode_for_class(
 
 class BondCalcMode:
     """
-    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond` type.
+    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond`,
+    :class:`~rateslib.instruments.IndexFixedRateBond` and
+    :class:`~rateslib.instruments.FloatRateNote` types.
 
     Parameters
     ----------
-    accrual_type: str,
-        The calculation type for accrued interest.
+    settle_accrual_type: str,
+        The calculation type for accrued interest for physical settlement.
+    ytm_accrual_type: str
+        The calculation method for accrued interest used in the YTM formula. Often the same
+        as above but not always (e.g. Canadian GBs).
     v1_type: str
         The calculation function that defines discounting of the first period of the YTM formula.
     v2_type: str
@@ -151,6 +156,34 @@ class BondCalcMode:
 
     **v1** Functions
 
+    - *"compounding"*: the exponent is defined by the generated ytm accrual fraction.
+    - "compounding_stub_act365f": stub exponents use *act365f* convention to derive.
+    - "compounding_final_simple": uses *simple* method only for the final period of the bond.
+    - "simple": calculation uses a simple interest formula.
+    - "simple_long_stub_compounding": uses simple interest formula except for long stubs which
+      are combined with compounding formula for the regular period of the stub.
+
+    **v2** Functions
+
+    - *"regular"*: uses the traditional discounting function per the frequency of coupons:
+
+      .. math::
+
+         v_2 = \\frac{1}{1 + \\frac{y}{f}}
+
+    - *"annual"*: assumes an annually expressed YTM disregarding the actual coupon frequency:
+
+      .. math::
+
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {\\frac{1}{f}}
+
+    **v3** Functions
+
+    - "compounding"
+    - "simple"
+    - "simple_30e360": the final period uses simple interest with a DCF calculated
+      under 30e360 convention, irrespective of the bond's underlying convention.
+
     """  # noqa: E501
 
     def __init__(
@@ -177,20 +210,49 @@ class BondCalcMode:
 
     @property
     def kwargs(self) -> dict:
-        """
-        Return the named input parameters for the *BondCalcMode*.
-        """
+        """String representation of the parameters for the calculation convention."""
         return self._kwargs
 
 
 class BillCalcMode:
+    """
+    Define calculation conventions for :class:`~rateslib.instruments.Bill` type.
+
+    Parameters
+    ----------
+    price_type: str in {"simple", "discount"}
+        The default calculation convention for the rate of the bill.
+    ytm_clone_kwargs: dict | str,
+        A list of bond keyword arguments, or the ``spec`` for a given bond for which
+        a replicable zero coupon bond is constructed and its YTM calculated as comparison.
+
+    Notes
+    ------
+
+    - *"simple"*: uses simple interest formula:
+
+      .. math::
+
+         P = \\frac{100}{1+r_{simple}d}
+
+    - *"discount*": uses a discount rate:
+
+      .. math::
+
+         P = 100 ( 1 - r_{discount} d )
+    """
+
     def __init__(
         self,
         price_type: str,
-        price_accrual_type: str,
+        # price_accrual_type: str,
+        # accrual type uses "linear days" by default. This correctly scales ACT365f and ACT360
+        # DCF conventions and prepares for any non-standard DCFs.
+        # currently no identified cases where anything else is needed. Revise as necessary.
         ytm_clone_kwargs: dict | str,
     ):
         self._price_type = price_type
+        price_accrual_type = "linear_days"
         self._settle_acc_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
         if isinstance(ytm_clone_kwargs, dict):
             self._ytm_clone_kwargs = ytm_clone_kwargs
@@ -204,6 +266,7 @@ class BillCalcMode:
 
     @property
     def kwargs(self):
+        """String representation of the parameters for the calculation convention."""
         return self._kwargs
 
 
@@ -300,21 +363,21 @@ NL_GB = BondCalcMode(
 UK_GBB = BillCalcMode(
     # UK T-bills
     price_type="simple",
-    price_accrual_type="linear_days",
+    # price_accrual_type="linear_days",
     ytm_clone_kwargs="uk_gb",
 )
 
 US_GBB = BillCalcMode(
     # US T-bills
     price_type="discount",
-    price_accrual_type="linear_days",
+    # price_accrual_type="linear_days",
     ytm_clone_kwargs="us_gb",
 )
 
 SE_GBB = BillCalcMode(
     # Swedish T-bills
     price_type="simple",
-    price_accrual_type="linear_days",
+    # price_accrual_type="linear_days",
     ytm_clone_kwargs="se_gb",
 )
 

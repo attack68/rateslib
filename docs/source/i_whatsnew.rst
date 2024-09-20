@@ -25,6 +25,11 @@ email contact through **rateslib@gmail.com**.
      - Added *"nzd_irs3"*, *"nzd_irs6"*, *"se_gbb"* and *"uk_gbb"* to available ``spec`` defaults.
        (`397 <https://github.com/attack68/rateslib/pull/397>`_)
        (`403 <https://github.com/attack68/rateslib/pull/403>`_)
+   * - Instruments
+     - :class:`~rateslib.instruments.BondCalcMode` and :class:`~rateslib.instruments.BillCalcMode`
+       added to allow more flexibility when adding new bond specifications with other
+       defined calculation conventions.
+       (`402 <https://github.com/attack68/rateslib/pull/402>`_)
    * - Calendars
      - Add a *"wlg"* calendar for New Zealand *IRS*.
        (`363 <https://github.com/attack68/rateslib/pull/363>`_)
