@@ -1,522 +1,348 @@
 # This file contains bond convention outlines
 from __future__ import annotations
 
-from datetime import datetime
-
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf
-from rateslib.curves import index_left
-from rateslib.default import NoInput
-from rateslib.dual import DualTypes
+from rateslib.instruments.bonds.accrual_conventions import (
+    _acc_30e360,
+    _acc_act365_with_1y_and_stub_adjustment,
+    _acc_linear_proportion_by_days,
+    _acc_linear_proportion_by_days_long_stub_split,
+)
+from rateslib.instruments.bonds.discount_conventions import (
+    _v1_comp_stub_act365f,
+    _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+    _v1_compounded_by_remaining_accrual_fraction,
+    _v1_simple,
+    _v1_simple_1y_adjustment,
+    _v2_,
+    _v2_annual,
+    _v3_30e360_u_simple,
+    _v3_compounded,
+    _v3_simple,
+)
+
+ACC_FRAC_FUNCS = {
+    "linear_days": _acc_linear_proportion_by_days,
+    "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
+    "30e360": _acc_30e360,
+    "act365f_1y": _acc_act365_with_1y_and_stub_adjustment,
+}
+
+V1_FUNCS = {
+    "compounding": _v1_compounded_by_remaining_accrual_fraction,
+    "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+    "compounding_stub_act365f": _v1_comp_stub_act365f,
+    "simple": _v1_simple,
+    "simple_long_stub_compounding": _v1_simple_1y_adjustment,
+}
+
+V2_FUNCS = {
+    "regular": _v2_,
+    "annual": _v2_annual,
+}
+
+V3_FUNCS = {
+    "compounding": _v3_compounded,
+    "simple": _v3_simple,
+    "simple_30e360": _v3_30e360_u_simple,
+}
 
 
-class _AccruedAndYTMMethods:
-    def _period_index(self, settlement: datetime):
-        """
-        Get the coupon period index for that which the settlement date fall within.
-        Uses unadjusted dates.
-        """
-        _ = index_left(
-            self.leg1.schedule.uschedule,
-            len(self.leg1.schedule.uschedule),
-            settlement,
-        )
-        return _
-
-    def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
-        """
-        Return the accrual fraction of period between last coupon and settlement and
-        coupon period left index.
-
-        Branches to a calculation based on the bond `calc_mode`.
-        """
-        try:
-            func = getattr(self, f"_{calc_mode}")["accrual"]
-            # func = getattr(self, self._acc_frac_mode_map[calc_mode])
-            return func(settlement, acc_idx)
-        except KeyError:
-            raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
-
-    def _acc_linear_proportion_by_days(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Return the fraction of an accrual period between start and settlement.
-
-        Method: a linear proportion of actual days between start, settlement and end.
-        Measures between unadjusted coupon dates.
-
-        This is a general method, used by many types of bonds, for example by UK Gilts,
-        German Bunds.
-        """
-        r = settlement - self.leg1.schedule.uschedule[acc_idx]
-        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        return r / s
-
-    def _acc_linear_proportion_by_days_long_stub_split(
-        self,
-        settlement: datetime,
-        acc_idx: int,
-        *args,
-    ):
-        """
-        For long stub periods this splits the accrued interest into two components.
-        Otherwise, returns the regular linear proportion.
-        [Designed primarily for US Treasuries]
-        """
-        if self.leg1.periods[acc_idx].stub:
-            fm = defaults.frequency_months[self.leg1.schedule.frequency]
-            f = 12 / fm
-            if self.leg1.periods[acc_idx].dcf * f > 1:
-                # long stub
-                quasi_coupon = add_tenor(
-                    self.leg1.schedule.uschedule[acc_idx + 1],
-                    f"-{fm}M",
-                    "NONE",
-                    NoInput(0),
-                    self.leg1.schedule.roll,
-                )
-                quasi_start = add_tenor(
-                    quasi_coupon,
-                    f"-{fm}M",
-                    "NONE",
-                    NoInput(0),
-                    self.leg1.schedule.roll,
-                )
-                if settlement <= quasi_coupon:
-                    # then first part of long stub
-                    r = quasi_coupon - settlement
-                    s = quasi_coupon - quasi_start
-                    r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
-                    _ = (r_ - r) / s
-                    return _ / (self.leg1.periods[acc_idx].dcf * f)
-                else:
-                    # then second part of long stub
-                    r = self.leg1.schedule.uschedule[acc_idx + 1] - settlement
-                    s = self.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon
-                    r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
-                    s_ = quasi_coupon - quasi_start
-                    _ = r_ / s_ + (s - r) / s
-                    return _ / (self.leg1.periods[acc_idx].dcf * f)
-
-        return self._acc_linear_proportion_by_days(settlement, acc_idx, *args)
-
-    def _acc_30e360(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
-        Measures between unadjusted date and settlement.
-        [Designed primarily for Swedish Government Bonds]
-        """
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        _ = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
-        _ = 1 - _
-        return _
-
-    def _acc_act365_with_1y_and_stub_adjustment(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
-        Measures between unadjusted date and settlement.
-        Special adjustment if number of days is greater than 365.
-        If the period is a stub reverts to a straight line interpolation
-        [this is primarily designed for Canadian Government Bonds]
-        """
-        if self.leg1.periods[acc_idx].stub:
-            return self._acc_linear_proportion_by_days(settlement, acc_idx)
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        r = settlement - self.leg1.schedule.uschedule[acc_idx]
-        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        if r == s:
-            _ = 1.0  # then settlement falls on the coupon date
-        elif r.days > 365.0 / f:
-            _ = 1.0 - ((s - r).days * f) / 365.0  # counts remaining days
-        else:
-            _ = f * r.days / 365.0
-        return _
-
-    def _v1_compounded_by_remaining_accrual_fraction(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual: callable,
-        *args,
-    ):
-        """
-        Determine the discount factor for the first cashflow after settlement.
-
-        The parameter "v" is a generic discount function which is normally :math:`1/(1+y/f)`
-
-        Method: compounds "v" by the accrual fraction of the period.
-        """
-        acc_frac = accrual(settlement, acc_idx)
-        if self.leg1.periods[acc_idx].stub:
-            # If it is a stub then the remaining fraction must be scaled by the relative size of the
-            # stub period compared with a regular period.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
-            fd0 = 1 - acc_frac
-        return v**fd0
-
-    def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual: callable,
-        *args,
-    ):
-        """
-        Uses regular fractional compounding except if it is last period, when simple money-mkt
-        yield is used instead.
-        Introduced for German Bunds.
-        """
-        if acc_idx == self.leg1.schedule.n_periods - 1:
-            # or \
-            # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
-            # then settlement is in last period use simple interest.
-            return self._v1_simple(ytm, f, settlement, acc_idx, v, accrual, *args)
-        else:
-            return self._v1_compounded_by_remaining_accrual_fraction(
-                ytm,
-                f,
-                settlement,
-                acc_idx,
-                v,
-                accrual,
-                *args,
-            )
-
-    def _v1_comp_stub_act365f(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual: callable,
-        *args,
-    ):
-        """Compounds the yield. In a stub period the act365f DCF is used"""
-        if not self.leg1.periods[acc_idx].stub:
-            return self._v1_compounded_by_remaining_accrual_fraction(
-                ytm,
-                f,
-                settlement,
-                acc_idx,
-                v,
-                accrual,
-                *args,
-            )
-        else:
-            fd0 = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
-            return v**fd0
-
-    def _v1_simple(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual: callable,
-        *args,
-    ):
-        """
-        Use simple rates with a yield which matches the frequency of the coupon.
-        """
-        acc_frac = accrual(settlement, acc_idx)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        v_ = 1 / (1 + fd0 * ytm / (100 * f))
-        return v_
-
-    def _v1_simple_1y_adjustment(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual: callable,
-        *args,
-    ):
-        """
-        Use simple rates with a yield which matches the frequency of the coupon.
-
-        If the stub period is long, then discount the regular part of the stub with the regular
-        discount param ``v``.
-        """
-        acc_frac = accrual(settlement, acc_idx)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        if fd0 > 1.0:
-            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
-        else:
-            v_ = 1 / (1 + fd0 * ytm / (100 * f))
-
-        return v_
-
-    def _v2_(self, ytm: DualTypes, f: int, *args):
-        """
-        Default method for a single regular period discounted in the regular portion of bond.
-        Implies compounding at the same frequency as the coupons.
-        """
-        return 1 / (1 + ytm / (100 * f))
-
-    def _v2_annual(self, ytm: DualTypes, f: int, *args):
-        """
-        ytm is expressed annually but coupon payments are on another frequency
-        """
-        return (1 / (1 + ytm / 100)) ** (1 / f)
-
-    def _v3_dcf_comp(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        *args,
-    ):
-        """
-        Final period uses a compounding approach where the power is determined by the DCF of that
-        period under the bond's specified convention.
-        """
-        if self.leg1.periods[acc_idx].stub:
-            # If it is a stub then the remaining fraction must be scaled by the relative size of the
-            # stub period compared with a regular period.
-            fd0 = self.leg1.periods[acc_idx].dcf * f
-        else:
-            fd0 = 1
-        return v**fd0
-
-    def _v3_30e360_u_simple(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        *args,
-    ):
-        """
-        The final period is discounted by a simple interest method under a 30E360 convention.
-
-        The YTM is assumed to have the same frequency as the coupons.
-        """
-        d_ = dcf(self.leg1.periods[acc_idx].start, self.leg1.periods[acc_idx].end, "30E360")
-        return 1 / (1 + d_ * ytm / 100)  # simple interest
-
-    def _v3_simple(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual: callable,
-        *args,
-    ):
-        v_ = 1 / (1 + self.leg1.periods[-2].dcf * ytm / 100.0)
-        return v_
+def _get_bond_calc_mode(calc_mode: str | BondCalcMode) -> BondCalcMode:
+    if isinstance(calc_mode, str):
+        return BOND_MODE_MAP[calc_mode.lower()]
+    return calc_mode
 
 
-class _BondConventions(_AccruedAndYTMMethods):
+def _get_calc_mode_for_class(
+    obj, calc_mode: str | BondCalcMode | BillCalcMode
+) -> BondCalcMode | BillCalcMode:
+    if isinstance(calc_mode, str):
+        map_ = {
+            "FixedRateBond": BOND_MODE_MAP,
+            "Bill": BILL_MODE_MAP,
+            "FloatRateNote": BOND_MODE_MAP,
+            "IndexFixedRateBond": BOND_MODE_MAP,
+        }
+        return map_[type(obj).__name__][calc_mode.lower()]
+    return calc_mode
+
+
+class BondCalcMode:
     """
-    Contains calculation conventions and specifies calculation modes for different bonds
-    of different jurisdictions.
+    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond` type.
 
-    For FixedRateBonds the conventions are as follows:
+    Parameters
+    ----------
+    accrual_type: str,
+        The calculation type for accrued interest.
+    v1_type: str
+        The calculation function that defines discounting of the first period of the YTM formula.
+    v2_type: str
+        The calculation function that defines discounting of the regular periods of the YTM formula.
+    v3_type: str
+        The calculation function that defines discounting of the last period of the YTM formula.
 
-    {
-        "accrual": callable that returns a fraction of a period to determine accrued interest.
-        "v1": discounting function for the first cashflow of a bond.
-        "v2": discounting function for intermediate cashflows of a bond.
-        "v3": discounting function for the last cashflow of a bond.
-    }
-    """
+    Notes
+    -------
 
-    # FixedRateBonds
+    **Accrual Functions**
 
-    @property
-    def _uk_gb(self):
-        """Mode used for UK Gilts"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
+    These functions return the **fraction** of a bond cashflow that is attributed to the settlement
+    date, in order to determine accrued interest. The available input options are;
+
+    - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
+      end coupon dates of the coupon period, and applies that proportion to the cashflow, which is
+      calculated separately using the conventions for the bond. (Typically used by many bonds, e.g.
+      UK and German GBs)
+
+      .. math::
+
+         &\\text{Accrual fraction} = r / s \\\\
+         &\\text{where,} \\\\
+         &r = \\text{Calendar days between last coupon (unadjusted) and settlement} \\\\
+         &s = \\text{Calendar days between unadjusted coupon dates} \\\\
+
+    - *"linear_days_long_front_split"*: Is the same as above, **except** in the case of long
+      stub periods, which are treated as front stubs. (Primarily implemented to satisfy the
+      US Treasury calculations in Section 31B ii A.356)
+    - *"30e360"*: Ignores the coupon convention on the bond and calculates accrued from the
+      unadjusted last coupon date to settlement with a 30e360 day count convention, **except**
+      stubs revert to *'linear_days'*. (Used by Swedish GBs)
+
+      .. math::
+
+         &\\text{Accrual fraction} =  1 - d f  \\\\
+         &\\text{where,} \\\\
+         &d = \\text{30e360 DCF between settlement and next unadjusted coupon date} \\\\
+         &f = \\text{Number of regular coupon periods per year} \\\\
+
+    - *"Act365_1y"*: Ignores the coupon convention on the bond and calculates accrued from
+      the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
+      periods are adjusted to use *'linear_days'* and periods longer than 1y have additional
+      adjustment. (Used by Canadian GBs)
+
+      .. math::
+
+         & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
+         & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
+         & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
+
+    **Discounting Functions for YTM Calculation**
+
+    Yield-to-maturity is calculated using the below formula, where specific functions derive
+    some values based on the conventions of a given bond.
+
+    .. math::
+
+       P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
+       P &= v_1 \\left ( c_1 + v3(c_2 + 100) \\right ), \\quad n = 2 \\\\
+       P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
+    where,
+
+    .. math::
+
+       P &= \\text{Dirty price}, \\; n = \\text{Coupon periods remaining} \\\\
+       c_1 &= \\text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\\\
+       c_i &= i \\text{'th cashflow (per 100) on subsequent coupon dates} \\\\
+       v_1 &= \\text{Discount value for the initial, possibly stub, period} \\\\
+       v_2 &= \\text{Discount value for the interim regular periods} \\\\
+       v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
+
+    **v1** Functions
+
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        settle_accrual_type: str,
+        ytm_accrual_type: str,
+        v1_type: str,
+        v2_type: str,
+        v3_type: str,
+    ):
+        self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
+        self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
+        self._v1 = V1_FUNCS[v1_type.lower()]
+        self._v2 = V2_FUNCS[v2_type.lower()]
+        self._v3 = V3_FUNCS[v3_type.lower()]
+
+        self._kwargs: dict = {
+            "settle_accrual": settle_accrual_type,
+            "ytm_accrual": ytm_accrual_type,
+            "v1": v1_type,
+            "v2": v2_type,
+            "v3": v3_type,
         }
 
     @property
-    def _us_gb(self):
-        """Street convention for US Treasuries"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
+    def kwargs(self) -> dict:
+        """
+        Return the named input parameters for the *BondCalcMode*.
+        """
+        return self._kwargs
+
+
+class BillCalcMode:
+    def __init__(
+        self,
+        price_type: str,
+        price_accrual_type: str,
+        ytm_clone_kwargs: dict | str,
+    ):
+        self._price_type = price_type
+        self._settle_acc_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
+        if isinstance(ytm_clone_kwargs, dict):
+            self._ytm_clone_kwargs = ytm_clone_kwargs
+        else:
+            self._ytm_clone_kwargs = defaults.spec[ytm_clone_kwargs]
+        self._kwargs = {
+            "price_type": price_type,
+            "price_accrual_type": price_accrual_type,
+            "ytm_clone": "Custom dict" if isinstance(ytm_clone_kwargs, dict) else ytm_clone_kwargs,
         }
 
     @property
-    def _us_gb_tsy(self):
-        """Treasury convention for US Treasuries"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_simple_1y_adjustment,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
+    def kwargs(self):
+        return self._kwargs
 
-    @property
-    def _se_gb(self):
-        """Mode used for Swedish GBs."""
-        return {
-            "accrual": self._acc_30e360,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_30e360_u_simple,
-        }
 
-    @property
-    def _ca_gb(self):
-        """Mode used for Canadian GBs."""
-        return {
-            "accrual": self._acc_act365_with_1y_and_stub_adjustment,
-            "ytm_accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_30e360_u_simple,
-        }
+UK_GB = BondCalcMode(
+    # UK government bond conventions
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    @property
-    def _de_gb(self):
-        """Mode used for German GBs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
+US_GB = BondCalcMode(
+    # US Treasury street convention
+    settle_accrual_type="linear_days_long_front_split",
+    ytm_accrual_type="linear_days_long_front_split",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    @property
-    def _fr_gb(self):
-        """Mode used for French OATs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_fraction,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
+US_GB_TSY = BondCalcMode(
+    # US Treasury treasury convention
+    settle_accrual_type="linear_days_long_front_split",
+    ytm_accrual_type="linear_days_long_front_split",
+    v1_type="simple_long_stub_compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    @property
-    def _it_gb(self):
-        """Mode used for Italian BTPs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-            "v2": self._v2_annual,
-            "v3": self._v3_dcf_comp,
-        }
+SE_GB = BondCalcMode(
+    # Swedish government bonds
+    settle_accrual_type="30e360",
+    ytm_accrual_type="30e360",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="simple_30e360",
+)
 
-    @property
-    def _no_gb(self):
-        """Mode used for Norwegian GBs."""
-        return {
-            "accrual": self._acc_act365_with_1y_and_stub_adjustment,
-            "v1": self._v1_comp_stub_act365f,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
+CA_GB = BondCalcMode(
+    # Canadian government bonds
+    settle_accrual_type="act365f_1y",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="simple_30e360",
+)
 
-    @property
-    def _nl_gb(self):
-        """Mode used for Dutch GBs."""
-        return {
-            "accrual": self._acc_linear_proportion_by_days_long_stub_split,
-            "v1": self._v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-            "v2": self._v2_,
-            "v3": self._v3_dcf_comp,
-        }
+DE_GB = BondCalcMode(
+    # German government bonds
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    # Bills
+FR_GB = BondCalcMode(
+    # French OATs
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    @property
-    def _us_gbb(self):
-        """Mode used for US T-Bills"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "price_type": self._price_discount,
-            "ytm_clone": "us_gb",
-        }
+IT_GB = BondCalcMode(
+    # Italian GBs
+    settle_accrual_type="linear_days",
+    ytm_accrual_type="linear_days",
+    v1_type="compounding_final_simple",
+    v2_type="annual",
+    v3_type="compounding",
+)
 
-    @property
-    def _se_gbb(self):
-        """Mode used for Swedish T-Bills"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "price_type": self._price_simple,
-            "ytm_clone": "se_gb",
-        }
+NO_GB = BondCalcMode(
+    # Norwegian GBs
+    settle_accrual_type="act365f_1y",
+    ytm_accrual_type="act365f_1y",
+    v1_type="compounding_stub_act365f",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    @property
-    def _uk_gbb(self):
-        """Mode used for UK T-Bills"""
-        return {
-            "accrual": self._acc_linear_proportion_by_days,
-            "price_type": self._price_simple,
-            "ytm_clone": "uk_gb",
-        }
+NL_GB = BondCalcMode(
+    # Dutch GBs
+    settle_accrual_type="linear_days_long_front_split",
+    ytm_accrual_type="linear_days_long_front_split",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+)
 
-    ### Deprecated Aliases
+UK_GBB = BillCalcMode(
+    # UK T-bills
+    price_type="simple",
+    price_accrual_type="linear_days",
+    ytm_clone_kwargs="uk_gb",
+)
 
-    @property
-    def _ukg(self):
-        """deprecated alias"""
-        return self._uk_gb
+US_GBB = BillCalcMode(
+    # US T-bills
+    price_type="discount",
+    price_accrual_type="linear_days",
+    ytm_clone_kwargs="us_gb",
+)
 
-    @property
-    def _ust(self):
-        """deprecated alias"""
-        return self._us_gb
+SE_GBB = BillCalcMode(
+    # Swedish T-bills
+    price_type="simple",
+    price_accrual_type="linear_days",
+    ytm_clone_kwargs="se_gb",
+)
 
-    @property
-    def _ustb(self):
-        """deprecated alias"""
-        return self._us_gbb
+BOND_MODE_MAP = {
+    "uk_gb": UK_GB,
+    "us_gb": US_GB,
+    "de_gb": DE_GB,
+    "fr_gb": FR_GB,
+    "nl_gb": NL_GB,
+    "no_gb": NO_GB,
+    "se_gb": SE_GB,
+    "us_gb_tsy": US_GB_TSY,
+    "it_gb": IT_GB,
+    "ca_gb": CA_GB,
+    # aliases
+    "ukg": UK_GB,
+    "cadgb": CA_GB,
+    "ust": US_GB,
+    "ust_31bii": US_GB_TSY,
+    "sgb": SE_GB,
+}
 
-    @property
-    def _ust_31bii(self):
-        """deprecated alias"""
-        return self._us_gb_tsy
-
-    @property
-    def _sgb(self):
-        """deprecated alias"""
-        return self._se_gb
-
-    @property
-    def _cadgb(self):
-        """deprecated alias"""
-        return self._ca_gb
-
-    @property
-    def _sgbb(self):
-        """deprecated alias"""
-        return self._se_gbb
-
-    @property
-    def _uktb(self):
-        """deprecated alias"""
-        return self._uk_gbb
+BILL_MODE_MAP = {
+    "uk_gbb": UK_GBB,
+    "us_gbb": US_GBB,
+    "se_gbb": SE_GBB,
+    # aliases
+    "ustb": US_GBB,
+    "uktb": UK_GBB,
+    "sgbb": SE_GBB,
+}

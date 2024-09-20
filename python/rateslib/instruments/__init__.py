@@ -35,7 +35,13 @@ from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.bonds import _BondConventions
+from rateslib.instruments.bonds import (
+    BILL_MODE_MAP,
+    BOND_MODE_MAP,
+    BillCalcMode,
+    BondCalcMode,
+    _get_calc_mode_for_class,
+)
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -1306,7 +1312,33 @@ class FXExchange(Sensitivities, BaseMixin):
 # Securities
 
 
-class BondMixin(_BondConventions):
+class BondMixin:
+    def _period_index(self, settlement: datetime):
+        """
+        Get the coupon period index for that which the settlement date fall within.
+        Uses unadjusted dates.
+        """
+        _ = index_left(
+            self.leg1.schedule.uschedule,
+            len(self.leg1.schedule.uschedule),
+            settlement,
+        )
+        return _
+
+    # def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
+    #     """
+    #     Return the accrual fraction of period between last coupon and settlement and
+    #     coupon period left index.
+    #
+    #     Branches to a calculation based on the bond `calc_mode`.
+    #     """
+    #     try:
+    #         func = getattr(self, f"_{calc_mode}")["accrual"]
+    #         # func = getattr(self, self._acc_frac_mode_map[calc_mode])
+    #         return func(settlement, acc_idx)
+    #     except KeyError:
+    #         raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
+
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -1362,7 +1394,7 @@ class BondMixin(_BondConventions):
     def _accrued(self, settlement: datetime, func: callable):
         """func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
-        frac = func(settlement, acc_idx)
+        frac = func(self, settlement, acc_idx)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period
         _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
@@ -1384,9 +1416,9 @@ class BondMixin(_BondConventions):
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         acc_idx = self._period_index(settlement)
 
-        v2 = f2(ytm, f, settlement, acc_idx)
-        v1 = f1(ytm, f, settlement, acc_idx, v2, accrual)
-        v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
+        v2 = f2(self, ytm, f, settlement, acc_idx)
+        v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual)
+        v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d = 0
@@ -1423,23 +1455,23 @@ class BondMixin(_BondConventions):
         self,
         ytm: float,
         settlement: datetime,
-        calc_mode: str | NoInput,
+        calc_mode: str | BondCalcMode | NoInput,
         dirty: bool = False,
     ):
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        calc_mode = _drb("default", calc_mode)
+        calc_mode_ = _drb(self.calc_mode, calc_mode)
+        if isinstance(calc_mode_, str):
+            calc_mode_ = BOND_MODE_MAP[calc_mode_]
         try:
-            method = getattr(self, f"_{calc_mode}")
-            accrual = method.get("ytm_accrual", method.get("accrual"))
             func = partial(
                 self._generic_ytm,
-                f1=method["v1"],
-                f2=method["v2"],
-                f3=method["v3"],
-                accrual=accrual,
+                f1=calc_mode_._v1,
+                f2=calc_mode_._v2,
+                f3=calc_mode_._v3,
+                accrual=calc_mode_._ytm_acc_frac_func,
             )
             return func(ytm, settlement, dirty)
         except KeyError:
@@ -2290,7 +2322,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         fixed_rate: float | NoInput = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BondCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
@@ -2335,7 +2367,8 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.calc_mode = _get_calc_mode_for_class(self, self.kwargs["calc_mode"])
+
         self.curves = curves
         self.spec = spec
 
@@ -2370,7 +2403,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """  # noqa: E501
-        return self._accrued(settlement, getattr(self, f"_{self.calc_mode}")["accrual"])
+        return self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
 
     def rate(
         self,
@@ -2810,7 +2843,7 @@ class IndexFixedRateBond(FixedRateBond):
         index_lag: int | NoInput = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BondCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
@@ -2861,7 +2894,8 @@ class IndexFixedRateBond(FixedRateBond):
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = self.kwargs["calc_mode"].lower()
+        self.calc_mode = _get_calc_mode_for_class(self, self.kwargs["calc_mode"])
+
         self.curves = curves
         self.spec = spec
 
@@ -3151,7 +3185,7 @@ class Bill(FixedRateBond):
         currency: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         settle: str | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BillCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
@@ -3179,7 +3213,7 @@ class Bill(FixedRateBond):
             spec=spec,
         )
         self.kwargs["frequency"] = _drb(
-            defaults.spec[getattr(self, f"_{self.kwargs['calc_mode']}")["ytm_clone"]]["frequency"],
+            self.calc_mode._ytm_clone_kwargs["frequency"],
             frequency,
         )
 
@@ -3255,7 +3289,7 @@ class Bill(FixedRateBond):
         elif metric == "simple_rate":
             return self.simple_rate(price, settlement)
         elif metric == "ytm":
-            return self.ytm(price, settlement, False)
+            return self.ytm(price, settlement, NoInput(0))
         raise ValueError("`metric` must be in {'price', 'discount_rate', 'ytm', 'simple_rate'}")
 
     def simple_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -3273,7 +3307,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
@@ -3292,7 +3326,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
@@ -3327,16 +3361,16 @@ class Bill(FixedRateBond):
         """
         if not isinstance(calc_mode, str):
             calc_mode = self.calc_mode
-        price_func = getattr(self, f"_{calc_mode}")["price_type"]
+        price_func = getattr(self, f"_price_{self.calc_mode._price_type}")
         return price_func(rate, settlement)
 
     def _price_discount(self, rate: DualTypes, settlement: datetime):
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime):
-        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
@@ -3344,7 +3378,7 @@ class Bill(FixedRateBond):
         self,
         price: DualTypes,
         settlement: datetime,
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str | BillCalcMode | NoInput = NoInput(0),
     ):
         """
         Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
@@ -3372,13 +3406,14 @@ class Bill(FixedRateBond):
         with a regular 0% coupon measured from the termination date of the bill.
         """
 
-        if isinstance(calc_mode, str):
-            calc_mode = calc_mode.lower()
-            freq = defaults.spec[getattr(self, f"_{calc_mode}")["ytm_clone"]]["frequency"]
-        else:
+        if calc_mode is NoInput.blank:
             calc_mode = self.calc_mode
             # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
             freq = self.kwargs["frequency"]
+        else:
+            if isinstance(calc_mode, str):
+                calc_mode = BILL_MODE_MAP[calc_mode.lower()]
+            freq = calc_mode._ytm_clone_kwargs["frequency"]
 
         frequency_months = defaults.frequency_months[freq.upper()]
         quasi_start = self.leg1.schedule.termination
@@ -3394,7 +3429,11 @@ class Bill(FixedRateBond):
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=getattr(self, f"_{calc_mode}")["ytm_clone"],
+            **_get(
+                calc_mode._ytm_clone_kwargs,
+                leg=1,
+                filter=["initial_exchange", "final_exchange", "payment_lag_exchange"],
+            ),
         )
         return equiv_bond.ytm(price, settlement)
 
@@ -3589,7 +3628,14 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         elif self.kwargs["frequency"].lower() == "z":
             raise ValueError("FloatRateNote `frequency` must be in {M, B, Q, T, S, A}.")
 
-        self.calc_mode = self.kwargs["calc_mode"].lower()
+        if isinstance(self.kwargs["calc_mode"], str):
+            map_ = {
+                "FloatRateNote": BOND_MODE_MAP,
+            }
+            self.calc_mode = map_[type(self).__name__][self.kwargs["calc_mode"].lower()]
+        else:
+            self.calc_mode = self.kwargs["calc_mode"]
+
         self.curves = curves
         self.spec = spec
 
@@ -3773,7 +3819,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         """  # noqa: E501
         if self.leg1.fixing_method == "ibor":
             acc_idx = self._period_index(settlement)
-            frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, acc_idx)
+            frac = self.calc_mode._settle_acc_frac_func(self, settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
@@ -10442,6 +10488,8 @@ __all__ = [
     "BaseMixin",
     "Bill",
     "BondMixin",
+    "BondCalcMode",
+    "BillCalcMode",
     "BondFuture",
     "FRA",
     "FXBrokerFly",
