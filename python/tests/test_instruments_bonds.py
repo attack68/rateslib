@@ -1679,9 +1679,7 @@ class TestBill:
     def test_custom_calc_mode(self):
         from rateslib.instruments.bonds import BillCalcMode, BondCalcMode
 
-        cm = BillCalcMode(
-            price_type="simple", price_accrual_type="linear_days", ytm_clone_kwargs="uk_gb"
-        )
+        cm = BillCalcMode(price_type="simple", ytm_clone_kwargs="uk_gb")
         bill = Bill(
             effective=dt(2001, 1, 1),
             termination="3m",
