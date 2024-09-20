@@ -70,12 +70,17 @@ def _get_calc_mode_for_class(
 
 class BondCalcMode:
     """
-    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond` type.
+    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond`,
+    :class:`~rateslib.instruments.IndexFixedRateBond` and 
+    :class:`~rateslib.instruments.FloatRateNote` types.
 
     Parameters
     ----------
-    accrual_type: str,
-        The calculation type for accrued interest.
+    settle_accrual_type: str,
+        The calculation type for accrued interest for physical settlement.
+    ytm_accrual_type: str
+        The calculation method for accrued interest used in the YTM formula. Often the same
+        as above but not always (e.g. Canadian GBs). 
     v1_type: str
         The calculation function that defines discounting of the first period of the YTM formula.
     v2_type: str
@@ -205,20 +210,30 @@ class BondCalcMode:
 
     @property
     def kwargs(self) -> dict:
-        """
-        Return the named input parameters for the *BondCalcMode*.
-        """
+        """String representation of the parameters for the calculation convention."""
         return self._kwargs
 
 
 class BillCalcMode:
+    """
+    Define calculation conventions for :class:`~rateslib.instruments.Bill` type.
+
+    Parameters
+    ----------
+    price_type: str in {"simple", "discount"}
+        The default calculation convention for the rate of the bill.
+    ytm_clone_kwargs: dict | str,
+        A list of bond keyword arguments, or the ``spec`` for a given bond for which
+        a replicable zero coupon bond is constructed and its YTM calculated as comparison.
+    """
     def __init__(
         self,
         price_type: str,
-        price_accrual_type: str,
+        # price_accrual_type: str,
         ytm_clone_kwargs: dict | str,
     ):
         self._price_type = price_type
+        price_accrual_type = "linear_days"
         self._settle_acc_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
         if isinstance(ytm_clone_kwargs, dict):
             self._ytm_clone_kwargs = ytm_clone_kwargs
@@ -232,6 +247,7 @@ class BillCalcMode:
 
     @property
     def kwargs(self):
+        """String representation of the parameters for the calculation convention."""
         return self._kwargs
 
 
@@ -328,21 +344,21 @@ NL_GB = BondCalcMode(
 UK_GBB = BillCalcMode(
     # UK T-bills
     price_type="simple",
-    price_accrual_type="linear_days",
+    # price_accrual_type="linear_days",
     ytm_clone_kwargs="uk_gb",
 )
 
 US_GBB = BillCalcMode(
     # US T-bills
     price_type="discount",
-    price_accrual_type="linear_days",
+    # price_accrual_type="linear_days",
     ytm_clone_kwargs="us_gb",
 )
 
 SE_GBB = BillCalcMode(
     # Swedish T-bills
     price_type="simple",
-    price_accrual_type="linear_days",
+    # price_accrual_type="linear_days",
     ytm_clone_kwargs="se_gb",
 )
 
