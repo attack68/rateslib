@@ -151,6 +151,34 @@ class BondCalcMode:
 
     **v1** Functions
 
+    - *"compounding"*: the exponent is defined by the generated ytm accrual fraction.
+    - "compounding_stub_act365f": stub exponents use *act365f* convention to derive.
+    - "compounding_final_simple": uses *simple* method only for the final period of the bond.
+    - "simple": calculation uses a simple interest formula.
+    - "simple_long_stub_compounding": uses simple interest formula except for long stubs which 
+      are combined with compounding formula for the regular period of the stub.
+      
+    **v2** Functions
+    
+    - *"regular"*: uses the traditional discounting function per the frequency of coupons:
+    
+      .. math::
+      
+         v_2 = \\frac{1}{1 + \\frac{y}{f}}
+    
+    - *"annual"*: assumes an annually expressed YTM disregarding the actual coupon frequency:
+    
+      .. math::
+      
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {\\frac{1}{f}}      
+
+    **v3** Functions
+    
+    - "compounding"
+    - "simple"
+    - "simple_30e360": the final period uses simple interest with a DCF calculated 
+      under 30e360 convention, irrespective of the bond's underlying convention.
+
     """  # noqa: E501
 
     def __init__(
