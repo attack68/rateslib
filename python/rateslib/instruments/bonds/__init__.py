@@ -230,6 +230,9 @@ class BillCalcMode:
         self,
         price_type: str,
         # price_accrual_type: str,
+        # accrual type uses "linear days" by default. This correctly scales ACT365f and ACT360
+        # DCF conventions and prepares for any non-standard DCFs.
+        # currently no identified cases where anything else is needed. Revise as necessary.
         ytm_clone_kwargs: dict | str,
     ):
         self._price_type = price_type
