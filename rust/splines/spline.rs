@@ -3,7 +3,7 @@ use crate::dual::{Dual, Dual2, Gradient1, Gradient2, Number, NumberMapping};
 use ndarray::{Array1, Array2};
 use num_traits::{Signed, Zero};
 use pyo3::exceptions::{PyTypeError, PyValueError};
-use pyo3::PyErr;
+use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::PartialEq,
@@ -396,6 +396,48 @@ where
             (None, Some(_c)) => false,
             (None, None) => true,
         }
+    }
+}
+
+/// Definitive [f64] type variant of a [PPSpline].
+#[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Deserialize, Serialize)]
+pub struct PPSplineF64 {
+    pub(crate) inner: PPSpline<f64>,
+}
+
+/// Definitive [Dual] type variant of a [PPSpline].
+#[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Deserialize, Serialize)]
+pub struct PPSplineDual {
+    pub(crate) inner: PPSpline<Dual>,
+}
+
+/// Definitive [Dual2] type variant of a [PPSpline].
+#[pyclass(module = "rateslib.rs")]
+#[derive(Clone, Deserialize, Serialize)]
+pub struct PPSplineDual2 {
+    pub(crate) inner: PPSpline<Dual2>,
+}
+
+impl PartialEq for PPSplineF64 {
+    /// Equality of `PPSplineF64` if
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+impl PartialEq for PPSplineDual {
+    /// Equality of `PPSplineDual` if
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+impl PartialEq for PPSplineDual2 {
+    /// Equality of `PPSplineDual2` if
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
     }
 }
 
