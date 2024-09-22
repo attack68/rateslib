@@ -30,7 +30,7 @@ pub(crate) mod linalg_py;
 
 mod enums;
 pub use crate::dual::enums::{
-    ADOrder, Number, NumberArray1, NumberArray2, NumberMapping, NumberVec, NumberPPSpline
+    ADOrder, Number, NumberArray1, NumberArray2, NumberMapping, NumberPPSpline, NumberVec,
 };
 
 /// Utility for creating an ordered list of variable tags from a string and enumerator

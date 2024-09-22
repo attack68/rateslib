@@ -420,7 +420,6 @@ pub struct PPSplineDual2 {
     pub(crate) inner: PPSpline<Dual2>,
 }
 
-
 impl PartialEq for PPSplineF64 {
     /// Equality of `PPSplineF64` if
     fn eq(&self, other: &Self) -> bool {
