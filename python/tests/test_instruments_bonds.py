@@ -374,6 +374,20 @@ class TestFixedRateBond:
         price = sgb.price(ytm=4.0, settlement=settlement, dirty=False)
         assert abs(price - exp_price) < 1e-3
 
+    def test_sgb_ultra_short_ytm(self):
+        # SE0010469205
+        komins = FixedRateBond(
+            effective=dt(2017, 10, 2),
+            termination=dt(2024, 10, 2),
+            fixed_rate=1.0,
+            spec="se_gb"
+        )
+        dp = komins.price(ytm=3.42092, settlement=dt(2024, 9, 24), dirty=True)
+        cp = komins.price(ytm=3.42092, settlement=dt(2024, 9, 24), dirty=False)
+        assert abs(dp - cp - komins.accrued(settlement=dt(2024, 9, 24))) < 1e-10
+
+        assert abs(cp - 99.9455205) < 1e-4
+
     def test_fixed_rate_bond_price_sgb_back_stub(self) -> None:
         bond = FixedRateBond(
             dt(1995, 12, 7),
