@@ -102,3 +102,5 @@ table.scrollwide td {
 .bd-header {
   background-color: #c4dfe9 !important;
 }
+
+span.spamoff {display: none;}

@@ -25,7 +25,7 @@ No-Derivatives 4.0 International Licence**.
              <span style="text-align: center; font-style:italic;">
              Can purchase a licence extension. $300 per year / per user.</span><br>
              <span style="text-align: center; font-style:italic;">
-             contact: rateslib@gmail.com
+             contact: info<span class="spamoff">monkey wrench</span>@rateslib.com.
              </span>
           </td>
         </tr>
@@ -37,7 +37,7 @@ No-Derivatives 4.0 International Licence**.
    This means that you **can**;
 
    - Download and use the code privately in a non-profit function, such as a learning environment.
-   - Modify the code for **private, non-commerical use** only.
+   - Modify the code for **private, non-commercial use** only.
    - Share or redistribute the code, but only in its **entirety without modification**, and **with attribution**,
      and such that **end use is non-commercial** and in a non-profit function.
 

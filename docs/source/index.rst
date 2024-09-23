@@ -54,7 +54,7 @@ software provided as below.
              <span style="text-align: center; font-style:italic;">
              Can purchase a licence extension. $300 per year / per user.</span><br>
              <span style="text-align: center; font-style:italic;">
-             contact: rateslib@gmail.com
+             contact: info<span class="spamoff">Lively magic</span>@rateslib.com
              </span>
           </td>
         </tr>
