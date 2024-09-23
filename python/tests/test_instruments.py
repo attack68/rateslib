@@ -1350,12 +1350,7 @@ class TestFRA:
         assert fra.leg1.schedule.termination == exp
 
     def test_imm_dated(self):
-        FRA(
-            effective=dt(2024, 12, 18),
-            termination=dt(2025, 3, 19),
-            spec="sek_fra3",
-            roll="imm"
-        )
+        FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
 
 
 class TestZCS:
