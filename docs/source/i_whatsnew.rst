@@ -44,6 +44,11 @@ email contact through **rateslib@gmail.com**.
        coefficients are unsolved, i.e. *None*.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
    * - Refactor
+     - :red:`Minor Breaking Change!` The conventions for *"SE_GBB"* and *"SE_GB"* amended for
+       T+2 settle instead of T+1, and the calculation for YTM adjusted for simple yield in the
+       last coupon period.
+       `(410) <https://github.com/attack68/rateslib/pull/410>`_
+   * - Refactor
      - The ``__repr__`` method of all *Curve* types, *FXRates* and *FXForwards* types, the *Solver*,
        and all *Period* types are changed for better display in associated
        packages.

@@ -301,7 +301,7 @@ SE_GB = BondCalcMode(
     # Swedish government bonds
     settle_accrual_type="30e360",
     ytm_accrual_type="30e360",
-    v1_type="compounding",
+    v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="simple_30e360",
 )
