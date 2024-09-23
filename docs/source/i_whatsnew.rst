@@ -10,7 +10,7 @@ The future development of *rateslib* is open to many avenues.
 Some possibilities are listed below. The author is very interested in any feedback
 and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
-email contact through **rateslib@gmail.com**.
+email contact, see `rateslib <https://rateslib.com>`_.
 
 1.5.0 (no release date)
 ************************
