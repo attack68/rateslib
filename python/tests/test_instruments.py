@@ -1349,6 +1349,9 @@ class TestFRA:
         )
         assert fra.leg1.schedule.termination == exp
 
+    def test_imm_dated(self):
+        FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
+
 
 class TestZCS:
     @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.529690979), ("S", 3.54526437721296)])

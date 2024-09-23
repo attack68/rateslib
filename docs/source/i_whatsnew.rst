@@ -75,6 +75,10 @@ email contact through **rateslib@gmail.com**.
      - Altered the *default specs* for ``eur_stir3`` to reflect a EURIBOR settlement, and
        ``aud_irs3`` to reflect a no-lagged publication.
        `(395) <https://github.com/attack68/rateslib/pull/395>`_
+   * - Bug
+     - IMM FRAs with an IMM roll date only need to define the IMM ``roll`` on leg1 and no longer
+       also on leg2.
+       `(409) <https://github.com/attack68/rateslib/pull/409>`_
 
 
 1.4.0 (28th Aug 2024)
