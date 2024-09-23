@@ -7054,6 +7054,7 @@ class FRA(Sensitivities, BaseMixin):
             leg2_modifier=NoInput(1),
             leg2_currency=NoInput(1),
             leg2_calendar=NoInput(1),
+            leg2_roll=NoInput(1),
             leg2_eom=NoInput(1),
             leg2_payment_lag=NoInput(1),
             leg2_fixing_method="ibor",

@@ -909,3 +909,14 @@ def test_eval_date_raises() -> None:
             termination="1Y",
             frequency="S",
         )
+
+
+def test_single_period_imm_roll():
+    s = Schedule(
+        effective=dt(2024, 12, 18),
+        termination=dt(2025, 3, 19),
+        roll="imm",
+        frequency="a",
+        calendar="stk",
+    )
+    assert len(s.aschedule) == 2
