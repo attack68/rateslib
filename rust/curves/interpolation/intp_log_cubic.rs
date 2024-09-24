@@ -1,8 +1,7 @@
 use crate::curves::interpolation::utils::log_linear_interp;
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
-use crate::dual::{Number, ADOrder, NumberPPSpline, set_order_clone, Dual, Dual2};
-use crate::splines::{PPSplineF64, PPSplineDual, PPSplineDual2};
+use crate::dual::DualsOrF64;
 use bincode::{deserialize, serialize};
 use chrono::NaiveDateTime;
 use pyo3::prelude::*;
@@ -13,48 +12,56 @@ use std::cmp::PartialEq;
 
 /// Define log-linear interpolation of nodes.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub struct LogCubicInterpolator {
-    spline: NumberPPSpline
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LogCubicInterpolator<T: NumberMapping> {
+    spline: T
 }
 
 #[pymethods]
-impl LogCubicInterpolator {
+impl<T> LogCubicInterpolator
+where          T: PartialOrd + Signed + Clone + Sum + Zero,
+   for<'a> &'a T: Sub<&'a T, Output = T>,
+   for<'a> &'a f64: Mul<&'a T, Output = T>,
+{
     #[new]
-    pub fn new(t: Vec<f64>, ad: ADOrder, c: Option<Vec<Number>>) -> Self {
-        match (c, ad) {
-            (Some(v), ADOrder::Zero) => {
-                let c_: Vec<f64> = v.iter().map(|x| set_order_clone(&x, ADOrder::Zero, vec![])).map(f64::from).collect();
-                let spline = NumberPPSpline::F64(PPSplineF64::new(3, t, Some(c_)));
-                LogCubicInterpolator {spline}
-            }
-            (Some(v), ADOrder::One) => {
-                let c_: Vec<Dual> = v.iter().map(|x| set_order_clone(&x, ADOrder::One, vec![])).map(Dual::from).collect();
-                let spline = NumberPPSpline::Dual(PPSplineDual::new(3, t, Some(c_)));
-                LogCubicInterpolator {spline}
-            }
-            (Some(v), ADOrder::Two) => {
-                let c_: Vec<Dual2> = v.iter().map(|x| set_order_clone(&x, ADOrder::Zero, vec![])).map(Dual2::from).collect();
-                let spline = NumberPPSpline::Dual2(PPSplineDual2::new(3, t, Some(c_)));
-                LogCubicInterpolator {spline}
-            }
-            (None, ADOrder::Zero) => {LogCubicInterpolator {spline: NumberPPSpline::F64(PPSplineF64::new(3, t, None))}},
-            (None, ADOrder::One) => {LogCubicInterpolator {spline: NumberPPSpline::Dual(PPSplineDual::new(3, t, None))}},
-            (None, ADOrder::Two) => {LogCubicInterpolator {spline: NumberPPSpline::Dual2(PPSplineDual2::new(3, t, None))}},
+    pub fn new(t: Vec<f64>, c: Option<Vec<T>>) -> Self {
+        let spline: PPSpline<T> = PPSpline.new(3_usize, t, c);
+        LogCubicInterpolator {
+            spline
         }
     }
-    //
-    // // Pickling
-    // pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-    //     *self = deserialize(state.as_bytes()).unwrap();
-    //     Ok(())
-    // }
-    // pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-    //     Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
-    // }
-    // pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<(Vec<f64>, Option<Vec<T>>)> {
-    //     Ok((self.t.clone(), ))
-    // }
+
+    // Pickling
+    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
+        *self = deserialize(state.as_bytes()).unwrap();
+        Ok(())
+    }
+    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+    }
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<(Vec<f64>, Option<Vec<T>>)> {
+        Ok((self.t.clone(), ))
+    }
+}
+
+impl CurveInterpolation for LogLinearInterpolator {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> DualsOrF64 {
+        let x = date.and_utc().timestamp();
+        let index = self.node_index(nodes, x);
+
+        macro_rules! interp {
+            ($Variant: ident, $indexmap: expr) => {{
+                let (x1, y1) = $indexmap.get_index(index).unwrap();
+                let (x2, y2) = $indexmap.get_index(index + 1_usize).unwrap();
+                DualsOrF64::$Variant(log_linear_interp(*x1 as f64, y1, *x2 as f64, y2, x as f64))
+            }};
+        }
+        match nodes {
+            NodesTimestamp::F64(m) => interp!(F64, m),
+            NodesTimestamp::Dual(m) => interp!(Dual, m),
+            NodesTimestamp::Dual2(m) => interp!(Dual2, m),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -74,9 +81,11 @@ mod tests {
     }
 
     #[test]
-    fn test_log_cubic() {
+    fn test_log_linear() {
         let nts = nodes_timestamp_fixture();
-        let t = vec![1.0,1.0,1.0,1.0, 2.0, 3.0,3.0,3.0,3.0];
-        let ll = LogCubicInterpolator::new(t, ADOrder::Zero, None);
+        let ll = LogLinearInterpolator::new();
+        let result = ll.interpolated_value(&nts, &ndt(2000, 7, 1));
+        // expected = exp(0 + (182 / 366) * (ln(0.99) - ln(1.0)) = 0.995015
+        assert_eq!(result, DualsOrF64::F64(0.9950147597711371));
     }
 }
