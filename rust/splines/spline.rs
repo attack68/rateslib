@@ -399,26 +399,50 @@ where
     }
 }
 
-/// Definitive [f64] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Deserialize, Serialize)]
-pub struct PPSplineF64 {
-    pub(crate) inner: PPSpline<f64>,
-}
+// /// Definitive [f64] type variant of a [PPSpline].
+// #[pyclass(module = "rateslib.rs")]
+// #[derive(Clone, Deserialize, Serialize)]
+// pub struct PPSplineF64 {
+//     pub(crate) inner: PPSpline<f64>,
+// }
+//
+// /// Definitive [Dual] type variant of a [PPSpline].
+// #[pyclass(module = "rateslib.rs")]
+// #[derive(Clone, Deserialize, Serialize)]
+// pub struct PPSplineDual {
+//     pub(crate) inner: PPSpline<Dual>,
+// }
+//
+// /// Definitive [Dual2] type variant of a [PPSpline].
+// #[pyclass(module = "rateslib.rs")]
+// #[derive(Clone, Deserialize, Serialize)]
+// pub struct PPSplineDual2 {
+//     pub(crate) inner: PPSpline<Dual2>,
+// }
 
-/// Definitive [Dual] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Deserialize, Serialize)]
-pub struct PPSplineDual {
-    pub(crate) inner: PPSpline<Dual>,
-}
+macro_rules! define_specific_type_splines {
+    ($name: ident, $type: ident) => {
 
-/// Definitive [Dual2] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
-#[derive(Clone, Deserialize, Serialize)]
-pub struct PPSplineDual2 {
-    pub(crate) inner: PPSpline<Dual2>,
+        #[doc = concat!("Definitive [", stringify!($type), "] type variant of a [PPSpline]")]
+        #[pyclass(module = "rateslib.rs")]
+        #[derive(Clone, Deserialize, Serialize)]
+        pub struct $name {
+            pub(crate) inner: PPSpline<$type>,
+        }
+
+        impl $name {
+            pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<$type>>) -> Self {
+                Self {
+                    inner: PPSpline::new(k, t, c),
+                }
+            }
+        }
+    }
 }
+define_specific_type_splines!(PPSplineF64, f64);
+define_specific_type_splines!(PPSplineDual, Dual);
+define_specific_type_splines!(PPSplineDual2, Dual2);
+
 
 impl PartialEq for PPSplineF64 {
     /// Equality of `PPSplineF64` if
