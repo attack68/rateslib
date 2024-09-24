@@ -550,6 +550,9 @@ class Schedule:
             self.stubs[-1] = True
 
     def __repr__(self):
+        return f"<rl.Schedule at {hex(id(self))}>"
+
+    def __str__(self):
         str = (
             f"freq: {self.frequency},  stub: {self.stub},  roll: {self.roll}"
             f",  pay lag: {self.payment_lag},  modifier: {self.modifier}\n"
