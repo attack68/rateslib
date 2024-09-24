@@ -497,6 +497,9 @@ class BaseLeg(metaclass=ABCMeta):
             # _ = self._spread_isda_dual2(target_npv, fore_curve, disc_curve, fx)
             return _
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
 
 class FixedLegMixin:
     """
