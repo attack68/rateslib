@@ -4166,6 +4166,9 @@ class BondFuture(Sensitivities):
         )
         self._cfs = NoInput(0)
 
+    def __repr__(self):
+        return f"<rl.BondFuture at {hex(id(self))}>"
+
     @property
     def notional(self):
         """
