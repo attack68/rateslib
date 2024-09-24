@@ -50,7 +50,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        `(410) <https://github.com/attack68/rateslib/pull/410>`_
    * - Refactor
      - The ``__repr__`` method of all *Curve* types, *FXRates* and *FXForwards* types, the *Solver*,
-       and all *Period* types are changed for better display in associated
+       and all *Period* and *Leg* types are changed for better display in associated
        packages.
        `(387) <https://github.com/attack68/rateslib/pull/387>`_
        `(388) <https://github.com/attack68/rateslib/pull/388>`_
