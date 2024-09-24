@@ -377,10 +377,7 @@ class TestFixedRateBond:
     def test_sgb_ultra_short_ytm(self):
         # SE0010469205
         komins = FixedRateBond(
-            effective=dt(2017, 10, 2),
-            termination=dt(2024, 10, 2),
-            fixed_rate=1.0,
-            spec="se_gb"
+            effective=dt(2017, 10, 2), termination=dt(2024, 10, 2), fixed_rate=1.0, spec="se_gb"
         )
         dp = komins.price(ytm=3.42092, settlement=dt(2024, 9, 24), dirty=True)
         cp = komins.price(ytm=3.42092, settlement=dt(2024, 9, 24), dirty=False)
