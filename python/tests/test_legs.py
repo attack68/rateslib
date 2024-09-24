@@ -67,7 +67,7 @@ def test_repr_index(Leg):
         effective=dt(2022, 1, 1),
         termination="1y",
         frequency="Q",
-        # index_base=100.0
+        index_base=100.0
     )
     result = leg.__repr__()
     expected = f"<rl.{type(leg).__name__} at {hex(id(leg))}>"
