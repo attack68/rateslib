@@ -177,13 +177,19 @@ def _get_curves_maybe_from_solver(
     solver: Solver | NoInput,
     curves: Curve | str | list | NoInput,
 ) -> tuple:
+    """
+    Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
+    (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
+    """
     if curves is NoInput.blank and curves_attr is NoInput.blank:
+        # no data is available so consistently return a 4-tuple of no data
         return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
     elif curves is NoInput.blank:
+        # set the `curves` input as that which is set as attribute at instrument init.
         curves = curves_attr
 
-    # if isinstance(curves, (Curve, str, dict)):  # All Curve types are sub-classes of Curve
     if not isinstance(curves, (list, tuple)):
+        # convert isolated value input to list
         curves = [curves]
 
     if solver is NoInput.blank:
@@ -201,10 +207,13 @@ def _get_curves_maybe_from_solver(
     else:
         try:
             curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
-        except KeyError:
+        except KeyError as e:
             raise ValueError(
                 "`curves` must contain str curve `id` s existing in `solver` "
-                "(or its associated `pre_solvers`)",
+                "(or its associated `pre_solvers`).\n"
+                f"The sought id was: '{e.args[0]}'.\n"
+                f"The available ids are {list(solver.pre_curves.keys())}."
+                ,
             )
 
     if len(curves_) == 1:
