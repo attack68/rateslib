@@ -19,16 +19,6 @@ pub enum NodesTimestamp {
     Dual2(IndexMap<i64, Dual2>),
 }
 
-impl NodesTimestamp {
-    pub fn first_key(&self) -> i64 {
-        match self {
-            NodesTimestamp::F64(m) => *m.first().unwrap().0,
-            NodesTimestamp::Dual(m) => *m.first().unwrap().0,
-            NodesTimestamp::Dual2(m) => *m.first().unwrap().0,
-        }
-    }
-}
-
 impl From<Nodes> for NodesTimestamp {
     fn from(value: Nodes) -> Self {
         match value {
@@ -76,6 +66,14 @@ impl NodesTimestamp {
     //     }
     // }
 
+    pub fn first_key(&self) -> i64 {
+        match self {
+            NodesTimestamp::F64(m) => *m.first().unwrap().0,
+            NodesTimestamp::Dual(m) => *m.first().unwrap().0,
+            NodesTimestamp::Dual2(m) => *m.first().unwrap().0,
+        }
+    }
+
     pub(crate) fn sort_keys(&mut self) {
         match self {
             NodesTimestamp::F64(m) => m.sort_keys(),
@@ -89,6 +87,24 @@ impl NodesTimestamp {
             NodesTimestamp::F64(m) => m.keys().cloned().collect(),
             NodesTimestamp::Dual(m) => m.keys().cloned().collect(),
             NodesTimestamp::Dual2(m) => m.keys().cloned().collect(),
+        }
+    }
+
+    /// Refactors the `get_index` method of an IndexMap and type casts the return values.
+    pub(crate) fn get_index_as_f64(&self, index: usize) -> (f64, Number) {
+        match self {
+            NodesTimestamp::F64(m) => {
+                let (k, v) = m.get_index(index).unwrap();
+                (*k as f64, Number::F64(*v))
+            },
+            NodesTimestamp::Dual(m) => {
+                let (k, v) = m.get_index(index).unwrap();
+                (*k as f64, Number::Dual(v.clone()))
+            },
+            NodesTimestamp::Dual2(m) => {
+                let (k, v) = m.get_index(index).unwrap();
+                (*k as f64, Number::Dual2(v.clone()))
+            },
         }
     }
 
@@ -111,21 +127,3 @@ impl NodesTimestamp {
         }
     }
 }
-
-//     /// Refactors the `get_index` method of an IndexMap and type casts the return values.
-//     pub(crate) fn get_index_as_f64(&self, index: usize) -> (f64, Number) {
-//         match self {
-//             NodesTimestamp::F64(m) => {
-//                 let (k, v) = m.get_index(index).unwrap();
-//                 (*k as f64, Number::F64(*v))
-//             },
-//             NodesTimestamp::Dual(m) => {
-//                 let (k, v) = m.get_index(index).unwrap();
-//                 (*k as f64, Number::Dual(v.clone()))
-//             },
-//             NodesTimestamp::Dual2(m) => {
-//                 let (k, v) = m.get_index(index).unwrap();
-//                 (*k as f64, Number::Dual2(v.clone()))
-//             },
-//         }
-//     }

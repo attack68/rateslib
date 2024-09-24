@@ -1,13 +1,9 @@
-use crate::curves::interpolation::utils::log_linear_interp;
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::{Number, ADOrder, NumberPPSpline, set_order_clone, Dual, Dual2};
 use crate::splines::{PPSplineF64, PPSplineDual, PPSplineDual2};
-use bincode::{deserialize, serialize};
-use chrono::NaiveDateTime;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyTuple};
-use pyo3::{pyclass, pymethods, Bound, PyResult, Python};
+use pyo3::{pyclass, pymethods};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
@@ -76,7 +72,10 @@ mod tests {
     #[test]
     fn test_log_cubic() {
         let nts = nodes_timestamp_fixture();
-        let t = vec![1.0,1.0,1.0,1.0, 2.0, 3.0,3.0,3.0,3.0];
+        let s = nts.get_index_as_f64(0).0;
+        let m = nts.get_index_as_f64(1).0;
+        let e = nts.get_index_as_f64(2).0;
+        let t = vec![s, s, s, s, m, e, e, e, e];
         let ll = LogCubicInterpolator::new(t, ADOrder::Zero, None);
     }
 }

@@ -399,27 +399,6 @@ where
     }
 }
 
-// /// Definitive [f64] type variant of a [PPSpline].
-// #[pyclass(module = "rateslib.rs")]
-// #[derive(Clone, Deserialize, Serialize)]
-// pub struct PPSplineF64 {
-//     pub(crate) inner: PPSpline<f64>,
-// }
-//
-// /// Definitive [Dual] type variant of a [PPSpline].
-// #[pyclass(module = "rateslib.rs")]
-// #[derive(Clone, Deserialize, Serialize)]
-// pub struct PPSplineDual {
-//     pub(crate) inner: PPSpline<Dual>,
-// }
-//
-// /// Definitive [Dual2] type variant of a [PPSpline].
-// #[pyclass(module = "rateslib.rs")]
-// #[derive(Clone, Deserialize, Serialize)]
-// pub struct PPSplineDual2 {
-//     pub(crate) inner: PPSpline<Dual2>,
-// }
-
 macro_rules! define_specific_type_splines {
     ($name: ident, $type: ident) => {
 
