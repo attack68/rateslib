@@ -5001,6 +5001,18 @@ class TestFXBrokerFly:
         expected = 10.147423 - 7.90
         assert (result - expected) < 1e-6
 
+    def test_repr(self):
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-20d", "atm_delta", "20d"],
+        )
+        expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
 
 class TestVolValue:
     def test_solver_passthrough(self) -> None:
@@ -5025,3 +5037,8 @@ class TestVolValue:
         vv = VolValue(0.25, vol="string_id")
         with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
             vv.rate()
+
+    def test_repr(self):
+        v = VolValue(0.25)
+        expected = f"<rl.VolValue at {hex(id(v))}>"
+        assert v.__repr__() == expected
