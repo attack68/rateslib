@@ -4764,6 +4764,19 @@ class TestFXStrangle:
                 premium=[NoInput(0), 1.0],
             )
 
+    def test_repr(self):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=[1.0, 1.1],
+        )
+        expected = f"<rl.FXStrangle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestFXBrokerFly:
     @pytest.mark.parametrize(
