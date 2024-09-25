@@ -2,6 +2,7 @@ use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::{Number, ADOrder, NumberPPSpline, set_order_clone, Dual, Dual2};
 use crate::splines::{PPSplineF64, PPSplineDual, PPSplineDual2};
+use chrono::NaiveDateTime;
 use pyo3::prelude::*;
 use pyo3::{pyclass, pymethods};
 use serde::{Deserialize, Serialize};
@@ -51,6 +52,22 @@ impl LogCubicInterpolator {
     // pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<(Vec<f64>, Option<Vec<T>>)> {
     //     Ok((self.t.clone(), ))
     // }
+}
+
+impl CurveInterpolation for LogCubicInterpolator {
+    fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number {
+        Number::F64(2.3)
+    }
+
+    /// Calibrate the interpolator to the Curve nodes if necessary
+    fn calibrate(&self, nodes: &NodesTimestamp) -> Result<(), PyErr> {
+        // will call csolve on the spline with the appropriate data.
+        let t = self.spline.t().clone();
+        let t_min = t[0]; let t_max = t[t.len()-1];
+
+        let f = nodes.clone().iter().filter(|(k,v)| (k as f64) >= t_min && (k as f64) <= t_max);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
