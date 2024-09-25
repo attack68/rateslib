@@ -131,7 +131,7 @@ class Schedule:
            eval_date=dt(2023, 8, 17),
            eval_mode="swaps_align",
        )
-       sch
+       print(sch)
 
     **Swaptions Align**
 
@@ -157,7 +157,7 @@ class Schedule:
            eval_date=dt(2023, 8, 17),
            eval_mode="swaptions_align",
        )
-       sch
+       print(sch)
 
     .. note::
        To avoid these, it is recommended to provide ``effective``, ``termination``, as

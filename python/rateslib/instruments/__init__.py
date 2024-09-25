@@ -8379,6 +8379,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.curves = curves
         self.spec = spec
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
     def _validate_strike_and_premiums(self):
         if self.kwargs["strike"] is NoInput.blank:
             raise ValueError("`strike` for FXOption must be set to numeric or string value.")
@@ -8892,6 +8895,9 @@ class FXOptionStrat:
             raise ValueError(
                 "`rate_weight` and `rate_weight_vol` must have same length as `options`.",
             )
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def _vol_as_list(self, vol, solver):
         """Standardise a vol input over the list of periods"""
@@ -9936,6 +9942,9 @@ class Spread(Sensitivities):
         self.instrument1 = instrument1
         self.instrument2 = instrument2
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
     def npv(self, *args, **kwargs):
         """
         Return the NPV of the composited object by summing instrument NPVs.
@@ -10066,6 +10075,9 @@ class Fly(Sensitivities):
         self.instrument2 = instrument2
         self.instrument3 = instrument3
 
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
     def npv(self, *args, **kwargs):
         """
         Return the NPV of the composited object by summing instrument NPVs.
@@ -10174,6 +10186,9 @@ class Portfolio(Sensitivities):
         if not isinstance(instruments, list):
             raise ValueError("`instruments` should be a list of Instruments.")
         self.instruments = instruments
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def npv(
         self,

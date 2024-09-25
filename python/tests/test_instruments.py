@@ -3047,6 +3047,13 @@ class TestPortfolio:
         pf.gamma(solver=combined_solver)
 
 
+    def test_repr(self, curve) -> None:
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
+        irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
+        pf = Portfolio([irs1, irs2])
+        expected = f"<rl.Portfolio at {hex(id(pf))}>"
+        assert pf.__repr__() == expected
+
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
     def test_fly_npv(self, curve, mechanism) -> None:
@@ -3106,6 +3113,13 @@ class TestFly:
         expected = np.array([[-0.02944899, 0.009254014565], [0.009254014565, 0.0094239781314]])
         assert np.all(np.isclose(result, expected))
 
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        spd = Spread(irs1, irs2)
+        expected = f"<rl.Spread at {hex(id(spd))}>"
+        assert expected == spd.__repr__()
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3142,6 +3156,14 @@ class TestSpread:
             "usd": 6711.514715925333,
         }
         assert result == expected
+
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0)
+        fly = Fly(irs1, irs2, irs3)
+        expected = f"<rl.Fly at {hex(id(fly))}>"
+        assert expected == fly.__repr__()
 
 
 class TestSensitivities:
@@ -4242,6 +4264,19 @@ class TestRiskReversal:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
 
+    def test_repr(self):
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=[1.033, 1.101],
+        )
+        expected = f"<rl.FXRiskReversal at {hex(id(fxo))}>"
+        assert fxo.__repr__() == expected
+
 
 class TestFXStraddle:
     @pytest.mark.parametrize(
@@ -4366,6 +4401,19 @@ class TestFXStraddle:
         assert abs(result["delta_eur"] - expected_ccy[0]) < 1e-2
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
+
+    def test_repr(self):
+        fxo = FXStraddle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=1.0,
+        )
+        expected = f"<rl.FXStraddle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
 
 
 class TestFXStrangle:
@@ -4716,6 +4764,19 @@ class TestFXStrangle:
                 premium=[NoInput(0), 1.0],
             )
 
+    def test_repr(self):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=[1.0, 1.1],
+        )
+        expected = f"<rl.FXStrangle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestFXBrokerFly:
     @pytest.mark.parametrize(
@@ -4940,6 +5001,18 @@ class TestFXBrokerFly:
         expected = 10.147423 - 7.90
         assert (result - expected) < 1e-6
 
+    def test_repr(self):
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-20d", "atm_delta", "20d"],
+        )
+        expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
 
 class TestVolValue:
     def test_solver_passthrough(self) -> None:
@@ -4964,3 +5037,8 @@ class TestVolValue:
         vv = VolValue(0.25, vol="string_id")
         with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
             vv.rate()
+
+    def test_repr(self):
+        v = VolValue(0.25)
+        expected = f"<rl.VolValue at {hex(id(v))}>"
+        assert v.__repr__() == expected
