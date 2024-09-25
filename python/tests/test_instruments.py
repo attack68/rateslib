@@ -3106,6 +3106,13 @@ class TestFly:
         expected = np.array([[-0.02944899, 0.009254014565], [0.009254014565, 0.0094239781314]])
         assert np.all(np.isclose(result, expected))
 
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        spd = Spread(irs1, irs2)
+        expected = f"<rl.Spread at {hex(id(spd))}>"
+        assert expected == spd.__repr__()
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3146,9 +3153,11 @@ class TestSpread:
     def test_repr(self):
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
-        spd = Spread(irs1, irs2)
-        expected = f"<rl.Spread at {hex(id(spd))}>"
-        assert expected == spd.__repr__()
+        irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0)
+        fly = Fly(irs1, irs2, irs3)
+        expected = f"<rl.Fly at {hex(id(fly))}>"
+        assert expected == fly.__repr__()
+
 
 class TestSensitivities:
     def test_sensitivity_raises(self) -> None:
