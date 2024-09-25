@@ -3143,6 +3143,12 @@ class TestSpread:
         }
         assert result == expected
 
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        spd = Spread(irs1, irs2)
+        expected = f"<rl.Spread at {hex(id(spd))}>"
+        assert expected == spd.__repr__()
 
 class TestSensitivities:
     def test_sensitivity_raises(self) -> None:
