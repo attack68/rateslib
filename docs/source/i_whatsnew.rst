@@ -58,6 +58,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        `(390) <https://github.com/attack68/rateslib/pull/390>`_
        `(413) <https://github.com/attack68/rateslib/pull/413>`_
        `(416) <https://github.com/attack68/rateslib/pull/416>`_
+       `(418) <https://github.com/attack68/rateslib/pull/418>`_
    * - Performance
      - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
        500us on average.
