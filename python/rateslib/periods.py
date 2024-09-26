@@ -1846,16 +1846,34 @@ class CreditPremiumPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ) -> dict:
+    ):
         """
         Return the cashflows of the *CreditPremiumPeriod*.
-        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        return NotImplementedError("..")
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+
+        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+            survival = float(curve[self.end])
+        else:
+            npv, npv_fx, survival = None, None, None
+
+        return {
+            **super().cashflows(curve, disc_curve, fx, base),
+            defaults.headers["spread"]: float(self.credit_spread),
+            defaults.headers["survival"]: survival,
+            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx),
+            defaults.headers["npv_fx"]: npv_fx,
+        }
 
 
 class Cashflow:

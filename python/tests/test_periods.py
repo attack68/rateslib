@@ -1,6 +1,7 @@
 import re
 from datetime import datetime as dt
 from datetime import timedelta
+from sys import prefix
 
 import numpy as np
 import pytest
@@ -1586,7 +1587,7 @@ class TestCreditPremiumPeriod:
         result = premium_period.npv(hazard_curve, curve, fxr, "nok")
         assert abs(result + 98928423.73263407) < 1e-6
 
-    def test_fixed_period_npv_raises(self, curve, hazard_curve) -> None:
+    def test_period_npv_raises(self, curve, hazard_curve) -> None:
         premium_period = CreditPremiumPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
@@ -1609,7 +1610,7 @@ class TestCreditPremiumPeriod:
         ):
             premium_period.npv(NoInput(0), curve)
 
-    def test_fixed_period_analytic_delta(self, hazard_curve, curve, fxr) -> None:
+    def test_period_analytic_delta(self, hazard_curve, curve, fxr) -> None:
         premium_period = CreditPremiumPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
@@ -1627,7 +1628,7 @@ class TestCreditPremiumPeriod:
         result = premium_period.analytic_delta(hazard_curve, curve, fxr, "nok")
         assert abs(result - 247321.0593315852) < 1e-7
 
-    def test_fixed_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
+    def test_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
         premium_period = CreditPremiumPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
@@ -1642,6 +1643,43 @@ class TestCreditPremiumPeriod:
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
         result = premium_period.analytic_delta(hazard_curve, curve, fxr)
         assert abs(result - 247321.0593315852) < 1e-7
+
+    def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
+        # also test the inputs to fx as float and as FXRates (10 is for
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400,
+            currency="usd",
+        )
+
+        cashflow = 400 * -1e9 * premium_period.dcf / 10000
+        expected = {
+            defaults.headers["type"]: "CreditPremiumPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: premium_period.dcf,
+            defaults.headers["df"]: 0.9897791268897856,
+            defaults.headers["spread"]: 400.0,
+            defaults.headers["survival"]: 0.999,
+            defaults.headers["npv"]: -9892842.373263407,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: 10.0,
+            defaults.headers["npv_fx"]: -9892842.373263407 * 10.0,
+            defaults.headers["collateral"]: None,
+        }
+        result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
+        assert result == expected
 
 
 class TestCashflow:

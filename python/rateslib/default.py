@@ -244,6 +244,8 @@ class Defaults:
             "model": "Model",
             "vol": "Vol",
             "strike": "Strike",
+            # CDS headers
+            "survival": "Survival",
         }
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
