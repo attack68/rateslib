@@ -21,6 +21,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
+    CreditPremiumPeriod,
 )
 
 
@@ -32,8 +33,17 @@ def curve():
         dt(2022, 7, 1): 0.98,
         dt(2022, 10, 1): 0.97,
     }
-    return Curve(nodes=nodes, interpolation="log_linear")
+    return Curve(nodes=nodes, interpolation="log_linear", id="curve_fixture")
 
+@pytest.fixture
+def hazard_curve():
+    nodes = {
+        dt(2022, 1, 1): 1.00,
+        dt(2022, 4, 1): 0.999,
+        dt(2022, 7, 1): 0.997,
+        dt(2022, 10, 1): 0.991,
+    }
+    return Curve(nodes=nodes, interpolation="log_linear", id="hazard_fixture")
 
 @pytest.fixture
 def fxr():
@@ -1554,6 +1564,84 @@ class TestFixedPeriod:
             match=re.escape("`curves` have not been supplied correctly."),
         ):
             fixed_period.npv()
+
+
+class TestCreditPremiumPeriod:
+
+    def test_period_npv(self, hazard_curve, curve, fxr) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400,
+            currency="usd",
+        )
+        result = premium_period.npv(hazard_curve, curve)
+        assert abs(result + 9892842.373263407) < 1e-7
+
+        result = premium_period.npv(hazard_curve, curve, fxr, "nok")
+        assert abs(result + 98928423.73263407) < 1e-6
+
+    def test_fixed_period_npv_raises(self, curve, hazard_curve) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400.0,
+            currency="usd",
+        )
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly."),
+        ):
+            premium_period.npv(hazard_curve)
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly."),
+        ):
+            premium_period.npv(NoInput(0), curve)
+
+    def test_fixed_period_analytic_delta(self, hazard_curve, curve, fxr) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400,
+            currency="usd",
+        )
+        result = premium_period.analytic_delta(hazard_curve, curve)
+        assert abs(result - 24732.10593315852) < 1e-7
+
+        result = premium_period.analytic_delta(hazard_curve, curve, fxr, "nok")
+        assert abs(result - 247321.0593315852) < 1e-7
+
+    def test_fixed_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400,
+            currency="usd",
+        )
+        fxr = FXRates({"usdnok": 10.0}, base="NOK")
+        result = premium_period.analytic_delta(hazard_curve, curve, fxr)
+        assert abs(result - 247321.0593315852) < 1e-7
 
 
 class TestCashflow:

@@ -2613,6 +2613,26 @@ class MultiCsaCurve(CompositeCurve):
         return _
 
 
+# class HazardCurve(Curve):
+#     """
+#     A subclass of :class:`~rateslib.curves.Curve` with additional methods for
+#     credit default calculations.
+#
+#     Parameters
+#     ----------
+#     args : tuple
+#         Position arguments required by :class:`Curve`.
+#     kwargs : dict
+#         Keyword arguments required by :class:`Curve`.
+#     """
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#     def survival_rate(self, date: datetime):
+#         return self[date]
+
+
 class ProxyCurve(Curve):
     """
     A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on

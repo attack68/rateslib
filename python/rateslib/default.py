@@ -172,6 +172,8 @@ class Defaults:
         self.fx_delta_type = "spot"
         self.fx_option_metric = "pips"
 
+        self.cds_premium_accrued = True
+
         # Curves
 
         self.interpolation = {

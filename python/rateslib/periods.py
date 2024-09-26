@@ -31,7 +31,7 @@ from pandas import NA, DataFrame, Series, isna, notna
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, average_rate, index_left
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -1735,6 +1735,127 @@ class FloatPeriod(BasePeriod):
             a, b = 0.0, Nvd * drdz
 
         return a, b
+
+
+class CreditPremiumPeriod(BasePeriod):
+    """
+    Create a credit premium period defined by a credit spread.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BasePeriod`.
+    credit_spread : float or None, optional
+        The rate applied to determine the cashflow. If `None`, can be set later,
+        typically after a mid-market rate for all periods has been calculated.
+        Entered in basis points.
+    premium_accrued : bool, optional
+        Whether the premium is accrued within the period to default.
+    kwargs : dict
+        Required keyword arguments to :class:`BasePeriod`.
+
+    Notes
+    -----
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = -NdS
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = QCv = -NdRv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\right )
+
+    where :math:`I_{pa}` is an indicator function if the *Period* allows ``premium_accrued`` or not.
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = - \\frac{\\partial P}{\\partial S} = Ndv(m)\\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\right )
+    """
+
+    def __init__(
+        self,
+        *args,
+        credit_spread: float | NoInput = NoInput(0),
+        premium_accrued: bool | NoInput = NoInput(0),
+        **kwargs
+    ):
+        self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
+        self.credit_spread = credit_spread
+        super().__init__(*args, **kwargs)
+
+    @property
+    def cashflow(self) -> float | None:
+        """
+        float, Dual or Dual2 : The calculated value from rate, dcf and notional.
+        """
+        if self.credit_spread is NoInput.blank:
+            return None
+        else:
+            return -self.notional * self.dcf * self.credit_spread * 0.0001
+
+    def npv(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+    ) -> DualTypes | dict[str, DualTypes]:
+        """
+        Return the NPV of the *CreditPremiumPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        value = self.cashflow * disc_curve[self.payment]
+        survival = curve[self.end]
+        if self.premium_accrued:
+            survival += 0.5 * (curve[self.start] - curve[self.end])
+
+        return _maybe_local(value * survival, local, self.currency, fx, base)
+
+    def analytic_delta(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the *CreditPremiumPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        value = self.notional * self.dcf * disc_curve[self.payment] * 0.0001
+        survival = curve[self.end]
+        if self.premium_accrued:
+            survival += 0.5 * (curve[self.start] - curve[self.end])
+
+        return _maybe_local(value * survival, False, self.currency, fx, base)
+
+    def cashflows(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> dict:
+        """
+        Return the cashflows of the *CreditPremiumPeriod*.
+        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        return NotImplementedError("..")
 
 
 class Cashflow:
