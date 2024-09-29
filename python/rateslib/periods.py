@@ -1766,7 +1766,7 @@ class CreditPremiumPeriod(BasePeriod):
 
     .. math::
 
-       P = QCv = -NdRv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\right )
+       P = QCv = -NdRv(m) \\left ( Q(m_{end}) + \\frac{I_{pa}}{2} (Q(m_{start}) - Q(m_{end}) \\right )
 
     where :math:`I_{pa}` is an indicator function if the *Period* allows ``premium_accrued`` or not.
 
@@ -1814,12 +1814,23 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        value = self.cashflow * disc_curve[self.payment]
+        cashflow_npv = self.cashflow * disc_curve[self.payment]
         survival = curve[self.end]
         if self.premium_accrued:
-            survival += 0.5 * (curve[self.start] - curve[self.end])
+            r_avg, d1, n = average_rate(self.start, self.end, curve.convention, curve.rate(self.start, self.end))
+            if self.start < curve.node_dates[0]:
+                # then mid period valuation
+                # assume that today is in the morning so that today counts as a possible default day.
+                # this gives +i instead of -i
+                i = curve.node_dates[0] - self.start
+            else:
+                i = 0.0
 
-        return _maybe_local(value * survival, local, self.currency, fx, base)
+            _ = (n * n + n + i - i * i) / (n * 2.0)
+            _ *= d1 * r_avg / 100
+            survival += _
+
+        return _maybe_local(cashflow_npv * survival, local, self.currency, fx, base)
 
     def analytic_delta(
         self,

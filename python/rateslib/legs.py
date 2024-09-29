@@ -1710,6 +1710,90 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
         return super().npv(*args, **kwargs)
 
 
+class CreditPremiumLeg(BaseLeg):
+    """
+    Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args to :class:`BaseLeg`.
+    credit_spread : float, optional
+        The credit spread applied to determine cashflows in bps (i.e 5.0 = 5bps). Can be left unset and
+        designated later, perhaps after a mid-market rate for all periods has been calculated.
+    premium_accrued : bool, optional
+        Whether the premium is accrued within the period to default.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The NPV of a credit premium leg is the sum of the period NPVs.
+
+    .. math::
+
+       P = \\underbrace{- S \\sum_{i=1}^n {N_i d_i v_i(m_i) \\left (Q(m_i) + \\frac{I_{pa}}{2} (Q(m_{i-1}) - Q(m_i))    \\right )  }}_{\\text{regular flows}}
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial S} = \\sum_{i=1}^n {N_i d_i v_i(m_i)}
+
+    Examples
+    --------
+
+    .. ipython:: python
+
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       fixed_leg_exch = FixedLeg(
+           dt(2022, 1, 1), "9M", "Q",
+           fixed_rate=2.0,
+           notional=1000000,
+           amortization=200000,
+           initial_exchange=True,
+           final_exchange=True,
+       )
+       fixed_leg_exch.cashflows(curve)
+       fixed_leg_exch.npv(curve)
+    """  # noqa: E501
+
+    def __init__(self, *args, fixed_rate: float | NoInput = NoInput(0), **kwargs):
+        self._fixed_rate = fixed_rate
+        super().__init__(*args, **kwargs)
+        self._set_periods()
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *FixedLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs) -> DataFrame:
+        """
+        Return the properties of the *FixedLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *FixedLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def _set_periods(self) -> None:
+        return super()._set_periods()
+
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
