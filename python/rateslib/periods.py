@@ -1814,23 +1814,25 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        cashflow_npv = self.cashflow * disc_curve[self.payment]
-        survival = curve[self.end]
+        cashflow_pv = self.cashflow * disc_curve[self.payment]
+        q_end = curve[self.end]
+        accrued_pv = 0.0
         if self.premium_accrued:
             r_avg, d1, n = average_rate(self.start, self.end, curve.convention, curve.rate(self.start, self.end))
             if self.start < curve.node_dates[0]:
                 # then mid period valuation
                 # assume that today is in the morning so that today counts as a possible default day.
                 # this gives +i instead of -i
-                i = curve.node_dates[0] - self.start
+                i = curve.node_dates[0] - self.start + 1
+                q_start = 1.0
             else:
                 i = 0.0
+                q_start = curve[self.start]
 
-            _ = (n * n + n + i - i * i) / (n * 2.0)
-            _ *= d1 * r_avg / 100
-            survival += _
+            accrued_ = (n * n + n + i - i * i) / (n * 2.0)
+            accrued_ *= q_start * d1 * r_avg / 100
 
-        return _maybe_local(cashflow_npv * survival, local, self.currency, fx, base)
+        return _maybe_local(cashflow_pv * (q_end + accrued_), local, self.currency, fx, base)
 
     def analytic_delta(
         self,
