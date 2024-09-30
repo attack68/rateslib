@@ -2496,6 +2496,12 @@ class CustomLeg(BaseLeg):
     --------
 
     .. ipython:: python
+       :suppress:
+       
+       from rateslib.legs import CustomLeg
+       from rateslib.periods import FixedPeriod
+
+    .. ipython:: python
 
        fp1 = FixedPeriod(dt(2021,1,1), dt(2021,7,1), dt(2021,7,2), "Q", 1e6, "Act365F", fixed_rate=2.10)
        fp2 = FixedPeriod(dt(2021,3,7), dt(2021,9,7), dt(2021,9,8), "Q", -5e6, "Act365F", fixed_rate=3.10)

@@ -36,6 +36,7 @@ def curve():
     }
     return Curve(nodes=nodes, interpolation="log_linear", id="curve_fixture")
 
+
 @pytest.fixture
 def hazard_curve():
     nodes = {
@@ -45,6 +46,7 @@ def hazard_curve():
         dt(2022, 10, 1): 0.991,
     }
     return Curve(nodes=nodes, interpolation="log_linear", id="hazard_fixture")
+
 
 @pytest.fixture
 def fxr():
@@ -1696,6 +1698,43 @@ class TestCreditPremiumPeriod:
             defaults.headers["collateral"]: None,
         }
         result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
+        assert result == expected
+
+    def test_period_cashflows_no_curves(self, fxr) -> None:
+        # also test the inputs to fx as float and as FXRates (10 is for
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400,
+            currency="usd",
+        )
+
+        cashflow = 400 * -1e9 * premium_period.dcf / 10000
+        expected = {
+            defaults.headers["type"]: "CreditPremiumPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: premium_period.dcf,
+            defaults.headers["df"]: None,
+            defaults.headers["spread"]: 400.0,
+            defaults.headers["survival"]: None,
+            defaults.headers["npv"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: 10.0,
+            defaults.headers["npv_fx"]: None,
+            defaults.headers["collateral"]: None,
+        }
+        result = premium_period.cashflows(fx=fxr, base="nok")
         assert result == expected
 
 

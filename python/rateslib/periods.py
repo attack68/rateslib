@@ -1762,11 +1762,24 @@ class CreditPremiumPeriod(BasePeriod):
 
        C = -NdS
 
+    The NPV of the full cashflow is defined as;
+    
+    .. math::
+
+       P_c = CQ(m_{end})v(m_{payment})
+
+    If ``premium_accrued`` is permitted then an additional component equivalent to the following
+    is calculated using an approximation of the inter-period default rate,
+    
+    .. math::
+
+       P_a = CQ(m_{start})v(m_{payment}) \\bar{d}\\bar{r} \\frac{( \\tilde{n}^2 + \\tilde{n} + j - j^2)}{2 \\tilde{n}} 
+    
     The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
 
     .. math::
 
-       P = QCv = -NdRv(m) \\left ( Q(m_{end}) + \\frac{I_{pa}}{2} (Q(m_{start}) - Q(m_{end}) \\right )
+       P = P_c + I_{pa} P_a
 
     where :math:`I_{pa}` is an indicator function if the *Period* allows ``premium_accrued`` or not.
 
@@ -1775,7 +1788,7 @@ class CreditPremiumPeriod(BasePeriod):
     .. math::
 
        A = - \\frac{\\partial P}{\\partial S} = Ndv(m)\\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\right )
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -1852,8 +1865,6 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        if self.credit_spread is NoInput.blank:
-            raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
         a_delta_pv = self.notional * self.dcf * disc_curve[self.payment]
         q_end = curve[self.end]
         accrued_ = 0.0
@@ -1874,10 +1885,6 @@ class CreditPremiumPeriod(BasePeriod):
 
         return _maybe_local(a_delta_pv * (q_end + accrued_) * 0.0001, False, self.currency, fx, base)
 
-
-
-        pv = self.npv(curve, disc_curve, fx, base, False)
-        return -pv / self.credit_spread
 
     def cashflows(
         self,
