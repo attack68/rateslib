@@ -1848,6 +1848,34 @@ class CreditPremiumPeriod(BasePeriod):
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if self.credit_spread is NoInput.blank:
+            raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
+        a_delta_pv = self.notional * self.dcf * disc_curve[self.payment]
+        q_end = curve[self.end]
+        accrued_ = 0.0
+        if self.premium_accrued:
+            r_avg, d1, n = average_rate(self.start, self.end, curve.convention, curve.rate(self.start, self.end))
+            if self.start < curve.node_dates[0]:
+                # then mid period valuation
+                # assume that today is in the morning so that today counts as a possible default day.
+                # this gives +i instead of -i
+                i = curve.node_dates[0] - self.start + 1
+                q_start = 1.0
+            else:
+                i = 0.0
+                q_start = curve[self.start]
+
+            accrued_ = (n * n + n + i - i * i) / (n * 2.0)
+            accrued_ *= q_start * d1 * r_avg / 100
+
+        return _maybe_local(a_delta_pv * (q_end + accrued_) * 0.0001, False, self.currency, fx, base)
+
+
+
         pv = self.npv(curve, disc_curve, fx, base, False)
         return -pv / self.credit_spread
 
