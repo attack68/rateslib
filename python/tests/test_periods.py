@@ -1737,6 +1737,46 @@ class TestCreditPremiumPeriod:
         result = premium_period.cashflows(fx=fxr, base="nok")
         assert result == expected
 
+    def test_mid_period_accrued(self, hazard_curve, curve):
+        p1 = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            credit_spread=400,
+            currency="usd",
+        )
+        p2 = CreditPremiumPeriod(
+            start=dt(2021, 10, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="S",
+            credit_spread=200,
+            currency="usd",
+        )
+        r1 = p1.npv(hazard_curve, curve)
+        r2 = p2.npv(hazard_curve, curve)
+        assert r1 == r2
+
+
+    def test_null_cashflow(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        assert premium_period.cashflow is None
 
 class TestCashflow:
     def test_cashflow_analytic_delta(self, curve) -> None:

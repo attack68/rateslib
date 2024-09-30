@@ -1833,14 +1833,18 @@ class CreditPremiumPeriod(BasePeriod):
         q_end = curve[self.end]
         accrued_ = 0.0
         if self.premium_accrued:
-            r_avg, d1, n = average_rate(self.start, self.end, curve.convention, curve.rate(self.start, self.end))
+            n = (self.end - self.start).days
             if self.start < curve.node_dates[0]:
                 # then mid period valuation
                 # assume that today is in the morning so that today counts as a possible default day.
                 # this gives +i instead of -i
+                s_ = curve.node_dates[0]
+                r_avg, d1, _ = average_rate(s_, self.end, curve.convention, curve.rate(s_, self.end))
                 i = curve.node_dates[0] - self.start + 1
                 q_start = 1.0
             else:
+                r_avg, d1, _ = average_rate(self.start, self.end, curve.convention,
+                                            curve.rate(self.start, self.end))
                 i = 0.0
                 q_start = curve[self.start]
 
