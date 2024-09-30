@@ -1582,10 +1582,10 @@ class TestCreditPremiumPeriod:
             currency="usd",
         )
         result = premium_period.npv(hazard_curve, curve)
-        assert abs(result + 9892842.373263407) < 1e-7
+        assert abs(result + 9892899.892430816) < 1e-7
 
         result = premium_period.npv(hazard_curve, curve, fxr, "nok")
-        assert abs(result + 98928423.73263407) < 1e-6
+        assert abs(result + 98928998.92430816) < 1e-6
 
     def test_period_npv_raises(self, curve, hazard_curve) -> None:
         premium_period = CreditPremiumPeriod(
@@ -1610,6 +1610,23 @@ class TestCreditPremiumPeriod:
         ):
             premium_period.npv(NoInput(0), curve)
 
+    def test_period_npv_no_spread_raises(self, curve, hazard_curve) -> None:
+        premium_period = CreditPremiumPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                currency="usd",
+            )
+        with pytest.raises(
+                ValueError,
+                match=re.escape("`credit_spread` must be set as a value"),
+        ):
+            premium_period.npv(hazard_curve, curve)
+
     def test_period_analytic_delta(self, hazard_curve, curve, fxr) -> None:
         premium_period = CreditPremiumPeriod(
             start=dt(2022, 1, 1),
@@ -1623,10 +1640,10 @@ class TestCreditPremiumPeriod:
             currency="usd",
         )
         result = premium_period.analytic_delta(hazard_curve, curve)
-        assert abs(result - 24732.10593315852) < 1e-7
+        assert abs(result - 24732.24973107704) < 1e-7
 
         result = premium_period.analytic_delta(hazard_curve, curve, fxr, "nok")
-        assert abs(result - 247321.0593315852) < 1e-7
+        assert abs(result - 247322.4973107704) < 1e-7
 
     def test_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
         premium_period = CreditPremiumPeriod(
@@ -1642,7 +1659,7 @@ class TestCreditPremiumPeriod:
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
         result = premium_period.analytic_delta(hazard_curve, curve, fxr)
-        assert abs(result - 247321.0593315852) < 1e-7
+        assert abs(result - 247322.4973107704) < 1e-7
 
     def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
         # also test the inputs to fx as float and as FXRates (10 is for
@@ -1672,10 +1689,10 @@ class TestCreditPremiumPeriod:
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["spread"]: 400.0,
             defaults.headers["survival"]: 0.999,
-            defaults.headers["npv"]: -9892842.373263407,
+            defaults.headers["npv"]: -9892899.892430816,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
-            defaults.headers["npv_fx"]: -9892842.373263407 * 10.0,
+            defaults.headers["npv_fx"]: -9892899.892430816 * 10.0,
             defaults.headers["collateral"]: None,
         }
         result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")

@@ -1814,9 +1814,11 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
+        if self.credit_spread is NoInput.blank:
+            raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
         cashflow_pv = self.cashflow * disc_curve[self.payment]
         q_end = curve[self.end]
-        accrued_pv = 0.0
+        accrued_ = 0.0
         if self.premium_accrued:
             r_avg, d1, n = average_rate(self.start, self.end, curve.convention, curve.rate(self.start, self.end))
             if self.start < curve.node_dates[0]:
@@ -1846,16 +1848,8 @@ class CreditPremiumPeriod(BasePeriod):
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
-            raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
-            raise TypeError("`curves` have not been supplied correctly.")
-        value = self.notional * self.dcf * disc_curve[self.payment] * 0.0001
-        survival = curve[self.end]
-        if self.premium_accrued:
-            survival += 0.5 * (curve[self.start] - curve[self.end])
-
-        return _maybe_local(value * survival, False, self.currency, fx, base)
+        pv = self.npv(curve, disc_curve, fx, base, False)
+        return -pv / self.credit_spread
 
     def cashflows(
         self,
