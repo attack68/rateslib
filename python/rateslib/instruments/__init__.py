@@ -212,8 +212,7 @@ def _get_curves_maybe_from_solver(
                 "`curves` must contain str curve `id` s existing in `solver` "
                 "(or its associated `pre_solvers`).\n"
                 f"The sought id was: '{e.args[0]}'.\n"
-                f"The available ids are {list(solver.pre_curves.keys())}."
-                ,
+                f"The available ids are {list(solver.pre_curves.keys())}.",
             )
 
     if len(curves_) == 1:
