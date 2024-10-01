@@ -1,24 +1,26 @@
 from abc import ABCMeta
 from datetime import datetime
+
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, plot
-from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar, CalInput
-from rateslib.instruments.core import Sensitivities
-from rateslib.dual import DualTypes, dual_log
-from rateslib.splines import evaluate
-from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXVols, FXVolObj, FXDeltaVolSurface, FXDeltaVolSmile
+from rateslib.calendars import CalInput, _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
-from rateslib.solver import Solver
-from rateslib.periods import FXCallPeriod, Cashflow, FXPutPeriod
+from rateslib.default import NoInput, _drb, plot
+from rateslib.dual import DualTypes, dual_log
+from rateslib.fx import FXForwards, FXRates
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj, FXVols
 from rateslib.instruments.core import (
-    _push,
-    _update_with_defaults,
+    Sensitivities,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
+    _push,
+    _update_with_defaults,
 )
+from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
+from rateslib.solver import Solver
+from rateslib.splines import evaluate
+
 
 class FXOption(Sensitivities, metaclass=ABCMeta):
     """
@@ -113,25 +115,25 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     _rate_scalar = 1.0
 
     def __init__(
-            self,
-            pair: str,
-            expiry: datetime | str,
-            notional: float = NoInput(0),
-            eval_date: datetime | NoInput = NoInput(0),
-            calendar: CalInput = NoInput(0),
-            modifier: str | NoInput = NoInput(0),
-            eom: bool | NoInput = NoInput(0),
-            delivery_lag: int | NoInput = NoInput(0),
-            strike: DualTypes | str | NoInput = NoInput(0),
-            premium: float | NoInput = NoInput(0),
-            premium_ccy: str | NoInput = NoInput(0),
-            payment_lag: str | datetime | NoInput = NoInput(0),
-            option_fixing: float | NoInput = NoInput(0),
-            delta_type: float | NoInput = NoInput(0),
-            metric: str | NoInput = NoInput(0),
-            curves: list | str | Curve | NoInput = NoInput(0),
-            vol: str | FXVols | NoInput = NoInput(0),
-            spec: str | NoInput = NoInput(0),
+        self,
+        pair: str,
+        expiry: datetime | str,
+        notional: float = NoInput(0),
+        eval_date: datetime | NoInput = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        modifier: str | NoInput = NoInput(0),
+        eom: bool | NoInput = NoInput(0),
+        delivery_lag: int | NoInput = NoInput(0),
+        strike: DualTypes | str | NoInput = NoInput(0),
+        premium: float | NoInput = NoInput(0),
+        premium_ccy: str | NoInput = NoInput(0),
+        payment_lag: str | datetime | NoInput = NoInput(0),
+        option_fixing: float | NoInput = NoInput(0),
+        delta_type: float | NoInput = NoInput(0),
+        metric: str | NoInput = NoInput(0),
+        curves: list | str | Curve | NoInput = NoInput(0),
+        vol: str | FXVols | NoInput = NoInput(0),
+        spec: str | NoInput = NoInput(0),
     ):
         self.kwargs = dict(
             pair=pair,
@@ -221,10 +223,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             )
 
     def _set_strike_and_vol(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            vol: float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        vol: float = NoInput(0),
     ):
         # If the strike for the option is not set directly it must be inferred
         # and some of the pricing elements associated with this strike definition must
@@ -306,9 +308,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 )
 
     def _set_premium(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
     ):
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
@@ -351,13 +353,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         return curves, fx, base, vol
 
     def rate(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            vol: float | FXVols | NoInput = NoInput(0),
-            metric: str | NoInput = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        vol: float | FXVols | NoInput = NoInput(0),
+        metric: str | NoInput = NoInput(0),
     ):
         """
         Return various pricing metrics of the *FX Option*.
@@ -428,13 +430,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         return _
 
     def npv(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
     ):
         """
         Return the NPV of the *Option*.
@@ -483,12 +485,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             return opt_npv + prem_npv
 
     def cashflows(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            vol: float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        vol: float = NoInput(0),
     ):
         """
         Return the properties of all periods used in calculating cashflows.
@@ -531,13 +533,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         return DataFrame.from_records(seq)
 
     def analytic_greeks(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
     ):
         """
         Return various pricing metrics of the *FX Option*.
@@ -585,14 +587,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         )
 
     def _plot_payoff(
-            self,
-            range: list[float] | NoInput = NoInput(0),
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: float = NoInput(0),
+        self,
+        range: list[float] | NoInput = NoInput(0),
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
     ):
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
@@ -611,14 +613,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         return x, y
 
     def plot_payoff(
-            self,
-            range: list[float] | NoInput = NoInput(0),
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: float = NoInput(0),
+        self,
+        range: list[float] | NoInput = NoInput(0),
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
     ):
         x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
         return plot(x, [y])
@@ -709,16 +711,16 @@ class FXOptionStrat:
     _pricing = {}
 
     def __init__(
-            self,
-            options: list[FXOption],
-            rate_weight: list[float],
-            rate_weight_vol: list[float],
+        self,
+        options: list[FXOption],
+        rate_weight: list[float],
+        rate_weight_vol: list[float],
     ):
         self.periods = options
         self.rate_weight = rate_weight
         self.rate_weight_vol = rate_weight_vol
         if len(self.periods) != len(self.rate_weight) or len(self.periods) != len(
-                self.rate_weight_vol,
+            self.rate_weight_vol,
         ):
             raise ValueError(
                 "`rate_weight` and `rate_weight_vol` must have same length as `options`.",
@@ -734,13 +736,13 @@ class FXOptionStrat:
         return [_get_vol_maybe_from_solver(self.vol, _, solver) for _ in vol]
 
     def rate(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            vol: list[float] | float = NoInput(0),
-            metric: str | NoInput = NoInput(0),  # "pips_or_%",
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        vol: list[float] | float = NoInput(0),
+        metric: str | NoInput = NoInput(0),  # "pips_or_%",
     ):
         """
         Return the mid-market rate of an option strategy.
@@ -772,13 +774,13 @@ class FXOptionStrat:
         return _
 
     def npv(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: list[float] | float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: list[float] | float = NoInput(0),
     ):
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
@@ -797,14 +799,14 @@ class FXOptionStrat:
         return _
 
     def _plot_payoff(
-            self,
-            range: list[float] | NoInput = NoInput(0),
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: list[float] | float = NoInput(0),
+        self,
+        range: list[float] | NoInput = NoInput(0),
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: list[float] | float = NoInput(0),
     ):
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
@@ -828,13 +830,13 @@ class FXOptionStrat:
             option.periods[0].notional = notional
 
     def analytic_greeks(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
     ):
         """
         Return various pricing metrics of the *FX Option*.
@@ -960,12 +962,12 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     _rate_scalar = 100.0
 
     def __init__(
-            self,
-            *args,
-            strike=(NoInput(0), NoInput(0)),
-            premium=(NoInput(0), NoInput(0)),
-            metric: str = "vol",
-            **kwargs,
+        self,
+        *args,
+        strike=(NoInput(0), NoInput(0)),
+        premium=(NoInput(0), NoInput(0)),
+        metric: str = "vol",
+        **kwargs,
     ):
         super(FXOptionStrat, self).__init__(
             *args,
@@ -1158,12 +1160,12 @@ class FXStrangle(FXOptionStrat, FXOption):
     _rate_scalar = 100.0
 
     def __init__(
-            self,
-            *args,
-            strike=(NoInput(0), NoInput(0)),
-            premium=(NoInput(0), NoInput(0)),
-            metric="single_vol",
-            **kwargs,
+        self,
+        *args,
+        strike=(NoInput(0), NoInput(0)),
+        premium=(NoInput(0), NoInput(0)),
+        metric="single_vol",
+        **kwargs,
     ):
         super(FXOptionStrat, self).__init__(
             *args, strike=list(strike), premium=list(premium), **kwargs
@@ -1176,7 +1178,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             isinstance(self.kwargs["strike"][1], str)
             and self.kwargs["strike"][1][-1].lower() == "d"
             and self.kwargs["strike"][1] != "atm_forward",
-            ]
+        ]
         self.periods = [
             FXPut(
                 pair=self.kwargs["pair"],
@@ -1227,13 +1229,13 @@ class FXStrangle(FXOptionStrat, FXOption):
                 )
 
     def rate(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            vol: list[float] | float = NoInput(0),
-            metric: str | NoInput = NoInput(0),  # "pips_or_%",
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        vol: list[float] | float = NoInput(0),
+        metric: str | NoInput = NoInput(0),  # "pips_or_%",
     ):
         """
         Returns the rate of the *FXStraddle* according to a pricing metric.
@@ -1379,10 +1381,10 @@ class FXStrangle(FXOptionStrat, FXOption):
 
             # The value of the root function is derived from the 4 previous calculated prices
             f0 = (
-                    smile_gks[0]["__bs76"]
-                    + smile_gks[1]["__bs76"]
-                    - gks[0]["__bs76"]
-                    - gks[1]["__bs76"]
+                smile_gks[0]["__bs76"]
+                + smile_gks[1]["__bs76"]
+                - gks[0]["__bs76"]
+                - gks[1]["__bs76"]
             )
 
             dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, vol, eta1)
@@ -1493,13 +1495,13 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     _rate_scalar = 100.0
 
     def __init__(
-            self,
-            *args,
-            strike=(NoInput(0), NoInput(0), NoInput(0)),
-            premium=(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
-            notional=(NoInput(0), NoInput(0)),
-            metric="single_vol",
-            **kwargs,
+        self,
+        *args,
+        strike=(NoInput(0), NoInput(0), NoInput(0)),
+        premium=(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
+        notional=(NoInput(0), NoInput(0)),
+        metric="single_vol",
+        **kwargs,
     ):
         super(FXOptionStrat, self).__init__(
             *args,
@@ -1573,18 +1575,18 @@ class FXBrokerFly(FXOptionStrat, FXOption):
             scalar = strangle_vega / straddle_vega
             self.periods[1].kwargs["notional"] = float(
                 self.periods[0].periods[0].periods[0].notional * -scalar,
-                )
+            )
             self.periods[1]._set_notionals(self.periods[1].kwargs["notional"])
             # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
 
     def rate(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            vol: list[float] | float = NoInput(0),
-            metric: str | NoInput = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        vol: list[float] | float = NoInput(0),
+        metric: str | NoInput = NoInput(0),
     ):
         """
         Return the mid-market rate of an option strategy.
@@ -1635,8 +1637,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         if temp_metric == "pips_or_%":
             straddle_scalar = (
-                    self.periods[1].periods[0].periods[0].notional
-                    / self.periods[0].periods[0].periods[0].notional
+                self.periods[1].periods[0].periods[0].notional
+                / self.periods[0].periods[0].periods[0].notional
             )
             weights = [1.0, straddle_scalar]
         elif temp_metric == "premium":
@@ -1649,13 +1651,13 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         return _
 
     def analytic_greeks(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: float = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
     ):
         """ """
         # implicitly call set_pricing_mid for unpriced parameters
@@ -1674,7 +1676,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         sclr = abs(
             self.periods[1].periods[0].periods[0].notional
             / self.periods[0].periods[0].periods[0].notional,
-            )
+        )
 
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
         _ = {}
@@ -1700,14 +1702,14 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         return _
 
     def _plot_payoff(
-            self,
-            range: list[float] | NoInput = NoInput(0),
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            vol: list[float] | float = NoInput(0),
+        self,
+        range: list[float] | NoInput = NoInput(0),
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        vol: list[float] | float = NoInput(0),
     ):
         vol = self._vol_as_list(vol, solver)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, metric="pips_or_%")

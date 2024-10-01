@@ -1,14 +1,16 @@
-import warnings
 import abc
+import warnings
+
 from pandas import DataFrame, concat, isna
 
 from rateslib import defaults
+from rateslib.curves import Curve
 from rateslib.default import NoInput
+from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
-from rateslib.dual import DualTypes, Dual, Dual2
 from rateslib.solver import Solver
-from rateslib.curves import Curve
+
 
 def _get_curve_from_solver(curve, solver):
     if isinstance(curve, dict):
@@ -61,9 +63,9 @@ def _get_curve_from_solver(curve, solver):
 
 
 def _get_base_maybe_from_fx(
-        fx: float | FXRates | FXForwards | NoInput,
-        base: str | NoInput,
-        local_ccy: str | NoInput,
+    fx: float | FXRates | FXForwards | NoInput,
+    base: str | NoInput,
+    local_ccy: str | NoInput,
 ) -> str | NoInput:
     if fx is NoInput.blank and base is NoInput.blank:
         # base will not be inherited from a 2nd level inherited object, i.e.
@@ -78,8 +80,8 @@ def _get_base_maybe_from_fx(
 
 
 def _get_fx_maybe_from_solver(
-        solver: Solver | NoInput,
-        fx: float | FXRates | FXForwards | NoInput,
+    solver: Solver | NoInput,
+    fx: float | FXRates | FXForwards | NoInput,
 ) -> float | FXRates | FXForwards | NoInput:
     if fx is NoInput.blank:
         if solver is NoInput.blank:
@@ -94,9 +96,9 @@ def _get_fx_maybe_from_solver(
     else:
         fx_ = fx
         if (
-                solver is not NoInput.blank
-                and solver.fx is not NoInput.blank
-                and id(fx) != id(solver.fx)
+            solver is not NoInput.blank
+            and solver.fx is not NoInput.blank
+            and id(fx) != id(solver.fx)
         ):
             warnings.warn(
                 "Solver contains an `fx` attribute but an `fx` argument has been "
@@ -109,9 +111,9 @@ def _get_fx_maybe_from_solver(
 
 
 def _get_curves_maybe_from_solver(
-        curves_attr: Curve | str | list | NoInput,
-        solver: Solver | NoInput,
-        curves: Curve | str | list | NoInput,
+    curves_attr: Curve | str | list | NoInput,
+    solver: Solver | NoInput,
+    curves: Curve | str | list | NoInput,
 ) -> tuple:
     """
     Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
@@ -164,12 +166,12 @@ def _get_curves_maybe_from_solver(
 
 
 def _get_curves_fx_and_base_maybe_from_solver(
-        curves_attr: Curve | str | list | None,
-        solver: Solver | None,
-        curves: Curve | str | list | None,
-        fx: float | FXRates | FXForwards | None,
-        base: str | None,
-        local_ccy: str | None,
+    curves_attr: Curve | str | list | None,
+    solver: Solver | None,
+    curves: Curve | str | list | None,
+    fx: float | FXRates | FXForwards | None,
+    base: str | None,
+    local_ccy: str | None,
 ) -> tuple:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
@@ -210,9 +212,9 @@ def _get_curves_fx_and_base_maybe_from_solver(
 
 
 def _get_vol_maybe_from_solver(
-        vol_attr: DualTypes | str | FXVols | NoInput,
-        vol: DualTypes | str | FXVols | NoInput,
-        solver: Solver | NoInput,
+    vol_attr: DualTypes | str | FXVols | NoInput,
+    vol: DualTypes | str | FXVols | NoInput,
+    solver: Solver | NoInput,
 ):
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with
@@ -285,13 +287,13 @@ class Sensitivities:
     """
 
     def delta(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            **kwargs,
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        **kwargs,
     ) -> DataFrame:
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
@@ -343,13 +345,13 @@ class Sensitivities:
         return solver.delta(npv, base_, fx_)
 
     def gamma(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
-            **kwargs,
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+        **kwargs,
     ):
         """
         Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
@@ -417,12 +419,12 @@ class Sensitivities:
         return grad_s_sT_P
 
     def cashflows_table(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            **kwargs,
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        **kwargs,
     ):
         """
         Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
@@ -638,11 +640,11 @@ class BaseMixin:
 
     @abc.abstractmethod
     def cashflows(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         """
         Return the properties of all legs used in calculating cashflows.
@@ -717,12 +719,12 @@ class BaseMixin:
 
     @abc.abstractmethod
     def npv(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-            base: str | NoInput = NoInput(0),
-            local: bool = False,
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
     ):
         """
         Return the NPV of the derivative object by summing legs.
