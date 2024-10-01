@@ -37,6 +37,8 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
+)
+from rateslib.instruments.core import (
     _get_curve_from_solver,
     _get_curves_fx_and_base_maybe_from_solver,
 )
