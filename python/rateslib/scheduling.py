@@ -131,7 +131,7 @@ class Schedule:
            eval_date=dt(2023, 8, 17),
            eval_mode="swaps_align",
        )
-       sch
+       print(sch)
 
     **Swaptions Align**
 
@@ -157,7 +157,7 @@ class Schedule:
            eval_date=dt(2023, 8, 17),
            eval_mode="swaptions_align",
        )
-       sch
+       print(sch)
 
     .. note::
        To avoid these, it is recommended to provide ``effective``, ``termination``, as
@@ -550,6 +550,9 @@ class Schedule:
             self.stubs[-1] = True
 
     def __repr__(self):
+        return f"<rl.Schedule at {hex(id(self))}>"
+
+    def __str__(self):
         str = (
             f"freq: {self.frequency},  stub: {self.stub},  roll: {self.roll}"
             f",  pay lag: {self.payment_lag},  modifier: {self.modifier}\n"

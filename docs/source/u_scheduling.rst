@@ -49,7 +49,7 @@ effective and termination dates are actually the 3rd and 2nd.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)
 
 If the same schedule is created with the adjusted dates input as the effective and
 termination dates then a roll day is inferred, in this case as 2, creating a different
@@ -64,7 +64,7 @@ schedule to the above.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)
 
 The original schedule can be obtained by directly specifying the roll day and not
 relying on roll day inference.
@@ -79,7 +79,7 @@ relying on roll day inference.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)
 
 Defined Stubs
 --------------
@@ -97,7 +97,7 @@ A schedule with specifically defined stubs.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)
 
 Note that the above schedule must have a **regular swap** defined between stub dates.
 In this case the roll, inferred as 29, allows this, and the unadjusted dates are then
@@ -124,7 +124,7 @@ between stub dates) raise errors.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)
 
 .. ipython:: python
 
@@ -157,7 +157,7 @@ One-sided stub inference can also be made if no stub dates are defined.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)
 
 .. ipython:: python
 
@@ -169,4 +169,4 @@ One-sided stub inference can also be made if no stub dates are defined.
        calendar="bus",
        payment_lag=1
    )
-   schedule
+   print(schedule)

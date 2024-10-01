@@ -2171,6 +2171,20 @@ class TestFloatRateNote:
 
 
 class TestBondFuture:
+    def test_repr(self):
+        kwargs = dict(
+            effective=dt(2020, 1, 1),
+            stub="ShortFront",
+            frequency="A",
+            calendar="tgt",
+            currency="eur",
+            convention="ActActICMA",
+        )
+        bond1 = FixedRateBond(termination=dt(2022, 3, 1), fixed_rate=1.5, **kwargs)
+        fut = BondFuture(delivery=dt(2021, 3, 1), coupon=6.0, basket=[bond1])
+        expected = f"<rl.BondFuture at {hex(id(fut))}>"
+        assert expected == fut.__repr__()
+
     @pytest.mark.parametrize(
         ("delivery", "mat", "coupon", "exp"),
         [
