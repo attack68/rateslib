@@ -1763,18 +1763,18 @@ class CreditPremiumPeriod(BasePeriod):
        C = -NdS
 
     The NPV of the full cashflow is defined as;
-    
+
     .. math::
 
        P_c = CQ(m_{end})v(m_{payment})
 
     If ``premium_accrued`` is permitted then an additional component equivalent to the following
     is calculated using an approximation of the inter-period default rate,
-    
+
     .. math::
 
-       P_a = CQ(m_{start})v(m_{payment}) \\bar{d}\\bar{r} \\frac{( \\tilde{n}^2 + \\tilde{n} + j - j^2)}{2 \\tilde{n}} 
-    
+       P_a = CQ(m_{start})v(m_{payment}) \\bar{d}\\bar{r} \\frac{( \\tilde{n}^2 + \\tilde{n} + j - j^2)}{2 \\tilde{n}}
+
     The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
 
     .. math::
@@ -1795,7 +1795,7 @@ class CreditPremiumPeriod(BasePeriod):
         *args,
         credit_spread: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
-        **kwargs
+        **kwargs,
     ):
         self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
         self.credit_spread = credit_spread
@@ -1833,23 +1833,16 @@ class CreditPremiumPeriod(BasePeriod):
         q_end = curve[self.end]
         accrued_ = 0.0
         if self.premium_accrued:
-            n = (self.end - self.start).days
-            if self.start < curve.node_dates[0]:
-                # then mid period valuation
-                # assume that today is in the morning so that today counts as a possible default day.
-                # this gives +i instead of -i
-                s_ = curve.node_dates[0]
-                r_avg, d1, _ = average_rate(s_, self.end, curve.convention, curve.rate(s_, self.end))
-                i = curve.node_dates[0] - self.start + 1
-                q_start = 1.0
-            else:
-                r_avg, d1, _ = average_rate(self.start, self.end, curve.convention,
-                                            curve.rate(self.start, self.end))
-                i = 0.0
-                q_start = curve[self.start]
+            n = float((self.end - self.start).days)
 
-            accrued_ = (n * n + n + i - i * i) / (n * 2.0)
-            accrued_ *= q_start * d1 * r_avg / 100
+            if self.start < curve.node_dates[0]:
+                # then mid-period valuation
+                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
+            else:
+                r, q_start = 0.0, curve[self.start]
+
+            accrued_ = (n - r) / (2 * n) + r / n
+            accrued_ *= q_start - q_end
 
         return _maybe_local(cashflow_pv * (q_end + accrued_), local, self.currency, fx, base)
 
@@ -1869,26 +1862,22 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        a_delta_pv = self.notional * self.dcf * disc_curve[self.payment]
+        a_delta_pv = self.notional * self.dcf * disc_curve[self.payment] * 0.0001
         q_end = curve[self.end]
         accrued_ = 0.0
         if self.premium_accrued:
-            r_avg, d1, n = average_rate(self.start, self.end, curve.convention, curve.rate(self.start, self.end))
+            n = float((self.end - self.start).days)
+
             if self.start < curve.node_dates[0]:
-                # then mid period valuation
-                # assume that today is in the morning so that today counts as a possible default day.
-                # this gives +i instead of -i
-                i = curve.node_dates[0] - self.start + 1
-                q_start = 1.0
+                # then mid-period valuation
+                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
             else:
-                i = 0.0
-                q_start = curve[self.start]
+                r, q_start = 0.0, curve[self.start]
 
-            accrued_ = (n * n + n + i - i * i) / (n * 2.0)
-            accrued_ *= q_start * d1 * r_avg / 100
+            accrued_ = (n - r) / (2 * n) + r / n
+            accrued_ *= q_start - q_end
 
-        return _maybe_local(a_delta_pv * (q_end + accrued_) * 0.0001, False, self.currency, fx, base)
-
+        return _maybe_local(a_delta_pv * (q_end + accrued_), False, self.currency, fx, base)
 
     def cashflows(
         self,

@@ -10,6 +10,7 @@ from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     Cashflow,
+    CreditPremiumLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -21,7 +22,6 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
-    CreditPremiumLeg,
 )
 
 
@@ -1095,11 +1095,9 @@ class TestFixedLeg:
 
 
 class TestCreditPremiumLeg:
-
-    @pytest.mark.parametrize(("premium_accrued, exp"), [
-        (True, 41357.79029720747),
-        (False, 41330.94188109829)
-    ])
+    @pytest.mark.parametrize(
+        ("premium_accrued", "exp"), [(True, 41357.449652241856), (False, 41330.94188109829)]
+    )
     def test_premium_leg_analytic_delta(self, hazard_curve, curve, premium_accrued, exp) -> None:
         leg = CreditPremiumLeg(
             effective=dt(2022, 1, 1),
@@ -1113,9 +1111,7 @@ class TestCreditPremiumLeg:
         result = leg.analytic_delta(hazard_curve, curve)
         assert abs(result - exp) < 1e-7
 
-    @pytest.mark.parametrize(("premium_accrued"), [
-        True, False
-    ])
+    @pytest.mark.parametrize(("premium_accrued"), [True, False])
     def test_premium_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
         leg = CreditPremiumLeg(
             effective=dt(2022, 1, 1),
