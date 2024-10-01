@@ -233,25 +233,6 @@ Link to the :ref:`Legs<legs-doc>` section in the user guide.
 
 .. automodapi:: rateslib.legs
    :no-heading:
-   :skip: NoInput
-   :skip: ABCMeta
-   :skip: Curve
-   :skip: CustomBusinessDay
-   :skip: DataFrame
-   :skip: Dual
-   :skip: Dual2
-   :skip: FXRates
-   :skip: FXForwards
-   :skip: Series
-   :skip: datetime
-   :skip: Cashflow
-   :skip: FixedPeriod
-   :skip: FloatPeriod
-   :skip: Schedule
-   :skip: IndexCashflow
-   :skip: IndexFixedPeriod
-   :skip: IndexCurve
-   :skip: IndexMixin
 
 Instruments
 ============

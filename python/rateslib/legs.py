@@ -501,7 +501,7 @@ class BaseLeg(metaclass=ABCMeta):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
 
-class FixedLegMixin:
+class _FixedLegMixin:
     """
     Add the functionality to add and retrieve ``fixed_rate`` on
     :class:`~rateslib.periods.FixedPeriod` s.
@@ -547,7 +547,7 @@ class FixedLegMixin:
         )
 
 
-class FixedLeg(BaseLeg, FixedLegMixin):
+class FixedLeg(BaseLeg, _FixedLegMixin):
     """
     Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
 
@@ -634,7 +634,7 @@ class FixedLeg(BaseLeg, FixedLegMixin):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatLegMixin:
+class _FloatLegMixin:
     """
     Add the functionality to add and retrieve ``float_spread`` on
     :class:`~rateslib.periods.FloatPeriod` s and a
@@ -784,7 +784,7 @@ class FloatLegMixin:
         )
 
 
-class FloatLeg(BaseLeg, FloatLegMixin):
+class FloatLeg(BaseLeg, _FloatLegMixin):
     """
     Create a floating leg composed of :class:`~rateslib.periods.FloatPeriod` s.
 
@@ -1011,7 +1011,7 @@ class FloatLeg(BaseLeg, FloatLegMixin):
     #     return True
 
 
-class IndexLegMixin:
+class _IndexLegMixin:
     schedule = None
     index_method = None
     _index_fixings = None
@@ -1094,7 +1094,7 @@ class IndexLegMixin:
                 period.index_base = value
 
 
-class ZeroFloatLeg(BaseLeg, FloatLegMixin):
+class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
     """
     Create a zero coupon floating leg composed of
     :class:`~rateslib.periods.FloatPeriod` s.
@@ -1345,7 +1345,7 @@ class ZeroFloatLeg(BaseLeg, FloatLegMixin):
         return DataFrame.from_records(seq)
 
 
-class ZeroFixedLeg(BaseLeg, FixedLegMixin):
+class ZeroFixedLeg(BaseLeg, _FixedLegMixin):
     """
     Create a zero coupon fixed leg composed of a single
     :class:`~rateslib.periods.FixedPeriod` .
@@ -1558,7 +1558,7 @@ class ZeroFixedLeg(BaseLeg, FixedLegMixin):
         return super().npv(*args, **kwargs)
 
 
-class ZeroIndexLeg(BaseLeg, IndexLegMixin):
+class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
     """
     Create a zero coupon index leg composed of a single
     :class:`~rateslib.periods.IndexFixedPeriod` and
@@ -1715,7 +1715,7 @@ class ZeroIndexLeg(BaseLeg, IndexLegMixin):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class IndexFixedLeg(IndexLegMixin, FixedLegMixin, BaseLeg):
+class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
     """
     Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
     final :class:`~rateslib.periods.IndexCashflow` s.
@@ -2194,7 +2194,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         return ret
 
 
-class FixedLegMtm(BaseLegMtm, FixedLegMixin):
+class FixedLegMtm(BaseLegMtm, _FixedLegMixin):
     """
     Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
@@ -2256,7 +2256,7 @@ class FixedLegMtm(BaseLegMtm, FixedLegMixin):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatLegMtm(BaseLegMtm, FloatLegMixin):
+class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
     """
     Create a leg of :class:`~rateslib.periods.FloatPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
@@ -2358,6 +2358,12 @@ class CustomLeg(BaseLeg):
     --------
 
     .. ipython:: python
+       :suppress:
+       
+       from rateslib.legs import CustomLeg
+       from rateslib.periods import FixedPeriod
+
+    .. ipython:: python
 
        fp1 = FixedPeriod(dt(2021,1,1), dt(2021,7,1), dt(2021,7,2), "Q", 1e6, "Act365F", fixed_rate=2.10)
        fp2 = FixedPeriod(dt(2021,3,7), dt(2021,9,7), dt(2021,9,8), "Q", -5e6, "Act365F", fixed_rate=3.10)
@@ -2407,3 +2413,18 @@ class CustomLeg(BaseLeg):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+__all__ = [
+    "CustomLeg",
+    "BaseLeg",
+    "BaseLegMtm",
+    "FixedLeg",
+    "IndexFixedLeg",
+    "FloatLeg",
+    "FixedLegMtm",
+    "FloatLegMtm",
+    "ZeroFixedLeg",
+    "ZeroFloatLeg",
+    "ZeroIndexLeg",
+]
