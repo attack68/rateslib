@@ -57,7 +57,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      - -
      - -
-     -
+     - :ref:`usd_stir <spec-usd-stir>`, :ref:`usd_stir1 <spec-usd-stir1>`
      -
      -
      -
@@ -69,7 +69,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`eurusd_xcs <spec-eurusd-xcs>`, :ref:`eurgbp_xcs <spec-eurgbp-xcs>`
      - :ref:`eur_fra3 <spec-eur-fra3>`, :ref:`eur_fra6 <spec-eur-fra6>`, :ref:`eur_fra1 <spec-eur-fra1>`
      - :ref:`eur_sbs36 <spec-eur-sbs36>`
-     -
+     - :ref:`eur_stir <spec-eur-stir>`, :ref:`eur_stir1 <spec-eur-stir1>`, :ref:`eur_stir3 <spec-eur-stir3>`
      -
      -
      -
@@ -81,7 +81,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`gbpusd_xcs <spec-gbpusd-xcs>`, :ref:`gbpeur_xcs <spec-gbpeur-xcs>`
      - -
      - -
-     -
+     - :ref:`gbp_stir <spec-gbp-stir>`,
      -
      -
      -
@@ -161,7 +161,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - NZD
      - :ref:`wlg <spec-nzd-wlg>`
-     -
+     - :ref:`nzd_irs3 <spec-nzd-irs3>`, :ref:`nzd_irs6 <spec-nzd-irs6>`
      -
      -
      -
@@ -195,7 +195,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - GBP
      - :ref:`uk_gb <spec-uk-gb>`
-     -
+     - :ref:`uk_gbb <spec-uk-gbb>`
      -
      -
    * - CHF
@@ -205,7 +205,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - SEK
      - :ref:`se_gb <spec-se-gb>`
-     -
+     - :ref:`se_gbb <spec-se-gbb>`
      -
      -
    * - NOK
@@ -247,6 +247,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/fra.rst
     spec/fixedratebond.rst
     spec/bill.rst
+    spec/stir.rst
 
 
 The NoInput argument

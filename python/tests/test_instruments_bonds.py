@@ -374,6 +374,17 @@ class TestFixedRateBond:
         price = sgb.price(ytm=4.0, settlement=settlement, dirty=False)
         assert abs(price - exp_price) < 1e-3
 
+    def test_sgb_ultra_short_ytm(self):
+        # SE0010469205
+        komins = FixedRateBond(
+            effective=dt(2017, 10, 2), termination=dt(2024, 10, 2), fixed_rate=1.0, spec="se_gb"
+        )
+        dp = komins.price(ytm=3.42092, settlement=dt(2024, 9, 24), dirty=True)
+        cp = komins.price(ytm=3.42092, settlement=dt(2024, 9, 24), dirty=False)
+        assert abs(dp - cp - komins.accrued(settlement=dt(2024, 9, 24))) < 1e-10
+
+        assert abs(cp - 99.9455205) < 1e-4
+
     def test_fixed_rate_bond_price_sgb_back_stub(self) -> None:
         bond = FixedRateBond(
             dt(1995, 12, 7),
@@ -1112,6 +1123,31 @@ class TestFixedRateBond:
         for i in range(NUMBER):
             BONDS[i].ytm(price=RAND_PRICES[i], settlement=dt(2001, 8, 30))
 
+    def test_custom_calc_mode(self):
+        from rateslib.instruments.bonds import BondCalcMode
+
+        cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type="compounding",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+        bond = FixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination="10y",
+            frequency="s",
+            calendar="ldn",
+            convention="ActActICMA",
+            modifier="none",
+            settle=1,
+            calc_mode=cm,
+            fixed_rate=1.0,
+        )
+        bond2 = FixedRateBond(dt(2001, 1, 1), "10y", spec="uk_gb", fixed_rate=1.0)
+        assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
+        assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
@@ -1423,6 +1459,34 @@ class TestIndexFixedRateBond:
         result = tii_0728.ytm(100, dt(2024, 8, 26))
         assert (result - 0.749935) < 1e-5
 
+    def test_custom_calc_mode(self):
+        from rateslib.instruments.bonds import BondCalcMode
+
+        cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type="compounding",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+        bond = IndexFixedRateBond(
+            effective=dt(2001, 1, 1),
+            termination="10y",
+            frequency="s",
+            calendar="ldn",
+            convention="ActActICMA",
+            modifier="none",
+            settle=1,
+            calc_mode=cm,
+            fixed_rate=1.0,
+            index_base=100.0,
+        )
+        bond2 = IndexFixedRateBond(
+            dt(2001, 1, 1), "10y", spec="uk_gb", fixed_rate=1.0, index_base=100.0
+        )
+        assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
+        assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
+
 
 class TestBill:
     def test_bill_discount_rate(self) -> None:
@@ -1622,6 +1686,30 @@ class TestBill:
         b = Bill(dt(2000, 1, 1), "6m", frequency="Q", spec="ustb")
         result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
         assert result == 0.4985413405436174
+
+    def test_custom_calc_mode(self):
+        from rateslib.instruments.bonds import BillCalcMode, BondCalcMode
+
+        cm = BillCalcMode(price_type="simple", ytm_clone_kwargs="uk_gb")
+        bill = Bill(
+            effective=dt(2001, 1, 1),
+            termination="3m",
+            calendar="ldn",
+            convention="Act365f",
+            modifier="none",
+            settle=1,
+            calc_mode=cm,
+        )
+        bill2 = Bill(dt(2001, 1, 1), "3m", spec="uk_gbb")
+        assert bill.simple_rate(99.0, dt(2001, 2, 4)) == bill2.simple_rate(99.0, dt(2001, 2, 4))
+
+    def test_us_gbb_eom(self):
+        b = Bill(dt(2023, 2, 28), "3m", spec="us_gbb")
+        assert b.leg1.periods[0].end == dt(2023, 5, 31)
+
+    def test_se_gbb_eom(self):
+        b = Bill(dt(2023, 2, 28), "3m", spec="se_gbb")
+        assert b.leg1.periods[0].end == dt(2023, 5, 28)
 
 
 class TestFloatRateNote:
@@ -2083,6 +2171,20 @@ class TestFloatRateNote:
 
 
 class TestBondFuture:
+    def test_repr(self):
+        kwargs = dict(
+            effective=dt(2020, 1, 1),
+            stub="ShortFront",
+            frequency="A",
+            calendar="tgt",
+            currency="eur",
+            convention="ActActICMA",
+        )
+        bond1 = FixedRateBond(termination=dt(2022, 3, 1), fixed_rate=1.5, **kwargs)
+        fut = BondFuture(delivery=dt(2021, 3, 1), coupon=6.0, basket=[bond1])
+        expected = f"<rl.BondFuture at {hex(id(fut))}>"
+        assert expected == fut.__repr__()
+
     @pytest.mark.parametrize(
         ("delivery", "mat", "coupon", "exp"),
         [

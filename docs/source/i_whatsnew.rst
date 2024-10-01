@@ -10,10 +10,10 @@ The future development of *rateslib* is open to many avenues.
 Some possibilities are listed below. The author is very interested in any feedback
 and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
-email contact through **rateslib@gmail.com**.
+email contact, see `rateslib <https://rateslib.com>`_.
 
-1.5.0 (no release date)
-************************
+1.5.0 (25th September 2024)
+****************************
 
 .. list-table::
    :widths: 25 75
@@ -21,6 +21,15 @@ email contact through **rateslib@gmail.com**.
 
    * - Feature
      - Description
+   * - Instruments
+     - Added *"nzd_irs3"*, *"nzd_irs6"*, *"se_gbb"* and *"uk_gbb"* to available ``spec`` defaults.
+       (`397 <https://github.com/attack68/rateslib/pull/397>`_)
+       (`403 <https://github.com/attack68/rateslib/pull/403>`_)
+   * - Instruments
+     - :class:`~rateslib.instruments.BondCalcMode` and :class:`~rateslib.instruments.BillCalcMode`
+       added to allow more flexibility when adding new bond specifications with other
+       defined calculation conventions.
+       (`402 <https://github.com/attack68/rateslib/pull/402>`_)
    * - Calendars
      - Add a *"wlg"* calendar for New Zealand *IRS*.
        (`363 <https://github.com/attack68/rateslib/pull/363>`_)
@@ -35,13 +44,16 @@ email contact through **rateslib@gmail.com**.
        coefficients are unsolved, i.e. *None*.
        `(374) <https://github.com/attack68/rateslib/pull/374>`_
    * - Refactor
-     - The ``__repr__`` method of all *Curve* types, *FXRates* and *FXForwards* types, the *Solver*,
-       and all *Period* types are changed for better display in associated
+     - The ``__repr__`` method of all *Curve* types, *FXRates* and *FXForwards* types, the *Solver*, *Schedule*,
+       and all *Period*, *Leg* and *Instrument* types are changed for better display in associated
        packages.
        `(387) <https://github.com/attack68/rateslib/pull/387>`_
        `(388) <https://github.com/attack68/rateslib/pull/388>`_
        `(389) <https://github.com/attack68/rateslib/pull/389>`_
        `(390) <https://github.com/attack68/rateslib/pull/390>`_
+       `(413) <https://github.com/attack68/rateslib/pull/413>`_
+       `(416) <https://github.com/attack68/rateslib/pull/416>`_
+       `(418) <https://github.com/attack68/rateslib/pull/418>`_
    * - Performance
      - Improve the speed of bond :meth:`~rateslib.instruments.FixedRateBond.ytm` calculations from about 750us to
        500us on average.
@@ -62,6 +74,19 @@ email contact through **rateslib@gmail.com**.
        :class:`~rateslib.curves.MultiCsaCurve` now correctly initialise a randomised curve ``id``
        when one is not provided.
        `(387) <https://github.com/attack68/rateslib/pull/387>`_
+   * - Bug
+     - Altered the *default specs* for ``eur_stir3`` to reflect a EURIBOR settlement, and
+       ``aud_irs3`` to reflect a no-lagged publication.
+       `(395) <https://github.com/attack68/rateslib/pull/395>`_
+   * - Bug
+     - The conventions for *"SE_GBB"* and *"SE_GB"* amended for
+       T+2 settle instead of T+1, and the calculation for YTM adjusted for simple yield in the
+       last coupon period.
+       `(410) <https://github.com/attack68/rateslib/pull/410>`_
+   * - Bug
+     - IMM FRAs with an IMM roll date only need to define the IMM ``roll`` on leg1 and no longer
+       also on leg2.
+       `(409) <https://github.com/attack68/rateslib/pull/409>`_
 
 
 1.4.0 (28th Aug 2024)

@@ -273,7 +273,17 @@ def test_infer_stub_date_eom(cal_) -> None:
     assert result[1]["front_stub"] == dt(2022, 5, 31)
 
 
-def test_schedule_repr(cal_) -> None:
+def test_repr():
+    schedule = Schedule(
+        dt(2022, 1, 1),
+        "2M",
+        "M",
+    )
+    expected = f"<rl.Schedule at {hex(id(schedule))}>"
+    assert expected == schedule.__repr__()
+
+
+def test_schedule_str(cal_) -> None:
     schedule = Schedule(
         dt(2022, 1, 1),
         "2M",
@@ -298,7 +308,7 @@ def test_schedule_repr(cal_) -> None:
             defaults.headers["payment"]: [dt(2022, 2, 2), dt(2022, 3, 2)],
         },
     )
-    assert schedule.__repr__() == expected + df.__repr__()
+    assert schedule.__str__() == expected + df.__repr__()
 
 
 def test_schedule_raises(cal_) -> None:
@@ -909,3 +919,14 @@ def test_eval_date_raises() -> None:
             termination="1Y",
             frequency="S",
         )
+
+
+def test_single_period_imm_roll():
+    s = Schedule(
+        effective=dt(2024, 12, 18),
+        termination=dt(2025, 3, 19),
+        roll="imm",
+        frequency="a",
+        calendar="stk",
+    )
+    assert len(s.aschedule) == 2

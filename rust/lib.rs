@@ -22,9 +22,8 @@ use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 use dual::{ADOrder, Dual, Dual2};
 
 pub mod splines;
-use splines::spline_py::{
-    bspldnev_single, bsplev_single, PPSplineDual, PPSplineDual2, PPSplineF64,
-};
+use splines::spline_py::{bspldnev_single, bsplev_single};
+use splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 
 pub mod curves;
 use curves::curve_py::Curve;

@@ -538,9 +538,9 @@ class FXDeltaVolSmile:
 
     def plot(
         self,
-        comparators: list[FXDeltaVolSmile] = [],
+        comparators: list[FXDeltaVolSmile] | NoInput = NoInput(0),
         difference: bool = False,
-        labels: list[str] = [],
+        labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "delta",
     ):
         """
@@ -575,6 +575,8 @@ class FXDeltaVolSmile:
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
         # reversed for intuitive strike direction
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
         x = np.linspace(self.plot_upper_bound, self.t[0], 301)
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":

@@ -37,6 +37,8 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
+)
+from rateslib.instruments.core import (
     _get_curve_from_solver,
     _get_curves_fx_and_base_maybe_from_solver,
 )
@@ -98,6 +100,66 @@ def simple_solver():
         instrument_labels=["1Y", "2Y"],
     )
     return solver
+
+
+@pytest.mark.parametrize(
+    "inst",
+    [
+        IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        STIRFuture(
+            dt(2022, 3, 16),
+            dt(2022, 6, 15),
+            "Q",
+            curves="eureur",
+            bp_value=25.0,
+            contracts=-1,
+        ),
+        FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        SBS(
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            curves=["eureur", "eureur", "eurusd", "eureur"],
+            notional=-1e6,
+        ),
+        ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        ZCIS(dt(2022, 1, 1), "1Y", "A", curves=["usdusd", "usdusd", "eu_cpi", "usdusd"]),
+        IIRS(
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            curves=["eu_cpi", "eureur", "eureur", "eureur"],
+            notional=1e6,
+        ),
+        XCS(  # XCS - FloatFloat
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            currency="usd",
+            leg2_currency="eur",
+            curves=["usdusd", "usdusd", "eureur", "eurusd"],
+            notional=1e6,
+        ),
+        FXSwap(
+            dt(2022, 7, 1),
+            "3M",
+            currency="usd",
+            leg2_currency="eur",
+            curves=["usdusd", "usdusd", "eureur", "eureur"],
+            notional=-1e6,
+        ),
+        FXExchange(
+            settlement=dt(2022, 10, 1),
+            pair="eurusd",
+            curves=[None, "eureur", None, "usdusd"],
+            notional=-1e6 * 25 / 74.27,
+        ),
+    ],
+)
+def test_instrument_repr(inst):
+    result = inst.__repr__()
+    expected = f"<rl.{type(inst).__name__} at {hex(id(inst))}>"
+    assert result == expected
 
 
 class TestCurvesandSolver:
@@ -1288,6 +1350,9 @@ class TestFRA:
             calendar="bus",
         )
         assert fra.leg1.schedule.termination == exp
+
+    def test_imm_dated(self):
+        FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
 
 
 class TestZCS:
@@ -2983,6 +3048,13 @@ class TestPortfolio:
         pf.delta(solver=combined_solver)
         pf.gamma(solver=combined_solver)
 
+    def test_repr(self, curve) -> None:
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
+        irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
+        pf = Portfolio([irs1, irs2])
+        expected = f"<rl.Portfolio at {hex(id(pf))}>"
+        assert pf.__repr__() == expected
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3043,6 +3115,13 @@ class TestFly:
         expected = np.array([[-0.02944899, 0.009254014565], [0.009254014565, 0.0094239781314]])
         assert np.all(np.isclose(result, expected))
 
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        spd = Spread(irs1, irs2)
+        expected = f"<rl.Spread at {hex(id(spd))}>"
+        assert expected == spd.__repr__()
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3079,6 +3158,14 @@ class TestSpread:
             "usd": 6711.514715925333,
         }
         assert result == expected
+
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0)
+        fly = Fly(irs1, irs2, irs3)
+        expected = f"<rl.Fly at {hex(id(fly))}>"
+        assert expected == fly.__repr__()
 
 
 class TestSensitivities:
@@ -3236,7 +3323,9 @@ class TestSpec:
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
-        assert bond.calc_mode == "ust_31bii"
+        from rateslib.instruments.bonds import US_GB_TSY
+
+        assert bond.calc_mode.kwargs == US_GB_TSY.kwargs
         assert bond.kwargs["convention"] == "actacticma"
         assert bond.kwargs["currency"] == "usd"
         assert bond.kwargs["fixed_rate"] == 2.0
@@ -3250,7 +3339,9 @@ class TestSpec:
             calc_mode="ust",
             fixed_rate=2.0,
         )
-        assert bond.calc_mode == "ust"
+        from rateslib.instruments.bonds import US_GB
+
+        assert bond.calc_mode.kwargs == US_GB.kwargs
         assert bond.kwargs["convention"] == "actacticma"
         assert bond.kwargs["currency"] == "gbp"
         assert bond.kwargs["fixed_rate"] == 2.0
@@ -3263,7 +3354,9 @@ class TestSpec:
             spec="us_gbb",
             convention="act365f",
         )
-        assert bill.calc_mode == "us_gbb"
+        from rateslib.instruments.bonds import US_GBB
+
+        assert bill.calc_mode.kwargs == US_GBB.kwargs
         assert bill.kwargs["convention"] == "act365f"
         assert bill.kwargs["currency"] == "usd"
         assert bill.kwargs["fixed_rate"] == 0.0
@@ -4173,6 +4266,19 @@ class TestRiskReversal:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
 
+    def test_repr(self):
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=[1.033, 1.101],
+        )
+        expected = f"<rl.FXRiskReversal at {hex(id(fxo))}>"
+        assert fxo.__repr__() == expected
+
 
 class TestFXStraddle:
     @pytest.mark.parametrize(
@@ -4297,6 +4403,19 @@ class TestFXStraddle:
         assert abs(result["delta_eur"] - expected_ccy[0]) < 1e-2
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
+
+    def test_repr(self):
+        fxo = FXStraddle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=1.0,
+        )
+        expected = f"<rl.FXStraddle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
 
 
 class TestFXStrangle:
@@ -4647,6 +4766,19 @@ class TestFXStrangle:
                 premium=[NoInput(0), 1.0],
             )
 
+    def test_repr(self):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=[1.0, 1.1],
+        )
+        expected = f"<rl.FXStrangle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestFXBrokerFly:
     @pytest.mark.parametrize(
@@ -4871,6 +5003,19 @@ class TestFXBrokerFly:
         expected = 10.147423 - 7.90
         assert (result - expected) < 1e-6
 
+    def test_repr(self):
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-20d", "atm_delta", "20d"],
+        )
+        expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestVolValue:
     def test_solver_passthrough(self) -> None:
@@ -4895,3 +5040,8 @@ class TestVolValue:
         vv = VolValue(0.25, vol="string_id")
         with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
             vv.rate()
+
+    def test_repr(self):
+        v = VolValue(0.25)
+        expected = f"<rl.VolValue at {hex(id(v))}>"
+        assert v.__repr__() == expected

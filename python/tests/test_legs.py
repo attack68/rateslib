@@ -35,6 +35,62 @@ def curve():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
+@pytest.mark.parametrize(
+    "Leg",
+    [
+        FloatLeg,
+        FixedLeg,
+        ZeroFixedLeg,
+        ZeroFloatLeg,
+    ],
+)
+def test_repr(Leg):
+    leg = Leg(
+        effective=dt(2022, 1, 1),
+        termination="1y",
+        frequency="Q",
+    )
+    result = leg.__repr__()
+    expected = f"<rl.{type(leg).__name__} at {hex(id(leg))}>"
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "Leg",
+    [
+        IndexFixedLeg,
+        ZeroIndexLeg,
+    ],
+)
+def test_repr_index(Leg):
+    leg = Leg(effective=dt(2022, 1, 1), termination="1y", frequency="Q", index_base=100.0)
+    result = leg.__repr__()
+    expected = f"<rl.{type(leg).__name__} at {hex(id(leg))}>"
+    assert result == expected
+
+
+@pytest.mark.parametrize("Leg", [FixedLegMtm, FloatLegMtm])
+def test_repr_mtm(Leg):
+    leg = Leg(
+        effective=dt(2022, 1, 1),
+        termination="1y",
+        frequency="Q",
+        alt_currency="usd",
+        currency="eur",
+    )
+    result = leg.__repr__()
+    expected = f"<rl.{type(leg).__name__} at {hex(id(leg))}>"
+    assert result == expected
+
+
+def test_repr_custom():
+    period = FixedPeriod(
+        start=dt(2000, 1, 1), end=dt(2000, 2, 1), payment=dt(2000, 2, 1), frequency="m"
+    )
+    leg = CustomLeg([period])
+    assert leg.__repr__() == f"<rl.CustomLeg at {hex(id(leg))}>"
+
+
 class TestFloatLeg:
     @pytest.mark.parametrize(
         "obj",

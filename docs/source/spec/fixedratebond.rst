@@ -23,6 +23,8 @@ proportioning only in the segregated short stub part.
 .. ipython:: python
 
    defaults.spec["us_gb"]
+   from rateslib.instruments.bonds import US_GB
+   US_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="us_gb", fixed_rate=2.5).kwargs
 
 US Treasury convention. Reprices examples in federal documents: Section 31-B-ii).
@@ -30,6 +32,8 @@ US Treasury convention. Reprices examples in federal documents: Section 31-B-ii)
 .. ipython:: python
 
    defaults.spec["us_gb_tsy"]
+   from rateslib.instruments.bonds import US_GB_TSY
+   US_GB_TSY.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="us_gb_tsy", fixed_rate=2.5).kwargs
 
 EUR
@@ -48,6 +52,8 @@ money-market yield is used.
 .. ipython:: python
 
    defaults.spec["de_gb"]
+   from rateslib.instruments.bonds import DE_GB
+   DE_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="de_gb", fixed_rate=2.5).kwargs
 
 .. _spec-fr-gb:
@@ -59,6 +65,8 @@ Uses ICMA conventions. Similar to *"uk_gb"*.
 .. ipython:: python
 
    defaults.spec["fr_gb"]
+   from rateslib.instruments.bonds import FR_GB
+   FR_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="fr_gb", fixed_rate=2.5).kwargs
 
 .. _spec-it-gb:
@@ -70,6 +78,8 @@ Coupons are semi-annual but yield convention is annual yield. In last coupon per
 .. ipython:: python
 
    defaults.spec["it_gb"]
+   from rateslib.instruments.bonds import IT_GB
+   IT_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="it_gb", fixed_rate=2.5).kwargs
 
 .. _spec-nl-gb:
@@ -81,6 +91,8 @@ Street convention is used, except when the bond is in the final coupon period si
 .. ipython:: python
 
    defaults.spec["nl_gb"]
+   from rateslib.instruments.bonds import NL_GB
+   NL_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="nl_gb", fixed_rate=2.5).kwargs
 
 GBP
@@ -100,6 +112,8 @@ Yield is compounded in all periods including any front and back stubs.
 .. ipython:: python
 
    defaults.spec["uk_gb"]
+   from rateslib.instruments.bonds import UK_GB
+   UK_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="uk_gb", fixed_rate=2.5).kwargs
 
 
@@ -118,6 +132,8 @@ Calculation performed with Swedish DMO method, using 30e360 for accrued calculat
 .. ipython:: python
 
    defaults.spec["se_gb"]
+   from rateslib.instruments.bonds import SE_GB
+   SE_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="se_gb", fixed_rate=2.5).kwargs
 
 NOK
@@ -134,6 +150,8 @@ Accrual is calculated with ACT365F.
 .. ipython:: python
 
    defaults.spec["no_gb"]
+   from rateslib.instruments.bonds import NO_GB
+   NO_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="no_gb", fixed_rate=2.5).kwargs
 
 CAD
@@ -153,5 +171,6 @@ coupons.
 .. ipython:: python
 
    defaults.spec["ca_gb"]
+   from rateslib.instruments.bonds import CA_GB
+   CA_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="ca_gb", fixed_rate=2.5).kwargs
-

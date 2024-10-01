@@ -16,7 +16,7 @@ from rateslib.calendars.rs import (
     _get_rollday,
     get_calendar,
 )
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -137,7 +137,7 @@ def dcf(
 
 
 # TODO (deprecate): this function on 2.0.0
-def create_calendar(rules: list, week_mask: list[int] = []) -> Cal:
+def create_calendar(rules: list, week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
 
@@ -156,7 +156,7 @@ def create_calendar(rules: list, week_mask: list[int] = []) -> Cal:
     --------
     Cal
     """
-    weekmask = [5, 6] if week_mask is None else week_mask
+    weekmask = _drb([5, 6], week_mask)
     return Cal(rules, weekmask)
 
 
@@ -585,4 +585,5 @@ __all__ = (
     "RollDay",
     "UnionCal",
     "get_calendar",
+    "get_imm",
 )
