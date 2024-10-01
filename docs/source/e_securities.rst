@@ -20,7 +20,7 @@ for example.
    :parts: 1
 
 .. autosummary::
-   rateslib.instruments.BondConvention
+   rateslib.instruments.BondMixin
    rateslib.instruments.FixedRateBond
    rateslib.instruments.FloatRateNote
    rateslib.instruments.Bill

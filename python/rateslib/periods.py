@@ -1790,7 +1790,7 @@ class CreditPremiumPeriod(BasePeriod):
 
     .. math::
 
-       A = - \\frac{\\partial P}{\\partial S} = Ndv(m)\\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\right )
+       A = - \\frac{\\partial P}{\\partial S} = Ndv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\frac{(n+r)}{2n}  \\right )
     """  # noqa: E501
 
     def __init__(
