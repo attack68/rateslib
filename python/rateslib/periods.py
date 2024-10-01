@@ -1766,15 +1766,18 @@ class CreditPremiumPeriod(BasePeriod):
 
     .. math::
 
-       P_c = CQ(m_{end})v(m_{payment})
+       P_c = Cv(m_{payment})Q(m_{end})
 
     If ``premium_accrued`` is permitted then an additional component equivalent to the following
     is calculated using an approximation of the inter-period default rate,
 
     .. math::
 
-       P_a = CQ(m_{start})v(m_{payment}) \\bar{d}\\bar{r} \\frac{( \\tilde{n}^2 + \\tilde{n} + j - j^2)}{2 \\tilde{n}}
+       P_a = Cv(m_{payment}) \\left ( Q(m_{start}) - Q(m_{end}) \\right ) \\frac{(n+r)}{2n} 
 
+    where *r* is the number of days after the *start* that *today* is for an on-going period, zero otherwise, and
+    :math:`Q(m_{start})` is equal to one for an on-going period. 
+     
     The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
 
     .. math::
