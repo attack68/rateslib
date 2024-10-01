@@ -3046,13 +3046,13 @@ class TestPortfolio:
         pf.delta(solver=combined_solver)
         pf.gamma(solver=combined_solver)
 
-
     def test_repr(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
         pf = Portfolio([irs1, irs2])
         expected = f"<rl.Portfolio at {hex(id(pf))}>"
         assert pf.__repr__() == expected
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -5013,6 +5013,7 @@ class TestFXBrokerFly:
         )
         expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
         assert expected == fxo.__repr__()
+
 
 class TestVolValue:
     def test_solver_passthrough(self) -> None:

@@ -2359,7 +2359,7 @@ class CustomLeg(BaseLeg):
 
     .. ipython:: python
        :suppress:
-       
+
        from rateslib.legs import CustomLeg
        from rateslib.periods import FixedPeriod
 
