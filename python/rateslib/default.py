@@ -172,6 +172,8 @@ class Defaults:
         self.fx_delta_type = "spot"
         self.fx_option_metric = "pips"
 
+        self.cds_premium_accrued = True
+
         # Curves
 
         self.interpolation = {
@@ -242,6 +244,8 @@ class Defaults:
             "model": "Model",
             "vol": "Vol",
             "strike": "Strike",
+            # CDS headers
+            "survival": "Survival",
         }
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

@@ -29,6 +29,8 @@ Notation
    C =& \text{Cashflow} \\
    P =& \text{Net present value} \\
    I(m) =& \text{Index ratio applicable at maturity,} \; m \\
+   S =& \text{Fixed credit spread} \\
+   Q(m) =& \text{Survival probability at maturity,} \; m \\
 
 Defaults
 =========
