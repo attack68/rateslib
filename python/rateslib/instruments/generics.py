@@ -1,17 +1,259 @@
 from __future__ import annotations
 
 import warnings
+from datetime import datetime
 
 from pandas import DataFrame, concat
 
 from rateslib import defaults
-from rateslib.curves import Curve
+from rateslib.calendars import dcf
+from rateslib.curves import Curve, IndexCurve
 from rateslib.default import NoInput
+from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments.core import Sensitivities
+from rateslib.fx_volatility import FXVols
+from rateslib.instruments.core import (
+    BaseMixin,
+    Sensitivities,
+    _get_curves_fx_and_base_maybe_from_solver,
+    _get_vol_maybe_from_solver,
+)
 from rateslib.solver import Solver
 
-# Generic Instruments
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# This code cannot be installed or executed on a corporate computer without a paid licence extension
+# Contact info at rateslib.com if this code is observed outside its intended sphere of use.
+
+
+class Value(BaseMixin):
+    """
+    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    to directly parametrise a *Curve* node, via some calculated value.
+
+    Parameters
+    ----------
+    effective : datetime
+        The datetime index for which the `rate`, which is just the curve value, is
+        returned.
+    curves : Curve, LineCurve, str or list of such, optional
+        A single :class:`~rateslib.curves.Curve`,
+        :class:`~rateslib.curves.LineCurve` or id or a
+        list of such. Only uses the first *Curve* in a list.
+    convention : str, optional,
+        Day count convention used with certain ``metric``.
+    metric : str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+        Configures which value to extract from the *Curve*.
+
+    Examples
+    --------
+    The below :class:`~rateslib.curves.Curve` is solved directly
+    from a calibrating DF value on 1st Nov 2022.
+
+    .. ipython:: python
+
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="v")
+       instruments = [(Value(dt(2022, 11, 1)), (curve,), {})]
+       solver = Solver([curve], [], instruments, [0.99])
+       curve[dt(2022, 1, 1)]
+       curve[dt(2022, 11, 1)]
+       curve[dt(2023, 1, 1)]
+    """
+
+    def __init__(
+        self,
+        effective: datetime,
+        convention: str | NoInput = NoInput(0),
+        metric: str = "curve_value",
+        curves: list | str | Curve | None = None,
+    ):
+        self.effective = effective
+        self.curves = curves
+        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.metric = metric.lower()
+
+    def rate(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        metric: str | NoInput = NoInput(0),
+    ):
+        """
+        Return a value derived from a *Curve*.
+
+        Parameters
+        ----------
+        curves : Curve, LineCurve, str or list of such
+            Uses only one *Curve*, the one given or the first in the list.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            Not used.
+        base : str, optional
+            Not used.
+        metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+            Configures which type of value to return from the applicable *Curve*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            NoInput(0),
+            NoInput(0),
+            "_",
+        )
+        metric = self.metric if metric is NoInput.blank else metric.lower()
+        if metric == "curve_value":
+            return curves[0][self.effective]
+        elif metric == "cc_zero_rate":
+            if curves[0]._base_type != "dfs":
+                raise TypeError(
+                    "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
+                )
+            dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
+            _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
+            return _
+        elif metric == "index_value":
+            if not isinstance(curves[0], IndexCurve):
+                raise TypeError("`curve` used with `metric`='index_value' must be type IndexCurve.")
+            _ = curves[0].index_value(self.effective)
+            return _
+        raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
+
+    def npv(self, *args, **kwargs):
+        raise NotImplementedError("`Value` instrument has no concept of NPV.")
+
+    def cashflows(self, *args, **kwargs):
+        raise NotImplementedError("`Value` instrument has no concept of cashflows.")
+
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
+
+
+class VolValue(BaseMixin):
+    """
+    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    to directly parametrise a *Vol* node, via some calculated metric.
+
+    Parameters
+    ----------
+    index_value : float, Dual, Dual2
+        The value of some index to the *VolSmile* or *VolSurface*.
+    metric: str, optional
+        The default metric to return from the ``rate`` method.
+    vol: str, FXDeltaVolSmile, optional
+        The associated object from which to determine the ``rate``.
+
+    Examples
+    --------
+    The below :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is solved directly
+    from calibrating volatility values.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.fx_volatility import FXDeltaVolSmile
+       from rateslib.instruments import VolValue
+       from rateslib.solver import Solver
+
+    .. ipython:: python
+
+       smile = FXDeltaVolSmile(
+           nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
+           eval_date=dt(2023, 3, 16),
+           expiry=dt(2023, 6, 16),
+           delta_type="forward",
+           id="VolSmile",
+       )
+       instruments = [
+           VolValue(0.25, vol="VolSmile"),
+           VolValue(0.5, vol="VolSmile"),
+           VolValue(0.75, vol=smile)
+       ]
+       solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 7.8, 9.9])
+       smile[0.25]
+       smile[0.5]
+       smile[0.75]
+    """
+
+    def __init__(
+        self,
+        index_value: DualTypes,
+        # index_type: str = "delta",
+        # delta_type: str = NoInput(0),
+        metric: str = "vol",
+        vol: NoInput | str | FXVols = NoInput(0),
+    ):
+        self.index_value = index_value
+        # self.index_type = index_type
+        # self.delta_type = delta_type
+        self.vol = vol
+        self.curves = NoInput(0)
+        self.metric = metric.lower()
+
+    def rate(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        vol: DualTypes | FXVols = NoInput(0),
+        metric: str = "vol",
+    ):
+        """
+        Return a value derived from a *Curve*.
+
+        Parameters
+        ----------
+        curves : Curve, LineCurve, str or list of such
+            Uses only one *Curve*, the one given or the first in the list.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            Not used.
+        base : str, optional
+            Not used.
+        metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+            Configures which type of value to return from the applicable *Curve*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            fx,
+            base,
+            "_",
+        )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        metric = self.metric if metric is NoInput.blank else metric.lower()
+
+        if metric == "vol":
+            return vol[self.index_value]
+
+        raise ValueError("`metric` must be in {'vol'}.")
+
+    def npv(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of NPV.")
+
+    def cashflows(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of cashflows.")
+
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of analytic delta.")
 
 
 class Spread(Sensitivities):
@@ -279,6 +521,12 @@ class Fly(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+
+# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
+# Commercial use of this code, and/or copying and redistribution is prohibited.
+# This code cannot be installed or executed on a corporate computer without a paid licence extension
+# Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 
 def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
