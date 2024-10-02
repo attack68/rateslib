@@ -173,6 +173,8 @@ class Defaults:
         self.fx_option_metric = "pips"
 
         self.cds_premium_accrued = True
+        self.cds_recovery_rate = 0.40
+        self.cds_protection_discretization = 31
 
         # Curves
 
@@ -246,6 +248,7 @@ class Defaults:
             "strike": "Strike",
             # CDS headers
             "survival": "Survival",
+            "recovery": "Recovery",
         }
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
