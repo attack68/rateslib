@@ -216,7 +216,8 @@ def add_tenor(
        from rateslib.dual import Dual, Dual2
        from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, IndexFixedPeriod, IndexCashflow
        from rateslib.legs import FixedLeg, FloatLeg, CustomLeg, FloatLegMtm, FixedLegMtm, IndexFixedLeg, ZeroFixedLeg, ZeroFloatLeg, ZeroIndexLeg
-       from rateslib.instruments import FixedRateBond, FloatRateNote, Value, IRS, SBS, FRA, forward_fx, Spread, Fly, BondFuture, Bill, ZCS, FXSwap, ZCIS, IIRS, STIRFuture
+       from rateslib.instruments import FixedRateBond, FloatRateNote, Value, IRS, SBS, FRA, Spread, Fly, BondFuture, Bill, ZCS, FXSwap, ZCIS, IIRS, STIRFuture
+       from rateslib.fx import forward_fx
        from rateslib.solver import Solver
        from rateslib.splines import bspldnev_single, PPSpline
        from datetime import datetime as dt
