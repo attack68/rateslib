@@ -3,13 +3,13 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from pandas import DataFrame, Series
+from pandas import DataFrame, MultiIndex, Series
 
 from rateslib import defaults
 from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.dual import DualTypes, Dual, Dual2
-from rateslib.fx import FXForwards, FXRates
+from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.core import (
     BaseMixin,
     Sensitivities,

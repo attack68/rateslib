@@ -12,10 +12,9 @@ from __future__ import annotations
 import warnings
 from datetime import datetime, timedelta
 from functools import partial
-from typing import NoReturn
 
 import numpy as np
-from pandas import DataFrame, MultiIndex, Series
+from pandas import DataFrame, Series
 
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
@@ -30,7 +29,7 @@ from rateslib.calendars import (
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient
-from rateslib.fx import FXForwards, FXRates, forward_fx
+from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.bonds import (
     BILL_MODE_MAP,
     BOND_MODE_MAP,
@@ -44,7 +43,6 @@ from rateslib.instruments.core import (
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _push,
-    _update_not_noinput,
     _update_with_defaults,
 )
 from rateslib.instruments.fx_volatility import (
