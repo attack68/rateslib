@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import warnings
-
-from pandas import DataFrame, concat
 from datetime import datetime
 
+from pandas import DataFrame, concat
+
 from rateslib import defaults
+from rateslib.calendars import dcf
 from rateslib.curves import Curve, IndexCurve
 from rateslib.default import NoInput
-from rateslib.dual import dual_log, DualTypes
-from rateslib.calendars import dcf
+from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
-from rateslib.instruments.core import Sensitivities, BaseMixin, _get_curves_fx_and_base_maybe_from_solver, _get_vol_maybe_from_solver
+from rateslib.instruments.core import (
+    BaseMixin,
+    Sensitivities,
+    _get_curves_fx_and_base_maybe_from_solver,
+    _get_vol_maybe_from_solver,
+)
 from rateslib.solver import Solver
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
