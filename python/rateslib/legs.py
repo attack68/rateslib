@@ -40,6 +40,7 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     IndexCashflow,
@@ -1848,6 +1849,127 @@ class CreditPremiumLeg(BaseLeg):
         )
 
 
+class CreditProtectionLeg(BaseLeg):
+    """
+    Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args to :class:`BaseLeg`.
+    credit_spread : float, optional
+        The credit spread applied to determine cashflows in bps (i.e 5.0 = 5bps). Can be left unset and
+        designated later, perhaps after a mid-market rate for all periods has been calculated.
+    premium_accrued : bool, optional
+        Whether the premium is accrued within the period to default.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The NPV of a credit premium leg is the sum of the period NPVs.
+
+    .. math::
+
+       P = \\sum_{i=1}^n P_i
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial S} = \\sum_{i=1}^n -\\frac{\\partial P_i}{\\partial S}
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.curves import Curve
+       from rateslib.legs import CreditPremiumLeg
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
+       premium_leg = CreditPremiumLeg(
+           dt(2022, 1, 1), "9M", "Q",
+           credit_spread=26.0,
+           notional=1000000,
+       )
+       premium_leg.cashflows(hazard_curve, disc_curve)
+       premium_leg.npv(hazard_curve, disc_curve)
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        *args,
+        recovery_rate: DualTypes| NoInput = NoInput(0),
+        discretization: int | NoInput = NoInput(0),
+        **kwargs,
+    ):
+        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        self.discretization = _drb(defaults.cds_protection_discretization, discretization)
+        super().__init__(*args, **kwargs)
+        self._set_periods()
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *CreditProtectionLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs) -> DataFrame:
+        """
+        Return the properties of the *CreditProtectionLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *CreditProtectionLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def _set_periods(self) -> None:
+        return super()._set_periods()
+
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        notional: float,
+        stub: bool,
+        iterator: int,
+    ):
+        return CreditProtectionPeriod(
+            recovery_rate=self.recovery_rate,
+            discretization=self.discretization,
+            start=start,
+            end=end,
+            payment=payment,
+            frequency=self.schedule.frequency,
+            notional=notional,
+            currency=self.currency,
+            convention=self.convention,
+            termination=self.schedule.termination,
+            stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
+        )
+
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -2566,4 +2688,5 @@ __all__ = [
     "ZeroFloatLeg",
     "ZeroIndexLeg",
     "CreditPremiumLeg",
+    "CreditProtectionLeg",
 ]

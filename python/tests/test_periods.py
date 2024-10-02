@@ -1932,6 +1932,27 @@ class TestCreditProtectionPeriod:
         result = period.cashflows(fx=fxr, base="nok")
         assert result == expected
 
+    def test_discretization_period(self, hazard_curve, curve):
+        p1 = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 1),
+            notional=1e9,
+            frequency="Q",
+            discretization=1,
+        )
+        p2 = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 1),
+            notional=1e9,
+            frequency="Q",
+            discretization=31
+        )
+        r1 = p1.npv(hazard_curve, curve)
+        r2 = p2.npv(hazard_curve, curve)
+        assert 0.1 < abs(r1 - r2) < 1.0  # very similar result but not identical
+
     def test_mid_period(self, hazard_curve, curve):
         period = CreditProtectionPeriod(
             start=dt(2021, 10, 4),
