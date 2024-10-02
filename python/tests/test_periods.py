@@ -1570,10 +1570,9 @@ class TestFixedPeriod:
 
 
 class TestCreditPremiumPeriod:
-    @pytest.mark.parametrize(("accrued", "exp"), [
-        (True, -9892842.373263407),
-        (False, -9887893.477628957)
-    ])
+    @pytest.mark.parametrize(
+        ("accrued", "exp"), [(True, -9892842.373263407), (False, -9887893.477628957)]
+    )
     def test_period_npv(self, hazard_curve, curve, fxr, accrued, exp) -> None:
         premium_period = CreditPremiumPeriod(
             start=dt(2022, 1, 1),
@@ -1633,10 +1632,9 @@ class TestCreditPremiumPeriod:
         ):
             premium_period.npv(hazard_curve, curve)
 
-    @pytest.mark.parametrize(("accrued", "exp"), [
-        (True, 24732.10593315852),
-        (False, 24719.733694072398)
-    ])
+    @pytest.mark.parametrize(
+        ("accrued", "exp"), [(True, 24732.10593315852), (False, 24719.733694072398)]
+    )
     def test_period_analytic_delta(self, hazard_curve, curve, fxr, accrued, exp) -> None:
         premium_period = CreditPremiumPeriod(
             start=dt(2022, 1, 1),
@@ -1745,34 +1743,6 @@ class TestCreditPremiumPeriod:
         }
         result = premium_period.cashflows(fx=fxr, base="nok")
         assert result == expected
-
-    def test_mid_period_accrued(self, hazard_curve, curve):
-        p1 = CreditPremiumPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
-            payment=dt(2022, 4, 3),
-            notional=1e9,
-            convention="ActActICMA",
-            termination=dt(2022, 4, 1),
-            frequency="Q",
-            credit_spread=400,
-            currency="usd",
-        )
-        p2 = CreditPremiumPeriod(
-            start=dt(2021, 10, 1),
-            end=dt(2022, 4, 1),
-            payment=dt(2022, 4, 3),
-            notional=1e9,
-            convention="ActActICMA",
-            termination=dt(2022, 4, 1),
-            frequency="S",
-            credit_spread=200,
-            currency="usd",
-        )
-        r1 = p1.npv(hazard_curve, curve)
-        r2 = p2.npv(hazard_curve, curve)
-
-        assert 2505 > r1 - r2 > 2500
 
     def test_mid_period_accrued(self, hazard_curve, curve):
         p1 = CreditPremiumPeriod(

@@ -1773,11 +1773,11 @@ class CreditPremiumPeriod(BasePeriod):
 
     .. math::
 
-       P_a = Cv(m_{payment}) \\left ( Q(m_{start}) - Q(m_{end}) \\right ) \\frac{(n+r)}{2n} 
+       P_a = Cv(m_{payment}) \\left ( Q(m_{start}) - Q(m_{end}) \\right ) \\frac{(n+r)}{2n}
 
     where *r* is the number of days after the *start* that *today* is for an on-going period, zero otherwise, and
-    :math:`Q(m_{start})` is equal to one for an on-going period. 
-     
+    :math:`Q(m_{start})` is equal to one for an on-going period.
+
     The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
 
     .. math::
