@@ -152,6 +152,7 @@ class Defaults:
             "FloatRateNote": 0,
             "Bill": 0,
             "FRA": 0,
+            "CDS": 0,
         }
         self.fixing_method = "rfr_payment_delay"
         self.fixing_method_param = {

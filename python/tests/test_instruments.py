@@ -37,6 +37,7 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
+    CDS,
 )
 from rateslib.instruments.core import (
     _get_curve_from_solver,
@@ -2241,6 +2242,20 @@ class TestNonMtmFixedFixedXCS:
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_float_spread` for"):
             xcs.leg2_float_spread = 2.0
+
+
+class TestCDS:
+    def test_mtmxcs_npv(self, curve, curve2) -> None:
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        npv = cds.npv([curve2, curve], NoInput(0))
+        assert abs(npv) < 1e-9
 
 
 class TestXCS:

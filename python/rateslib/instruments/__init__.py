@@ -65,6 +65,7 @@ from rateslib.instruments.rates_derivatives import (
     ZCS,
     BaseDerivative,
     STIRFuture,
+    CDS,
 )
 from rateslib.instruments.rates_multi_ccy import (
     XCS,
@@ -3833,6 +3834,7 @@ __all__ = [
     "BondCalcMode",
     "BillCalcMode",
     "BondFuture",
+    "CDS",
     "FRA",
     "FXBrokerFly",
     "FXCall",
