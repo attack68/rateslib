@@ -1905,7 +1905,7 @@ class CreditProtectionLeg(BaseLeg):
     def __init__(
         self,
         *args,
-        recovery_rate: DualTypes| NoInput = NoInput(0),
+        recovery_rate: DualTypes | NoInput = NoInput(0),
         discretization: int | NoInput = NoInput(0),
         **kwargs,
     ):

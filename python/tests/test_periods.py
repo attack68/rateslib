@@ -1788,7 +1788,6 @@ class TestCreditPremiumPeriod:
 
 
 class TestCreditProtectionPeriod:
-
     def test_period_npv(self, hazard_curve, curve, fxr) -> None:
         period = CreditProtectionPeriod(
             start=dt(2022, 1, 1),
@@ -1874,7 +1873,7 @@ class TestCreditProtectionPeriod:
             currency="usd",
         )
 
-        cashflow = -period.notional * (1-period.recovery_rate)
+        cashflow = -period.notional * (1 - period.recovery_rate)
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -1909,7 +1908,7 @@ class TestCreditProtectionPeriod:
             frequency="Q",
             currency="usd",
         )
-        cashflow = -period.notional * (1-period.recovery_rate)
+        cashflow = -period.notional * (1 - period.recovery_rate)
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -1947,7 +1946,7 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 4, 1),
             notional=1e9,
             frequency="Q",
-            discretization=31
+            discretization=31,
         )
         r1 = p1.npv(hazard_curve, curve)
         r2 = p2.npv(hazard_curve, curve)
