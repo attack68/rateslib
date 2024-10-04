@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
@@ -1906,6 +1906,151 @@ class CreditPremiumPeriod(BasePeriod):
         return {
             **super().cashflows(curve, disc_curve, fx, base),
             defaults.headers["spread"]: float(self.credit_spread),
+            defaults.headers["survival"]: survival,
+            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx),
+            defaults.headers["npv_fx"]: npv_fx,
+        }
+
+
+class CreditProtectionPeriod(BasePeriod):
+    """
+    Create a credit protection period defined by a recovery rate.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BasePeriod`.
+    recovery_rate : float, Dual, Dual2, optional
+        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
+    discretization : int, optional
+        The number of days to discretize the numerical integration over possible credit defaults.
+        Set by ``defaults``.
+    kwargs : dict
+        Required keyword arguments to :class:`BasePeriod`.
+
+    Notes
+    -----
+    The ``cashflow``, paid on a credit event, is defined as follows;
+
+    .. math::
+
+       C = -N(1-R)
+
+    where *R* is the recovery rate.
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as a discretized sum of inter-period blocks whose
+    probability of default and protection payment sum to give an expected payment;
+
+    .. math::
+
+       j &= [n/discretization] \\\\
+       P &= C \\sum_{i=1}^{j} \\frac{1}{2} \\left ( v(m_{i-1}) + v_(m_{i}) \\right ) \\left ( Q(m_{i-1}) - Q(m_{i}) \\right ) \\\\
+
+    The *start* and *end* of the period are restricted by the *Curve* if the *Period* is current (i.e. *today* is
+    later than *start*)
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = 0
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        *args,
+        recovery_rate: DualTypes | NoInput = NoInput(0),
+        discretization: int | NoInput = NoInput(0),
+        **kwargs,
+    ):
+        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        if float(self.recovery_rate) < 0.0 and float(self.recovery_rate) > 1.0:
+            raise ValueError("`recovery_rate` must be in [0.0, 1.0]")
+        self.discretization = _drb(defaults.cds_protection_discretization, discretization)
+        super().__init__(*args, **kwargs)
+
+    @property
+    def cashflow(self) -> DualTypes:
+        """
+        float, Dual or Dual2 : The calculated protection amount determined from notional
+        and recovery rate.
+        """
+        return -self.notional * (1 - self.recovery_rate)
+
+    def npv(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+    ) -> DualTypes | dict[str, DualTypes]:
+        """
+        Return the NPV of the *CreditProtectionPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+
+        if self.start < curve.node_dates[0]:
+            s2 = curve.node_dates[0]
+        else:
+            s2 = self.start
+
+        value, q2, v2 = 0.0, curve[s2], disc_curve[s2]
+        while s2 < self.end:
+            q1, v1 = q2, v2
+            s2 = s2 + timedelta(days=self.discretization)
+            if s2 > self.end:
+                s2 = self.end
+            q2, v2 = curve[s2], disc_curve[s2]
+            value += 0.5 * (v1 + v2) * (q1 - q2)
+
+        value *= self.cashflow
+        return _maybe_local(value, local, self.currency, fx, base)
+
+    def analytic_delta(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the *CreditProtectionPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
+        return 0.0
+
+    def cashflows(
+        self,
+        curve: Curve | dict | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ):
+        """
+        Return the cashflows of the *CreditProtectionPeriod*.
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+
+        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+            survival = float(curve[self.end])
+        else:
+            npv, npv_fx, survival = None, None, None
+
+        return {
+            **super().cashflows(curve, disc_curve, fx, base),
+            defaults.headers["recovery"]: float(self.recovery_rate),
             defaults.headers["survival"]: survival,
             defaults.headers["cashflow"]: float(self.cashflow),
             defaults.headers["npv"]: npv,

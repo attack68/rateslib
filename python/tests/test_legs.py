@@ -11,6 +11,7 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     Cashflow,
     CreditPremiumLeg,
+    CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -1157,6 +1158,57 @@ class TestCreditPremiumLeg:
         leg.credit_spread = 2.0
         assert leg.credit_spread == 2.0
         assert leg.periods[0].credit_spread == 2.0
+
+
+class TestCreditProtectionLeg:
+    def test_leg_analytic_delta(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            frequency="Q",
+        )
+        result = leg.analytic_delta(hazard_curve, curve)
+        assert abs(result) < 1e-7
+
+    @pytest.mark.parametrize(("premium_accrued"), [True, False])
+    def test_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            frequency="Z",
+        )
+        result = leg.npv(hazard_curve, curve)
+        expected = -1390937.7593346273
+        assert abs(result - expected) < 1e-7
+
+    def test_leg_cashflows(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        result = leg.cashflows(hazard_curve, curve)
+        # test a couple of return elements
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 600e6) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
+
+    def test_leg_zero_sched(self):
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2024, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Z",
+        )
+        assert len(leg.periods) == 1
+        assert leg.periods[0].end == dt(2024, 6, 1)
 
 
 class TestIndexFixedLegExchange:
