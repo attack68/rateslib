@@ -2245,7 +2245,7 @@ class TestNonMtmFixedFixedXCS:
 
 
 class TestCDS:
-    def test_mtmxcs_npv(self, curve, curve2) -> None:
+    def test_unpriced_npv(self, curve, curve2) -> None:
         cds = CDS(
             dt(2022, 2, 1),
             "8M",
@@ -2256,6 +2256,22 @@ class TestCDS:
 
         npv = cds.npv([curve2, curve], NoInput(0))
         assert abs(npv) < 1e-9
+
+    def test_rate(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        rate = cds.rate([hazard_curve, disc_curve])
+        expected = 241.63768606
+        assert abs(rate - expected) < 1e-7
 
 
 class TestXCS:

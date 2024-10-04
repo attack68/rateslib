@@ -2571,7 +2571,7 @@ class CDS(BaseDerivative):
             self.leg1.currency,
         )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
-        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        return self.leg1._spread(-leg2_npv, curves[0], curves[1])
 
 
     def cashflows(
