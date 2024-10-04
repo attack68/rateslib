@@ -47,6 +47,8 @@ The following *Legs* are provided, click on the links for a full description of 
    rateslib.legs.ZeroIndexLeg
    rateslib.legs.FixedLegMtm
    rateslib.legs.FloatLegMtm
+   rateslib.legs.CreditProtectionLeg
+   rateslib.legs.CreditPremiumLeg
    rateslib.legs.CustomLeg
 
 *Legs*, similar to *Periods*, are defined as having the following the methods:

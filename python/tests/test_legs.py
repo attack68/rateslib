@@ -1174,34 +1174,41 @@ class TestCreditProtectionLeg:
 
     @pytest.mark.parametrize(("premium_accrued"), [True, False])
     def test_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
-        leg = CreditPremiumLeg(
+        leg = CreditProtectionLeg(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
             payment_lag=2,
             notional=1e9,
-            convention="Act360",
-            frequency="Q",
-            premium_accrued=premium_accrued,
-            credit_spread=40.0,
+            frequency="Z",
         )
         result = leg.npv(hazard_curve, curve)
-        assert abs(result + 40.0 * leg.analytic_delta(hazard_curve, curve)) < 1e-7
+        expected = -1390937.7593346273
+        assert abs(result - expected) < 1e-7
 
     def test_leg_cashflows(self, hazard_curve, curve) -> None:
-        leg = CreditPremiumLeg(
+        leg = CreditProtectionLeg(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
-            payment_lag=2,
             notional=-1e9,
             convention="Act360",
             frequency="Q",
-            credit_spread=400.0,
         )
         result = leg.cashflows(hazard_curve, curve)
         # test a couple of return elements
-        assert abs(result.loc[0, defaults.headers["cashflow"]] - 6555555.55555) < 1e-4
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 600e6) < 1e-4
         assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
         assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
+
+    def test_leg_zero_sched(self):
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2024, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Z",
+        )
+        assert len(leg.periods) == 1
+        assert leg.periods[0].end == dt(2024, 6, 1)
 
 
 class TestIndexFixedLegExchange:
