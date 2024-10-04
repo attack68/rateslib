@@ -1937,15 +1937,15 @@ class CreditProtectionPeriod(BasePeriod):
     .. math::
 
        C = -N(1-R)
-       
+
     where *R* is the recovery rate.
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as a discretized sum of inter-period blocks whose 
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as a discretized sum of inter-period blocks whose
     probability of default and protection payment sum to give an expected payment;
 
     .. math::
 
-       j &= [n/discretization] \\\\ 
+       j &= [n/discretization] \\\\
        P &= C \\sum_{i=1}^{j} \\frac{1}{2} \\left ( v(m_{i-1}) + v_(m_{i}) \\right ) \\left ( Q(m_{i-1}) - Q(m_{i}) \\right ) \\\\
 
     The *start* and *end* of the period are restricted by the *Curve* if the *Period* is current (i.e. *today* is
@@ -1972,7 +1972,8 @@ class CreditProtectionPeriod(BasePeriod):
     @property
     def cashflow(self) -> DualTypes:
         """
-        float, Dual or Dual2 : The calculated protection amount determined from notional and recovery rate.
+        float, Dual or Dual2 : The calculated protection amount determined from notional
+        and recovery rate.
         """
         return -self.notional * (1 - self.recovery_rate)
 
@@ -2000,7 +2001,7 @@ class CreditProtectionPeriod(BasePeriod):
 
         value, q2, v2 = 0.0, curve[s2], disc_curve[s2]
         while s2 < self.end:
-            s1, q1, v1 = s2, q2, v2
+            q1, v1 = q2, v2
             s2 = s2 + timedelta(days=self.discretization)
             if s2 > self.end:
                 s2 = self.end
