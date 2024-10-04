@@ -1851,23 +1851,23 @@ class CreditPremiumLeg(BaseLeg):
 
 class CreditProtectionLeg(BaseLeg):
     """
-    Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
+    Create a credit protection leg composed of :class:`~rateslib.periods.CreditProtectionPeriod` s.
 
     Parameters
     ----------
     args : tuple
         Required positional args to :class:`BaseLeg`.
-    credit_spread : float, optional
-        The credit spread applied to determine cashflows in bps (i.e 5.0 = 5bps). Can be left unset and
-        designated later, perhaps after a mid-market rate for all periods has been calculated.
-    premium_accrued : bool, optional
-        Whether the premium is accrued within the period to default.
+    recovery_rate : float, Dual, Dual2, optional
+        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
+    discretization : int, optional
+        The number of days to discretize the numerical integration over possible credit defaults.
+        Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
 
     Notes
     -----
-    The NPV of a credit premium leg is the sum of the period NPVs.
+    The NPV of a credit protection leg is the sum of the period NPVs.
 
     .. math::
 
@@ -1886,16 +1886,16 @@ class CreditProtectionLeg(BaseLeg):
        :suppress:
 
        from rateslib.curves import Curve
-       from rateslib.legs import CreditPremiumLeg
+       from rateslib.legs import CreditProtectionLeg
        from datetime import datetime as dt
 
     .. ipython:: python
 
        disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
-       premium_leg = CreditPremiumLeg(
-           dt(2022, 1, 1), "9M", "Q",
-           credit_spread=26.0,
+       protection_leg = CreditProtectionLeg(
+           dt(2022, 1, 1), "9M", "Z",
+           recovery_rate=0.40,
            notional=1000000,
        )
        premium_leg.cashflows(hazard_curve, disc_curve)

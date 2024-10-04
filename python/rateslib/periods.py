@@ -1966,6 +1966,8 @@ class CreditProtectionPeriod(BasePeriod):
         **kwargs,
     ):
         self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        if float(self.recovery_rate) < 0.0 and float(self.recovery_rate) > 1.0:
+            raise ValueError("`recovery_rate` must be in [0.0, 1.0]")
         self.discretization = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
 
