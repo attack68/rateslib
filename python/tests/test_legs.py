@@ -1161,7 +1161,6 @@ class TestCreditPremiumLeg:
 
 
 class TestCreditProtectionLeg:
-
     def test_leg_analytic_delta(self, hazard_curve, curve) -> None:
         leg = CreditProtectionLeg(
             effective=dt(2022, 1, 1),
