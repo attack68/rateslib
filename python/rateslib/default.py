@@ -152,6 +152,7 @@ class Defaults:
             "FloatRateNote": 0,
             "Bill": 0,
             "FRA": 0,
+            "CDS": 0,
         }
         self.fixing_method = "rfr_payment_delay"
         self.fixing_method_param = {
@@ -305,6 +306,12 @@ Instruments:\n
     'fixing_method_param',
     'spread_compound_method',
     'base_currency',
+    'fx_delivery_lag',
+    'fx_delta_type',
+    'fx_option_metric',
+    'cds_premium_accrued',
+    'cds_recovery_rate',
+    'cds_protection_discretization',   
 ]])}
 Curves:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [

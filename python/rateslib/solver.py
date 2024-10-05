@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import combinations
 from time import time
-from typing import Callable
+from typing import Any, Callable
 from uuid import uuid4
 
 import numpy as np
@@ -912,7 +912,7 @@ class Solver(Gradients):
         self,
         curves: list | tuple = (),
         surfaces: list | tuple = (),
-        instruments: tuple[tuple] | list[tuple] = (),
+        instruments: tuple[Any] | list[Any] = (),
         s: tuple[float] | list[float] = (),
         weights: list | NoInput = NoInput(0),
         algorithm: str | NoInput = NoInput(0),

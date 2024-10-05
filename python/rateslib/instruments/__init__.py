@@ -57,6 +57,7 @@ from rateslib.instruments.fx_volatility import (
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
 from rateslib.instruments.rates_derivatives import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -3833,6 +3834,7 @@ __all__ = [
     "BondCalcMode",
     "BillCalcMode",
     "BondFuture",
+    "CDS",
     "FRA",
     "FXBrokerFly",
     "FXCall",
