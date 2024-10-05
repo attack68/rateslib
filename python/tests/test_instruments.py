@@ -518,7 +518,9 @@ class TestNullPricing:
     @pytest.mark.parametrize(
         "inst",
         [
-            CDS(dt(2022, 7, 1), "3M", "Q", curves=["eureur", "usdusd"], notional=1e6 * 25 / 14.91357),
+            CDS(
+                dt(2022, 7, 1), "3M", "Q", curves=["eureur", "usdusd"], notional=1e6 * 25 / 14.91357
+            ),
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             STIRFuture(
                 dt(2022, 3, 16),
@@ -2326,7 +2328,6 @@ class TestCDS:
         assert isinstance(result, DataFrame)
         assert result.index.nlevels == 2
 
-
     def test_solver(self, curve2):
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="disc")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 0.99, dt(2023, 1, 1): 0.98}, id="haz")
@@ -2338,12 +2339,11 @@ class TestCDS:
                 CDS(dt(2022, 1, 1), "12m", frequency="Q", curves=["haz", c1]),
             ],
             s=[30, 40],
-            instrument_labels=["6m", "12m"]
+            instrument_labels=["6m", "12m"],
         )
         inst = CDS(dt(2022, 7, 1), "3M", "Q", curves=["haz", c1], notional=1e6)
         result = inst.delta(solver=solver)
         assert abs(result.sum().iloc[0] - 25.294894375736) < 1e-6
-
 
 
 class TestXCS:
