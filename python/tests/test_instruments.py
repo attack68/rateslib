@@ -2273,6 +2273,43 @@ class TestCDS:
         expected = 241.63768606
         assert abs(rate - expected) < 1e-7
 
+    def test_npv(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+            credit_spread=100.0,
+        )
+
+        npv = cds.npv([hazard_curve, disc_curve])
+        expected = 9075.6838075
+        assert abs(npv - expected) < 1e-7
+
+    def test_analytic_delta(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        result = cds.analytic_delta(hazard_curve, disc_curve, leg=1)
+        expected = 64.07675851924779
+        assert abs(result - expected) < 1e-7
+
+        result = cds.analytic_delta(hazard_curve, disc_curve, leg=2)
+        expected = 0.0
+        assert abs(result - expected) < 1e-7
+
 
 class TestXCS:
     def test_mtmxcs_npv(self, curve, curve2) -> None:
