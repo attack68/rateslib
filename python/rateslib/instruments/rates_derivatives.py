@@ -24,12 +24,14 @@ from rateslib.instruments.core import (
     _upper,
 )
 from rateslib.legs import (
+    CreditPremiumLeg,
+    CreditProtectionLeg,
     FixedLeg,
     FloatLeg,
     IndexFixedLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
-    ZeroIndexLeg, CreditPremiumLeg, CreditProtectionLeg,
+    ZeroIndexLeg,
 )
 from rateslib.periods import (
     _disc_from_curve,
@@ -2573,7 +2575,6 @@ class CDS(BaseDerivative):
         leg2_npv = self.leg2.npv(curves[2], curves[3])
         return self.leg1._spread(-leg2_npv, curves[0], curves[1])
 
-
     def cashflows(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
@@ -2684,4 +2685,3 @@ class CDS(BaseDerivative):
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
         # leg2_analytic_delta = self.leg2.analytic_delta(curves[2], curves[3])
         # return irs_npv / leg2_analytic_delta + specified_spd
-

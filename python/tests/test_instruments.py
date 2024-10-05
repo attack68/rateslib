@@ -12,6 +12,7 @@ from rateslib.dual import Dual, Dual2, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.instruments import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -37,7 +38,6 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
-    CDS,
 )
 from rateslib.instruments.core import (
     _get_curve_from_solver,

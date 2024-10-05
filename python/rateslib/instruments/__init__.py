@@ -57,6 +57,7 @@ from rateslib.instruments.fx_volatility import (
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
 from rateslib.instruments.rates_derivatives import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -65,7 +66,6 @@ from rateslib.instruments.rates_derivatives import (
     ZCS,
     BaseDerivative,
     STIRFuture,
-    CDS,
 )
 from rateslib.instruments.rates_multi_ccy import (
     XCS,
