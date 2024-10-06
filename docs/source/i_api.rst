@@ -227,6 +227,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: comb
    :skip: FXDeltaVolSurface
    :skip: FXDeltaVolSmile
+   :skip: timedelta
 
 Legs
 =====
@@ -274,6 +275,7 @@ Solver
    :skip: time
    :skip: uuid4
    :skip: PerformanceWarning
+   :skip: Any
 
 Cookbook
 =========
