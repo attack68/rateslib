@@ -29,12 +29,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`425 <https://github.com/attack68/rateslib/pull/425>`_)
        (`426 <https://github.com/attack68/rateslib/pull/426>`_)
    * - Instruments
-     - Add the ``spec`` options:
-       - *'audusd_xcs'*
-       - *'audusd_xcs3'*
-       - *'nzdusd_xcs3'*
-       - *'nzdaud_xcs3'*
-     (`429 <https://github.com/attack68/rateslib/pull/429>`_)
+     - Add the ``spec`` options; *'audusd_xcs'*, *'audusd_xcs3'*, *'nzdusd_xcs3'*, *'nzdaud_xcs3'*
+       (`429 <https://github.com/attack68/rateslib/pull/429>`_)
 
 1.5.0 (25th September 2024)
 ****************************
