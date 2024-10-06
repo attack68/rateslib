@@ -23,10 +23,10 @@ Replicating a Pfizer Default Curve & CDS from Bloomberg's CDSW
      </a>
    </div>
 
-At a point in time on Friday 4th Oct 2024 loading the CDSW function in Bloomberg
-for the single security Pfizer US presented the following pricing information for a 5Y Pfizer CDS.
+Some collected data at a point in time on Friday 4th Oct 2024 can be loaded into the CDSW function in Bloomberg
+for the single security Pfizer US, with the intention of pricing and risking a 5Y Pfizer CDS.
 The raw data necessary to build the curves and replicate the pricing risk metrics is added to Python.
-(Some of the CDS data is also shown in an image at the bottom of this page)
+(Some of the loaded CDS data is also shown in an image at the bottom of this page)
 
 .. ipython:: python
 
