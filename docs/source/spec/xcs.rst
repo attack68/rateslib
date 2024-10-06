@@ -68,3 +68,49 @@ JPY/USD
 
    defaults.spec["jpyusd_xcs"]
    XCS(dt(2000, 1, 1), "10y", spec="jpyusd_xcs").kwargs
+
+AUD
+*****
+
+AUD/USD (AONIA)
+---------------------
+
+.. _spec-audusd-xcs:
+
+.. ipython:: python
+
+   defaults.spec["audusd_xcs"]
+   XCS(dt(2000, 1, 1), "10y", spec="audusd_xcs").kwargs
+
+AUD/USD (BBSW 3m)
+---------------------
+
+.. _spec-audusd-xcs3:
+
+.. ipython:: python
+
+   defaults.spec["audusd_xcs3"]
+   XCS(dt(2000, 1, 1), "10y", spec="audusd_xcs3").kwargs
+
+NZD
+*****
+
+NZD/USD (NFix 3m)
+-------------------
+
+.. _spec-nzdusd-xcs3:
+
+.. ipython:: python
+
+   defaults.spec["nzdusd_xcs3"]
+   XCS(dt(2000, 1, 1), "10y", spec="nzdusd_xcs3").kwargs
+
+NZD/AUD (NFix 3m/BBSW 3m)
+--------------------------
+
+.. _spec-nzdaud-xcs3:
+
+.. ipython:: python
+
+   defaults.spec["nzdaud_xcs3"]
+   XCS(dt(2000, 1, 1), "10y", spec="nzdaud_xcs3").kwargs
