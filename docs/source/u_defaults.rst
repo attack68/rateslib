@@ -150,7 +150,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    * - AUD
      - :ref:`syd <spec-aud-syd>`
      - :ref:`aud_irs <spec-aud-irs>`, :ref:`aud_irs3 <spec-aud-irs3>`, :ref:`aud_irs6 <spec-aud-irs6>`
-     -
+     - :ref:`audusd_xcs <spec-audusd-xcs>`, :ref:`audusd_xcs3 <spec-audusd-xcs3>`
      -
      -
      -
@@ -162,7 +162,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    * - NZD
      - :ref:`wlg <spec-nzd-wlg>`
      - :ref:`nzd_irs3 <spec-nzd-irs3>`, :ref:`nzd_irs6 <spec-nzd-irs6>`
-     -
+     - :ref:`nzdusd_xcs3 <spec-nzdusd-xcs3>`, :ref:`nzdaud_xcs3 <spec-nzdaud-xcs3>`
      -
      -
      -
