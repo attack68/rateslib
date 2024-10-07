@@ -152,6 +152,7 @@ class _Serialize:
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
+        self._cache = dict()
         self.ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
@@ -299,6 +300,7 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
+        self._cache = dict()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_keys = list(self.nodes.keys())
@@ -350,11 +352,15 @@ class Curve(_Serialize):
         self._set_ad_order(order=ad)
 
     def __getitem__(self, date: datetime):
+        if date in self._cache:
+            return self._cache[date]
+
         date_posix = date.replace(tzinfo=UTC).timestamp()
         if self.spline is None or date <= self.t[0]:
             if isinstance(self.interpolation, Callable):
-                return self.interpolation(date, self.nodes.copy())
-            return self._local_interp_(date_posix)
+                val = self.interpolation(date, self.nodes.copy())
+            else:
+                val =  self._local_interp_(date_posix)
         else:
             if date > self.t[-1]:
                 warnings.warn(
@@ -364,7 +370,10 @@ class Curve(_Serialize):
                     f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            return self._op_exp(self.spline.ppev_single(date_posix))
+            val = self._op_exp(self.spline.ppev_single(date_posix))
+
+        self._cache[date] = val
+        return val
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1224,6 +1233,8 @@ class Curve(_Serialize):
 
     def _set_node_vector(self, vector: list[DualTypes], ad):
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
+        self._cache = dict()
+
         DualType = Dual if ad == 1 else Dual2
         DualArgs = ([],) if ad == 1 else ([], [])
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
@@ -2108,6 +2119,7 @@ class CompositeCurve(IndexCurve):
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
     ) -> None:
+
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
         self.curves = tuple(curves)
@@ -2464,6 +2476,9 @@ class MultiCsaCurve(CompositeCurve):
         return _
 
     def __getitem__(self, date: datetime):
+        # if date in self._cache:
+        #     return self._cache[date]
+
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
@@ -2497,6 +2512,7 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
+            # self._cache[date] = _
             return _
         else:
             min_ratio = 1e5
@@ -2504,6 +2520,7 @@ class MultiCsaCurve(CompositeCurve):
                 ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             _ *= min_ratio
+            # self._cache[date] = _
             return _
 
     def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
@@ -2687,6 +2704,7 @@ class ProxyCurve(Curve):
         calendar: CalInput | bool | NoInput = False,
         id: str | NoInput = NoInput(0),
     ):
+        self._cache = dict()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
@@ -2732,11 +2750,16 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     def __getitem__(self, date: datetime):
-        return (
+        # if date in self._cache:
+        #     return self._cache[date]
+        # else:
+        val = (
             self.fx_forwards.rate(self.pair, date, path=self.path)
             / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
             * self.fx_forwards.fx_curves[self.coll_pair][date]
         )
+        # self._cache[date] = val
+        return val
 
     def to_json(self):  # pragma: no cover
         """
