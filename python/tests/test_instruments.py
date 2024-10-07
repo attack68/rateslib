@@ -2,10 +2,10 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
-from rateslib import default_context, defaults
-from rateslib.calendars import dcf
+from rateslib import default_context
+from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_exp, gradient
@@ -2248,6 +2248,111 @@ class TestNonMtmFixedFixedXCS:
 
 
 class TestCDS:
+
+    def okane_curve(self):
+        today = dt(2019, 8, 12)
+        spot = dt(2019, 8, 14)
+        tenors = ["1b", "1m", "2m", "3m", "6m", "12M", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y"]
+        ibor = Curve(
+            nodes={
+                today: 1.0,
+                **{add_tenor(spot, _, "mf", "nyc"):1.0 for _ in tenors}
+            },
+            convention="act360",
+            calendar="nyc",
+            id="ibor",
+        )
+        rates = [
+            2.2,
+            2.2009,
+            2.2138,
+            2.1810,
+            2.0503,
+            1.9930,
+            1.591,
+            1.499,
+            1.4725,
+            1.4664,
+            1.48,
+            1.4995,
+            1.5118,
+            1.5610,
+            1.6430
+        ]
+        ib_sv = Solver(
+            curves=[ibor],
+            instruments=[
+                IRS(
+                    spot,
+                    _,
+                    leg2_fixing_method="ibor",
+                    leg2_method_param=2,
+                    calendar="nyc",
+                    payment_lag=0,
+                    convention="30e360",
+                    leg2_convention="act360",
+                    frequency="s",
+                    curves=ibor,
+                ) for _ in tenors
+            ],
+            s=rates,
+        )
+        cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
+        credit_curve = Curve(
+            nodes={
+                today: 1.0,
+                **{add_tenor(today, _, "mf", "nyc"): 1.0 for _ in cds_tenor}
+            },
+            convention="act365f",
+            calendar="all",
+            id="credit",
+        )
+        cc_sv = Solver(
+            curves=[credit_curve],
+            pre_solvers=[ib_sv],
+            instruments=[
+                CDS(
+                    today,
+                    add_tenor(dt(2019, 9, 20), _, "mf", "nyc"),
+                    front_stub=dt(2019, 9, 20),
+                    frequency="q",
+                    convention="act360",
+                    payment_lag=0,
+                    curves=["credit", "ibor"],
+                    credit_spread=400,
+                    recovery_rate=0.4,
+                    premium_accrued=True,
+                    calendar="nyc",
+                ) for _ in cds_tenor
+            ],
+            s=[400, 400, 400, 400, 400, 400, 400, 400],
+        )
+        return credit_curve, ibor, cc_sv
+
+    def test_okane_values(self):
+        cds = CDS(
+            dt(2019, 8, 12),
+            dt(2029, 6, 20),
+            front_stub=dt(2019, 9, 20),
+            frequency="q",
+            credit_spread=150,
+            curves=["credit", "ibor"],
+            discretization=5,
+            calendar="nyc",
+        )
+        c1, c2, solver = self.okane_curve()
+        result1 = cds.rate(solver=solver)
+        assert abs(result1 - 399.99960) < 5e-3
+
+        result2 = cds.npv(solver=solver)
+        assert abs(result2 - 170739.5956) < 175
+
+        result3 = cds.leg1.npv(c1, c2)
+        assert abs(result3 + 104508.9265 - 2125) < 50
+
+        result4 = cds.leg2.npv(c1, c2)
+        assert abs(result4 - 273023.5221) < 110
+
     def test_unpriced_npv(self, curve, curve2) -> None:
         cds = CDS(
             dt(2022, 2, 1),
