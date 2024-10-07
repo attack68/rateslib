@@ -1846,6 +1846,7 @@ class CreditPremiumPeriod(BasePeriod):
 
             accrued_ = (n - r) / (2 * n) + r / n
             accrued_ *= q_start - q_end
+            accrued_ = 0.5 * (disc_curve[self.start] + disc_curve[self.end]) * accrued_ / disc_curve[self.payment]
 
         return _maybe_local(cashflow_pv * (q_end + accrued_), local, self.currency, fx, base)
 

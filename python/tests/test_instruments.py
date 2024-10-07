@@ -2345,6 +2345,70 @@ class TestCDS:
         result = inst.delta(solver=solver)
         assert abs(result.sum().iloc[0] - 25.294894375736) < 1e-6
 
+    def test_okane_paper(self):
+        usd_libor = Curve(
+            nodes={
+                dt(2003, 6, 19): 1.0,
+                dt(2003, 12, 23): 1.0,
+                dt(2004, 6, 23): 1.0,
+                dt(2005, 6, 23): 1.0,
+                dt(2006, 6, 23): 1.0,
+                dt(2007, 6, 23): 1.0,
+                dt(2008, 6, 23): 1.0,
+            },
+            convention="act360",
+            calendar="nyc",
+            id="libor"
+        )
+        args=dict(spec="eur_irs6", frequency="s", calendar="nyc", curves="libor", currency="usd")
+        solver = Solver(
+            curves=[usd_libor],
+            instruments=[
+                IRS(dt(2003, 6, 23), "6m", **args),
+                IRS(dt(2003, 6, 23), "1y", **args),
+                IRS(dt(2003, 6, 23), "2y", **args),
+                IRS(dt(2003, 6, 23), "3y", **args),
+                IRS(dt(2003, 6, 23), "4y", **args),
+                IRS(dt(2003, 6, 23), "5y", **args),
+            ],
+            s=[1.35, 1.43, 1.90, 2.47, 2.936, 3.311]
+        )
+        haz_curve = Curve(
+            nodes={
+                dt(2003, 6, 19): 1.0,
+                dt(2004, 6, 20): 1.0,
+                dt(2005, 6, 20): 1.0,
+                dt(2006, 6, 20): 1.0,
+                dt(2007, 6, 20): 1.0,
+                dt(2008, 6, 20): 1.0,
+            },
+            convention="act365f",
+            calendar="all",
+            id="hazard",
+        )
+        args = dict(calendar="nyc", frequency="q", roll=20, curves=["hazard", "libor"], convention="act360")
+        solver = Solver(
+            curves=[haz_curve],
+            pre_solvers=[solver],
+            instruments=[
+                CDS(dt(2003, 6, 20), "1y", **args),
+                CDS(dt(2003, 6, 20), "2y", **args),
+                CDS(dt(2003, 6, 20), "3y", **args),
+                CDS(dt(2003, 6, 20), "4y", **args),
+                CDS(dt(2003, 6, 20), "5y", **args),
+            ],
+            s=[110, 120, 130, 140, 150]
+        )
+        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20),
+                  credit_spread=200, notional=10e6, **args )
+        result = cds.rate(solver=solver)
+        table = cds.cashflows(solver=solver)
+        leg1_npv = cds.leg1.npv(haz_curve, usd_libor)
+        leg2_npv = cds.leg2.npv(haz_curve, usd_libor)
+        a_delta = cds.analytic_delta(haz_curve, usd_libor)
+        npv = cds.npv(solver=solver)
+        assert False
+
 
 class TestXCS:
     def test_mtmxcs_npv(self, curve, curve2) -> None:
