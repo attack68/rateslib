@@ -1832,22 +1832,32 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if self.credit_spread is NoInput.blank:
             raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
-        cashflow_pv = self.cashflow * disc_curve[self.payment]
+        v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
         accrued_ = 0.0
         if self.premium_accrued:
+            v_end = disc_curve[self.end]
             n = float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
+                r, q_start, v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start = 0.0, curve[self.start]
+                r, q_start, v_start = 0.0, curve[self.start], disc_curve[self.start]
 
+            # method 1:
             accrued_ = (n - r) / (2 * n) + r / n
             accrued_ *= q_start - q_end
+            # accrued_ = 0.5 * (v_start + v_end) * accrued_
+            accrued_ *= v_end
 
-        return _maybe_local(cashflow_pv * (q_end + accrued_), local, self.currency, fx, base)
+            # method 2:
+            a0, a1 = r / n, 1.0
+            v0, v1 = v_start, v_end
+            accrued_ = 0.5 * v0 * (a1+a0) + (a1 + a0/2) * (v1-v0) / 3
+            accrued_ *= q_start - q_end
+
+        return _maybe_local(self.cashflow * (q_end * v_payment + accrued_), local, self.currency, fx, base)
 
     def analytic_delta(
         self,
