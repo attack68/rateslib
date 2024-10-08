@@ -2766,12 +2766,11 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     def __getitem__(self, date: datetime):
-        val = (
+        return (
             self.fx_forwards.rate(self.pair, date, path=self.path)
             / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
             * self.fx_forwards.fx_curves[self.coll_pair][date]
         )
-        return val
 
     def to_json(self):  # pragma: no cover
         """
