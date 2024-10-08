@@ -1128,6 +1128,22 @@ class TestCurve:
         expected = f"<rl.Curve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
 
+    def test_cache_clear_and_defaults(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99})
+        v1 = curve[dt(2001, 1, 1)]
+        curve.nodes[dt(2002, 1, 1)] = 0.98
+        # cache not cleared
+        assert curve[dt(2001, 1, 1)] == v1
+        curve.clear_cache()
+        # cache cleared so value will need to be re-calced
+        v2 = curve[dt(2001, 1, 1)]
+        assert v2 != v1
+
+        with default_context("curve_caching", False):
+            curve.nodes[dt(2002, 1, 1)] = 0.90
+            # no clear cache required, but value will re-calc anyway
+            assert curve[dt(2001, 1, 1)] != v2
+
 
 class TestLineCurve:
     def test_repr(self):
