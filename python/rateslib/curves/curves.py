@@ -152,7 +152,7 @@ class _Serialize:
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self._cache = dict()
+        self.clear_cache()
         self.ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
@@ -300,7 +300,7 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
-        self._cache = dict()
+        self.clear_cache()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_keys = list(self.nodes.keys())
@@ -352,7 +352,7 @@ class Curve(_Serialize):
         self._set_ad_order(order=ad)
 
     def __getitem__(self, date: datetime):
-        if date in self._cache:
+        if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 
         date_posix = date.replace(tzinfo=UTC).timestamp()
@@ -360,7 +360,7 @@ class Curve(_Serialize):
             if isinstance(self.interpolation, Callable):
                 val = self.interpolation(date, self.nodes.copy())
             else:
-                val =  self._local_interp_(date_posix)
+                val = self._local_interp_(date_posix)
         else:
             if date > self.t[-1]:
                 warnings.warn(
@@ -372,7 +372,7 @@ class Curve(_Serialize):
                 )
             val = self._op_exp(self.spline.ppev_single(date_posix))
 
-        self._cache[date] = val
+        self._maybe_add_to_cache(date, val)
         return val
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -544,6 +544,28 @@ class Curve(_Serialize):
                 )
 
         return _
+
+    def clear_cache(self):
+        """
+        Clear the cache of values on a *Curve* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Curve*.
+        Users are advised against making direct modification to *Curve* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+
+        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+        """
+        self._cache = dict()
+
+    def _maybe_add_to_cache(self, date, val):
+        if defaults.curve_caching:
+            self._cache[date] = val
 
     def csolve(self) -> None:
         """
@@ -1233,7 +1255,7 @@ class Curve(_Serialize):
 
     def _set_node_vector(self, vector: list[DualTypes], ad):
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
-        self._cache = dict()
+        self.clear_cache()
 
         DualType = Dual if ad == 1 else Dual2
         DualArgs = ([],) if ad == 1 else ([], [])
@@ -2704,7 +2726,6 @@ class ProxyCurve(Curve):
         calendar: CalInput | bool | NoInput = False,
         id: str | NoInput = NoInput(0),
     ):
-        self._cache = dict()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
@@ -2750,15 +2771,11 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     def __getitem__(self, date: datetime):
-        # if date in self._cache:
-        #     return self._cache[date]
-        # else:
         val = (
             self.fx_forwards.rate(self.pair, date, path=self.path)
             / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
             * self.fx_forwards.fx_curves[self.coll_pair][date]
         )
-        # self._cache[date] = val
         return val
 
     def to_json(self):  # pragma: no cover

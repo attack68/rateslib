@@ -192,6 +192,7 @@ class Defaults:
            1808, 1821, 1824, 1825,
         ]
         # fmt: on
+        self.curve_caching = True
 
         # Solver
 
@@ -317,7 +318,8 @@ Curves:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
     'interpolation',
     'endpoints',
-    'multi_csa_steps',        
+    'multi_csa_steps',    
+    'curve_caching',        
 ]])}
 Solver:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
