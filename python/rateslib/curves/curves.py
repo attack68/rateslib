@@ -2141,7 +2141,6 @@ class CompositeCurve(IndexCurve):
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
     ) -> None:
-
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
         self.curves = tuple(curves)
