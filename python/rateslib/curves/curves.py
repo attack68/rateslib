@@ -2498,9 +2498,6 @@ class MultiCsaCurve(CompositeCurve):
         return _
 
     def __getitem__(self, date: datetime):
-        # if date in self._cache:
-        #     return self._cache[date]
-
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
@@ -2534,7 +2531,6 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
-            # self._cache[date] = _
             return _
         else:
             min_ratio = 1e5
@@ -2542,7 +2538,6 @@ class MultiCsaCurve(CompositeCurve):
                 ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             _ *= min_ratio
-            # self._cache[date] = _
             return _
 
     def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
