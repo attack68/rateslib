@@ -37,6 +37,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
        in *Solvers* and standardised *Instruments*. This feature can be opted out of using the
        ``defaults.curve_caching`` setting. Note also the added :meth:`~rateslib.curves.Curve.clear_cache` method.
        (`435 <https://github.com/attack68/rateslib/pull/435>`_)
+   * - Bug
+     - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
 
 1.5.0 (25th September 2024)
 ****************************
