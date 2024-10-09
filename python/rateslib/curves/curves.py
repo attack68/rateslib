@@ -152,6 +152,7 @@ class _Serialize:
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
+        self.clear_cache()
         self.ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
@@ -299,6 +300,7 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
+        self.clear_cache()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_keys = list(self.nodes.keys())
@@ -350,11 +352,15 @@ class Curve(_Serialize):
         self._set_ad_order(order=ad)
 
     def __getitem__(self, date: datetime):
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
+
         date_posix = date.replace(tzinfo=UTC).timestamp()
         if self.spline is None or date <= self.t[0]:
             if isinstance(self.interpolation, Callable):
-                return self.interpolation(date, self.nodes.copy())
-            return self._local_interp_(date_posix)
+                val = self.interpolation(date, self.nodes.copy())
+            else:
+                val = self._local_interp_(date_posix)
         else:
             if date > self.t[-1]:
                 warnings.warn(
@@ -364,7 +370,10 @@ class Curve(_Serialize):
                     f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            return self._op_exp(self.spline.ppev_single(date_posix))
+            val = self._op_exp(self.spline.ppev_single(date_posix))
+
+        self._maybe_add_to_cache(date, val)
+        return val
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -535,6 +544,28 @@ class Curve(_Serialize):
                 )
 
         return _
+
+    def clear_cache(self):
+        """
+        Clear the cache of values on a *Curve* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Curve*.
+        Users are advised against making direct modification to *Curve* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+
+        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+        """
+        self._cache = dict()
+
+    def _maybe_add_to_cache(self, date, val):
+        if defaults.curve_caching:
+            self._cache[date] = val
 
     def csolve(self) -> None:
         """
@@ -1224,6 +1255,8 @@ class Curve(_Serialize):
 
     def _set_node_vector(self, vector: list[DualTypes], ad):
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
+        self.clear_cache()
+
         DualType = Dual if ad == 1 else Dual2
         DualArgs = ([],) if ad == 1 else ([], [])
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
