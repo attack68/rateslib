@@ -23,8 +23,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Description
    * - Instruments
      - Add :class:`~rateslib.instruments.CDS` for credit pricing, as well as the associated components;
-       :class:`~rateslib.legs.CreditPremiumLeg`, :class:`~rateslib.legs.CreditPremiumPeriod`,
-       :class:`~rateslib.legs.CreditProtectionLeg`, :class:`~rateslib.legs.CreditProtectionPeriod`.
+       :class:`~rateslib.legs.CreditPremiumLeg`, :class:`~rateslib.periods.CreditPremiumPeriod`,
+       :class:`~rateslib.legs.CreditProtectionLeg`, :class:`~rateslib.periods.CreditProtectionPeriod`.
        (`419 <https://github.com/attack68/rateslib/pull/419>`_)
        (`425 <https://github.com/attack68/rateslib/pull/425>`_)
        (`426 <https://github.com/attack68/rateslib/pull/426>`_)
