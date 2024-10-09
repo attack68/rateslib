@@ -16,6 +16,7 @@ into any one category.
     z_turns.rst
     z_quantlib.rst
     z_curve_from_zero_rates.ipynb
+    z_cdsw.rst
 
 **FX Volatility Surface Building**
 
