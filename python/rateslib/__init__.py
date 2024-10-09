@@ -60,10 +60,10 @@ from rateslib.calendars import (
 )
 from rateslib.curves import (
     CompositeCurve,
-    MultiCsaCurve,
     Curve,
     IndexCurve,
     LineCurve,
+    MultiCsaCurve,
     ProxyCurve,
     index_left,
     interpolate,
