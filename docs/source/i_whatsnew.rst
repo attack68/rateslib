@@ -39,6 +39,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`435 <https://github.com/attack68/rateslib/pull/435>`_)
    * - Bug
      - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
+       (`436 <https://github.com/attack68/rateslib/pull/436>`_)
 
 1.5.0 (25th September 2024)
 ****************************
