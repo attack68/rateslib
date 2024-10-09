@@ -31,6 +31,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Instruments
      - Add the ``spec`` options; *'audusd_xcs'*, *'audusd_xcs3'*, *'nzdusd_xcs3'*, *'nzdaud_xcs3'*
        (`429 <https://github.com/attack68/rateslib/pull/429>`_)
+   * - Performance
+     - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
+       :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
+       in *Solvers* and standardised *Instruments*. This feature can be opted out of using the
+       ``defaults.curve_caching`` setting. Note also the added :meth:`~rateslib.curves.Curve.clear_cache` method.
+       (`435 <https://github.com/attack68/rateslib/pull/435>`_)
 
 1.5.0 (25th September 2024)
 ****************************
