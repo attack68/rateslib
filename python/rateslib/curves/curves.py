@@ -2708,11 +2708,17 @@ class CreditImpliedCurve(Curve):
         id: str | NoInput = NoInput(0),
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
         curves = tuple()
         for _ in [risk_free_curve, credit_curve, hazard_curve]:
-            curves += NoInput(0) if _ is None else _
+            curves += (NoInput(0) if _ is None else _,)
         self.curves = curves
         self._validate_curve_collection()
+
+        self.convention = self.implied_curve.convention
+        self.node_dates = self.implied_curve.node_dates
+        self.calendar = self.implied_curve.calendar
+        self.modifier = self.implied_curve.modifier
 
     def _validate_curve_collection(self):
         """Perform checks to ensure CreditImpliedCurve can exist"""
@@ -2721,11 +2727,13 @@ class CreditImpliedCurve(Curve):
                              "must be supplied to a `CreditImpliedCurve`.")
 
         elif self.curves[0] is NoInput.blank:
-            self.implied_type = "RiskFreeCurve"
+            self.implied_curve = "RiskFreeCurve"
         elif self.curves[1] is NoInput.blank:
-            self.implied_type = "CreditCurve"
+            self.implied_curve = _ImpliedCreditCurve(
+                self.curves[0], self.curves[2], self.recovery_rate
+            )
         elif self.curves[2] is NoInput.blank:
-            self.implied_type = "HazardCurve"
+            self.implied_curve = "HazardCurve"
 
         if self.curves[2] is not NoInput.blank and self.curves[2]._base_type == "values":
             raise ValueError("Supplied `hazard_curve` must be capable of providing probabilities"
@@ -2736,7 +2744,6 @@ class CreditImpliedCurve(Curve):
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
         modifier: str | bool | NoInput = False,
-        approximate: bool = True,
     ):
         """
         Calculate the composited rate on the curve.
@@ -2753,45 +2760,15 @@ class CreditImpliedCurve(Curve):
         modifier : str, optional
             The day rule if determining the termination from tenor. If `False` is
             determined from the `Curve` modifier.
-        approximate : bool, optional
-            When compositing :class:`Curve` or :class:`IndexCurve` calculating many
-            individual rates is expensive. This uses an approximation typically with
-            error less than 1/100th of basis point. Not used if ``multi_csa`` is True.
 
         Returns
         -------
         Dual, Dual2 or float
         """
-        return _
+        return super().rate(effective, termination, modifier)
 
     def __getitem__(self, date: datetime):
-        if self._base_type == "dfs":
-            # will return a composited discount factor
-            if date == self.curves[0].node_dates[0]:
-                return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-            elif date < self.curves[0].node_dates[0]:
-                return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
-            days = (date - self.curves[0].node_dates[0]).days
-            d = _DCF1d[self.convention.upper()]
-
-            total_rate = 0.0
-            for curve in self.curves:
-                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
-                total_rate += avg_rate
-            _ = 1.0 / (1 + total_rate * d) ** days
-            return _
-
-        elif self._base_type == "values":
-            # will return a composited rate
-            _ = 0.0
-            for curve in self.curves:
-                _ += curve[date]
-            return _
-
-        else:
-            raise TypeError(
-                f"Base curve type is unrecognised: {self._base_type}",
-            )  # pragma: no cover
+        return self.implied_curve[date]
 
     def shift(
         self,
@@ -2800,102 +2777,13 @@ class CreditImpliedCurve(Curve):
         composite: bool | NoInput = True,
         collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        if composite:
-            # TODO (med) allow composite composite curves
-            raise ValueError(
-                "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented.\n"
-                "Set `composite` to False.",
-            )
-
-        curves = (self.curves[0].shift(spread=spread, composite=composite),)
-        curves += self.curves[1:]
-        _ = CompositeCurve(curves=curves, id=id)
-        _.collateral = collateral
-        return _
+        return NotImplementedError("CreditImpliedCurves cannot currently be shifted.")
 
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
-        constant.
-
-        This curve adjustment preserves forward curve expectations as time evolves.
-        This method is suitable as a way to create a subsequent *opening* curve from a
-        previous day's *closing* curve.
-
-        Parameters
-        ----------
-        start : datetime
-            The new initial node date for the curve, must be in the domain:
-            (node_date[0], node_date[1]]
-        t : bool
-            Set to *True* if the initial knots of the knot sequence should be
-            translated forward.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
+        return NotImplementedError("CreditImpliedCurves cannot currently be translated.")
 
     def roll(self, tenor: datetime | str) -> CompositeCurve:
-        """
-        Create a new curve with its shape translated in time
-
-        This curve adjustment is a simulation of a future state of the market where
-        forward rates are assumed to have moved so that the present day's curve shape
-        is reflected in the future (or the past). This is often used in trade
-        strategy analysis.
-
-        Parameters
-        ----------
-        tenor : datetime or str
-            The date or tenor by which to roll the curve. If a tenor, as str, will
-            derive the datetime as measured from the initial node date. If supplying a
-            negative tenor, or a past datetime, there is a limit to how far back the
-            curve can be rolled - it will first roll backwards and then attempt to
-            :meth:`translate` forward to maintain the initial node date.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
-
-    def index_value(self, date: datetime, interpolation: str = "daily"):
-        """
-        Calculate the accrued value of the index from the ``index_base``.
-
-        See :meth:`IndexCurve.index_value()<rateslib.curves.IndexCurve.index_value>`
-        """
-        if not isinstance(self.curves[0], IndexCurve):
-            raise TypeError("`index_value` not available on non `IndexCurve` types.")
-        return super().index_value(date, interpolation)
+        return NotImplementedError("CreditImpliedCurves cannot currently be rolled.")
 
     def _get_node_vector(self):
         return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
@@ -2917,8 +2805,14 @@ class _ImpliedCreditCurve:
     ):
         self.recovery_rate = recovery_rate
         self.curves = [risk_free_curve, hazard_curve]
+
         self.df_min_step = df_min_step
         self.df_max_step = df_max_step
+
+        self.node_dates = risk_free_curve.node_dates
+        self.calendar = risk_free_curve.calendar
+        self.convention = risk_free_curve.convention
+        self.modifier = risk_free_curve.modifier
 
     def __getitem__(self, date):
         # will return a composited discount factor
@@ -2926,7 +2820,7 @@ class _ImpliedCreditCurve:
             return 1.0
 
         # method sequentially determines DFs from given curve rates
-        k = 1
+        k = 0
         d1 = self.curves[0].node_dates[0]
         ini_step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)
         d2 = d1 + timedelta(days=ini_step)
