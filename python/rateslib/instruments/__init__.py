@@ -715,12 +715,23 @@ class BondMixin:
             base,
             self.leg1.currency,
         )
-        ad_ = curves[1].ad
         metric = "dirty_price" if dirty else "clean_price"
 
-        curves[1]._set_ad_order(1)
-        disc_curve = curves[1].shift(Dual(0, ["z_spread"], []), composite=False)
-        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+        # Create a discounting curve with ADOrder:1 exposure to z_spread
+        disc_curve = curves[1].copy()
+        disc_curve._set_ad_order(1)
+        disc_curve = disc_curve.shift(Dual(0, ["z_spread"], []), composite=False)
+
+        # Get forecasting curve
+        if type(self).__name__ in ["FloatRateNote", "IndexFixedRateBond"]:
+            fore_curve = curves[0].copy()
+            fore_curve._set_ad_order(1)
+        elif type(self).__name__ in ["FixedRateBond", "Bill"]:
+            fore_curve = None
+        else:
+            raise TypeError("Method `oaspread` can only be called on Bond type securities.")
+
+        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
 
         # find a first order approximation of z
         b = gradient(npv_price, ["z_spread"], 1)[0]
