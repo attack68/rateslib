@@ -648,6 +648,13 @@ class Curve(_Serialize):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+
+            .. note::
+
+               If you supply a *Dual* or *Dual2* value that is inconsistent with the AD order
+               of *Self* then the AD order of *Self* will be automatically changed and this
+               will also clear the *Curve* cache.
+
         id : str, optional
             Set the id of the returned curve.
         composite: bool, optional
@@ -714,12 +721,6 @@ class Curve(_Serialize):
            plt.show()
 
         """
-        # Make sure underlying curve AD matches the spread. Floats are universal
-        if isinstance(spread, Dual):
-            self._set_ad_order(1)
-        elif isinstance(spread, Dual2):
-            self._set_ad_order(2)
-
         if composite:
             start, end = self.node_dates[0], self.node_dates[-1]
             days = (end - start).days
@@ -756,35 +757,45 @@ class Curve(_Serialize):
             return _
 
         else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
-            v1v2 = [1.0] * (self.n - 1)
-            n = [0] * (self.n - 1)
-            d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-            v_new = [1.0] * (self.n)
-            for i, (k, v) in enumerate(self.nodes.items()):
+            # Make sure base curve ADorder matches the spread ADorder. Floats are universal
+            if isinstance(spread, Dual) and self.ad != 1:
+                base_ = self.copy()
+                base_._set_ad_order(1)
+            elif isinstance(spread, Dual2) and self.ad != 2:
+                base_ = self.copy()
+                base_._set_ad_order(2)
+            else:
+                base_ = self  # underlying curve ADorder is unchanged
+
+            v1v2 = [1.0] * (base_.n - 1)
+            n = [0] * (base_.n - 1)
+            d = 1 / 365 if base_.convention.upper() != "ACT360" else 1 / 360
+            v_new = [1.0] * (base_.n)
+            for i, (k, v) in enumerate(base_.nodes.items()):
                 if i == 0:
                     continue
-                n[i - 1] = (k - self.node_dates[i - 1]).days
-                v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
+                n[i - 1] = (k - base_.node_dates[i - 1]).days
+                v1v2[i - 1] = (base_.nodes[base_.node_dates[i - 1]] / v) ** (1 / n[i - 1])
                 v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
 
-            nodes = self.nodes.copy()
+            nodes = base_.nodes.copy()
             for i, (k, _) in enumerate(nodes.items()):
                 nodes[k] = v_new[i]
 
             kwargs = {}
-            if type(self) is IndexCurve:
-                kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
-            _ = type(self)(
+            if type(base_) is IndexCurve:
+                kwargs = {"index_base": base_.index_base, "index_lag": base_.index_lag}
+            _ = type(base_)(
                 nodes=nodes,
-                interpolation=self.interpolation,
-                t=self.t,
+                interpolation=base_.interpolation,
+                t=base_.t,
                 c=NoInput(0),
-                endpoints=self.spline_endpoints,
+                endpoints=base_.spline_endpoints,
                 id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
-                convention=self.convention,
-                modifier=self.modifier,
-                calendar=self.calendar,
-                ad=self.ad,
+                convention=base_.convention,
+                modifier=base_.modifier,
+                calendar=base_.calendar,
+                ad=base_.ad,
                 **kwargs,
             )
             _.collateral = collateral
@@ -1476,6 +1487,13 @@ class LineCurve(Curve):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+
+             .. warning::
+
+               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
+               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
+               may be raised. If in doubt, only use *float* spread values.
+
         id : str, optional
             Set the id of the returned curve.
         composite: bool, optional
@@ -1542,25 +1560,30 @@ class LineCurve(Curve):
            plt.show()
 
         """
-        # Make sure underlying curve AD matches the spread. Floats are universal
-        if isinstance(spread, Dual):
-            self._set_ad_order(1)
-        elif isinstance(spread, Dual2):
-            self._set_ad_order(2)
-
         if composite:
             return super().shift(spread, id, composite, collateral)
+
+        # Make sure base curve ADorder matches the spread ADorder. Floats are universal
+        if isinstance(spread, Dual) and self.ad != 1:
+            base_ = self.copy()
+            base_._set_ad_order(1)
+        elif isinstance(spread, Dual2) and self.ad != 2:
+            base_ = self.copy()
+            base_._set_ad_order(2)
+        else:
+            base_ = self  # underlying curve ADorder is unchanged
+
         _ = LineCurve(
-            nodes={k: v + spread / 100 for k, v in self.nodes.items()},
-            interpolation=self.interpolation,
-            t=self.t,
+            nodes={k: v + spread / 100 for k, v in base_.nodes.items()},
+            interpolation=base_.interpolation,
+            t=base_.t,
             c=NoInput(0),
-            endpoints=self.spline_endpoints,
+            endpoints=base_.spline_endpoints,
             id=id,
-            convention=self.convention,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            ad=self.ad,
+            convention=base_.convention,
+            modifier=base_.modifier,
+            calendar=base_.calendar,
+            ad=base_.ad,
         )
         _.collateral = collateral
         return _
