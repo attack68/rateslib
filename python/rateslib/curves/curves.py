@@ -630,7 +630,7 @@ class Curve(_Serialize):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
@@ -648,6 +648,13 @@ class Curve(_Serialize):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+
+            .. warning::
+
+               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
+               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
+               may be raised. If in doubt, only use *float* spread values.
+
         id : str, optional
             Set the id of the returned curve.
         composite: bool, optional
@@ -750,6 +757,13 @@ class Curve(_Serialize):
             return _
 
         else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
+            # Make sure base curve ADorder matches the spread ADorder. Floats are universal
+            _ad = self.ad
+            if isinstance(spread, Dual):
+                self._set_ad_order(1)
+            elif isinstance(spread, Dual2):
+                self._set_ad_order(2)
+
             v1v2 = [1.0] * (self.n - 1)
             n = [0] * (self.n - 1)
             d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
@@ -782,6 +796,7 @@ class Curve(_Serialize):
                 **kwargs,
             )
             _.collateral = collateral
+            self._set_ad_order(_ad)
             return _
 
     def _translate_nodes(self, start: datetime):
@@ -1470,6 +1485,13 @@ class LineCurve(Curve):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+
+            .. warning::
+
+               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
+               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
+               may be raised. If in doubt, only use *float* spread values.
+
         id : str, optional
             Set the id of the returned curve.
         composite: bool, optional
@@ -1538,6 +1560,14 @@ class LineCurve(Curve):
         """
         if composite:
             return super().shift(spread, id, composite, collateral)
+
+        # Make sure base curve ADorder matches the spread ADorder. Floats are universal
+        _ad = self.ad
+        if isinstance(spread, Dual):
+            self._set_ad_order(1)
+        elif isinstance(spread, Dual2):
+            self._set_ad_order(2)
+
         _ = LineCurve(
             nodes={k: v + spread / 100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,
@@ -1551,6 +1581,7 @@ class LineCurve(Curve):
             ad=self.ad,
         )
         _.collateral = collateral
+        self._set_ad_order(_ad)
         return _
 
     def _translate_nodes(self, start: datetime):

@@ -734,8 +734,8 @@ class TestFixedRateBond:
             ex_div=7,
             fixed_rate=8.0,
         )
-        price0 = gilt.price(4.445, dt(1999, 5, 27))
-        price1 = gilt.price(4.446, dt(1999, 5, 27))
+        price0 = gilt.price(4.445, dt(1999, 5, 27), dirty=True)
+        price1 = gilt.price(4.446, dt(1999, 5, 27), dirty=True)
         if metric == "risk":
             numeric = price0 - price1
         elif metric == "modified":
