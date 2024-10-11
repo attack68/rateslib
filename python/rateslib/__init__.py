@@ -63,6 +63,7 @@ from rateslib.curves import (
     Curve,
     IndexCurve,
     LineCurve,
+    MultiCsaCurve,
     ProxyCurve,
     index_left,
     interpolate,
@@ -71,6 +72,7 @@ from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -178,6 +180,7 @@ __all__ = [
     "Curve",
     "LineCurve",
     "IndexCurve",
+    "MultiCsaCurve",
     "CompositeCurve",
     "ProxyCurve",
     "interpolate",
@@ -213,6 +216,7 @@ __all__ = [
     "IndexFixedRateBond",
     "FloatRateNote",
     "BondFuture",
+    "CDS",
     "FRA",
     "Value",
     "VolValue",
