@@ -630,7 +630,7 @@ class Curve(_Serialize):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
@@ -714,6 +714,12 @@ class Curve(_Serialize):
            plt.show()
 
         """
+        # Make sure underlying curve AD matches the spread. Floats are universal
+        if isinstance(spread, Dual):
+            self._set_ad_order(1)
+        elif isinstance(spread, Dual2):
+            self._set_ad_order(2)
+
         if composite:
             start, end = self.node_dates[0], self.node_dates[-1]
             days = (end - start).days
@@ -1536,6 +1542,12 @@ class LineCurve(Curve):
            plt.show()
 
         """
+        # Make sure underlying curve AD matches the spread. Floats are universal
+        if isinstance(spread, Dual):
+            self._set_ad_order(1)
+        elif isinstance(spread, Dual2):
+            self._set_ad_order(2)
+
         if composite:
             return super().shift(spread, id, composite, collateral)
         _ = LineCurve(
