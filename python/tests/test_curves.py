@@ -821,6 +821,26 @@ def test_indexcurve_shift_dual_input() -> None:
     assert result_curve.index_base == curve.index_base
 
 
+@pytest.mark.parametrize("c_obj", ["c", "l", "i"])
+@pytest.mark.parametrize("ini_ad", [0, 1, 2])
+@pytest.mark.parametrize("spread", [Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], [])])
+@pytest.mark.parametrize("composite", [False])
+def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread, composite):
+    if c_obj == "c":
+        c = curve
+    elif c_obj == "l":
+        c = line_curve
+    else:
+        c = index_curve
+    c._set_ad_order(ini_ad)
+    result = c.shift(spread, composite=composite)
+
+    if isinstance(spread, Dual):
+        assert result.ad == 1
+    else:
+        assert result.ad == 2
+
+
 @pytest.mark.parametrize(
     ("crv", "t", "tol"),
     [
