@@ -758,47 +758,45 @@ class Curve(_Serialize):
 
         else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
             # Make sure base curve ADorder matches the spread ADorder. Floats are universal
-            if isinstance(spread, Dual) and self.ad != 1:
-                base_ = self.copy()
-                base_._set_ad_order(1)
-            elif isinstance(spread, Dual2) and self.ad != 2:
-                base_ = self.copy()
-                base_._set_ad_order(2)
-            else:
-                base_ = self  # underlying curve ADorder is unchanged
+            _ad = self.ad
+            if isinstance(spread, Dual):
+                self._set_ad_order(1)
+            elif isinstance(spread, Dual2):
+                self._set_ad_order(2)
 
-            v1v2 = [1.0] * (base_.n - 1)
-            n = [0] * (base_.n - 1)
-            d = 1 / 365 if base_.convention.upper() != "ACT360" else 1 / 360
-            v_new = [1.0] * (base_.n)
-            for i, (k, v) in enumerate(base_.nodes.items()):
+            v1v2 = [1.0] * (self.n - 1)
+            n = [0] * (self.n - 1)
+            d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
+            v_new = [1.0] * (self.n)
+            for i, (k, v) in enumerate(self.nodes.items()):
                 if i == 0:
                     continue
-                n[i - 1] = (k - base_.node_dates[i - 1]).days
-                v1v2[i - 1] = (base_.nodes[base_.node_dates[i - 1]] / v) ** (1 / n[i - 1])
+                n[i - 1] = (k - self.node_dates[i - 1]).days
+                v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
                 v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
 
-            nodes = base_.nodes.copy()
+            nodes = self.nodes.copy()
             for i, (k, _) in enumerate(nodes.items()):
                 nodes[k] = v_new[i]
 
             kwargs = {}
-            if type(base_) is IndexCurve:
-                kwargs = {"index_base": base_.index_base, "index_lag": base_.index_lag}
-            _ = type(base_)(
+            if type(self) is IndexCurve:
+                kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
+            _ = type(self)(
                 nodes=nodes,
-                interpolation=base_.interpolation,
-                t=base_.t,
+                interpolation=self.interpolation,
+                t=self.t,
                 c=NoInput(0),
-                endpoints=base_.spline_endpoints,
+                endpoints=self.spline_endpoints,
                 id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
-                convention=base_.convention,
-                modifier=base_.modifier,
-                calendar=base_.calendar,
-                ad=base_.ad,
+                convention=self.convention,
+                modifier=self.modifier,
+                calendar=self.calendar,
+                ad=self.ad,
                 **kwargs,
             )
             _.collateral = collateral
+            self._set_ad_order(_ad)
             return _
 
     def _translate_nodes(self, start: datetime):
@@ -1564,28 +1562,26 @@ class LineCurve(Curve):
             return super().shift(spread, id, composite, collateral)
 
         # Make sure base curve ADorder matches the spread ADorder. Floats are universal
-        if isinstance(spread, Dual) and self.ad != 1:
-            base_ = self.copy()
-            base_._set_ad_order(1)
-        elif isinstance(spread, Dual2) and self.ad != 2:
-            base_ = self.copy()
-            base_._set_ad_order(2)
-        else:
-            base_ = self  # underlying curve ADorder is unchanged
+        _ad = self.ad
+        if isinstance(spread, Dual):
+            self._set_ad_order(1)
+        elif isinstance(spread, Dual2):
+            self._set_ad_order(2)
 
         _ = LineCurve(
-            nodes={k: v + spread / 100 for k, v in base_.nodes.items()},
-            interpolation=base_.interpolation,
-            t=base_.t,
+            nodes={k: v + spread / 100 for k, v in self.nodes.items()},
+            interpolation=self.interpolation,
+            t=self.t,
             c=NoInput(0),
-            endpoints=base_.spline_endpoints,
+            endpoints=self.spline_endpoints,
             id=id,
-            convention=base_.convention,
-            modifier=base_.modifier,
-            calendar=base_.calendar,
-            ad=base_.ad,
+            convention=self.convention,
+            modifier=self.modifier,
+            calendar=self.calendar,
+            ad=self.ad,
         )
         _.collateral = collateral
+        self._set_ad_order(_ad)
         return _
 
     def _translate_nodes(self, start: datetime):
