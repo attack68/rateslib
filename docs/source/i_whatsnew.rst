@@ -40,6 +40,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Bug
      - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
+   * - Bug
+     - Adding *Dual* or *Dual2* type ``spread`` using :meth:`~rateslib.curves.Curve.shift` method
+       now avoids *TypeErrors* where possible and maintains appropriate AD orders for each
+       existing and new object.
+       (`440 <https://github.com/attack68/rateslib/pull/440>`_)
 
 1.5.0 (25th September 2024)
 ****************************
