@@ -649,11 +649,11 @@ class Curve(_Serialize):
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
 
-            .. note::
+            .. warning::
 
-               If you supply a *Dual* or *Dual2* value that is inconsistent with the AD order
-               of *Self* then the AD order of *Self* will be automatically changed and this
-               will also clear the *Curve* cache.
+               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
+               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
+               may be raised. If in doubt, only use *float* spread values.
 
         id : str, optional
             Set the id of the returned curve.
@@ -1488,7 +1488,7 @@ class LineCurve(Curve):
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
 
-             .. warning::
+            .. warning::
 
                If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
                spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
