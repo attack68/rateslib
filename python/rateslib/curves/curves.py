@@ -2824,12 +2824,14 @@ class _ImpliedCreditCurve:
         d1 = self.curves[0].node_dates[0]
         ini_step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)
         d2 = d1 + timedelta(days=ini_step)
-        v0, q0, u0 = 1.0, 1.0, 1.0
+        v0, q0, u0, rr = 1.0, 1.0, 1.0, self.recovery_rate
         while d2 < date:
             k += 1
             v1 = self.curves[0][d2]
             q1 = self.curves[1][d2]
-            _ = ((v0 / v1) + (1-self.recovery_rate)*(q0 - q1)) / (1 - q0 + q1)
+            p = q0 - q1
+            # _ = ((v0 / v1) + (1-self.recovery_rate)*(q0 - q1)) / (1 - q0 + q1)
+            _ = ((v0 / v1) + p) / (1 - p * (1-rr))
             u1 = u0 / _
 
             step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)

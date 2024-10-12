@@ -1937,4 +1937,4 @@ class TestImpliedCreditCurve:
         rf_curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
         obj = _ImpliedCreditCurve(rf_curve, haz_curve, 0.4)
         result = obj[dt(2000, 12, 1)]
-        assert False
+        assert abs(result - 0.9124165638526769) < 1e-5
