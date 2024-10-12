@@ -60,6 +60,7 @@ from rateslib.calendars import (
 )
 from rateslib.curves import (
     CompositeCurve,
+    CreditImpliedCurve,
     Curve,
     IndexCurve,
     LineCurve,
@@ -182,6 +183,7 @@ __all__ = [
     "IndexCurve",
     "MultiCsaCurve",
     "CompositeCurve",
+    "CreditImpliedCurve",
     "ProxyCurve",
     "interpolate",
     "index_left",

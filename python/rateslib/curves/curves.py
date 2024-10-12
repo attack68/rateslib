@@ -2690,7 +2690,7 @@ class CreditImpliedCurve(Curve):
         An object capable of returning period rates. These rates are associated with those of
         an entity which experiences a probability of failure, i.e. which can default.
     hazard_curve : *Curve* type
-        An object capable of returning probabilities of survival. 
+        An object capable of returning probabilities of survival.
     recovery_rate : float
         A recovery rate value in [0, 1].
     id : str, optional, set by Default
@@ -2723,8 +2723,10 @@ class CreditImpliedCurve(Curve):
     def _validate_curve_collection(self):
         """Perform checks to ensure CreditImpliedCurve can exist"""
         if sum([_ is NoInput.blank for _ in self.curves]) != 1:
-            raise ValueError("Precisely two of `risk_free_curve`, `credit_curve`, `hazard_curve`"
-                             "must be supplied to a `CreditImpliedCurve`.")
+            raise ValueError(
+                "Precisely two of `risk_free_curve`, `credit_curve`, `hazard_curve`"
+                "must be supplied to a `CreditImpliedCurve`."
+            )
 
         elif self.curves[0] is NoInput.blank:
             self.implied_curve = "RiskFreeCurve"
@@ -2736,8 +2738,10 @@ class CreditImpliedCurve(Curve):
             self.implied_curve = "HazardCurve"
 
         if self.curves[2] is not NoInput.blank and self.curves[2]._base_type == "values":
-            raise ValueError("Supplied `hazard_curve` must be capable of providing probabilities"
-                             "of survival. This is not possible from a 'values' base curve type.")
+            raise ValueError(
+                "Supplied `hazard_curve` must be capable of providing probabilities"
+                "of survival. This is not possible from a 'values' base curve type."
+            )
 
     def rate(
         self,
@@ -2795,6 +2799,7 @@ class _ImpliedCreditCurve:
 
     Inputs are assumed to be valid: this is a private class.
     """
+
     def __init__(
         self,
         risk_free_curve,
@@ -2846,6 +2851,7 @@ class _ImpliedCreditCurve:
             _ = ((v0 / v1) + (1 - self.recovery_rate) * (q0 - q1)) / (1 - q0 + q1)
             u1 = u0 / _
             return u1
+
 
 # class HazardCurve(Curve):
 #     """

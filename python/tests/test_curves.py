@@ -1931,7 +1931,6 @@ class TestPlotCurve:
 
 
 class TestImpliedCreditCurve:
-
     def test_implied_df(self):
         haz_curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95})
         rf_curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
