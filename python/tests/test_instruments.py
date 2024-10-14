@@ -2463,6 +2463,7 @@ class TestCDS:
         assert abs(result.sum().iloc[0] - 25.294894375736) < 1e-6
 
     def test_okane_paper(self):
+        # Figure 12 of Turnbull and O'Kane 2003 Valuation of CDS
         usd_libor = Curve(
             nodes={
                 dt(2003, 6, 19): 1.0,
@@ -2520,12 +2521,19 @@ class TestCDS:
         )
         cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), credit_spread=200, notional=10e6, **args)
         result = cds.rate(solver=solver)
-        table = cds.cashflows(solver=solver)
+        assert abs(result -142.7) < 0.30
+
+        _table = cds.cashflows(solver=solver)
         leg1_npv = cds.leg1.npv(haz_curve, usd_libor)
         leg2_npv = cds.leg2.npv(haz_curve, usd_libor)
+        assert abs(leg1_npv + 781388) < 250
+        assert abs(leg2_npv - 557872) < 900
+
         a_delta = cds.analytic_delta(haz_curve, usd_libor)
+        assert abs(a_delta -3899) < 10
+
         npv = cds.npv(solver=solver)
-        assert False
+        assert abs(npv + 223516) < 670
 
 
 class TestXCS:
