@@ -129,3 +129,38 @@ the package. The continuous integration (CI) checks on github perform 7 tasks:
   In order to build docs without error you will also need to **install pandoc**.
 
   In order to generate inheritance diagrams you will need to **install graphviz**.
+
+Development Plan
+********************
+
+In no particular order...
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Rust extension
+     - Continue to port classes to Rust with PyO3 extension module, also simultaneously
+       working towards stabilising a standalone crate for Rust for linear fixed income.
+   * - Swaptions
+     - Plan the design architecture and implementation for  *Swaptions* and *IRVolCube*
+   * - Credit Default Swaps
+     - Add a *CDS* *Instrument* and also think about *Curve* transformation methods for analysis
+       between credit discount curves and hazard rates / survival curves.
+   * - Specifications for standard products
+     - Extend the ``spec`` loader to cover wider range of *Instruments* particularly with respect
+       to *Bond* calculations.
+   * - Documentation
+     - Broaden the array of available tutorials, especially in regards to *Bond* analysis,
+       credit analysis and *Index* analysis.
+   * - PnL Monitoring
+     - Provide an automated PnL explain from multiple *Solvers* (i.e "open" and "close")
+   * - Serialisation
+     - Continue to enhance the *Serialisation* aspect of objects. This feature will naturally
+       develop with the Rust extension since stronger typing provides a much more rigid framework
+       for data manipulation.
+   * - Interactivity
+     - Expand the available tutorials for interactivity, such as using Excel, Jupyterlite, or
+       app packages, such as *Streamlit*, *Dash*, *Panel*.
