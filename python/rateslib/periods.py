@@ -1842,23 +1842,37 @@ class CreditPremiumPeriod(BasePeriod):
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
                 r, q_start, v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                m_today = curve.node_dates[0]
             else:
                 r, q_start, v_start = 0.0, curve[self.start], disc_curve[self.start]
+                m_today = self.start
 
-            # method 1:
-            accrued_ = (n - r) / (2 * n) + r / n
-            accrued_ *= q_start - q_end
-            # accrued_ = 0.5 * (v_start + v_end) * accrued_
-            accrued_ *= v_end
+            # # method 1:
+            # accrued_ = (n - r) / (2 * n) + r / n
+            # accrued_ *= q_start - q_end
+            # # accrued_ = 0.5 * (v_start + v_end) * accrued_
+            # accrued_ *= v_end
+            #
+            # # method 2:
+            # a0, a1 = r / n, 1.0
+            # v0, v1 = v_start, v_end
+            # accrued_ = 0.5 * v0 * (a1 + a0) + (a1 + a0 / 2) * (v1 - v0) / 3
+            # accrued_ *= q_start - q_end
 
-            # method 2:
-            a0, a1 = r / n, 1.0
-            v0, v1 = v_start, v_end
-            accrued_ = 0.5 * v0 * (a1 + a0) + (a1 + a0 / 2) * (v1 - v0) / 3
-            accrued_ *= q_start - q_end
+            # method 3
+            s = n - r
+            _ = v_start * (s * (s + 1) / 2 + s * r)
+            _ += (v_end - v_start) * (r * (s+1) / 2 + (2 * s + 1) * (s + 1) / 6)
+            _ *= (q_start - q_end) / (n * s)
+
+            # method 4 EXACT
+            _ = 0.0
+            for i in range(1, int(s)):
+                m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
+                _ += (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
 
         return _maybe_local(
-            self.cashflow * (q_end * v_payment + accrued_), local, self.currency, fx, base
+            self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base
         )
 
     def analytic_delta(
