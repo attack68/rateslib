@@ -1142,7 +1142,7 @@ class Curve(_Serialize):
         labels: list[str] | NoInput = NoInput(0),
     ):
         """
-        Plot given forward tenor rates from the curve.
+        Plot given forward tenor rates from the curve. See notes.
 
         Parameters
         ----------
@@ -1168,6 +1168,24 @@ class Curve(_Serialize):
         Returns
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
+        Notes
+        ------
+        This function plots single-period, **simple interest** curve rates, which are defined as:
+
+        .. math::
+
+           1 + r d = \\frac{v_{end}}{v_{termination}}
+
+        where *d* is the day count fraction determined using the ``convention`` associated
+        with the *Curve*.
+
+        This function does **not** plot swap rates,
+        which is impossible since the *Curve* object contains no information regarding the
+        parameters of the *'swap'* (e.g. its *frequency* or its *convention* etc.).
+        If ``tenors`` longer than one year are sought results may start to deviate from those
+        one might expect. See :ref:`Issue 246 <https://github.com/attack68/rateslib/issues/246>`.
+
         """
         comparators = _drb([], comparators)
         labels = _drb([], labels)
