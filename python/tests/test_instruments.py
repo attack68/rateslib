@@ -2341,6 +2341,7 @@ class TestCDS:
         return credit_curve, ibor, cc_sv
 
     def test_okane_values(self):
+        # These values are validated against finance Py. Not identical but within tolerance.
         cds = CDS(
             dt(2019, 8, 12),
             dt(2029, 6, 20),
