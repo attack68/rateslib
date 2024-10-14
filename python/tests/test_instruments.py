@@ -2248,16 +2248,28 @@ class TestNonMtmFixedFixedXCS:
 
 
 class TestCDS:
-
     def okane_curve(self):
         today = dt(2019, 8, 12)
         spot = dt(2019, 8, 14)
-        tenors = ["1b", "1m", "2m", "3m", "6m", "12M", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y"]
+        tenors = [
+            "1b",
+            "1m",
+            "2m",
+            "3m",
+            "6m",
+            "12M",
+            "2y",
+            "3y",
+            "4y",
+            "5y",
+            "6y",
+            "7y",
+            "8y",
+            "9y",
+            "10y",
+        ]
         ibor = Curve(
-            nodes={
-                today: 1.0,
-                **{add_tenor(spot, _, "mf", "nyc"):1.0 for _ in tenors}
-            },
+            nodes={today: 1.0, **{add_tenor(spot, _, "mf", "nyc"): 1.0 for _ in tenors}},
             convention="act360",
             calendar="nyc",
             id="ibor",
@@ -2277,7 +2289,7 @@ class TestCDS:
             1.4995,
             1.5118,
             1.5610,
-            1.6430
+            1.6430,
         ]
         ib_sv = Solver(
             curves=[ibor],
@@ -2293,16 +2305,14 @@ class TestCDS:
                     leg2_convention="act360",
                     frequency="s",
                     curves=ibor,
-                ) for _ in tenors
+                )
+                for _ in tenors
             ],
             s=rates,
         )
         cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
         credit_curve = Curve(
-            nodes={
-                today: 1.0,
-                **{add_tenor(today, _, "mf", "nyc"): 1.0 for _ in cds_tenor}
-            },
+            nodes={today: 1.0, **{add_tenor(today, _, "mf", "nyc"): 1.0 for _ in cds_tenor}},
             convention="act365f",
             calendar="all",
             id="credit",
@@ -2323,7 +2333,8 @@ class TestCDS:
                     recovery_rate=0.4,
                     premium_accrued=True,
                     calendar="nyc",
-                ) for _ in cds_tenor
+                )
+                for _ in cds_tenor
             ],
             s=[400, 400, 400, 400, 400, 400, 400, 400],
         )
@@ -2463,9 +2474,9 @@ class TestCDS:
             },
             convention="act360",
             calendar="nyc",
-            id="libor"
+            id="libor",
         )
-        args=dict(spec="eur_irs6", frequency="s", calendar="nyc", curves="libor", currency="usd")
+        args = dict(spec="eur_irs6", frequency="s", calendar="nyc", curves="libor", currency="usd")
         solver = Solver(
             curves=[usd_libor],
             instruments=[
@@ -2476,7 +2487,7 @@ class TestCDS:
                 IRS(dt(2003, 6, 23), "4y", **args),
                 IRS(dt(2003, 6, 23), "5y", **args),
             ],
-            s=[1.35, 1.43, 1.90, 2.47, 2.936, 3.311]
+            s=[1.35, 1.43, 1.90, 2.47, 2.936, 3.311],
         )
         haz_curve = Curve(
             nodes={
@@ -2491,7 +2502,9 @@ class TestCDS:
             calendar="all",
             id="hazard",
         )
-        args = dict(calendar="nyc", frequency="q", roll=20, curves=["hazard", "libor"], convention="act360")
+        args = dict(
+            calendar="nyc", frequency="q", roll=20, curves=["hazard", "libor"], convention="act360"
+        )
         solver = Solver(
             curves=[haz_curve],
             pre_solvers=[solver],
@@ -2502,10 +2515,9 @@ class TestCDS:
                 CDS(dt(2003, 6, 20), "4y", **args),
                 CDS(dt(2003, 6, 20), "5y", **args),
             ],
-            s=[110, 120, 130, 140, 150]
+            s=[110, 120, 130, 140, 150],
         )
-        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20),
-                  credit_spread=200, notional=10e6, **args )
+        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), credit_spread=200, notional=10e6, **args)
         result = cds.rate(solver=solver)
         table = cds.cashflows(solver=solver)
         leg1_npv = cds.leg1.npv(haz_curve, usd_libor)

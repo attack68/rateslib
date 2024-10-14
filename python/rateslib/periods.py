@@ -1854,10 +1854,12 @@ class CreditPremiumPeriod(BasePeriod):
             # method 2:
             a0, a1 = r / n, 1.0
             v0, v1 = v_start, v_end
-            accrued_ = 0.5 * v0 * (a1+a0) + (a1 + a0/2) * (v1-v0) / 3
+            accrued_ = 0.5 * v0 * (a1 + a0) + (a1 + a0 / 2) * (v1 - v0) / 3
             accrued_ *= q_start - q_end
 
-        return _maybe_local(self.cashflow * (q_end * v_payment + accrued_), local, self.currency, fx, base)
+        return _maybe_local(
+            self.cashflow * (q_end * v_payment + accrued_), local, self.currency, fx, base
+        )
 
     def analytic_delta(
         self,
