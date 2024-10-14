@@ -1175,7 +1175,7 @@ class Curve(_Serialize):
 
         .. math::
 
-           1 + r d = \\frac{v_{end}}{v_{termination}}
+           1 + r d = \\frac{v_{start}}{v_{end}}
 
         where *d* is the day count fraction determined using the ``convention`` associated
         with the *Curve*.
@@ -1184,7 +1184,7 @@ class Curve(_Serialize):
         which is impossible since the *Curve* object contains no information regarding the
         parameters of the *'swap'* (e.g. its *frequency* or its *convention* etc.).
         If ``tenors`` longer than one year are sought results may start to deviate from those
-        one might expect. See :ref:`Issue 246 <https://github.com/attack68/rateslib/issues/246>`.
+        one might expect. See `Issue 246 <https://github.com/attack68/rateslib/issues/246>`_.
 
         """
         comparators = _drb([], comparators)
