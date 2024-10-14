@@ -164,3 +164,6 @@ In no particular order...
    * - Interactivity
      - Expand the available tutorials for interactivity, such as using Excel, Jupyterlite, or
        app packages, such as *Streamlit*, *Dash*, *Panel*.
+   * - Documentation
+     - Release v2 of "Coding Interest Rates" which contains all of the mathematics and architecture
+       changes since version 1.0.0.
