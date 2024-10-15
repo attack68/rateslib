@@ -1814,6 +1814,27 @@ class CreditPremiumPeriod(BasePeriod):
         else:
             return -self.notional * self.dcf * self.fixed_rate * 0.01
 
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the amoount of premium accrued until a specific date within the *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float
+        """
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            if settlement < self.start or settlement > self.end:
+                return 0.0
+            return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
+
+
     def npv(
         self,
         curve: Curve | NoInput = NoInput(0),
