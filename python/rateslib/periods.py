@@ -2099,6 +2099,33 @@ class CreditProtectionPeriod(BasePeriod):
             defaults.headers["npv_fx"]: npv_fx,
         }
 
+    def analytic_rec_risk(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> float:
+        """
+        Calculate the exposure of the NPV to a change in recovery rate.
+
+        For parameters see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+
+        Returns
+        -------
+        float
+        """
+        rr = self.recovery_rate
+        if curve.ad in [0, 1]:
+            self.recovery_rate = Dual(float(rr), ["__recovery_rate__"], [])
+        else:
+            self.recovery_rate = Dual2(float(rr), ["__recovery_rate__"], [], [])
+        pv = self.npv(curve, disc_curve, fx, base, False)
+        self.recovery_rate = rr
+        _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        return _ * 0.01
+
 
 class Cashflow:
     """

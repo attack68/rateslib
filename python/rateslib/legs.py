@@ -1916,7 +1916,7 @@ class CreditProtectionLeg(BaseLeg):
         discretization: int | NoInput = NoInput(0),
         **kwargs,
     ):
-        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        self._recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
         self.discretization = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
         self._set_periods()
@@ -1929,6 +1929,16 @@ class CreditProtectionLeg(BaseLeg):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         return super().analytic_delta(*args, **kwargs)
+
+    def analytic_rec_risk(self, *args, **kwargs):
+        """
+        Return the analytic recovery risk of the *CreditProtectionLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        _ = (period.analytic_rec_risk(*args, **kwargs) for period in self.periods)
+        return sum(_)
 
     def cashflows(self, *args, **kwargs) -> DataFrame:
         """
@@ -1975,6 +1985,17 @@ class CreditProtectionLeg(BaseLeg):
             roll=self.schedule.roll,
             calendar=self.schedule.calendar,
         )
+
+    @property
+    def recovery_rate(self):
+        return self._recovery_rate
+
+    @recovery_rate.setter
+    def recovery_rate(self, value):
+        self._recovery_rate = value
+        for _ in self.periods:
+            if isinstance(_, CreditProtectionPeriod):
+                _.recovery_rate = value
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

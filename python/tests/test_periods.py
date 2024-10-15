@@ -2006,6 +2006,18 @@ class TestCreditProtectionPeriod:
         exp = -20006.321837529074
         assert abs(r1 - exp) < 1e-7
 
+    def test_recovery_risk(self, hazard_curve, curve):
+        period = CreditProtectionPeriod(
+            start=dt(2021, 10, 4),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            notional=1e9,
+            frequency="Q",
+        )
+        result = period.analytic_rec_risk(hazard_curve, curve)
+        expected = 1.0
+        assert abs(result - expected) < 1e-9
+
 
 class TestCashflow:
     def test_cashflow_analytic_delta(self, curve) -> None:
