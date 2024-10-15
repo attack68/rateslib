@@ -175,7 +175,7 @@ class Defaults:
 
         self.cds_premium_accrued = True
         self.cds_recovery_rate = 0.40
-        self.cds_protection_discretization = 31
+        self.cds_protection_discretization = 23
 
         # Curves
 

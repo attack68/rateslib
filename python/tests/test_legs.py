@@ -1097,7 +1097,7 @@ class TestFixedLeg:
 
 class TestCreditPremiumLeg:
     @pytest.mark.parametrize(
-        ("premium_accrued", "exp"), [(True, 41357.449652241856), (False, 41330.94188109829)]
+        ("premium_accrued", "exp"), [(True, 41357.455568685626), (False, 41330.94188109829)]
     )
     def test_premium_leg_analytic_delta(self, hazard_curve, curve, premium_accrued, exp) -> None:
         leg = CreditPremiumLeg(
@@ -1182,7 +1182,7 @@ class TestCreditProtectionLeg:
             frequency="Z",
         )
         result = leg.npv(hazard_curve, curve)
-        expected = -1390937.7593346273
+        expected = -1390922.0390295777  # with 1 cds_discretization this is -1390906.242843
         assert abs(result - expected) < 1e-7
 
     def test_leg_cashflows(self, hazard_curve, curve) -> None:

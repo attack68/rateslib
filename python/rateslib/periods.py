@@ -1832,22 +1832,33 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if self.credit_spread is NoInput.blank:
             raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
-        cashflow_pv = self.cashflow * disc_curve[self.payment]
+        v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
-        accrued_ = 0.0
+        _ = 0.0
         if self.premium_accrued:
+            v_end = disc_curve[self.end]
             n = float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start = 0.0, curve[self.start]
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
-            accrued_ = (n - r) / (2 * n) + r / n
-            accrued_ *= q_start - q_end
+            # method 1:
+            _ = 0.5 * (1 + r / n)
+            _ *= q_start - q_end
+            _ *= v_end
 
-        return _maybe_local(cashflow_pv * (q_end + accrued_), local, self.currency, fx, base)
+            # # method 4 EXACT
+            # _ = 0.0
+            # for i in range(1, int(s)):
+            #     m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
+            #     _ += (
+            #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
+            #     )
+
+        return _maybe_local(self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base)
 
     def analytic_delta(
         self,
@@ -1865,22 +1876,32 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        a_delta_pv = self.notional * self.dcf * disc_curve[self.payment] * 0.0001
+
+        v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
-        accrued_ = 0.0
+        _ = 0.0
         if self.premium_accrued:
+            v_end = disc_curve[self.end]
             n = float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start = 0.0, curve[self.start]
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
-            accrued_ = (n - r) / (2 * n) + r / n
-            accrued_ *= q_start - q_end
+            # method 1:
+            _ = 0.5 * (1 + r / n)
+            _ *= q_start - q_end
+            _ *= v_end
 
-        return _maybe_local(a_delta_pv * (q_end + accrued_), False, self.currency, fx, base)
+        return _maybe_local(
+            0.0001 * self.notional * self.dcf * (q_end * v_payment + _),
+            False,
+            self.currency,
+            fx,
+            base,
+        )
 
     def cashflows(
         self,
