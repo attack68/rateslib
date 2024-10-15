@@ -1830,7 +1830,7 @@ class CreditPremiumPeriod(BasePeriod):
         if self.fixed_rate is NoInput.blank:
             return None
         else:
-            if settlement < self.start or settlement > self.end:
+            if settlement <= self.start or settlement >= self.end:
                 return 0.0
             return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
 

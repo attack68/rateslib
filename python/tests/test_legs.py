@@ -1159,6 +1159,24 @@ class TestCreditPremiumLeg:
         assert leg.fixed_rate == 2.0
         assert leg.periods[0].fixed_rate == 2.0
 
+    @pytest.mark.parametrize(("date", "exp"), [
+        (dt(2022, 2, 1), 1e9 * 0.02 * 0.25 * 31 / 90),
+        (dt(2022, 3, 1), 0.0),
+        (dt(2022, 6, 1), 0.0)
+    ])
+    def test_premium_leg_accrued(self, date, exp):
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="ActActICMA",
+            frequency="Q",
+            fixed_rate=2.0
+        )
+        result = leg.accrued(date)
+        assert abs(result - exp) < 1e-6
+
 
 class TestCreditProtectionLeg:
     def test_leg_analytic_delta(self, hazard_curve, curve) -> None:
