@@ -1799,7 +1799,7 @@ class TestCreditProtectionPeriod:
             frequency="Q",
             currency="usd",
         )
-        exp = -596995.981290412
+        exp = -596995.7591843301  # with cds_discretization at 1 day this is -596995.4756485663
         result = period.npv(hazard_curve, curve)
         assert abs(result - exp) < 1e-7
 
@@ -1887,10 +1887,10 @@ class TestCreditProtectionPeriod:
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["recovery"]: 0.4,
             defaults.headers["survival"]: 0.999,
-            defaults.headers["npv"]: -596995.9812904124,
+            defaults.headers["npv"]: -596995.7591843301,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
-            defaults.headers["npv_fx"]: -596995.9812904124 * 10.0,
+            defaults.headers["npv_fx"]: -596995.7591843301 * 10.0,
             defaults.headers["collateral"]: None,
         }
         result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
