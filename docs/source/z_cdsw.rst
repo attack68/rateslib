@@ -33,7 +33,7 @@ The raw data necessary to build the curves and replicate the pricing risk metric
    irs_tenor = ["1m", "2m", "3m", "6m", "12m", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y", "12y"]
    irs_rates = irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
    cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
-   cds_rates = [11.011, 14.189, 20.750, 26.859, 32.862, 37.861, 51.068, 66.891]
+   cds_rates = [0.11011, 0.14189, 0.20750, 0.26859, 0.32862, 0.37861, 0.51068, 0.66891]
 
 .. image:: _static/cdsw_1.png
    :alt: SOFR discount data
@@ -119,7 +119,7 @@ Lets look at the structure of the hazard rates generated. To do this we plot the
    irs_tenor = ["1m", "2m", "3m", "6m", "12m", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y", "12y"]
    irs_rates = irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
    cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
-   cds_rates = [11.011, 14.189, 20.750, 26.859, 32.862, 37.861, 51.068, 66.891]
+   cds_rates = [0.11011, 0.14189, 0.20750, 0.26859, 0.32862, 0.37861, 0.51068, 0.66891]
    today = dt(2024, 10, 4)  # Friday 4th October 2024
    spot = dt(2024, 10, 8)  # Tuesday 8th October 2024
    disc_curve = Curve(
@@ -189,7 +189,7 @@ numerical integrations of CDS protection and premium legs).
        convention="act360",
        calendar="nyc",
        curves=["pfizer", "sofr"],
-       credit_spread=100.0,
+       fixed_rate=1.0,
        recovery_rate=0.4,
        premium_accrued=True,
        notional=10e6,

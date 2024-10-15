@@ -1122,10 +1122,10 @@ class TestCreditPremiumLeg:
             convention="Act360",
             frequency="Q",
             premium_accrued=premium_accrued,
-            credit_spread=40.0,
+            fixed_rate=4.00,
         )
         result = leg.npv(hazard_curve, curve)
-        assert abs(result + 40.0 * leg.analytic_delta(hazard_curve, curve)) < 1e-7
+        assert abs(result + 400 * leg.analytic_delta(hazard_curve, curve)) < 1e-7
 
     def test_premium_leg_cashflows(self, hazard_curve, curve) -> None:
         leg = CreditPremiumLeg(
@@ -1135,7 +1135,7 @@ class TestCreditPremiumLeg:
             notional=-1e9,
             convention="Act360",
             frequency="Q",
-            credit_spread=400.0,
+            fixed_rate=4.00,
         )
         result = leg.cashflows(hazard_curve, curve)
         # test a couple of return elements
@@ -1143,7 +1143,7 @@ class TestCreditPremiumLeg:
         assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
         assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
 
-    def test_premium_leg_set_credit_spread(self, curve) -> None:
+    def test_premium_leg_set_fixed_rate(self, curve) -> None:
         leg = CreditPremiumLeg(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
@@ -1152,12 +1152,12 @@ class TestCreditPremiumLeg:
             convention="Act360",
             frequency="Q",
         )
-        assert leg.credit_spread is NoInput(0)
-        assert leg.periods[0].credit_spread is NoInput(0)
+        assert leg.fixed_rate is NoInput(0)
+        assert leg.periods[0].fixed_rate is NoInput(0)
 
-        leg.credit_spread = 2.0
-        assert leg.credit_spread == 2.0
-        assert leg.periods[0].credit_spread == 2.0
+        leg.fixed_rate = 2.0
+        assert leg.fixed_rate == 2.0
+        assert leg.periods[0].fixed_rate == 2.0
 
 
 class TestCreditProtectionLeg:

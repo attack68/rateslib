@@ -1583,7 +1583,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.0,
             currency="usd",
             premium_accrued=accrued,
         )
@@ -1602,7 +1602,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400.0,
+            fixed_rate=4.00,
             currency="usd",
         )
         with pytest.raises(
@@ -1629,7 +1629,7 @@ class TestCreditPremiumPeriod:
         )
         with pytest.raises(
             ValueError,
-            match=re.escape("`credit_spread` must be set as a value"),
+            match=re.escape("`fixed_rate` must be set as a value"),
         ):
             premium_period.npv(hazard_curve, curve)
 
@@ -1645,7 +1645,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
             premium_accrued=accrued,
         )
@@ -1664,7 +1664,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
@@ -1681,7 +1681,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
 
@@ -1697,7 +1697,7 @@ class TestCreditPremiumPeriod:
             defaults.headers["convention"]: "Act360",
             defaults.headers["dcf"]: premium_period.dcf,
             defaults.headers["df"]: 0.9897791268897856,
-            defaults.headers["spread"]: 400.0,
+            defaults.headers["rate"]: 4.0,
             defaults.headers["survival"]: 0.999,
             defaults.headers["npv"]: -9892843.47762896,
             defaults.headers["cashflow"]: cashflow,
@@ -1718,7 +1718,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
 
@@ -1734,7 +1734,7 @@ class TestCreditPremiumPeriod:
             defaults.headers["convention"]: "Act360",
             defaults.headers["dcf"]: premium_period.dcf,
             defaults.headers["df"]: None,
-            defaults.headers["spread"]: 400.0,
+            defaults.headers["rate"]: 4.0,
             defaults.headers["survival"]: None,
             defaults.headers["npv"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -1754,7 +1754,7 @@ class TestCreditPremiumPeriod:
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
         p2 = CreditPremiumPeriod(
@@ -1765,7 +1765,7 @@ class TestCreditPremiumPeriod:
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
             frequency="S",
-            credit_spread=200,
+            fixed_rate=2.00,
             currency="usd",
         )
         r1 = p1.npv(hazard_curve, curve)

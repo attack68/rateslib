@@ -2329,14 +2329,14 @@ class TestCDS:
                     convention="act360",
                     payment_lag=0,
                     curves=["credit", "ibor"],
-                    credit_spread=400,
+                    fixed_rate=4.00,
                     recovery_rate=0.4,
                     premium_accrued=True,
                     calendar="nyc",
                 )
                 for _ in cds_tenor
             ],
-            s=[400, 400, 400, 400, 400, 400, 400, 400],
+            s=[4.00, 4.00, 4.00, 4.00, 4.00, 4.00, 4.00, 4.00],
         )
         return credit_curve, ibor, cc_sv
 
@@ -2347,14 +2347,14 @@ class TestCDS:
             dt(2029, 6, 20),
             front_stub=dt(2019, 9, 20),
             frequency="q",
-            credit_spread=150,
+            fixed_rate=1.50,
             curves=["credit", "ibor"],
             discretization=5,
             calendar="nyc",
         )
         c1, c2, solver = self.okane_curve()
         result1 = cds.rate(solver=solver)
-        assert abs(result1 - 399.99960) < 5e-3
+        assert abs(result1 - 3.9999960) < 5e-5
 
         result2 = cds.npv(solver=solver)
         assert abs(result2 - 170739.5956) < 175
@@ -2390,7 +2390,7 @@ class TestCDS:
         )
 
         rate = cds.rate([hazard_curve, disc_curve])
-        expected = 241.64004881061285
+        expected = 2.4164004881061285
         assert abs(rate - expected) < 1e-7
 
     def test_npv(self, curve, curve2) -> None:
@@ -2403,7 +2403,7 @@ class TestCDS:
             "M",
             payment_lag=0,
             currency="eur",
-            credit_spread=100.0,
+            fixed_rate=1.00,
         )
 
         npv = cds.npv([hazard_curve, disc_curve])
@@ -2455,7 +2455,7 @@ class TestCDS:
                 CDS(dt(2022, 1, 1), "6m", frequency="Q", curves=["haz", c1]),
                 CDS(dt(2022, 1, 1), "12m", frequency="Q", curves=["haz", c1]),
             ],
-            s=[30, 40],
+            s=[.30, .40],
             instrument_labels=["6m", "12m"],
         )
         inst = CDS(dt(2022, 7, 1), "3M", "Q", curves=["haz", c1], notional=1e6)
@@ -2517,11 +2517,11 @@ class TestCDS:
                 CDS(dt(2003, 6, 20), "4y", **args),
                 CDS(dt(2003, 6, 20), "5y", **args),
             ],
-            s=[110, 120, 130, 140, 150],
+            s=[1.10, 1.20, 1.30, 1.40, 1.50],
         )
-        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), credit_spread=200, notional=10e6, **args)
+        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), fixed_rate=2.00, notional=10e6, **args)
         result = cds.rate(solver=solver)
-        assert abs(result - 142.7) < 0.30
+        assert abs(result - 1.427) < 0.0030
 
         _table = cds.cashflows(solver=solver)
         leg1_npv = cds.leg1.npv(haz_curve, usd_libor)
