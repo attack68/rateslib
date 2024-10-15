@@ -2521,7 +2521,7 @@ class TestCDS:
         )
         cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), credit_spread=200, notional=10e6, **args)
         result = cds.rate(solver=solver)
-        assert abs(result -142.7) < 0.30
+        assert abs(result - 142.7) < 0.30
 
         _table = cds.cashflows(solver=solver)
         leg1_npv = cds.leg1.npv(haz_curve, usd_libor)
@@ -2530,7 +2530,7 @@ class TestCDS:
         assert abs(leg2_npv - 557872) < 900
 
         a_delta = cds.analytic_delta(haz_curve, usd_libor)
-        assert abs(a_delta -3899) < 10
+        assert abs(a_delta - 3899) < 10
 
         npv = cds.npv(solver=solver)
         assert abs(npv + 223516) < 670

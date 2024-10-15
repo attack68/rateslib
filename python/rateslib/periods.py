@@ -1841,9 +1841,9 @@ class CreditPremiumPeriod(BasePeriod):
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start, v_start = 0.0, curve[self.start], disc_curve[self.start]
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
             # method 1:
             _ = 0.5 * (1 + r / n)
@@ -1854,11 +1854,11 @@ class CreditPremiumPeriod(BasePeriod):
             # _ = 0.0
             # for i in range(1, int(s)):
             #     m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
-            #     _ += (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
+            #     _ += (
+            #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
+            #     )
 
-        return _maybe_local(
-            self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base
-        )
+        return _maybe_local(self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base)
 
     def analytic_delta(
         self,
@@ -1886,9 +1886,9 @@ class CreditPremiumPeriod(BasePeriod):
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start, v_start = 0.0, curve[self.start], disc_curve[self.start]
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
             # method 1:
             _ = 0.5 * (1 + r / n)
@@ -1896,7 +1896,11 @@ class CreditPremiumPeriod(BasePeriod):
             _ *= v_end
 
         return _maybe_local(
-            0.0001 * self.notional * self.dcf * (q_end * v_payment + _), False, self.currency, fx, base
+            0.0001 * self.notional * self.dcf * (q_end * v_payment + _),
+            False,
+            self.currency,
+            fx,
+            base,
         )
 
     def cashflows(
