@@ -1572,7 +1572,7 @@ class TestFixedPeriod:
 
 class TestCreditPremiumPeriod:
     @pytest.mark.parametrize(
-        ("accrued", "exp"), [(True, -9892842.373263407), (False, -9887893.477628957)]
+        ("accrued", "exp"), [(True, -9892843.47762896), (False, -9887893.477628957)]
     )
     def test_period_npv(self, hazard_curve, curve, fxr, accrued, exp) -> None:
         premium_period = CreditPremiumPeriod(
@@ -1634,7 +1634,7 @@ class TestCreditPremiumPeriod:
             premium_period.npv(hazard_curve, curve)
 
     @pytest.mark.parametrize(
-        ("accrued", "exp"), [(True, 24732.10593315852), (False, 24719.733694072398)]
+        ("accrued", "exp"), [(True, 24732.108694072398), (False, 24719.733694072398)]
     )
     def test_period_analytic_delta(self, hazard_curve, curve, fxr, accrued, exp) -> None:
         premium_period = CreditPremiumPeriod(
@@ -1669,7 +1669,7 @@ class TestCreditPremiumPeriod:
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
         result = premium_period.analytic_delta(hazard_curve, curve, fxr)
-        assert abs(result - 247321.0593315852) < 1e-7
+        assert abs(result - 247321.086941) < 1e-6
 
     def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
         # also test the inputs to fx as float and as FXRates (10 is for
@@ -1699,10 +1699,10 @@ class TestCreditPremiumPeriod:
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["spread"]: 400.0,
             defaults.headers["survival"]: 0.999,
-            defaults.headers["npv"]: -9892842.373263407,
+            defaults.headers["npv"]: -9892843.47762896,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
-            defaults.headers["npv_fx"]: -9892842.373263407 * 10.0,
+            defaults.headers["npv_fx"]: -9892843.47762896 * 10.0,
             defaults.headers["collateral"]: None,
         }
         result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")

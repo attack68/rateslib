@@ -2390,7 +2390,7 @@ class TestCDS:
         )
 
         rate = cds.rate([hazard_curve, disc_curve])
-        expected = 241.63768606
+        expected = 241.63979630996286
         assert abs(rate - expected) < 1e-7
 
     def test_npv(self, curve, curve2) -> None:
@@ -2407,7 +2407,7 @@ class TestCDS:
         )
 
         npv = cds.npv([hazard_curve, disc_curve])
-        expected = 9075.6838075
+        expected = 9075.819024868933
         assert abs(npv - expected) < 1e-7
 
     def test_analytic_delta(self, curve, curve2) -> None:

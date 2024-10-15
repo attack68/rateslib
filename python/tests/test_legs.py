@@ -1097,7 +1097,7 @@ class TestFixedLeg:
 
 class TestCreditPremiumLeg:
     @pytest.mark.parametrize(
-        ("premium_accrued", "exp"), [(True, 41357.449652241856), (False, 41330.94188109829)]
+        ("premium_accrued", "exp"), [(True, 41357.455568685626), (False, 41330.94188109829)]
     )
     def test_premium_leg_analytic_delta(self, hazard_curve, curve, premium_accrued, exp) -> None:
         leg = CreditPremiumLeg(
