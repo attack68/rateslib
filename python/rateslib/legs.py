@@ -33,7 +33,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, IndexCurve
+from rateslib.curves import Curve, IndexCurve, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
 from rateslib.fx import FXForwards, FXRates
@@ -1722,7 +1722,7 @@ class CreditPremiumLeg(BaseLeg, _FixedLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     fixed_rate : float, optional
-        The credit spread applied to determine cashflows in percentage points (i.e 50bps = 0.50). 
+        The credit spread applied to determine cashflows in percentage points (i.e 50bps = 0.50).
         Can be left unset and
         designated later, perhaps after a mid-market rate for all periods has been calculated.
     premium_accrued : bool, optional
@@ -1805,6 +1805,27 @@ class CreditPremiumLeg(BaseLeg, _FixedLegMixin):
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
         return super().npv(*args, **kwargs)
+
+    def accrued(self, settlement):
+        """
+        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float
+        """
+        _ = index_left(
+            self.schedule.uschedule,
+            len(self.schedule.uschedule),
+            settlement,
+        )
+        # This index is valid because this Leg only contains CreditPremiumPeriods and no exchanges.
+        return self.periods[_].accrued(settlement)
 
     def _set_periods(self) -> None:
         return super()._set_periods()

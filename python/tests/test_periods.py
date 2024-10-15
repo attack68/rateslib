@@ -1786,6 +1786,48 @@ class TestCreditPremiumPeriod:
         )
         assert premium_period.cashflow is None
 
+    def test_no_accrued(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        assert premium_period.accrued(dt(2022, 2, 1)) is None
+
+    def test_accrued_out_of_range(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            fixed_rate=2.0,
+        )
+        assert premium_period.accrued(dt(2022, 9, 1)) == 0.0
+        assert premium_period.accrued(dt(2021, 9, 1)) == 0.0
+
+    def test_accrued(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            fixed_rate=2.0,
+        )
+        assert abs(premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)) < 1e-9
+
 
 class TestCreditProtectionPeriod:
     def test_period_npv(self, hazard_curve, curve, fxr) -> None:

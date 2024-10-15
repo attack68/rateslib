@@ -2585,3 +2585,23 @@ class CDS(BaseDerivative):
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float or None
+
+        Notes
+        ------
+        If the *CDS* is unpriced, i.e. there is no specified ``fixed_rate`` then None will be
+        returned.
+        """
+        return self.leg1.accrued(settlement)
