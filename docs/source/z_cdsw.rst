@@ -197,6 +197,7 @@ numerical integrations of CDS protection and premium legs).
    cds.rate(solver=pfizer_sv)  # this compares to BBG: "Trd Sprd (bp)"
    cds.npv(solver=pfizer_sv)  # this compares to BBG: "Cash Amount"
    cds.analytic_delta(hazard_curve, disc_curve)
+   cds.accrued(dt(2022, 10, 7))  # this is 17 days of accrued
    cds.delta(solver=pfizer_sv).groupby("solver").sum()  # this compares to: "Spread DV01" and "IR DV01"
 
 .. image:: _static/cdsw_2.png
