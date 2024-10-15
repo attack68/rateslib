@@ -1816,7 +1816,7 @@ class CreditPremiumPeriod(BasePeriod):
 
     def accrued(self, settlement: datetime):
         """
-        Calculate the amoount of premium accrued until a specific date within the *Period*.
+        Calculate the amount of premium accrued until a specific date within the *Period*.
 
         Parameters
         ----------
@@ -1833,7 +1833,6 @@ class CreditPremiumPeriod(BasePeriod):
             if settlement < self.start or settlement > self.end:
                 return 0.0
             return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
-
 
     def npv(
         self,

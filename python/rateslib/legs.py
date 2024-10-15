@@ -1722,7 +1722,7 @@ class CreditPremiumLeg(BaseLeg, _FixedLegMixin):
     args : tuple
         Required positional args to :class:`BaseLeg`.
     fixed_rate : float, optional
-        The credit spread applied to determine cashflows in percentage points (i.e 50bps = 0.50). 
+        The credit spread applied to determine cashflows in percentage points (i.e 50bps = 0.50).
         Can be left unset and
         designated later, perhaps after a mid-market rate for all periods has been calculated.
     premium_accrued : bool, optional

@@ -2455,7 +2455,7 @@ class TestCDS:
                 CDS(dt(2022, 1, 1), "6m", frequency="Q", curves=["haz", c1]),
                 CDS(dt(2022, 1, 1), "12m", frequency="Q", curves=["haz", c1]),
             ],
-            s=[.30, .40],
+            s=[0.30, 0.40],
             instrument_labels=["6m", "12m"],
         )
         inst = CDS(dt(2022, 7, 1), "3M", "Q", curves=["haz", c1], notional=1e6)

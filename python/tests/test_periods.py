@@ -1809,7 +1809,7 @@ class TestCreditPremiumPeriod:
             termination=dt(2022, 4, 1),
             frequency="Q",
             currency="usd",
-            fixed_rate=2.0
+            fixed_rate=2.0,
         )
         assert premium_period.accrued(dt(2022, 9, 1)) == 0.0
         assert premium_period.accrued(dt(2021, 9, 1)) == 0.0
@@ -1824,11 +1824,10 @@ class TestCreditPremiumPeriod:
             termination=dt(2022, 4, 1),
             frequency="Q",
             currency="usd",
-            fixed_rate=2.0
+            fixed_rate=2.0,
         )
-        assert abs(
-            premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)
-        ) < 1e-9
+        assert abs(premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)) < 1e-9
+
 
 class TestCreditProtectionPeriod:
     def test_period_npv(self, hazard_curve, curve, fxr) -> None:
