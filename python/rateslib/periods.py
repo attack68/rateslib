@@ -2050,6 +2050,7 @@ class CreditProtectionPeriod(BasePeriod):
                 s2 = self.end
             q2, v2 = curve[s2], disc_curve[s2]
             value += 0.5 * (v1 + v2) * (q1 - q2)
+            # value += v2 * (q1 - q2)
 
         value *= self.cashflow
         return _maybe_local(value, local, self.currency, fx, base)
