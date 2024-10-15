@@ -2431,10 +2431,10 @@ class CDS(BaseDerivative):
     ----------
     args : dict
         Required positional args to :class:`BaseDerivative`.
-    credit_spread : float or None, optional
+    fixed_rate : float or None, optional
         The rate applied to determine the cashflow on the premium leg. If `None`, can be set later,
         typically after a mid-market rate for all periods has been calculated.
-        Entered in basis points.
+        Entered in percentage points, e.g. 50bps is 0.50.
     premium_accrued : bool, optional
         Whether the premium is accrued within the period to default.
     recovery_rate : float, Dual, Dual2, optional
@@ -2447,12 +2447,13 @@ class CDS(BaseDerivative):
         Required keyword arguments to :class:`BaseDerivative`.
     """
 
-    _rate_scalar = 100.0
+    _rate_scalar = 1.0
+    _fixed_rate_mixin = True
 
     def __init__(
         self,
         *args,
-        credit_spread: float | NoInput = NoInput(0),
+        fixed_rate: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         recovery_rate: DualTypes | NoInput = NoInput(0),
         discretization: int | NoInput = NoInput(0),
@@ -2465,7 +2466,7 @@ class CDS(BaseDerivative):
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
             leg2_frequency="Z",  # CDS protection is only ever one payoff
-            credit_spread=credit_spread,
+            fixed_rate=fixed_rate,
             premium_accrued=premium_accrued,
             leg2_recovery_rate=recovery_rate,
             leg2_discretization=discretization,
@@ -2482,16 +2483,7 @@ class CDS(BaseDerivative):
 
         self.leg1 = CreditPremiumLeg(**_get(self.kwargs, leg=1))
         self.leg2 = CreditProtectionLeg(**_get(self.kwargs, leg=2))
-        self._credit_spread = self.kwargs["credit_spread"]
-
-    @property
-    def credit_spread(self):
-        return self._credit_spread
-
-    @credit_spread.setter
-    def credit_spread(self, value):
-        self._credit_spread = value
-        self.leg1.credit_spread = value
+        self._fixed_rate = self.kwargs["fixed_rate"]
 
     def _set_pricing_mid(
         self,
@@ -2499,10 +2491,10 @@ class CDS(BaseDerivative):
         solver: Solver | NoInput = NoInput(0),
     ):
         # the test for an unpriced IRS is that its fixed rate is not set.
-        if self.credit_spread is NoInput.blank:
+        if self.fixed_rate is NoInput.blank:
             # set a rate for the purpose of generic methods NPV will be zero.
             mid_market_rate = self.rate(curves, solver)
-            self.leg1.credit_spread = float(mid_market_rate)
+            self.leg1.fixed_rate = float(mid_market_rate)
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -2573,7 +2565,7 @@ class CDS(BaseDerivative):
             self.leg1.currency,
         )
         leg2_npv = self.leg2.npv(curves[2], curves[3])
-        return self.leg1._spread(-leg2_npv, curves[0], curves[1])
+        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) * 0.01
 
     def cashflows(
         self,

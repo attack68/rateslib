@@ -1745,10 +1745,10 @@ class CreditPremiumPeriod(BasePeriod):
     ----------
     args : dict
         Required positional args to :class:`BasePeriod`.
-    credit_spread : float or None, optional
+    fixed_rate : float or None, optional
         The rate applied to determine the cashflow. If `None`, can be set later,
         typically after a mid-market rate for all periods has been calculated.
-        Entered in basis points.
+        Entered in percentage points, e.g 50bps is 0.50.
     premium_accrued : bool, optional
         Whether the premium is accrued within the period to default.
     kwargs : dict
@@ -1796,12 +1796,12 @@ class CreditPremiumPeriod(BasePeriod):
     def __init__(
         self,
         *args,
-        credit_spread: float | NoInput = NoInput(0),
+        fixed_rate: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         **kwargs,
     ):
         self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
-        self.credit_spread = credit_spread
+        self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
     @property
@@ -1809,10 +1809,10 @@ class CreditPremiumPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        if self.credit_spread is NoInput.blank:
+        if self.fixed_rate is NoInput.blank:
             return None
         else:
-            return -self.notional * self.dcf * self.credit_spread * 0.0001
+            return -self.notional * self.dcf * self.fixed_rate * 0.01
 
     def npv(
         self,
@@ -1830,8 +1830,8 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        if self.credit_spread is NoInput.blank:
-            raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
+        if self.fixed_rate is NoInput.blank:
+            raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
         v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
         _ = 0.0
@@ -1926,7 +1926,7 @@ class CreditPremiumPeriod(BasePeriod):
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["spread"]: float(self.credit_spread),
+            defaults.headers["rate"]: float(self.fixed_rate),
             defaults.headers["survival"]: survival,
             defaults.headers["cashflow"]: float(self.cashflow),
             defaults.headers["npv"]: npv,
