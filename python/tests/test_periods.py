@@ -1934,10 +1934,10 @@ class TestCreditProtectionPeriod:
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["recovery"]: 0.4,
             defaults.headers["survival"]: 0.999,
-            defaults.headers["npv"]: -596995.7591843299,
+            defaults.headers["npv"]: -596995.7591843301,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
-            defaults.headers["npv_fx"]: -596995.7591843299 * 10.0,
+            defaults.headers["npv_fx"]: -596995.7591843301 * 10.0,
             defaults.headers["collateral"]: None,
         }
         result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
@@ -2018,9 +2018,15 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 1, 4),
             notional=1e9,
             frequency="Q",
+            recovery_rate=0.40
         )
+
+        p1 = period.npv(hazard_curve, curve)
+        period.recovery_rate = 0.41
+        p2 = period.npv(hazard_curve, curve)
+        expected = p2 - p1
+
         result = period.analytic_rec_risk(hazard_curve, curve)
-        expected = 1.0
         assert abs(result - expected) < 1e-9
 
 
