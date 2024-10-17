@@ -280,16 +280,23 @@ Solver
 Cookbook
 =========
 
-**Curve Building**
+**Interest Rate Curve Building**
 
 .. toctree::
     :titlesonly:
 
+    z_ptirds_curve.rst
     z_swpm.rst
     z_dependencychain.rst
     z_turns.rst
     z_quantlib.rst
     z_curve_from_zero_rates.ipynb
+
+**Credit Curve Building**
+
+.. toctree::
+    :titlesonly:
+
     z_cdsw.rst
 
 **FX Volatility Surface Building**
