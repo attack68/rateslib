@@ -1396,8 +1396,9 @@ class Solver(Gradients):
 
         Parameters
         ----------
-        npv : Dual,
-            The NPV of the instrument or composition of instruments to risk.
+        npv : dict,
+            The NPV (Dual) of the instrument or portfolio of instruments to risk. Must be indexed by 3-digit currency
+            to discriminate between values expressed in different currencies.
         base : str, optional
             The currency (3-digit code) to report risk metrics in. If not given will
             default to the local currency of the cashflows.
@@ -1914,6 +1915,65 @@ class Solver(Gradients):
             columns=self.pre_instrument_labels,
             index=solver.pre_instrument_labels,
         )
+
+    def exogenous_risk(
+        self,
+        npv,
+        vars: list[str],
+        vars_scalar: list[float],
+        base: str | NoInput = NoInput(0),
+        fx=NoInput(0)
+    ) -> DataFrame:
+        """Calculate risk sensitivity to a manually embedded variable in the *Solver Instruments* and the ``npv``."""
+
+        base, fx = self._get_base_and_fx(base, fx)
+        container = {}
+        for ccy in npv:
+            container[("exogeneous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
+
+            if base is not NoInput.blank and base != ccy:
+                # extend the derivatives
+                f = fx.rate(f"{ccy}{base}")
+                container[("instruments", ccy, base)] = (
+                        self.grad_s_Pbase(
+                            npv[ccy],
+                            container[("instruments", ccy, ccy)] / inst_scalar,
+                            f,
+                        )
+                        * inst_scalar
+                )
+                container[("fx", ccy, base)] = (
+                        self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
+                        * fx_scalar
+                )
+
+        # construct the DataFrame from container with hierarchical indexes
+        inst_idx = MultiIndex.from_tuples(
+            [("instruments",) + label for label in self.pre_instrument_labels],
+            names=["type", "solver", "label"],
+        )
+        fx_idx = MultiIndex.from_tuples(
+            [("fx", "fx", f[3:]) for f in fx_vars],
+            names=["type", "solver", "label"],
+        )
+        indexes = {"instruments": inst_idx, "fx": fx_idx}
+        r_idx = inst_idx.append(fx_idx)
+        c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
+        df = DataFrame(None, index=r_idx, columns=c_idx)
+        for key, array in container.items():
+            df.loc[indexes[key[0]], (key[1], key[2])] = array
+
+        if base is not NoInput.blank:
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+
+        sorted_cols = df.columns.sort_values()
+        return df.loc[:, sorted_cols].astype("float64")
+
+
+
+
+
+
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
