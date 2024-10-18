@@ -1905,8 +1905,8 @@ class CreditProtectionLeg(BaseLeg):
            recovery_rate=0.40,
            notional=1000000,
        )
-       premium_leg.cashflows(hazard_curve, disc_curve)
-       premium_leg.npv(hazard_curve, disc_curve)
+       protection_leg.cashflows(hazard_curve, disc_curve)
+       protection_leg.npv(hazard_curve, disc_curve)
     """  # noqa: E501
 
     def __init__(
