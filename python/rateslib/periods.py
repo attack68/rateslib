@@ -1745,10 +1745,10 @@ class CreditPremiumPeriod(BasePeriod):
     ----------
     args : dict
         Required positional args to :class:`BasePeriod`.
-    credit_spread : float or None, optional
+    fixed_rate : float or None, optional
         The rate applied to determine the cashflow. If `None`, can be set later,
         typically after a mid-market rate for all periods has been calculated.
-        Entered in basis points.
+        Entered in percentage points, e.g 50bps is 0.50.
     premium_accrued : bool, optional
         Whether the premium is accrued within the period to default.
     kwargs : dict
@@ -1796,12 +1796,12 @@ class CreditPremiumPeriod(BasePeriod):
     def __init__(
         self,
         *args,
-        credit_spread: float | NoInput = NoInput(0),
+        fixed_rate: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         **kwargs,
     ):
         self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
-        self.credit_spread = credit_spread
+        self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
     @property
@@ -1809,10 +1809,30 @@ class CreditPremiumPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        if self.credit_spread is NoInput.blank:
+        if self.fixed_rate is NoInput.blank:
             return None
         else:
-            return -self.notional * self.dcf * self.credit_spread * 0.0001
+            return -self.notional * self.dcf * self.fixed_rate * 0.01
+
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the amount of premium accrued until a specific date within the *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float
+        """
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            if settlement <= self.start or settlement >= self.end:
+                return 0.0
+            return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
 
     def npv(
         self,
@@ -1830,24 +1850,35 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        if self.credit_spread is NoInput.blank:
-            raise ValueError("`credit_spread` must be set as a value to return a valid NPV.")
-        cashflow_pv = self.cashflow * disc_curve[self.payment]
+        if self.fixed_rate is NoInput.blank:
+            raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
+        v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
-        accrued_ = 0.0
+        _ = 0.0
         if self.premium_accrued:
+            v_end = disc_curve[self.end]
             n = float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start = 0.0, curve[self.start]
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
-            accrued_ = (n - r) / (2 * n) + r / n
-            accrued_ *= q_start - q_end
+            # method 1:
+            _ = 0.5 * (1 + r / n)
+            _ *= q_start - q_end
+            _ *= v_end
 
-        return _maybe_local(cashflow_pv * (q_end + accrued_), local, self.currency, fx, base)
+            # # method 4 EXACT
+            # _ = 0.0
+            # for i in range(1, int(s)):
+            #     m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
+            #     _ += (
+            #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
+            #     )
+
+        return _maybe_local(self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base)
 
     def analytic_delta(
         self,
@@ -1865,22 +1896,32 @@ class CreditPremiumPeriod(BasePeriod):
             raise TypeError("`curves` have not been supplied correctly.")
         if not isinstance(curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
-        a_delta_pv = self.notional * self.dcf * disc_curve[self.payment] * 0.0001
+
+        v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
-        accrued_ = 0.0
+        _ = 0.0
         if self.premium_accrued:
+            v_end = disc_curve[self.end]
             n = float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start = float((curve.node_dates[0] - self.start).days), 1.0
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
-                r, q_start = 0.0, curve[self.start]
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
-            accrued_ = (n - r) / (2 * n) + r / n
-            accrued_ *= q_start - q_end
+            # method 1:
+            _ = 0.5 * (1 + r / n)
+            _ *= q_start - q_end
+            _ *= v_end
 
-        return _maybe_local(a_delta_pv * (q_end + accrued_), False, self.currency, fx, base)
+        return _maybe_local(
+            0.0001 * self.notional * self.dcf * (q_end * v_payment + _),
+            False,
+            self.currency,
+            fx,
+            base,
+        )
 
     def cashflows(
         self,
@@ -1905,7 +1946,7 @@ class CreditPremiumPeriod(BasePeriod):
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["spread"]: float(self.credit_spread),
+            defaults.headers["rate"]: float(self.fixed_rate),
             defaults.headers["survival"]: survival,
             defaults.headers["cashflow"]: float(self.cashflow),
             defaults.headers["npv"]: npv,

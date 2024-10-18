@@ -33,7 +33,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, IndexCurve
+from rateslib.curves import Curve, IndexCurve, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
 from rateslib.fx import FXForwards, FXRates
@@ -522,7 +522,7 @@ class _FixedLegMixin:
     def fixed_rate(self, value):
         self._fixed_rate = value
         for period in getattr(self, "periods", []):
-            if isinstance(period, FixedPeriod):
+            if isinstance(period, (FixedPeriod, CreditPremiumPeriod)):
                 period.fixed_rate = value
 
     def _regular_period(
@@ -1713,7 +1713,7 @@ class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
         return super().npv(*args, **kwargs)
 
 
-class CreditPremiumLeg(BaseLeg):
+class CreditPremiumLeg(BaseLeg, _FixedLegMixin):
     """
     Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
 
@@ -1721,8 +1721,9 @@ class CreditPremiumLeg(BaseLeg):
     ----------
     args : tuple
         Required positional args to :class:`BaseLeg`.
-    credit_spread : float, optional
-        The credit spread applied to determine cashflows in bps (i.e 5.0 = 5bps). Can be left unset and
+    fixed_rate : float, optional
+        The credit spread applied to determine cashflows in percentage points (i.e 50bps = 0.50).
+        Can be left unset and
         designated later, perhaps after a mid-market rate for all periods has been calculated.
     premium_accrued : bool, optional
         Whether the premium is accrued within the period to default.
@@ -1759,7 +1760,7 @@ class CreditPremiumLeg(BaseLeg):
        hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
        premium_leg = CreditPremiumLeg(
            dt(2022, 1, 1), "9M", "Q",
-           credit_spread=26.0,
+           fixed_rate=2.60,
            notional=1000000,
        )
        premium_leg.cashflows(hazard_curve, disc_curve)
@@ -1769,29 +1770,14 @@ class CreditPremiumLeg(BaseLeg):
     def __init__(
         self,
         *args,
-        credit_spread: float | NoInput = NoInput(0),
+        fixed_rate: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         **kwargs,
     ):
-        self._credit_spread = credit_spread
+        self._fixed_rate = fixed_rate
         self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
         super().__init__(*args, **kwargs)
         self._set_periods()
-
-    @property
-    def credit_spread(self):
-        """
-        float or NoInput : If set will also set the ``credit_spread`` of
-            contained :class:`CreditPremiumPeriod` s.
-        """
-        return self._credit_spread
-
-    @credit_spread.setter
-    def credit_spread(self, value):
-        self._credit_spread = value
-        for period in getattr(self, "periods", []):
-            if isinstance(period, CreditPremiumPeriod):
-                period.credit_spread = value
 
     def analytic_delta(self, *args, **kwargs):
         """
@@ -1820,6 +1806,27 @@ class CreditPremiumLeg(BaseLeg):
         """
         return super().npv(*args, **kwargs)
 
+    def accrued(self, settlement):
+        """
+        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float
+        """
+        _ = index_left(
+            self.schedule.uschedule,
+            len(self.schedule.uschedule),
+            settlement,
+        )
+        # This index is valid because this Leg only contains CreditPremiumPeriods and no exchanges.
+        return self.periods[_].accrued(settlement)
+
     def _set_periods(self) -> None:
         return super()._set_periods()
 
@@ -1833,7 +1840,7 @@ class CreditPremiumLeg(BaseLeg):
         iterator: int,
     ):
         return CreditPremiumPeriod(
-            credit_spread=self.credit_spread,
+            fixed_rate=self.fixed_rate,
             premium_accrued=self.premium_accrued,
             start=start,
             end=end,
@@ -1898,8 +1905,8 @@ class CreditProtectionLeg(BaseLeg):
            recovery_rate=0.40,
            notional=1000000,
        )
-       premium_leg.cashflows(hazard_curve, disc_curve)
-       premium_leg.npv(hazard_curve, disc_curve)
+       protection_leg.cashflows(hazard_curve, disc_curve)
+       protection_leg.npv(hazard_curve, disc_curve)
     """  # noqa: E501
 
     def __init__(

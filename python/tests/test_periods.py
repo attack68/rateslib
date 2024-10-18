@@ -1572,7 +1572,7 @@ class TestFixedPeriod:
 
 class TestCreditPremiumPeriod:
     @pytest.mark.parametrize(
-        ("accrued", "exp"), [(True, -9892842.373263407), (False, -9887893.477628957)]
+        ("accrued", "exp"), [(True, -9892843.47762896), (False, -9887893.477628957)]
     )
     def test_period_npv(self, hazard_curve, curve, fxr, accrued, exp) -> None:
         premium_period = CreditPremiumPeriod(
@@ -1583,7 +1583,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.0,
             currency="usd",
             premium_accrued=accrued,
         )
@@ -1602,7 +1602,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400.0,
+            fixed_rate=4.00,
             currency="usd",
         )
         with pytest.raises(
@@ -1629,12 +1629,12 @@ class TestCreditPremiumPeriod:
         )
         with pytest.raises(
             ValueError,
-            match=re.escape("`credit_spread` must be set as a value"),
+            match=re.escape("`fixed_rate` must be set as a value"),
         ):
             premium_period.npv(hazard_curve, curve)
 
     @pytest.mark.parametrize(
-        ("accrued", "exp"), [(True, 24732.10593315852), (False, 24719.733694072398)]
+        ("accrued", "exp"), [(True, 24732.108694072398), (False, 24719.733694072398)]
     )
     def test_period_analytic_delta(self, hazard_curve, curve, fxr, accrued, exp) -> None:
         premium_period = CreditPremiumPeriod(
@@ -1645,7 +1645,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
             premium_accrued=accrued,
         )
@@ -1664,12 +1664,12 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
         result = premium_period.analytic_delta(hazard_curve, curve, fxr)
-        assert abs(result - 247321.0593315852) < 1e-7
+        assert abs(result - 247321.086941) < 1e-6
 
     def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
         # also test the inputs to fx as float and as FXRates (10 is for
@@ -1681,7 +1681,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
 
@@ -1697,12 +1697,12 @@ class TestCreditPremiumPeriod:
             defaults.headers["convention"]: "Act360",
             defaults.headers["dcf"]: premium_period.dcf,
             defaults.headers["df"]: 0.9897791268897856,
-            defaults.headers["spread"]: 400.0,
+            defaults.headers["rate"]: 4.0,
             defaults.headers["survival"]: 0.999,
-            defaults.headers["npv"]: -9892842.373263407,
+            defaults.headers["npv"]: -9892843.47762896,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
-            defaults.headers["npv_fx"]: -9892842.373263407 * 10.0,
+            defaults.headers["npv_fx"]: -9892843.47762896 * 10.0,
             defaults.headers["collateral"]: None,
         }
         result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
@@ -1718,7 +1718,7 @@ class TestCreditPremiumPeriod:
             convention="Act360",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
 
@@ -1734,7 +1734,7 @@ class TestCreditPremiumPeriod:
             defaults.headers["convention"]: "Act360",
             defaults.headers["dcf"]: premium_period.dcf,
             defaults.headers["df"]: None,
-            defaults.headers["spread"]: 400.0,
+            defaults.headers["rate"]: 4.0,
             defaults.headers["survival"]: None,
             defaults.headers["npv"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -1754,7 +1754,7 @@ class TestCreditPremiumPeriod:
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
             frequency="Q",
-            credit_spread=400,
+            fixed_rate=4.00,
             currency="usd",
         )
         p2 = CreditPremiumPeriod(
@@ -1765,7 +1765,7 @@ class TestCreditPremiumPeriod:
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
             frequency="S",
-            credit_spread=200,
+            fixed_rate=2.00,
             currency="usd",
         )
         r1 = p1.npv(hazard_curve, curve)
@@ -1786,6 +1786,48 @@ class TestCreditPremiumPeriod:
         )
         assert premium_period.cashflow is None
 
+    def test_no_accrued(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        assert premium_period.accrued(dt(2022, 2, 1)) is None
+
+    def test_accrued_out_of_range(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            fixed_rate=2.0,
+        )
+        assert premium_period.accrued(dt(2022, 9, 1)) == 0.0
+        assert premium_period.accrued(dt(2021, 9, 1)) == 0.0
+
+    def test_accrued(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            fixed_rate=2.0,
+        )
+        assert abs(premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)) < 1e-9
+
 
 class TestCreditProtectionPeriod:
     def test_period_npv(self, hazard_curve, curve, fxr) -> None:
@@ -1799,7 +1841,7 @@ class TestCreditProtectionPeriod:
             frequency="Q",
             currency="usd",
         )
-        exp = -596995.981290412
+        exp = -596995.7591843301  # with cds_discretization at 1 day this is -596995.4756485663
         result = period.npv(hazard_curve, curve)
         assert abs(result - exp) < 1e-7
 
@@ -1887,10 +1929,10 @@ class TestCreditProtectionPeriod:
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["recovery"]: 0.4,
             defaults.headers["survival"]: 0.999,
-            defaults.headers["npv"]: -596995.9812904124,
+            defaults.headers["npv"]: -596995.7591843301,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
-            defaults.headers["npv_fx"]: -596995.9812904124 * 10.0,
+            defaults.headers["npv_fx"]: -596995.7591843301 * 10.0,
             defaults.headers["collateral"]: None,
         }
         result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
