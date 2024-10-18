@@ -1190,6 +1190,24 @@ class TestCreditProtectionLeg:
         result = leg.analytic_delta(hazard_curve, curve)
         assert abs(result) < 1e-7
 
+    def test_leg_analytic_rec_risk(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2027, 1, 1),
+            payment_lag=2,
+            notional=1e7,
+            frequency="Q",
+            recovery_rate=0.4,
+        )
+        result = leg.analytic_rec_risk(hazard_curve, curve)
+
+        pv0 = leg.npv(hazard_curve, curve)
+        leg.recovery_rate = 0.41
+        pv1 = leg.npv(hazard_curve, curve)
+        expected = (pv1 - pv0)
+
+        assert abs(result - expected) < 1e-7
+
     @pytest.mark.parametrize(("premium_accrued"), [True, False])
     def test_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
         leg = CreditProtectionLeg(

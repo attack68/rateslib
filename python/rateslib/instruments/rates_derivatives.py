@@ -2504,6 +2504,14 @@ class CDS(BaseDerivative):
         """
         return super().analytic_delta(*args, **kwargs)
 
+    def analytic_rec_risk(self, *args, **kwargs):
+        """
+        Return the analytic recovery risk of the derivative object.
+
+        See :meth:`BaseDerivative.analytic_delta`.
+        """
+        return self.leg2.analytic_rec_risk(*args, **kwargs)
+
     def npv(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
