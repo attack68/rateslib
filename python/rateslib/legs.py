@@ -5,6 +5,7 @@
    :suppress:
 
    from rateslib.legs import *
+   from rateslib.legs import CreditPremiumLeg
    from rateslib.curves import Curve
    from datetime import datetime as dt
    curve = Curve(
@@ -32,12 +33,14 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, IndexCurve
-from rateslib.default import NoInput
+from rateslib.curves import Curve, IndexCurve, index_left
+from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     IndexCashflow,
@@ -519,7 +522,7 @@ class _FixedLegMixin:
     def fixed_rate(self, value):
         self._fixed_rate = value
         for period in getattr(self, "periods", []):
-            if isinstance(period, FixedPeriod):
+            if isinstance(period, (FixedPeriod, CreditPremiumPeriod)):
                 period.fixed_rate = value
 
     def _regular_period(
@@ -1710,6 +1713,270 @@ class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
         return super().npv(*args, **kwargs)
 
 
+class CreditPremiumLeg(BaseLeg, _FixedLegMixin):
+    """
+    Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args to :class:`BaseLeg`.
+    fixed_rate : float, optional
+        The credit spread applied to determine cashflows in percentage points (i.e 50bps = 0.50).
+        Can be left unset and
+        designated later, perhaps after a mid-market rate for all periods has been calculated.
+    premium_accrued : bool, optional
+        Whether the premium is accrued within the period to default.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The NPV of a credit premium leg is the sum of the period NPVs.
+
+    .. math::
+
+       P = \\sum_{i=1}^n P_i
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial S} = \\sum_{i=1}^n -\\frac{\\partial P_i}{\\partial S}
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.curves import Curve
+       from rateslib.legs import CreditPremiumLeg
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
+       premium_leg = CreditPremiumLeg(
+           dt(2022, 1, 1), "9M", "Q",
+           fixed_rate=2.60,
+           notional=1000000,
+       )
+       premium_leg.cashflows(hazard_curve, disc_curve)
+       premium_leg.npv(hazard_curve, disc_curve)
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        *args,
+        fixed_rate: float | NoInput = NoInput(0),
+        premium_accrued: bool | NoInput = NoInput(0),
+        **kwargs,
+    ):
+        self._fixed_rate = fixed_rate
+        self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
+        super().__init__(*args, **kwargs)
+        self._set_periods()
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *CreditPremiumLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs) -> DataFrame:
+        """
+        Return the properties of the *CreditPremiumLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *CreditPremiumLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def accrued(self, settlement):
+        """
+        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float
+        """
+        _ = index_left(
+            self.schedule.uschedule,
+            len(self.schedule.uschedule),
+            settlement,
+        )
+        # This index is valid because this Leg only contains CreditPremiumPeriods and no exchanges.
+        return self.periods[_].accrued(settlement)
+
+    def _set_periods(self) -> None:
+        return super()._set_periods()
+
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        notional: float,
+        stub: bool,
+        iterator: int,
+    ):
+        return CreditPremiumPeriod(
+            fixed_rate=self.fixed_rate,
+            premium_accrued=self.premium_accrued,
+            start=start,
+            end=end,
+            payment=payment,
+            frequency=self.schedule.frequency,
+            notional=notional,
+            currency=self.currency,
+            convention=self.convention,
+            termination=self.schedule.termination,
+            stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
+        )
+
+
+class CreditProtectionLeg(BaseLeg):
+    """
+    Create a credit protection leg composed of :class:`~rateslib.periods.CreditProtectionPeriod` s.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args to :class:`BaseLeg`.
+    recovery_rate : float, Dual, Dual2, optional
+        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
+    discretization : int, optional
+        The number of days to discretize the numerical integration over possible credit defaults.
+        Set by ``defaults``.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The NPV of a credit protection leg is the sum of the period NPVs.
+
+    .. math::
+
+       P = \\sum_{i=1}^n P_i
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial S} = \\sum_{i=1}^n -\\frac{\\partial P_i}{\\partial S}
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.curves import Curve
+       from rateslib.legs import CreditProtectionLeg
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
+       protection_leg = CreditProtectionLeg(
+           dt(2022, 1, 1), "9M", "Z",
+           recovery_rate=0.40,
+           notional=1000000,
+       )
+       protection_leg.cashflows(hazard_curve, disc_curve)
+       protection_leg.npv(hazard_curve, disc_curve)
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        *args,
+        recovery_rate: DualTypes | NoInput = NoInput(0),
+        discretization: int | NoInput = NoInput(0),
+        **kwargs,
+    ):
+        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        self.discretization = _drb(defaults.cds_protection_discretization, discretization)
+        super().__init__(*args, **kwargs)
+        self._set_periods()
+
+    def analytic_delta(self, *args, **kwargs):
+        """
+        Return the analytic delta of the *CreditProtectionLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
+
+    def cashflows(self, *args, **kwargs) -> DataFrame:
+        """
+        Return the properties of the *CreditProtectionLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def npv(self, *args, **kwargs):
+        """
+        Return the NPV of the *CreditProtectionLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def _set_periods(self) -> None:
+        return super()._set_periods()
+
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        notional: float,
+        stub: bool,
+        iterator: int,
+    ):
+        return CreditProtectionPeriod(
+            recovery_rate=self.recovery_rate,
+            discretization=self.discretization,
+            start=start,
+            end=end,
+            payment=payment,
+            frequency=self.schedule.frequency,
+            notional=notional,
+            currency=self.currency,
+            convention=self.convention,
+            termination=self.schedule.termination,
+            stub=stub,
+            roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
+        )
+
+
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -2427,4 +2694,6 @@ __all__ = [
     "ZeroFixedLeg",
     "ZeroFloatLeg",
     "ZeroIndexLeg",
+    "CreditPremiumLeg",
+    "CreditProtectionLeg",
 ]

@@ -12,6 +12,40 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
+1.6.0 (No release date)
+****************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Instruments
+     - Add :class:`~rateslib.instruments.CDS` for credit pricing, as well as the associated components;
+       :class:`~rateslib.legs.CreditPremiumLeg`, :class:`~rateslib.periods.CreditPremiumPeriod`,
+       :class:`~rateslib.legs.CreditProtectionLeg`, :class:`~rateslib.periods.CreditProtectionPeriod`.
+       (`419 <https://github.com/attack68/rateslib/pull/419>`_)
+       (`425 <https://github.com/attack68/rateslib/pull/425>`_)
+       (`426 <https://github.com/attack68/rateslib/pull/426>`_)
+   * - Instruments
+     - Add the ``spec`` options; *'audusd_xcs'*, *'audusd_xcs3'*, *'nzdusd_xcs3'*, *'nzdaud_xcs3'*
+       (`429 <https://github.com/attack68/rateslib/pull/429>`_)
+   * - Performance
+     - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
+       :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
+       in *Solvers* and standardised *Instruments*. This feature can be opted out of using the
+       ``defaults.curve_caching`` setting. Note also the added :meth:`~rateslib.curves.Curve.clear_cache` method.
+       (`435 <https://github.com/attack68/rateslib/pull/435>`_)
+   * - Bug
+     - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
+       (`436 <https://github.com/attack68/rateslib/pull/436>`_)
+   * - Bug
+     - Adding *Dual* or *Dual2* type ``spread`` using :meth:`~rateslib.curves.Curve.shift` method
+       now avoids *TypeErrors* where possible and maintains appropriate AD orders for each
+       existing and new object.
+       (`440 <https://github.com/attack68/rateslib/pull/440>`_)
+
 1.5.0 (25th September 2024)
 ****************************
 

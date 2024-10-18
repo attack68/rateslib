@@ -57,6 +57,7 @@ from rateslib.instruments.fx_volatility import (
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
 from rateslib.instruments.rates_derivatives import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -714,22 +715,31 @@ class BondMixin:
             base,
             self.leg1.currency,
         )
-        ad_ = curves[1].ad
         metric = "dirty_price" if dirty else "clean_price"
 
-        curves[1]._set_ad_order(1)
+        # Create a discounting curve with ADOrder:1 exposure to z_spread
         disc_curve = curves[1].shift(Dual(0, ["z_spread"], []), composite=False)
-        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
 
+        # Get forecasting curve
+        if type(self).__name__ in ["FloatRateNote", "IndexFixedRateBond"]:
+            fore_curve = curves[0].copy()
+            fore_curve._set_ad_order(1)
+        elif type(self).__name__ in ["FixedRateBond", "Bill"]:
+            fore_curve = None
+        else:
+            raise TypeError("Method `oaspread` can only be called on Bond type securities.")
+
+        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
         # find a first order approximation of z
         b = gradient(npv_price, ["z_spread"], 1)[0]
         c = float(npv_price) - float(price)
         z_hat = -c / b
 
         # shift the curve to the first order approximation and fine tune with 2nd order approxim.
-        curves[1]._set_ad_order(2)
         disc_curve = curves[1].shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
-        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+        if fore_curve is not None:
+            fore_curve._set_ad_order(2)
+        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
         a, b, c = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
             gradient(npv_price, ["z_spread"], 1)[0],
@@ -738,15 +748,16 @@ class BondMixin:
         z_hat2 = quadratic_eqn(a, b, c, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
-        curves[1]._set_ad_order(0)
         disc_curve = curves[1].shift(z_hat + z_hat2, composite=False)
-        npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
+        disc_curve._set_ad_order(0)
+        if fore_curve is not None:
+            fore_curve._set_ad_order(0)
+        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
         b = b + 2 * a * z_hat2  # forecast the new gradient
         c = float(npv_price) - float(price)
         z_hat3 = -c / b
 
         z = z_hat + z_hat2 + z_hat3
-        curves[1]._set_ad_order(ad_)
         return z
 
 
@@ -3833,6 +3844,7 @@ __all__ = [
     "BondCalcMode",
     "BillCalcMode",
     "BondFuture",
+    "CDS",
     "FRA",
     "FXBrokerFly",
     "FXCall",

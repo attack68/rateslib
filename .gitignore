@@ -152,3 +152,4 @@ scratch6.py
 /*.ipynb
 Cargo.lock
 .devcontainer
+.cargo/

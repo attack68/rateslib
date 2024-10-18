@@ -94,3 +94,17 @@ Every volatility *Period* type is endowed with the following methods:
    rateslib.periods.FXOptionPeriod.analytic_greeks
    rateslib.periods.FXOptionPeriod.rate
    rateslib.periods.FXOptionPeriod.implied_vol
+
+Credit Period
+**************
+
+*Credit* periods provide the calculations for default protection and premium calculations
+using *recovery rates* and *survivial probabilities* defined by a *Curve* of hazard rates.
+
+.. inheritance-diagram:: rateslib.periods.CreditPremiumPeriod rateslib.periods.CreditProtectionPeriod
+   :private-bases:
+   :parts: 1
+
+.. autosummary::
+   rateslib.periods.CreditPremiumPeriod
+   rateslib.periods.CreditProtectionPeriod

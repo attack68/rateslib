@@ -132,6 +132,11 @@ Which ``fixed income instruments`` does *rateslib* include?
      -
      -
      -
+   * - :class:`~rateslib.instruments.CDS`
+     -
+     -
+     -
+     -
 
 .. raw:: html
 

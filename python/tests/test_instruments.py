@@ -2,16 +2,17 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
-from rateslib import default_context, defaults
-from rateslib.calendars import dcf
+from rateslib import default_context
+from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.instruments import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -517,6 +518,9 @@ class TestNullPricing:
     @pytest.mark.parametrize(
         "inst",
         [
+            CDS(
+                dt(2022, 7, 1), "3M", "Q", curves=["eureur", "usdusd"], notional=1e6 * 25 / 14.91357
+            ),
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             STIRFuture(
                 dt(2022, 3, 16),
@@ -2241,6 +2245,308 @@ class TestNonMtmFixedFixedXCS:
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_float_spread` for"):
             xcs.leg2_float_spread = 2.0
+
+
+class TestCDS:
+    def okane_curve(self):
+        today = dt(2019, 8, 12)
+        spot = dt(2019, 8, 14)
+        tenors = [
+            "1b",
+            "1m",
+            "2m",
+            "3m",
+            "6m",
+            "12M",
+            "2y",
+            "3y",
+            "4y",
+            "5y",
+            "6y",
+            "7y",
+            "8y",
+            "9y",
+            "10y",
+        ]
+        ibor = Curve(
+            nodes={today: 1.0, **{add_tenor(spot, _, "mf", "nyc"): 1.0 for _ in tenors}},
+            convention="act360",
+            calendar="nyc",
+            id="ibor",
+        )
+        rates = [
+            2.2,
+            2.2009,
+            2.2138,
+            2.1810,
+            2.0503,
+            1.9930,
+            1.591,
+            1.499,
+            1.4725,
+            1.4664,
+            1.48,
+            1.4995,
+            1.5118,
+            1.5610,
+            1.6430,
+        ]
+        ib_sv = Solver(
+            curves=[ibor],
+            instruments=[
+                IRS(
+                    spot,
+                    _,
+                    leg2_fixing_method="ibor",
+                    leg2_method_param=2,
+                    calendar="nyc",
+                    payment_lag=0,
+                    convention="30e360",
+                    leg2_convention="act360",
+                    frequency="s",
+                    curves=ibor,
+                )
+                for _ in tenors
+            ],
+            s=rates,
+        )
+        cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
+        credit_curve = Curve(
+            nodes={today: 1.0, **{add_tenor(today, _, "mf", "nyc"): 1.0 for _ in cds_tenor}},
+            convention="act365f",
+            calendar="all",
+            id="credit",
+        )
+        cc_sv = Solver(
+            curves=[credit_curve],
+            pre_solvers=[ib_sv],
+            instruments=[
+                CDS(
+                    today,
+                    add_tenor(dt(2019, 9, 20), _, "mf", "nyc"),
+                    front_stub=dt(2019, 9, 20),
+                    frequency="q",
+                    convention="act360",
+                    payment_lag=0,
+                    curves=["credit", "ibor"],
+                    fixed_rate=4.00,
+                    recovery_rate=0.4,
+                    premium_accrued=True,
+                    calendar="nyc",
+                )
+                for _ in cds_tenor
+            ],
+            s=[4.00, 4.00, 4.00, 4.00, 4.00, 4.00, 4.00, 4.00],
+        )
+        return credit_curve, ibor, cc_sv
+
+    def test_okane_values(self):
+        # These values are validated against finance Py. Not identical but within tolerance.
+        cds = CDS(
+            dt(2019, 8, 12),
+            dt(2029, 6, 20),
+            front_stub=dt(2019, 9, 20),
+            frequency="q",
+            fixed_rate=1.50,
+            curves=["credit", "ibor"],
+            discretization=5,
+            calendar="nyc",
+        )
+        c1, c2, solver = self.okane_curve()
+        result1 = cds.rate(solver=solver)
+        assert abs(result1 - 3.9999960) < 5e-5
+
+        result2 = cds.npv(solver=solver)
+        assert abs(result2 - 170739.5956) < 175
+
+        result3 = cds.leg1.npv(c1, c2)
+        assert abs(result3 + 104508.9265 - 2125) < 50
+
+        result4 = cds.leg2.npv(c1, c2)
+        assert abs(result4 - 273023.5221) < 110
+
+    def test_unpriced_npv(self, curve, curve2) -> None:
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        npv = cds.npv([curve2, curve], NoInput(0))
+        assert abs(npv) < 1e-9
+
+    def test_rate(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        rate = cds.rate([hazard_curve, disc_curve])
+        expected = 2.4164004881061285
+        assert abs(rate - expected) < 1e-7
+
+    def test_npv(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+            fixed_rate=1.00,
+        )
+
+        npv = cds.npv([hazard_curve, disc_curve])
+        expected = 9075.835204292109  # uses cds_discretization = 23 as default
+        assert abs(npv - expected) < 1e-7
+
+    def test_analytic_delta(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        result = cds.analytic_delta(hazard_curve, disc_curve, leg=1)
+        expected = 64.07675851924779
+        assert abs(result - expected) < 1e-7
+
+        result = cds.analytic_delta(hazard_curve, disc_curve, leg=2)
+        expected = 0.0
+        assert abs(result - expected) < 1e-7
+
+    def test_cds_cashflows(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+        result = cds.cashflows(curves=[hazard_curve, disc_curve])
+        assert isinstance(result, DataFrame)
+        assert result.index.nlevels == 2
+
+    def test_solver(self, curve2):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="disc")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 0.99, dt(2023, 1, 1): 0.98}, id="haz")
+
+        solver = Solver(
+            curves=[c2],
+            instruments=[
+                CDS(dt(2022, 1, 1), "6m", frequency="Q", curves=["haz", c1]),
+                CDS(dt(2022, 1, 1), "12m", frequency="Q", curves=["haz", c1]),
+            ],
+            s=[0.30, 0.40],
+            instrument_labels=["6m", "12m"],
+        )
+        inst = CDS(dt(2022, 7, 1), "3M", "Q", curves=["haz", c1], notional=1e6)
+        result = inst.delta(solver=solver)
+        assert abs(result.sum().iloc[0] - 25.294894375736) < 1e-6
+
+    def test_okane_paper(self):
+        # Figure 12 of Turnbull and O'Kane 2003 Valuation of CDS
+        usd_libor = Curve(
+            nodes={
+                dt(2003, 6, 19): 1.0,
+                dt(2003, 12, 23): 1.0,
+                dt(2004, 6, 23): 1.0,
+                dt(2005, 6, 23): 1.0,
+                dt(2006, 6, 23): 1.0,
+                dt(2007, 6, 23): 1.0,
+                dt(2008, 6, 23): 1.0,
+            },
+            convention="act360",
+            calendar="nyc",
+            id="libor",
+        )
+        args = dict(spec="eur_irs6", frequency="s", calendar="nyc", curves="libor", currency="usd")
+        solver = Solver(
+            curves=[usd_libor],
+            instruments=[
+                IRS(dt(2003, 6, 23), "6m", **args),
+                IRS(dt(2003, 6, 23), "1y", **args),
+                IRS(dt(2003, 6, 23), "2y", **args),
+                IRS(dt(2003, 6, 23), "3y", **args),
+                IRS(dt(2003, 6, 23), "4y", **args),
+                IRS(dt(2003, 6, 23), "5y", **args),
+            ],
+            s=[1.35, 1.43, 1.90, 2.47, 2.936, 3.311],
+        )
+        haz_curve = Curve(
+            nodes={
+                dt(2003, 6, 19): 1.0,
+                dt(2004, 6, 20): 1.0,
+                dt(2005, 6, 20): 1.0,
+                dt(2006, 6, 20): 1.0,
+                dt(2007, 6, 20): 1.0,
+                dt(2008, 6, 20): 1.0,
+            },
+            convention="act365f",
+            calendar="all",
+            id="hazard",
+        )
+        args = dict(
+            calendar="nyc", frequency="q", roll=20, curves=["hazard", "libor"], convention="act360"
+        )
+        solver = Solver(
+            curves=[haz_curve],
+            pre_solvers=[solver],
+            instruments=[
+                CDS(dt(2003, 6, 20), "1y", **args),
+                CDS(dt(2003, 6, 20), "2y", **args),
+                CDS(dt(2003, 6, 20), "3y", **args),
+                CDS(dt(2003, 6, 20), "4y", **args),
+                CDS(dt(2003, 6, 20), "5y", **args),
+            ],
+            s=[1.10, 1.20, 1.30, 1.40, 1.50],
+        )
+        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), fixed_rate=2.00, notional=10e6, **args)
+        result = cds.rate(solver=solver)
+        assert abs(result - 1.427) < 0.0030
+
+        _table = cds.cashflows(solver=solver)
+        leg1_npv = cds.leg1.npv(haz_curve, usd_libor)
+        leg2_npv = cds.leg2.npv(haz_curve, usd_libor)
+        assert abs(leg1_npv + 781388) < 250
+        assert abs(leg2_npv - 557872) < 900
+
+        a_delta = cds.analytic_delta(haz_curve, usd_libor)
+        assert abs(a_delta - 3899) < 10
+
+        npv = cds.npv(solver=solver)
+        assert abs(npv + 223516) < 670
+
+    def test_accrued(self):
+        cds = CDS(
+            dt(2022, 1, 1),
+            "6M",
+            "Q",
+            payment_lag=0,
+            currency="eur",
+            notional=1e9,
+            fixed_rate=2.0
+        )
+        result = cds.accrued(dt(2022, 2, 1))
+        assert abs(result + 0.25 * 1e9 * 0.02 * 31 / 90) < 1e-6
 
 
 class TestXCS:
