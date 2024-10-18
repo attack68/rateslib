@@ -1921,6 +1921,7 @@ class Solver(Gradients):
         npv,
         vars: list[str],
         vars_scalar: list[float],
+        vars_labels: list[str],
         base: str | NoInput = NoInput(0),
         fx=NoInput(0)
     ) -> DataFrame:
@@ -1929,35 +1930,24 @@ class Solver(Gradients):
         base, fx = self._get_base_and_fx(base, fx)
         container = {}
         for ccy in npv:
-            container[("exogeneous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
+            container[("exogenous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
 
             if base is not NoInput.blank and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
-                container[("instruments", ccy, base)] = (
-                        self.grad_s_Pbase(
-                            npv[ccy],
-                            container[("instruments", ccy, ccy)] / inst_scalar,
-                            f,
-                        )
-                        * inst_scalar
-                )
-                container[("fx", ccy, base)] = (
-                        self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
-                        * fx_scalar
+                container[("exogenous", ccy, base)] = (
+                        self.grad_f_Pbase(npv[ccy], container[("exogenous", ccy, ccy)] / vars_scalar, f, vars)
+                        * vars_scalar
                 )
 
         # construct the DataFrame from container with hierarchical indexes
-        inst_idx = MultiIndex.from_tuples(
-            [("instruments",) + label for label in self.pre_instrument_labels],
+        exo_idx = MultiIndex.from_tuples(
+            [("exogenous",) + (self.id, label) for label in vars_labels],
             names=["type", "solver", "label"],
         )
-        fx_idx = MultiIndex.from_tuples(
-            [("fx", "fx", f[3:]) for f in fx_vars],
-            names=["type", "solver", "label"],
-        )
-        indexes = {"instruments": inst_idx, "fx": fx_idx}
-        r_idx = inst_idx.append(fx_idx)
+
+        indexes = {"exogenous": exo_idx}
+        r_idx = exo_idx
         c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
         df = DataFrame(None, index=r_idx, columns=c_idx)
         for key, array in container.items():
@@ -1968,12 +1958,6 @@ class Solver(Gradients):
 
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
-
-
-
-
-
-
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
