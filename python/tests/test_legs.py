@@ -10,6 +10,8 @@ from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     Cashflow,
+    CreditPremiumLeg,
+    CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -33,6 +35,17 @@ def curve():
         dt(2022, 10, 1): 0.97,
     }
     return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture
+def hazard_curve():
+    nodes = {
+        dt(2022, 1, 1): 1.00,
+        dt(2022, 4, 1): 0.999,
+        dt(2022, 7, 1): 0.997,
+        dt(2022, 10, 1): 0.991,
+    }
+    return Curve(nodes=nodes, interpolation="log_linear", id="hazard_fixture")
 
 
 @pytest.mark.parametrize(
@@ -1080,6 +1093,140 @@ class TestFixedLeg:
         fixed_leg.fixed_rate = 2.0
         assert fixed_leg.fixed_rate == 2.0
         assert fixed_leg.periods[0].fixed_rate == 2.0
+
+
+class TestCreditPremiumLeg:
+    @pytest.mark.parametrize(
+        ("premium_accrued", "exp"), [(True, 41357.455568685626), (False, 41330.94188109829)]
+    )
+    def test_premium_leg_analytic_delta(self, hazard_curve, curve, premium_accrued, exp) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            premium_accrued=premium_accrued,
+        )
+        result = leg.analytic_delta(hazard_curve, curve)
+        assert abs(result - exp) < 1e-7
+
+    @pytest.mark.parametrize(("premium_accrued"), [True, False])
+    def test_premium_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            premium_accrued=premium_accrued,
+            fixed_rate=4.00,
+        )
+        result = leg.npv(hazard_curve, curve)
+        assert abs(result + 400 * leg.analytic_delta(hazard_curve, curve)) < 1e-7
+
+    def test_premium_leg_cashflows(self, hazard_curve, curve) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixed_rate=4.00,
+        )
+        result = leg.cashflows(hazard_curve, curve)
+        # test a couple of return elements
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 6555555.55555) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
+
+    def test_premium_leg_set_fixed_rate(self, curve) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        assert leg.fixed_rate is NoInput(0)
+        assert leg.periods[0].fixed_rate is NoInput(0)
+
+        leg.fixed_rate = 2.0
+        assert leg.fixed_rate == 2.0
+        assert leg.periods[0].fixed_rate == 2.0
+
+    @pytest.mark.parametrize(("date", "exp"), [
+        (dt(2022, 2, 1), 1e9 * 0.02 * 0.25 * 31 / 90),
+        (dt(2022, 3, 1), 0.0),
+        (dt(2022, 6, 1), 0.0)
+    ])
+    def test_premium_leg_accrued(self, date, exp):
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="ActActICMA",
+            frequency="Q",
+            fixed_rate=2.0
+        )
+        result = leg.accrued(date)
+        assert abs(result - exp) < 1e-6
+
+
+class TestCreditProtectionLeg:
+    def test_leg_analytic_delta(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            frequency="Q",
+        )
+        result = leg.analytic_delta(hazard_curve, curve)
+        assert abs(result) < 1e-7
+
+    @pytest.mark.parametrize(("premium_accrued"), [True, False])
+    def test_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            frequency="Z",
+        )
+        result = leg.npv(hazard_curve, curve)
+        expected = -1390922.0390295777  # with 1 cds_discretization this is -1390906.242843
+        assert abs(result - expected) < 1e-7
+
+    def test_leg_cashflows(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        result = leg.cashflows(hazard_curve, curve)
+        # test a couple of return elements
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 600e6) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
+
+    def test_leg_zero_sched(self):
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2024, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Z",
+        )
+        assert len(leg.periods) == 1
+        assert leg.periods[0].end == dt(2024, 6, 1)
 
 
 class TestIndexFixedLegExchange:

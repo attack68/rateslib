@@ -743,6 +743,7 @@ def test_proxy_curves_update_with_underlying() -> None:
     proxy_curve = fxf.curve("cad", "eur")
     prev_value = proxy_curve[dt(2022, 10, 1)]
     fxf.fx_curves["eureur"].nodes[dt(2022, 10, 1)] = 0.90
+    fxf.fx_curves["eureur"].clear_cache()
     new_value = proxy_curve[dt(2022, 10, 1)]
 
     assert prev_value != new_value

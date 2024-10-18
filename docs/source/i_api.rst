@@ -29,6 +29,8 @@ Notation
    C =& \text{Cashflow} \\
    P =& \text{Net present value} \\
    I(m) =& \text{Index ratio applicable at maturity,} \; m \\
+   S =& \text{Fixed credit spread} \\
+   Q(m) =& \text{Survival probability at maturity,} \; m \\
 
 Defaults
 =========
@@ -225,6 +227,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: comb
    :skip: FXDeltaVolSurface
    :skip: FXDeltaVolSmile
+   :skip: timedelta
 
 Legs
 =====
@@ -272,20 +275,29 @@ Solver
    :skip: time
    :skip: uuid4
    :skip: PerformanceWarning
+   :skip: Any
 
 Cookbook
 =========
 
-**Curve Building**
+**Interest Rate Curve Building**
 
 .. toctree::
     :titlesonly:
 
+    z_ptirds_curve.rst
     z_swpm.rst
     z_dependencychain.rst
     z_turns.rst
     z_quantlib.rst
     z_curve_from_zero_rates.ipynb
+
+**Credit Curve Building**
+
+.. toctree::
+    :titlesonly:
+
+    z_cdsw.rst
 
 **FX Volatility Surface Building**
 

@@ -22,4 +22,4 @@ structures.
    rateslib.instruments.XCS
    rateslib.instruments.FXSwap
    rateslib.instruments.FXExchange
-   rateslib.instruments.forward_fx
+   rateslib.fx.forward_fx
