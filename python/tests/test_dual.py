@@ -14,6 +14,7 @@ from rateslib.dual import (
     dual_solve,
     gradient,
     set_order,
+    Variable,
 )
 
 DUAL_CORE_PY = False
@@ -889,3 +890,22 @@ def test_numpy_dtypes(z, dtype) -> None:
 
     z + dtype(2)
     dtype(2) + z
+
+class TestVariable:
+
+    @pytest.mark.parametrize("op", [
+        "add", "radd", "sub", "rsub", "mul", "rmul", "truediv",
+        "rtruediv",
+    ])
+    @pytest.mark.parametrize("other", [
+        2.5,
+        Dual(2.5, ["x"], []),
+        Dual2(3.5, ["x"], [], []),
+    ])
+    def test_variable_ops(self, op, other):
+        var = Variable(2.1, ["x"])
+        _ = getattr(var, f"__{op}__")(other)
+
+    def test_rsub(self):
+        var = Variable(1.1, ["x"])
+        _ = 1 - var
