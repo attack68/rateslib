@@ -895,19 +895,6 @@ def test_numpy_dtypes(z, dtype) -> None:
 
 class TestVariable:
 
-    @pytest.mark.parametrize("op", [
-        "add", "radd", "sub", "rsub", "mul", "rmul", "truediv",
-        "rtruediv",
-    ])
-    @pytest.mark.parametrize("other", [
-        2.5,
-        Dual(2.5, ["x"], []),
-        Dual2(3.5, ["x"], [], []),
-    ])
-    def test_variable_ops(self, op, other):
-        var = Variable(2.1, ["x"])
-        _ = getattr(var, f"__{op}__")(other)
-
     @pytest.mark.parametrize("op, exp", [
         ("__add__", Variable(4.0, ["x"])),
         ("__radd__", Variable(4.0, ["x"])),
@@ -964,3 +951,15 @@ class TestVariable:
         v = Variable(2.5, ("x",))
         result = getattr(v, op)(f)
         assert result == exp
+
+    @pytest.mark.parametrize("op, ad, exp", [
+        ("__exp__", 1, Dual(2.5, ["x"], []).__exp__()),
+        ("__exp__", 2, Dual2(2.5, ["x"], [], []).__exp__()),
+        ("__log__", 1, Dual(2.5, ["x"], []).__log__()),
+        ("__log__", 2, Dual2(2.5, ["x"], [], []).__log__()),
+    ])
+    def test_variable_funcs(self, op, ad, exp):
+        with default_context("_global_ad_order", ad):
+            var = Variable(2.5, ["x"])
+            result = getattr(var, op)()
+            assert result == exp

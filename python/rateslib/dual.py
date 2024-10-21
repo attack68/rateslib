@@ -417,18 +417,17 @@ class Variable:
 
     def __truediv__(self, other):
         if isinstance(other, Variable):
-            if isinstance(other, Variable):
-                if defaults._global_ad_order == 1:
-                    # yield a Dual
-                    _1 = Dual(self.real, vars=self.vars, dual=self.dual)
-                    _2 = Dual(other.real, vars=other.vars, dual=other.dual)
-                elif defaults._global_ad_order == 2:
-                    # yield a Dual2
-                    _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-                    _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
-                else:
-                    raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
-                return _1 / _2
+            if defaults._global_ad_order == 1:
+                # yield a Dual
+                _1 = Dual(self.real, vars=self.vars, dual=self.dual)
+                _2 = Dual(other.real, vars=other.vars, dual=other.dual)
+            elif defaults._global_ad_order == 2:
+                # yield a Dual2
+                _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+                _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
+            else:
+                raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+            return _1 / _2
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))
         elif isinstance(other, Dual):
@@ -455,3 +454,33 @@ class Variable:
             return other.__truediv__(_)
         else:
             raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
+
+    def __exp__(self):
+        if defaults._global_ad_order == 1:
+            # yield a Dual
+            return Dual(self.real, vars=self.vars, dual=self.dual).__exp__()
+        elif defaults._global_ad_order == 2:
+            # yield a Dual2
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__exp__()
+        else:
+            raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+
+    def __log__(self):
+        if defaults._global_ad_order == 1:
+            # yield a Dual
+            return Dual(self.real, vars=self.vars, dual=self.dual).__log__()
+        elif defaults._global_ad_order == 2:
+            # yield a Dual2
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__log__()
+        else:
+            raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+
+    def __pow__(self, exponent):
+        if defaults._global_ad_order == 1:
+            # yield a Dual
+            return Dual(self.real, vars=self.vars, dual=self.dual).__pow__(exponent)
+        elif defaults._global_ad_order == 2:
+            # yield a Dual2
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__pow__(exponent)
+        else:
+            raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
