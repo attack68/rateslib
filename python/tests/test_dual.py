@@ -4,6 +4,8 @@ from statistics import NormalDist
 import numpy as np
 import pytest
 from packaging import version
+
+from rateslib import default_context
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -906,6 +908,59 @@ class TestVariable:
         var = Variable(2.1, ["x"])
         _ = getattr(var, f"__{op}__")(other)
 
-    def test_rsub(self):
-        var = Variable(1.1, ["x"])
-        _ = 1 - var
+    @pytest.mark.parametrize("op, exp", [
+        ("__add__", Variable(4.0, ["x"])),
+        ("__radd__", Variable(4.0, ["x"])),
+        ("__sub__", Variable(1.0, ["x"])),
+        ("__rsub__", -Variable(1.0, ["x"])),
+        ("__mul__", Variable(3.75, ["x"], [1.5])),
+        ("__rmul__", Variable(3.75, ["x"], [1.5])),
+        ("__truediv__", Variable(2.5 / 1.5, ["x"], [1.0 / 1.5])),
+        ("__rtruediv__", Dual(1.5, [], []) / Dual(2.5, ["x"], []))
+    ])
+    def test_variable_f64(self, op, exp):
+        with default_context("_global_ad_order", 1):
+            f = 1.5
+            v = Variable(2.5, ("x",))
+            result = getattr(v, op)(f)
+            assert result == exp
+
+    def test_rtruediv_global_ad(self):
+        exp = Dual2(1.5, [], [], []) / Dual2(2.5, ["x"], [], [])
+        with default_context("_global_ad_order", 2):
+            f = 1.5
+            v = Variable(2.5, ("x",))
+            result = f / v
+            assert result == exp
+
+    @pytest.mark.parametrize("op, exp", [
+        ("__add__", Dual(4.0, ["x"], [2])),
+        ("__radd__", Dual(4.0, ["x"], [2])),
+        ("__sub__", Dual(1.0, ["x"], [0])),
+        ("__rsub__", Dual(-1.0, ["x"], [0])),
+        ("__mul__", Dual(3.75, ["x"], [4.0])),
+        ("__rmul__", Dual(3.75, ["x"], [4.0])),
+        ("__truediv__", Dual(2.5, ["x"], []) / Dual(1.5, ["x"], [])),
+        ("__rtruediv__", Dual(1.5, ["x"], []) / Dual(2.5, ["x"], []))
+    ])
+    def test_variable_dual(self, op, exp):
+        f = Dual(1.5, ["x"], [])
+        v = Variable(2.5, ("x",))
+        result = getattr(v, op)(f)
+        assert result == exp
+
+    @pytest.mark.parametrize("op, exp", [
+        ("__add__", Dual2(4.0, ["x"], [2], [])),
+        ("__radd__", Dual2(4.0, ["x"], [2], [])),
+        ("__sub__", Dual2(1.0, ["x"], [0], [])),
+        ("__rsub__", Dual2(-1.0, ["x"], [0], [])),
+        ("__mul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+        ("__rmul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+        ("__truediv__", Dual2(2.5, ["x"], [], []) / Dual2(1.5, ["x"], [], [])),
+        ("__rtruediv__", Dual2(1.5, ["x"], [], []) / Dual2(2.5, ["x"], [], []))
+    ])
+    def test_variable_dual2(self, op, exp):
+        f = Dual2(1.5, ["x"], [], [])
+        v = Variable(2.5, ("x",))
+        result = getattr(v, op)(f)
+        assert result == exp

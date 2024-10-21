@@ -7,12 +7,14 @@ from typing import Union
 
 import numpy as np
 
+from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
+PRECISION = 1e-14
 FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
 INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 
@@ -331,6 +333,22 @@ class Variable:
         else:
             self.dual = np.asarray(dual.copy())
 
+    def __eq__(self, argument):
+        """Compare an argument with a Variable for equality. This does not account for variable ordering."""
+        if not isinstance(argument, type(self)):
+            return False
+        if self.vars == argument.vars:
+            return self.__eq_coeffs__(argument, PRECISION)
+        return False
+
+    def __eq_coeffs__(self, argument, precision):
+        """Compare the coefficients of two dual array numbers for equality."""
+        if not math.isclose(self.real, argument.real, abs_tol=precision):
+            return False
+        elif not np.all(np.isclose(self.dual, argument.dual, atol=precision)):
+            return False
+        return True
+
     def __float__(self):
         return self.real
 
@@ -339,7 +357,17 @@ class Variable:
 
     def __add__(self, other):
         if isinstance(other, Variable):
-            raise TypeError("Cannot perform binary op with two `Variables` without implementing global AD order.")
+            if defaults._global_ad_order == 1:
+                # yield a Dual
+                _1 = Dual(self.real, vars=self.vars, dual=self.dual)
+                _2 = Dual(other.real, vars=other.vars, dual=other.dual)
+            elif defaults._global_ad_order == 2:
+                # yield a Dual2
+                _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+                _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
+            else:
+                raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+            return _1 + _2
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real + float(other), vars=self.vars, dual=self.dual)
         elif isinstance(other, Dual):
@@ -362,7 +390,17 @@ class Variable:
 
     def __mul__(self, other):
         if isinstance(other, Variable):
-            raise TypeError("Cannot perform binary op with two `Variables` without implementing global AD order.")
+            if defaults._global_ad_order == 1:
+                # yield a Dual
+                _1 = Dual(self.real, vars=self.vars, dual=self.dual)
+                _2 = Dual(other.real, vars=other.vars, dual=other.dual)
+            elif defaults._global_ad_order == 2:
+                # yield a Dual2
+                _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+                _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
+            else:
+                raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+            return _1 * _2
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))
         elif isinstance(other, Dual):
@@ -379,7 +417,18 @@ class Variable:
 
     def __truediv__(self, other):
         if isinstance(other, Variable):
-            raise TypeError("Cannot perform binary op with two `Variables` without implementing global AD order.")
+            if isinstance(other, Variable):
+                if defaults._global_ad_order == 1:
+                    # yield a Dual
+                    _1 = Dual(self.real, vars=self.vars, dual=self.dual)
+                    _2 = Dual(other.real, vars=other.vars, dual=other.dual)
+                elif defaults._global_ad_order == 2:
+                    # yield a Dual2
+                    _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+                    _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
+                else:
+                    raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+                return _1 / _2
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))
         elif isinstance(other, Dual):
@@ -393,9 +442,11 @@ class Variable:
 
     def __rtruediv__(self, other):
         if isinstance(other, Variable):
-            raise TypeError("Cannot perform binary op with two `Variables` without implementing global AD order.")
+            # cannot reach this line
+            raise TypeError("Impossible line execution - please report issue.")  # pragma: no cover
         elif isinstance(other, (FLOATS, INTS)):
-            raise TypeError("Cannot perform binary op with two `Variables` without implementing global AD order.")
+            _1 = Variable(other, ())
+            return _1 / self
         elif isinstance(other, Dual):
             _ = Dual(self.real, vars=self.vars, dual=self.dual)
             return other.__truediv__(_)
@@ -403,4 +454,4 @@ class Variable:
             _ = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
             return other.__truediv__(_)
         else:
-            raise TypeError(f"Cannot perform power operation on `Variable` without implementing global AD order.")
+            raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
