@@ -963,3 +963,13 @@ class TestVariable:
             var = Variable(2.5, ["x"])
             result = getattr(var, op)()
             assert result == exp
+
+    @pytest.mark.parametrize("op, ad, exp", [
+        ("__pow__", 1, Dual(2.5, ["x"], []).__pow__(2)),
+        ("__pow__", 2, Dual2(2.5, ["x"], [], []).__pow__(2)),
+    ])
+    def test_variable_pow(self, op, ad, exp):
+        with default_context("_global_ad_order", ad):
+            var = Variable(2.5, ["x"])
+            result = getattr(var, op)(2)
+            assert result == exp
