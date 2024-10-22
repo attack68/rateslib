@@ -2537,13 +2537,7 @@ class TestCDS:
 
     def test_accrued(self):
         cds = CDS(
-            dt(2022, 1, 1),
-            "6M",
-            "Q",
-            payment_lag=0,
-            currency="eur",
-            notional=1e9,
-            fixed_rate=2.0
+            dt(2022, 1, 1), "6M", "Q", payment_lag=0, currency="eur", notional=1e9, fixed_rate=2.0
         )
         result = cds.accrued(dt(2022, 2, 1))
         assert abs(result + 0.25 * 1e9 * 0.02 * 31 / 90) < 1e-6

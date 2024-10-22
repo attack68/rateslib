@@ -252,6 +252,7 @@ class Defaults:
             "survival": "Survival",
             "recovery": "Recovery",
         }
+        self._global_ad_order = 1
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
         # Commercial use of this code, and/or copying and redistribution is prohibited.
