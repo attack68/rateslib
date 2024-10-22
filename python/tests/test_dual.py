@@ -13,9 +13,10 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
+    dual_norm_pdf,
     dual_solve,
     gradient,
-    set_order, dual_norm_pdf,
+    set_order,
 )
 
 DUAL_CORE_PY = False
@@ -1041,13 +1042,16 @@ class TestVariable:
         v2 = Variable(1.0, ["x", "y"])
         assert v1 == v2
 
-    @pytest.mark.parametrize("func, exp", [
-        (dual_exp, Dual(0.5, ["x"], []).__exp__()),
-        (dual_log, Dual(0.5, ["x"], []).__log__()),
-        (dual_norm_cdf, Dual(0.5, ["x"],[]).__norm_cdf__()),
-        (dual_inv_norm_cdf, Dual(0.5, ["x"], []).__norm_inv_cdf__()),
-        (dual_norm_pdf, dual_norm_pdf(Dual(0.5, ["x"],[])))
-    ])
+    @pytest.mark.parametrize(
+        ("func", "exp"),
+        [
+            (dual_exp, Dual(0.5, ["x"], []).__exp__()),
+            (dual_log, Dual(0.5, ["x"], []).__log__()),
+            (dual_norm_cdf, Dual(0.5, ["x"], []).__norm_cdf__()),
+            (dual_inv_norm_cdf, Dual(0.5, ["x"], []).__norm_inv_cdf__()),
+            (dual_norm_pdf, dual_norm_pdf(Dual(0.5, ["x"], []))),
+        ],
+    )
     def test_standalone_funcs(self, func, exp):
         var = Variable(0.5, ["x"])
         result = func(var)
