@@ -6,7 +6,7 @@ import pytest
 from packaging import version
 
 from rateslib import default_context
-from rateslib.dual.dual import (
+from rateslib.dual import (
     Dual,
     Dual2,
     dual_exp,
