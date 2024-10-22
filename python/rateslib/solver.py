@@ -1916,18 +1916,23 @@ class Solver(Gradients):
             index=solver.pre_instrument_labels,
         )
 
-    def exogenous_risk(
+    def exo_delta(
         self,
         npv,
         vars: list[str],
-        vars_scalar: list[float],
-        vars_labels: list[str],
+        vars_scalar: list[float] | NoInput = NoInput(0),
+        vars_labels: list[str] | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         fx=NoInput(0)
     ) -> DataFrame:
         """Calculate risk sensitivity to a manually embedded variable in the *Solver Instruments* and the ``npv``."""
 
         base, fx = self._get_base_and_fx(base, fx)
+        if vars_scalar is NoInput.blank:
+            vars_scalar = [1.0] * len(vars)
+        if vars_labels is NoInput.blank:
+            vars_labels = vars
+
         container = {}
         for ccy in npv:
             container[("exogenous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar

@@ -936,6 +936,7 @@ class FloatPeriod(BasePeriod):
             else:
                 return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
+
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Curve | LineCurve | dict) -> None | DualTypes:

@@ -915,6 +915,13 @@ class TestVariable:
             result = getattr(v, op)(f)
             assert result == exp
 
+    def test_variable_f64_reverse(self):
+        v = Variable(2.5, ("x",))
+        assert (1.5 + v) == Variable(4.0, ["x"], [])
+        assert (1.5 - v) == Variable(-1.0, ["x"], [-1.0])
+        assert (1.5 * v) == Variable(1.5 * 2.5, ["x"], [1.5])
+        assert (1.5 / v) == Dual(1.5, [], []) / Dual(2.5, ["x"], [])
+
     def test_rtruediv_global_ad(self):
         exp = Dual2(1.5, [], [], []) / Dual2(2.5, ["x"], [], [])
         with default_context("_global_ad_order", 2):
@@ -942,6 +949,15 @@ class TestVariable:
         result = getattr(v, op)(f)
         assert result == exp
 
+    def test_variable_dual_reverse(self):
+        f = Dual(1.5, ["x"], [])
+        v = Variable(2.5, ("x",))
+        assert f + v == Dual(4.0, ["x"], [2.0])
+        assert f - v == Dual(-1.0, ["x"], [0.0])
+        assert f * v == Dual(1.5 * 2.5, ["x"], [4.0])
+        assert f / v == Dual(1.5, ["x"], [1.0]) / Dual(2.5, ["x"], [1.0])
+
+
     @pytest.mark.parametrize(
         ("op", "exp"),
         [
@@ -960,6 +976,14 @@ class TestVariable:
         v = Variable(2.5, ("x",))
         result = getattr(v, op)(f)
         assert result == exp
+
+    def test_variable_dual2_reverse(self):
+        f = Dual2(1.5, ["x"], [], [])
+        v = Variable(2.5, ("x",))
+        assert f + v == Dual2(4.0, ["x"], [2.0], [])
+        assert f - v == Dual2(-1.0, ["x"], [0.0], [])
+        assert f * v == Dual2(1.5, ["x"], [], []) * Dual2(2.5, ["x"], [], [])
+        assert f / v == Dual2(1.5, ["x"], [], []) / Dual2(2.5, ["x"], [], [])
 
     @pytest.mark.parametrize(
         ("op", "exp"),

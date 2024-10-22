@@ -79,8 +79,11 @@ class Variable:
             or not np.all(np.isclose(self.dual, argument.dual, atol=precision))
         )
 
-    def __float__(self):
-        return self.real
+    # def __float__(self):
+    #  This does not work well with rust.
+    #  See: https://github.com/PyO3/pyo3/issues/3672
+    #  and https://github.com/PyO3/pyo3/discussions/3911
+    #     return self.real
 
     def __neg__(self):
         return Variable(-self.real, vars=self.vars, dual=-self.dual)
@@ -180,3 +183,11 @@ class Variable:
     def __pow__(self, exponent):
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__pow__(exponent)
+
+    def __repr__(self):
+        a = ", ".join(self.vars[:3])
+        b = ", ".join([str(_) for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            a += ", ..."
+            b += ", ..."
+        return "<Variable: {:.6}, ({}), [{}]>".format(self.real, a, b)
