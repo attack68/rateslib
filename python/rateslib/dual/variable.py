@@ -202,4 +202,4 @@ class Variable:
         if len(self.vars) > 3:
             a += ", ..."
             b += ", ..."
-        return "<Variable: {:.6}, ({}), [{}]>".format(self.real, a, b)
+        return f"<Variable: {self.real:.6}, ({a}), [{b}]>"

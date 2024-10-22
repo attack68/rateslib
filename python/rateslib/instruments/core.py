@@ -361,8 +361,12 @@ class Sensitivities:
         """
         Calculate delta risk of an *Instrument* against some exogenous user created *Variables*.
 
+        See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
+
         Parameters
         ----------
+        vars : list[str]
+            The variable tags which to determine sensitivities for.
         curves : Curve, str or list of such, optional
             A single :class:`~rateslib.curves.Curve` or id or a list of such.
             A list defines the following curves in the order:
@@ -374,7 +378,7 @@ class Sensitivities:
         solver : Solver, optional
             The :class:`~rateslib.solver.Solver` that calibrates
             *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
+                fx : float, FXRates, FXForwards, optional
             The immediate settlement FX rate that will be used to convert values
             into another currency. A given `float` is used directly. If giving a
             :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
@@ -386,11 +390,17 @@ class Sensitivities:
         local : bool, optional
             If `True` will ignore ``base`` - this is equivalent to setting ``base`` to *None*.
             Included only for argument signature consistent with *npv*.
+        vars_scalar : list[float], optional
+            Scaling factors for each variable, for example converting rates to basis point etc.
+            Defaults to ones.
+        vars_labels : list[str], optional
+            Alternative names to relabel variables in DataFrames.
 
         Returns
         -------
         DataFrame
         """
+
         if solver is NoInput.blank:
             raise ValueError("`solver` is required for delta/gamma methods.")
         npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
@@ -405,12 +415,7 @@ class Sensitivities:
         if local:
             base_ = NoInput(0)
         return solver.exo_delta(
-            npv=npv,
-            vars=vars,
-            base=base_,
-            fx=fx_,
-            vars_scalar=vars_scalar,
-            vars_labels=vars_labels
+            npv=npv, vars=vars, base=base_, fx=fx_, vars_scalar=vars_scalar, vars_labels=vars_labels
         )
 
     def gamma(

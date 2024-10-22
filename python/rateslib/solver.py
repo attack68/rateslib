@@ -1397,7 +1397,8 @@ class Solver(Gradients):
         Parameters
         ----------
         npv : dict,
-            The NPV (Dual) of the instrument or portfolio of instruments to risk. Must be indexed by 3-digit currency
+            The NPV (Dual) of the instrument or portfolio of instruments to risk.
+            Must be indexed by 3-digit currency
             to discriminate between values expressed in different currencies.
         base : str, optional
             The currency (3-digit code) to report risk metrics in. If not given will
@@ -1923,9 +1924,40 @@ class Solver(Gradients):
         vars_scalar: list[float] | NoInput = NoInput(0),
         vars_labels: list[str] | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-        fx=NoInput(0)
+        fx=NoInput(0),
     ) -> DataFrame:
-        """Calculate risk sensitivity to a manually embedded variable in the *Solver Instruments* and the ``npv``."""
+        """
+        Calculate risk sensitivity to user defined, exogenous variables in the
+        *Solver Instruments* and the ``npv``.
+
+        See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
+
+        Parameters
+        -----------
+        npv : dict,
+            The NPV (Dual) of the instrument or portfolio of instruments to risk.
+            Must be indexed by 3-digit currency
+            to discriminate between values expressed in different currencies.
+        vars : list[str]
+            The variable tags which to determine sensitivities for.
+        vars_scalar : list[float], optional
+            Scaling factors for each variable, for example converting rates to basis point etc.
+            Defaults to ones.
+        vars_labels : list[str], optional
+            Alternative names to relabel variables in DataFrames.
+        base : str, optional
+            The currency (3-digit code) to report risk metrics in. If not given will
+            default to the local currency of the cashflows.
+        fx : FXRates, FXForwards, optional
+            The FX object to use to convert risk metrics. If needed but not given
+            will default to the ``fx`` object associated with the
+            :class:`~rateslib.solver.Solver`. It is not recommended to use this
+            argument with multi-currency instruments, see notes.
+
+        Returns
+        -------
+        DataFrame
+        """
 
         base, fx = self._get_base_and_fx(base, fx)
         if vars_scalar is NoInput.blank:
@@ -1941,8 +1973,10 @@ class Solver(Gradients):
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[("exogenous", ccy, base)] = (
-                        self.grad_f_Pbase(npv[ccy], container[("exogenous", ccy, ccy)] / vars_scalar, f, vars)
-                        * vars_scalar
+                    self.grad_f_Pbase(
+                        npv[ccy], container[("exogenous", ccy, ccy)] / vars_scalar, f, vars
+                    )
+                    * vars_scalar
                 )
 
         # construct the DataFrame from container with hierarchical indexes

@@ -4,7 +4,7 @@ from statistics import NormalDist
 import numpy as np
 import pytest
 from packaging import version
-from rateslib import default_context, FXRates, dt, IRS, Solver, Curve
+from rateslib import IRS, Curve, FXRates, Solver, default_context, dt
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -957,7 +957,6 @@ class TestVariable:
         assert f * v == Dual(1.5 * 2.5, ["x"], [4.0])
         assert f / v == Dual(1.5, ["x"], [1.0]) / Dual(2.5, ["x"], [1.0])
 
-
     @pytest.mark.parametrize(
         ("op", "exp"),
         [
@@ -1084,9 +1083,7 @@ class TestVariable:
     def test_z_exogenous_example(self):
         curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
         solver = Solver(
-            curves=[curve],
-            instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)],
-            s=[2.50]
+            curves=[curve], instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)], s=[2.50]
         )
         irs = IRS(
             effective=dt(2000, 1, 1),
@@ -1104,10 +1101,6 @@ class TestVariable:
         exp1 = irs.analytic_delta(curve)
         exp2 = irs.analytic_delta(curve, leg=2)
 
-        assert abs(exp0 - result.iloc[0,0]) < 1e-8
-        assert abs(exp1 + result.iloc[1,0]) < 1e-8
-        assert abs(exp2 + result.iloc[2,0]) < 1e-8
-
-
-
-
+        assert abs(exp0 - result.iloc[0, 0]) < 1e-8
+        assert abs(exp1 + result.iloc[1, 0]) < 1e-8
+        assert abs(exp2 + result.iloc[2, 0]) < 1e-8
