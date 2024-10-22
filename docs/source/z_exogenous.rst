@@ -55,9 +55,9 @@ instruments too) so the financial exposure for 1 unit of notional is just its *n
 
    irs.npv(curves=curve) / 5e6
 
-But this can be captured using :meth:`~rateslib.instruments.Sensitivities.exo_delta`.
+But this can be captured using :meth:`~rateslib.instruments.core.Sensitivities.exo_delta`.
 
 .. ipython:: python
 
-   irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=Variable(5e6, ["N"]), curves=curve)
+   irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=Variable(5e6, ["N"], [12.0]), curves=curve)
    irs.exo_delta(solver=solver, vars=["N"])
