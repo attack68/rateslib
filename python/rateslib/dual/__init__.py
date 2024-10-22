@@ -7,9 +7,7 @@ from typing import Union
 
 import numpy as np
 
-from rateslib import defaults
-from rateslib.default import NoInput
-from rateslib.dual.variable import Variable, FLOATS, INTS
+from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
@@ -299,6 +297,7 @@ def _get_adorder(order: int):
         return ADOrder.Two
     else:
         raise ValueError("Order for AD can only be in {0,1,2}")
+
 
 __all__ = [
     "Dual",

@@ -1,5 +1,6 @@
-import numpy as np
 import math
+
+import numpy as np
 
 from rateslib import defaults
 from rateslib.default import NoInput
@@ -9,9 +10,11 @@ PRECISION = 1e-14
 FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
 INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 
+
 class Variable:
     """
-    A user defined, exogenous variable that automatically converts to a :class:`~rateslib.variable.Dual` or
+    A user defined, exogenous variable that automatically converts to a
+    :class:`~rateslib.variable.Dual` or
     :class:`~rateslib.variable.Dual2` type dependent upon the overall AD calculation order.
 
     Parameters
@@ -52,10 +55,15 @@ class Variable:
         elif order == 2:
             return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
         else:
-            raise TypeError(f"`Variable` can only be converted with `order` in [1, 2], got order: {order}.")
+            raise TypeError(
+                f"`Variable` can only be converted with `order` in [1, 2], got order: {order}."
+            )
 
     def __eq__(self, argument):
-        """Compare an argument with a Variable for equality. This does not account for variable ordering."""
+        """
+        Compare an argument with a Variable for equality.
+        This does not account for variable ordering.
+        """
         if not isinstance(argument, type(self)):
             return False
         if self.vars == argument.vars:
@@ -64,11 +72,10 @@ class Variable:
 
     def __eq_coeffs__(self, argument, precision):
         """Compare the coefficients of two dual array numbers for equality."""
-        if not math.isclose(self.real, argument.real, abs_tol=precision):
-            return False
-        elif not np.all(np.isclose(self.dual, argument.dual, atol=precision)):
-            return False
-        return True
+        return not (
+            not math.isclose(self.real, argument.real, abs_tol=precision)
+            or not np.all(np.isclose(self.dual, argument.dual, atol=precision))
+        )
 
     def __float__(self):
         return self.real
