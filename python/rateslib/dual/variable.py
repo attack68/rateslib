@@ -14,16 +14,16 @@ INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 class Variable:
     """
     A user defined, exogenous variable that automatically converts to a
-    :class:`~rateslib.variable.Dual` or
-    :class:`~rateslib.variable.Dual2` type dependent upon the overall AD calculation order.
+    :class:`~rateslib.dual.Dual` or
+    :class:`~rateslib.dual.Dual2` type dependent upon the overall AD calculation order.
 
     Parameters
     ----------
     real : float
-        The real coefficient of the dual number
+        The real coefficient of the underlying dual number.
     vars : tuple of str, optional
         The labels of the variables for which to record derivatives. If not given
-        the dual number represents a constant, equivalent to an int or float.
+        the *Variable* represents a constant - it would be better to define just a float.
     dual : 1d ndarray, optional
         First derivative information contained as coefficient of linear manifold.
         Defaults to an array of ones the length of ``vars`` if not given.
