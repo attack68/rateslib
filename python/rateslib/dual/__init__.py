@@ -7,15 +7,13 @@ from typing import Union
 
 import numpy as np
 
+from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
-INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
-
-DualTypes = Union[float, Dual, Dual2]
+DualTypes = Union[float, Dual, Dual2, Variable]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -94,7 +92,7 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
 
     Parameters
     ----------
-    dual : Dual or Dual2
+    dual : Dual, Dual2, Variable
         The dual variable from which to derive derivatives.
     vars : str, tuple, list optional
         Name of the variables which to return gradients for. If not given
@@ -112,9 +110,11 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
     -------
     float, ndarray, Dual2
     """
-    if not isinstance(dual, (Dual, Dual2)):
+    if not isinstance(dual, (Dual, Dual2, Variable)):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
+        if isinstance(dual, Variable):
+            dual = Dual(dual.real, vars=dual.vars, dual=dual.dual)
         if vars is None and not keep_manifold:
             return dual.dual
         elif vars is not None and not keep_manifold:
@@ -124,6 +124,8 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
         return np.asarray(_)
 
     elif order == 2:
+        if isinstance(dual, Variable):
+            dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
         if vars is None:
             return 2.0 * dual.dual2
         else:
@@ -138,14 +140,14 @@ def dual_exp(x):
 
     Parameters
     ----------
-    x : int, float, Dual, Dual2
+    x : int, float, Dual, Dual2, Variable
         Value to calculate exponent of.
 
     Returns
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         return x.__exp__()
     return math.exp(x)
 
@@ -156,7 +158,7 @@ def dual_log(x, base=None):
 
     Parameters
     ----------
-    x : int, float, Dual, Dual2
+    x : int, float, Dual, Dual2, Variable
         Value to calculate exponent of.
     base : int, float, optional
         Base of the logarithm. Defaults to e to compute natural logarithm
@@ -165,7 +167,7 @@ def dual_log(x, base=None):
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         val = x.__log__()
         if base is None:
             return val
@@ -183,7 +185,7 @@ def dual_norm_pdf(x):
 
     Parameters
     ----------
-    x : float, Dual, Dual2
+    x : float, Dual, Dual2, Variable
 
     Returns
     -------
@@ -198,13 +200,13 @@ def dual_norm_cdf(x):
 
     Parameters
     ----------
-    x : float, Dual, Dual2
+    x : float, Dual, Dual2, Variable
 
     Returns
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         return x.__norm_cdf__()
     else:
         return NormalDist().cdf(x)
@@ -216,13 +218,13 @@ def dual_inv_norm_cdf(x):
 
     Parameters
     ----------
-    x : float, Dual, Dual2
+    x : float, Dual, Dual2, Variable
 
     Returns
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         return x.__norm_inv_cdf__()
     else:
         return NormalDist().inv_cdf(x)
@@ -233,6 +235,10 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     Solve a linear system of equations involving dual number data types.
 
     The `x` value is found for the equation :math:`Ax=b`.
+
+    .. warning::
+
+       This method has not yet implemented :class:`~rateslib.dual.Variable` types.
 
     Parameters
     ----------
@@ -291,3 +297,19 @@ def _get_adorder(order: int):
         return ADOrder.Two
     else:
         raise ValueError("Order for AD can only be in {0,1,2}")
+
+
+__all__ = [
+    "Dual",
+    "Dual2",
+    "Variable",
+    "dual_log",
+    "dual_exp",
+    "dual_solve",
+    "dual_norm_pdf",
+    "dual_norm_cdf",
+    "dual_inv_norm_cdf",
+    "gradient",
+    "set_order_convert",
+    "set_order",
+]
