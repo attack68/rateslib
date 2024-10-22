@@ -7,10 +7,12 @@
    from rateslib.instruments import *
    from rateslib.calendars import add_tenor
    from rateslib.solver import Solver
+   from rateslib import defaults
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
    from pandas import DataFrame, option_context
+   defaults.reset_defaults()
 
 Replicating a Pfizer Default Curve & CDS from Bloomberg's CDSW
 *****************************************************************
@@ -197,7 +199,7 @@ numerical integrations of CDS protection and premium legs).
    cds.rate(solver=pfizer_sv)  # this compares to BBG: "Trd Sprd (bp)"
    cds.npv(solver=pfizer_sv)  # this compares to BBG: "Cash Amount"
    cds.analytic_delta(hazard_curve, disc_curve)
-   cds.accrued(dt(2022, 10, 7))  # this is 17 days of accrued
+   cds.accrued(dt(2024, 10, 7))  # this is 17 days of accrued
    cds.delta(solver=pfizer_sv).groupby("solver").sum()  # this compares to: "Spread DV01" and "IR DV01"
 
 .. image:: _static/cdsw_2.png

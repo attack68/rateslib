@@ -4,7 +4,7 @@ from statistics import NormalDist
 import numpy as np
 import pytest
 from packaging import version
-from rateslib import default_context
+from rateslib import default_context, FXRates, dt, IRS, Solver, Curve
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -1080,3 +1080,23 @@ class TestVariable:
         var = Variable(0.5, ["x"])
         result = func(var)
         assert result == exp
+
+    def test_z_exogenous_example(self):
+        fxr = FXRates({"eurusd": 1.10, "gbpusd": 1.25}, settlement=dt(2000, 1, 1))
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
+        solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)],
+            s=[2.50]
+        )
+        irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=5e6, curves="curve")
+        comparison = irs.npv(solver=solver) / 5e6
+
+        irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=5e6*Variable(1.0, ["N"]), curves="curve")
+        npv = irs.npv(solver=solver)
+        result = irs.exo_delta(vars=["N"], solver=solver)
+
+        assert False
+
+
+

@@ -72,6 +72,18 @@ class Variable:
             return self.__eq_coeffs__(argument, PRECISION)
         return False
 
+    def __lt__(self, other):
+        return self.real.__lt__(other)
+
+    def __le__(self, other):
+        return self.real.__le__(other)
+
+    def __gt__(self, other):
+        return self.real.__gt__(other)
+
+    def __ge__(self, other):
+        return self.real.__ge__(other)
+
     def __eq_coeffs__(self, argument, precision):
         """Compare the coefficients of two dual array numbers for equality."""
         return not (

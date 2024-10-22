@@ -404,7 +404,14 @@ class Sensitivities:
         )
         if local:
             base_ = NoInput(0)
-        return solver.delta(npv, base_, fx_)
+        return solver.exo_delta(
+            npv=npv,
+            vars=vars,
+            base=base_,
+            fx=fx_,
+            vars_scalar=vars_scalar,
+            vars_labels=vars_labels
+        )
 
     def gamma(
         self,
