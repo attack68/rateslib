@@ -952,6 +952,38 @@ class TestVariable:
         result = getattr(v, op)(f)
         assert result == exp
 
+    @pytest.mark.parametrize("op, exp", [
+        ("__add__", Dual(4.0, ["x"], [2])),
+        ("__radd__", Dual(4.0, ["x"], [2])),
+        ("__sub__", Dual(1.0, ["x"], [0])),
+        ("__rsub__", Dual(-1.0, ["x"], [0])),
+        ("__mul__", Dual(1.5, ["x"], [1.0]) * Dual(2.5, ["x"], [1.0])),
+        ("__rmul__", Dual(1.5, ["x"], [1.0]) * Dual(2.5, ["x"], [1.0])),
+        ("__truediv__", Dual(2.5, ["x"], []) / Dual(1.5, ["x"], [])),
+    ])
+    def test_variable_variable_ad1(self, op, exp):
+        f = Variable(1.5, ("x",))
+        v = Variable(2.5, ("x",))
+        with default_context("_global_ad_order", 1):
+            result = getattr(v, op)(f)
+            assert result == exp
+
+    @pytest.mark.parametrize("op, exp", [
+        ("__add__", Dual2(4.0, ["x"], [2], [])),
+        ("__radd__", Dual2(4.0, ["x"], [2], [])),
+        ("__sub__", Dual2(1.0, ["x"], [0], [])),
+        ("__rsub__", Dual2(-1.0, ["x"], [0], [])),
+        ("__mul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+        ("__rmul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+        ("__truediv__", Dual2(2.5, ["x"], [], []) / Dual2(1.5, ["x"], [], [])),
+    ])
+    def test_variable_variable_ad2(self, op, exp):
+        f = Variable(1.5, ("x",))
+        v = Variable(2.5, ("x",))
+        with default_context("_global_ad_order", 2):
+            result = getattr(v, op)(f)
+            assert result == exp
+
     @pytest.mark.parametrize("op, ad, exp", [
         ("__exp__", 1, Dual(2.5, ["x"], []).__exp__()),
         ("__exp__", 2, Dual2(2.5, ["x"], [], []).__exp__()),
