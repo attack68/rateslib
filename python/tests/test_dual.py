@@ -6,7 +6,7 @@ import pytest
 from packaging import version
 
 from rateslib import default_context
-from rateslib.dual import (
+from rateslib.dual.dual import (
     Dual,
     Dual2,
     dual_exp,
@@ -985,14 +985,18 @@ class TestVariable:
             assert result == exp
 
     @pytest.mark.parametrize("op, ad, exp", [
-        ("__exp__", 1, Dual(2.5, ["x"], []).__exp__()),
-        ("__exp__", 2, Dual2(2.5, ["x"], [], []).__exp__()),
-        ("__log__", 1, Dual(2.5, ["x"], []).__log__()),
-        ("__log__", 2, Dual2(2.5, ["x"], [], []).__log__()),
+        ("__exp__", 1, Dual(0.5, ["x"], []).__exp__()),
+        ("__exp__", 2, Dual2(0.5, ["x"], [], []).__exp__()),
+        ("__log__", 1, Dual(0.5, ["x"], []).__log__()),
+        ("__log__", 2, Dual2(0.5, ["x"], [], []).__log__()),
+        ("__norm_cdf__", 1, Dual(0.5, ["x"], []).__norm_cdf__()),
+        ("__norm_cdf__", 2, Dual2(0.5, ["x"], [], []).__norm_cdf__()),
+        ("__norm_inv_cdf__", 1, Dual(0.5, ["x"], []).__norm_inv_cdf__()),
+        ("__norm_inv_cdf__", 2, Dual2(0.5, ["x"], [], []).__norm_inv_cdf__()),
     ])
     def test_variable_funcs(self, op, ad, exp):
         with default_context("_global_ad_order", ad):
-            var = Variable(2.5, ["x"])
+            var = Variable(0.5, ["x"])
             result = getattr(var, op)()
             assert result == exp
 
@@ -1005,3 +1009,17 @@ class TestVariable:
             var = Variable(2.5, ["x"])
             result = getattr(var, op)(2)
             assert result == exp
+
+    @pytest.mark.parametrize("order, exp", [(1, 2.0), (2, 0.0)])
+    def test_gradient(self, order, exp):
+        var = Variable(2.0, ["x"], [2.0])
+        result  = gradient(var, ["x"], order=order)[0]
+        assert result == exp
+
+    def test_eq(self):
+        v1 = Variable(1.0, ["x", "y"])
+        v2 = Variable(1.0, ["x", "y"])
+        assert v1 == v2
+
+
+

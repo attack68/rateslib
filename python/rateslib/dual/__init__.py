@@ -97,7 +97,7 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
 
     Parameters
     ----------
-    dual : Dual or Dual2
+    dual : Dual, Dual2, Variable
         The dual variable from which to derive derivatives.
     vars : str, tuple, list optional
         Name of the variables which to return gradients for. If not given
@@ -115,9 +115,11 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
     -------
     float, ndarray, Dual2
     """
-    if not isinstance(dual, (Dual, Dual2)):
+    if not isinstance(dual, (Dual, Dual2, Variable)):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
+        if isinstance(dual, Variable):
+            dual = Dual(dual.real, vars=dual.vars, dual=dual.dual)
         if vars is None and not keep_manifold:
             return dual.dual
         elif vars is not None and not keep_manifold:
@@ -127,6 +129,8 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
         return np.asarray(_)
 
     elif order == 2:
+        if isinstance(dual, Variable):
+            dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
         if vars is None:
             return 2.0 * dual.dual2
         else:
@@ -141,14 +145,14 @@ def dual_exp(x):
 
     Parameters
     ----------
-    x : int, float, Dual, Dual2
+    x : int, float, Dual, Dual2, Variable
         Value to calculate exponent of.
 
     Returns
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         return x.__exp__()
     return math.exp(x)
 
@@ -159,7 +163,7 @@ def dual_log(x, base=None):
 
     Parameters
     ----------
-    x : int, float, Dual, Dual2
+    x : int, float, Dual, Dual2, Variable
         Value to calculate exponent of.
     base : int, float, optional
         Base of the logarithm. Defaults to e to compute natural logarithm
@@ -168,7 +172,7 @@ def dual_log(x, base=None):
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         val = x.__log__()
         if base is None:
             return val
@@ -186,7 +190,7 @@ def dual_norm_pdf(x):
 
     Parameters
     ----------
-    x : float, Dual, Dual2
+    x : float, Dual, Dual2, Variable
 
     Returns
     -------
@@ -201,13 +205,13 @@ def dual_norm_cdf(x):
 
     Parameters
     ----------
-    x : float, Dual, Dual2
+    x : float, Dual, Dual2, Variable
 
     Returns
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         return x.__norm_cdf__()
     else:
         return NormalDist().cdf(x)
@@ -219,13 +223,13 @@ def dual_inv_norm_cdf(x):
 
     Parameters
     ----------
-    x : float, Dual, Dual2
+    x : float, Dual, Dual2, Variable
 
     Returns
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2)):
+    if isinstance(x, (Dual, Dual2, Variable)):
         return x.__norm_inv_cdf__()
     else:
         return NormalDist().inv_cdf(x)
@@ -236,6 +240,10 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     Solve a linear system of equations involving dual number data types.
 
     The `x` value is found for the equation :math:`Ax=b`.
+
+    .. warning::
+
+       This method has not yet implemented :class:`~rateslib.dual.Variable` types.
 
     Parameters
     ----------
@@ -298,7 +306,8 @@ def _get_adorder(order: int):
 
 class Variable:
     """
-    Dual number data type to perform first derivative automatic differentiation.
+    A user defined, exogenous variable that automatically converts to a :class:`~rateslib.variable.Dual` or
+    :class:`~rateslib.variable.Dual2` type dependent upon the overall AD calculation order.
 
     Parameters
     ----------
@@ -310,7 +319,6 @@ class Variable:
     dual : 1d ndarray, optional
         First derivative information contained as coefficient of linear manifold.
         Defaults to an array of ones the length of ``vars`` if not given.
-
 
     Attributes
     ----------
@@ -332,6 +340,14 @@ class Variable:
             self.dual: np.ndarray = np.ones(n)
         else:
             self.dual = np.asarray(dual.copy())
+
+    def _to_dual_type(self, order):
+        if order == 1:
+            return Dual(self.real, vars=self.vars, dual=self.dual)
+        elif order == 2:
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+        else:
+            raise TypeError(f"`Variable` can only be converted with `order` in [1, 2], got order: {order}.")
 
     def __eq__(self, argument):
         """Compare an argument with a Variable for equality. This does not account for variable ordering."""
@@ -357,17 +373,9 @@ class Variable:
 
     def __add__(self, other):
         if isinstance(other, Variable):
-            if defaults._global_ad_order == 1:
-                # yield a Dual
-                _1 = Dual(self.real, vars=self.vars, dual=self.dual)
-                _2 = Dual(other.real, vars=other.vars, dual=other.dual)
-            elif defaults._global_ad_order == 2:
-                # yield a Dual2
-                _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-                _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
-            else:
-                raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
-            return _1 + _2
+            _1 = self._to_dual_type(defaults._global_ad_order)
+            _2 = other._to_dual_type(defaults._global_ad_order)
+            return _1.__add__(_2)
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real + float(other), vars=self.vars, dual=self.dual)
         elif isinstance(other, Dual):
@@ -390,17 +398,9 @@ class Variable:
 
     def __mul__(self, other):
         if isinstance(other, Variable):
-            if defaults._global_ad_order == 1:
-                # yield a Dual
-                _1 = Dual(self.real, vars=self.vars, dual=self.dual)
-                _2 = Dual(other.real, vars=other.vars, dual=other.dual)
-            elif defaults._global_ad_order == 2:
-                # yield a Dual2
-                _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-                _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
-            else:
-                raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
-            return _1 * _2
+            _1 = self._to_dual_type(defaults._global_ad_order)
+            _2 = other._to_dual_type(defaults._global_ad_order)
+            return _1.__mul__(_2)
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))
         elif isinstance(other, Dual):
@@ -417,17 +417,9 @@ class Variable:
 
     def __truediv__(self, other):
         if isinstance(other, Variable):
-            if defaults._global_ad_order == 1:
-                # yield a Dual
-                _1 = Dual(self.real, vars=self.vars, dual=self.dual)
-                _2 = Dual(other.real, vars=other.vars, dual=other.dual)
-            elif defaults._global_ad_order == 2:
-                # yield a Dual2
-                _1 = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-                _2 = Dual2(other.real, vars=other.vars, dual=other.dual, dual2=[])
-            else:
-                raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
-            return _1 / _2
+            _1 = self._to_dual_type(defaults._global_ad_order)
+            _2 = other._to_dual_type(defaults._global_ad_order)
+            return _1.__truediv__(_2)
         elif isinstance(other, (FLOATS, INTS)):
             return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))
         elif isinstance(other, Dual):
@@ -456,31 +448,13 @@ class Variable:
             raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
 
     def __exp__(self):
-        if defaults._global_ad_order == 1:
-            # yield a Dual
-            return Dual(self.real, vars=self.vars, dual=self.dual).__exp__()
-        elif defaults._global_ad_order == 2:
-            # yield a Dual2
-            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__exp__()
-        else:
-            raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+        _1 = self._to_dual_type(defaults._global_ad_order)
+        return _1.__exp__()
 
     def __log__(self):
-        if defaults._global_ad_order == 1:
-            # yield a Dual
-            return Dual(self.real, vars=self.vars, dual=self.dual).__log__()
-        elif defaults._global_ad_order == 2:
-            # yield a Dual2
-            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__log__()
-        else:
-            raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+        _1 = self._to_dual_type(defaults._global_ad_order)
+        return _1.__log__()
 
     def __pow__(self, exponent):
-        if defaults._global_ad_order == 1:
-            # yield a Dual
-            return Dual(self.real, vars=self.vars, dual=self.dual).__pow__(exponent)
-        elif defaults._global_ad_order == 2:
-            # yield a Dual2
-            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__pow__(exponent)
-        else:
-            raise TypeError("Binary op between `Variable` uses `defaults._global_ad_order` in [1, 2].")
+        _1 = self._to_dual_type(defaults._global_ad_order)
+        return _1.__pow__(exponent)
