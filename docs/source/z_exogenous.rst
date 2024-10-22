@@ -3,11 +3,12 @@
 .. ipython:: python
    :suppress:
 
-   from rateslib import FXRates, Curve, Solver, IRS
+   from rateslib import FXRates, Curve, Solver, IRS, Dual, Variable, defaults
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
    from pandas import DataFrame, option_context
+   defaults.reset_defaults()
 
 What are Exogenous Variables and Exogenous Sensitivities?
 *****************************************************************
@@ -37,9 +38,26 @@ all its parameters internally, so that it can calculate :meth:`~rateslib.solver.
        instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)],
        s=[2.50]
    )
-   IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0).npv(curves=curve)
+   irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=5e6)
+   irs.npv(curves=curve)
 
 **Exogneous variables**
 
 **Exogenous** variables are those created dynamically by a user. The only reason one would typically
 do this is to create a baseline for measuring some financial sensitivity.
+
+Start with an innocuous example. Suppose we wanted to capture the sensitivity of the *IRS* above
+to its notional. The *notional* is just a linear scaling factor for an *IRS* (and many other
+instruments too) so the financial exposure for 1 unit of notional is just its *npv* divided by its
+5 million notional
+
+.. ipython:: python
+
+   irs.npv(curves=curve) / 5e6
+
+But this can be captured using :meth:`~rateslib.instruments.Sensitivities.exo_delta`.
+
+.. ipython:: python
+
+   irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=Variable(5e6, ["N"]), curves=curve)
+   irs.exo_delta(solver=solver, vars=["N"])

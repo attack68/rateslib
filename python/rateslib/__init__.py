@@ -68,7 +68,7 @@ from rateslib.curves import (
     index_left,
     interpolate,
 )
-from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient, Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
@@ -155,6 +155,7 @@ __all__ = [
     # dual.py
     "Dual",
     "Dual2",
+    "Variable",
     "dual_log",
     "dual_exp",
     "dual_solve",
