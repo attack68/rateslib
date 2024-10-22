@@ -1082,21 +1082,32 @@ class TestVariable:
         assert result == exp
 
     def test_z_exogenous_example(self):
-        fxr = FXRates({"eurusd": 1.10, "gbpusd": 1.25}, settlement=dt(2000, 1, 1))
         curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
         solver = Solver(
             curves=[curve],
             instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)],
             s=[2.50]
         )
-        irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=5e6, curves="curve")
-        comparison = irs.npv(solver=solver) / 5e6
+        irs = IRS(
+            effective=dt(2000, 1, 1),
+            termination="6m",
+            frequency="S",
+            leg2_frequency="M",
+            fixed_rate=Variable(3.0, ["R"]),
+            notional=Variable(5e6, ["N"]),
+            leg2_float_spread=Variable(0.0, ["z"]),
+            curves="curve",
+        )
+        result = irs.exo_delta(vars=["N", "R", "z"], vars_scalar=[1.0, 0.01, 1.0], solver=solver)
 
-        irs = IRS(dt(2000, 1, 1), "6m", "S", fixed_rate=3.0, notional=5e6*Variable(1.0, ["N"]), curves="curve")
-        npv = irs.npv(solver=solver)
-        result = irs.exo_delta(vars=["N"], solver=solver)
+        exp0 = irs.npv(solver=solver) / 5e6
+        exp1 = irs.analytic_delta(curve)
+        exp2 = irs.analytic_delta(curve, leg=2)
 
-        assert False
+        assert abs(exp0 - result.iloc[0,0]) < 1e-8
+        assert abs(exp1 + result.iloc[1,0]) < 1e-8
+        assert abs(exp2 + result.iloc[2,0]) < 1e-8
+
 
 
 

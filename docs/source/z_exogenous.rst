@@ -136,11 +136,15 @@ very bottom in the Bloomberg screenshot is a calculated figure::
 
   Rec Risk (1%): 78.75
 
-This is the financial exposure if the recovery rate of Pfizer CDS increases by 1%. But, the
+This is the financial exposure of the constructed *CDS* if the recovery rate of Pfizer CDSs
+increase by 1%. But, the
 nuanced aspect of this value is that it is not what happens if the recovery rate of the
-constructed *CDS* changes in recovery rate (that is very easy to measure), but rather what
-happens if Pfizer's overall recovery rate changes, which impacts all of the calibrating
-instruments used in the construction of the hazard *Curve*.
+specifically constructed *CDS* changes in recovery rate (that is very easy to measure), but
+rather what
+happens if Pfizer's overall recovery rate changes for all its CDSs. This impacts all of
+the calibrating
+instruments used in the construction of the hazard *Curve*, and by implication all of the
+gradients attached to the *Solver*.
 
 We will replicate all of the code from that page, some of the variables are directly shown:
 
@@ -193,7 +197,7 @@ We will replicate all of the code from that page, some of the variables are dire
    us_rates_sv  # the Solver calibrating the SOFR curve
    hazard_curve  # the Pfizer hazard curve
 
-Now this time our calibrating *Instruments* will include sensitivity to the ``recovery_rate``
+Now, this time our calibrating *Instruments* will include sensitivity to the ``recovery_rate``
 which will be labelled as *"RR"*. This is an **exogenous** variable that we are directly
 injecting.
 
@@ -217,7 +221,7 @@ injecting.
        id="pfizer_cds"
    )
 
-Now if we create the same *CDS* to explore as the previous cookbook page and use
+If we next create the same *CDS* to explore as the previous cookbook page and use
 :meth:`~rateslib.instruments.Sensitivities.exo_delta` we expect something close to 78.75, if
 Bloomberg is correct and if we are replicating a similar setup to their model.
 
