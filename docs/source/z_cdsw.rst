@@ -197,3 +197,14 @@ numerical integrations of CDS protection and premium legs).
 .. image:: _static/cdsw_2.png
    :alt: Pfizer CDS data
    :width: 725
+
+Whe can also show the analytic risk if the recovery rate is increased by 1%. This is
+the PnL purely for this contract.
+
+.. ipython:: python
+
+   cds.analytic_rec_risk(hazard_curve, disc_curve)
+
+This does not compare with Bloomberg's `Rec Risk (1%)` of 78.75. To understand and return this
+value consider the follow up cookbook
+article :ref:`what are exogenous variables? <cook-exogenous-doc>`.
