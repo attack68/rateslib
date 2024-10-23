@@ -1207,7 +1207,7 @@ class TestCreditProtectionLeg:
         pv0 = leg.npv(hazard_curve, curve)
         leg.recovery_rate = 0.41
         pv1 = leg.npv(hazard_curve, curve)
-        expected = (pv1 - pv0)
+        expected = pv1 - pv0
 
         assert abs(result - expected) < 1e-7
 

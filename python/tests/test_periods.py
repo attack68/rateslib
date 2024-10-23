@@ -2018,7 +2018,7 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 1, 4),
             notional=1e9,
             frequency="Q",
-            recovery_rate=0.40
+            recovery_rate=0.40,
         )
 
         p1 = period.npv(hazard_curve, curve)
