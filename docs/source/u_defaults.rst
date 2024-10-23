@@ -51,6 +51,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - IIRS
      - FXSwap
      - FXOption
+     - CDS
    * - USD
      - :ref:`nyc <spec-usd-nyc>`, :ref:`fed <spec-usd-fed>`
      - :ref:`usd_irs <spec-usd-irs>`, :ref:`usd_irs_lt_2y <spec-usd-irs-lt-2y>`
@@ -63,6 +64,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     - :ref:`us_ig_cds <spec-us-ig-cds>`
    * - EUR
      - :ref:`tgt <spec-eur-tgt>`
      - :ref:`eur_irs <spec-eur-irs>`, :ref:`eur_irs3 <spec-eur-irs3>`, :ref:`eur_irs6 <spec-eur-irs6>`, :ref:`eur_irs1 <spec-eur-irs1>`
@@ -70,6 +72,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`eur_fra3 <spec-eur-fra3>`, :ref:`eur_fra6 <spec-eur-fra6>`, :ref:`eur_fra1 <spec-eur-fra1>`
      - :ref:`eur_sbs36 <spec-eur-sbs36>`
      - :ref:`eur_stir <spec-eur-stir>`, :ref:`eur_stir1 <spec-eur-stir1>`, :ref:`eur_stir3 <spec-eur-stir3>`
+     -
      -
      -
      -
@@ -87,6 +90,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - CHF
      - :ref:`zur <spec-chf-zur>`
      - :ref:`chf_irs <spec-chf-irs>`
@@ -99,11 +103,13 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - SEK
      - :ref:`stk <spec-sek-stk>`
      - :ref:`sek_irs <spec-sek-irs>`, :ref:`sek_irs3 <spec-sek-irs3>`
      -
      - :ref:`sek_fra3 <spec-sek-fra3>`
+     -
      -
      -
      -
@@ -123,12 +129,14 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - CAD
      - :ref:`tro <spec-cad-tro>`
      - :ref:`cad_irs <spec-cad-irs>`, :ref:`cad_irs_le_1y <spec-cad-irs-le-1y>`
      -
      - -
      - -
+     -
      -
      -
      -
@@ -147,6 +155,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - AUD
      - :ref:`syd <spec-aud-syd>`
      - :ref:`aud_irs <spec-aud-irs>`, :ref:`aud_irs3 <spec-aud-irs3>`, :ref:`aud_irs6 <spec-aud-irs6>`
@@ -159,10 +168,12 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - NZD
      - :ref:`wlg <spec-nzd-wlg>`
      - :ref:`nzd_irs3 <spec-nzd-irs3>`, :ref:`nzd_irs6 <spec-nzd-irs6>`
      - :ref:`nzdusd_xcs3 <spec-nzdusd-xcs3>`, :ref:`nzdaud_xcs3 <spec-nzdaud-xcs3>`
+     -
      -
      -
      -
@@ -243,6 +254,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/calendars.rst
     spec/irs.rst
     spec/xcs.rst
+    spec/cds.rst
     spec/sbs.rst
     spec/fra.rst
     spec/fixedratebond.rst

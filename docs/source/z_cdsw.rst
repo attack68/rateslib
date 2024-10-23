@@ -105,7 +105,7 @@ then calibrate the curve with proper CDS market instruments and prices.
        curves=[hazard_curve],
        pre_solvers=[us_rates_sv],
        instruments=[
-           CDS(cds_eff, _, frequency="Q", calendar="nyc", curves=["pfizer", "sofr"]) for _ in cds_mats
+           CDS(cds_eff, _, spec="us_ig_cds", curves=["pfizer", "sofr"]) for _ in cds_mats
        ],
        s=cds_rates,
        instrument_labels=cds_tenor,
@@ -166,7 +166,7 @@ Lets look at the structure of the hazard rates generated. To do this we plot the
        curves=[hazard_curve],
        pre_solvers=[us_rates_sv],
        instruments=[
-           CDS(cds_eff, _, frequency="Q", calendar="nyc", curves=["pfizer", "sofr"]) for _ in cds_mats
+           CDS(cds_eff, _, spec="us_ig_cds", curves=["pfizer", "sofr"]) for _ in cds_mats
        ],
        s=cds_rates,
        instrument_labels=cds_tenor,
@@ -194,13 +194,8 @@ numerical integrations of CDS protection and premium legs).
    cds = CDS(
        effective=dt(2024, 9, 20),
        termination=dt(2029, 12, 20),
-       frequency="q",
-       convention="act360",
-       calendar="nyc",
+       spec="us_ig_cds",
        curves=["pfizer", "sofr"],
-       fixed_rate=1.0,
-       recovery_rate=0.40,
-       premium_accrued=True,
        notional=10e6,
    )
    cds.rate(solver=pfizer_sv)  # this compares to BBG: "Trd Sprd (bp)"
