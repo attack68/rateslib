@@ -2695,6 +2695,182 @@ class MultiCsaCurve(CompositeCurve):
         return _
 
 
+class CreditImpliedCurve(Curve):
+    """
+    A dynamic composition of two other types of curve to imply a third.
+
+    Parameters
+    ----------
+    risk_free_curve : *Curve* type
+        An object capable of returning period rates. These rates are interpreted as the
+        risk free rates.
+    credit_curve : *Curve* type
+        An object capable of returning period rates. These rates are associated with those of
+        an entity which experiences a probability of failure, i.e. which can default.
+    hazard_curve : *Curve* type
+        An object capable of returning probabilities of survival.
+    recovery_rate : float
+        A recovery rate value in [0, 1].
+    id : str, optional, set by Default
+        The unique identifier to distinguish between curves in a multi-curve framework.
+    """  # noqa: E501
+
+    collateral = None
+
+    def __init__(
+        self,
+        risk_free_curve=NoInput(0),
+        credit_curve=NoInput(0),
+        hazard_curve=NoInput(0),
+        recovery_rate=NoInput(0),
+        id: str | NoInput = NoInput(0),
+    ) -> None:
+        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        curves = tuple()
+        for _ in [risk_free_curve, credit_curve, hazard_curve]:
+            curves += (NoInput(0) if _ is None else _,)
+        self.curves = curves
+        self._validate_curve_collection()
+
+        self.convention = self.implied_curve.convention
+        self.node_dates = self.implied_curve.node_dates
+        self.calendar = self.implied_curve.calendar
+        self.modifier = self.implied_curve.modifier
+
+    def _validate_curve_collection(self):
+        """Perform checks to ensure CreditImpliedCurve can exist"""
+        if sum([_ is NoInput.blank for _ in self.curves]) != 1:
+            raise ValueError(
+                "Precisely two of `risk_free_curve`, `credit_curve`, `hazard_curve`"
+                "must be supplied to a `CreditImpliedCurve`."
+            )
+
+        elif self.curves[0] is NoInput.blank:
+            self.implied_curve = "RiskFreeCurve"
+        elif self.curves[1] is NoInput.blank:
+            self.implied_curve = _ImpliedCreditCurve(
+                self.curves[0], self.curves[2], self.recovery_rate
+            )
+        elif self.curves[2] is NoInput.blank:
+            self.implied_curve = "HazardCurve"
+
+        if self.curves[2] is not NoInput.blank and self.curves[2]._base_type == "values":
+            raise ValueError(
+                "Supplied `hazard_curve` must be capable of providing probabilities"
+                "of survival. This is not possible from a 'values' base curve type."
+            )
+
+    def rate(
+        self,
+        effective: datetime,
+        termination: datetime | str | NoInput = NoInput(0),
+        modifier: str | bool | NoInput = False,
+    ):
+        """
+        Calculate the composited rate on the curve.
+
+        If rates are sought for dates prior to the initial node of the curve `None`
+        will be returned.
+
+        Parameters
+        ----------
+        effective : datetime
+            The start date of the period for which to calculate the rate.
+        termination : datetime or str
+            The end date of the period for which to calculate the rate.
+        modifier : str, optional
+            The day rule if determining the termination from tenor. If `False` is
+            determined from the `Curve` modifier.
+
+        Returns
+        -------
+        Dual, Dual2 or float
+        """
+        return super().rate(effective, termination, modifier)
+
+    def __getitem__(self, date: datetime):
+        return self.implied_curve[date]
+
+    def shift(
+        self,
+        spread: float,
+        id: str | NoInput = NoInput(0),
+        composite: bool | NoInput = True,
+        collateral: str | NoInput = NoInput(0),
+    ) -> CompositeCurve:
+        return NotImplementedError("CreditImpliedCurves cannot currently be shifted.")
+
+    def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
+        return NotImplementedError("CreditImpliedCurves cannot currently be translated.")
+
+    def roll(self, tenor: datetime | str) -> CompositeCurve:
+        return NotImplementedError("CreditImpliedCurves cannot currently be rolled.")
+
+    def _get_node_vector(self):
+        return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
+
+
+class _ImpliedCreditCurve:
+    """
+    Imply a credit curve from the data in a risk_free_curve and a hazard_curve.
+
+    Inputs are assumed to be valid: this is a private class.
+    """
+
+    def __init__(
+        self,
+        risk_free_curve,
+        hazard_curve,
+        recovery_rate,
+        df_min_step: int | NoInput = 1,
+        df_max_step: int | NoInput = 1825,
+    ):
+        self.recovery_rate = recovery_rate
+        self.curves = [risk_free_curve, hazard_curve]
+
+        self.df_min_step = df_min_step
+        self.df_max_step = df_max_step
+
+        self.node_dates = risk_free_curve.node_dates
+        self.calendar = risk_free_curve.calendar
+        self.convention = risk_free_curve.convention
+        self.modifier = risk_free_curve.modifier
+
+    def __getitem__(self, date):
+        # will return a composited discount factor
+        if date == self.curves[0].node_dates[0]:
+            return 1.0
+
+        # method sequentially determines DFs from given curve rates
+        k = 0
+        d1 = self.curves[0].node_dates[0]
+        ini_step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)
+        d2 = d1 + timedelta(days=ini_step)
+        v0, q0, u0, rr = 1.0, 1.0, 1.0, self.recovery_rate
+        while d2 < date:
+            k += 1
+            v1 = self.curves[0][d2]
+            q1 = self.curves[1][d2]
+            p = q0 - q1
+            # _ = ((v0 / v1) + (1-self.recovery_rate)*(q0 - q1)) / (1 - q0 + q1)
+            _ = ((v0 / v1) + p) / (1 - p * (1-rr))
+            u1 = u0 / _
+
+            step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)
+            d1, d2, v0, q0, u0 = d2, d2 + timedelta(days=step), v1, q1, u1
+
+        # finish the loop on the correct date
+        if date == d1:
+            return u0
+        else:
+            v1 = self.curves[0][date]
+            q1 = self.curves[1][date]
+            _ = ((v0 / v1) + (1 - self.recovery_rate) * (q0 - q1)) / (1 - q0 + q1)
+            u1 = u0 / _
+            return u1
+
+
 # class HazardCurve(Curve):
 #     """
 #     A subclass of :class:`~rateslib.curves.Curve` with additional methods for
@@ -2841,6 +3017,10 @@ class ProxyCurve(Curve):
 
     def _get_node_vector(self):
         return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
+
+
+def _get_step(step, min_step, max_step):
+    return min(max(step, min_step), max_step)
 
 
 def average_rate(effective, termination, convention, rate):
