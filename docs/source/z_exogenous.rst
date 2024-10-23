@@ -211,8 +211,7 @@ injecting.
            CDS(
                effective=cds_eff,
                termination=_,
-               frequency="Q",
-               calendar="nyc",
+               spec="us_ig_cds",
                recovery_rate=Variable(0.4, ["RR"]),  # <-- add exogenous variable exposure
                curves=["pfizer", "sofr"]
            ) for _ in cds_mats
@@ -231,20 +230,14 @@ Bloomberg is correct and if we are replicating a similar setup to their model.
    cds = CDS(
        effective=dt(2024, 9, 20),
        termination=dt(2029, 12, 20),
-       frequency="q",
-       convention="act360",
-       calendar="nyc",
+       spec="us_ig_cds",
        curves=["pfizer", "sofr"],
-       fixed_rate=1.0,
        recovery_rate=Variable(0.4, ["RR"]),  # <-- note the same "RR" variable
-       premium_accrued=True,
        notional=10e6,
    )
    cds.rate(solver=pfizer_sv)
    base_npv = cds.npv(solver=pfizer_sv)
    base_npv
-   cds.analytic_delta(hazard_curve, disc_curve)
-   cds.accrued(dt(2024, 10, 7))  # this is 17 days of accrued
    cds.exo_delta(vars=["RR"], vars_scalar=[0.01], solver=pfizer_sv)
 
 We can of course resort (just this once!) to numerical differentiation and see what happens there:
@@ -260,8 +253,7 @@ We can of course resort (just this once!) to numerical differentiation and see w
            CDS(
                effective=cds_eff,
                termination=_,
-               frequency="Q",
-               calendar="nyc",
+               spec="us_ig_cds",
                recovery_rate=0.41,  # <-- increase RR by 0.01
                curves=["pfizer", "sofr"]
            ) for _ in cds_mats
@@ -278,13 +270,9 @@ We can of course resort (just this once!) to numerical differentiation and see w
    cds = CDS(
        effective=dt(2024, 9, 20),
        termination=dt(2029, 12, 20),
-       frequency="q",
-       convention="act360",
-       calendar="nyc",
+       spec="us_ig_cds",
        curves=["pfizer", "sofr"],
-       fixed_rate=1.0,
        recovery_rate=0.41,  # <-- increase the RR by 0.01
-       premium_accrued=True,
        notional=10e6,
    )
 
