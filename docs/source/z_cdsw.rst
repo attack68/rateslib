@@ -112,8 +112,6 @@ then calibrate the curve with proper CDS market instruments and prices.
        id="pfizer_cds"
    )
 
-   hazard_curve.nodes
-
 Lets look at the structure of the hazard rates generated. To do this we plot the *'1d'* overnight rates of the
 *'pfizer'* hazard curve.
 
