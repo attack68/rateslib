@@ -17,14 +17,6 @@
 Replicating a Pfizer Default Curve & CDS from Bloomberg's CDSW
 *****************************************************************
 
-.. raw:: html
-
-   <div style="width: 100%; padding: 1em 0em 1em; text-align: center;">
-     <a href="https://rateslib.com/excel/latest/z_swpm.html" target="_blank">
-       <img src="_static/rlxl32.png" alt="SWPM type Curve in Excel using rateslib-excel" width="20">
-     </a>
-   </div>
-
 Some collected data at a point in time on Friday 4th Oct 2024 can be loaded into the CDSW function in Bloomberg
 for the single security Pfizer US, with the intention of pricing and risking a 5Y Pfizer CDS.
 The raw data necessary to build the curves and replicate the pricing risk metrics is added to Python.
