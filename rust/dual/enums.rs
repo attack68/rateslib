@@ -56,6 +56,17 @@ pub enum NumberPPSpline {
     Dual2(PPSplineDual2),
 }
 
+impl NumberPPSpline {
+    /// Return a reference to the knot sequence of the inner pp-spline.
+    pub fn t(&self) -> &Vec<f64> {
+        match self {
+            NumberPPSpline::F64(s) => s.inner.t(),
+            NumberPPSpline::Dual(s) => s.inner.t(),
+            NumberPPSpline::Dual2(s) => s.inner.t(),
+        }
+    }
+}
+
 /// Generic trait indicating a function exists to map one [Number] to another.
 ///
 /// An example of this trait is used by certain [PPSpline] indicating that an x-value as

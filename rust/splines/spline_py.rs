@@ -17,7 +17,7 @@ macro_rules! create_interface {
         #[pymethods]
         impl $name {
             #[new]
-            fn new(k: usize, t: Vec<f64>, c: Option<Vec<$type>>) -> Self {
+            fn new_py(k: usize, t: Vec<f64>, c: Option<Vec<$type>>) -> Self {
                 Self {
                     inner: PPSpline::new(k, t, c),
                 }
