@@ -29,6 +29,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`425 <https://github.com/attack68/rateslib/pull/425>`_)
        (`426 <https://github.com/attack68/rateslib/pull/426>`_)
    * - Instruments
+     - Add an additional method :meth:`~rateslib.instruments.CDS.analytic_rec_risk` to measure the
+       sensitivity of a change in ``recovery_rate`` for a :class:`~rateslib.instruments.CDS`.
+       (`448 <https://github.com/attack68/rateslib/pull/448>`_)
+   * - Instruments
      - Add the ``spec`` options; *'audusd_xcs'*, *'audusd_xcs3'*, *'nzdusd_xcs3'*, *'nzdaud_xcs3'*,
        *'us_ig_cds'*
        (`429 <https://github.com/attack68/rateslib/pull/429>`_)

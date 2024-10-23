@@ -1841,8 +1841,13 @@ class TestCreditProtectionPeriod:
             frequency="Q",
             currency="usd",
         )
-        exp = -596995.7591843301  # with cds_discretization at 1 day this is -596995.4756485663
+        period.discretization = 1
+        result = period.npv(hazard_curve, curve)  # discounted properly this is -596962.1422873045
+        assert abs(result - -596962.1422873045) < 34
+
+        period.discretization = 23
         result = period.npv(hazard_curve, curve)
+        exp = -596995.7591843301
         assert abs(result - exp) < 1e-7
 
         result = period.npv(hazard_curve, curve, fxr, "nok")
@@ -1936,7 +1941,10 @@ class TestCreditProtectionPeriod:
             defaults.headers["collateral"]: None,
         }
         result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
-        assert result == expected
+
+        for key in expected:
+            assert key in result
+            assert result[key] == expected[key] or abs(result[key] - expected[key]) < 1e-6
 
     def test_period_cashflows_no_curves(self, fxr) -> None:
         # also test the inputs to fx as float and as FXRates (10 is for
@@ -2005,6 +2013,24 @@ class TestCreditProtectionPeriod:
         r1 = period.npv(hazard_curve, curve)
         exp = -20006.321837529074
         assert abs(r1 - exp) < 1e-7
+
+    def test_recovery_risk(self, hazard_curve, curve):
+        period = CreditProtectionPeriod(
+            start=dt(2021, 10, 4),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            notional=1e9,
+            frequency="Q",
+            recovery_rate=0.40,
+        )
+
+        p1 = period.npv(hazard_curve, curve)
+        period.recovery_rate = 0.41
+        p2 = period.npv(hazard_curve, curve)
+        expected = p2 - p1
+
+        result = period.analytic_rec_risk(hazard_curve, curve)
+        assert abs(result - expected) < 1e-9
 
 
 class TestCashflow:

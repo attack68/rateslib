@@ -36,6 +36,7 @@ from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -2051,6 +2052,7 @@ class CreditProtectionPeriod(BasePeriod):
                 s2 = self.end
             q2, v2 = curve[s2], disc_curve[s2]
             value += 0.5 * (v1 + v2) * (q1 - q2)
+            # value += v2 * (q1 - q2)
 
         value *= self.cashflow
         return _maybe_local(value, local, self.currency, fx, base)
@@ -2099,6 +2101,33 @@ class CreditProtectionPeriod(BasePeriod):
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
+
+    def analytic_rec_risk(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> float:
+        """
+        Calculate the exposure of the NPV to a change in recovery rate.
+
+        For parameters see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+
+        Returns
+        -------
+        float
+        """
+        rr = self.recovery_rate
+        if isinstance(rr, (Dual, Dual2, Variable)):
+            self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
+        else:
+            self.recovery_rate = Variable(float(rr), ["__recovery_rate__"])
+        pv = self.npv(curve, disc_curve, fx, base, False)
+        self.recovery_rate = rr
+        _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        return _ * 0.01
 
 
 class Cashflow:
