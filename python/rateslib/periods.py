@@ -36,13 +36,13 @@ from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
     gradient,
-    Variable,
 )
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import (
