@@ -4,13 +4,16 @@ from statistics import NormalDist
 import numpy as np
 import pytest
 from packaging import version
+from rateslib import IRS, Curve, FXRates, Solver, default_context, dt
 from rateslib.dual import (
     Dual,
     Dual2,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
+    dual_norm_pdf,
     dual_solve,
     gradient,
     set_order,
@@ -889,3 +892,215 @@ def test_numpy_dtypes(z, dtype) -> None:
 
     z + dtype(2)
     dtype(2) + z
+
+
+class TestVariable:
+    @pytest.mark.parametrize(
+        ("op", "exp"),
+        [
+            ("__add__", Variable(4.0, ["x"])),
+            ("__radd__", Variable(4.0, ["x"])),
+            ("__sub__", Variable(1.0, ["x"])),
+            ("__rsub__", -Variable(1.0, ["x"])),
+            ("__mul__", Variable(3.75, ["x"], [1.5])),
+            ("__rmul__", Variable(3.75, ["x"], [1.5])),
+            ("__truediv__", Variable(2.5 / 1.5, ["x"], [1.0 / 1.5])),
+            ("__rtruediv__", Dual(1.5, [], []) / Dual(2.5, ["x"], [])),
+        ],
+    )
+    def test_variable_f64(self, op, exp):
+        with default_context("_global_ad_order", 1):
+            f = 1.5
+            v = Variable(2.5, ("x",))
+            result = getattr(v, op)(f)
+            assert result == exp
+
+    def test_variable_f64_reverse(self):
+        v = Variable(2.5, ("x",))
+        assert (1.5 + v) == Variable(4.0, ["x"], [])
+        assert (1.5 - v) == Variable(-1.0, ["x"], [-1.0])
+        assert (1.5 * v) == Variable(1.5 * 2.5, ["x"], [1.5])
+        assert (1.5 / v) == Dual(1.5, [], []) / Dual(2.5, ["x"], [])
+
+    def test_rtruediv_global_ad(self):
+        exp = Dual2(1.5, [], [], []) / Dual2(2.5, ["x"], [], [])
+        with default_context("_global_ad_order", 2):
+            f = 1.5
+            v = Variable(2.5, ("x",))
+            result = f / v
+            assert result == exp
+
+    @pytest.mark.parametrize(
+        ("op", "exp"),
+        [
+            ("__add__", Dual(4.0, ["x"], [2])),
+            ("__radd__", Dual(4.0, ["x"], [2])),
+            ("__sub__", Dual(1.0, ["x"], [0])),
+            ("__rsub__", Dual(-1.0, ["x"], [0])),
+            ("__mul__", Dual(3.75, ["x"], [4.0])),
+            ("__rmul__", Dual(3.75, ["x"], [4.0])),
+            ("__truediv__", Dual(2.5, ["x"], []) / Dual(1.5, ["x"], [])),
+            ("__rtruediv__", Dual(1.5, ["x"], []) / Dual(2.5, ["x"], [])),
+        ],
+    )
+    def test_variable_dual(self, op, exp):
+        f = Dual(1.5, ["x"], [])
+        v = Variable(2.5, ("x",))
+        result = getattr(v, op)(f)
+        assert result == exp
+
+    def test_variable_dual_reverse(self):
+        f = Dual(1.5, ["x"], [])
+        v = Variable(2.5, ("x",))
+        assert f + v == Dual(4.0, ["x"], [2.0])
+        assert f - v == Dual(-1.0, ["x"], [0.0])
+        assert f * v == Dual(1.5 * 2.5, ["x"], [4.0])
+        assert f / v == Dual(1.5, ["x"], [1.0]) / Dual(2.5, ["x"], [1.0])
+
+    @pytest.mark.parametrize(
+        ("op", "exp"),
+        [
+            ("__add__", Dual2(4.0, ["x"], [2], [])),
+            ("__radd__", Dual2(4.0, ["x"], [2], [])),
+            ("__sub__", Dual2(1.0, ["x"], [0], [])),
+            ("__rsub__", Dual2(-1.0, ["x"], [0], [])),
+            ("__mul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+            ("__rmul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+            ("__truediv__", Dual2(2.5, ["x"], [], []) / Dual2(1.5, ["x"], [], [])),
+            ("__rtruediv__", Dual2(1.5, ["x"], [], []) / Dual2(2.5, ["x"], [], [])),
+        ],
+    )
+    def test_variable_dual2(self, op, exp):
+        f = Dual2(1.5, ["x"], [], [])
+        v = Variable(2.5, ("x",))
+        result = getattr(v, op)(f)
+        assert result == exp
+
+    def test_variable_dual2_reverse(self):
+        f = Dual2(1.5, ["x"], [], [])
+        v = Variable(2.5, ("x",))
+        assert f + v == Dual2(4.0, ["x"], [2.0], [])
+        assert f - v == Dual2(-1.0, ["x"], [0.0], [])
+        assert f * v == Dual2(1.5, ["x"], [], []) * Dual2(2.5, ["x"], [], [])
+        assert f / v == Dual2(1.5, ["x"], [], []) / Dual2(2.5, ["x"], [], [])
+
+    @pytest.mark.parametrize(
+        ("op", "exp"),
+        [
+            ("__add__", Dual(4.0, ["x"], [2])),
+            ("__radd__", Dual(4.0, ["x"], [2])),
+            ("__sub__", Dual(1.0, ["x"], [0])),
+            ("__rsub__", Dual(-1.0, ["x"], [0])),
+            ("__mul__", Dual(1.5, ["x"], [1.0]) * Dual(2.5, ["x"], [1.0])),
+            ("__rmul__", Dual(1.5, ["x"], [1.0]) * Dual(2.5, ["x"], [1.0])),
+            ("__truediv__", Dual(2.5, ["x"], []) / Dual(1.5, ["x"], [])),
+        ],
+    )
+    def test_variable_variable_ad1(self, op, exp):
+        f = Variable(1.5, ("x",))
+        v = Variable(2.5, ("x",))
+        with default_context("_global_ad_order", 1):
+            result = getattr(v, op)(f)
+            assert result == exp
+
+    @pytest.mark.parametrize(
+        ("op", "exp"),
+        [
+            ("__add__", Dual2(4.0, ["x"], [2], [])),
+            ("__radd__", Dual2(4.0, ["x"], [2], [])),
+            ("__sub__", Dual2(1.0, ["x"], [0], [])),
+            ("__rsub__", Dual2(-1.0, ["x"], [0], [])),
+            ("__mul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+            ("__rmul__", Dual2(1.5, ["x"], [1.0], []) * Dual2(2.5, ["x"], [1.0], [])),
+            ("__truediv__", Dual2(2.5, ["x"], [], []) / Dual2(1.5, ["x"], [], [])),
+        ],
+    )
+    def test_variable_variable_ad2(self, op, exp):
+        f = Variable(1.5, ("x",))
+        v = Variable(2.5, ("x",))
+        with default_context("_global_ad_order", 2):
+            result = getattr(v, op)(f)
+            assert result == exp
+
+    @pytest.mark.parametrize(
+        ("op", "ad", "exp"),
+        [
+            ("__exp__", 1, Dual(0.5, ["x"], []).__exp__()),
+            ("__exp__", 2, Dual2(0.5, ["x"], [], []).__exp__()),
+            ("__log__", 1, Dual(0.5, ["x"], []).__log__()),
+            ("__log__", 2, Dual2(0.5, ["x"], [], []).__log__()),
+            ("__norm_cdf__", 1, Dual(0.5, ["x"], []).__norm_cdf__()),
+            ("__norm_cdf__", 2, Dual2(0.5, ["x"], [], []).__norm_cdf__()),
+            ("__norm_inv_cdf__", 1, Dual(0.5, ["x"], []).__norm_inv_cdf__()),
+            ("__norm_inv_cdf__", 2, Dual2(0.5, ["x"], [], []).__norm_inv_cdf__()),
+        ],
+    )
+    def test_variable_funcs(self, op, ad, exp):
+        with default_context("_global_ad_order", ad):
+            var = Variable(0.5, ["x"])
+            result = getattr(var, op)()
+            assert result == exp
+
+    @pytest.mark.parametrize(
+        ("op", "ad", "exp"),
+        [
+            ("__pow__", 1, Dual(2.5, ["x"], []).__pow__(2)),
+            ("__pow__", 2, Dual2(2.5, ["x"], [], []).__pow__(2)),
+        ],
+    )
+    def test_variable_pow(self, op, ad, exp):
+        with default_context("_global_ad_order", ad):
+            var = Variable(2.5, ["x"])
+            result = getattr(var, op)(2)
+            assert result == exp
+
+    @pytest.mark.parametrize(("order", "exp"), [(1, 2.0), (2, 0.0)])
+    def test_gradient(self, order, exp):
+        var = Variable(2.0, ["x"], [2.0])
+        result = gradient(var, ["x"], order=order)[0]
+        assert result == exp
+
+    def test_eq(self):
+        v1 = Variable(1.0, ["x", "y"])
+        v2 = Variable(1.0, ["x", "y"])
+        assert v1 == v2
+
+    @pytest.mark.parametrize(
+        ("func", "exp"),
+        [
+            (dual_exp, Dual(0.5, ["x"], []).__exp__()),
+            (dual_log, Dual(0.5, ["x"], []).__log__()),
+            (dual_norm_cdf, Dual(0.5, ["x"], []).__norm_cdf__()),
+            (dual_inv_norm_cdf, Dual(0.5, ["x"], []).__norm_inv_cdf__()),
+            (dual_norm_pdf, dual_norm_pdf(Dual(0.5, ["x"], []))),
+        ],
+    )
+    def test_standalone_funcs(self, func, exp):
+        var = Variable(0.5, ["x"])
+        result = func(var)
+        assert result == exp
+
+    def test_z_exogenous_example(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
+        solver = Solver(
+            curves=[curve], instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)], s=[2.50]
+        )
+        irs = IRS(
+            effective=dt(2000, 1, 1),
+            termination="6m",
+            frequency="S",
+            leg2_frequency="M",
+            fixed_rate=Variable(3.0, ["R"]),
+            notional=Variable(5e6, ["N"]),
+            leg2_float_spread=Variable(0.0, ["z"]),
+            curves="curve",
+        )
+        result = irs.exo_delta(vars=["N", "R", "z"], vars_scalar=[1.0, 0.01, 1.0], solver=solver)
+
+        exp0 = irs.npv(solver=solver) / 5e6
+        exp1 = irs.analytic_delta(curve)
+        exp2 = irs.analytic_delta(curve, leg=2)
+
+        assert abs(exp0 - result.iloc[0, 0]) < 1e-8
+        assert abs(exp1 + result.iloc[1, 0]) < 1e-8
+        assert abs(exp2 + result.iloc[2, 0]) < 1e-8

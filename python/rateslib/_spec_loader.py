@@ -114,6 +114,7 @@ if DEVELOPMENT:
     }
 
 else:
+    # This is output from a development version and hard coded before a release for performance.
     INSTRUMENT_SPECS = {
         "usd_irs": {
             "frequency": "a",

@@ -29,14 +29,25 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`425 <https://github.com/attack68/rateslib/pull/425>`_)
        (`426 <https://github.com/attack68/rateslib/pull/426>`_)
    * - Instruments
-     - Add the ``spec`` options; *'audusd_xcs'*, *'audusd_xcs3'*, *'nzdusd_xcs3'*, *'nzdaud_xcs3'*
+     - Add the ``spec`` options; *'audusd_xcs'*, *'audusd_xcs3'*, *'nzdusd_xcs3'*, *'nzdaud_xcs3'*,
+       *'us_ig_cds'*
        (`429 <https://github.com/attack68/rateslib/pull/429>`_)
+       (`454 <https://github.com/attack68/rateslib/pull/454>`_)
    * - Performance
      - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
        :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
        in *Solvers* and standardised *Instruments*. This feature can be opted out of using the
        ``defaults.curve_caching`` setting. Note also the added :meth:`~rateslib.curves.Curve.clear_cache` method.
        (`435 <https://github.com/attack68/rateslib/pull/435>`_)
+   * - Automatic Differentiation
+     - Add a new object for AD management, a :class:`~rateslib.dual.Variable`, which allows a
+       user to inject manual exogenous sensitivities into calculations. See
+       :ref:`what is an exogenous Variable? <cook-exogenous-doc>`
+       (`452 <https://github.com/attack68/rateslib/pull/452>`_)
+   * - Risk Sensitivities
+     - Add method :meth:`~rateslib.instruments.Sensitivities.exo_delta` to calculate the delta
+       sensitivity against a user-defined exogenous *Variable*.
+       (`453 <https://github.com/attack68/rateslib/pull/453>`_)
    * - Bug
      - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
