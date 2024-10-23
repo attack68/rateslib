@@ -2123,7 +2123,7 @@ class CreditProtectionPeriod(BasePeriod):
         if isinstance(rr, (Dual, Dual2, Variable)):
             self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
         else:
-            self.recovery_rate = Variable(float(rr, ["__recovery_rate__"]))
+            self.recovery_rate = Variable(float(rr), ["__recovery_rate__"])
         pv = self.npv(curve, disc_curve, fx, base, False)
         self.recovery_rate = rr
         _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])

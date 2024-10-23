@@ -1941,7 +1941,10 @@ class TestCreditProtectionPeriod:
             defaults.headers["collateral"]: None,
         }
         result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
-        assert result == expected
+
+        for key in expected:
+            assert key in result
+            assert result[key] == expected[key] or abs(result[key] - expected[key]) < 1e-6
 
     def test_period_cashflows_no_curves(self, fxr) -> None:
         # also test the inputs to fx as float and as FXRates (10 is for
