@@ -936,6 +936,7 @@ class FloatPeriod(BasePeriod):
             else:
                 return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
+
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Curve | LineCurve | dict) -> None | DualTypes:
@@ -2007,8 +2008,8 @@ class CreditProtectionPeriod(BasePeriod):
         **kwargs,
     ):
         self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
-        if float(self.recovery_rate) < 0.0 and float(self.recovery_rate) > 1.0:
-            raise ValueError("`recovery_rate` must be in [0.0, 1.0]")
+        if self.recovery_rate < 0.0 and self.recovery_rate > 1.0:
+            raise ValueError("`recovery_rate` value must be in [0.0, 1.0]")
         self.discretization = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
 

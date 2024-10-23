@@ -340,3 +340,4 @@ These values can also be set:
    irs.leg1.currency  # <- uses new default value
 
    defaults.reset_defaults()  # <- reverse the changes.
+   defaults.base_currency

@@ -4,7 +4,7 @@ from statistics import NormalDist
 import numpy as np
 import pytest
 from packaging import version
-from rateslib import default_context
+from rateslib import IRS, Curve, FXRates, Solver, default_context, dt
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -915,6 +915,13 @@ class TestVariable:
             result = getattr(v, op)(f)
             assert result == exp
 
+    def test_variable_f64_reverse(self):
+        v = Variable(2.5, ("x",))
+        assert (1.5 + v) == Variable(4.0, ["x"], [])
+        assert (1.5 - v) == Variable(-1.0, ["x"], [-1.0])
+        assert (1.5 * v) == Variable(1.5 * 2.5, ["x"], [1.5])
+        assert (1.5 / v) == Dual(1.5, [], []) / Dual(2.5, ["x"], [])
+
     def test_rtruediv_global_ad(self):
         exp = Dual2(1.5, [], [], []) / Dual2(2.5, ["x"], [], [])
         with default_context("_global_ad_order", 2):
@@ -942,6 +949,14 @@ class TestVariable:
         result = getattr(v, op)(f)
         assert result == exp
 
+    def test_variable_dual_reverse(self):
+        f = Dual(1.5, ["x"], [])
+        v = Variable(2.5, ("x",))
+        assert f + v == Dual(4.0, ["x"], [2.0])
+        assert f - v == Dual(-1.0, ["x"], [0.0])
+        assert f * v == Dual(1.5 * 2.5, ["x"], [4.0])
+        assert f / v == Dual(1.5, ["x"], [1.0]) / Dual(2.5, ["x"], [1.0])
+
     @pytest.mark.parametrize(
         ("op", "exp"),
         [
@@ -960,6 +975,14 @@ class TestVariable:
         v = Variable(2.5, ("x",))
         result = getattr(v, op)(f)
         assert result == exp
+
+    def test_variable_dual2_reverse(self):
+        f = Dual2(1.5, ["x"], [], [])
+        v = Variable(2.5, ("x",))
+        assert f + v == Dual2(4.0, ["x"], [2.0], [])
+        assert f - v == Dual2(-1.0, ["x"], [0.0], [])
+        assert f * v == Dual2(1.5, ["x"], [], []) * Dual2(2.5, ["x"], [], [])
+        assert f / v == Dual2(1.5, ["x"], [], []) / Dual2(2.5, ["x"], [], [])
 
     @pytest.mark.parametrize(
         ("op", "exp"),
@@ -1056,3 +1079,28 @@ class TestVariable:
         var = Variable(0.5, ["x"])
         result = func(var)
         assert result == exp
+
+    def test_z_exogenous_example(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
+        solver = Solver(
+            curves=[curve], instruments=[IRS(dt(2000, 1, 1), "6m", "S", curves=curve)], s=[2.50]
+        )
+        irs = IRS(
+            effective=dt(2000, 1, 1),
+            termination="6m",
+            frequency="S",
+            leg2_frequency="M",
+            fixed_rate=Variable(3.0, ["R"]),
+            notional=Variable(5e6, ["N"]),
+            leg2_float_spread=Variable(0.0, ["z"]),
+            curves="curve",
+        )
+        result = irs.exo_delta(vars=["N", "R", "z"], vars_scalar=[1.0, 0.01, 1.0], solver=solver)
+
+        exp0 = irs.npv(solver=solver) / 5e6
+        exp1 = irs.analytic_delta(curve)
+        exp2 = irs.analytic_delta(curve, leg=2)
+
+        assert abs(exp0 - result.iloc[0, 0]) < 1e-8
+        assert abs(exp1 + result.iloc[1, 0]) < 1e-8
+        assert abs(exp2 + result.iloc[2, 0]) < 1e-8

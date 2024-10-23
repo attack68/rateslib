@@ -7,10 +7,12 @@
    from rateslib.instruments import *
    from rateslib.calendars import add_tenor
    from rateslib.solver import Solver
+   from rateslib import defaults
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
    from pandas import DataFrame, option_context
+   defaults.reset_defaults()
 
 Replicating a Pfizer Default Curve & CDS from Bloomberg's CDSW
 *****************************************************************
@@ -29,9 +31,14 @@ The raw data necessary to build the curves and replicate the pricing risk metric
 (Some of the loaded CDS data is also shown in an image at the bottom of this page)
 
 .. ipython:: python
+   :suppress:
+
+   print(defaults.print())
+
+.. ipython:: python
 
    irs_tenor = ["1m", "2m", "3m", "6m", "12m", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y", "12y"]
-   irs_rates = irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
+   irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
    cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
    cds_rates = [0.11011, 0.14189, 0.20750, 0.26859, 0.32862, 0.37861, 0.51068, 0.66891]
 
@@ -117,7 +124,7 @@ Lets look at the structure of the hazard rates generated. To do this we plot the
    from rateslib import *
    import matplotlib.pyplot as plt
    irs_tenor = ["1m", "2m", "3m", "6m", "12m", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y", "10y", "12y"]
-   irs_rates = irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
+   irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
    cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
    cds_rates = [0.11011, 0.14189, 0.20750, 0.26859, 0.32862, 0.37861, 0.51068, 0.66891]
    today = dt(2024, 10, 4)  # Friday 4th October 2024
@@ -192,7 +199,7 @@ numerical integrations of CDS protection and premium legs).
    cds.rate(solver=pfizer_sv)  # this compares to BBG: "Trd Sprd (bp)"
    cds.npv(solver=pfizer_sv)  # this compares to BBG: "Cash Amount"
    cds.analytic_delta(hazard_curve, disc_curve)
-   cds.accrued(dt(2022, 10, 7))  # this is 17 days of accrued
+   cds.accrued(dt(2024, 10, 7))  # this is 17 days of accrued
    cds.delta(solver=pfizer_sv).groupby("solver").sum()  # this compares to: "Spread DV01" and "IR DV01"
 
 .. image:: _static/cdsw_2.png
