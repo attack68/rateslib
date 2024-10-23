@@ -47,6 +47,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Risk Sensitivities
      - Add method :meth:`~rateslib.instruments.Sensitivities.exo_delta` to calculate the delta
        sensitivity against a user-defined exogenous *Variable*.
+       (`453 <https://github.com/attack68/rateslib/pull/453>`_)
    * - Bug
      - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
