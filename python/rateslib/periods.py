@@ -42,6 +42,7 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_norm_pdf,
     gradient,
+    Variable,
 )
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import (
@@ -2119,10 +2120,10 @@ class CreditProtectionPeriod(BasePeriod):
         float
         """
         rr = self.recovery_rate
-        if curve.ad in [0, 1]:
-            self.recovery_rate = Dual(float(rr), ["__recovery_rate__"], [])
+        if isinstance(rr, (Dual, Dual2, Variable)):
+            self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
         else:
-            self.recovery_rate = Dual2(float(rr), ["__recovery_rate__"], [], [])
+            self.recovery_rate = Variable(float(rr, ["__recovery_rate__"]))
         pv = self.npv(curve, disc_curve, fx, base, False)
         self.recovery_rate = rr
         _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])
