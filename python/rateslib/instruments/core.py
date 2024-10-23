@@ -375,10 +375,11 @@ class Sensitivities:
             - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
             - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
             - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+
         solver : Solver, optional
             The :class:`~rateslib.solver.Solver` that calibrates
             *Curves* from given *Instruments*.
-                fx : float, FXRates, FXForwards, optional
+        fx : float, FXRates, FXForwards, optional
             The immediate settlement FX rate that will be used to convert values
             into another currency. A given `float` is used directly. If giving a
             :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
@@ -694,7 +695,7 @@ class BaseMixin:
         .. ipython:: python
            :suppress:
 
-           from rateslib import Curve, FXRates, IRS
+           from rateslib import Curve, FXRates, IRS, dt
 
         .. ipython:: python
 
