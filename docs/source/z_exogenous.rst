@@ -127,6 +127,35 @@ hand coded functions from manually derived equations. The *exo_delta* function o
 structures the AD *variables* dynamically into the *Solver* and uses the chain rule for
 differentiation.
 
+Difference between ``Variable``, and ``Dual`` and ``Dual2``
+------------------------------------------------------------
+
+:class:`~rateslib.dual.Dual` and :class:`~rateslib.dual.Dual2` do not permit binary operations
+between themselves because it is inconsistent and impossible to correctly define second order
+derivatives with such operations. For safety, *TypeErrors* are raised when this is encountered.
+Internally, for specific calculations dual numbers are converted to specific types first
+before performing calculations in *rateslib*.
+
+But if a user wants to inject dual sensitivity at an arbitrary point in the code it may not be
+possible for *rateslib* to know what to convert and this may break downstream calculations.
+
+.. ipython:: python
+
+   irs = IRS(
+       effective=dt(2000, 1, 1),
+       termination="6m",
+       frequency="S",
+       leg2_frequency="M",
+       fixed_rate=Dual2(3.0, ["R"], [], []),  # <-- `fixed_rate` added as a Dual2
+       curves="curve",
+   )
+   try:
+       irs.delta(solver=solver)
+   except TypeError as e:
+       print(e)
+
+Using a :class:`~rateslib.dual.Variable`, instead, is designed to cover these user cases.
+
 The Real Use Case
 -------------------
 
