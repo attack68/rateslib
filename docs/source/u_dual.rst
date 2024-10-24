@@ -24,6 +24,7 @@ Classes
 .. autosummary::
    rateslib.dual.Dual
    rateslib.dual.Dual2
+   rateslib.dual.Variable
 
 Methods
 -------
@@ -31,6 +32,9 @@ Methods
    rateslib.dual.gradient
    rateslib.dual.dual_exp
    rateslib.dual.dual_log
+   rateslib.dual.dual_norm_pdf
+   rateslib.dual.dual_norm_cdf
+   rateslib.dual.dual_inv_norm_cdf
    rateslib.dual.dual_solve
 
 Example
@@ -231,3 +235,31 @@ using the Doolittle algorithm with partial pivoting.
    x = dual_solve(A, b)
    x
    np.matmul(A, x)
+
+Exogenous Variables
+*********************
+
+The :class:`~rateslib.dual.Variable` class allows users to inject sensitivity into calculations
+without knowing which AD order is required for calculations - calculations will **not**
+raise *TypeErrors*. Upon first instance of a binary operation
+with an object of either order it will return an object of associated type.
+
+.. ipython:: python
+
+   x = Variable(2.5, ["x"])
+   x * Dual(1.5, ["y"], [2.2])
+   x * Dual2(1.5, ["y"], [2.2], [])
+
+In order for other internal processes to function dynamically, *rateslib* maintains a **global
+AD order**. When a *Variable* performs a self operation from which it cannot infer the AD order, it
+will refer to this global state.
+
+.. ipython:: python
+
+   defaults._global_ad_order = 1
+   dual_exp(x)
+
+   defaults._global_ad_order = 2
+   dual_exp(x)
+
+   defaults._global_ad_order = 1  # Reset

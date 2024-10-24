@@ -19,6 +19,8 @@ class Variable:
     :class:`~rateslib.dual.Dual` or
     :class:`~rateslib.dual.Dual2` type dependent upon the overall AD calculation order.
 
+    See :ref:`what is an exogenous variable? <cook-exogenous-doc>`
+
     Parameters
     ----------
     real : float
