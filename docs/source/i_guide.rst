@@ -306,16 +306,11 @@ a set of prices, ``s``. The calibrating *Instruments* associated with those pric
 
 .. ipython:: python
 
-   usd_args = dict(
-       effective=dt(2022, 1, 1),
-       spec="usd_irs",
-       curves="sofr"
-   )
    solver = Solver(
        curves=[usd_curve],
        instruments=[
-           IRS(**usd_args, termination="6M"),
-           IRS(**usd_args, termination="1Y"),
+           IRS(dt(2022, 1, 1), "6M", spec="usd_irs", curves="sofr"),
+           IRS(dt(2022, 1, 1), "1Y", spec="usd_irs", curves="sofr"),
        ],
        s=[4.35, 4.85],
        instrument_labels=["6M", "1Y"],
