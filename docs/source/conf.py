@@ -33,10 +33,13 @@ extensions = [
     "sphinx_automodapi.automodapi",
     "nbsphinx",
     "sphinx.ext.intersphinx",
+    "sphinxcontrib.googleanalytics"
 ]
 intersphinx_mapping = {
     "rateslibxl": ("https://rateslib.com/excel/latest/", None),
 }
+googleanalytics_id = 'G-EZWM7R6FVH'
+googleanalytics_enabled = True
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 
