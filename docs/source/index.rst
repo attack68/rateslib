@@ -149,9 +149,9 @@ correct formulations. The framework is accessible and requires minimal configura
 
    .. container:: rightside60
 
-      .. image:: _static/index_sofr.png
-         :alt: Curve construction is flexible
-         :width: 351
+      .. plot:: plot_py/ptirds.py
+         :height: 260
+         :width: 420
 
 .. raw:: html
 
