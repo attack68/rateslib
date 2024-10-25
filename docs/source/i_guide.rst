@@ -162,7 +162,7 @@ Curve for EUR cashflows, collateralised in USD**, and similarly for other entrie
        }
    )
    fxf.rate("eurusd", settlement=dt(2023, 1, 1))
-   fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 1)])
+   fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 2)])
 
 .. raw:: html
 
@@ -202,7 +202,7 @@ function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>`. Keeping a
 consistent function name across all *Instruments* allows any of them to be used within a
 :class:`~rateslib.solver.Solver` to calibrate *Curves* around target mid-market rates.
 
-This *FXSwap* *Instrument* construction prices to the same mid-market rate as the ad-hox *swap* rate
+This *FXSwap* *Instrument* prices to the same mid-market rate as the ad-hox *swap* rate
 used in the example above (as expected).
 
 .. ipython:: python
