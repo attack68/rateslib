@@ -32,7 +32,10 @@ extensions = [
     'matplotlib.sphinxext.plot_directive',
     "sphinx_automodapi.automodapi",
     "nbsphinx",
+    "sphinxcontrib.googleanalytics",
 ]
+googleanalytics_id = 'G-EZWM7R6FVH'
+googleanalytics_enabled = True
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 
