@@ -20,7 +20,7 @@ unsafe impl Element for Dual {
         PyArrayDescr::object_bound(py)
     }
 
-    fn clone_ref(&self, py: Python<'_>) -> Self {
+    fn clone_ref(&self, _py: Python<'_>) -> Self {
         self.clone()
     }
 }
@@ -30,7 +30,7 @@ unsafe impl Element for Dual2 {
         PyArrayDescr::object_bound(py)
     }
 
-    fn clone_ref(&self, py: Python<'_>) -> Self {
+    fn clone_ref(&self, _py: Python<'_>) -> Self {
         self.clone()
     }
 }
