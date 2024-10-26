@@ -19,11 +19,19 @@ unsafe impl Element for Dual {
     fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
+
+    fn clone_ref(&self, py: Python<'_>) -> Self {
+        self.clone()
+    }
 }
 unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
     fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
+    }
+
+    fn clone_ref(&self, py: Python<'_>) -> Self {
+        self.clone()
     }
 }
 
