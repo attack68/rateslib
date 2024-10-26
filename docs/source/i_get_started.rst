@@ -56,7 +56,7 @@ can be compiled locally by the *pip* installer.
      - Recommended Version
      - Earliest Tested
    * - Python
-     - 3.12
+     - 3.13
      - 3.12
      - 3.9
    * - NumPy

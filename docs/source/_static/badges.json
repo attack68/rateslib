@@ -3,7 +3,7 @@
   "licence": "CC-BY-NC-ND-4.0",
   "pypi": "v1.5.0",
   "conda": "v1.1.1",
-  "python": "3.9 | 3.10 | 3.11 | 3.12",
+  "python": "3.9 | 3.10 | 3.11 | 3.12 | 3.13",
   "style": "ruff/black",
   "status": "stable"
 }
