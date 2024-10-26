@@ -23,10 +23,10 @@ This means the arguments required for the
 :meth:`Instrument.gamma()<rateslib.instruments.Sensitivities.gamma>`
 are the same and optionally require:
 
-``curves``, ``solver``, ``fx``, ``base``, ``local``
+``curves``, ``solver``, ``fx``, ``base``, ``local``, (and ``vol`` for volatility products)
 
-When calculating risk metrics a ``solver``, which contains derivative mapping information, is
-required. However, when calculating value, it is sufficient to just provide ``curves``. In this
+When calculating **risk metrics** a ``solver``, which contains derivative mapping information, is
+required. However, when calculating only **value**, it is sufficient to just provide ``curves``. In this
 case, and if the *curves* do not contain AD then the calculation might be upto 300% faster.
 
 Since these arguments are optional and can be inferred from each other it is important to
@@ -34,7 +34,7 @@ understand the combination that can produce results. There are two sections on t
 discuss these combinations.
 
 1) How ``solver``, ``fx``, ``base`` and ``local`` interact? I.e. what currency will results be displayed in?
-2) How ``curves``, ``solver`` and *Instruments* interact? I.e. which *Curves* will be used to price which *Instruments*?
+2) How ``curves``, ``vol`` and ``solver`` and *Instruments* interact? I.e. which *Curves* and *Vol* objects will be used to price which *Instruments*?
 
 .. _base-fx-doc:
 
@@ -77,9 +77,9 @@ and converted to the given currency.
 
 .. ipython:: python
 
-   nxcs = XCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd", leg2_mtm=False)
-   nxcs.npv(curves=[curve]*4, fx=fxf, local=True)
-   nxcs.npv(curves=[curve]*4, fx=fxf, base="usd")
+   non_mtm_xcs = XCS(dt(2022, 2, 1), "6M", "A", currency="eur", leg2_currency="usd", leg2_mtm=False)
+   non_mtm_xcs.npv(curves=[curve]*4, fx=fxf, local=True)
+   non_mtm_xcs.npv(curves=[curve]*4, fx=fxf, base="usd")
 
 
 What is best practice?
@@ -247,17 +247,19 @@ We continue the examples above using the USD IRS created and consider possible *
 
 .. _mechanisms-curves-doc:
 
-How ``curves``, ``solver`` and *Instruments* interact?
-********************************************************
+How ``curves``, ``vol``, ``solver`` and *Instruments* interact?
+*****************************************************************
 
 The pricing mechanisms in *rateslib* require :ref:`Instruments<instruments-toc-doc>` and
-:ref:`Curves<c-curves-doc>`. :ref:`FX<fx-doc>` objects
+:ref:`Curves<c-curves-doc>` (and volatility *Instruments* require a :ref:`Volatility object<c-fx-smile-doc>`)
+. :ref:`FX<fx-doc>` objects
 (usually :class:`FXForwards<rateslib.fx.FXForwards>`) may also be required
 (for multi-currency instruments), and these
 are all often interdependent and calibrated by a :ref:`Solver<c-solver-doc>`.
 
-Since *Instruments* are separate objects to *Curves* and *Solvers*, when pricing them it requires
-a mapping to link them all together. This leads to...
+Since *Instruments* are separate objects to *Curves*/*Vol objects* and *Solvers*, when pricing them it requires
+a mapping to link them all together. In this section only *Curves* are discussed but the
+same features are also applied to *Vol objects* for those specific *Instruments*. This leads to...
 
 **Three different modes of initialising an** *Instrument*:
 

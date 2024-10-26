@@ -57,19 +57,19 @@ can be compiled locally by the *pip* installer.
      - Earliest Tested
    * - Python
      - 3.12
-     - 3.11
+     - 3.12
      - 3.9
    * - NumPy
-     - 2.0.0
+     - 2.1.2
      - 1.26.1
      - 1.21.5
    * - Pandas
-     - 2.2.2
+     - 2.2.3
      - 2.2.2
      - 1.4.1
    * - Matplotlib
-     - 3.9.1
-     - 3.8.4
+     - 3.9.2
+     - 3.9.2
      - 3.5.1
 
 

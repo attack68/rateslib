@@ -1396,8 +1396,10 @@ class Solver(Gradients):
 
         Parameters
         ----------
-        npv : Dual,
-            The NPV of the instrument or composition of instruments to risk.
+        npv : dict,
+            The NPV (Dual) of the instrument or portfolio of instruments to risk.
+            Must be indexed by 3-digit currency
+            to discriminate between values expressed in different currencies.
         base : str, optional
             The currency (3-digit code) to report risk metrics in. If not given will
             default to the local currency of the cashflows.
@@ -1914,6 +1916,87 @@ class Solver(Gradients):
             columns=self.pre_instrument_labels,
             index=solver.pre_instrument_labels,
         )
+
+    def exo_delta(
+        self,
+        npv,
+        vars: list[str],
+        vars_scalar: list[float] | NoInput = NoInput(0),
+        vars_labels: list[str] | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        fx=NoInput(0),
+    ) -> DataFrame:
+        """
+        Calculate risk sensitivity to user defined, exogenous variables in the
+        *Solver Instruments* and the ``npv``.
+
+        See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
+
+        Parameters
+        -----------
+        npv : dict,
+            The NPV (Dual) of the instrument or portfolio of instruments to risk.
+            Must be indexed by 3-digit currency
+            to discriminate between values expressed in different currencies.
+        vars : list[str]
+            The variable tags which to determine sensitivities for.
+        vars_scalar : list[float], optional
+            Scaling factors for each variable, for example converting rates to basis point etc.
+            Defaults to ones.
+        vars_labels : list[str], optional
+            Alternative names to relabel variables in DataFrames.
+        base : str, optional
+            The currency (3-digit code) to report risk metrics in. If not given will
+            default to the local currency of the cashflows.
+        fx : FXRates, FXForwards, optional
+            The FX object to use to convert risk metrics. If needed but not given
+            will default to the ``fx`` object associated with the
+            :class:`~rateslib.solver.Solver`. It is not recommended to use this
+            argument with multi-currency instruments, see notes.
+
+        Returns
+        -------
+        DataFrame
+        """
+
+        base, fx = self._get_base_and_fx(base, fx)
+        if vars_scalar is NoInput.blank:
+            vars_scalar = [1.0] * len(vars)
+        if vars_labels is NoInput.blank:
+            vars_labels = vars
+
+        container = {}
+        for ccy in npv:
+            container[("exogenous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
+
+            if base is not NoInput.blank and base != ccy:
+                # extend the derivatives
+                f = fx.rate(f"{ccy}{base}")
+                container[("exogenous", ccy, base)] = (
+                    self.grad_f_Pbase(
+                        npv[ccy], container[("exogenous", ccy, ccy)] / vars_scalar, f, vars
+                    )
+                    * vars_scalar
+                )
+
+        # construct the DataFrame from container with hierarchical indexes
+        exo_idx = MultiIndex.from_tuples(
+            [("exogenous",) + (self.id, label) for label in vars_labels],
+            names=["type", "solver", "label"],
+        )
+
+        indexes = {"exogenous": exo_idx}
+        r_idx = exo_idx
+        c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
+        df = DataFrame(None, index=r_idx, columns=c_idx)
+        for key, array in container.items():
+            df.loc[indexes[key[0]], (key[1], key[2])] = array
+
+        if base is not NoInput.blank:
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+
+        sorted_cols = df.columns.sort_values()
+        return df.loc[:, sorted_cols].astype("float64")
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
