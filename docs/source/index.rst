@@ -149,9 +149,12 @@ correct formulations. The framework is accessible and requires minimal configura
 
    .. container:: rightside60
 
-      .. image:: _static/index_sofr.png
-         :alt: Curve construction is flexible
-         :width: 351
+      .. image:: _static/ptirds_00_00.png
+         :align: center
+         :alt: See Cookbook: Single currency curve replication
+         :height: 220
+         :width: 380
+         :target: z_ptirds_curve.html
 
 .. raw:: html
 

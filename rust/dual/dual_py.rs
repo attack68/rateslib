@@ -19,11 +19,19 @@ unsafe impl Element for Dual {
     fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
+
+    fn clone_ref(&self, _py: Python<'_>) -> Self {
+        self.clone()
+    }
 }
 unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
     fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
+    }
+
+    fn clone_ref(&self, _py: Python<'_>) -> Self {
+        self.clone()
     }
 }
 
@@ -502,7 +510,7 @@ impl Dual2 {
         vars: Vec<String>,
     ) -> PyResult<Vec<Dual2>> {
         let out = self.gradient1_manifold(vars);
-        Ok(out.into_raw_vec())
+        Ok(out.into_raw_vec_and_offset().0)
     }
 
     /// Evaluate if the ARC pointers of two `Dual2` data types are equivalent. See
@@ -729,7 +737,7 @@ impl Dual2 {
             self.real,
             self.vars().iter().cloned().collect(),
             self.dual.to_vec(),
-            self.dual2.clone().into_raw_vec(),
+            self.dual2.clone().into_raw_vec_and_offset().0,
         ))
     }
 

@@ -318,6 +318,11 @@ def get_imm(
     """
     Return an IMM date for a specified month.
 
+    .. note::
+
+       This is a fixed income IMM date (i.e. third wednesday of a given month) and not a
+       credit IMM date (20th of a given month).
+
     Parameters
     ----------
     month: int

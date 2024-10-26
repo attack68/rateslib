@@ -23,7 +23,7 @@ pub enum RollDay {
 }
 
 /// A rule to adjust a non-business day to a business day.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", eq, eq_int)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.

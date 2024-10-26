@@ -584,7 +584,7 @@ impl Dual2 {
                 ));
             }
             Array::from_vec(dual2)
-                .into_shape((unique_vars_.len(), unique_vars_.len()))
+                .into_shape_with_order((unique_vars_.len(), unique_vars_.len()))
                 .expect("Reshaping failed, which should not occur because shape is pre-checked.")
         };
         Ok(Self {
