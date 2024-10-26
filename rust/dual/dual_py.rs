@@ -510,7 +510,7 @@ impl Dual2 {
         vars: Vec<String>,
     ) -> PyResult<Vec<Dual2>> {
         let out = self.gradient1_manifold(vars);
-        Ok(out.into_raw_vec())
+        Ok(out.into_raw_vec_and_offset().0)
     }
 
     /// Evaluate if the ARC pointers of two `Dual2` data types are equivalent. See
@@ -737,7 +737,7 @@ impl Dual2 {
             self.real,
             self.vars().iter().cloned().collect(),
             self.dual.to_vec(),
-            self.dual2.clone().into_raw_vec(),
+            self.dual2.clone().into_raw_vec_and_offset().0,
         ))
     }
 

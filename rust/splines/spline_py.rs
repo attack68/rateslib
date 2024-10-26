@@ -42,7 +42,7 @@ macro_rules! create_interface {
             #[getter]
             fn c(&self) -> PyResult<Option<Vec<$type>>> {
                 match self.inner.c() {
-                    Some(val) => Ok(Some(val.clone().into_raw_vec())),
+                    Some(val) => Ok(Some(val.clone().into_raw_vec_and_offset().0)),
                     None => Ok(None)
                 }
             }
