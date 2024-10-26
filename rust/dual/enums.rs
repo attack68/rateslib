@@ -5,7 +5,7 @@ use pyo3::{pyclass, FromPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// Defines the order of gradients available in a calculation with AD.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", eq, eq_int)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ADOrder {
     /// Floating point arithmetic only.

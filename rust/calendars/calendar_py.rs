@@ -444,6 +444,7 @@ impl Cal {
 #[pymethods]
 impl UnionCal {
     #[new]
+    #[pyo3(signature = (calendars, settlement_calendars=None))]
     fn new_py(calendars: Vec<Cal>, settlement_calendars: Option<Vec<Cal>>) -> PyResult<Self> {
         Ok(UnionCal::new(calendars, settlement_calendars))
     }
