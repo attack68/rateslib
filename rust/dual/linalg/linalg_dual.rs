@@ -23,7 +23,7 @@ where
             .map(|(x, y)| x * y)
             .collect(),
     )
-    .into_shape((a.len(), b.len()))
+    .into_shape_with_order((a.len(), b.len()))
     .expect("Pre checked dimensions")
 }
 
@@ -60,7 +60,7 @@ where
             .map(|(row, col)| dmul11_(&row, &col))
             .collect(),
     )
-    .into_shape((a.len_of(Axis(0)), b.len_of(Axis(1))))
+    .into_shape_with_order((a.len_of(Axis(0)), b.len_of(Axis(1))))
     .expect("Dim are pre-checked")
 }
 

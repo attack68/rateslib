@@ -596,7 +596,8 @@ mod tests {
         let v: Vec<bool> = pps
             .c
             .expect("csolve")
-            .into_raw_vec()
+            .into_raw_vec_and_offset()
+            .0
             .iter()
             .zip(expected.iter())
             .map(|(x, y)| is_close(&x, &y, None))
@@ -617,7 +618,8 @@ mod tests {
         let v: Vec<bool> = pps
             .c
             .expect("csolve")
-            .into_raw_vec()
+            .into_raw_vec_and_offset()
+            .0
             .iter()
             .zip(expected.iter())
             .map(|(x, y)| is_close(&x.real(), &y.real(), None))
