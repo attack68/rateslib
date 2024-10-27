@@ -38,8 +38,8 @@ extensions = [
 intersphinx_mapping = {
     "rateslibxl": ("https://rateslib.com/excel/latest/", None),
 }
-googleanalytics_id = os.getenv("googleanalytics_id")
-googleanalytics_enabled = googleanalytics_id is not None
+googleanalytics_id = os.getenv("googleanalytics_id", "G-0000000000")
+googleanalytics_enabled = googleanalytics_id != "G-0000000000"
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
 
