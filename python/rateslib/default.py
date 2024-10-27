@@ -176,6 +176,11 @@ class Defaults:
         self.cds_premium_accrued = True
         self.cds_recovery_rate = 0.40
         self.cds_protection_discretization = 23
+        self.credit_steps = [
+           2, 5, 10, 20, 30, 50, 77, 81, 86, 91, 96, 103, 110, 119, 128, 140, 153,
+           169, 188, 212, 242, 281, 332, 401, 498, 636, 835, 1104, 1407, 1646, 1766,
+           1808, 1821, 1824, 1825,
+        ]
 
         # Curves
 

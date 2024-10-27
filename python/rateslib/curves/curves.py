@@ -2747,7 +2747,9 @@ class CreditImpliedCurve(Curve):
             )
 
         elif self.curves[0] is NoInput.blank:
-            self.implied_curve = "RiskFreeCurve"
+            self.implied_curve = _ImpliedRiskFreeCurve(
+                self.curves[1], self.curves[2], self.recovery_rate
+            )
         elif self.curves[1] is NoInput.blank:
             self.implied_curve = _ImpliedCreditCurve(
                 self.curves[0], self.curves[2], self.recovery_rate
@@ -2811,6 +2813,67 @@ class CreditImpliedCurve(Curve):
         return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
 
+class _ImpliedRiskFreeCurve:
+    """
+    Imply a risk free curve from the data in a credit_curve and a hazard_curve.
+
+    Inputs are assumed to be valid: this is a private class.
+    """
+
+    def __init__(
+        self,
+        credit_curve,
+        hazard_curve,
+        recovery_rate,
+        df_min_step: int | NoInput = 1,
+        df_max_step: int | NoInput = 1825,
+    ):
+        self.recovery_rate = recovery_rate
+        self.curves = [credit_curve, hazard_curve]
+
+        self.df_min_step = df_min_step
+        self.df_max_step = df_max_step
+
+        self.node_dates = credit_curve.node_dates
+        self.calendar = credit_curve.calendar
+        self.convention = credit_curve.convention
+        self.modifier = credit_curve.modifier
+
+    def __getitem__(self, date):
+        # will return a composited discount factor
+        if date == self.curves[0].node_dates[0]:
+            return 1.0
+
+        # method sequentially determines DFs from given curve rates
+        k = 0
+        d1 = self.curves[0].node_dates[0]
+        ini_step = _get_step(defaults.credit_steps[k], self.df_min_step, self.df_max_step)
+        d2 = d1 + timedelta(days=ini_step)
+        v0, q0, u0, rr = 1.0, 1.0, 1.0, self.recovery_rate
+        while d2 < date:
+            k += 1
+            u1 = self.curves[0][d2]
+            q1 = self.curves[1][d2]
+            p = q0 - q1
+            _ = (u0 / u1) * (1-p) - (1 - rr) * p
+            # _ = ((v0 / v1) + p) / (1 - p * (1-rr))
+            v1 = v0 / _
+
+            step = _get_step(defaults.credit_steps[k], self.df_min_step, self.df_max_step)
+            d1, d2, u0, q0, v0 = d2, d2 + timedelta(days=step), u1, q1, v1
+
+        # finish the loop on the correct date
+        if date == d1:
+            return v0
+        else:
+            u1 = self.curves[0][date]
+            q1 = self.curves[1][date]
+            p = q0 - q1
+            _ = (u0 / u1) * (1-p) - (1 - rr) * p
+            v1 = v0 / _
+            return v1
+
+
 class _ImpliedCreditCurve:
     """
     Imply a credit curve from the data in a risk_free_curve and a hazard_curve.
@@ -2845,7 +2908,7 @@ class _ImpliedCreditCurve:
         # method sequentially determines DFs from given curve rates
         k = 0
         d1 = self.curves[0].node_dates[0]
-        ini_step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)
+        ini_step = _get_step(defaults.credit_steps[k], self.df_min_step, self.df_max_step)
         d2 = d1 + timedelta(days=ini_step)
         v0, q0, u0, rr = 1.0, 1.0, 1.0, self.recovery_rate
         while d2 < date:
@@ -2853,11 +2916,11 @@ class _ImpliedCreditCurve:
             v1 = self.curves[0][d2]
             q1 = self.curves[1][d2]
             p = q0 - q1
-            # _ = ((v0 / v1) + (1-self.recovery_rate)*(q0 - q1)) / (1 - q0 + q1)
-            _ = ((v0 / v1) + p) / (1 - p * (1-rr))
+            _ = ((v0 / v1) + (1-rr)*p) / (1 - p)
+            # _ = ((v0 / v1) + p) / (1 - p * (1-rr))
             u1 = u0 / _
 
-            step = _get_step(defaults.multi_csa_steps[k], self.df_min_step, self.df_max_step)
+            step = _get_step(defaults.credit_steps[k], self.df_min_step, self.df_max_step)
             d1, d2, v0, q0, u0 = d2, d2 + timedelta(days=step), v1, q1, u1
 
         # finish the loop on the correct date
@@ -2866,7 +2929,8 @@ class _ImpliedCreditCurve:
         else:
             v1 = self.curves[0][date]
             q1 = self.curves[1][date]
-            _ = ((v0 / v1) + (1 - self.recovery_rate) * (q0 - q1)) / (1 - q0 + q1)
+            p = q0 - q1
+            _ = ((v0 / v1) + (1-rr)*p) / (1 - p)
             u1 = u0 / _
             return u1
 
