@@ -1110,6 +1110,11 @@ class TestIRS:
         irs = IRS(dt(2024, 12, 30), "1d", spec="sek_irs")  # 31st is a holiday.
         assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
 
+    def test_fixings_table(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
+        result = irs.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
@@ -1279,6 +1284,26 @@ class TestSBS:
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_fixed_rate`"):
             sbs.leg2_fixed_rate = 1.0
+
+    def test_fixings_table(self, curve):
+        inst = SBS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
+        result = inst.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_fixings_table_3s1s(self, curve):
+        inst = SBS(
+            dt(2022, 1, 15),
+            "6m",
+            fixing_method="ibor",
+            method_param=0,
+            leg2_fixing_method="ibor",
+            leg2_method_param=1,
+            frequency="Q",
+            leg2_frequency="m",
+            curves=curve,
+        )
+        result = inst.fixings_table()
+        assert isinstance(result, DataFrame)
 
 
 class TestFRA:
