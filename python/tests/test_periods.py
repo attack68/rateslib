@@ -1442,6 +1442,26 @@ class TestFloatPeriod:
         )
         assert_frame_equal(result, expected)
 
+    def test_ibor_non_stub_fixings_table(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 5, 1),
+            payment=dt(2023, 5, 1),
+            frequency="q",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
+        expected = DataFrame(
+            data=[[-1e6, None, 2.01639]],
+            index=Index([dt(2023, 1, 31)], name="obs_dates"),
+            columns=["notional", "dcf", "rates"],
+        )
+        assert_frame_equal(result, expected)
+
     def test_local_historical_pay_date_issue(self, curve) -> None:
         period = FloatPeriod(dt(2021, 1, 1), dt(2021, 4, 1), dt(2021, 4, 1), "Q")
         result = period.npv(curve, local=True)
