@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, concat
 
 from rateslib import defaults
 from rateslib.calendars import CalInput
@@ -613,6 +613,45 @@ class IRS(BaseDerivative):
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
         # leg2_analytic_delta = self.leg2.analytic_delta(curves[2], curves[3])
         # return irs_npv / leg2_analytic_delta + specified_spd
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        approximate: bool = False,
+    ) -> DataFrame:
+        """
+        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            :class:`~rateslib.curves.Curve` from calibrating instruments.
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+
+        Returns
+        -------
+        DataFrame
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            NoInput(0),
+            NoInput(0),
+            self.leg1.currency,
+        )
+        return self.leg2.fixings_table(curves[2], approximate, curves[3])
 
 
 class STIRFuture(IRS):
@@ -2041,6 +2080,47 @@ class SBS(BaseDerivative):
         Alias for :meth:`~rateslib.instruments.SBS.rate`.
         """
         return self.rate(*args, **kwargs)
+
+    def fixings_table(
+            self,
+            curves: Curve | str | list | NoInput = NoInput(0),
+            solver: Solver | NoInput = NoInput(0),
+            approximate: bool = False,
+    ) -> DataFrame:
+        """
+        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            :class:`~rateslib.curves.Curve` from calibrating instruments.
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+
+        Returns
+        -------
+        DataFrame
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            NoInput(0),
+            NoInput(0),
+            self.leg1.currency,
+        )
+        df1 = self.leg1.fixings_table(curves[0], approximate, curves[1])
+        df2 = self.leg2.fixings_table(curves[2], approximate, curves[3])
+        return concat([df1, df2], keys=("leg1", "leg2"), axis=1)
 
 
 class FRA(Sensitivities, BaseMixin):
