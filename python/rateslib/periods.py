@@ -1016,7 +1016,7 @@ class FloatPeriod(BasePeriod):
                 return method[curve._base_type](curve)
             else:
                 if not self.stub:
-                    curve = curve[f"{self.freq_months}m"]
+                    curve = _get_ibor_curve_from_dict(self.freq_months, curve)
                     return method[curve._base_type](curve)
                 else:
                     return self._interpolated_ibor_from_curve_dict(curve)
@@ -1528,11 +1528,15 @@ class FloatPeriod(BasePeriod):
         -------
         DataFrame
         """
-        if isinstance(curve, dict):
-            # then may be relevant if the Period is a stub.
-            calendar = next(iter(curve.values())).calendar
-        else:
-            calendar = curve.calendar
+        if isinstance(curve, dict) and self.stub:
+            # then must perform an interpolated calculation
+            raise NotImplementedError()
+        elif isinstance(curve, dict) and not self.stub:
+            # then extract relevant curve from dict and re-run
+            curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+            return self._ibor_fixings_table(curve)
+
+        calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
         reg_end_dt = add_tenor(self.start, f"{self.freq_months}m", curve.modifier, calendar)
         reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
@@ -3969,6 +3973,19 @@ def _maybe_local(value, local, currency, fx, base):
     else:
         fx, _ = _get_fx_and_base(currency, fx, base)
         return value * fx
+
+
+def _get_ibor_curve_from_dict(months, d):
+    try:
+        return d[f"{months}m"]
+    except KeyError:
+        try:
+            return d[f"{months}M"]
+        except KeyError:
+            raise ValueError(
+                "If supplying `curve` as dict must provide a tenor mapping key and curve for"
+                f"the frequency of the given Period. The missing mapping is '{months}m'."
+            )
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):

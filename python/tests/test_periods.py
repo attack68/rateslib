@@ -1454,9 +1454,9 @@ class TestFloatPeriod:
         )
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
-        result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
+        result = period.fixings_table({"1M": curve1, "3M": curve3}, disc_curve=curve1)
         expected = DataFrame(
-            data=[[-1e6, None, 2.01639]],
+            data=[[-1e6, 0.24722222222222223, 3.0]],
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
             columns=["notional", "dcf", "rates"],
         )
