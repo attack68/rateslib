@@ -1404,6 +1404,7 @@ class TestFRA:
         assert isinstance(result, DataFrame)
 
     def test_imm_dated_fixings_table(self, curve):
+        # This is an IMM FRA: the DCF is different to standard tenor.
         fra = FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm", curves=curve, notional=1e9)
         result = fra.fixings_table()
         assert isinstance(result, DataFrame)

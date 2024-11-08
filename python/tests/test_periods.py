@@ -799,10 +799,11 @@ class TestFloatPeriod:
             frequency="Q",
             fixing_method="ibor",
             method_param=2,
+            convention="act365f",
         )
         result = float_period.fixings_table(line_curve)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [None], "rates": [2.0]},
+            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [0.2465753424657534], "rates": [2.0]},
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
@@ -814,10 +815,11 @@ class TestFloatPeriod:
             frequency="Q",
             fixing_method="ibor",
             method_param=2,
+            convention="act365f",
         )
         result = float_period.fixings_table(line_curve, approximate=True)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [None], "rates": [2.0]},
+            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [0.2465753424657534], "rates": [2.0]},
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
