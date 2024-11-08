@@ -1330,12 +1330,14 @@ class FloatPeriod(BasePeriod):
                 calendar = next(iter(curve.values())).calendar
             else:
                 calendar = curve.calendar
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
+            fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
+            reg_end_dt = add_tenor(self.start, f"{self.freq_months}m", curve.modifier, calendar)
+            reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
             return DataFrame(
                 {
-                    "obs_dates": [fixing_date],
-                    "notional": -self.notional,
-                    "dcf": [None],
+                    "obs_dates": [fixing_dt],
+                    "notional": -self.notional * self.dcf / reg_dcf,
+                    "dcf": [reg_dcf],
                     "rates": [self.rate(curve)],
                 },
             ).set_index("obs_dates")
