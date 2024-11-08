@@ -1237,6 +1237,11 @@ class TestIIRS:
         for i in range(4):
             assert result.iloc[i]["Index Base"] == 200.0
 
+    def test_fixings_table(self, curve):
+        iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=curve)
+        result = iirs.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestSBS:
     def test_sbs_npv(self, curve) -> None:
