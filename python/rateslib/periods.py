@@ -1533,7 +1533,7 @@ class FloatPeriod(BasePeriod):
         """
         if isinstance(curve, dict) and self.stub:
             # then must perform an interpolated calculation
-            raise NotImplementedError()
+            return self._ibor_stub_fixings_table(curve, disc_curve)
         elif isinstance(curve, dict) and not self.stub:
             # then extract relevant curve from dict and re-run
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
@@ -1552,6 +1552,32 @@ class FloatPeriod(BasePeriod):
                 "rates": [self.rate(curve)],
             },
         ).set_index("obs_dates")
+
+    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve):
+        calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
+        fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
+
+        reg_end_dts = sorted([add_tenor(self.start, k, "MF", calendar) for k in curve.keys()])
+        if self.end > reg_end_dts[-1]:
+            warnings.warn(
+                "Interpolated stub period has a length longer than the provided "
+                "IBOR curve tenors: using the longest IBOR value.",
+                UserWarning,
+            )
+            a1, a2 = 0.0, 1.0
+        elif self.end < reg_end_dts[0]:
+            warnings.warn(
+                "Interpolated stub period has a length shorter than the provided "
+                "IBOR curve tenors: using the shortest IBOR value.",
+                UserWarning,
+            )
+            a1, a2 = 1.0, 0.0
+        else:
+            i = index_left(reg_end_dts, len(reg_end_dts), self.end)
+            a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
+            a1 = 1.0 - a2
+
+        return NotImplementedError()
 
     def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
         """
