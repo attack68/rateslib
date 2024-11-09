@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, Series, isna, notna
+from pandas import NA, DataFrame, Series, isna, notna, concat
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
@@ -1535,13 +1535,14 @@ class FloatPeriod(BasePeriod):
             # then must perform an interpolated calculation
             return self._ibor_stub_fixings_table(curve, disc_curve)
         elif isinstance(curve, dict) and not self.stub:
-            # then extract relevant curve from dict and re-run
+            # then extract the one relevant curve from dict
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
-            return self._ibor_fixings_table(curve, disc_curve)
+        return self._ibor_single_tenor_fixings_table(curve, disc_curve, f"{self.freq_months}m")
 
+    def _ibor_single_tenor_fixings_table(self,curve, disc_curve, tenor):
         calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
-        reg_end_dt = add_tenor(self.start, f"{self.freq_months}m", curve.modifier, calendar)
+        reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
 
         reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
         return DataFrame(
@@ -1555,9 +1556,10 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
-        fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
+        values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
+        values = dict(sorted(values.items()))
+        reg_end_dts = list(values.keys())
 
-        reg_end_dts = sorted([add_tenor(self.start, k, "MF", calendar) for k in curve.keys()])
         if self.end > reg_end_dts[-1]:
             warnings.warn(
                 "Interpolated stub period has a length longer than the provided "
@@ -1565,6 +1567,7 @@ class FloatPeriod(BasePeriod):
                 UserWarning,
             )
             a1, a2 = 0.0, 1.0
+            i = len(reg_end_dts) - 2
         elif self.end < reg_end_dts[0]:
             warnings.warn(
                 "Interpolated stub period has a length shorter than the provided "
@@ -1572,12 +1575,19 @@ class FloatPeriod(BasePeriod):
                 UserWarning,
             )
             a1, a2 = 1.0, 0.0
+            i = 0
         else:
             i = index_left(reg_end_dts, len(reg_end_dts), self.end)
             a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
             a1 = 1.0 - a2
 
-        return NotImplementedError()
+        tenor1, tenor2 = list(values.values())[i], list(values.values())[i+1]
+        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1)
+        df1["notional"] = df1["notional"] * a1
+        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2)
+        df2["notional"] = df2["notional"] * a2
+        df = concat([df1, df2], keys=[curve[tenor1].id, curve[tenor2].id], axis=1)
+        return df
 
     def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
         """
