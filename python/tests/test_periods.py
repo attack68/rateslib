@@ -791,7 +791,7 @@ class TestFloatPeriod:
         assert period._is_inefficient is False
         assert period.rate(line_curve) == 3.0
 
-    def test_ibor_fixing_table(self, line_curve) -> None:
+    def test_ibor_fixing_table(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
@@ -801,13 +801,13 @@ class TestFloatPeriod:
             method_param=2,
             convention="act365f",
         )
-        result = float_period.fixings_table(line_curve)
+        result = float_period.fixings_table(line_curve, disc_curve=curve)
         expected = DataFrame(
             {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [0.2465753424657534], "rates": [2.0]},
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
-    def test_ibor_fixing_table_fast(self, line_curve) -> None:
+    def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
@@ -817,7 +817,7 @@ class TestFloatPeriod:
             method_param=2,
             convention="act365f",
         )
-        result = float_period.fixings_table(line_curve, approximate=True)
+        result = float_period.fixings_table(line_curve, disc_curve=curve, approximate=True)
         expected = DataFrame(
             {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [0.2465753424657534], "rates": [2.0]},
         ).set_index("obs_dates")
