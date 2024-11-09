@@ -1405,10 +1405,18 @@ class TestFRA:
 
     def test_imm_dated_fixings_table(self, curve):
         # This is an IMM FRA: the DCF is different to standard tenor.
-        fra = FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm", curves=curve, notional=1e9)
+        fra = FRA(
+            effective=dt(2024, 12, 18),
+            termination=dt(2025, 3, 19),
+            spec="sek_fra3",
+            roll="imm",
+            curves=curve,
+            notional=1e9,
+        )
         result = fra.fixings_table()
         assert isinstance(result, DataFrame)
-        assert abs(result.iloc[0,0] - 1010998395) < 1
+        assert abs(result.iloc[0, 0] - 1010998395) < 1
+
 
 class TestZCS:
     @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.529690979), ("S", 3.54526437721296)])

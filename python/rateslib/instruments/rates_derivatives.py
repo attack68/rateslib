@@ -1294,10 +1294,10 @@ class IIRS(BaseDerivative):
         return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
 
     def fixings_table(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            approximate: bool = False,
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        approximate: bool = False,
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -2122,10 +2122,10 @@ class SBS(BaseDerivative):
         return self.rate(*args, **kwargs)
 
     def fixings_table(
-            self,
-            curves: Curve | str | list | NoInput = NoInput(0),
-            solver: Solver | NoInput = NoInput(0),
-            approximate: bool = False,
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        approximate: bool = False,
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.

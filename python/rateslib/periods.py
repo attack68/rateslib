@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, Series, isna, notna, concat
+from pandas import NA, DataFrame, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
@@ -1539,7 +1539,7 @@ class FloatPeriod(BasePeriod):
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
         return self._ibor_single_tenor_fixings_table(curve, disc_curve, f"{self.freq_months}m")
 
-    def _ibor_single_tenor_fixings_table(self,curve, disc_curve, tenor):
+    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor):
         calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
         reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
@@ -1548,7 +1548,9 @@ class FloatPeriod(BasePeriod):
         return DataFrame(
             {
                 "obs_dates": [fixing_dt],
-                "notional": -self.notional * (self.dcf / reg_dcf) * (disc_curve[self.payment] / disc_curve[reg_end_dt]),
+                "notional": -self.notional
+                * (self.dcf / reg_dcf)
+                * (disc_curve[self.payment] / disc_curve[reg_end_dt]),
                 "dcf": [reg_dcf],
                 "rates": [self.rate(curve)],
             },
@@ -1581,7 +1583,7 @@ class FloatPeriod(BasePeriod):
             a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
             a1 = 1.0 - a2
 
-        tenor1, tenor2 = list(values.values())[i], list(values.values())[i+1]
+        tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
         df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1)
         df1["notional"] = df1["notional"] * a1
         df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2)

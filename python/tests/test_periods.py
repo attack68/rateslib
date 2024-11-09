@@ -803,7 +803,12 @@ class TestFloatPeriod:
         )
         result = float_period.fixings_table(line_curve, disc_curve=curve)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [0.2465753424657534], "rates": [2.0]},
+            {
+                "obs_dates": [dt(2022, 1, 2)],
+                "notional": [-1e6],
+                "dcf": [0.2465753424657534],
+                "rates": [2.0],
+            },
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
@@ -819,7 +824,12 @@ class TestFloatPeriod:
         )
         result = float_period.fixings_table(line_curve, disc_curve=curve, approximate=True)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [0.2465753424657534], "rates": [2.0]},
+            {
+                "obs_dates": [dt(2022, 1, 2)],
+                "notional": [-1e6],
+                "dcf": [0.2465753424657534],
+                "rates": [2.0],
+            },
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
@@ -1436,8 +1446,8 @@ class TestFloatPeriod:
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
         assert isinstance(result, DataFrame)
-        assert abs(result.iloc[0,0] + 1036300) < 1
-        assert abs(result.iloc[0,3] + 336894) < 1
+        assert abs(result.iloc[0, 0] + 1036300) < 1
+        assert abs(result.iloc[0, 3] + 336894) < 1
 
     def test_ibor_non_stub_fixings_table(self) -> None:
         period = FloatPeriod(
