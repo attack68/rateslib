@@ -64,6 +64,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        now avoids *TypeErrors* where possible and maintains appropriate AD orders for each
        existing and new object.
        (`440 <https://github.com/attack68/rateslib/pull/440>`_)
+   * - Bug
+     - The method :meth:`~rateslib.periods.FloatPeriod.fixings_table` is amended for IBOR type
+       fixings to account for DCFs, amended payment dates, and interpolated stubs. Requires
+       a new ``disc_curve`` argument for proper discounting.
+       (`470 <https://github.com/attack68/rateslib/pull/470>`_)
    * - Developers
      - *rateslib-rs* extension upgrades to using PyO3:0.22, nadarray:0.16, numpy:0.22.
        (`460 <https://github.com/attack68/rateslib/pull/460>`_)

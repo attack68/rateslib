@@ -1302,8 +1302,11 @@ class FloatPeriod(BasePeriod):
         """
         if disc_curve is NoInput.blank and isinstance(curve, dict):
             raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif disc_curve is NoInput.blank and curve._base_type == "dfs":
-            disc_curve = curve
+        elif disc_curve is NoInput.blank:
+            if curve._base_type == "dfs":
+                disc_curve = curve
+            else:
+                raise ValueError("Must supply a discount factor based `disc_curve`.")
 
         if approximate:
             if self.fixings is not NoInput.blank:
@@ -1326,7 +1329,7 @@ class FloatPeriod(BasePeriod):
             table = table.iloc[:-1]
             return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
         elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve)
+            return self._ibor_fixings_table(curve, disc_curve)
 
     def _rfr_fixings_array(
         self,
@@ -1515,7 +1518,7 @@ class FloatPeriod(BasePeriod):
             },
         )
 
-    def _ibor_fixings_table(self, curve):
+    def _ibor_fixings_table(self, curve, disc_curve):
         """
         Calculate a fixings_table under an IBOR based methodology.
 
@@ -1534,16 +1537,17 @@ class FloatPeriod(BasePeriod):
         elif isinstance(curve, dict) and not self.stub:
             # then extract relevant curve from dict and re-run
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
-            return self._ibor_fixings_table(curve)
+            return self._ibor_fixings_table(curve, disc_curve)
 
         calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
         reg_end_dt = add_tenor(self.start, f"{self.freq_months}m", curve.modifier, calendar)
+
         reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
         return DataFrame(
             {
                 "obs_dates": [fixing_dt],
-                "notional": -self.notional * self.dcf / reg_dcf,
+                "notional": -self.notional * (self.dcf / reg_dcf) * (disc_curve[self.payment] / disc_curve[reg_end_dt]),
                 "dcf": [reg_dcf],
                 "rates": [self.rate(curve)],
             },
@@ -1636,7 +1640,7 @@ class FloatPeriod(BasePeriod):
             table = table.iloc[:-1]
             return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
         elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve)
+            return self._ibor_fixings_table(curve, disc_curve)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
