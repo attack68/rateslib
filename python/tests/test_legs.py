@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, Series, date_range, MultiIndex
+from pandas import DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
 from rateslib.curves import Curve, IndexCurve
@@ -1036,9 +1036,9 @@ class TestFloatLegExchange:
             },
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
         )
-        expected.columns = MultiIndex.from_tuples([
-            (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         assert_frame_equal(result[dt(2022, 4, 30) : dt(2022, 5, 1)], expected)
 
 

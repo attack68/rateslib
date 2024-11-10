@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, Series, concat, isna, notna, MultiIndex
+from pandas import NA, DataFrame, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
@@ -1173,9 +1173,9 @@ class FloatPeriod(BasePeriod):
             )
             table = table.iloc[:-1]
             df = table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
-            df.columns = MultiIndex.from_tuples([
-                (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
-            ])
+            df.columns = MultiIndex.from_tuples(
+                [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            )
             return df
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve)
@@ -1681,9 +1681,9 @@ class FloatPeriod(BasePeriod):
 
             table = table.iloc[:-1]
             df = table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
-            df.columns = MultiIndex.from_tuples([
-                (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
-            ])
+            df.columns = MultiIndex.from_tuples(
+                [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            )
             return df
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve)

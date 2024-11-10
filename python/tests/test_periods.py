@@ -5,7 +5,7 @@ from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, Series, MultiIndex
+from pandas import DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
@@ -1080,9 +1080,9 @@ class TestFloatPeriod:
         ],
     )
     def test_rfr_fixings_table(self, curve, meth, exp) -> None:
-        exp.columns = MultiIndex.from_tuples([
-            (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
-        ])
+        exp.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
@@ -1240,7 +1240,9 @@ class TestFloatPeriod:
         table = period.fixings_table(curve)
         period.float_spread = 200
         table2 = period.fixings_table(curve)
-        assert (table[(curve.id, "notional")].iloc[0] == table2[(curve.id, "notional")].iloc[0]) == exp
+        assert (
+            table[(curve.id, "notional")].iloc[0] == table2[(curve.id, "notional")].iloc[0]
+        ) == exp
 
     def test_custom_interp_rate_nan(self) -> None:
         float_period = FloatPeriod(
