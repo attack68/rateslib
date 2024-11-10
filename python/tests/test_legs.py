@@ -1036,6 +1036,9 @@ class TestFloatLegExchange:
             },
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
         )
+        expected.columns = MultiIndex.from_tuples([
+            (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
+        ])
         assert_frame_equal(result[dt(2022, 4, 30) : dt(2022, 5, 1)], expected)
 
 

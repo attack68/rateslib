@@ -1680,7 +1680,11 @@ class FloatPeriod(BasePeriod):
             )
 
             table = table.iloc[:-1]
-            return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
+            df = table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
+            df.columns = MultiIndex.from_tuples([
+                (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
+            ])
+            return df
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve)
 
