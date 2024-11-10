@@ -39,8 +39,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`454 <https://github.com/attack68/rateslib/pull/454>`_)
    * - Instruments
      - Add a :meth:`~rateslib.instruments.IRS.fixings_table` method to floating rate based
-       *Instruments*: *IRS*, *SBS*
+       *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*
        (`467 <https://github.com/attack68/rateslib/pull/467>`_)
+       (`470 <https://github.com/attack68/rateslib/pull/470>`_)
    * - Performance
      - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
        :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
