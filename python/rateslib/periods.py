@@ -1593,10 +1593,10 @@ class FloatPeriod(BasePeriod):
 
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
         df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1)
-        df1["notional"] = df1["notional"] * a1
+        df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
         df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2)
-        df2["notional"] = df2["notional"] * a2
-        df = concat([df1, df2], keys=[curve[tenor1].id, curve[tenor2].id], axis=1)
+        df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
+        df = concat([df1, df2], axis=1)
         return df
 
     def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
