@@ -1549,7 +1549,7 @@ class FloatPeriod(BasePeriod):
         reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
 
         reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
-        return DataFrame(
+        df = DataFrame(
             {
                 "obs_dates": [fixing_dt],
                 "notional": -self.notional
@@ -1559,6 +1559,10 @@ class FloatPeriod(BasePeriod):
                 "rates": [self.rate(curve)],
             },
         ).set_index("obs_dates")
+        df.columns = MultiIndex.from_tuples([
+            (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
+        ])
+        return df
 
     def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
