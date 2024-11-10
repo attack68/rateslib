@@ -5,7 +5,7 @@ from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, Series
+from pandas import DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
@@ -749,7 +749,7 @@ class TestFloatPeriod:
             convention="act365f",
         )
         result = period.fixings_table(rfr_curve)
-        assert abs(result["notional"].iloc[0] - expected) < 1
+        assert abs(result[(rfr_curve.id, "notional")].iloc[0] - expected) < 1
 
     @pytest.mark.parametrize(
         ("method", "expected"),
@@ -810,6 +810,9 @@ class TestFloatPeriod:
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples([
+            (line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")
+        ])
         assert_frame_equal(expected, result)
 
     def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
@@ -831,6 +834,9 @@ class TestFloatPeriod:
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples([
+            (line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")
+        ])
         assert_frame_equal(expected, result)
 
     def test_ibor_fixings(self) -> None:
@@ -1080,6 +1086,9 @@ class TestFloatPeriod:
         ],
     )
     def test_rfr_fixings_table(self, curve, meth, exp) -> None:
+        exp.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
@@ -1237,7 +1246,9 @@ class TestFloatPeriod:
         table = period.fixings_table(curve)
         period.float_spread = 200
         table2 = period.fixings_table(curve)
-        assert (table["notional"].iloc[0] == table2["notional"].iloc[0]) == exp
+        assert (
+            table[(curve.id, "notional")].iloc[0] == table2[(curve.id, "notional")].iloc[0]
+        ) == exp
 
     def test_custom_interp_rate_nan(self) -> None:
         float_period = FloatPeriod(
@@ -1467,6 +1478,9 @@ class TestFloatPeriod:
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
             columns=["notional", "dcf", "rates"],
         )
+        expected.columns = MultiIndex.from_tuples([
+            (curve3.id, "notional"), (curve3.id, "dcf"), (curve3.id, "rates")
+        ])
         assert_frame_equal(result, expected)
 
     def test_local_historical_pay_date_issue(self, curve) -> None:
