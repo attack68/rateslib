@@ -1237,6 +1237,11 @@ class TestIIRS:
         for i in range(4):
             assert result.iloc[i]["Index Base"] == 200.0
 
+    def test_fixings_table(self, curve):
+        iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=curve)
+        result = iirs.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestSBS:
     def test_sbs_npv(self, curve) -> None:
@@ -1382,6 +1387,35 @@ class TestFRA:
 
     def test_imm_dated(self):
         FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
+
+    def test_fra_fixings_table(self, curve) -> None:
+        fra = FRA(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            modifier="mf",
+            frequency="S",
+            fixed_rate=4.035,
+            curves=curve,
+        )
+        result = fra.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_imm_dated_fixings_table(self, curve):
+        # This is an IMM FRA: the DCF is different to standard tenor.
+        fra = FRA(
+            effective=dt(2024, 12, 18),
+            termination=dt(2025, 3, 19),
+            spec="sek_fra3",
+            roll="imm",
+            curves=curve,
+            notional=1e9,
+        )
+        result = fra.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] - 1010998395) < 1
 
 
 class TestZCS:

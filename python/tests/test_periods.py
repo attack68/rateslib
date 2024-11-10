@@ -791,7 +791,7 @@ class TestFloatPeriod:
         assert period._is_inefficient is False
         assert period.rate(line_curve) == 3.0
 
-    def test_ibor_fixing_table(self, line_curve) -> None:
+    def test_ibor_fixing_table(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
@@ -799,14 +799,20 @@ class TestFloatPeriod:
             frequency="Q",
             fixing_method="ibor",
             method_param=2,
+            convention="act365f",
         )
-        result = float_period.fixings_table(line_curve)
+        result = float_period.fixings_table(line_curve, disc_curve=curve)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [None], "rates": [2.0]},
+            {
+                "obs_dates": [dt(2022, 1, 2)],
+                "notional": [-1e6],
+                "dcf": [0.2465753424657534],
+                "rates": [2.0],
+            },
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
-    def test_ibor_fixing_table_fast(self, line_curve) -> None:
+    def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
@@ -814,10 +820,16 @@ class TestFloatPeriod:
             frequency="Q",
             fixing_method="ibor",
             method_param=2,
+            convention="act365f",
         )
-        result = float_period.fixings_table(line_curve, approximate=True)
+        result = float_period.fixings_table(line_curve, disc_curve=curve, approximate=True)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [None], "rates": [2.0]},
+            {
+                "obs_dates": [dt(2022, 1, 2)],
+                "notional": [-1e6],
+                "dcf": [0.2465753424657534],
+                "rates": [2.0],
+            },
         ).set_index("obs_dates")
         assert_frame_equal(expected, result)
 
@@ -1433,8 +1445,25 @@ class TestFloatPeriod:
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] + 1036300) < 1
+        assert abs(result.iloc[0, 3] + 336894) < 1
+
+    def test_ibor_non_stub_fixings_table(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 5, 1),
+            payment=dt(2023, 5, 1),
+            frequency="q",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table({"1M": curve1, "3M": curve3}, disc_curve=curve1)
         expected = DataFrame(
-            data=[[-1e6, None, 2.01639]],
+            data=[[-1e6, 0.24722222222222223, 3.0]],
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
             columns=["notional", "dcf", "rates"],
         )
