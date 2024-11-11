@@ -618,6 +618,8 @@ class IRS(BaseDerivative):
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ) -> DataFrame:
         """
@@ -635,6 +637,12 @@ class IRS(BaseDerivative):
         solver : Solver, optional
             The numerical :class:`~rateslib.solver.Solver` that constructs
             :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
@@ -651,7 +659,9 @@ class IRS(BaseDerivative):
             NoInput(0),
             self.leg1.currency,
         )
-        return self.leg2.fixings_table(curves[2], approximate, curves[3])
+        return self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+        )
 
 
 class STIRFuture(IRS):
@@ -1297,6 +1307,8 @@ class IIRS(BaseDerivative):
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ) -> DataFrame:
         """
@@ -1314,6 +1326,12 @@ class IIRS(BaseDerivative):
         solver : Solver, optional
             The numerical :class:`~rateslib.solver.Solver` that constructs
             :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
@@ -1330,7 +1348,7 @@ class IIRS(BaseDerivative):
             NoInput(0),
             self.leg2.currency,
         )
-        df = self.leg2.fixings_table(curves[2], approximate, curves[3])
+        df = self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
         return df
 
 
@@ -2125,6 +2143,8 @@ class SBS(BaseDerivative):
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ) -> DataFrame:
         """
@@ -2142,6 +2162,12 @@ class SBS(BaseDerivative):
         solver : Solver, optional
             The numerical :class:`~rateslib.solver.Solver` that constructs
             :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
@@ -2158,8 +2184,12 @@ class SBS(BaseDerivative):
             NoInput(0),
             self.leg1.currency,
         )
-        df1 = self.leg1.fixings_table(curves[0], approximate, curves[1])
-        df2 = self.leg2.fixings_table(curves[2], approximate, curves[3])
+        df1 = self.leg1.fixings_table(
+            curve=curves[0], approximate=approximate, disc_curve=curves[1]
+        )
+        df2 = self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+        )
         return concat([df1, df2], keys=("leg1", "leg2"), axis=1)
 
 
@@ -2529,6 +2559,8 @@ class FRA(Sensitivities, BaseMixin):
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ) -> DataFrame:
         """
@@ -2546,6 +2578,12 @@ class FRA(Sensitivities, BaseMixin):
         solver : Solver, optional
             The numerical :class:`~rateslib.solver.Solver` that constructs
             :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
@@ -2562,7 +2600,9 @@ class FRA(Sensitivities, BaseMixin):
             NoInput(0),
             self.leg2.currency,
         )
-        return self.leg2.fixings_table(curves[2], approximate, curves[3])
+        return self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+        )
 
     def delta(self, *args, **kwargs):
         """

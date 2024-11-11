@@ -810,9 +810,9 @@ class TestFloatPeriod:
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
-        expected.columns = MultiIndex.from_tuples([
-            (line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [(line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+        )
         assert_frame_equal(expected, result)
 
     def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
@@ -834,9 +834,9 @@ class TestFloatPeriod:
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
-        expected.columns = MultiIndex.from_tuples([
-            (line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [(line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+        )
         assert_frame_equal(expected, result)
 
     def test_ibor_fixings(self) -> None:
@@ -1478,9 +1478,9 @@ class TestFloatPeriod:
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
             columns=["notional", "dcf", "rates"],
         )
-        expected.columns = MultiIndex.from_tuples([
-            (curve3.id, "notional"), (curve3.id, "dcf"), (curve3.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [(curve3.id, "notional"), (curve3.id, "dcf"), (curve3.id, "rates")]
+        )
         assert_frame_equal(result, expected)
 
     def test_local_historical_pay_date_issue(self, curve) -> None:
