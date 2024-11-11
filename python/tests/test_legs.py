@@ -6,8 +6,8 @@ from pandas import DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
 from rateslib.curves import Curve, IndexCurve
-from rateslib.dual import Dual
 from rateslib.default import NoInput
+from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     Cashflow,
@@ -1621,7 +1621,7 @@ class TestFloatLegExchangeMtm:
             alt_notional=10e6,
             payment_lag_exchange=3,
             fixing_method="ibor",
-            method_param=0
+            method_param=0,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
         fxf = FXForwards(
@@ -1633,11 +1633,11 @@ class TestFloatLegExchangeMtm:
             },
         )
 
-        result = float_leg_exch.fixings_table(
-            fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf
-        )
+        result = float_leg_exch.fixings_table(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         assert isinstance(result, DataFrame)
-        assert isinstance(result.iloc[0, 0], float)  # Dual converted to float for fixings table display
+        assert isinstance(
+            result.iloc[0, 0], float
+        )  # Dual converted to float for fixings table display
         assert abs(result.iloc[0, 0] + 10499895) < 1
         assert abs(result.iloc[1, 0] + 10558419) < 1
 
@@ -1663,9 +1663,7 @@ class TestFloatLegExchangeMtm:
             },
         )
 
-        result = float_leg_exch.fixings_table(
-            fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf
-        )
+        result = float_leg_exch.fixings_table(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
         assert isinstance(result, DataFrame)
         assert isinstance(result.iloc[0, 0], float)  # Dual is converted to float for fixings table
 

@@ -659,7 +659,9 @@ class IRS(BaseDerivative):
             NoInput(0),
             self.leg1.currency,
         )
-        return self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
+        return self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+        )
 
 
 class STIRFuture(IRS):
@@ -2182,8 +2184,12 @@ class SBS(BaseDerivative):
             NoInput(0),
             self.leg1.currency,
         )
-        df1 = self.leg1.fixings_table(curve=curves[0], approximate=approximate, disc_curve=curves[1])
-        df2 = self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
+        df1 = self.leg1.fixings_table(
+            curve=curves[0], approximate=approximate, disc_curve=curves[1]
+        )
+        df2 = self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+        )
         return concat([df1, df2], keys=("leg1", "leg2"), axis=1)
 
 
@@ -2594,7 +2600,9 @@ class FRA(Sensitivities, BaseMixin):
             NoInput(0),
             self.leg2.currency,
         )
-        return self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
+        return self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+        )
 
     def delta(self, *args, **kwargs):
         """

@@ -1487,7 +1487,9 @@ class FloatPeriod(BasePeriod):
             v = disc_curve[self.payment]
             mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
 
-            notional_exposure[mask] *= -float(self.notional) * (self.dcf / dcf_of_r[mask]) * float(v)
+            notional_exposure[mask] *= (
+                -float(self.notional) * (self.dcf / dcf_of_r[mask]) * float(v)
+            )
             notional_exposure[mask] /= v_with_r[mask].astype(float)
             # notional_exposure[mask] *=
             #     (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
@@ -1552,16 +1554,18 @@ class FloatPeriod(BasePeriod):
         df = DataFrame(
             {
                 "obs_dates": [fixing_dt],
-                "notional": float(-self.notional
-                * (self.dcf / reg_dcf)
-                * (disc_curve[self.payment] / disc_curve[reg_end_dt])),
+                "notional": float(
+                    -self.notional
+                    * (self.dcf / reg_dcf)
+                    * (disc_curve[self.payment] / disc_curve[reg_end_dt])
+                ),
                 "dcf": [reg_dcf],
                 "rates": [self.rate(curve)],
             },
         ).set_index("obs_dates")
-        df.columns = MultiIndex.from_tuples([
-            (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
-        ])
+        df.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         return df
 
     def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve):

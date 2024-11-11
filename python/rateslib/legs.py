@@ -969,7 +969,7 @@ class FloatLeg(BaseLeg, _FloatLegMixin):
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-        approximate: bool = False
+        approximate: bool = False,
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
