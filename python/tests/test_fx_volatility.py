@@ -5,6 +5,7 @@ import pytest
 from matplotlib import pyplot as plt
 from pandas import DataFrame, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
+from rateslib import default_context
 from rateslib.calendars import get_calendar
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
@@ -591,6 +592,25 @@ class TestFXDeltaVolSurface:
         for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
             smile = fxvs_weights.get_smile(date)
             assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
+
+    def test_cache_clear_and_defaults(self):
+        fxvs = FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[19.590, 18.250, 18.967], [18.801, 17.677, 18.239]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+        )
+        fxvs.get_smile(dt(2024, 7, 1))
+        assert dt(2024, 7, 1) in fxvs._cache
+
+        fxvs.clear_cache()
+        assert dt(2024, 7, 1) not in fxvs._cache
+
+        with default_context("curve_caching", False):
+            fxvs.get_smile(dt(2024, 7, 1))
+            # no clear cache required, but value will re-calc anyway
+            assert dt(2024, 7, 1) not in fxvs._cache
 
 
 def test_validate_delta_type() -> None:
