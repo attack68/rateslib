@@ -963,14 +963,36 @@ class FloatLeg(BaseLeg, _FloatLegMixin):
         """
         return super().npv(*args, **kwargs)
 
-    def fixings_table(self, *args, **kwargs) -> DataFrame:
+    def fixings_table(
+        self,
+        curve: Curve,
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
 
-        For arguments see
-        :meth:`FloatPeriod.fixings_table()<rateslib.periods.FloatPeriod.fixings_table>`.
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given and ``curve`` is discount factor based.
+        fx : float, FXRates, FXForwards, optional
+            Only used in the case of :class:`~rateslib.legs.FloatLegMtm` to derive FX fixings.
+        base : str, optional
+            Not used by ``fixings_table``.
+        approximate: bool
+            Whether to use a faster (3x) but marginally less accurate (0.1% error) calculation.
+
+        Returns
+        -------
+        DataFrame
         """
-        return super()._fixings_table(*args, **kwargs)
+        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
 
     def _set_periods(self) -> None:
         return super()._set_periods()
@@ -2631,23 +2653,8 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
 
-        Parameters
-        ----------
-        curve : Curve, optional
-            The forecasting curve object.
-        disc_curve : Curve, optional
-            The discounting curve object used in calculations.
-            Set equal to ``curve`` if not given and ``curve`` is discount factor based.
-        fx : float, FXRates, FXForwards, optional
-            Used to derive FX fixings for the mark-to-market element of the leg.
-        base : str, optional
-            Not used by ``fixings_table``.
-        approximate: bool
-            Whether to use a faster (3x) but marginally less accurate (0.1% error) calculation.
-
-        Returns
-        -------
-        DataFrame
+        For arguments see
+        :meth:`FloatLeg.fixings_table()<rateslib.legs.FloatLeg.fixings_table>`.
         """
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
