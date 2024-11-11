@@ -51,13 +51,6 @@ Calendars
 Classes
 ^^^^^^^
 
-.. autosummary::
-   ~rateslib.calendars.Cal
-   ~rateslib.calendars.NamedCal
-   ~rateslib.calendars.UnionCal
-   ~rateslib.calendars.Modifier
-   ~rateslib.calendars.RollDay
-
 .. toctree::
     :maxdepth: 0
     :titlesonly:
@@ -71,6 +64,7 @@ Classes
 
 .. automodapi:: rateslib.calendars
    :no-heading:
+   :no-inheritance-diagram:
 
 Scheduling
 ===========
