@@ -10,7 +10,7 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.12"
-    rust: "1.75"
+    rust: "latest"
     # You can also specify other tool versions:
     # nodejs: "19"
     # rust: "1.64"
