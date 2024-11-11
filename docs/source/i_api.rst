@@ -132,13 +132,7 @@ Dual (for AD)
 
 .. automodapi:: rateslib.dual
    :no-heading:
-
-Classes
-^^^^^^^^
-
-.. autosummary::
-   Dual
-   Dual2
+   :no-inheritance-diagram:
 
 .. toctree::
     :maxdepth: 0
@@ -175,6 +169,7 @@ FX Volatility
 
 .. automodapi:: rateslib.fx_volatility
    :no-heading:
+   :no-inheritance-diagram:
    :skip: set_order_convert
    :skip: dual_exp
    :skip: dual_inv_norm_cdf
@@ -208,6 +203,8 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: NoInput
    :skip: ABCMeta
    :skip: IndexCurve
+   :skip: Variable
+   :skip: MultiIndex
    :skip: Curve
    :skip: DataFrame
    :skip: Dual
