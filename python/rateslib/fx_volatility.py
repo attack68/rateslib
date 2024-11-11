@@ -739,7 +739,8 @@ class FXDeltaVolSurface:
         This should be used if any modification has been made to the *Surface*.
         Users are advised against making direct modification to *Surface* classes once
         constructed to avoid the issue of un-cleared caches returning erroneous values.
-        Alternatively set ``defaults.curve_caching`` to *False* to turn off global caching in general.
+        Alternatively set ``defaults.curve_caching`` to *False* to turn off global
+        caching in general.
         """
         self._cache = dict()
 
