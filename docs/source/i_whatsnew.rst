@@ -60,7 +60,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        This feature can be opted out of using the
        ``defaults.curve_caching`` setting.
        Note also the added :meth:`~rateslib.fx_volatility.FXDeltaVolSurface.clear_cache` method.
-       (`XXX <https://github.com/attack68/rateslib/pull/XXX>`_)
+       (`481 <https://github.com/attack68/rateslib/pull/481>`_)
    * - Automatic Differentiation
      - Add a new object for AD management, a :class:`~rateslib.dual.Variable`, which allows a
        user to inject manual exogenous sensitivities into calculations. See
