@@ -42,6 +42,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
        *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*
        (`467 <https://github.com/attack68/rateslib/pull/467>`_)
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
+   * - Legs
+     - Add method :meth:`~rateslib.legs.FloatLegMtm.fixings_table` to a *FloatLegMtm*.
    * - Periods
      - :red:`Minor Breaking Change!` The method :meth:`~rateslib.periods.FloatPeriod.fixings_table`
        returns a *DataFrame* with amended column headers to reference the *Curve* id from which

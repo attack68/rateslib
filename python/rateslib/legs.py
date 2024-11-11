@@ -2626,6 +2626,39 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
         self._set_fixings(fixings)
         self.fx_fixings = self.fx_fixings  # sets fx_fixings and periods after initialising
 
+    def fixings_table(
+        self,
+        curve: Curve,
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        """
+        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
+
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given and ``curve`` is discount factor based.
+        fx : float, FXRates, FXForwards, optional
+            Used to derive FX fixings for the mark-to-market element of the leg.
+        base : str, optional
+            Not used by ``fixings_table``.
+        approximate: bool
+            Whether to use a faster (3x) but marginally less accurate (0.1% error) calculation.
+
+        Returns
+        -------
+        DataFrame
+        """
+        if not self._do_not_repeat_set_periods:
+            self._set_periods(fx)
+        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
+
 
 class CustomLeg(BaseLeg):
     """
