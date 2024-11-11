@@ -48,9 +48,6 @@ Defaults
 Calendars
 ==========
 
-Classes
-^^^^^^^
-
 .. toctree::
     :maxdepth: 0
     :titlesonly:
