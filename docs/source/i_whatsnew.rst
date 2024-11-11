@@ -37,6 +37,15 @@ email contact, see `rateslib <https://rateslib.com>`_.
        *'us_ig_cds'*
        (`429 <https://github.com/attack68/rateslib/pull/429>`_)
        (`454 <https://github.com/attack68/rateslib/pull/454>`_)
+   * - Instruments
+     - Add a :meth:`~rateslib.instruments.IRS.fixings_table` method to floating rate based
+       *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*
+       (`467 <https://github.com/attack68/rateslib/pull/467>`_)
+       (`470 <https://github.com/attack68/rateslib/pull/470>`_)
+   * - Periods
+     - :red:`Minor Breaking Change!` The method :meth:`~rateslib.periods.FloatPeriod.fixings_table`
+       returns a *DataFrame* with amended column headers to reference the *Curve* id from which
+       the fixing notionals are derived.
    * - Performance
      - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
        :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
@@ -60,6 +69,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        now avoids *TypeErrors* where possible and maintains appropriate AD orders for each
        existing and new object.
        (`440 <https://github.com/attack68/rateslib/pull/440>`_)
+   * - Bug
+     - The method :meth:`~rateslib.periods.FloatPeriod.fixings_table` is amended for IBOR type
+       fixings to account for DCFs, amended payment dates, and interpolated stubs. Requires
+       a new ``disc_curve`` argument for proper discounting.
+       (`470 <https://github.com/attack68/rateslib/pull/470>`_)
    * - Developers
      - *rateslib-rs* extension upgrades to using PyO3:0.22, nadarray:0.16, numpy:0.22.
        (`460 <https://github.com/attack68/rateslib/pull/460>`_)

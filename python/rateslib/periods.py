@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, Series, isna, notna
+from pandas import NA, DataFrame, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
@@ -1016,12 +1016,169 @@ class FloatPeriod(BasePeriod):
                 return method[curve._base_type](curve)
             else:
                 if not self.stub:
-                    curve = curve[f"{self.freq_months}m"]
+                    curve = _get_ibor_curve_from_dict(self.freq_months, curve)
                     return method[curve._base_type](curve)
                 else:
                     return self._interpolated_ibor_from_curve_dict(curve)
         else:
             raise ValueError("`fixing_method` not valid for the FloatPeriod.")  # pragma: no cover
+
+    def fixings_table(
+        self,
+        curve: Curve | LineCurve | dict,
+        approximate: bool = False,
+        disc_curve: Curve = NoInput(0),
+    ):
+        """
+        Return a DataFrame of fixing exposures.
+
+        Parameters
+        ----------
+        curve : Curve, LineCurve, IndexCurve dict of such
+            The forecast needed to calculate rates which affect compounding and
+            dependent notional exposure.
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+        disc_curve : Curve
+            A curve to make appropriate DF scalings. If *None* and ``curve`` contains
+            DFs that will be used instead, otherwise errors are raised.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        **IBOR** and **RFR** ``fixing_method`` have different representations under
+        this method.
+
+        For *"ibor"* based floating rates the fixing exposures are indexed by
+        **publication date** and not by reference value date. IBOR fixings tend to
+        occur either in advance, or the same day.
+
+        For *"rfr"* based floating rates the fixing exposures are indexed by the
+        **reference value date** and not by publication date. RFR fixings tend to
+        publish in arrears, usually at 9am the following business day. Central banks
+        tend to publish data aligning the fixing rate with the reference value date
+        and not by the publication date which is why this format is chosen. It also
+        has practical application when constructing curves.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           rfr_curve = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
+               calendar="bus"
+           )
+
+        A regular `rfr_payment_delay` period.
+
+        .. ipython:: python
+
+           constants = {
+               "start": dt(2022, 1, 5),
+               "end": dt(2022, 1, 11),
+               "payment": dt(2022, 1, 11),
+               "frequency": "Q",
+               "notional": -1000000,
+               "currency": "gbp",
+           }
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_payment_delay"
+           })
+           period.fixings_table(rfr_curve)
+
+        A 2 business day `rfr_observation_shift` period. Notice how the above had
+        4 fixings spanning 6 calendar days, but the observation shift here attributes
+        4 fixings spanning 4 calendar days so the notional exposure to those dates
+        is increased by effectively 6/4.
+
+        .. ipython:: python
+
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_observation_shift",
+               "method_param": 2,
+            })
+           period.fixings_table(rfr_curve)
+
+        A 2 business day `rfr_lookback` period. Notice how the lookback period adjusts
+        the weightings on the 6th January fixing by 3, and thus increases the notional
+        exposure.
+
+        .. ipython:: python
+
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_lookback",
+               "method_param": 2,
+            })
+           period.fixings_table(rfr_curve)
+
+        A 2 business day `rfr_lockout` period. Notice how the exposure to the final
+        fixing which then spans multiple days is increased.
+
+        .. ipython:: python
+
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_lockout",
+               "method_param": 2,
+            })
+           period.fixings_table(rfr_curve)
+
+        An IBOR fixing table
+
+        .. ipython:: python
+
+            ibor_curve = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
+               calendar="bus",
+           )
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "ibor",
+               "method_param": 2,
+            })
+           period.fixings_table(ibor_curve)
+        """
+        if disc_curve is NoInput.blank and isinstance(curve, dict):
+            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+        elif disc_curve is NoInput.blank:
+            if curve._base_type == "dfs":
+                disc_curve = curve
+            else:
+                raise ValueError("Must supply a discount factor based `disc_curve`.")
+
+        if approximate:
+            if self.fixings is not NoInput.blank:
+                warnings.warn(
+                    "Cannot approximate a fixings table when some published fixings "
+                    f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
+                    f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
+                    f"period.",
+                    UserWarning,
+                )
+            else:
+                return self._fixings_table_fast(curve, disc_curve)
+
+        if "rfr" in self.fixing_method:
+            rate, table = self._rfr_fixings_array(
+                curve,
+                fixing_exposure=True,
+                disc_curve=disc_curve,
+            )
+            table = table.iloc[:-1]
+            df = table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
+            df.columns = MultiIndex.from_tuples(
+                [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            )
+            return df
+        elif "ibor" in self.fixing_method:
+            return self._ibor_fixings_table(curve, disc_curve)
 
     def _interpolated_ibor_from_curve_dict(self, curve: dict):
         """
@@ -1177,168 +1334,6 @@ class FloatPeriod(BasePeriod):
                 "`spread_compound_method` must be in {'none_simple', "
                 "'isda_compounding', 'isda_flat_compounding'}.",
             )
-
-    def fixings_table(
-        self,
-        curve: Curve | LineCurve | dict,
-        approximate: bool = False,
-        disc_curve: Curve = NoInput(0),
-    ):
-        """
-        Return a DataFrame of fixing exposures.
-
-        Parameters
-        ----------
-        curve : Curve, LineCurve, IndexCurve dict of such
-            The forecast needed to calculate rates which affect compounding and
-            dependent notional exposure.
-        approximate : bool, optional
-            Perform a calculation that is broadly 10x faster but potentially loses
-            precision upto 0.1%.
-        disc_curve : Curve
-            A curve to make appropriate DF scalings. If *None* and ``curve`` contains
-            DFs that will be used instead, otherwise errors are raised.
-
-        Returns
-        -------
-        DataFrame
-
-        Notes
-        -----
-        **IBOR** and **RFR** ``fixing_method`` have different representations under
-        this method.
-
-        For *"ibor"* based floating rates the fixing exposures are indexed by
-        **publication date** and not by reference value date. IBOR fixings tend to
-        occur either in advance, or the same day.
-
-        For *"rfr"* based floating rates the fixing exposures are indexed by the
-        **reference value date** and not by publication date. RFR fixings tend to
-        publish in arrears, usually at 9am the following business day. Central banks
-        tend to publish data aligning the fixing rate with the reference value date
-        and not by the publication date which is why this format is chosen. It also
-        has practical application when constructing curves.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           rfr_curve = Curve(
-               nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
-               calendar="bus"
-           )
-
-        A regular `rfr_payment_delay` period.
-
-        .. ipython:: python
-
-           constants = {
-               "start": dt(2022, 1, 5),
-               "end": dt(2022, 1, 11),
-               "payment": dt(2022, 1, 11),
-               "frequency": "Q",
-               "notional": -1000000,
-               "currency": "gbp",
-           }
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_payment_delay"
-           })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_observation_shift` period. Notice how the above had
-        4 fixings spanning 6 calendar days, but the observation shift here attributes
-        4 fixings spanning 4 calendar days so the notional exposure to those dates
-        is increased by effectively 6/4.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_observation_shift",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_lookback` period. Notice how the lookback period adjusts
-        the weightings on the 6th January fixing by 3, and thus increases the notional
-        exposure.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_lookback",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_lockout` period. Notice how the exposure to the final
-        fixing which then spans multiple days is increased.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_lockout",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        An IBOR fixing table
-
-        .. ipython:: python
-
-            ibor_curve = Curve(
-               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
-               calendar="bus",
-           )
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "ibor",
-               "method_param": 2,
-            })
-           period.fixings_table(ibor_curve)
-        """
-        if disc_curve is NoInput.blank and isinstance(curve, dict):
-            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif disc_curve is NoInput.blank and curve._base_type == "dfs":
-            disc_curve = curve
-
-        if approximate:
-            if self.fixings is not NoInput.blank:
-                warnings.warn(
-                    "Cannot approximate a fixings table when some published fixings "
-                    f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
-                    f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
-                    f"period.",
-                    UserWarning,
-                )
-            else:
-                return self._fixings_table_fast(curve, disc_curve)
-
-        if "rfr" in self.fixing_method:
-            rate, table = self._rfr_fixings_array(
-                curve,
-                fixing_exposure=True,
-                disc_curve=disc_curve,
-            )
-            table = table.iloc[:-1]
-            return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
-        elif "ibor" in self.fixing_method:
-            if isinstance(curve, dict):
-                calendar = next(iter(curve.values())).calendar
-            else:
-                calendar = curve.calendar
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
-            return DataFrame(
-                {
-                    "obs_dates": [fixing_date],
-                    "notional": -self.notional,
-                    "dcf": [None],
-                    "rates": [self.rate(curve)],
-                },
-            ).set_index("obs_dates")
 
     def _rfr_fixings_array(
         self,
@@ -1527,6 +1522,83 @@ class FloatPeriod(BasePeriod):
             },
         )
 
+    def _ibor_fixings_table(self, curve, disc_curve):
+        """
+        Calculate a fixings_table under an IBOR based methodology.
+
+        Parameters
+        ----------
+        curve: Curve or Dict
+            Dict may be relevant if the period is a stub.
+
+        Returns
+        -------
+        DataFrame
+        """
+        if isinstance(curve, dict) and self.stub:
+            # then must perform an interpolated calculation
+            return self._ibor_stub_fixings_table(curve, disc_curve)
+        elif isinstance(curve, dict) and not self.stub:
+            # then extract the one relevant curve from dict
+            curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        return self._ibor_single_tenor_fixings_table(curve, disc_curve, f"{self.freq_months}m")
+
+    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor):
+        calendar = curve.calendar
+        fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
+        reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
+
+        reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
+        df = DataFrame(
+            {
+                "obs_dates": [fixing_dt],
+                "notional": -self.notional
+                * (self.dcf / reg_dcf)
+                * (disc_curve[self.payment] / disc_curve[reg_end_dt]),
+                "dcf": [reg_dcf],
+                "rates": [self.rate(curve)],
+            },
+        ).set_index("obs_dates")
+        df.columns = MultiIndex.from_tuples([
+            (curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")
+        ])
+        return df
+
+    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve):
+        calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
+        values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
+        values = dict(sorted(values.items()))
+        reg_end_dts = list(values.keys())
+
+        if self.end > reg_end_dts[-1]:
+            warnings.warn(
+                "Interpolated stub period has a length longer than the provided "
+                "IBOR curve tenors: using the longest IBOR value.",
+                UserWarning,
+            )
+            a1, a2 = 0.0, 1.0
+            i = len(reg_end_dts) - 2
+        elif self.end < reg_end_dts[0]:
+            warnings.warn(
+                "Interpolated stub period has a length shorter than the provided "
+                "IBOR curve tenors: using the shortest IBOR value.",
+                UserWarning,
+            )
+            a1, a2 = 1.0, 0.0
+            i = 0
+        else:
+            i = index_left(reg_end_dts, len(reg_end_dts), self.end)
+            a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
+            a1 = 1.0 - a2
+
+        tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
+        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1)
+        df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
+        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2)
+        df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
+        df = concat([df1, df2], axis=1)
+        return df
+
     def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
         """
         Return a DataFrame of **approximate** fixing exposures.
@@ -1612,17 +1684,13 @@ class FloatPeriod(BasePeriod):
             )
 
             table = table.iloc[:-1]
-            return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
+            df = table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
+            df.columns = MultiIndex.from_tuples(
+                [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            )
+            return df
         elif "ibor" in self.fixing_method:
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            return DataFrame(
-                {
-                    "obs_dates": [fixing_date],
-                    "notional": -self.notional,
-                    "dcf": [None],
-                    "rates": [self.rate(curve)],
-                },
-            ).set_index("obs_dates")
+            return self._ibor_fixings_table(curve, disc_curve)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -3959,6 +4027,19 @@ def _maybe_local(value, local, currency, fx, base):
     else:
         fx, _ = _get_fx_and_base(currency, fx, base)
         return value * fx
+
+
+def _get_ibor_curve_from_dict(months, d):
+    try:
+        return d[f"{months}m"]
+    except KeyError:
+        try:
+            return d[f"{months}M"]
+        except KeyError:
+            raise ValueError(
+                "If supplying `curve` as dict must provide a tenor mapping key and curve for"
+                f"the frequency of the given Period. The missing mapping is '{months}m'."
+            )
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):
