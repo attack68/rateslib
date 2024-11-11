@@ -1110,6 +1110,11 @@ class TestIRS:
         irs = IRS(dt(2024, 12, 30), "1d", spec="sek_irs")  # 31st is a holiday.
         assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
 
+    def test_fixings_table(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
+        result = irs.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
@@ -1232,6 +1237,11 @@ class TestIIRS:
         for i in range(4):
             assert result.iloc[i]["Index Base"] == 200.0
 
+    def test_fixings_table(self, curve):
+        iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=curve)
+        result = iirs.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestSBS:
     def test_sbs_npv(self, curve) -> None:
@@ -1279,6 +1289,26 @@ class TestSBS:
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_fixed_rate`"):
             sbs.leg2_fixed_rate = 1.0
+
+    def test_fixings_table(self, curve):
+        inst = SBS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
+        result = inst.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_fixings_table_3s1s(self, curve):
+        inst = SBS(
+            dt(2022, 1, 15),
+            "6m",
+            fixing_method="ibor",
+            method_param=0,
+            leg2_fixing_method="ibor",
+            leg2_method_param=1,
+            frequency="Q",
+            leg2_frequency="m",
+            curves=curve,
+        )
+        result = inst.fixings_table()
+        assert isinstance(result, DataFrame)
 
 
 class TestFRA:
@@ -1357,6 +1387,35 @@ class TestFRA:
 
     def test_imm_dated(self):
         FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
+
+    def test_fra_fixings_table(self, curve) -> None:
+        fra = FRA(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            modifier="mf",
+            frequency="S",
+            fixed_rate=4.035,
+            curves=curve,
+        )
+        result = fra.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_imm_dated_fixings_table(self, curve):
+        # This is an IMM FRA: the DCF is different to standard tenor.
+        fra = FRA(
+            effective=dt(2024, 12, 18),
+            termination=dt(2025, 3, 19),
+            spec="sek_fra3",
+            roll="imm",
+            curves=curve,
+            notional=1e9,
+        )
+        result = fra.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] - 1010998395) < 1
 
 
 class TestZCS:

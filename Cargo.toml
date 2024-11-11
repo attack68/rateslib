@@ -48,7 +48,7 @@ default = ["abi3-py39", "pyo3-chrono", "pyo3-indexmap"]
 #extension-module = ["pyo3/extension-module"]
 #default = ["extension-module", "abi3-py39", "chrono"]
 
-# -------------  When building commment this out and use the abi3-py39 feature in the above block.
+# -------------  When building commment the below out.
 
 #[dev-dependencies]
 #criterion = { version = "0.4", features = ["html_reports"] }

@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
 from rateslib.curves import Curve, IndexCurve
@@ -285,6 +285,9 @@ class TestFloatLeg:
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             },
         ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         assert_frame_equal(result, expected, rtol=1e-5)
 
     def test_rfr_with_fixings_fixings_table_issue(self) -> None:
@@ -363,9 +366,9 @@ class TestFloatLeg:
             fixed_rate=3.922,
         )
         result = swap.leg2.fixings_table(curve)
-        assert result.loc[dt(2024, 1, 10), "notional"] == 0.0
-        assert abs(result.loc[dt(2024, 1, 11), "notional"] - 3006829846) < 1.0
-        assert abs(result.loc[dt(2023, 12, 20), "rates"] - 3.901) < 0.001
+        assert result.loc[dt(2024, 1, 10), (curve.id, "notional")] == 0.0
+        assert abs(result.loc[dt(2024, 1, 11), (curve.id, "notional")] - 3006829846) < 1.0
+        assert abs(result.loc[dt(2023, 12, 20), (curve.id, "rates")] - 3.901) < 0.001
 
     def test_float_leg_set_float_spread(self, curve) -> None:
         float_leg = FloatLeg(
@@ -1032,6 +1035,9 @@ class TestFloatLegExchange:
                 "rates": [4.01655, 4.01655],
             },
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
+        )
+        expected.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         assert_frame_equal(result[dt(2022, 4, 30) : dt(2022, 5, 1)], expected)
 

@@ -31,14 +31,10 @@ use the source distribution directly. In this case you must first
 `install Rust <https://www.rust-lang.org/tools/install>`_ so that the rust extensions
 can be compiled locally by the *pip* installer.
 
-.. warning::
-
-   *Rateslib* is also available via the community ``conda-forge`` channel for Anaconda. **However**,
-   this is currently only for older versions: 1.1.1 and below. Significant development has occurred
-   since then so a *conda installation* is not recommended but is still available
-   from `Anaconda.org <https://anaconda.org/conda-forge/rateslib>`_. If you would like to see
-   up to date versions of *rateslib* added to *conda* please help
-   out `here! <https://github.com/attack68/rateslib/issues/191>`_.
+*Rateslib* is also available via the community ``conda-forge`` channel for
+`Anaconda <https://anaconda.org/conda-forge/rateslib>`_, but only
+for platforms Osx-64, Windows-64 and Linux-64. Other platform installs will default to the much
+earlier pre-rust 1.1.0 version.
 
 .. code-block::
 
@@ -56,7 +52,7 @@ can be compiled locally by the *pip* installer.
      - Recommended Version
      - Earliest Tested
    * - Python
-     - 3.12
+     - 3.13
      - 3.12
      - 3.9
    * - NumPy
