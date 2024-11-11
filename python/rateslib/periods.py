@@ -1552,9 +1552,9 @@ class FloatPeriod(BasePeriod):
         df = DataFrame(
             {
                 "obs_dates": [fixing_dt],
-                "notional": -self.notional
+                "notional": float(-self.notional
                 * (self.dcf / reg_dcf)
-                * (disc_curve[self.payment] / disc_curve[reg_end_dt]),
+                * (disc_curve[self.payment] / disc_curve[reg_end_dt])),
                 "dcf": [reg_dcf],
                 "rates": [self.rate(curve)],
             },
