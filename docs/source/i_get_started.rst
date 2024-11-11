@@ -52,7 +52,7 @@ earlier pre-rust 1.1.0 version.
      - Recommended Version
      - Earliest Tested
    * - Python
-     - 3.12
+     - 3.13
      - 3.12
      - 3.9
    * - NumPy
