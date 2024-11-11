@@ -1487,7 +1487,7 @@ class FloatPeriod(BasePeriod):
             v = disc_curve[self.payment]
             mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
 
-            notional_exposure[mask] *= -self.notional * (self.dcf / dcf_of_r[mask]) * float(v)
+            notional_exposure[mask] *= -float(self.notional) * (self.dcf / dcf_of_r[mask]) * float(v)
             notional_exposure[mask] /= v_with_r[mask].astype(float)
             # notional_exposure[mask] *=
             #     (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
