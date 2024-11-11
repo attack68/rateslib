@@ -61,6 +61,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Add method :meth:`~rateslib.instruments.Sensitivities.exo_delta` to calculate the delta
        sensitivity against a user-defined exogenous *Variable*.
        (`453 <https://github.com/attack68/rateslib/pull/453>`_)
+   * - Dependencies
+     - **Python 3.13** *(with GIL)* is officially supported and tested.
+       (`463 <https://github.com/attack68/rateslib/pull/463>`_)
    * - Bug
      - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
