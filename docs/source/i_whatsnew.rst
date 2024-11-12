@@ -86,6 +86,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        fixings to account for DCFs, amended payment dates, and interpolated stubs. Requires
        a new ``disc_curve`` argument for proper discounting.
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
+   * - Bug
+     - No longer allow the creation of very short *Schedules* with holiday dates that
+       collapse to empty *Periods*.
+       (`484 <https://github.com/attack68/rateslib/pull/484>`_)
    * - Developers
      - *rateslib-rs* extension upgrades to using PyO3:0.22, nadarray:0.16, numpy:0.22.
        (`460 <https://github.com/attack68/rateslib/pull/460>`_)
