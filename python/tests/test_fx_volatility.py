@@ -66,6 +66,25 @@ class TestFXDeltaVolSmile:
         )
         assert abs(put_vol[1] - call_vol[1]) < 1e-9
 
+    def test_strike_caching(self, fxfo) -> None:
+        fxvs = FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.5: 7.8,
+                0.75: 8.9,
+            },
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+        )
+        put_vol = fxvs.get_from_strike(
+            k=0.9,
+            f=fxfo.rate("eurusd", dt(2023, 6, 20)),
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        )
+        pass
+
     @pytest.mark.parametrize(
         ("var", "idx", "val"),
         [("vol0", 0.25, 10.15), ("vol1", 0.5, 7.8), ("vol2", 0.75, 8.9)],

@@ -138,7 +138,11 @@ class FXDeltaVolSmile:
 
     def _maybe_add_to_cache(self, delta_index, val):
         if defaults.curve_caching:
-            self._cache[delta_index] = val
+            try:
+                self._cache[delta_index] = val
+            except TypeError: # delta index is Unhashable type such as a Dual/Dual2
+                # no caching
+                pass
 
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -147,8 +151,12 @@ class FXDeltaVolSmile:
         """
         Get a delta index value from the DeltaVolSmile.
         """
-        if defaults.curve_caching and item in self._cache:
-            return self._cache[item]
+        if defaults.curve_caching:
+            try:
+                if item in self._cache:
+                    return self._cache[item]
+            except TypeError:  # then item is an Unhashable type such as Dual/Dual2 - NO caching
+                pass
 
         if item > self.t[-1]:
             # raise ValueError(
