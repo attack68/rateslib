@@ -886,8 +886,6 @@ def _check_regular_swap(
 
     err_str = ""
     for _ueff, _uterm in product(_ueffectives, _uterminations):
-        if _ueff == _uterm:
-            continue # do not allow same date (avoids 1d periods GH484)
         ret = _check_unadjusted_regular_swap(_ueff, _uterm, frequency, eom, roll)
         if ret[0]:
             return ret
@@ -1084,7 +1082,8 @@ def _infer_stub_date(
             roll,
             calendar,
         )
-        if valid:  # no front stub is required
+        if valid and parsed_args["utermination"] > parsed_args["ueffective"]:
+            # no front stub is required
             return True, {
                 "ueffective": parsed_args["ueffective"],
                 "utermination": parsed_args["utermination"],
@@ -1094,6 +1093,9 @@ def _infer_stub_date(
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
             }
+        elif valid:
+            # utermination aligns with ueffective then dead_too_short_period: GH484
+            return _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar)
         else:
             stub_ = _get_default_stub("FRONT", stub)
             front_stub = _get_unadjusted_stub_date(
@@ -1140,7 +1142,8 @@ def _infer_stub_date(
             roll,
             calendar,
         )
-        if valid:  # no back stub is required
+        if valid and parsed_args["utermination"] > parsed_args["ueffective"]:
+            # no back stub is required
             return True, {
                 "ueffective": parsed_args["ueffective"],
                 "utermination": parsed_args["utermination"],
@@ -1150,6 +1153,9 @@ def _infer_stub_date(
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
             }
+        elif valid:
+            # utermination aligns with ueffective then dead_too_short_period: GH484
+            return _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar)
         else:
             stub_ = _get_default_stub("BACK", stub)
             back_stub = _get_unadjusted_stub_date(

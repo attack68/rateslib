@@ -1116,24 +1116,8 @@ class TestIRS:
         assert isinstance(result, DataFrame)
 
     def test_1d_instruments(self):
-        turns = Curve(
-            nodes={
-                dt(2024, 11, 11): 1.0,
-                dt(2025, 1, 1): 1.0,
-                dt(2025, 10, 1): 1.0,
-                dt(2026, 1, 1): 1.0,
-                dt(2027, 10, 1): 1.0,
-                dt(2028, 1, 1): 1.0,
-                dt(2054, 11, 16): 1.0,
-            },
-            calendar="stk",
-            convention="act360",
-            id="stibor3m_turns",
-        )
-        irs = IRS(dt(2025, 1, 1), "1d", spec="sek_irs", curves="stibor3m_turns")
-        irs.rate(turns)
-
-
+        with pytest.raises(ValueError, match="date, stub and roll inputs are invalid"):
+            IRS(dt(2025, 1, 1), "1d", spec="sek_irs")
 
 
 class TestIIRS:
