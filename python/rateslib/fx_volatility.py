@@ -640,6 +640,7 @@ class FXDeltaVolSmile:
 
     def _set_node_vector(self, vector, ad):
         """Update the node values in a Solver. ``ad`` in {1, 2}."""
+        self.clear_cache()
         DualType = Dual if ad == 1 else Dual2
         DualArgs = ([],) if ad == 1 else ([], [])
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
@@ -779,17 +780,17 @@ class FXDeltaVolSurface:
             self._cache[date] = val
 
     def _set_ad_order(self, order: int):
-        self.clear_cache()
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
+        self._cache = dict()
 
     def _set_node_vector(self, vector: np.array, ad: int):
-        self.clear_cache()
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
+        self._cache = dict()
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
