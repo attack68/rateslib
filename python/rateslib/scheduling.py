@@ -1095,7 +1095,9 @@ def _infer_stub_date(
             }
         elif valid:
             # utermination aligns with ueffective then dead_too_short_period: GH484
-            return _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar)
+            return _raise_date_value_error(
+                effective, termination, front_stub, back_stub, roll, calendar
+            )
         else:
             stub_ = _get_default_stub("FRONT", stub)
             front_stub = _get_unadjusted_stub_date(
@@ -1155,7 +1157,9 @@ def _infer_stub_date(
             }
         elif valid:
             # utermination aligns with ueffective then dead_too_short_period: GH484
-            return _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar)
+            return _raise_date_value_error(
+                effective, termination, front_stub, back_stub, roll, calendar
+            )
         else:
             stub_ = _get_default_stub("BACK", stub)
             back_stub = _get_unadjusted_stub_date(
@@ -1537,6 +1541,7 @@ def _raise_date_value_error(effective, termination, front_stub, back_stub, roll,
         f"`termination`: {termination} (is business day? {calendar.is_bus_day(termination)})\n"
         f"`roll`: {roll},\n"
     )
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
