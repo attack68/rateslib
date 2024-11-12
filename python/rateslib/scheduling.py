@@ -421,7 +421,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = parsed_args["utermination"]
@@ -440,7 +442,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = self.effective
                 self.utermination = self.termination
@@ -465,7 +469,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = parsed_args["utermination"]
@@ -484,7 +490,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 # stub inference is not required, no stubs are necessary
                 self.ueffective = self.effective
@@ -510,7 +518,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = parsed_args["utermination"]
@@ -529,7 +539,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = self.termination
@@ -874,6 +886,8 @@ def _check_regular_swap(
 
     err_str = ""
     for _ueff, _uterm in product(_ueffectives, _uterminations):
+        if _ueff == _uterm:
+            continue # do not allow same date (avoids 1d periods GH484)
         ret = _check_unadjusted_regular_swap(_ueff, _uterm, frequency, eom, roll)
         if ret[0]:
             return ret
@@ -1507,6 +1521,16 @@ def _get_n_periods_in_regular(
         raise ValueError("Regular schedule not implied by `frequency` and dates.")
     return int(n_months / frequency_months)
 
+
+def _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar):
+    raise ValueError(
+        "date, stub and roll inputs are invalid\n"
+        f"`effective`: {effective} (is business day? {calendar.is_bus_day(effective)})\n"
+        f"`front_stub`: {front_stub},\n"
+        f"`back_stub`: {back_stub},\n"
+        f"`termination`: {termination} (is business day? {calendar.is_bus_day(termination)})\n"
+        f"`roll`: {roll},\n"
+    )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
