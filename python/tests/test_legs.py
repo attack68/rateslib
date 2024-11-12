@@ -718,6 +718,29 @@ class TestZeroFloatLeg:
         assert result.iloc[0].to_dict()[defaults.headers["npv"]] is None
         assert result.iloc[0].to_dict()[defaults.headers["npv_fx"]] is None
 
+    def test_amortization_raises(self) -> None:
+        with pytest.raises(ValueError, match="`ZeroFloatLeg` cannot be defined with `amortizati."):
+            ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="Act360",
+                frequency="Q",
+                amortization=1.0,
+            )
+
+    def test_frequency_raises(self) -> None:
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFloatLeg should not be 'Z'"):
+            ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="Z",
+            )
+
     def test_zero_float_leg_analytic_delta(self, curve) -> None:
         zfl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
@@ -813,6 +836,31 @@ class TestZeroFixedLeg:
         )
         result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], NoInput(0), curve)
         assert (result / 100 - 2.50) < 1e-3
+
+    def test_amortization_raises(self) -> None:
+        with pytest.raises(ValueError, match="`ZeroFixedLeg` cannot be defined with `amortizatio"):
+            ZeroFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="A",
+                fixed_rate=NoInput(0),
+                amortization=1.0
+            )
+
+    def test_frequency_raises(self) -> None:
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'"):
+            ZeroFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="Z",
+                fixed_rate=NoInput(0),
+            )
 
     def test_analytic_delta_no_fixed_rate(self, curve) -> None:
         zfl = ZeroFixedLeg(

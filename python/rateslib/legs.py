@@ -1126,7 +1126,9 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         The spread applied to determine cashflows. Can be set to `None` and designated
         later, perhaps after a mid-market spread for all periods has been calculated.
     spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
+        The method to use for adding a floating spread to compounded rates. Applies only to 
+        rates within *Periods*. This does **not** apply to compounding of *Periods* within the 
+        *Leg*. Compounding of *Periods* is done using the ISDA compounding method. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
     fixings : float, list, or Series optional
         If a float scalar, will be applied as the determined fixing for the first
@@ -1199,8 +1201,14 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
 
         self._delay_set_periods = True
         super().__init__(*args, **kwargs)
-        if abs(float(self.amortization)) > 1e-2:
-            raise NotImplementedError("`ZeroFloatLeg` cannot accept `amortization`.")
+        if self.schedule.frequency == "Z":
+            raise ValueError(
+                "`frequency` for a ZeroFloatLeg should not be 'Z'. The Leg is zero frequency by "
+                "construction. Set the `frequency` equal to the compounding frequency of the "
+                "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
+            )
+        if abs(float(self.amortization)) > 1e-8:
+            raise ValueError("`ZeroFloatLeg` cannot be defined with `amortization`.")
         self._set_fixings(fixings)
         self._set_periods()
 
@@ -1211,7 +1219,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
                 payment=period[defaults.headers["payment"]],
-                notional=self.notional - self.amortization * i,
+                notional=self.notional,
                 currency=self.currency,
                 convention=self.convention,
                 termination=self.schedule.termination,
@@ -1234,7 +1242,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
 
     def rate(self, curve):
         """
-        Calculating a period type floating rate for the zero coupon leg.
+        Calculate a simple period type floating rate for the zero coupon leg.
 
         Parameters
         ----------
@@ -1245,11 +1253,10 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         -------
         float, Dual, Dual2
         """
-        compounded_rate, total_dcf = 1.0, 0.0
+        compounded_rate = 1.0
         for period in self.periods:
             compounded_rate *= 1 + period.dcf * period.rate(curve) / 100
-            total_dcf += period.dcf
-        return 100 * (compounded_rate - 1.0) / total_dcf
+        return 100 * (compounded_rate - 1.0) / self.dcf
 
     def npv(
         self,
@@ -1426,6 +1433,8 @@ class ZeroFixedLeg(BaseLeg, _FixedLegMixin):
                 "construction. Set the `frequency` equal to the compounding frequency of the "
                 "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
             )
+        if abs(float(self.amortization)) > 1e-8:
+            raise ValueError("`ZeroFixedLeg` cannot be defined with `amortization`.")
 
     def _set_periods(self):
         self.periods = [
