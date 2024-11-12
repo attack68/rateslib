@@ -1545,7 +1545,8 @@ class FloatPeriod(BasePeriod):
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
         return self._ibor_single_tenor_fixings_table(curve, disc_curve, f"{self.freq_months}m")
 
-    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor):
+    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, risk=None):
+        risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
         calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
         reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
@@ -1554,11 +1555,7 @@ class FloatPeriod(BasePeriod):
         df = DataFrame(
             {
                 "obs_dates": [fixing_dt],
-                "notional": float(
-                    -self.notional
-                    * (self.dcf / reg_dcf)
-                    * (disc_curve[self.payment] / disc_curve[reg_end_dt])
-                ),
+                "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
                 "dcf": [reg_dcf],
                 "rates": [self.rate(curve)],
             },

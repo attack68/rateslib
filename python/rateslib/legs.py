@@ -1286,10 +1286,36 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         else:
             return fx * value
 
-    def fixings_table(self, curve: Curve) -> NoReturn:  # pragma: no cover
+    def fixings_table(        self,
+        curve: Curve,
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False
+    ) -> NoReturn:  # pragma: no cover
         """Not yet implemented for ZeroFloatLeg"""
-        # TODO: fixing table for ZeroFloatLeg
-        raise NotImplementedError("fixings table on ZeroFloatLeg.")
+        if disc_curve is NoInput.blank and isinstance(curve, dict):
+            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+        elif disc_curve is NoInput.blank:
+            if curve._base_type == "dfs":
+                disc_curve = curve
+            else:
+                raise ValueError("Must supply a discount factor based `disc_curve`.")
+
+        if self.fixing_method == "ibor":
+            dfs = []
+            prod = (1 + self.dcf * self.rate(curve) / 100.0)
+            prod *= -self.notional * disc_curve[self.schedule.pschedule[-1]]
+            for period in self.periods:
+                if not isinstance(period, FloatPeriod):
+                    continue
+                scalar = period.dcf / (1 + period.dcf * period.rate(curve) / 100.0)
+                risk = prod * scalar
+                dfs.append(period._ibor_single_tenor_fixings_table(curve, disc_curve,f"{period.freq_months}m", risk))
+        else:
+            raise NotImplementedError("rfr fixings table not implemented for ZeroFloatLeg.")
+
+        return pd.concat(dfs)
 
     def analytic_delta(
         self,

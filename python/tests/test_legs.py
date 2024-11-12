@@ -627,18 +627,6 @@ class TestZeroFloatLeg:
         assert float_leg.float_spread == 2.0
         assert float_leg.periods[0].float_spread == 2.0
 
-    def test_zero_float_leg_amort_raise(self) -> None:
-        with pytest.raises(NotImplementedError, match="`ZeroFloatLeg` cannot accept"):
-            ZeroFloatLeg(
-                effective=dt(2022, 1, 1),
-                termination=dt(2022, 6, 1),
-                payment_lag=2,
-                notional=-1e9,
-                convention="Act360",
-                frequency="Q",
-                amortization=1,
-            )
-
     def test_zero_float_leg_dcf(self) -> None:
         ftl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
@@ -729,6 +717,22 @@ class TestZeroFloatLeg:
                 frequency="Q",
                 amortization=1.0,
             )
+
+    def test_fixings_table(self, curve) -> None:
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = zfl.fixings_table(curve)
+        assert abs(result.iloc[0,0] - 1e9) <1e-4
+        assert abs(result.iloc[1, 0] - 1010101010.10) < 1e-3
+        assert abs(result.iloc[2, 0] - 1020408163.26) < 1e-3
 
     def test_frequency_raises(self) -> None:
         with pytest.raises(ValueError, match="`frequency` for a ZeroFloatLeg should not be 'Z'"):
