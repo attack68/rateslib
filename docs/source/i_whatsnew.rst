@@ -61,6 +61,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
        ``defaults.curve_caching`` setting.
        Note also the added :meth:`~rateslib.fx_volatility.FXDeltaVolSurface.clear_cache` method.
        (`481 <https://github.com/attack68/rateslib/pull/481>`_)
+   * - Performance
+     - *Smile caching* introduced to :class:`~rateslib.fx_volatility.FXDeltaVolSmile`,
+       to improve performance of repeatedly fetched *strikes*.
+       This feature can be opted out of using the
+       ``defaults.curve_caching`` setting.
+       Note also the added :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.clear_cache` method.
+       (`482 <https://github.com/attack68/rateslib/pull/482>`_)
    * - Automatic Differentiation
      - Add a new object for AD management, a :class:`~rateslib.dual.Variable`, which allows a
        user to inject manual exogenous sensitivities into calculations. See

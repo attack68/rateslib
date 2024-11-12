@@ -85,6 +85,7 @@ class FXDeltaVolSmile:
         id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
+        self.clear_cache()
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.nodes = nodes
         self.node_keys = list(self.nodes.keys())
@@ -117,27 +118,55 @@ class FXDeltaVolSmile:
 
         self._set_ad_order(ad)  # includes csolve
 
+    def clear_cache(self):
+        """
+        Clear the cache of delta indexes on a *Smile* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Smile*.
+        Users are advised against making direct modification to *Smile* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+        Alternatively set ``defaults.curve_caching`` to *False* to turn off global
+        caching in general.
+        """
+        self._cache = dict()
+
+    def _maybe_add_to_cache(self, delta_index, val):
+        if defaults.curve_caching:
+            self._cache[delta_index] = val
+
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
     def __getitem__(self, item):
         """
-        Get a value from the DeltaVolSmile given an item which is a delta_index.
+        Get a delta index value from the DeltaVolSmile.
         """
+        if defaults.curve_caching and item in self._cache:
+            return self._cache[item]
+
         if item > self.t[-1]:
             # raise ValueError(
             #     "Cannot index the FXDeltaVolSmile for a delta index out of bounds.\n"
             #     f"Got: {item}, valid range: [{self.t[0]}, {self.t[-1]}]"
             # )
-            return self.spline.ppev_single(self.t[-1])
+            value = self.spline.ppev_single(self.t[-1])
         elif item < self.t[0]:
             # raise ValueError(
             #     "Cannot index the FXDeltaVolSmile for a delta index out of bounds.\n"
             #     f"Got: {item}, valid range: [{self.t[0]}, {self.t[-1]}]"
             # )
-            return self.spline.ppev_single(self.t[0])
+            value = self.spline.ppev_single(self.t[0])
         else:
-            return evaluate(self.spline, item, 0)
+            value = evaluate(self.spline, item, 0)
+
+        self._maybe_add_to_cache(item, value)
+        return value
 
     def _get_index(self, delta_index: float, expiry: NoInput(0)):
         """
@@ -529,6 +558,7 @@ class FXDeltaVolSmile:
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
+        self.clear_cache()
         self.ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
