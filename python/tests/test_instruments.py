@@ -1115,6 +1115,11 @@ class TestIRS:
         result = irs.fixings_table()
         assert isinstance(result, DataFrame)
 
+    def test_1d_instruments(self):
+        # GH484
+        with pytest.raises(ValueError, match="date, stub and roll inputs are invalid"):
+            IRS(dt(2025, 1, 1), "1d", spec="sek_irs")
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
