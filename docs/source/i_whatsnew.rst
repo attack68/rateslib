@@ -74,8 +74,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - **Python 3.13** *(with GIL)* is officially supported and tested.
        (`463 <https://github.com/attack68/rateslib/pull/463>`_)
    * - Bug
-     - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
+     - :class:`~rateslib.curves.MultiCsaCurve` and :class:`~rateslib.calendars.get_imm` are now
+       included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
+       (`486 <https://github.com/attack68/rateslib/pull/486>`_)
    * - Bug
      - Adding *Dual* or *Dual2* type ``spread`` using :meth:`~rateslib.curves.Curve.shift` method
        now avoids *TypeErrors* where possible and maintains appropriate AD orders for each
