@@ -1559,7 +1559,9 @@ class FloatPeriod(BasePeriod):
         that is either *"none_simple"* or *"isda_compounding"*.
         """
 
-        obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(curve, fixing_exposure)
+        obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
+            curve, fixing_exposure
+        )
 
         rates = Series(NA, index=obs_dates[:-1])
         if self.fixings is not NoInput.blank:
