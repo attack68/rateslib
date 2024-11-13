@@ -1126,8 +1126,8 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         The spread applied to determine cashflows. Can be set to `None` and designated
         later, perhaps after a mid-market spread for all periods has been calculated.
     spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Applies only to 
-        rates within *Periods*. This does **not** apply to compounding of *Periods* within the 
+        The method to use for adding a floating spread to compounded rates. Applies only to
+        rates within *Periods*. This does **not** apply to compounding of *Periods* within the
         *Leg*. Compounding of *Periods* is done using the ISDA compounding method. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
     fixings : float, list, or Series optional
@@ -1286,12 +1286,13 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         else:
             return fx * value
 
-    def fixings_table(        self,
+    def fixings_table(
+        self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-        approximate: bool = False
+        approximate: bool = False,
     ) -> NoReturn:  # pragma: no cover
         """Not yet implemented for ZeroFloatLeg"""
         if disc_curve is NoInput.blank and isinstance(curve, dict):
@@ -1304,14 +1305,14 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
 
         if self.fixing_method == "ibor":
             dfs = []
-            prod = (1 + self.dcf * self.rate(curve) / 100.0)
+            prod = 1 + self.dcf * self.rate(curve) / 100.0
             prod *= -self.notional * disc_curve[self.schedule.pschedule[-1]]
             for period in self.periods:
                 if not isinstance(period, FloatPeriod):
                     continue
                 scalar = period.dcf / (1 + period.dcf * period.rate(curve) / 100.0)
                 risk = prod * scalar
-                dfs.append(period._ibor_single_tenor_fixings_table(curve, disc_curve,f"{period.freq_months}m", risk))
+                dfs.append(period._ibor_fixings_table(curve, disc_curve, risk))
         else:
             raise NotImplementedError("rfr fixings table not implemented for ZeroFloatLeg.")
 

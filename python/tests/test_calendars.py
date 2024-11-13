@@ -257,6 +257,7 @@ def test_get_imm(month, year, expected) -> None:
 
 def test_get_imm_namespace():
     from rateslib import get_imm as f
+
     f(code="h24")
 
 
