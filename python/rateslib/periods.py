@@ -1070,7 +1070,8 @@ class FloatPeriod(BasePeriod):
 
            rfr_curve = Curve(
                nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
-               calendar="bus"
+               calendar="bus",
+               id="rfr"
            )
 
         A regular `rfr_payment_delay` period.
@@ -1127,23 +1128,35 @@ class FloatPeriod(BasePeriod):
                **constants,
                "fixing_method": "rfr_lockout",
                "method_param": 2,
-            })
+           })
            period.fixings_table(rfr_curve)
 
         An IBOR fixing table
 
         .. ipython:: python
 
-            ibor_curve = Curve(
+            ibor_3m = Curve(
                nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
                calendar="bus",
+               id="ibor3m",
            )
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "ibor",
-               "method_param": 2,
-            })
-           period.fixings_table(ibor_curve)
+           ibor_1m = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.995},
+               calendar="bus",
+               id="ibor1m",
+           )
+           period = FloatPeriod(
+               start=dt(2022, 1, 5),
+               end=dt(2022, 3, 7),
+               payment=dt(2022, 3, 7),
+               frequency="Q",
+               notional=-1000000,
+               currency="gbp",
+               stub=True,
+               fixing_method="ibor",
+               method_param=2
+           )
+           period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
         if disc_curve is NoInput.blank and isinstance(curve, dict):
             raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
@@ -1524,7 +1537,7 @@ class FloatPeriod(BasePeriod):
             },
         )
 
-    def _ibor_fixings_table(self, curve, disc_curve):
+    def _ibor_fixings_table(self, curve, disc_curve, risk=None):
         """
         Calculate a fixings_table under an IBOR based methodology.
 
@@ -1532,6 +1545,8 @@ class FloatPeriod(BasePeriod):
         ----------
         curve: Curve or Dict
             Dict may be relevant if the period is a stub.
+        risk: float, optional
+            This is the known financial exposure to the movement of the period IBOR fixing
 
         Returns
         -------
@@ -1539,36 +1554,47 @@ class FloatPeriod(BasePeriod):
         """
         if isinstance(curve, dict) and self.stub:
             # then must perform an interpolated calculation
-            return self._ibor_stub_fixings_table(curve, disc_curve)
+            return self._ibor_stub_fixings_table(curve, disc_curve, risk)
         elif isinstance(curve, dict) and not self.stub:
             # then extract the one relevant curve from dict
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
-        return self._ibor_single_tenor_fixings_table(curve, disc_curve, f"{self.freq_months}m")
+        return self._ibor_single_tenor_fixings_table(
+            curve, disc_curve, f"{self.freq_months}m", risk
+        )
 
-    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor):
+    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, risk=None):
         calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
         reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
-
         reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
-        df = DataFrame(
-            {
-                "obs_dates": [fixing_dt],
-                "notional": float(
-                    -self.notional
-                    * (self.dcf / reg_dcf)
-                    * (disc_curve[self.payment] / disc_curve[reg_end_dt])
-                ),
-                "dcf": [reg_dcf],
-                "rates": [self.rate(curve)],
-            },
-        ).set_index("obs_dates")
+
+        if self.fixings is not NoInput.blank:
+            # then fixing is set so return zero exposure.
+            df = DataFrame(
+                {
+                    "obs_dates": [fixing_dt],
+                    "notional": 0.0,
+                    "dcf": [reg_dcf],
+                    "rates": [self.rate(curve)],
+                },
+            ).set_index("obs_dates")
+        else:
+            risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+            df = DataFrame(
+                {
+                    "obs_dates": [fixing_dt],
+                    "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
+                    "dcf": [reg_dcf],
+                    "rates": [self.rate(curve)],
+                },
+            ).set_index("obs_dates")
+
         df.columns = MultiIndex.from_tuples(
             [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         return df
 
-    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve):
+    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve, risk=None):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1596,9 +1622,9 @@ class FloatPeriod(BasePeriod):
             a1 = 1.0 - a2
 
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
-        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1)
+        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1, risk)
         df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
-        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2)
+        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2, risk)
         df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
         df = concat([df1, df2], axis=1)
         return df

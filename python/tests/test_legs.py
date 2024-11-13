@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series, date_range, isna
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
 from rateslib.curves import Curve, IndexCurve
@@ -627,18 +627,6 @@ class TestZeroFloatLeg:
         assert float_leg.float_spread == 2.0
         assert float_leg.periods[0].float_spread == 2.0
 
-    def test_zero_float_leg_amort_raise(self) -> None:
-        with pytest.raises(NotImplementedError, match="`ZeroFloatLeg` cannot accept"):
-            ZeroFloatLeg(
-                effective=dt(2022, 1, 1),
-                termination=dt(2022, 6, 1),
-                payment_lag=2,
-                notional=-1e9,
-                convention="Act360",
-                frequency="Q",
-                amortization=1,
-            )
-
     def test_zero_float_leg_dcf(self) -> None:
         ftl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
@@ -717,6 +705,89 @@ class TestZeroFloatLeg:
         result = ftl.cashflows()
         assert result.iloc[0].to_dict()[defaults.headers["npv"]] is None
         assert result.iloc[0].to_dict()[defaults.headers["npv_fx"]] is None
+
+    def test_amortization_raises(self) -> None:
+        with pytest.raises(ValueError, match="`ZeroFloatLeg` cannot be defined with `amortizati."):
+            ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="Act360",
+                frequency="Q",
+                amortization=1.0,
+            )
+
+    def test_ibor_fixings_table(self, curve) -> None:
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = zfl.fixings_table(curve)
+        assert abs(result.iloc[0, 0] - 1e9) < 1e-3
+        assert abs(result.iloc[1, 0] - 1010101010.10) < 1e-2
+        assert abs(result.iloc[2, 0] - 1020408163.26) < 1e-2
+
+    def test_ibor_stub_fixings_table(self, curve) -> None:
+        curve2 = curve.copy()
+        curve2.id = "3mIBOR"
+        curve.id = "1mIBOR"
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 9, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
+        assert abs(result.iloc[0, 0] - 996878112.103) < 1e-2
+        assert abs(result.iloc[0, 3] - 312189976.385) < 1e-2
+        assert isna(result.iloc[1, 0])
+
+    @pytest.mark.parametrize(
+        "fixings", [[2.0, 2.5], Series([2.0, 2.5], index=[dt(2021, 7, 1), dt(2021, 10, 1)])]
+    )
+    def test_ibor_fixings_table_after_known_fixings(self, curve, fixings) -> None:
+        curve2 = curve.copy()
+        curve2.id = "3mIBOR"
+        curve.id = "1mIBOR"
+        zfl = ZeroFloatLeg(
+            effective=dt(2021, 7, 1),
+            termination=dt(2022, 9, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+            stub="shortBack",
+            fixings=fixings,
+        )
+        result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
+        assert abs(result.iloc[0, 0] - 0) < 1e-2
+        assert abs(result.iloc[1, 0] - 0) < 1e-2
+        assert isna(result.iloc[0, 3])
+        assert abs(result.iloc[4, 0] - 354684373.65) < 1e-2
+
+    def test_frequency_raises(self) -> None:
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFloatLeg should not be 'Z'"):
+            ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="Z",
+            )
 
     def test_zero_float_leg_analytic_delta(self, curve) -> None:
         zfl = ZeroFloatLeg(
@@ -813,6 +884,31 @@ class TestZeroFixedLeg:
         )
         result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], NoInput(0), curve)
         assert (result / 100 - 2.50) < 1e-3
+
+    def test_amortization_raises(self) -> None:
+        with pytest.raises(ValueError, match="`ZeroFixedLeg` cannot be defined with `amortizatio"):
+            ZeroFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="A",
+                fixed_rate=NoInput(0),
+                amortization=1.0,
+            )
+
+    def test_frequency_raises(self) -> None:
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'"):
+            ZeroFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="Z",
+                fixed_rate=NoInput(0),
+            )
 
     def test_analytic_delta_no_fixed_rate(self, curve) -> None:
         zfl = ZeroFixedLeg(
