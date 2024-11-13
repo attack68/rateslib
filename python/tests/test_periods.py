@@ -751,6 +751,31 @@ class TestFloatPeriod:
         result = period.fixings_table(rfr_curve)
         assert abs(result[(rfr_curve.id, "notional")].iloc[0] - expected) < 1
 
+    @pytest.mark.parametrize("method, param, expected", [
+        ("rfr_payment_delay", 0, 3.20040557),
+        ("rfr_lockout", 1, 3.80063892),
+        ("rfr_lookback", 1, 3.20040557),
+        ("rfr_observation_shift", 1, 4.00045001),
+    ])
+    def test_rfr_period_all_types_with_defined_fixings(self, method, param, expected):
+        # This is probably a redundant test but it came later after some refactoring and
+        # was double checked with manual calculation in Excel. Easy to do.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 3, 1): 1.0}, calendar="nyc")
+        period = FloatPeriod(
+            start=dt(2022, 1, 28),
+            end=dt(2022, 2, 2),
+            frequency="A",
+            payment=dt(2022, 1, 1),
+            fixing_method=method,
+            method_param=param,
+            convention="act360",
+            calendar="nyc",
+            fixings=[3.0, 5.0, 2.0]
+        )
+        result = period.rate(curve)
+        assert abs(result - expected) < 1e-8
+
+
     @pytest.mark.parametrize(
         ("method", "expected"),
         [
