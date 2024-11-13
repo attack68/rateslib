@@ -1070,7 +1070,8 @@ class FloatPeriod(BasePeriod):
 
            rfr_curve = Curve(
                nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
-               calendar="bus"
+               calendar="bus",
+               id="rfr"
            )
 
         A regular `rfr_payment_delay` period.
@@ -1127,23 +1128,35 @@ class FloatPeriod(BasePeriod):
                **constants,
                "fixing_method": "rfr_lockout",
                "method_param": 2,
-            })
+           })
            period.fixings_table(rfr_curve)
 
         An IBOR fixing table
 
         .. ipython:: python
 
-            ibor_curve = Curve(
+            ibor_curve_3m = Curve(
                nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
                calendar="bus",
+               id="ibor3m",
            )
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "ibor",
-               "method_param": 2,
-            })
-           period.fixings_table(ibor_curve)
+           ibor_curve_1m = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.995},
+               calendar="bus",
+               id="ibor1m",
+           )
+           period = FloatPeriod(
+               start=dt(2022, 1, 5),
+               end=dt(2022, 3, 7),
+               payment=dt(2022, 3, 7),
+               frequency="Q",
+               notional=-1000000,
+               currency="gbp",
+               stub=True,
+               fixing_method="ibor",
+               method_param=2
+           )
+           period.fixings_table({"1m": ibor_curve_1m, "3m": ibor_curve_3m}, disc_curve=ibor_curve_1m)
         """
         if disc_curve is NoInput.blank and isinstance(curve, dict):
             raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
