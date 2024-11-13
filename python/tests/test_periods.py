@@ -272,7 +272,7 @@ class TestFloatPeriod:
         )
         period.spread_compound_method = "bad_vibes"
         with pytest.raises(ValueError, match="`spread_compound_method` must be in"):
-            period._isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
+            period._rfr_isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
 
     def test_rfr_lockout_too_few_dates(self, curve) -> None:
         period = FloatPeriod(
