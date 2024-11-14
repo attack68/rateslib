@@ -1719,7 +1719,18 @@ class FloatPeriod(BasePeriod):
         return True
 
     def _get_method_dcf_endpoints(self, curve: Curve):
-        """For RFR periods return the relevant DCF markers for different aspects of calculation."""
+        """
+        For RFR periods return the relevant DCF markers for different aspects of calculation.
+
+        `start_obs` and `end_obs` are the dates between which RFR fixings are observed.
+
+        `start_dcf` and `end_dcf` are the dates between which the DCFs for each observed fixing
+        are compounded or averaged with to determine the ultimate rate.
+
+        For all methods except 'lookback', these dates will align with each other.
+        For 'lookback' the observed RFRs are applied over different DCFs that do not naturally
+        align.
+        """
         # Depending upon method get the observation dates and dcf dates
         if self.fixing_method in [
             "rfr_payment_delay",
@@ -1761,7 +1772,7 @@ class FloatPeriod(BasePeriod):
         # dates of the fixing observation period
         obs_dates = Series(curve.calendar.bus_date_range(start=start_obs, end=end_obs))
         # TODO (low) if start_obs and end_obs are not business days this may raise. But cases may
-        # arise if using unadjusted schedules. Then an improvement to use a `lag` adjustement
+        # arise if using unadjusted schedules. Then an improvement to use a `lag` adjustment
         # may be needed but this also needs careful thought for consequences.
 
         # dates for the dcf weight for each observation towards the calculation
