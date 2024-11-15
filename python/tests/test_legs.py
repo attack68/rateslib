@@ -282,13 +282,7 @@ class TestFloatLeg:
                     -999821.37380,
                     -999932.84380,
                 ],
-                "risk": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    -0.26664737,
-                    -0.26664737
-                ],
+                "risk": [0.0, 0.0, 0.0, -0.26664737, -0.26664737],
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             },
@@ -759,7 +753,7 @@ class TestZeroFloatLeg:
         assert abs(result.iloc[0, 0] - 996878112.103) < 1e-2
         assert abs(result.iloc[0, 4] - 312189976.385) < 1e-2
         assert isna(result.iloc[1, 0])
-        assert abs(result.iloc[2, 5] - 25294.7235 ) < 1e-3
+        assert abs(result.iloc[2, 5] - 25294.7235) < 1e-3
 
     @pytest.mark.parametrize(
         "fixings", [[2.0, 2.5], Series([2.0, 2.5], index=[dt(2021, 7, 1), dt(2021, 10, 1)])]

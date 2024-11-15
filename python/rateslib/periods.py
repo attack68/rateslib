@@ -1540,8 +1540,7 @@ class FloatPeriod(BasePeriod):
                         "datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
-                fixing_rates = self.fixings.loc[
-                               obs_dates.iloc[0]: obs_dates.iloc[-2]]  # type: ignore[misc]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
 
                 try:
                     rates.loc[fixing_rates.index] = fixing_rates
@@ -1590,7 +1589,7 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
             # adjust the final rates values of the lockout arrays according to param
             try:
-                rates.iloc[-self.method_param:] = rates.iloc[-self.method_param - 1]
+                rates.iloc[-self.method_param :] = rates.iloc[-self.method_param - 1]
             except IndexError:
                 raise ValueError("period has too few dates for `rfr_lockout` param to function.")
 
@@ -1658,7 +1657,9 @@ class FloatPeriod(BasePeriod):
 
         # then perform additional calculations to return fixings table
         dcf_of_r = d["obs_vals"]  # these are the 1-d DCFs associated with each published fixing
-        v_with_r = Series([disc_curve[d["obs_dates"][i]] for i in range(1, len(d["dcf_dates"].index))])
+        v_with_r = Series(
+            [disc_curve[d["obs_dates"][i]] for i in range(1, len(d["dcf_dates"].index))]
+        )
         # these are zero-lag discount factors associated with each published fixing
         rates_dual = Series(
             [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(d["rates"].items())],
@@ -1680,12 +1681,14 @@ class FloatPeriod(BasePeriod):
         risk[d["fixed"]] = 0.0
 
         notional_exposure = Series(0.0, index=range(len(dr_drj.index)))
-        notional_exposure[~d["fixed"]] = risk[~d["fixed"]] / (dcf_of_r[~d["fixed"]] * v_with_r[~d["fixed"]].astype(float))
+        notional_exposure[~d["fixed"]] = risk[~d["fixed"]] / (
+            dcf_of_r[~d["fixed"]] * v_with_r[~d["fixed"]].astype(float)
+        )
         extra_cols = {
             "obs_dcf": dcf_of_r,
             "notional": notional_exposure.astype(float),  # apply(float, convert_dtype=float),
             "dr_drj": dr_drj,
-            "risk": risk * 0.0001
+            "risk": risk * 0.0001,
         }
 
         return rate, DataFrame(

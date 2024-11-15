@@ -838,7 +838,12 @@ class TestFloatPeriod:
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(line_curve.id, "notional"), (line_curve.id, "risk"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
         )
         assert_frame_equal(expected, result)
 
@@ -863,7 +868,12 @@ class TestFloatPeriod:
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(line_curve.id, "notional"), (line_curve.id, "risk"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
         )
         assert_frame_equal(expected, result)
 
@@ -1083,13 +1093,7 @@ class TestFloatPeriod:
                             -999821.37380,
                             -999932.84380,
                         ],
-                        "risk": [
-                            0.0,
-                            0.0,
-                            0.0,
-                            -0.26664737262,
-                            -0.26664737262
-                        ],
+                        "risk": [0.0, 0.0, 0.0, -0.26664737262, -0.26664737262],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1113,13 +1117,7 @@ class TestFloatPeriod:
                             -999888.52252,
                             -1000000.00000,
                         ],
-                        "risk": [
-                            0.0,
-                            0.0,
-                            0.0,
-                            -0.26666528084917104,
-                            -0.26666528084917104
-                        ],
+                        "risk": [0.0, 0.0, 0.0, -0.26666528084917104, -0.26666528084917104],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
