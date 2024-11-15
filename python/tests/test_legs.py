@@ -776,8 +776,9 @@ class TestZeroFloatLeg:
         result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
         assert abs(result.iloc[0, 0] - 0) < 1e-2
         assert abs(result.iloc[1, 0] - 0) < 1e-2
-        assert isna(result.iloc[0, 3])
+        assert isna(result.iloc[0, 4])
         assert abs(result.iloc[4, 0] - 354684373.65) < 1e-2
+        assert abs(result.iloc[4, 5] - 8508.6111) < 1e-3
 
     def test_frequency_raises(self) -> None:
         with pytest.raises(ValueError, match="`frequency` for a ZeroFloatLeg should not be 'Z'"):
