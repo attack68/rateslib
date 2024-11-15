@@ -702,7 +702,6 @@ class TestFloatPeriod:
         )
         rate, table = period._rfr_fixings_array(
             curve=rfr_curve,
-            fixing_exposure=True,
             disc_curve=curve,
         )
 
@@ -1084,6 +1083,13 @@ class TestFloatPeriod:
                             -999821.37380,
                             -999932.84380,
                         ],
+                        "risk": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.26664737262,
+                            -0.26664737262
+                        ],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1107,6 +1113,13 @@ class TestFloatPeriod:
                             -999888.52252,
                             -1000000.00000,
                         ],
+                        "risk": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            -0.26666528084917104,
+                            -0.26666528084917104
+                        ],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1116,7 +1129,7 @@ class TestFloatPeriod:
     )
     def test_rfr_fixings_table(self, curve, meth, exp) -> None:
         exp.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),

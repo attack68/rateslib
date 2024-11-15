@@ -282,12 +282,19 @@ class TestFloatLeg:
                     -999821.37380,
                     -999932.84380,
                 ],
+                "risk": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    -0.26664737,
+                    -0.26664737
+                ],
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         assert_frame_equal(result, expected, rtol=1e-5)
 
@@ -1130,13 +1137,14 @@ class TestFloatLegExchange:
         expected = DataFrame(
             {
                 "notional": [-1009872.33778, -1000000.00000],
+                "risk": [-0.2767869527597316, -0.27405055522733884],
                 "dcf": [0.002777777777777778, 0.002777777777777778],
                 "rates": [4.01655, 4.01655],
             },
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
         )
         expected.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         assert_frame_equal(result[dt(2022, 4, 30) : dt(2022, 5, 1)], expected)
 
