@@ -1523,8 +1523,8 @@ class FloatPeriod(BasePeriod):
 
     def _rfr_get_individual_fixings_data(self, curve):
         """
-        Gets relevant DCF values and populates all the indivual RFR fixings either known or
-        from a curve for latter calculations, either to derive a period rate or perform
+        Gets relevant DCF values and populates all the individual RFR fixings either known or
+        from a curve, for latter calculations, either to derive a period rate or perform
         fixings table analysis.
         """
         obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(curve, True)

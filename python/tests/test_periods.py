@@ -720,7 +720,7 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(rfr_curve)
+            period._rfr_fixings_array(rfr_curve, rfr_curve)
 
     @pytest.mark.parametrize(
         ("method", "param", "expected"),
