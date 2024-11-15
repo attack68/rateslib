@@ -51,7 +51,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Periods
      - :red:`Minor Breaking Change!` The method :meth:`~rateslib.periods.FloatPeriod.fixings_table`
        returns a *DataFrame* with amended column headers to reference the *Curve* id from which
-       the fixing notionals are derived.
+       the fixing notionals are derived, and populates additional columns.
    * - Performance
      - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
        :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as

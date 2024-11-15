@@ -50,7 +50,7 @@ software provided as below.
         <tr>
           <td style="color:green; font-size: 1.25em; font-weight:bold;">FREE to use and modify.<br></td>
           <td style="">
-          <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
+          <span style="color: red; font-size:1.25em;">Not Licenced - Cannot be installed on a corporate machine without permission.</span><br>
              <span style="text-align: center; font-style:italic;">
              Can purchase a licence extension. $300 per year / per user.</span><br>
              <span style="text-align: center; font-style:italic;">
