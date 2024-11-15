@@ -1314,7 +1314,14 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                 risk = prod * scalar
                 dfs.append(period._ibor_fixings_table(curve, disc_curve, risk))
         else:
-            raise NotImplementedError("rfr fixings table not implemented for ZeroFloatLeg.")
+            dfs = []
+            prod = 1 + self.dcf * self.rate(curve) / 100.0
+            for period in self.periods:
+                df = period.fixings_table(curve, approximate, disc_curve)
+                scalar = prod / (1 + period.dcf * period.rate(curve) / 100.0)
+                df[(curve.id, "risk")] *= scalar
+                df[(curve.id, "notional")] *= scalar
+                dfs.append(df)
 
         return pd.concat(dfs)
 

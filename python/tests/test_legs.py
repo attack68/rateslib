@@ -719,6 +719,29 @@ class TestZeroFloatLeg:
                 amortization=1.0,
             )
 
+    def test_rfr_fixings_table(self, curve) -> None:
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        # fl = FloatLeg(
+        #     effective=dt(2022, 1, 1),
+        #     termination=dt(2022, 10, 1),
+        #     payment_lag=0,
+        #     notional=-1e9,
+        #     convention="Act360",
+        #     frequency="Q",
+        # )
+        result = zfl.fixings_table(curve)
+        # compare = fl.fixings_table(curve)
+        for i in range(len(result.index)):
+            # consistent risk throught the compounded leg
+            assert abs(result.iloc[i, 1] - 277.75) < 1e-1
+
     def test_ibor_fixings_table(self, curve) -> None:
         zfl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
