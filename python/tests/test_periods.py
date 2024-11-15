@@ -702,7 +702,6 @@ class TestFloatPeriod:
         )
         rate, table = period._rfr_fixings_array(
             curve=rfr_curve,
-            fixing_exposure=True,
             disc_curve=curve,
         )
 
@@ -721,7 +720,7 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(rfr_curve)
+            period._rfr_fixings_array(rfr_curve, rfr_curve)
 
     @pytest.mark.parametrize(
         ("method", "param", "expected"),
@@ -833,12 +832,18 @@ class TestFloatPeriod:
             {
                 "obs_dates": [dt(2022, 1, 2)],
                 "notional": [-1e6],
+                "risk": [-24.402790080357686],
                 "dcf": [0.2465753424657534],
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
         )
         assert_frame_equal(expected, result)
 
@@ -857,12 +862,18 @@ class TestFloatPeriod:
             {
                 "obs_dates": [dt(2022, 1, 2)],
                 "notional": [-1e6],
+                "risk": [-24.402790080357686],
                 "dcf": [0.2465753424657534],
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
         )
         assert_frame_equal(expected, result)
 
@@ -1082,6 +1093,7 @@ class TestFloatPeriod:
                             -999821.37380,
                             -999932.84380,
                         ],
+                        "risk": [0.0, 0.0, 0.0, -0.26664737262, -0.26664737262],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1105,6 +1117,7 @@ class TestFloatPeriod:
                             -999888.52252,
                             -1000000.00000,
                         ],
+                        "risk": [0.0, 0.0, 0.0, -0.26666528084917104, -0.26666528084917104],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1114,7 +1127,7 @@ class TestFloatPeriod:
     )
     def test_rfr_fixings_table(self, curve, meth, exp) -> None:
         exp.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),
@@ -1485,7 +1498,9 @@ class TestFloatPeriod:
         result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
         assert isinstance(result, DataFrame)
         assert abs(result.iloc[0, 0] + 1036300) < 1
-        assert abs(result.iloc[0, 3] + 336894) < 1
+        assert abs(result.iloc[0, 4] + 336894) < 1
+        assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
+        assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
 
     def test_ibor_non_stub_fixings_table(self) -> None:
         period = FloatPeriod(
@@ -1501,12 +1516,12 @@ class TestFloatPeriod:
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         result = period.fixings_table({"1M": curve1, "3M": curve3}, disc_curve=curve1)
         expected = DataFrame(
-            data=[[-1e6, 0.24722222222222223, 3.0]],
+            data=[[-1e6, -24.722222222222, 0.24722222222222223, 3.0]],
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
-            columns=["notional", "dcf", "rates"],
+            columns=["notional", "risk", "dcf", "rates"],
         )
         expected.columns = MultiIndex.from_tuples(
-            [(curve3.id, "notional"), (curve3.id, "dcf"), (curve3.id, "rates")]
+            [(curve3.id, "notional"), (curve3.id, "risk"), (curve3.id, "dcf"), (curve3.id, "rates")]
         )
         assert_frame_equal(result, expected)
 

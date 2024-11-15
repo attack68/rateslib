@@ -282,12 +282,13 @@ class TestFloatLeg:
                     -999821.37380,
                     -999932.84380,
                 ],
+                "risk": [0.0, 0.0, 0.0, -0.26664737, -0.26664737],
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         assert_frame_equal(result, expected, rtol=1e-5)
 
@@ -750,8 +751,9 @@ class TestZeroFloatLeg:
         )
         result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
         assert abs(result.iloc[0, 0] - 996878112.103) < 1e-2
-        assert abs(result.iloc[0, 3] - 312189976.385) < 1e-2
+        assert abs(result.iloc[0, 4] - 312189976.385) < 1e-2
         assert isna(result.iloc[1, 0])
+        assert abs(result.iloc[2, 5] - 25294.7235) < 1e-3
 
     @pytest.mark.parametrize(
         "fixings", [[2.0, 2.5], Series([2.0, 2.5], index=[dt(2021, 7, 1), dt(2021, 10, 1)])]
@@ -775,8 +777,9 @@ class TestZeroFloatLeg:
         result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
         assert abs(result.iloc[0, 0] - 0) < 1e-2
         assert abs(result.iloc[1, 0] - 0) < 1e-2
-        assert isna(result.iloc[0, 3])
+        assert isna(result.iloc[0, 4])
         assert abs(result.iloc[4, 0] - 354684373.65) < 1e-2
+        assert abs(result.iloc[4, 5] - 8508.6111) < 1e-3
 
     def test_frequency_raises(self) -> None:
         with pytest.raises(ValueError, match="`frequency` for a ZeroFloatLeg should not be 'Z'"):
@@ -1128,13 +1131,14 @@ class TestFloatLegExchange:
         expected = DataFrame(
             {
                 "notional": [-1009872.33778, -1000000.00000],
+                "risk": [-0.2767869527597316, -0.27405055522733884],
                 "dcf": [0.002777777777777778, 0.002777777777777778],
                 "rates": [4.01655, 4.01655],
             },
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
         )
         expected.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         assert_frame_equal(result[dt(2022, 4, 30) : dt(2022, 5, 1)], expected)
 
