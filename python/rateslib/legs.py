@@ -1218,7 +1218,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                 float_spread=self.float_spread,
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
-                payment=period[defaults.headers["payment"]],
+                payment=self.schedule.pschedule[-1],  # set payment to Leg payment
                 notional=self.notional,
                 currency=self.currency,
                 convention=self.convention,
