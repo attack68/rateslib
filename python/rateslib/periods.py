@@ -1353,7 +1353,8 @@ class FloatPeriod(BasePeriod):
         curve: Curve or Dict
             Dict may be relevant if the period is a stub.
         risk: float, optional
-            This is the known financial exposure to the movement of the period IBOR fixing
+            This is the known financial exposure to the movement of the period IBOR fixing.
+            Expressed per 1 in percentage rate, i.e. risk per bp * 10000
 
         Returns
         -------
@@ -1381,6 +1382,7 @@ class FloatPeriod(BasePeriod):
                 {
                     "obs_dates": [fixing_dt],
                     "notional": 0.0,
+                    "risk": 0.0,
                     "dcf": [reg_dcf],
                     "rates": [self.rate(curve)],
                 },
@@ -1391,13 +1393,14 @@ class FloatPeriod(BasePeriod):
                 {
                     "obs_dates": [fixing_dt],
                     "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
+                    "risk": float(risk) * 0.0001,  # scale to bp
                     "dcf": [reg_dcf],
                     "rates": [self.rate(curve)],
                 },
             ).set_index("obs_dates")
 
         df.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         return df
 
@@ -1428,11 +1431,14 @@ class FloatPeriod(BasePeriod):
             a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
             a1 = 1.0 - a2
 
+        risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
-        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1, risk)
-        df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
-        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2, risk)
-        df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
+        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1, risk * a1)
+        # df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
+        # df1[(curve[tenor1].id, "risk")] = df1[(curve[tenor1].id, "risk")] * a1
+        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2, risk * a2)
+        # df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
+        # df2[(curve[tenor2].id, "risk")] = df2[(curve[tenor2].id, "risk")] * a2
         df = concat([df1, df2], axis=1)
         return df
 

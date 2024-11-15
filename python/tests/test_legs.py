@@ -750,8 +750,9 @@ class TestZeroFloatLeg:
         )
         result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
         assert abs(result.iloc[0, 0] - 996878112.103) < 1e-2
-        assert abs(result.iloc[0, 3] - 312189976.385) < 1e-2
+        assert abs(result.iloc[0, 4] - 312189976.385) < 1e-2
         assert isna(result.iloc[1, 0])
+        assert abs(result.iloc[2, 5] - 25294.7235 ) < 1e-3
 
     @pytest.mark.parametrize(
         "fixings", [[2.0, 2.5], Series([2.0, 2.5], index=[dt(2021, 7, 1), dt(2021, 10, 1)])]

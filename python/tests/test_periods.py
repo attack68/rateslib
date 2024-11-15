@@ -833,12 +833,13 @@ class TestFloatPeriod:
             {
                 "obs_dates": [dt(2022, 1, 2)],
                 "notional": [-1e6],
+                "risk": [-24.402790080357686],
                 "dcf": [0.2465753424657534],
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+            [(line_curve.id, "notional"), (line_curve.id, "risk"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
         )
         assert_frame_equal(expected, result)
 
@@ -857,12 +858,13 @@ class TestFloatPeriod:
             {
                 "obs_dates": [dt(2022, 1, 2)],
                 "notional": [-1e6],
+                "risk": [-24.402790080357686],
                 "dcf": [0.2465753424657534],
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
         expected.columns = MultiIndex.from_tuples(
-            [(line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
+            [(line_curve.id, "notional"), (line_curve.id, "risk"), (line_curve.id, "dcf"), (line_curve.id, "rates")]
         )
         assert_frame_equal(expected, result)
 
@@ -1485,7 +1487,9 @@ class TestFloatPeriod:
         result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
         assert isinstance(result, DataFrame)
         assert abs(result.iloc[0, 0] + 1036300) < 1
-        assert abs(result.iloc[0, 3] + 336894) < 1
+        assert abs(result.iloc[0, 4] + 336894) < 1
+        assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
+        assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
 
     def test_ibor_non_stub_fixings_table(self) -> None:
         period = FloatPeriod(
@@ -1501,12 +1505,12 @@ class TestFloatPeriod:
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         result = period.fixings_table({"1M": curve1, "3M": curve3}, disc_curve=curve1)
         expected = DataFrame(
-            data=[[-1e6, 0.24722222222222223, 3.0]],
+            data=[[-1e6, -24.722222222222, 0.24722222222222223, 3.0]],
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
-            columns=["notional", "dcf", "rates"],
+            columns=["notional", "risk", "dcf", "rates"],
         )
         expected.columns = MultiIndex.from_tuples(
-            [(curve3.id, "notional"), (curve3.id, "dcf"), (curve3.id, "rates")]
+            [(curve3.id, "notional"), (curve3.id, "risk"), (curve3.id, "dcf"), (curve3.id, "rates")]
         )
         assert_frame_equal(result, expected)
 
