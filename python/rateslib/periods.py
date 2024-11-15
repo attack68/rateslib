@@ -1621,7 +1621,7 @@ class FloatPeriod(BasePeriod):
     def _rfr_fixings_array(
         self,
         curve: Curve | LineCurve,
-        disc_curve: Curve = None,
+        disc_curve: Curve,
     ):
         """
         Calculate the rate of a period via extraction and combination of every fixing.
