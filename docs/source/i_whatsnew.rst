@@ -43,11 +43,15 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`467 <https://github.com/attack68/rateslib/pull/467>`_)
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
    * - Legs
-     - Add method :meth:`~rateslib.legs.FloatLegMtm.fixings_table` to a *FloatLegMtm*.
+     - Add method :meth:`~rateslib.legs.FloatLegMtm.fixings_table` to a *FloatLegMtm* and
+       *ZeroFloatLeg*.
+       (`480 <https://github.com/attack68/rateslib/pull/480>`_)
+       (`482 <https://github.com/attack68/rateslib/pull/482>`_)
+       (`489 <https://github.com/attack68/rateslib/pull/489>`_)
    * - Periods
      - :red:`Minor Breaking Change!` The method :meth:`~rateslib.periods.FloatPeriod.fixings_table`
        returns a *DataFrame* with amended column headers to reference the *Curve* id from which
-       the fixing notionals are derived.
+       the fixing notionals are derived, and populates additional columns.
    * - Performance
      - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
        :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
