@@ -1484,7 +1484,7 @@ class TestZCS:
             frequency="Q",
             leg2_fixing_method="ibor",
             leg2_method_param=0,
-            calendar='all',
+            calendar="all",
             convention="30e360",
             curves=curve,
         )
