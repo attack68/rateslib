@@ -1477,6 +1477,22 @@ class TestZCS:
                 fixed_rate=4.22566695954813,
             )
 
+    def test_fixings_table(self, curve):
+        zcs = ZCS(
+            effective=dt(2022, 1, 15),
+            termination="2y",
+            frequency="Q",
+            leg2_fixing_method="ibor",
+            leg2_method_param=0,
+            calendar="all",
+            convention="30e360",
+            curves=curve,
+        )
+        result = zcs.fixings_table()
+        assert isinstance(result, DataFrame)
+        for i in range(8):
+            abs(result.iloc[i, 2] - 24.678) < 1e-3
+
 
 class TestZCIS:
     def test_leg2_index_base(self, curve) -> None:
