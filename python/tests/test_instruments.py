@@ -2802,6 +2802,35 @@ class TestXCS:
         )
         assert abs(xcs.leg2.notional + 100e6) < 1e-8  # not 20e6
 
+    @pytest.mark.parametrize("fixed1", [True, False])
+    @pytest.mark.parametrize("fixed2", [True, False])
+    @pytest.mark.parametrize("mtm", [True, False])
+    def test_fixings_table(self, curve, curve2, fixed1, fixed2, mtm):
+        curve.id = "c1"
+        curve2.id = "c2"
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
+        )
+
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            frequency="M",
+            payment_lag=0,
+            currency="eur",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            fixed=fixed1,
+            leg2_fixed=fixed2,
+            leg2_mtm=mtm,
+            fixing_method="ibor",
+            leg2_fixing_method="ibor",
+        )
+        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2])
+        assert isinstance(result, DataFrame)
+
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2) -> None:
