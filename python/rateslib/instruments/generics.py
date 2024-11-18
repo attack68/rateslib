@@ -700,7 +700,9 @@ class Portfolio(Sensitivities):
             df_result = df_result.reindex(index=df_result.index.union(df1.index))
 
             # update existing columns with missing data from the new available data
-            for c in [c for c in df1.columns if c in df_result.columns and c[1] in ["dcf", "rates"]]:
+            for c in [
+                c for c in df1.columns if c in df_result.columns and c[1] in ["dcf", "rates"]
+            ]:
                 df_result[c] = df_result[c].combine_first(df1[c])
 
             # merge by addition existing values with missing filled to zero
@@ -714,7 +716,3 @@ class Portfolio(Sensitivities):
                 df_result[a] = df1[a]
 
         return df_result
-
-
-
-
