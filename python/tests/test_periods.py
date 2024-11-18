@@ -722,6 +722,22 @@ class TestFloatPeriod:
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
             period._rfr_fixings_array(rfr_curve, rfr_curve)
 
+    def test_rfr_fixings_array_raises2(self, line_curve) -> None:
+        period = FloatPeriod(
+            dt(2022, 1, 5),
+            dt(2022, 1, 11),
+            dt(2022, 1, 11),
+            "Q",
+            fixing_method="rfr_payment_delay",
+            convention="act365f",
+            notional=-1000000,
+        )
+        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+            period.fixings_table(curve=line_curve)
+
+        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+            period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
+
     @pytest.mark.parametrize(
         ("method", "param", "expected"),
         [
