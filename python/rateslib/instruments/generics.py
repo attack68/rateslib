@@ -694,12 +694,14 @@ class Portfolio(Sensitivities):
                 df_result[c] = df_result[c].combine_first(df1[c])
 
             # merge by addition existing values with missing filled to zero
-            for c in [c for c in df1.columns if c in df_result.columns and c[1] in ["notional", "risk"]]:
-                df_result[c] = df_result[c].add(df1[c], fill_value=0.0)
+            m = [c for c in df1.columns if c in df_result.columns and c[1] in ["notional", "risk"]]
+            if len(m) > 0:
+                df_result[m] = df_result[m].add(df1[m], fill_value=0.0)
 
             # append new columns without additional calculation
-            for c in [c for c in df1.columns if c not in df_result.columns]:
-                df_result[c] = df1[c]
+            a = [c for c in df1.columns if c not in df_result.columns]
+            if len(a) > 0:
+                df_result[a] = df1[a]
 
         return df_result
 
