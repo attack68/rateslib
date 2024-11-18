@@ -680,6 +680,16 @@ class Portfolio(Sensitivities):
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ):
+        """
+        Return a DataFrame of fixing exposures on the *Instruments*.
+
+        For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
+        and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
+
+        Returns
+        -------
+        DataFrame
+        """
         df_result = DataFrame()
         for inst in self.instruments:
             df1 = inst.fixings_table(
