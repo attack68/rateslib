@@ -43,6 +43,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`467 <https://github.com/attack68/rateslib/pull/467>`_)
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
        (`490 <https://github.com/attack68/rateslib/pull/490>`_)
+   * - Instruments
+     - Add a :meth:`~rateslib.instruments.Portfolio.fixings_table` method to *Portfolio*  to
+       aggregate fixings tables on contained and applicable *Instruments*.
+       (`491 <https://github.com/attack68/rateslib/pull/491>`_)
    * - Legs
      - Add method :meth:`~rateslib.legs.FloatLegMtm.fixings_table` to a *FloatLegMtm* and
        *ZeroFloatLeg*.
