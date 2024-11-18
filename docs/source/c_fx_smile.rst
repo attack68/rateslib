@@ -33,17 +33,85 @@ which can be used to price *FX Options* and *FX Option Strategies*.
 Introduction and FX Volatility Smiles
 *************************************
 
-The *FXDeltaVolSmile* is parametrised by a series of *(delta, vol)* node points
-interpolated by a cubic spline. This interpolation is automatically constructed with knot
-sequences that adjust to the number of given ``nodes``. One node will create a constant
-vol level, and two nodes will create a straight line gradient. More nodes (appropriately calibrated)
-will create a traditional smile shape.
+The :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is parametrised by a series of
+*(delta-index, vol)* node points interpolated by a cubic spline. This interpolation is
+automatically constructed with knot sequences that adjust to the number of given ``nodes``:
 
-An *FXDeltaVolSmile* must also be initialised with an ``eval_date`` which serves the same
-purpose as the initial node point on a *Curve*, and indicates *'today'*. There must also be an ``expiry``, and
-options priced with this *Smile* must have an equivalent expiry or errors will be raised.
-Finally, the ``delta_type`` of the *Smile* must be specified so that its delta index is well
-defined.
+- Providing only one node, e.g. *(0.5, 11.0)*, will create a constant volatility level, here at 11%.
+- Providing two nodes, e.g. (0.25, 8.0), (0.75, 10.0) will create a straight line gradient
+  across the whole delta axis, here rising by 1% volatility every 0.25 in *delta-index*.
+- Providing more nodes (appropriately calibrated) will create a traditional smile shape with
+  the mentioned interpolation structure.
+
+An *FXDeltaVolSmile* must also be initialised with:
+
+- An ``eval_date`` which serves the same purpose as the initial node point on a *Curve*,
+  and indicates *'today'*.
+- An ``expiry``, for which options priced with this *Smile* must have an equivalent expiry or errors will be raised.
+- A ``delta_type`` so that its *delta-index* is well defined, and it can price different *Instruments* even
+  if their *delta types* are different. I.e. A *Smile* defined by *"forward"* delta types can still
+  price *FXOptions* defined with *"spot"* delta types due to appropriate mathematical conversions.
+
+.. ipython:: python
+
+   smile = FXDeltaVolSmile(
+       eval_date=dt(2000, 1, 1),
+       expiry=dt(2000, 7, 1),
+       nodes={
+           0.25: 10.3,
+           0.5: 9.1,
+           0.75: 10.8
+       },
+       delta_type="forward"
+   )
+   #  -->  smile.plot()
+   #  -->  smile.plot(x_axis="moneyness")
+
+.. container:: twocol
+
+   .. container:: leftside50
+
+      **Delta-Index vs Vol Plot**
+
+      .. plot::
+
+         from rateslib.fx_volatility import FXDeltaVolSmile
+         from datetime import datetime as dt
+         smile = FXDeltaVolSmile(
+             eval_date=dt(2000, 1, 1),
+             expiry=dt(2000, 7, 1),
+             nodes={
+                 0.25: 10.3,
+                 0.5: 9.1,
+                 0.75: 10.8
+             },
+             delta_type="forward"
+         )
+         fig, ax, lines = smile.plot()
+         plt.show()
+         plt.close()
+
+   .. container:: rightside50
+
+      **Moneyness vs Vol Plot**
+
+      .. plot::
+
+         from rateslib.fx_volatility import FXDeltaVolSmile
+         from datetime import datetime as dt
+         smile = FXDeltaVolSmile(
+             eval_date=dt(2000, 1, 1),
+             expiry=dt(2000, 7, 1),
+             nodes={
+                 0.25: 10.3,
+                 0.5: 9.1,
+                 0.75: 10.8
+             },
+             delta_type="forward"
+         )
+         fig, ax, lines = smile.plot(x_axis="moneyness")
+         plt.show()
+         plt.close()
 
 Constructing a Smile
 *********************
@@ -193,7 +261,7 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
 FX Volatility Surfaces
 **********************
 
-*FX Surfaces* in *rateslib* are collections of cross-sectional *FX Smiles* where:
+*FX Surfaces* in *rateslib* are collections of cross sectional *FX Smiles* where:
 
 - each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
 - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
