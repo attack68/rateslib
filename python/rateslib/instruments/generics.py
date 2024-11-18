@@ -693,8 +693,11 @@ class Portfolio(Sensitivities):
         """
         df_result = DataFrame()
         for inst in self.instruments:
-            df = inst.fixings_table(
-                curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
-            )
+            try:
+                df = inst.fixings_table(
+                    curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
+                )
+            except AttributeError:
+                continue
             df_result = _composit_fixings_table(df_result, df)
         return df_result
