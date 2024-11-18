@@ -992,3 +992,36 @@ def _upper(val: str | NoInput):
     if isinstance(val, str):
         return val.upper()
     return val
+
+
+def _composit_fixings_table(df_result, df):
+    """
+    Add a DataFrame to an existing fixings table by extending or adding to relevant columns.
+
+    Parameters
+    ----------
+    df_result: The main DataFrame that will be updated
+    df: The incoming DataFrame with new data to merge
+
+    Returns
+    -------
+    DataFrame
+    """
+    # reindex the result DataFrame
+    df_result = df_result.reindex(index=df_result.index.union(df.index))
+
+    # update existing columns with missing data from the new available data
+    for c in [c for c in df.columns if c in df_result.columns and c[1] in ["dcf", "rates"]]:
+        df_result[c] = df_result[c].combine_first(df[c])
+
+    # merge by addition existing values with missing filled to zero
+    m = [c for c in df.columns if c in df_result.columns and c[1] in ["notional", "risk"]]
+    if len(m) > 0:
+        df_result[m] = df_result[m].add(df[m], fill_value=0.0)
+
+    # append new columns without additional calculation
+    a = [c for c in df.columns if c not in df_result.columns]
+    if len(a) > 0:
+        df_result[a] = df[a]
+
+    return df_result

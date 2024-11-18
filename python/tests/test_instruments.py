@@ -1300,7 +1300,7 @@ class TestSBS:
         result = inst.fixings_table()
         assert isinstance(result, DataFrame)
 
-    def test_fixings_table_3s1s(self, curve):
+    def test_fixings_table_3s1s(self, curve, curve2):
         inst = SBS(
             dt(2022, 1, 15),
             "6m",
@@ -1310,10 +1310,12 @@ class TestSBS:
             leg2_method_param=1,
             frequency="Q",
             leg2_frequency="m",
-            curves=curve,
+            curves=[curve, curve, curve2, curve],
         )
         result = inst.fixings_table()
         assert isinstance(result, DataFrame)
+        assert len(result.columns) == 8
+        assert len(result.index) == 8
 
 
 class TestFRA:
