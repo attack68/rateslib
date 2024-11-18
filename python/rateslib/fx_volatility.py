@@ -34,6 +34,8 @@ class FXDeltaVolSmile:
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
+    See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
+
     Parameters
     ----------
     nodes: dict[float, DualTypes]
@@ -638,6 +640,8 @@ class FXDeltaVolSurface:
     r"""
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
+
+    See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
 
     Parameters
     ----------
