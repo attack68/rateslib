@@ -671,3 +671,38 @@ class Portfolio(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        df_result = DataFrame()
+        for inst in self.instruments:
+            df1 = inst.fixings_table(
+                curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
+            )
+
+            # reindex the result DataFrame
+            df_result = df_result.reindex(index=df_result.index.union(df1.index))
+
+            # update existing columns with missing data from the new available data
+            for c in [c for c in df1.columns if c in df_result.columns and c[1] in ["dcf", "rates"]]:
+                df_result[c] = df_result[c].combine_first(df1[c])
+
+            # merge by addition existing values with missing filled to zero
+            for c in [c for c in df1.columns if c in df_result.columns and c[1] in ["notional", "risk"]]:
+                df_result[c] = df_result[c].add(df1[c], fill_value=0.0)
+
+            # append new columns without additional calculation
+            for c in [c for c in df1.columns if c not in df_result.columns]:
+                df_result[c] = df1[c]
+
+        return df_result
+
+
+
+

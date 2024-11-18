@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series
+from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
 from rateslib import default_context
 from rateslib.calendars import add_tenor
@@ -3434,6 +3434,33 @@ class TestPortfolio:
         pf = Portfolio([irs1, irs2])
         expected = f"<rl.Portfolio at {hex(id(pf))}>"
         assert pf.__repr__() == expected
+
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        pf = Portfolio([irs1, irs2, irs3])
+        result = pf.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
 
 
 class TestFly:
