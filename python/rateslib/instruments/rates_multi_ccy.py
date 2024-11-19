@@ -355,6 +355,9 @@ class XCS(BaseDerivative):
         self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
 
         if self.kwargs["fixed"]:
+            self.kwargs.pop("spread_compound_method", None)
+            self.kwargs.pop("fixing_method", None)
+            self.kwargs.pop("method_param", None)
             self._fixed_rate_mixin = True
             self._fixed_rate = fixed_rate
             leg1_user_kwargs = dict(fixed_rate=fixed_rate)
@@ -382,6 +385,9 @@ class XCS(BaseDerivative):
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
         if self.kwargs["leg2_fixed"]:
+            self.kwargs.pop("leg2_spread_compound_method", None)
+            self.kwargs.pop("leg2_fixing_method", None)
+            self.kwargs.pop("leg2_method_param", None)
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
             leg2_user_kwargs = dict(leg2_fixed_rate=leg2_fixed_rate)
