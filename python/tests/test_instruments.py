@@ -2830,6 +2830,20 @@ class TestXCS:
         result = xcs.fixings_table(curves=[curve, curve, curve2, curve2], fx=fxf)
         assert isinstance(result, DataFrame)
 
+    def test_initialisation_bug(self):
+        XCS(
+            dt(2000, 1, 7),
+            "9m",
+            spec="eurusd_xcs",
+            leg2_fixed=True,
+            leg2_mtm=False,
+            fixing_method="ibor",
+            method_param=2,
+            leg2_fixed_rate=2.4,
+        )
+
+        XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", fixed=True, fixed_rate=3.0)
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2) -> None:
