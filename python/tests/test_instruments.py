@@ -2827,9 +2827,8 @@ class TestXCS:
             fixing_method="ibor",
             leg2_fixing_method="ibor",
         )
-        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2])
+        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2], fx=fxf)
         assert isinstance(result, DataFrame)
-
 
 
 class TestFixedFloatXCS:
@@ -3492,7 +3491,7 @@ class TestPortfolio:
         assert isna(result["c2", "risk"][dt(2022, 1, 15)])
         # c2 has DCF
         assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
-        
+
     def test_fixings_table_null_inst(self, curve):
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
         frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)

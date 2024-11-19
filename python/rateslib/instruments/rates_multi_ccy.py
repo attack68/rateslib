@@ -13,10 +13,10 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.core import (
     BaseMixin,
     Sensitivities,
+    _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _update_not_noinput,
-    _composit_fixings_table
 )
 from rateslib.instruments.rates_derivatives import BaseDerivative
 from rateslib.legs import (
