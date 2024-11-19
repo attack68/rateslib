@@ -1300,7 +1300,7 @@ class TestSBS:
         result = inst.fixings_table()
         assert isinstance(result, DataFrame)
 
-    def test_fixings_table_3s1s(self, curve):
+    def test_fixings_table_3s1s(self, curve, curve2):
         inst = SBS(
             dt(2022, 1, 15),
             "6m",
@@ -1310,10 +1310,12 @@ class TestSBS:
             leg2_method_param=1,
             frequency="Q",
             leg2_frequency="m",
-            curves=curve,
+            curves=[curve, curve, curve2, curve],
         )
         result = inst.fixings_table()
         assert isinstance(result, DataFrame)
+        assert len(result.columns) == 8
+        assert len(result.index) == 8
 
 
 class TestFRA:
@@ -2800,6 +2802,34 @@ class TestXCS:
         )
         assert abs(xcs.leg2.notional + 100e6) < 1e-8  # not 20e6
 
+    @pytest.mark.parametrize("fixed1", [True, False])
+    @pytest.mark.parametrize("fixed2", [True, False])
+    @pytest.mark.parametrize("mtm", [True, False])
+    def test_fixings_table(self, curve, curve2, fixed1, fixed2, mtm):
+        curve.id = "c1"
+        curve2.id = "c2"
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
+        )
+
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            frequency="M",
+            payment_lag=0,
+            currency="eur",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            fixed=fixed1,
+            leg2_fixed=fixed2,
+            leg2_mtm=mtm,
+            fixing_method="ibor",
+            leg2_fixing_method="ibor",
+        )
+        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2], fx=fxf)
+        assert isinstance(result, DataFrame)
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2) -> None:
@@ -3461,6 +3491,12 @@ class TestPortfolio:
         assert isna(result["c2", "risk"][dt(2022, 1, 15)])
         # c2 has DCF
         assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        pf = Portfolio([irs, frb])
+        assert isinstance(pf.fixings_table(), DataFrame)
 
 
 class TestFly:

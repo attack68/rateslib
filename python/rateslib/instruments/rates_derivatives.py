@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 
-from pandas import DataFrame, Series, concat
+from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.calendars import CalInput
@@ -14,6 +14,7 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.core import (
     BaseMixin,
     Sensitivities,
+    _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _inherit_or_negate,
@@ -2239,7 +2240,7 @@ class SBS(BaseDerivative):
         df2 = self.leg2.fixings_table(
             curve=curves[2], approximate=approximate, disc_curve=curves[3]
         )
-        return concat([df1, df2], keys=("leg1", "leg2"), axis=1)
+        return _composit_fixings_table(df1, df2)
 
 
 class FRA(Sensitivities, BaseMixin):

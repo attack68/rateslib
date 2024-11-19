@@ -15,6 +15,7 @@ from rateslib.fx_volatility import FXVols
 from rateslib.instruments.core import (
     BaseMixin,
     Sensitivities,
+    _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
 )
@@ -692,27 +693,11 @@ class Portfolio(Sensitivities):
         """
         df_result = DataFrame()
         for inst in self.instruments:
-            df1 = inst.fixings_table(
-                curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
-            )
-
-            # reindex the result DataFrame
-            df_result = df_result.reindex(index=df_result.index.union(df1.index))
-
-            # update existing columns with missing data from the new available data
-            for c in [
-                c for c in df1.columns if c in df_result.columns and c[1] in ["dcf", "rates"]
-            ]:
-                df_result[c] = df_result[c].combine_first(df1[c])
-
-            # merge by addition existing values with missing filled to zero
-            m = [c for c in df1.columns if c in df_result.columns and c[1] in ["notional", "risk"]]
-            if len(m) > 0:
-                df_result[m] = df_result[m].add(df1[m], fill_value=0.0)
-
-            # append new columns without additional calculation
-            a = [c for c in df1.columns if c not in df_result.columns]
-            if len(a) > 0:
-                df_result[a] = df1[a]
-
+            try:
+                df = inst.fixings_table(
+                    curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
+                )
+            except AttributeError:
+                continue
+            df_result = _composit_fixings_table(df_result, df)
         return df_result
