@@ -53,4 +53,4 @@ into any one category.
     z_bondbasis.rst
     z_bondctd.rst
     z_exogenous.rst
-    z_fixings_exposure.rst
+    z_fixings_exposures.rst

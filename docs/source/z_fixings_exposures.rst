@@ -9,6 +9,8 @@
    from datetime import datetime as dt
    import numpy as np
    from pandas import DataFrame, option_context, Index
+   from rateslib import defaults
+   defaults.reset_defaults()
 
 Fixings Exposures and Reset Ladders
 *************************************
@@ -29,16 +31,67 @@ of the *Curve* which forecasts the exposed fixing.
 
 .. ipython:: python
 
-   irs = IRS(dt(2000, 1, 10), "1w", spec="eur_irs", curves=estr)
+   irs = IRS(
+       effective=dt(2000, 1, 10),
+       termination="1w",
+       spec="eur_irs",
+       curves=estr,
+       notional=2e6,
+   )
    irs.fixings_table()
 
 .. ipython:: python
 
-   sbs = SBS(dt(2000, 1, 6), "3m", frequency="Q", leg2_frequency="M", convention="act360", calendar="tgt", curves=[euribor3m, estr, euribor1m, estr])
+   zcs = ZCS(
+       effective=dt(2000, 1, 10),
+       termination="4m",
+       frequency="M",
+       convention="act360",
+       leg2_fixing_method="ibor",
+       leg2_method_param=2,
+       curves=[euribor1m, estr],
+       notional=1.5e6,
+   )
+   zcs.fixings_table()
+
+.. ipython:: python
+
+   sbs = SBS(
+       effective=dt(2000, 1, 6),
+       termination="6m",
+       spec="eur_sbs36",
+       curves=[euribor3m, estr, euribor6m, estr],
+       notional=3e6,
+   )
    sbs.fixings_table()
 
 .. ipython:: python
 
+   iirs = IIRS(
+       effective=dt(2000, 1, 10),
+       termination="3m",
+       frequency="M",
+       index_base=100.0,
+       index_lag=3,
+       leg2_fixing_method="ibor",
+       leg2_method_param=2,
+       curves=[estr, estr, euribor1m, estr],
+       notional=4e6,
+   )
+   iirs.fixings_table()
+
+.. ipython:: python
+
    sofr = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.93}, calendar="nyc", id="sofr", convention="act360")
-   xcs = XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", leg2_fixed=True, leg2_mtm=False, fixing_method="ibor", method_param=2, curves=[euribor3m, estr, sofr, sofr])
+   xcs = XCS(
+       effective=dt(2000, 1, 7),
+       termination="9m",
+       spec="eurusd_xcs",
+       leg2_fixed=True,
+       leg2_mtm=False,
+       fixing_method="ibor",
+       method_param=2,
+       curves=[euribor3m, estr, sofr, sofr],
+       notional=1e6,
+   )
    xcs.fixings_table()
