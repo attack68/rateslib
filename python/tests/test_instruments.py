@@ -2839,16 +2839,10 @@ class TestXCS:
             leg2_mtm=False,
             fixing_method="ibor",
             method_param=2,
-            leg2_fixed_rate=2.4
+            leg2_fixed_rate=2.4,
         )
 
-        XCS(
-            dt(2000, 1, 7),
-            "9m",
-            spec="eurusd_xcs",
-            fixed=True,
-            fixed_rate=3.0
-        )
+        XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", fixed=True, fixed_rate=3.0)
 
 
 class TestFixedFloatXCS:
