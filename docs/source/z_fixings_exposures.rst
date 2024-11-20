@@ -5,6 +5,7 @@
 
    from rateslib.curves import *
    from rateslib.instruments import *
+   from rateslib.calendars import get_imm
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -79,6 +80,18 @@ of the *Curve* which forecasts the exposed fixing.
        notional=4e6,
    )
    iirs.fixings_table()
+
+.. ipython:: python
+
+   fra = FRA(
+       effective=get_imm(code="H0"),
+       termination=get_imm(code="M0"),
+       roll="imm",
+       spec="eur_fra3",
+       curves=[euribor3m, estr],
+       notional=5e6,
+   )
+   fra.fixings_table()
 
 .. ipython:: python
 
