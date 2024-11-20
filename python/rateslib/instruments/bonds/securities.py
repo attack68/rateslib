@@ -3,22 +3,37 @@ from __future__ import annotations
 import warnings
 from datetime import datetime, timedelta
 from functools import partial
-from pandas import Series
+
 import numpy as np
-# from scipy.optimize import brentq
-from rateslib.instruments.core import Sensitivities, BaseMixin
-from rateslib.curves import index_left, IndexCurve, Curve, LineCurve, average_rate
-from rateslib.calendars import dcf, CalInput, add_tenor
+from pandas import Series
+
+from rateslib import defaults
+from rateslib.calendars import CalInput, add_tenor, dcf
+from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient
-from rateslib.instruments.bonds.conventions import BOND_MODE_MAP, BILL_MODE_MAP, BondCalcMode, BillCalcMode, _get_calc_mode_for_class
-from rateslib import defaults
+from rateslib.fx import FXForwards, FXRates
+from rateslib.instruments.bonds.conventions import (
+    BILL_MODE_MAP,
+    BOND_MODE_MAP,
+    BillCalcMode,
+    BondCalcMode,
+    _get_calc_mode_for_class,
+)
+
+# from scipy.optimize import brentq
+from rateslib.instruments.core import (
+    BaseMixin,
+    Sensitivities,
+    _get,
+    _get_curves_fx_and_base_maybe_from_solver,
+    _push,
+    _update_with_defaults,
+)
+from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg, IndexMixin
+from rateslib.periods import FloatPeriod, _disc_maybe_from_curve, _maybe_local
 from rateslib.solver import Solver, quadratic_eqn
-from rateslib.fx import FXRates, FXForwards
-from rateslib.periods import _maybe_local, _disc_maybe_from_curve
-from rateslib.instruments.core import _get_curves_fx_and_base_maybe_from_solver, _push, _update_with_defaults, _get
-from rateslib.legs import FixedLeg, IndexFixedLeg, IndexMixin, FloatLeg
-from rateslib.periods import FloatPeriod
+
 
 class BondMixin:
     def _period_index(self, settlement: datetime):
@@ -2762,6 +2777,7 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
             None,
             tol,
         )  # pragma: no cover
+
 
 # def _ytm_quadratic_converger(f, y0, y1, y2, tol=1e-9):
 #     """

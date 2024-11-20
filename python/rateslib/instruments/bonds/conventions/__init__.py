@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from rateslib import defaults
 from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
 from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
-from rateslib import defaults
+
 
 class BondCalcMode:
     """
@@ -345,6 +346,7 @@ BILL_MODE_MAP = {
     "uktb": UK_GBB,
     "sgbb": SE_GBB,
 }
+
 
 def _get_bond_calc_mode(calc_mode: str | BondCalcMode) -> BondCalcMode:
     if isinstance(calc_mode, str):

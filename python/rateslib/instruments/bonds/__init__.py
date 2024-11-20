@@ -1,16 +1,26 @@
 # This file contains bond convention outlines
 from __future__ import annotations
 
+from rateslib.instruments.bonds.conventions import (
+    BillCalcMode,
+    BondCalcMode,
+)
 from rateslib.instruments.bonds.futures import BondFuture
-from rateslib.instruments.bonds.securities import FixedRateBond, IndexFixedRateBond, FloatRateNote, Bill
-from rateslib.instruments.bonds.conventions import BOND_MODE_MAP, BILL_MODE_MAP, BondCalcMode, BillCalcMode
+from rateslib.instruments.bonds.securities import (
+    BondMixin,
+    Bill,
+    FixedRateBond,
+    FloatRateNote,
+    IndexFixedRateBond,
+)
 
 __all__ = [
+    "BondMixin",
     "BondCalcMode",
     "BillCalcMode",
     "FixedRateBond",
     "IndexFixedRateBond",
     "FloatRateNote",
     "Bill",
-    "BondFuture"
+    "BondFuture",
 ]

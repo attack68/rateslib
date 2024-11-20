@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 from datetime import datetime
+
 from pandas import DataFrame
 
-from rateslib.instruments.core import Sensitivities
-from rateslib.instruments.bonds.securities import FixedRateBond
-from rateslib.default import NoInput
 from rateslib import defaults
-from rateslib.calendars import get_calendar, _get_years_and_months
-from rateslib.dual import Dual, Dual2
+from rateslib.calendars import _get_years_and_months, get_calendar
 from rateslib.curves import Curve
-from rateslib.solver import Solver
+from rateslib.default import NoInput
+from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates
+from rateslib.instruments.bonds.securities import FixedRateBond
+from rateslib.instruments.core import Sensitivities
 from rateslib.periods import (
     _get_fx_and_base,
 )
+from rateslib.solver import Solver
+
 
 class BondFuture(Sensitivities):
     """
