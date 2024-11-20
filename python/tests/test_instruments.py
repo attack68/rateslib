@@ -3780,7 +3780,7 @@ class TestSpec:
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds import US_GB_TSY
+        from rateslib.instruments.bonds.conventions import US_GB_TSY
 
         assert bond.calc_mode.kwargs == US_GB_TSY.kwargs
         assert bond.kwargs["convention"] == "actacticma"
@@ -3796,7 +3796,7 @@ class TestSpec:
             calc_mode="ust",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds import US_GB
+        from rateslib.instruments.bonds.conventions import US_GB
 
         assert bond.calc_mode.kwargs == US_GB.kwargs
         assert bond.kwargs["convention"] == "actacticma"
@@ -3811,7 +3811,7 @@ class TestSpec:
             spec="us_gbb",
             convention="act365f",
         )
-        from rateslib.instruments.bonds import US_GBB
+        from rateslib.instruments.bonds.conventions import US_GBB
 
         assert bill.calc_mode.kwargs == US_GBB.kwargs
         assert bill.kwargs["convention"] == "act365f"
