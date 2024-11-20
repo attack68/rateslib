@@ -47,7 +47,7 @@ with the following coverage report:
    \solver.py                                        704     19    97%
    \splines.py                                        14      0   100%
    -------------------------------------------------------------------
-   TOTAL                                           15596    389    98%
+   TOTAL                                            7452    318    96%
 
 It should be noted that test coverage is not the same as hypothesis testing and ensuring
 that the results of combinations of input arguments has the desired effect. This is
