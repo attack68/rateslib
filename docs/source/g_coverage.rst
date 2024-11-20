@@ -7,7 +7,7 @@ Coverage
 The **test coverage** of this library is extensive. There are over 900 unit tests
 with the following coverage report:
 
-**Test Coverage Report: as of commit #52222a88**
+**Test Coverage Report: as of commit #4b848b6b**
 
 .. code-block::
 
