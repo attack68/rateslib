@@ -112,3 +112,11 @@ def _acc_act365_with_1y_and_stub_adjustment(obj, settlement: datetime, acc_idx: 
     else:
         _ = f * r / 365.0
     return _
+
+
+ACC_FRAC_FUNCS = {
+    "linear_days": _acc_linear_proportion_by_days,
+    "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
+    "30e360": _acc_30e360,
+    "act365f_1y": _acc_act365_with_1y_and_stub_adjustment,
+}
