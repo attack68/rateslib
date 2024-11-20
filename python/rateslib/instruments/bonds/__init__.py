@@ -7,8 +7,8 @@ from rateslib.instruments.bonds.conventions import (
 )
 from rateslib.instruments.bonds.futures import BondFuture
 from rateslib.instruments.bonds.securities import (
-    BondMixin,
     Bill,
+    BondMixin,
     FixedRateBond,
     FloatRateNote,
     IndexFixedRateBond,

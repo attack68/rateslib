@@ -10,11 +10,11 @@
 from __future__ import annotations
 
 from rateslib.instruments.bonds import (
-    BondMixin,
     Bill,
     BillCalcMode,
     BondCalcMode,
     BondFuture,
+    BondMixin,
     FixedRateBond,
     FloatRateNote,
     IndexFixedRateBond,
