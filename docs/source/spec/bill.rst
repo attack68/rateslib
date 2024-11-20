@@ -21,7 +21,7 @@ Aliases: **"ustb"**
 .. ipython:: python
 
    defaults.spec["us_gbb"]
-   from rateslib.instruments.bonds import US_GBB
+   from rateslib.instruments.bonds.conventions import US_GBB
    US_GBB.kwargs
    Bill(dt(2000, 1, 1), "3m", spec="us_gbb").kwargs
 
@@ -38,7 +38,7 @@ Aliases: **"uktb"**
 .. ipython:: python
 
    defaults.spec["uk_gbb"]
-   from rateslib.instruments.bonds import UK_GBB
+   from rateslib.instruments.bonds.conventions import UK_GBB
    UK_GBB.kwargs
    Bill(dt(2000, 1, 1), "3m", spec="uk_gbb").kwargs
 
@@ -55,6 +55,6 @@ Aliases: **"sgbb"**
 .. ipython:: python
 
    defaults.spec["se_gbb"]
-   from rateslib.instruments.bonds import SE_GBB
+   from rateslib.instruments.bonds.conventions import SE_GBB
    SE_GBB.kwargs
    Bill(dt(2000, 1, 1), "3m", spec="se_gbb").kwargs
