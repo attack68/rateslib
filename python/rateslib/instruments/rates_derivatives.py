@@ -909,6 +909,56 @@ class STIRFuture(IRS):
         """
         return NotImplementedError()
 
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ) -> DataFrame:
+        """
+        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               derivatives rates calculations.
+
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+
+        Returns
+        -------
+        DataFrame
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            NoInput(0),
+            NoInput(0),
+            self.leg2.currency,
+        )
+        risk = -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+
+        df = self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
+        return df
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
