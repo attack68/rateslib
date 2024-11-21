@@ -955,8 +955,10 @@ class STIRFuture(IRS):
             self.leg2.currency,
         )
         risk = -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
-
         df = self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
+
+        total_risk = df[(curves[2].id, "risk")].sum()
+        df[[(curves[2].id, "notional"), (curves[2].id, "risk")]] *= risk / total_risk
         return df
 
 

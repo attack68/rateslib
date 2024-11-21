@@ -3281,6 +3281,18 @@ class TestSTIRFuture:
         result = stir.analytic_delta()
         assert abs(result - expected) < 1e-10
 
+    def test_fixings_table(self, curve):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination="3m",
+            spec="eur_stir3",
+            contracts=100,
+            curves=curve,
+        )
+        result = stir.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert result[f"{curve.id}", "risk"][dt(2022, 3, 14)] == -2500.0
+
 
 class TestPricingMechanism:
     def test_value(self, curve) -> None:
