@@ -1176,7 +1176,19 @@ class FloatPeriod(BasePeriod):
                     UserWarning,
                 )
             else:
-                return self._fixings_table_fast(curve, disc_curve)
+                try:
+                    return self._fixings_table_fast(curve, disc_curve)
+                except ValueError as e:
+                    # then probably a math domain error related to dates before the curve start
+                    warnings.warn(
+                        "Errored approximating a fixings table.\n Possibly this is due "
+                        f"to period dates: {self.start.strftime('%d-%b-%Y')}->"
+                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date: "
+                        f"{curve.node_dates[0].strftime('%d-%b-%Y')}. Switching to exact mode "
+                        f"for this period.",
+                        UserWarning,
+                    )
+                    return self.fixings_table(curve, approximate=False, disc_curve=disc_curve)
 
         if "rfr" in self.fixing_method:
             _d = self._rfr_get_individual_fixings_data(curve, allow_na=True)
