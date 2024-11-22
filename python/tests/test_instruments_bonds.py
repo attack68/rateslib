@@ -2199,7 +2199,6 @@ class TestFloatRateNote:
         assert result.iloc[2, 0] == -1e6
 
 
-
 class TestBondFuture:
     def test_repr(self):
         kwargs = dict(

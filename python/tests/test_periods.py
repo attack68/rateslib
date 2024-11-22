@@ -5,7 +5,7 @@ from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series, NA
+from pandas import NA, DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
@@ -926,11 +926,16 @@ class TestFloatPeriod:
         )
         result = float_period.fixings_table(curve, approximate=approx)
         expected = DataFrame(
-            data = [[0.0, 0.0, 0.25, NA]],
-            index = Index([dt(2000, 2, 2)], name="obs_dates"),
-            columns = MultiIndex.from_tuples(
-                [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates") ],
-            )
+            data=[[0.0, 0.0, 0.25, NA]],
+            index=Index([dt(2000, 2, 2)], name="obs_dates"),
+            columns=MultiIndex.from_tuples(
+                [
+                    (curve.id, "notional"),
+                    (curve.id, "risk"),
+                    (curve.id, "dcf"),
+                    (curve.id, "rates"),
+                ],
+            ),
         )
         assert_frame_equal(expected, result)
 
