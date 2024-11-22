@@ -1176,12 +1176,46 @@ class FloatPeriod(BasePeriod):
                     UserWarning,
                 )
             else:
-                return self._fixings_table_fast(curve, disc_curve)
+                try:
+                    return self._fixings_table_fast(curve, disc_curve)
+                except ValueError:
+                    # then probably a math domain error related to dates before the curve start
+                    warnings.warn(
+                        "Errored approximating a fixings table.\n Possibly this is due "
+                        f"to period dates: {self.start.strftime('%d-%b-%Y')}->"
+                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date: "
+                        f"{curve.node_dates[0].strftime('%d-%b-%Y')}. Switching to exact mode "
+                        f"for this period.",
+                        UserWarning,
+                    )
+                    return self.fixings_table(curve, approximate=False, disc_curve=disc_curve)
 
         if "rfr" in self.fixing_method:
-            rate, table = self._rfr_fixings_array(curve, disc_curve)
-            table = table.iloc[:-1]
-            df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
+            _d = self._rfr_get_individual_fixings_data(curve, allow_na=True)
+            if _d["rates"].isna().any() and not _d["obs_dates"].iloc[-1] <= curve.node_dates[0]:
+                raise ValueError(
+                    "RFRs could not be calculated, have you missed providing `fixings` or "
+                    "does the `Curve` begin after the start of a `FloatPeriod` including "
+                    "the `method_param` adjustment?\n"
+                    "For further info see: Documentation > Cookbook > Working with fixings.",
+                )
+            elif _d["rates"].isna().any():
+                # period exists before the curve and fixings are not supplied.
+                # Exposures are overwritten to zero.
+                df = DataFrame(
+                    {
+                        "obs_dates": _d["obs_dates"].iloc[:-1],
+                        "notional": [0.0] * len(_d["rates"]),
+                        "risk": [0.0] * len(_d["rates"]),
+                        "dcf": _d["dcf_vals"],
+                        "rates": _d["rates"].astype(float).reset_index(drop=True),
+                    },
+                ).set_index("obs_dates")
+            else:
+                rate, table = self._rfr_fixings_array(_d, disc_curve)
+                table = table.iloc[:-1]
+                df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
+
             df.columns = MultiIndex.from_tuples(
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
@@ -1522,7 +1556,7 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}.",
             )
 
-    def _rfr_get_individual_fixings_data(self, curve):
+    def _rfr_get_individual_fixings_data(self, curve, allow_na=False):
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1578,6 +1612,7 @@ class FloatPeriod(BasePeriod):
         # reindex the rates series getting missing values from the curves
         # TODO (low) the next two lines could probably be vectorised and made more efficient.
         fixed = (~isna(rates)).to_numpy()
+        # before_curve = (obs_dates < curve.node_dates[0]).to_numpy()
         rates = Series({k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()})
         # Alternative solution to PR 172.
         # rates = Series({
@@ -1594,7 +1629,7 @@ class FloatPeriod(BasePeriod):
             except IndexError:
                 raise ValueError("period has too few dates for `rfr_lockout` param to function.")
 
-        if rates.isna().any():
+        if rates.isna().any() and not allow_na:
             raise ValueError(
                 "RFRs could not be calculated, have you missed providing `fixings` or "
                 "does the `Curve` begin after the start of a `FloatPeriod` including "
@@ -1621,7 +1656,7 @@ class FloatPeriod(BasePeriod):
 
     def _rfr_fixings_array(
         self,
-        curve: Curve | LineCurve,
+        d: dict,
         disc_curve: Curve,
     ):
         """
@@ -1635,8 +1670,10 @@ class FloatPeriod(BasePeriod):
 
         Parameters
         ----------
-        curve : Curve or LineCurve
-            The forecasting curve used to extract the fixing data.
+        d: dict
+            Data passed from function `get_rfr_individual_fixing_data`.
+        disc_curve : Curve
+            The discount curve used in scaling factors and calculations.
 
         Returns
         -------
@@ -1653,9 +1690,6 @@ class FloatPeriod(BasePeriod):
         The ``fixing_exposure_approx`` is available only for ``spread_compound_method``
         that is either *"none_simple"* or *"isda_compounding"*.
         """
-
-        d = self._rfr_get_individual_fixings_data(curve)
-
         # then perform additional calculations to return fixings table
         dcf_of_r = d["obs_vals"]  # these are the 1-d DCFs associated with each published fixing
         v_with_r = Series(
