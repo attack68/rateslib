@@ -108,3 +108,27 @@ of the *Curve* which forecasts the exposed fixing.
        notional=1e6,
    )
    xcs.fixings_table()
+
+.. ipython:: python
+
+   stir = STIRFuture(
+       effective=get_imm(code="H0"),
+       termination="3m",
+       spec="eur_stir3",
+       curves=[euribor3m],
+       contracts=10,
+   )
+   stir.fixings_table()
+
+.. ipython:: python
+
+   frn = FloatRateNote(
+      effective=dt(2000, 1, 13),
+      termination="6m",
+      frequency="Q",
+      fixing_method="ibor",
+      method_param=2,
+      float_spread=120.0,
+      curves=[euribor3m, estr]
+   )
+   frn.fixings_table()
