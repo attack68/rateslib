@@ -1372,7 +1372,7 @@ class FloatPeriod(BasePeriod):
         reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
         reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
 
-        if self.fixings is not NoInput.blank:
+        if self.fixings is not NoInput.blank or fixing_dt < curve.node_dates[0]:
             # then fixing is set so return zero exposure.
             df = DataFrame(
                 {
@@ -1380,7 +1380,7 @@ class FloatPeriod(BasePeriod):
                     "notional": 0.0,
                     "risk": 0.0,
                     "dcf": [reg_dcf],
-                    "rates": [self.rate(curve)],
+                    "rates": [NA if self.fixings is NoInput.blank else float(self.fixings)],
                 },
             ).set_index("obs_dates")
         else:
