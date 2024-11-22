@@ -1178,7 +1178,7 @@ class FloatPeriod(BasePeriod):
             else:
                 try:
                     return self._fixings_table_fast(curve, disc_curve)
-                except ValueError as e:
+                except ValueError:
                     # then probably a math domain error related to dates before the curve start
                     warnings.warn(
                         "Errored approximating a fixings table.\n Possibly this is due "
