@@ -39,7 +39,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`454 <https://github.com/attack68/rateslib/pull/454>`_)
    * - Instruments
      - Add a :meth:`~rateslib.instruments.IRS.fixings_table` method to floating rate based
-       *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*, *ZCS*, *STIRFuture*.
+       *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*, *ZCS*, *STIRFuture*, *FloatRateNote*.
        (`467 <https://github.com/attack68/rateslib/pull/467>`_)
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
        (`490 <https://github.com/attack68/rateslib/pull/490>`_)

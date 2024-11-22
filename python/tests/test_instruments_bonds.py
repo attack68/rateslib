@@ -2169,6 +2169,18 @@ class TestFloatRateNote:
         with pytest.raises(TypeError, match="`fixings` or `curve` are not available for"):
             frn_no_fixings.accrued(settlement=dt(2022, 1, 10))
 
+    def test_fixings_table(self, curve):
+        bond = FloatRateNote(
+            effective=dt(2001, 11, 7),
+            termination=dt(2002, 8, 7),
+            frequency="q",
+            fixing_method="ibor",
+            fixings=[4.0],
+            curves=[curve],
+        )
+        result = bond.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestBondFuture:
     def test_repr(self):

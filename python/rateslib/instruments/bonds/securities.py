@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from functools import partial
 
 import numpy as np
-from pandas import Series
+from pandas import Series, DataFrame
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
@@ -2702,6 +2702,54 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ) -> DataFrame:
+        """
+        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A single :class:`~rateslib.curves.Curve` or id or a list of such.
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
+            - Discounting :class:`~rateslib.curves.Curve` for both legs.
+
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused by single currency
+               *Instruments* rates calculations.
+
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+
+        Returns
+        -------
+        DataFrame
+        """
+        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            NoInput(0),
+            NoInput(0),
+            self.leg1.currency,
+        )
+        df = self.leg1.fixings_table(curve=curves[0], approximate=approximate, disc_curve=curves[1])
+        return df
 
 
 def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
