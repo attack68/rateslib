@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from functools import partial
 
 import numpy as np
-from pandas import Series, DataFrame
+from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
