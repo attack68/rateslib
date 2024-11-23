@@ -52,27 +52,6 @@ Calendars
    :no-heading:
    :no-inheritance-diagram:
 
-Classes
-^^^^^^^^
-
-.. autosummary::
-   Cal
-   NamedCal
-   UnionCal
-   Modifier
-   RollDay
-
-.. toctree::
-    :maxdepth: 0
-    :titlesonly:
-    :hidden:
-
-    api/rateslib.calendars.Cal.rst
-    api/rateslib.calendars.NamedCal.rst
-    api/rateslib.calendars.UnionCal.rst
-    api/rateslib.calendars.Modifier.rst
-    api/rateslib.calendars.RollDay.rst
-
 Scheduling
 ===========
 
