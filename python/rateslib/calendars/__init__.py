@@ -22,7 +22,6 @@ from rateslib.default import NoInput, _drb
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-
 def dcf(
     start: datetime,
     end: datetime,
