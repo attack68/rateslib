@@ -48,6 +48,20 @@ Defaults
 Calendars
 ==========
 
+.. automodapi:: rateslib.calendars
+   :no-heading:
+   :no-inheritance-diagram:
+
+Classes
+^^^^^^^^
+
+.. autosummary::
+   Cal
+   NamedCal
+   UnionCal
+   Modifier
+   RollDay
+
 .. toctree::
     :maxdepth: 0
     :titlesonly:
@@ -58,10 +72,6 @@ Calendars
     api/rateslib.calendars.UnionCal.rst
     api/rateslib.calendars.Modifier.rst
     api/rateslib.calendars.RollDay.rst
-
-.. automodapi:: rateslib.calendars
-   :no-heading:
-   :no-inheritance-diagram:
 
 Scheduling
 ===========
