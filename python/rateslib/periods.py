@@ -1767,14 +1767,6 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def _first_fixing_obs_date(self, curve):
-        """Get the date associated with the first fixing observation in the period."""
-        if "rfr" in self.fixing_method:
-            start_obs, _, _, _ = self._get_method_dcf_endpoints(curve)
-        else:  # "ibor" in self.fixing_method:
-            start_obs = curve.calendar.lag(self.start, self.method_param * -1, False)
-        return start_obs
-
     def _get_method_dcf_endpoints(self, curve: Curve):
         """
         For RFR periods return the relevant DCF markers for different aspects of calculation.
