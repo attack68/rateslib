@@ -2287,7 +2287,7 @@ class FRA(BaseDerivative):
 
     Notes
     -----
-    FRAs are a derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
+    A FRA is a derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
     Additionally, there is no concept of ``float_spread`` for the IBOR fixing rate on an
     *FRA*, and it is therefore set to 0.0.
 
@@ -2655,13 +2655,7 @@ class FRA(BaseDerivative):
         This date is calculated as a lagged amount of business days after the Accrual Start
         Date, under the calendar applicable to the Instrument.
         """
-        if getattr(self, "__payment_date", None) is None:
-            self.__payment_date = get_calendar(self.kwargs["calendar"]).lag(
-                self.leg2.schedule.aschedule[0],
-                self.kwargs["leg2_payment_lag"],
-                True,  # is a payment date so requires cash settlement
-            )
-        return self.__payment_date
+        return self.leg1.schedule.pschedule[0]
 
 
 class CDS(BaseDerivative):
