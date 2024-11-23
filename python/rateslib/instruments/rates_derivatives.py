@@ -6,7 +6,7 @@ from datetime import datetime
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, get_calendar
+from rateslib.calendars import CalInput
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
@@ -2427,12 +2427,7 @@ class FRA(BaseDerivative):
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
-        _ = (
-            self.leg1.notional
-            * self.leg1.periods[0].dcf
-            * disc_curve_[self._payment_date]
-            / 10000
-        )
+        _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self._payment_date] / 10000
         return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
 
     def npv(
