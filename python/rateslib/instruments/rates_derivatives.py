@@ -2430,7 +2430,7 @@ class FRA(BaseDerivative):
         _ = (
             self.leg1.notional
             * self.leg1.periods[0].dcf
-            * disc_curve_[self._payment_date(curve)]
+            * disc_curve_[self._payment_date]
             / 10000
         )
         return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
@@ -2459,7 +2459,7 @@ class FRA(BaseDerivative):
             self.leg1.currency,
         )
         fx, base = _get_fx_and_base(self.leg1.currency, fx_, base_)
-        value = self.cashflow(curves[0]) * curves[1][self._payment_date(curves[0])]
+        value = self.cashflow(curves[0]) * curves[1][self._payment_date]
         if local:
             return {self.leg1.currency: value}
         else:
@@ -2565,15 +2565,14 @@ class FRA(BaseDerivative):
         fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
         cf = float(self.cashflow(curves[0]))
-        payment_dt = self._payment_date(curves[0])
-        df = float(curves[1][payment_dt])
+        df = float(curves[1][self._payment_date])
         npv_local = cf * df
 
         _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
         _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
         cfs = self.leg1.periods[0].cashflows(curves[0], curves[1], fx_, base_)
         cfs[defaults.headers["type"]] = "FRA"
-        cfs[defaults.headers["payment"]] = payment_dt
+        cfs[defaults.headers["payment"]] = self._payment_date
         cfs[defaults.headers["cashflow"]] = cf
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
@@ -2648,15 +2647,21 @@ class FRA(BaseDerivative):
         """
         return super().gamma(*args, **kwargs)
 
-    def _payment_date(self, curve):
-        """Get the adjusted payment date for the FRA under regular FRA specifications."""
-        fixing_dt = self.leg2.periods[0]._first_fixing_obs_date(curve)
-        payment_dt = get_calendar(self.kwargs["calendar"]).lag(
-            fixing_dt,
-            self.kwargs["leg2_payment_lag"],
-            True,  # is a payment date so requires cash settlement
-        )
-        return payment_dt
+    @property
+    def _payment_date(self):
+        """
+        Get the adjusted payment date for the FRA under regular FRA specifications.
+
+        This date is calculated as a lagged amount of business days after the Accrual Start
+        Date, under the calendar applicable to the Instrument.
+        """
+        if getattr(self, "__payment_date", None) is None:
+            self.__payment_date = get_calendar(self.kwargs["calendar"]).lag(
+                self.leg2.schedule.aschedule[0],
+                self.kwargs["leg2_payment_lag"],
+                True,  # is a payment date so requires cash settlement
+            )
+        return self.__payment_date
 
 
 class CDS(BaseDerivative):
