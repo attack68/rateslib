@@ -18,11 +18,9 @@ from rateslib.instruments.core import (
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _inherit_or_negate,
-    _lower,
     _push,
     _update_not_noinput,
     _update_with_defaults,
-    _upper,
 )
 from rateslib.legs import (
     CreditPremiumLeg,
@@ -221,36 +219,6 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
 
         self.curves = curves
         self.spec = spec
-
-        #
-        # for attribute in [
-        #     "effective",
-        #     "termination",
-        #     "frequency",
-        #     "stub",
-        #     "front_stub",
-        #     "back_stub",
-        #     "roll",
-        #     "eom",
-        #     "modifier",
-        #     "calendar",
-        #     "payment_lag",
-        #     "convention",
-        #     "notional",
-        #     "amortization",
-        #     "currency",
-        # ]:
-        #     leg2_val, val = self.kwargs[f"leg2_{attribute}"], self.kwargs[attribute]
-        #     if leg2_val is NoInput.inherit:
-        #         _ = val
-        #     elif leg2_val == NoInput.negate:
-        #         _ = NoInput(0) if val is NoInput(0) else val * -1
-        #     else:
-        #         _ = leg2_val
-        #     self.kwargs[attribute] = val
-        #     self.kwargs[f"leg2_{attribute}"] = _
-        #     # setattr(self, attribute, val)
-        #     # setattr(self, f"leg2_{attribute}", _)
 
     @abstractmethod
     def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
@@ -2295,7 +2263,7 @@ class SBS(BaseDerivative):
         return _composit_fixings_table(df1, df2)
 
 
-class FRA(Sensitivities, BaseMixin):
+class FRA(BaseDerivative):
     """
     Create a forward rate agreement composing single period :class:`~rateslib.legs.FixedLeg`
     and :class:`~rateslib.legs.FloatLeg` valued in a customised manner.
@@ -2307,19 +2275,21 @@ class FRA(Sensitivities, BaseMixin):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
+    method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
     fixings : float or list, optional
         If a float scalar, will be applied as the determined fixing for the first
         period. If a list of *n* fixings will be used as the fixings for the first *n*
         periods. If any sublist of length *m* is given as the first *m* RFR fixings
         within individual curve and composed into the overall rate.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
 
     Notes
     -----
-    FRAs are a legacy derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
+    A FRA is a derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
+    Additionally, there is no concept of ``float_spread`` for the IBOR fixing rate on an
+    *FRA*, and it is therefore set to 0.0.
 
     Examples
     --------
@@ -2401,75 +2371,37 @@ class FRA(Sensitivities, BaseMixin):
 
     def __init__(
         self,
-        effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
-        frequency: int | NoInput = NoInput(0),
-        roll: str | int | NoInput = NoInput(0),
-        eom: bool | NoInput = NoInput(0),
-        modifier: str | None | NoInput = NoInput(0),
-        calendar: CalInput = NoInput(0),
-        payment_lag: int | NoInput = NoInput(0),
-        notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
-        method_param: int | NoInput = NoInput(0),
+        *args,
         fixed_rate: float | NoInput = NoInput(0),
+        method_param: int | NoInput = NoInput(0),
         fixings: float | Series | NoInput = NoInput(0),
-        curves: str | list | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        **kwargs,
     ) -> None:
-        self.kwargs = dict(
-            effective=effective,
-            termination=termination,
-            frequency=_upper(frequency),
-            roll=roll,
-            eom=eom,
-            modifier=_upper(modifier),
-            calendar=calendar,
-            payment_lag=payment_lag,
-            notional=notional,
-            currency=_lower(currency),
-            convention=_upper(convention),
-            fixed_rate=fixed_rate,
-            leg2_effective=NoInput(1),
-            leg2_termination=NoInput(1),
-            leg2_convention=NoInput(1),
-            leg2_frequency=NoInput(1),
-            leg2_notional=NoInput(-1),
-            leg2_modifier=NoInput(1),
-            leg2_currency=NoInput(1),
-            leg2_calendar=NoInput(1),
-            leg2_roll=NoInput(1),
-            leg2_eom=NoInput(1),
-            leg2_payment_lag=NoInput(1),
-            leg2_fixing_method="ibor",
-            leg2_method_param=method_param,
-            leg2_spread_compound_method="none_simple",
-            leg2_fixings=fixings,
-        )
-        self.kwargs = _push(spec, self.kwargs)
-
-        # set defaults for missing values
-        default_kwargs = dict(
-            notional=defaults.notional,
-            payment_lag=defaults.payment_lag_specific[type(self).__name__],
-            currency=defaults.base_currency,
-            modifier=defaults.modifier,
-            eom=defaults.eom,
-            convention=defaults.convention,
-        )
-        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
-        self.kwargs = _inherit_or_negate(self.kwargs)
+        super().__init__(*args, **kwargs)
+        user_kwargs = {
+            "fixed_rate": fixed_rate,
+            "leg2_method_param": method_param,
+            "leg2_fixings": fixings,
+            # overload BaseDerivative
+            "leg2_fixing_method": "ibor",
+            "leg2_float_spread": 0.0,
+        }
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
 
         # Build
-        self.curves = curves
-
         self._fixed_rate = self.kwargs["fixed_rate"]
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
+        # Instrument Validation
         if self.leg1.schedule.n_periods != 1 or self.leg2.schedule.n_periods != 1:
             raise ValueError("FRA scheduling inputs did not define a single period.")
+        if self.leg1.convention != self.leg2.convention:
+            raise ValueError("FRA cannot have different `convention` on either Leg.")
+        if self.leg1.schedule.frequency != self.leg2.schedule.frequency:
+            raise ValueError("FRA cannot have different `frequency` on either Leg.")
+        if self.leg1.schedule.modifier != self.leg2.schedule.modifier:
+            raise ValueError("FRA cannot have different `modifier` on either Leg.")
 
     def _set_pricing_mid(
         self,
@@ -2495,12 +2427,7 @@ class FRA(Sensitivities, BaseMixin):
         disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
-        _ = (
-            self.leg1.notional
-            * self.leg1.periods[0].dcf
-            * disc_curve_[self.leg1.schedule.pschedule[0]]
-            / 10000
-        )
+        _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self._payment_date] / 10000
         return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
 
     def npv(
@@ -2527,7 +2454,7 @@ class FRA(Sensitivities, BaseMixin):
             self.leg1.currency,
         )
         fx, base = _get_fx_and_base(self.leg1.currency, fx_, base_)
-        value = self.cashflow(curves[0]) * curves[1][self.leg1.schedule.pschedule[0]]
+        value = self.cashflow(curves[0]) * curves[1][self._payment_date]
         if local:
             return {self.leg1.currency: value}
         else:
@@ -2588,23 +2515,16 @@ class FRA(Sensitivities, BaseMixin):
         float, Dual or Dual2
         """
         cf1 = self.leg1.periods[0].cashflow
-        cf2 = self.leg2.periods[0].cashflow(curve)
+        rate = self.leg2.periods[0].rate(curve)
+        cf2 = self.kwargs["notional"] * self.leg2.periods[0].dcf * rate / 100
         if cf1 is not NoInput.blank and cf2 is not NoInput.blank:
             cf = cf1 + cf2
         else:
             return None
-        rate = (
-            None
-            if curve is NoInput.blank
-            else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
-        )
-        cf /= 1 + self.leg1.periods[0].dcf * rate / 100
 
-        # if self.fixed_rate is NoInput.blank:
-        #     return 0  # set the fixed rate = to floating rate netting to zero
-        # rate = self.leg2.rate(curve)
-        # cf = self.notional * self.leg1.dcf * (rate - self.fixed_rate) / 100
-        # cf /= 1 + self.leg1.dcf * rate / 100
+        # FRA specification discounts cashflows by the IBOR rate.
+        cf /= 1 + self.leg2.periods[0].dcf * rate / 100
+
         return cf
 
     def cashflows(
@@ -2640,14 +2560,14 @@ class FRA(Sensitivities, BaseMixin):
         fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
         cf = float(self.cashflow(curves[0]))
-        df = float(curves[1][self.leg1.schedule.pschedule[0]])
+        df = float(curves[1][self._payment_date])
         npv_local = cf * df
 
         _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
         _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
         cfs = self.leg1.periods[0].cashflows(curves[0], curves[1], fx_, base_)
         cfs[defaults.headers["type"]] = "FRA"
-        cfs[defaults.headers["payment"]] = self.leg1.schedule.pschedule[0]
+        cfs[defaults.headers["payment"]] = self._payment_date
         cfs[defaults.headers["cashflow"]] = cf
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
@@ -2721,6 +2641,16 @@ class FRA(Sensitivities, BaseMixin):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    @property
+    def _payment_date(self):
+        """
+        Get the adjusted payment date for the FRA under regular FRA specifications.
+
+        This date is calculated as a lagged amount of business days after the Accrual Start
+        Date, under the calendar applicable to the Instrument.
+        """
+        return self.leg1.schedule.pschedule[0]
 
 
 class CDS(BaseDerivative):
