@@ -2382,6 +2382,8 @@ class FRA(BaseDerivative):
             "fixed_rate": fixed_rate,
             "leg2_method_param": method_param,
             "leg2_fixings": fixings,
+            # overload BaseDerivative
+            "leg2_fixing_method": "ibor",
             "leg2_float_spread": 0.0,
         }
         self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
@@ -2391,8 +2393,15 @@ class FRA(BaseDerivative):
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
+        # Instrument Validation
         if self.leg1.schedule.n_periods != 1 or self.leg2.schedule.n_periods != 1:
             raise ValueError("FRA scheduling inputs did not define a single period.")
+        if self.leg1.convention != self.leg2.convention:
+            raise ValueError("FRA cannot have different `convention` on either Leg.")
+        if self.leg1.schedule.frequency != self.leg2.schedule.frequency:
+            raise ValueError("FRA cannot have different `frequency` on either Leg.")
+        if self.leg1.schedule.modifier != self.leg2.schedule.modifier:
+            raise ValueError("FRA cannot have different `modifier` on either Leg.")
 
     def _set_pricing_mid(
         self,
@@ -2511,15 +2520,15 @@ class FRA(BaseDerivative):
         float, Dual or Dual2
         """
         cf1 = self.leg1.periods[0].cashflow
-        cf2 = self.leg2.periods[0].cashflow(curve)
+        rate = self.leg2.periods[0].rate(curve)
+        cf2 = self.kwargs["notional"] * self.leg2.periods[0].dcf * rate / 100
         if cf1 is not NoInput.blank and cf2 is not NoInput.blank:
             cf = cf1 + cf2
         else:
             return None
 
         # FRA specification discounts cashflows by the IBOR rate.
-        rate = self.leg2.periods[0].rate(curve)
-        cf /= 1 + self.leg1.periods[0].dcf * rate / 100
+        cf /= 1 + self.leg2.periods[0].dcf * rate / 100
 
         return cf
 
