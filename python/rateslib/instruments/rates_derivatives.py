@@ -6,7 +6,7 @@ from datetime import datetime
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import CalInput
+from rateslib.calendars import CalInput, get_calendar
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
@@ -18,11 +18,9 @@ from rateslib.instruments.core import (
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _inherit_or_negate,
-    _lower,
     _push,
     _update_not_noinput,
     _update_with_defaults,
-    _upper,
 )
 from rateslib.legs import (
     CreditPremiumLeg,
@@ -2289,7 +2287,9 @@ class FRA(BaseDerivative):
 
     Notes
     -----
-    FRAs are a legacy derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
+    FRAs are a derivative whose *FloatLeg* ``fixing_method`` is set to *"ibor"*.
+    Additionally, there is no concept of ``float_spread`` for the IBOR fixing rate on an
+    *FRA*, and it is therefore set to 0.0.
 
     Examples
     --------
@@ -2382,6 +2382,7 @@ class FRA(BaseDerivative):
             "fixed_rate": fixed_rate,
             "leg2_method_param": method_param,
             "leg2_fixings": fixings,
+            "leg2_float_spread": 0.0,
         }
         self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
 
@@ -2420,7 +2421,7 @@ class FRA(BaseDerivative):
         _ = (
             self.leg1.notional
             * self.leg1.periods[0].dcf
-            * disc_curve_[self.leg1.schedule.pschedule[0]]
+            * disc_curve_[self._payment_date(curve)]
             / 10000
         )
         return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
@@ -2449,7 +2450,7 @@ class FRA(BaseDerivative):
             self.leg1.currency,
         )
         fx, base = _get_fx_and_base(self.leg1.currency, fx_, base_)
-        value = self.cashflow(curves[0]) * curves[1][self.leg1.schedule.pschedule[0]]
+        value = self.cashflow(curves[0]) * curves[1][self._payment_date(curves[0])]
         if local:
             return {self.leg1.currency: value}
         else:
@@ -2515,18 +2516,11 @@ class FRA(BaseDerivative):
             cf = cf1 + cf2
         else:
             return None
-        rate = (
-            None
-            if curve is NoInput.blank
-            else 100 * cf2 / (-self.leg2.notional * self.leg2.periods[0].dcf)
-        )
+
+        # FRA specification discounts cashflows by the IBOR rate.
+        rate = self.leg2.periods[0].rate(curve)
         cf /= 1 + self.leg1.periods[0].dcf * rate / 100
 
-        # if self.fixed_rate is NoInput.blank:
-        #     return 0  # set the fixed rate = to floating rate netting to zero
-        # rate = self.leg2.rate(curve)
-        # cf = self.notional * self.leg1.dcf * (rate - self.fixed_rate) / 100
-        # cf /= 1 + self.leg1.dcf * rate / 100
         return cf
 
     def cashflows(
@@ -2562,14 +2556,15 @@ class FRA(BaseDerivative):
         fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
         cf = float(self.cashflow(curves[0]))
-        df = float(curves[1][self.leg1.schedule.pschedule[0]])
+        payment_dt = self._payment_date(curves[0])
+        df = float(curves[1][payment_dt])
         npv_local = cf * df
 
         _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
         _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
         cfs = self.leg1.periods[0].cashflows(curves[0], curves[1], fx_, base_)
         cfs[defaults.headers["type"]] = "FRA"
-        cfs[defaults.headers["payment"]] = self.leg1.schedule.pschedule[0]
+        cfs[defaults.headers["payment"]] = payment_dt
         cfs[defaults.headers["cashflow"]] = cf
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
@@ -2643,6 +2638,16 @@ class FRA(BaseDerivative):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def _payment_date(self, curve):
+        """Get the adjusted payment date for the FRA under regular FRA specifications."""
+        fixing_dt = self.leg2.periods[0]._first_fixing_obs_date(curve)
+        payment_dt = get_calendar(self.kwargs["calendar"]).lag(
+            fixing_dt,
+            self.kwargs["leg2_payment_lag"],
+            True,  # is a payment date so requires cash settlement
+        )
+        return payment_dt
 
 
 class CDS(BaseDerivative):
