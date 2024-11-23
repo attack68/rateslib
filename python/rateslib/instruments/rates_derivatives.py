@@ -222,36 +222,6 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         self.curves = curves
         self.spec = spec
 
-        #
-        # for attribute in [
-        #     "effective",
-        #     "termination",
-        #     "frequency",
-        #     "stub",
-        #     "front_stub",
-        #     "back_stub",
-        #     "roll",
-        #     "eom",
-        #     "modifier",
-        #     "calendar",
-        #     "payment_lag",
-        #     "convention",
-        #     "notional",
-        #     "amortization",
-        #     "currency",
-        # ]:
-        #     leg2_val, val = self.kwargs[f"leg2_{attribute}"], self.kwargs[attribute]
-        #     if leg2_val is NoInput.inherit:
-        #         _ = val
-        #     elif leg2_val == NoInput.negate:
-        #         _ = NoInput(0) if val is NoInput(0) else val * -1
-        #     else:
-        #         _ = leg2_val
-        #     self.kwargs[attribute] = val
-        #     self.kwargs[f"leg2_{attribute}"] = _
-        #     # setattr(self, attribute, val)
-        #     # setattr(self, f"leg2_{attribute}", _)
-
     @abstractmethod
     def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
         pass
@@ -2295,7 +2265,7 @@ class SBS(BaseDerivative):
         return _composit_fixings_table(df1, df2)
 
 
-class FRA(Sensitivities, BaseMixin):
+class FRA(BaseDerivative):
     """
     Create a forward rate agreement composing single period :class:`~rateslib.legs.FixedLeg`
     and :class:`~rateslib.legs.FloatLeg` valued in a customised manner.
@@ -2307,13 +2277,13 @@ class FRA(Sensitivities, BaseMixin):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
+    method_param : int, optional
+        A parameter that is used for the various ``fixing_method`` s. See notes.
     fixings : float or list, optional
         If a float scalar, will be applied as the determined fixing for the first
         period. If a list of *n* fixings will be used as the fixings for the first *n*
         periods. If any sublist of length *m* is given as the first *m* RFR fixings
         within individual curve and composed into the overall rate.
-    method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
 
@@ -2401,69 +2371,21 @@ class FRA(Sensitivities, BaseMixin):
 
     def __init__(
         self,
-        effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
-        frequency: int | NoInput = NoInput(0),
-        roll: str | int | NoInput = NoInput(0),
-        eom: bool | NoInput = NoInput(0),
-        modifier: str | None | NoInput = NoInput(0),
-        calendar: CalInput = NoInput(0),
-        payment_lag: int | NoInput = NoInput(0),
-        notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
-        method_param: int | NoInput = NoInput(0),
+        *args,
         fixed_rate: float | NoInput = NoInput(0),
+        method_param: int | NoInput = NoInput(0),
         fixings: float | Series | NoInput = NoInput(0),
-        curves: str | list | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        **kwargs,
     ) -> None:
-        self.kwargs = dict(
-            effective=effective,
-            termination=termination,
-            frequency=_upper(frequency),
-            roll=roll,
-            eom=eom,
-            modifier=_upper(modifier),
-            calendar=calendar,
-            payment_lag=payment_lag,
-            notional=notional,
-            currency=_lower(currency),
-            convention=_upper(convention),
-            fixed_rate=fixed_rate,
-            leg2_effective=NoInput(1),
-            leg2_termination=NoInput(1),
-            leg2_convention=NoInput(1),
-            leg2_frequency=NoInput(1),
-            leg2_notional=NoInput(-1),
-            leg2_modifier=NoInput(1),
-            leg2_currency=NoInput(1),
-            leg2_calendar=NoInput(1),
-            leg2_roll=NoInput(1),
-            leg2_eom=NoInput(1),
-            leg2_payment_lag=NoInput(1),
-            leg2_fixing_method="ibor",
-            leg2_method_param=method_param,
-            leg2_spread_compound_method="none_simple",
-            leg2_fixings=fixings,
-        )
-        self.kwargs = _push(spec, self.kwargs)
-
-        # set defaults for missing values
-        default_kwargs = dict(
-            notional=defaults.notional,
-            payment_lag=defaults.payment_lag_specific[type(self).__name__],
-            currency=defaults.base_currency,
-            modifier=defaults.modifier,
-            eom=defaults.eom,
-            convention=defaults.convention,
-        )
-        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
-        self.kwargs = _inherit_or_negate(self.kwargs)
+        super().__init__(*args, **kwargs)
+        user_kwargs = {
+            "fixed_rate": fixed_rate,
+            "leg2_method_param": method_param,
+            "leg2_fixings": fixings,
+        }
+        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
 
         # Build
-        self.curves = curves
-
         self._fixed_rate = self.kwargs["fixed_rate"]
         self.leg1 = FixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
