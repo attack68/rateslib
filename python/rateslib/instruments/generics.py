@@ -411,6 +411,20 @@ class Spread(Sensitivities):
         """
         return super().gamma(*args, **kwargs)
 
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        pf = Portfolio([
+            self.instrument1,
+            self.instrument2,
+        ])
+        return pf.fixings_table(curves, solver, fx, base, approximate)
+
 
 class Fly(Sensitivities):
     """
@@ -522,6 +536,21 @@ class Fly(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        pf = Portfolio([
+            self.instrument1,
+            self.instrument2,
+            self.instrument3,
+        ])
+        return pf.fixings_table(curves, solver, fx, base, approximate)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
