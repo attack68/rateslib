@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series
+from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
 from rateslib import default_context
 from rateslib.calendars import add_tenor
@@ -1115,6 +1115,11 @@ class TestIRS:
         result = irs.fixings_table()
         assert isinstance(result, DataFrame)
 
+    def test_1d_instruments(self):
+        # GH484
+        with pytest.raises(ValueError, match="date, stub and roll inputs are invalid"):
+            IRS(dt(2025, 1, 1), "1d", spec="sek_irs")
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
@@ -1295,7 +1300,7 @@ class TestSBS:
         result = inst.fixings_table()
         assert isinstance(result, DataFrame)
 
-    def test_fixings_table_3s1s(self, curve):
+    def test_fixings_table_3s1s(self, curve, curve2):
         inst = SBS(
             dt(2022, 1, 15),
             "6m",
@@ -1305,10 +1310,12 @@ class TestSBS:
             leg2_method_param=1,
             frequency="Q",
             leg2_frequency="m",
-            curves=curve,
+            curves=[curve, curve, curve2, curve],
         )
         result = inst.fixings_table()
         assert isinstance(result, DataFrame)
+        assert len(result.columns) == 8
+        assert len(result.index) == 8
 
 
 class TestFRA:
@@ -1471,6 +1478,22 @@ class TestZCS:
                 frequency="Z",
                 fixed_rate=4.22566695954813,
             )
+
+    def test_fixings_table(self, curve):
+        zcs = ZCS(
+            effective=dt(2022, 1, 15),
+            termination="2y",
+            frequency="Q",
+            leg2_fixing_method="ibor",
+            leg2_method_param=0,
+            calendar="all",
+            convention="30e360",
+            curves=curve,
+        )
+        result = zcs.fixings_table()
+        assert isinstance(result, DataFrame)
+        for i in range(8):
+            abs(result.iloc[i, 2] - 24.678) < 1e-3
 
 
 class TestZCIS:
@@ -2779,6 +2802,48 @@ class TestXCS:
         )
         assert abs(xcs.leg2.notional + 100e6) < 1e-8  # not 20e6
 
+    @pytest.mark.parametrize("fixed1", [True, False])
+    @pytest.mark.parametrize("fixed2", [True, False])
+    @pytest.mark.parametrize("mtm", [True, False])
+    def test_fixings_table(self, curve, curve2, fixed1, fixed2, mtm):
+        curve.id = "c1"
+        curve2.id = "c2"
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
+        )
+
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            frequency="M",
+            payment_lag=0,
+            currency="eur",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            fixed=fixed1,
+            leg2_fixed=fixed2,
+            leg2_mtm=mtm,
+            fixing_method="ibor",
+            leg2_fixing_method="ibor",
+        )
+        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2], fx=fxf)
+        assert isinstance(result, DataFrame)
+
+    def test_initialisation_bug(self):
+        XCS(
+            dt(2000, 1, 7),
+            "9m",
+            spec="eurusd_xcs",
+            leg2_fixed=True,
+            leg2_mtm=False,
+            fixing_method="ibor",
+            method_param=2,
+            leg2_fixed_rate=2.4,
+        )
+
+        XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", fixed=True, fixed_rate=3.0)
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2) -> None:
@@ -3216,6 +3281,18 @@ class TestSTIRFuture:
         result = stir.analytic_delta()
         assert abs(result - expected) < 1e-10
 
+    def test_fixings_table(self, curve):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination="3m",
+            spec="eur_stir3",
+            contracts=100,
+            curves=curve,
+        )
+        result = stir.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert result[f"{curve.id}", "risk"][dt(2022, 3, 14)] == -2500.0
+
 
 class TestPricingMechanism:
     def test_value(self, curve) -> None:
@@ -3414,6 +3491,39 @@ class TestPortfolio:
         expected = f"<rl.Portfolio at {hex(id(pf))}>"
         assert pf.__repr__() == expected
 
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        pf = Portfolio([irs1, irs2, irs3])
+        result = pf.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        pf = Portfolio([irs, frb])
+        assert isinstance(pf.fixings_table(), DataFrame)
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3481,6 +3591,39 @@ class TestFly:
         expected = f"<rl.Spread at {hex(id(spd))}>"
         assert expected == spd.__repr__()
 
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        fly = Fly(irs, frb, irs)
+        assert isinstance(fly.fixings_table(), DataFrame)
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3525,6 +3668,39 @@ class TestSpread:
         fly = Fly(irs1, irs2, irs3)
         expected = f"<rl.Fly at {hex(id(fly))}>"
         assert expected == fly.__repr__()
+
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        spd = Spread(irs1, Spread(irs2, irs3))
+        result = spd.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        spd = Spread(irs, frb)
+        assert isinstance(spd.fixings_table(), DataFrame)
 
 
 class TestSensitivities:
@@ -3682,7 +3858,7 @@ class TestSpec:
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds import US_GB_TSY
+        from rateslib.instruments.bonds.conventions import US_GB_TSY
 
         assert bond.calc_mode.kwargs == US_GB_TSY.kwargs
         assert bond.kwargs["convention"] == "actacticma"
@@ -3698,7 +3874,7 @@ class TestSpec:
             calc_mode="ust",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds import US_GB
+        from rateslib.instruments.bonds.conventions import US_GB
 
         assert bond.calc_mode.kwargs == US_GB.kwargs
         assert bond.kwargs["convention"] == "actacticma"
@@ -3713,7 +3889,7 @@ class TestSpec:
             spec="us_gbb",
             convention="act365f",
         )
-        from rateslib.instruments.bonds import US_GBB
+        from rateslib.instruments.bonds.conventions import US_GBB
 
         assert bill.calc_mode.kwargs == US_GBB.kwargs
         assert bill.kwargs["convention"] == "act365f"

@@ -33,17 +33,85 @@ which can be used to price *FX Options* and *FX Option Strategies*.
 Introduction and FX Volatility Smiles
 *************************************
 
-The *FXDeltaVolSmile* is parametrised by a series of *(delta, vol)* node points
-interpolated by a cubic spline. This interpolation is automatically constructed with knot
-sequences that adjust to the number of given ``nodes``. One node will create a constant
-vol level, and two nodes will create a straight line gradient. More nodes (appropriately calibrated)
-will create a traditional smile shape.
+The :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is parametrised by a series of
+*(delta-index, vol)* node points interpolated by a cubic spline. This interpolation is
+automatically constructed with knot sequences that adjust to the number of given ``nodes``:
 
-An *FXDeltaVolSmile* must also be initialised with an ``eval_date`` which serves the same
-purpose as the initial node point on a *Curve*, and indicates *'today'*. There must also be an ``expiry``, and
-options priced with this *Smile* must have an equivalent expiry or errors will be raised.
-Finally, the ``delta_type`` of the *Smile* must be specified so that its delta index is well
-defined.
+- Providing only one node, e.g. *(0.5, 11.0)*, will create a constant volatility level, here at 11%.
+- Providing two nodes, e.g. (0.25, 8.0), (0.75, 10.0) will create a straight line gradient
+  across the whole delta axis, here rising by 1% volatility every 0.25 in *delta-index*.
+- Providing more nodes (appropriately calibrated) will create a traditional smile shape with
+  the mentioned interpolation structure.
+
+An *FXDeltaVolSmile* must also be initialised with:
+
+- An ``eval_date`` which serves the same purpose as the initial node point on a *Curve*,
+  and indicates *'today'*.
+- An ``expiry``, for which options priced with this *Smile* must have an equivalent expiry or errors will be raised.
+- A ``delta_type`` so that its *delta-index* is well defined, and it can price different *Instruments* even
+  if their *delta types* are different. I.e. A *Smile* defined by *"forward"* delta types can still
+  price *FXOptions* defined with *"spot"* delta types due to appropriate mathematical conversions.
+
+.. ipython:: python
+
+   smile = FXDeltaVolSmile(
+       eval_date=dt(2000, 1, 1),
+       expiry=dt(2000, 7, 1),
+       nodes={
+           0.25: 10.3,
+           0.5: 9.1,
+           0.75: 10.8
+       },
+       delta_type="forward"
+   )
+   #  -->  smile.plot()
+   #  -->  smile.plot(x_axis="moneyness")
+
+.. container:: twocol
+
+   .. container:: leftside50
+
+      **Delta-Index vs Vol Plot**
+
+      .. plot::
+
+         from rateslib.fx_volatility import FXDeltaVolSmile
+         from datetime import datetime as dt
+         smile = FXDeltaVolSmile(
+             eval_date=dt(2000, 1, 1),
+             expiry=dt(2000, 7, 1),
+             nodes={
+                 0.25: 10.3,
+                 0.5: 9.1,
+                 0.75: 10.8
+             },
+             delta_type="forward"
+         )
+         fig, ax, lines = smile.plot()
+         plt.show()
+         plt.close()
+
+   .. container:: rightside50
+
+      **Moneyness vs Vol Plot**
+
+      .. plot::
+
+         from rateslib.fx_volatility import FXDeltaVolSmile
+         from datetime import datetime as dt
+         smile = FXDeltaVolSmile(
+             eval_date=dt(2000, 1, 1),
+             expiry=dt(2000, 7, 1),
+             nodes={
+                 0.25: 10.3,
+                 0.5: 9.1,
+                 0.75: 10.8
+             },
+             delta_type="forward"
+         )
+         fig, ax, lines = smile.plot(x_axis="moneyness")
+         plt.show()
+         plt.close()
 
 Constructing a Smile
 *********************
@@ -193,7 +261,7 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
 FX Volatility Surfaces
 **********************
 
-*FX Surfaces* in *rateslib* are collections of cross-sectional *FX Smiles* where:
+*FX Surfaces* in *rateslib* are collections of cross sectional *FX Smiles* where:
 
 - each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
 - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
@@ -309,10 +377,14 @@ node values until convergence with the given instrument rates.
        fx=fxf,
    )
 
-Clark's Table 4.5 is replicated here. Note that due to using a different parametric form for
-*Smiles* (i.e. a natural cubic spline), inferring his FX forwards market rates, and not necessarily
-knowing the exact dates and holiday calendars, this produces
-minor deviations from his calculated values.
+The table below is *rateslib's* replicated calculations of Clark's Table 4.5.
+Note that due to:
+
+- using a different parametric form for *Smiles* (i.e. a natural cubic spline),
+- inferring his FX forwards market rates,
+- and not necessarily knowing the exact dates and holiday calendars of his example,
+
+this produces minor deviations from his calculated values.
 
 .. ipython:: python
    :suppress:
@@ -348,13 +420,13 @@ minor deviations from his calculated values.
 
 .. ipython:: python
 
-   data2
+   with option_context("display.float_format", lambda x: '%.4f' % x):
+       print(data2)
 
 Plotting
 *********
 
-A full 3D surface plot is not yet available but a few cross-sections can be plotted together.
-Here, the three relevant *Smiles* from above are plotted.
+Three relevant cross-sectional *Smiles* from above are plotted.
 
 .. ipython:: python
 
@@ -427,5 +499,75 @@ Here, the three relevant *Smiles* from above are plotted.
    sm18 = surface.get_smile(dt(2010, 11, 3))
    sm24 = surface.smiles[1]
    fig, ax, lines = sm12.plot(comparators=[sm18, sm24], labels=["1y", "18m", "2y"])
+   plt.show()
+   plt.close()
+
+Alternative a 3D surface plot can also be shown.
+
+.. ipython:: python
+
+   surface.plot()
+
+.. plot::
+
+   from rateslib.curves import Curve
+   from rateslib.solver import Solver
+   from rateslib.fx import FXForwards, FXRates
+   from rateslib.instruments import FXStraddle, FXRiskReversal, FXBrokerFly, Value
+   from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+   from datetime import datetime as dt
+   from matplotlib import pyplot as plt
+   eur = Curve({dt(2009, 5, 3): 1.0, dt(2011, 5, 10): 1.0})
+   usd = Curve({dt(2009, 5, 3): 1.0, dt(2011, 5, 10): 1.0})
+   fxf = FXForwards(
+       fx_rates=FXRates({"eurusd": 1.34664}, settlement=dt(2009, 5, 5)),
+       fx_curves={"eureur": eur, "usdusd": usd, "eurusd": eur},
+   )
+   solver = Solver(
+       curves=[eur, usd],
+       instruments=[
+           Value(dt(2009, 5, 4), curves=eur, metric="cc_zero_rate"),
+           Value(dt(2009, 5, 4), curves=usd, metric="cc_zero_rate")
+       ],
+       s=[1.00, 0.4759550366220911],
+       fx=fxf,
+   )
+   surface = FXDeltaVolSurface(
+       eval_date=dt(2009, 5, 3),
+       delta_indexes=[0.25, 0.5, 0.75],
+       expiries=[dt(2010, 5, 3), dt(2011, 5, 3)],
+       node_values=np.ones((2, 3))* 18.0,
+       delta_type="forward",
+       id="surface",
+   )
+   fx_args_0 = dict(
+       pair="eurusd",
+       curves=[None, eur, None, usd],
+       expiry=dt(2010, 5, 3),
+       delta_type="spot",
+       vol="surface",
+   )
+   fx_args_1 = dict(
+       pair="eurusd",
+       curves=[None, eur, None, usd],
+       expiry=dt(2011, 5, 3),
+       delta_type="forward",
+       vol="surface",
+   )
+
+   solver = Solver(
+       surfaces=[surface],
+       instruments=[
+           FXStraddle(strike="atm_delta", **fx_args_0),
+           FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **fx_args_0),
+           FXRiskReversal(strike=["-25d", "25d"], **fx_args_0),
+           FXStraddle(strike="atm_delta", **fx_args_1),
+           FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **fx_args_1),
+           FXRiskReversal(strike=["-25d", "25d"], **fx_args_1),
+       ],
+       s=[18.25, 0.95, -0.6, 17.677, 0.85, -0.562],
+       fx=fxf,
+   )
+   fig, ax, lines = surface.plot()
    plt.show()
    plt.close()
