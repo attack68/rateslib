@@ -746,17 +746,11 @@ class _FloatLegMixin:
         -------
         DataFrame
         """
-        df, counter = None, 0
-        while df is None:
-            if type(self.periods[counter]) is FloatPeriod:
-                df = self.periods[counter].fixings_table(*args, **kwargs)
-            counter += 1
-
-        n = len(self.periods)
-        for i in range(counter, n):
-            if type(self.periods[i]) is FloatPeriod:
-                df = pd.concat([df, self.periods[i].fixings_table(*args, **kwargs)])
-        return df
+        dfs = []
+        for period in self.periods:
+            if isinstance(period, FloatPeriod):
+                dfs.append(period.fixings_table(*args, **kwargs))
+        return pd.concat(dfs)
 
     def _regular_period(
         self,
@@ -969,14 +963,36 @@ class FloatLeg(BaseLeg, _FloatLegMixin):
         """
         return super().npv(*args, **kwargs)
 
-    def fixings_table(self, *args, **kwargs) -> DataFrame:
+    def fixings_table(
+        self,
+        curve: Curve,
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
 
-        For arguments see
-        :meth:`FloatPeriod.fixings_table()<rateslib.periods.FloatPeriod.fixings_table>`.
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given and ``curve`` is discount factor based.
+        fx : float, FXRates, FXForwards, optional
+            Only used in the case of :class:`~rateslib.legs.FloatLegMtm` to derive FX fixings.
+        base : str, optional
+            Not used by ``fixings_table``.
+        approximate: bool
+            Whether to use a faster (3x) but marginally less accurate (0.1% error) calculation.
+
+        Returns
+        -------
+        DataFrame
         """
-        return super()._fixings_table(*args, **kwargs)
+        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
 
     def _set_periods(self) -> None:
         return super()._set_periods()
@@ -1110,7 +1126,9 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         The spread applied to determine cashflows. Can be set to `None` and designated
         later, perhaps after a mid-market spread for all periods has been calculated.
     spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
+        The method to use for adding a floating spread to compounded rates. Applies only to
+        rates within *Periods*. This does **not** apply to compounding of *Periods* within the
+        *Leg*. Compounding of *Periods* is done using the ISDA compounding method. Available
         options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
     fixings : float, list, or Series optional
         If a float scalar, will be applied as the determined fixing for the first
@@ -1183,8 +1201,14 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
 
         self._delay_set_periods = True
         super().__init__(*args, **kwargs)
-        if abs(float(self.amortization)) > 1e-2:
-            raise NotImplementedError("`ZeroFloatLeg` cannot accept `amortization`.")
+        if self.schedule.frequency == "Z":
+            raise ValueError(
+                "`frequency` for a ZeroFloatLeg should not be 'Z'. The Leg is zero frequency by "
+                "construction. Set the `frequency` equal to the compounding frequency of the "
+                "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
+            )
+        if abs(float(self.amortization)) > 1e-8:
+            raise ValueError("`ZeroFloatLeg` cannot be defined with `amortization`.")
         self._set_fixings(fixings)
         self._set_periods()
 
@@ -1194,8 +1218,8 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                 float_spread=self.float_spread,
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
-                payment=period[defaults.headers["payment"]],
-                notional=self.notional - self.amortization * i,
+                payment=self.schedule.pschedule[-1],  # set payment to Leg payment
+                notional=self.notional,
                 currency=self.currency,
                 convention=self.convention,
                 termination=self.schedule.termination,
@@ -1218,7 +1242,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
 
     def rate(self, curve):
         """
-        Calculating a period type floating rate for the zero coupon leg.
+        Calculate a simple period type floating rate for the zero coupon leg.
 
         Parameters
         ----------
@@ -1229,11 +1253,10 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         -------
         float, Dual, Dual2
         """
-        compounded_rate, total_dcf = 1.0, 0.0
+        compounded_rate = 1.0
         for period in self.periods:
             compounded_rate *= 1 + period.dcf * period.rate(curve) / 100
-            total_dcf += period.dcf
-        return 100 * (compounded_rate - 1.0) / total_dcf
+        return 100 * (compounded_rate - 1.0) / self.dcf
 
     def npv(
         self,
@@ -1263,10 +1286,44 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         else:
             return fx * value
 
-    def fixings_table(self, curve: Curve) -> NoReturn:  # pragma: no cover
+    def fixings_table(
+        self,
+        curve: Curve,
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ) -> NoReturn:  # pragma: no cover
         """Not yet implemented for ZeroFloatLeg"""
-        # TODO: fixing table for ZeroFloatLeg
-        raise NotImplementedError("fixings table on ZeroFloatLeg.")
+        if disc_curve is NoInput.blank and isinstance(curve, dict):
+            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+        elif disc_curve is NoInput.blank:
+            if curve._base_type == "dfs":
+                disc_curve = curve
+            else:
+                raise ValueError("Must supply a discount factor based `disc_curve`.")
+
+        if self.fixing_method == "ibor":
+            dfs = []
+            prod = 1 + self.dcf * self.rate(curve) / 100.0
+            prod *= -self.notional * disc_curve[self.schedule.pschedule[-1]]
+            for period in self.periods:
+                if not isinstance(period, FloatPeriod):
+                    continue
+                scalar = period.dcf / (1 + period.dcf * period.rate(curve) / 100.0)
+                risk = prod * scalar
+                dfs.append(period._ibor_fixings_table(curve, disc_curve, risk))
+        else:
+            dfs = []
+            prod = 1 + self.dcf * self.rate(curve) / 100.0
+            for period in self.periods:
+                df = period.fixings_table(curve, approximate, disc_curve)
+                scalar = prod / (1 + period.dcf * period.rate(curve) / 100.0)
+                df[(curve.id, "risk")] *= scalar
+                df[(curve.id, "notional")] *= scalar
+                dfs.append(df)
+
+        return pd.concat(dfs)
 
     def analytic_delta(
         self,
@@ -1410,6 +1467,8 @@ class ZeroFixedLeg(BaseLeg, _FixedLegMixin):
                 "construction. Set the `frequency` equal to the compounding frequency of the "
                 "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
             )
+        if abs(float(self.amortization)) > 1e-8:
+            raise ValueError("`ZeroFixedLeg` cannot be defined with `amortization`.")
 
     def _set_periods(self):
         self.periods = [
@@ -2625,6 +2684,24 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
 
         self._set_fixings(fixings)
         self.fx_fixings = self.fx_fixings  # sets fx_fixings and periods after initialising
+
+    def fixings_table(
+        self,
+        curve: Curve,
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        """
+        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
+
+        For arguments see
+        :meth:`FloatLeg.fixings_table()<rateslib.legs.FloatLeg.fixings_table>`.
+        """
+        if not self._do_not_repeat_set_periods:
+            self._set_periods(fx)
+        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
 
 
 class CustomLeg(BaseLeg):

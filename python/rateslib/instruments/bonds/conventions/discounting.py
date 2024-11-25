@@ -223,3 +223,23 @@ def _v3_simple(
 ):
     v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)
     return v_
+
+
+V1_FUNCS = {
+    "compounding": _v1_compounded_by_remaining_accrual_fraction,
+    "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+    "compounding_stub_act365f": _v1_comp_stub_act365f,
+    "simple": _v1_simple,
+    "simple_long_stub_compounding": _v1_simple_1y_adjustment,
+}
+
+V2_FUNCS = {
+    "regular": _v2_,
+    "annual": _v2_annual,
+}
+
+V3_FUNCS = {
+    "compounding": _v3_compounded,
+    "simple": _v3_simple,
+    "simple_30e360": _v3_30e360_u_simple,
+}

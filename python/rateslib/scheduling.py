@@ -421,7 +421,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = parsed_args["utermination"]
@@ -440,7 +442,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = self.effective
                 self.utermination = self.termination
@@ -465,7 +469,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = parsed_args["utermination"]
@@ -484,7 +490,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 # stub inference is not required, no stubs are necessary
                 self.ueffective = self.effective
@@ -510,7 +518,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = parsed_args["utermination"]
@@ -529,7 +539,9 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                raise ValueError("date, stub and roll inputs are invalid")
+                return _raise_date_value_error(
+                    self.effective, self.termination, front_stub, back_stub, roll, self.calendar
+                )
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = self.termination
@@ -1070,7 +1082,8 @@ def _infer_stub_date(
             roll,
             calendar,
         )
-        if valid:  # no front stub is required
+        if valid and parsed_args["utermination"] > parsed_args["ueffective"]:
+            # no front stub is required
             return True, {
                 "ueffective": parsed_args["ueffective"],
                 "utermination": parsed_args["utermination"],
@@ -1080,6 +1093,11 @@ def _infer_stub_date(
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
             }
+        elif valid:
+            # utermination aligns with ueffective then dead_too_short_period: GH484
+            return _raise_date_value_error(
+                effective, termination, front_stub, back_stub, roll, calendar
+            )
         else:
             stub_ = _get_default_stub("FRONT", stub)
             front_stub = _get_unadjusted_stub_date(
@@ -1126,7 +1144,8 @@ def _infer_stub_date(
             roll,
             calendar,
         )
-        if valid:  # no back stub is required
+        if valid and parsed_args["utermination"] > parsed_args["ueffective"]:
+            # no back stub is required
             return True, {
                 "ueffective": parsed_args["ueffective"],
                 "utermination": parsed_args["utermination"],
@@ -1136,6 +1155,11 @@ def _infer_stub_date(
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
             }
+        elif valid:
+            # utermination aligns with ueffective then dead_too_short_period: GH484
+            return _raise_date_value_error(
+                effective, termination, front_stub, back_stub, roll, calendar
+            )
         else:
             stub_ = _get_default_stub("BACK", stub)
             back_stub = _get_unadjusted_stub_date(
@@ -1506,6 +1530,17 @@ def _get_n_periods_in_regular(
     if n_months % frequency_months != 0:
         raise ValueError("Regular schedule not implied by `frequency` and dates.")
     return int(n_months / frequency_months)
+
+
+def _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar):
+    raise ValueError(
+        "date, stub and roll inputs are invalid\n"
+        f"`effective`: {effective} (is business day? {calendar.is_bus_day(effective)})\n"
+        f"`front_stub`: {front_stub},\n"
+        f"`back_stub`: {back_stub},\n"
+        f"`termination`: {termination} (is business day? {calendar.is_bus_day(termination)})\n"
+        f"`roll`: {roll},\n"
+    )
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
