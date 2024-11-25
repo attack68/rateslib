@@ -57,6 +57,7 @@ from rateslib.calendars import (
     create_calendar,
     dcf,
     get_calendar,
+    get_imm,
 )
 from rateslib.curves import (
     CompositeCurve,
@@ -171,6 +172,7 @@ __all__ = [
     # calendars.py
     "create_calendar",
     "get_calendar",
+    "get_imm",
     "add_tenor",
     "dcf",
     "Cal",

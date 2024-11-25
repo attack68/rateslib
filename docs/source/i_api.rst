@@ -48,29 +48,9 @@ Defaults
 Calendars
 ==========
 
-Classes
-^^^^^^^
-
-.. autosummary::
-   ~rateslib.calendars.Cal
-   ~rateslib.calendars.NamedCal
-   ~rateslib.calendars.UnionCal
-   ~rateslib.calendars.Modifier
-   ~rateslib.calendars.RollDay
-
-.. toctree::
-    :maxdepth: 0
-    :titlesonly:
-    :hidden:
-
-    api/rateslib.calendars.Cal.rst
-    api/rateslib.calendars.NamedCal.rst
-    api/rateslib.calendars.UnionCal.rst
-    api/rateslib.calendars.Modifier.rst
-    api/rateslib.calendars.RollDay.rst
-
 .. automodapi:: rateslib.calendars
    :no-heading:
+   :no-inheritance-diagram:
 
 Scheduling
 ===========
@@ -138,13 +118,7 @@ Dual (for AD)
 
 .. automodapi:: rateslib.dual
    :no-heading:
-
-Classes
-^^^^^^^^
-
-.. autosummary::
-   Dual
-   Dual2
+   :no-inheritance-diagram:
 
 .. toctree::
     :maxdepth: 0
@@ -181,6 +155,7 @@ FX Volatility
 
 .. automodapi:: rateslib.fx_volatility
    :no-heading:
+   :no-inheritance-diagram:
    :skip: set_order_convert
    :skip: dual_exp
    :skip: dual_inv_norm_cdf
@@ -214,6 +189,8 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: NoInput
    :skip: ABCMeta
    :skip: IndexCurve
+   :skip: Variable
+   :skip: MultiIndex
    :skip: Curve
    :skip: DataFrame
    :skip: Dual

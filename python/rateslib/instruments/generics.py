@@ -15,6 +15,7 @@ from rateslib.fx_volatility import FXVols
 from rateslib.instruments.core import (
     BaseMixin,
     Sensitivities,
+    _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
 )
@@ -410,6 +411,20 @@ class Spread(Sensitivities):
         """
         return super().gamma(*args, **kwargs)
 
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        pf = Portfolio([
+            self.instrument1,
+            self.instrument2,
+        ])
+        return pf.fixings_table(curves, solver, fx, base, approximate)
+
 
 class Fly(Sensitivities):
     """
@@ -521,6 +536,21 @@ class Fly(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        pf = Portfolio([
+            self.instrument1,
+            self.instrument2,
+            self.instrument3,
+        ])
+        return pf.fixings_table(curves, solver, fx, base, approximate)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -671,3 +701,32 @@ class Portfolio(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        """
+        Return a DataFrame of fixing exposures on the *Instruments*.
+
+        For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
+        and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
+
+        Returns
+        -------
+        DataFrame
+        """
+        df_result = DataFrame()
+        for inst in self.instruments:
+            try:
+                df = inst.fixings_table(
+                    curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
+                )
+            except AttributeError:
+                continue
+            df_result = _composit_fixings_table(df_result, df)
+        return df_result

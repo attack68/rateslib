@@ -2024,8 +2024,6 @@ def newton_1dim(
     """
     Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
 
-    Solves the root equation :math:`f(g; s_i)=0` for *g*.
-
     Parameters
     ----------
     f: callable
@@ -2056,9 +2054,25 @@ def newton_1dim(
     -------
     dict
 
+    Notes
+    ------
+    Solves the root equation :math:`f(g; s_i)=0` for *g*. This method is AD-safe, meaning the
+    iteratively determined solution will preserve AD sensitivities, if the functions are suitable.
+    Functions which are not AD suitable, such as discontinuous functions or functions with
+    no derivative at given points, may yield spurious derivative results.
+
+    This method works by first solving in the domain of floats (which is typically faster
+    for most complex functions), and then performing final iterations in higher AD modes to
+    capture derivative sensitivities.
+
+    For special cases arguments can be passed separately to each of these modes using the
+    ``pre_args`` and ``final_args`` arguments, rather than generically supplying it to ``args``.
+
     Examples
     --------
-    Iteratively solve the equation: :math:`f(g, s) = g^2 - s = 0`.
+    Iteratively solve the equation: :math:`f(g, s) = g^2 - s = 0`. This has solution
+    :math:`g=\\pm \\sqrt{s}` and :math:`\\frac{dg}{ds} = \\frac{1}{2 \\sqrt{s}}`.
+    Thus for :math:`s=2` we expect the solution :code:`g=Dual(1.41.., ["s"], [0.35..])`.
 
     .. ipython:: python
 

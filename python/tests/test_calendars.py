@@ -255,6 +255,12 @@ def test_get_imm(month, year, expected) -> None:
     assert result == expected
 
 
+def test_get_imm_namespace():
+    from rateslib import get_imm as f
+
+    f(code="h24")
+
+
 @pytest.mark.parametrize(
     ("date", "expected"),
     [

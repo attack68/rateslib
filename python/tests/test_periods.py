@@ -5,7 +5,7 @@ from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series
+from pandas import NA, DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
@@ -272,7 +272,7 @@ class TestFloatPeriod:
         )
         period.spread_compound_method = "bad_vibes"
         with pytest.raises(ValueError, match="`spread_compound_method` must be in"):
-            period._isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
+            period._rfr_isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
 
     def test_rfr_lockout_too_few_dates(self, curve) -> None:
         period = FloatPeriod(
@@ -700,9 +700,9 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
+        _d = period._rfr_get_individual_fixings_data(rfr_curve)
         rate, table = period._rfr_fixings_array(
-            curve=rfr_curve,
-            fixing_exposure=True,
+            d=_d,
             disc_curve=curve,
         )
 
@@ -721,7 +721,23 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(rfr_curve)
+            period._rfr_fixings_array(period._rfr_get_individual_fixings_data(rfr_curve), rfr_curve)
+
+    def test_rfr_fixings_array_raises2(self, line_curve) -> None:
+        period = FloatPeriod(
+            dt(2022, 1, 5),
+            dt(2022, 1, 11),
+            dt(2022, 1, 11),
+            "Q",
+            fixing_method="rfr_payment_delay",
+            convention="act365f",
+            notional=-1000000,
+        )
+        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+            period.fixings_table(curve=line_curve)
+
+        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+            period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
 
     @pytest.mark.parametrize(
         ("method", "param", "expected"),
@@ -750,6 +766,33 @@ class TestFloatPeriod:
         )
         result = period.fixings_table(rfr_curve)
         assert abs(result[(rfr_curve.id, "notional")].iloc[0] - expected) < 1
+
+    @pytest.mark.parametrize(
+        ("method", "param", "expected"),
+        [
+            ("rfr_payment_delay", 0, 3.20040557),
+            ("rfr_lockout", 1, 3.80063892),
+            ("rfr_lookback", 1, 3.20040557),
+            ("rfr_observation_shift", 1, 4.00045001),
+        ],
+    )
+    def test_rfr_period_all_types_with_defined_fixings(self, method, param, expected):
+        # This is probably a redundant test but it came later after some refactoring and
+        # was double checked with manual calculation in Excel. Easy to do.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 3, 1): 1.0}, calendar="nyc")
+        period = FloatPeriod(
+            start=dt(2022, 1, 28),
+            end=dt(2022, 2, 2),
+            frequency="A",
+            payment=dt(2022, 1, 1),
+            fixing_method=method,
+            method_param=param,
+            convention="act360",
+            calendar="nyc",
+            fixings=[3.0, 5.0, 2.0],
+        )
+        result = period.rate(curve)
+        assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
         ("method", "expected"),
@@ -806,13 +849,19 @@ class TestFloatPeriod:
             {
                 "obs_dates": [dt(2022, 1, 2)],
                 "notional": [-1e6],
+                "risk": [-24.402790080357686],
                 "dcf": [0.2465753424657534],
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
-        expected.columns = MultiIndex.from_tuples([
-            (line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
         assert_frame_equal(expected, result)
 
     def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
@@ -830,13 +879,19 @@ class TestFloatPeriod:
             {
                 "obs_dates": [dt(2022, 1, 2)],
                 "notional": [-1e6],
+                "risk": [-24.402790080357686],
                 "dcf": [0.2465753424657534],
                 "rates": [2.0],
             },
         ).set_index("obs_dates")
-        expected.columns = MultiIndex.from_tuples([
-            (line_curve.id, "notional"), (line_curve.id, "dcf"), (line_curve.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
         assert_frame_equal(expected, result)
 
     def test_ibor_fixings(self) -> None:
@@ -856,6 +911,52 @@ class TestFloatPeriod:
         )
         result = float_period.rate(curve)
         assert result == 2.801
+
+    @pytest.mark.parametrize("approx", [False, True])
+    def test_ibor_fixings_table_historical_before_curve(self, approx) -> None:
+        # fixing table should return a DataFrame with an unknown rate and zero exposure
+        # the fixing has occurred in the past but is unspecified.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2000, 2, 2),
+            end=dt(2000, 5, 2),
+            payment=dt(2000, 5, 2),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = float_period.fixings_table(curve, approximate=approx)
+        expected = DataFrame(
+            data=[[0.0, 0.0, 0.25, NA]],
+            index=Index([dt(2000, 2, 2)], name="obs_dates"),
+            columns=MultiIndex.from_tuples(
+                [
+                    (curve.id, "notional"),
+                    (curve.id, "risk"),
+                    (curve.id, "dcf"),
+                    (curve.id, "rates"),
+                ],
+            ),
+        )
+        assert_frame_equal(expected, result)
+
+    @pytest.mark.parametrize("approx", [False, True])
+    def test_rfr_fixings_table_historical_before_curve(self, approx) -> None:
+        # fixing table should return a DataFrame with an unknown rate and zero exposure
+        # the fixing has occurred in the past but is unspecified.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2000, 2, 2),
+            end=dt(2000, 3, 2),
+            payment=dt(2000, 3, 2),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            method_param=0,
+        )
+        result = float_period.fixings_table(curve, approximate=approx)
+        assert isinstance(result, DataFrame)
+        assert result.iloc[0, 0] == 0.0
+        assert result[f"{curve.id}", "notional"][dt(2000, 3, 1)] == 0.0
 
     def test_ibor_fixing_unavailable(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
@@ -1055,6 +1156,7 @@ class TestFloatPeriod:
                             -999821.37380,
                             -999932.84380,
                         ],
+                        "risk": [0.0, 0.0, 0.0, -0.26664737262, -0.26664737262],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1078,6 +1180,7 @@ class TestFloatPeriod:
                             -999888.52252,
                             -1000000.00000,
                         ],
+                        "risk": [0.0, 0.0, 0.0, -0.26666528084917104, -0.26666528084917104],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1087,7 +1190,7 @@ class TestFloatPeriod:
     )
     def test_rfr_fixings_table(self, curve, meth, exp) -> None:
         exp.columns = MultiIndex.from_tuples(
-            [(curve.id, "notional"), (curve.id, "dcf"), (curve.id, "rates")]
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),
@@ -1458,7 +1561,9 @@ class TestFloatPeriod:
         result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
         assert isinstance(result, DataFrame)
         assert abs(result.iloc[0, 0] + 1036300) < 1
-        assert abs(result.iloc[0, 3] + 336894) < 1
+        assert abs(result.iloc[0, 4] + 336894) < 1
+        assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
+        assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
 
     def test_ibor_non_stub_fixings_table(self) -> None:
         period = FloatPeriod(
@@ -1474,13 +1579,13 @@ class TestFloatPeriod:
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         result = period.fixings_table({"1M": curve1, "3M": curve3}, disc_curve=curve1)
         expected = DataFrame(
-            data=[[-1e6, 0.24722222222222223, 3.0]],
+            data=[[-1e6, -24.722222222222, 0.24722222222222223, 3.0]],
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
-            columns=["notional", "dcf", "rates"],
+            columns=["notional", "risk", "dcf", "rates"],
         )
-        expected.columns = MultiIndex.from_tuples([
-            (curve3.id, "notional"), (curve3.id, "dcf"), (curve3.id, "rates")
-        ])
+        expected.columns = MultiIndex.from_tuples(
+            [(curve3.id, "notional"), (curve3.id, "risk"), (curve3.id, "dcf"), (curve3.id, "rates")]
+        )
         assert_frame_equal(result, expected)
 
     def test_local_historical_pay_date_issue(self, curve) -> None:

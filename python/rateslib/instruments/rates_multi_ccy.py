@@ -13,6 +13,7 @@ from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.core import (
     BaseMixin,
     Sensitivities,
+    _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _update_not_noinput,
@@ -354,6 +355,9 @@ class XCS(BaseDerivative):
         self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
 
         if self.kwargs["fixed"]:
+            self.kwargs.pop("spread_compound_method", None)
+            self.kwargs.pop("fixing_method", None)
+            self.kwargs.pop("method_param", None)
             self._fixed_rate_mixin = True
             self._fixed_rate = fixed_rate
             leg1_user_kwargs = dict(fixed_rate=fixed_rate)
@@ -381,6 +385,9 @@ class XCS(BaseDerivative):
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
         if self.kwargs["leg2_fixed"]:
+            self.kwargs.pop("leg2_spread_compound_method", None)
+            self.kwargs.pop("leg2_fixing_method", None)
+            self.kwargs.pop("leg2_method_param", None)
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
             leg2_user_kwargs = dict(leg2_fixed_rate=leg2_fixed_rate)
@@ -754,6 +761,78 @@ class XCS(BaseDerivative):
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = False  # reset the mtm calc
         return ret
+
+    def fixings_table(
+        self,
+        curves: Curve | str | list | NoInput = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        approximate: bool = False,
+    ):
+        """
+        Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
+        :class:`~rateslib.legs.FloatLegMtm` associated with the *XCS*.
+
+        Parameters
+        ----------
+        curves : Curve, str or list of such
+            A list defines the following curves in the order:
+
+            - Forecasting :class:`~rateslib.curves.Curve` for leg1 (if floating).
+            - Discounting :class:`~rateslib.curves.Curve` for leg1.
+            - Forecasting :class:`~rateslib.curves.Curve` for leg2 (if floating).
+            - Discounting :class:`~rateslib.curves.Curve` for leg2.
+
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            :class:`~rateslib.curves.Curve` from calibrating instruments.
+
+            .. note::
+
+               The arguments ``fx`` and ``base`` are unused and results are returned in
+               local currency of each *Leg*.
+
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+
+        Returns
+        -------
+        DataFrame
+        """
+        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            fx,
+            base,
+            self.leg1.currency,
+        )
+
+        try:
+            df1 = self.leg1.fixings_table(
+                curve=curves[0],
+                disc_curve=curves[1],
+                fx=fx_,
+                base=base_,
+                approximate=approximate,
+            )
+        except AttributeError:
+            df1 = DataFrame()
+
+        try:
+            df2 = self.leg2.fixings_table(
+                curve=curves[2],
+                disc_curve=curves[3],
+                fx=fx_,
+                base=base_,
+                approximate=approximate,
+            )
+        except AttributeError:
+            df2 = DataFrame()
+
+        return _composit_fixings_table(df1, df2)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

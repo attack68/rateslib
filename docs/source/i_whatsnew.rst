@@ -39,19 +39,41 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`454 <https://github.com/attack68/rateslib/pull/454>`_)
    * - Instruments
      - Add a :meth:`~rateslib.instruments.IRS.fixings_table` method to floating rate based
-       *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*
+       *Instruments*: *IRS*, *SBS*, *FRA*, *IIRS*, *ZCS*, *STIRFuture*, *FloatRateNote*.
        (`467 <https://github.com/attack68/rateslib/pull/467>`_)
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
+       (`490 <https://github.com/attack68/rateslib/pull/490>`_)
+       (`493 <https://github.com/attack68/rateslib/pull/493>`_)
+       (`499 <https://github.com/attack68/rateslib/pull/499>`_)
+       (`500 <https://github.com/attack68/rateslib/pull/500>`_)
+   * - Instruments
+     - Add a :meth:`~rateslib.instruments.Portfolio.fixings_table` method to *Portfolio*, *Fly*,
+       *Spread* to aggregate fixings tables on contained and applicable *Instruments*.
+       (`491 <https://github.com/attack68/rateslib/pull/491>`_)
+       (`508 <https://github.com/attack68/rateslib/pull/508>`_)
+   * - Legs
+     - Add method :meth:`~rateslib.legs.FloatLegMtm.fixings_table` to a *FloatLegMtm* and
+       *ZeroFloatLeg*.
+       (`480 <https://github.com/attack68/rateslib/pull/480>`_)
+       (`482 <https://github.com/attack68/rateslib/pull/482>`_)
+       (`489 <https://github.com/attack68/rateslib/pull/489>`_)
    * - Periods
      - :red:`Minor Breaking Change!` The method :meth:`~rateslib.periods.FloatPeriod.fixings_table`
        returns a *DataFrame* with amended column headers to reference the *Curve* id from which
-       the fixing notionals are derived.
+       the fixing notionals are derived, and populates additional columns.
    * - Performance
      - *Curve caching* introduced to :class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`,
        :class:`~rateslib.curves.IndexCurve` to improve performance of repeatedly fetched curve values such as
        in *Solvers* and standardised *Instruments*. This feature can be opted out of using the
        ``defaults.curve_caching`` setting. Note also the added :meth:`~rateslib.curves.Curve.clear_cache` method.
        (`435 <https://github.com/attack68/rateslib/pull/435>`_)
+   * - Performance
+     - *Smile caching* introduced to :class:`~rateslib.fx_volatility.FXDeltaVolSurface`,
+       to improve performance of fetched *Smiles* at repeated ``expiries``.
+       This feature can be opted out of using the
+       ``defaults.curve_caching`` setting.
+       Note also the added :meth:`~rateslib.fx_volatility.FXDeltaVolSurface.clear_cache` method.
+       (`481 <https://github.com/attack68/rateslib/pull/481>`_)
    * - Automatic Differentiation
      - Add a new object for AD management, a :class:`~rateslib.dual.Variable`, which allows a
        user to inject manual exogenous sensitivities into calculations. See
@@ -65,8 +87,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - **Python 3.13** *(with GIL)* is officially supported and tested.
        (`463 <https://github.com/attack68/rateslib/pull/463>`_)
    * - Bug
-     - :class:`~rateslib.curves.MultiCsaCurve` is now included in the main namespace.
+     - :class:`~rateslib.curves.MultiCsaCurve` and :class:`~rateslib.calendars.get_imm` are now
+       included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
+       (`486 <https://github.com/attack68/rateslib/pull/486>`_)
    * - Bug
      - Adding *Dual* or *Dual2* type ``spread`` using :meth:`~rateslib.curves.Curve.shift` method
        now avoids *TypeErrors* where possible and maintains appropriate AD orders for each
@@ -77,6 +101,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        fixings to account for DCFs, amended payment dates, and interpolated stubs. Requires
        a new ``disc_curve`` argument for proper discounting.
        (`470 <https://github.com/attack68/rateslib/pull/470>`_)
+   * - Bug
+     - No longer allow the creation of very short *Schedules* with holiday dates that
+       collapse to empty *Periods*.
+       (`484 <https://github.com/attack68/rateslib/pull/484>`_)
    * - Developers
      - *rateslib-rs* extension upgrades to using PyO3:0.22, nadarray:0.16, numpy:0.22.
        (`460 <https://github.com/attack68/rateslib/pull/460>`_)
