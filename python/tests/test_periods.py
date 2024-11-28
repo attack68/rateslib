@@ -1316,6 +1316,23 @@ class TestFloatPeriod:
         result = float_period.fixings_table(crv, approximate=True)
         assert_frame_equal(result, expected, rtol=1e-2)
 
+    @pytest.mark.parametrize("right", [
+        dt(2022, 12, 31),
+        dt(2021, 1, 1),
+    ])
+    def test_rfr_fixings_table_fast_right(self, curve, right) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 3),
+            payment=dt(2023, 1, 3),
+            frequency="M",
+            fixing_method="rfr_payment_delay"
+        )
+        expected = float_period.fixings_table(curve, right=right)
+        result = float_period.fixings_table(curve, approximate=True, right=right)
+        assert_frame_equal(result, expected, rtol=1e-2, check_dtype=False)
+
+
     @pytest.mark.parametrize(
         ("method", "param"),
         [

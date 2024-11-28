@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, MultiIndex, Series, concat, isna, notna
+from pandas import NA, DataFrame, MultiIndex, Series, concat, isna, notna, Index
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
@@ -1180,7 +1180,7 @@ class FloatPeriod(BasePeriod):
                 )
             else:
                 try:
-                    return self._fixings_table_fast(curve, disc_curve)
+                    return self._fixings_table_fast(curve, disc_curve, right=right)
                 except ValueError:
                     # then probably a math domain error related to dates before the curve start
                     warnings.warn(
@@ -1191,7 +1191,7 @@ class FloatPeriod(BasePeriod):
                         f"for this period.",
                         UserWarning,
                     )
-                    return self.fixings_table(curve, approximate=False, disc_curve=disc_curve)
+                    return self.fixings_table(curve, approximate=False, disc_curve=disc_curve, right=right)
 
         if "rfr" in self.fixing_method:
             _d = self._rfr_get_individual_fixings_data(curve, allow_na=True)
@@ -1238,7 +1238,7 @@ class FloatPeriod(BasePeriod):
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right)
 
-    def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
+    def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime):
         """
         Return a DataFrame of **approximate** fixing exposures.
 
@@ -1248,6 +1248,17 @@ class FloatPeriod(BasePeriod):
             # Depending upon method get the observation dates and dcf dates
             obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(curve, True)
 
+            if not isinstance(right, NoInput) and obs_dates[0] > right:
+                # then all fixings are out of scope, so perform no calculations
+                df = DataFrame(
+                    [],
+                    columns=MultiIndex.from_tuples(
+                        [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"),
+                        (curve.id, "rates")]
+                    ),
+                    index=Index([], name="obs_dates", dtype=float)
+                )
+                return df
             # approximate DFs
             v_vals = Series(np.nan, index=obs_dates.iloc[1:])
             v_vals.iloc[0] = log(float(disc_curve[obs_dates.iloc[1]]))
@@ -1313,9 +1324,9 @@ class FloatPeriod(BasePeriod):
             df.columns = MultiIndex.from_tuples(
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
-            return df
+            return _trim_df_by_index(df, NoInput(0), right)
         elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve, disc_curve)
+            return self._ibor_fixings_table(curve, disc_curve, right=right)
 
     def _interpolated_ibor_from_curve_dict(self, curve: dict):
         """
