@@ -1028,6 +1028,7 @@ class FloatPeriod(BasePeriod):
         curve: Curve | LineCurve | dict,
         approximate: bool = False,
         disc_curve: Curve = NoInput(0),
+        right: datetime | NoInput = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures.
@@ -1043,6 +1044,8 @@ class FloatPeriod(BasePeriod):
         disc_curve : Curve
             A curve to make appropriate DF scalings. If *None* and ``curve`` contains
             DFs that will be used instead, otherwise errors are raised.
+        right : datetime, optional
+            Ignore fixing risks beyond this date.
 
         Returns
         -------
@@ -1192,7 +1195,19 @@ class FloatPeriod(BasePeriod):
 
         if "rfr" in self.fixing_method:
             _d = self._rfr_get_individual_fixings_data(curve, allow_na=True)
-            if _d["rates"].isna().any() and not _d["obs_dates"].iloc[-1] <= curve.node_dates[0]:
+
+            if not isinstance(right, NoInput) and _d["obs_dates"][0] > right:
+                # then all fixings are out of scope, so perform no calculations
+                df = DataFrame(
+                    {
+                        "obs_dates": [],
+                        "notional": [],
+                        "risk": [],
+                        "dcf": [],
+                        "rates": [],
+                    },
+                ).set_index("obs_dates")
+            elif _d["rates"].isna().any() and not _d["obs_dates"].iloc[-1] <= curve.node_dates[0]:
                 raise ValueError(
                     "RFRs could not be calculated, have you missed providing `fixings` or "
                     "does the `Curve` begin after the start of a `FloatPeriod` including "
@@ -1219,7 +1234,7 @@ class FloatPeriod(BasePeriod):
             df.columns = MultiIndex.from_tuples(
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
-            return df
+            return _trim_df_by_index(df, NoInput(0), right)
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve)
 
@@ -4137,6 +4152,23 @@ def _get_ibor_curve_from_dict(months, d):
                 "If supplying `curve` as dict must provide a tenor mapping key and curve for"
                 f"the frequency of the given Period. The missing mapping is '{months}m'."
             )
+
+
+def _trim_df_by_index(df: DataFrame, left: datetime | NoInput, right: datetime | NoInput) -> DataFrame:
+    """
+    Used by fixings_tables to constrict the view to a left and right bound
+    """
+    if len(df.index) == 0:
+        return df
+    elif isinstance(left, NoInput) and isinstance(right, NoInput):
+        return df
+    elif isinstance(left, NoInput):
+        return df[:right]
+    elif isinstance(right, NoInput):
+        return df[left:]
+    else:
+        return df[left:right]
+
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):

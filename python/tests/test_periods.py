@@ -1208,6 +1208,36 @@ class TestFloatPeriod:
         result = float_period.fixings_table(curve)
         assert_frame_equal(result, exp)
 
+    @pytest.mark.parametrize("right, exp", [
+        (dt(2021, 1, 1), 0),
+        (dt(2022, 12, 31), 4),
+    ])
+    def test_rfr_fixings_table_right(self, curve, right, exp) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 2),
+            payment=dt(2023, 1, 2),
+            frequency="M",
+            fixings=[1.19, 1.19, -8.81],
+            fixing_method="rfr_payment_delay",
+        )
+        result = float_period.fixings_table(curve, right=right)
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == exp
+
+    def test_rfr_fixings_table_right_non_bus_day(self) -> None:
+        curve = Curve({dt(2022, 1, 1):1.0, dt(2022, 11, 19): 0.98}, calendar="tgt")
+        float_period = FloatPeriod(
+            start=dt(2022, 2, 1),
+            end=dt(2022, 2, 28),
+            payment=dt(2022, 2, 28),
+            frequency="M",
+            fixing_method="rfr_payment_delay",
+        )
+        result = float_period.fixings_table(curve, right=dt(2022, 2, 13))
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == 9
+
     @pytest.mark.parametrize(
         ("method", "param"),
         [
