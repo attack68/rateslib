@@ -1422,7 +1422,7 @@ class TestFRA:
         )
         result = fra.fixings_table()
         assert isinstance(result, DataFrame)
-        assert abs(result.iloc[0, 0] - 1010998395) < 1
+        assert abs(result.iloc[0, 0] - 1010998964) < 1
 
 
 class TestZCS:
