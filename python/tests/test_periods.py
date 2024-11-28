@@ -864,6 +864,36 @@ class TestFloatPeriod:
         )
         assert_frame_equal(expected, result)
 
+    def test_ibor_fixing_table_right(self, line_curve, curve) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=2,
+            convention="act365f",
+        )
+        result = float_period.fixings_table(line_curve, disc_curve=curve, right=dt(2022, 1, 1))
+        expected = DataFrame(
+            {
+                "obs_dates": [],
+                "notional": [],
+                "risk": [],
+                "dcf": [],
+                "rates": [],
+            },
+        ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
+        assert_frame_equal(expected, result)
+
     def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),

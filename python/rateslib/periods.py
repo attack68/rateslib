@@ -1236,7 +1236,7 @@ class FloatPeriod(BasePeriod):
             )
             return _trim_df_by_index(df, NoInput(0), right)
         elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve, disc_curve)
+            return self._ibor_fixings_table(curve, disc_curve, right)
 
     def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
         """
@@ -1389,7 +1389,7 @@ class FloatPeriod(BasePeriod):
 
         return curve[fixing_date] + self.float_spread / 100
 
-    def _ibor_fixings_table(self, curve, disc_curve, risk=None):
+    def _ibor_fixings_table(self, curve, disc_curve, right, risk=None):
         """
         Calculate a fixings_table under an IBOR based methodology.
 
@@ -1407,50 +1407,62 @@ class FloatPeriod(BasePeriod):
         """
         if isinstance(curve, dict) and self.stub:
             # then must perform an interpolated calculation
-            return self._ibor_stub_fixings_table(curve, disc_curve, risk)
+            return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
         elif isinstance(curve, dict) and not self.stub:
             # then extract the one relevant curve from dict
             curve = _get_ibor_curve_from_dict(self.freq_months, curve)
         return self._ibor_single_tenor_fixings_table(
-            curve, disc_curve, f"{self.freq_months}m", risk
+            curve, disc_curve, f"{self.freq_months}m", right, risk
         )
 
-    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, risk=None):
+    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, right, risk=None):
         calendar = curve.calendar
         fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
-        reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
-        reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
-
-        if self.fixings is not NoInput.blank or fixing_dt < curve.node_dates[0]:
-            # then fixing is set so return zero exposure.
-            _rate = NA if self.fixings is NoInput.blank else float(self.rate(curve))
+        if not isinstance(right, NoInput) and fixing_dt > right:
+            # fixing not in scope, perform no calculations
             df = DataFrame(
                 {
-                    "obs_dates": [fixing_dt],
-                    "notional": 0.0,
-                    "risk": 0.0,
-                    "dcf": [reg_dcf],
-                    "rates": [_rate],
+                    "obs_dates": [],
+                    "notional": [],
+                    "risk": [],
+                    "dcf": [],
+                    "rates": [],
                 },
             ).set_index("obs_dates")
         else:
-            risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
-            df = DataFrame(
-                {
-                    "obs_dates": [fixing_dt],
-                    "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
-                    "risk": float(risk) * 0.0001,  # scale to bp
-                    "dcf": [reg_dcf],
-                    "rates": [self.rate(curve)],
-                },
-            ).set_index("obs_dates")
+            reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
+            reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
+
+            if self.fixings is not NoInput.blank or fixing_dt < curve.node_dates[0]:
+                # then fixing is set so return zero exposure.
+                _rate = NA if self.fixings is NoInput.blank else float(self.rate(curve))
+                df = DataFrame(
+                    {
+                        "obs_dates": [fixing_dt],
+                        "notional": 0.0,
+                        "risk": 0.0,
+                        "dcf": [reg_dcf],
+                        "rates": [_rate],
+                    },
+                ).set_index("obs_dates")
+            else:
+                risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+                df = DataFrame(
+                    {
+                        "obs_dates": [fixing_dt],
+                        "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
+                        "risk": float(risk) * 0.0001,  # scale to bp
+                        "dcf": [reg_dcf],
+                        "rates": [self.rate(curve)],
+                    },
+                ).set_index("obs_dates")
 
         df.columns = MultiIndex.from_tuples(
             [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         return df
 
-    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve, risk=None):
+    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk=None):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1479,10 +1491,10 @@ class FloatPeriod(BasePeriod):
 
         risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
-        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1, risk * a1)
+        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1, right, risk * a1)
         # df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
         # df1[(curve[tenor1].id, "risk")] = df1[(curve[tenor1].id, "risk")] * a1
-        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2, risk * a2)
+        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2, right, risk * a2)
         # df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
         # df2[(curve[tenor2].id, "risk")] = df2[(curve[tenor2].id, "risk")] * a2
         df = concat([df1, df2], axis=1)
