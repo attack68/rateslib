@@ -1625,6 +1625,23 @@ class TestFloatPeriod:
         assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
         assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
 
+    def test_ibor_stub_fixings_table_right(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1, right=dt(2022, 1, 1))
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == 0
+
     def test_ibor_non_stub_fixings_table(self) -> None:
         period = FloatPeriod(
             start=dt(2023, 2, 1),
