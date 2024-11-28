@@ -379,7 +379,7 @@ macro_rules! create_interface {
                 tau: Vec<f64>,
                 left_n: usize,
                 right_n: usize
-            ) -> PyResult<Bound<'_, PyArray2<f64>>> {
+            ) -> PyResult<Bound<'py, PyArray2<f64>>> {
                 Ok(self.inner.bsplmatrix(&tau, left_n, right_n).to_pyarray_bound(py))
             }
 
