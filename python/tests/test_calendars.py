@@ -468,15 +468,16 @@ def test_get_years_and_months(d1, d2, exp) -> None:
     ],
 )
 def test_act_act_icma_z_freq(s, e, t, exp) -> None:
-    result = _dcf_actacticma(
-        start=s,
-        end=e,
-        termination=t,
-        frequency_months=1e8,  # Z Frequency
-        stub=False,
-        roll=NoInput(0),
-        calendar=NoInput(0),
-    )
+    with pytest.warns(UserWarning, match="Using `convention` 'ActActICMA' with a Period having"):
+        result = _dcf_actacticma(
+            start=s,
+            end=e,
+            termination=t,
+            frequency_months=1e8,  # Z Frequency
+            stub=False,
+            roll=NoInput(0),
+            calendar=NoInput(0),
+        )
     assert abs(result - exp) < 1e-6
 
 

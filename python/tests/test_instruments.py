@@ -1999,7 +1999,9 @@ class TestNonMtmXCS:
             notional=10e6,
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
-        result = xcs.npv(curves=curve, fx=10.0)
+        # TODO(low) this returns a warning with "noknok" for one variety. Should be corrected.
+        with pytest.warns(UserWarning, match="`base` \\(nok\\) should not be given when supplying `fx` as numeric"):
+            result = xcs.npv(curves=curve, fx=10.0)
         assert abs(result) < 1e-6
 
     def test_npv_fx_as_rates_valid(self) -> None:

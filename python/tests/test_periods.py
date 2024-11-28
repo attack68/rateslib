@@ -953,7 +953,11 @@ class TestFloatPeriod:
             fixing_method="rfr_payment_delay",
             method_param=0,
         )
-        result = float_period.fixings_table(curve, approximate=approx)
+        if approx:
+            with pytest.warns(UserWarning, match="Errored approximating a fixings table"):
+                result = float_period.fixings_table(curve, approximate=approx)
+        else:
+            result = float_period.fixings_table(curve, approximate=approx)
         assert isinstance(result, DataFrame)
         assert result.iloc[0, 0] == 0.0
         assert result[f"{curve.id}", "notional"][dt(2000, 3, 1)] == 0.0
@@ -1092,7 +1096,8 @@ class TestFloatPeriod:
         #     period.rate(curve)
 
         with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
-            period.rate(curve)
+            with pytest.warns(UserWarning, match="`fixings` has missed a calendar value"):
+                period.rate(curve)
 
     def test_fixing_with_float_spread_warning(self, curve) -> None:
         float_period = FloatPeriod(
