@@ -2622,12 +2622,10 @@ class FRA(BaseDerivative):
             NoInput(0),
             self.leg2.currency,
         )
-        df = self.leg2.fixings_table(
-            curve=curves[2], approximate=approximate, disc_curve=curves[3]
-        )
+        df = self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
         rate = self.leg2.periods[0].rate(curve=curves[2])
         scalar = curves[3][self._payment_date] / curves[3][self.leg2.periods[0].payment]
-        scalar *= 1. / (1. + self.leg2.periods[0].dcf * rate / 100.0)
+        scalar *= 1.0 / (1.0 + self.leg2.periods[0].dcf * rate / 100.0)
         df[(curves[2].id, "risk")] *= scalar
         df[(curves[2].id, "notional")] *= scalar
         return df

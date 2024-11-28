@@ -2113,7 +2113,7 @@ class TestFloatRateNote:
 
         # Case2: Some fixings are unknown and must be forecast by a curve.
         # None are supplied so a UserWarning is generated and they are forward filled.
-        with pytest.warns(UserWarning):
+        with pytest.warns(UserWarning, match="A `Curve` was not supplied."):
             result = frn.accrued(settlement=dt(2022, 1, 10))
             assert abs(result - 0.065770465) < 1e-6
 
