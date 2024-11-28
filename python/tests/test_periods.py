@@ -1095,9 +1095,11 @@ class TestFloatPeriod:
         # with pytest.warns(UserWarning):
         #     period.rate(curve)
 
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
-            with pytest.warns(UserWarning, match="`fixings` has missed a calendar value"):
-                period.rate(curve)
+        with (
+            pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
+            pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
+        ):
+            period.rate(curve)
 
     def test_fixing_with_float_spread_warning(self, curve) -> None:
         float_period = FloatPeriod(
