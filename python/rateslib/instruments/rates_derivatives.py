@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from unittest.mock import right
 
 from pandas import DataFrame, Series
 
@@ -1336,7 +1335,7 @@ class IIRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0)
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -2227,7 +2226,7 @@ class SBS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0)
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.

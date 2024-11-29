@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, MultiIndex, Series, concat, isna, notna, Index
+from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
@@ -1191,7 +1191,9 @@ class FloatPeriod(BasePeriod):
                         f"for this period.",
                         UserWarning,
                     )
-                    return self.fixings_table(curve, approximate=False, disc_curve=disc_curve, right=right)
+                    return self.fixings_table(
+                        curve, approximate=False, disc_curve=disc_curve, right=right
+                    )
 
         if "rfr" in self.fixing_method:
             _d = self._rfr_get_individual_fixings_data(curve, allow_na=True)
@@ -1238,7 +1240,9 @@ class FloatPeriod(BasePeriod):
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right)
 
-    def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime):
+    def _fixings_table_fast(
+        self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime
+    ):
         """
         Return a DataFrame of **approximate** fixing exposures.
 
@@ -1253,10 +1257,14 @@ class FloatPeriod(BasePeriod):
                 df = DataFrame(
                     [],
                     columns=MultiIndex.from_tuples(
-                        [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"),
-                        (curve.id, "rates")]
+                        [
+                            (curve.id, "notional"),
+                            (curve.id, "risk"),
+                            (curve.id, "dcf"),
+                            (curve.id, "rates"),
+                        ]
                     ),
-                    index=Index([], name="obs_dates", dtype=float)
+                    index=Index([], name="obs_dates", dtype=float),
                 )
                 return df
             # approximate DFs
@@ -1457,7 +1465,9 @@ class FloatPeriod(BasePeriod):
                     },
                 ).set_index("obs_dates")
             else:
-                risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+                risk = (
+                    -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+                )
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
@@ -1473,7 +1483,9 @@ class FloatPeriod(BasePeriod):
         )
         return df
 
-    def _ibor_stub_fixings_table(self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk=None):
+    def _ibor_stub_fixings_table(
+        self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk=None
+    ):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1502,10 +1514,14 @@ class FloatPeriod(BasePeriod):
 
         risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
-        df1 = self._ibor_single_tenor_fixings_table(curve[tenor1], disc_curve, tenor1, right, risk * a1)
+        df1 = self._ibor_single_tenor_fixings_table(
+            curve[tenor1], disc_curve, tenor1, right, risk * a1
+        )
         # df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
         # df1[(curve[tenor1].id, "risk")] = df1[(curve[tenor1].id, "risk")] * a1
-        df2 = self._ibor_single_tenor_fixings_table(curve[tenor2], disc_curve, tenor2, right, risk * a2)
+        df2 = self._ibor_single_tenor_fixings_table(
+            curve[tenor2], disc_curve, tenor2, right, risk * a2
+        )
         # df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
         # df2[(curve[tenor2].id, "risk")] = df2[(curve[tenor2].id, "risk")] * a2
         df = concat([df1, df2], axis=1)
@@ -4177,13 +4193,13 @@ def _get_ibor_curve_from_dict(months, d):
             )
 
 
-def _trim_df_by_index(df: DataFrame, left: datetime | NoInput, right: datetime | NoInput) -> DataFrame:
+def _trim_df_by_index(
+    df: DataFrame, left: datetime | NoInput, right: datetime | NoInput
+) -> DataFrame:
     """
     Used by fixings_tables to constrict the view to a left and right bound
     """
-    if len(df.index) == 0:
-        return df
-    elif isinstance(left, NoInput) and isinstance(right, NoInput):
+    if len(df.index) == 0 or isinstance(left, NoInput) and isinstance(right, NoInput):
         return df
     elif isinstance(left, NoInput):
         return df[:right]
@@ -4191,7 +4207,6 @@ def _trim_df_by_index(df: DataFrame, left: datetime | NoInput, right: datetime |
         return df[left:]
     else:
         return df[left:right]
-
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):

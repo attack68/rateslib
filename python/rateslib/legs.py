@@ -999,7 +999,9 @@ class FloatLeg(BaseLeg, _FloatLegMixin):
         -------
         DataFrame
         """
-        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate, right=right)
+        return super()._fixings_table(
+            curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
+        )
 
     def _set_periods(self) -> None:
         return super()._set_periods()
