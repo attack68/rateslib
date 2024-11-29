@@ -2710,6 +2710,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -2735,6 +2736,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -2748,7 +2751,9 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             NoInput(0),
             self.leg1.currency,
         )
-        df = self.leg1.fixings_table(curve=curves[0], approximate=approximate, disc_curve=curves[1])
+        df = self.leg1.fixings_table(
+            curve=curves[0], approximate=approximate, disc_curve=curves[1], right=right
+        )
         return df
 
 

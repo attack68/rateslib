@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from pandas import DataFrame, MultiIndex, Series
+from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
 
 from rateslib import defaults
 from rateslib.curves import Curve
@@ -769,6 +769,7 @@ class XCS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
@@ -796,6 +797,8 @@ class XCS(BaseDerivative):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -817,9 +820,12 @@ class XCS(BaseDerivative):
                 fx=fx_,
                 base=base_,
                 approximate=approximate,
+                right=right,
             )
         except AttributeError:
-            df1 = DataFrame()
+            df1 = DataFrame(
+                index=DatetimeIndex([], name="obs_dates", freq=None),
+            )
 
         try:
             df2 = self.leg2.fixings_table(
@@ -828,9 +834,12 @@ class XCS(BaseDerivative):
                 fx=fx_,
                 base=base_,
                 approximate=approximate,
+                right=right,
             )
         except AttributeError:
-            df2 = DataFrame()
+            df2 = DataFrame(
+                index=DatetimeIndex([], name="obs_dates", freq=None),
+            )
 
         return _composit_fixings_table(df1, df2)
 

@@ -864,6 +864,36 @@ class TestFloatPeriod:
         )
         assert_frame_equal(expected, result)
 
+    def test_ibor_fixing_table_right(self, line_curve, curve) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=2,
+            convention="act365f",
+        )
+        result = float_period.fixings_table(line_curve, disc_curve=curve, right=dt(2022, 1, 1))
+        expected = DataFrame(
+            {
+                "obs_dates": [],
+                "notional": [],
+                "risk": [],
+                "dcf": [],
+                "rates": [],
+            },
+        ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
+        assert_frame_equal(expected, result)
+
     def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
@@ -953,7 +983,11 @@ class TestFloatPeriod:
             fixing_method="rfr_payment_delay",
             method_param=0,
         )
-        result = float_period.fixings_table(curve, approximate=approx)
+        if approx:
+            with pytest.warns(UserWarning, match="Errored approximating a fixings table"):
+                result = float_period.fixings_table(curve, approximate=approx)
+        else:
+            result = float_period.fixings_table(curve, approximate=approx)
         assert isinstance(result, DataFrame)
         assert result.iloc[0, 0] == 0.0
         assert result[f"{curve.id}", "notional"][dt(2000, 3, 1)] == 0.0
@@ -1091,7 +1125,10 @@ class TestFloatPeriod:
         # with pytest.warns(UserWarning):
         #     period.rate(curve)
 
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+        with (
+            pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
+            pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
+        ):
             period.rate(curve)
 
     def test_fixing_with_float_spread_warning(self, curve) -> None:
@@ -1209,6 +1246,39 @@ class TestFloatPeriod:
         assert_frame_equal(result, exp)
 
     @pytest.mark.parametrize(
+        ("right", "exp"),
+        [
+            (dt(2021, 1, 1), 0),
+            (dt(2022, 12, 31), 4),
+        ],
+    )
+    def test_rfr_fixings_table_right(self, curve, right, exp) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 2),
+            payment=dt(2023, 1, 2),
+            frequency="M",
+            fixings=[1.19, 1.19, -8.81],
+            fixing_method="rfr_payment_delay",
+        )
+        result = float_period.fixings_table(curve, right=right)
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == exp
+
+    def test_rfr_fixings_table_right_non_bus_day(self) -> None:
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 11, 19): 0.98}, calendar="tgt")
+        float_period = FloatPeriod(
+            start=dt(2022, 2, 1),
+            end=dt(2022, 2, 28),
+            payment=dt(2022, 2, 28),
+            frequency="M",
+            fixing_method="rfr_payment_delay",
+        )
+        result = float_period.fixings_table(curve, right=dt(2022, 2, 13))
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == 9
+
+    @pytest.mark.parametrize(
         ("method", "param"),
         [
             ("rfr_payment_delay", NoInput(0)),
@@ -1255,6 +1325,25 @@ class TestFloatPeriod:
         expected = float_period.fixings_table(crv)
         result = float_period.fixings_table(crv, approximate=True)
         assert_frame_equal(result, expected, rtol=1e-2)
+
+    @pytest.mark.parametrize(
+        "right",
+        [
+            dt(2022, 12, 31),
+            dt(2021, 1, 1),
+        ],
+    )
+    def test_rfr_fixings_table_fast_right(self, curve, right) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 3),
+            payment=dt(2023, 1, 3),
+            frequency="M",
+            fixing_method="rfr_payment_delay",
+        )
+        expected = float_period.fixings_table(curve, right=right)
+        result = float_period.fixings_table(curve, approximate=True, right=right)
+        assert_frame_equal(result, expected, rtol=1e-2, check_dtype=False)
 
     @pytest.mark.parametrize(
         ("method", "param"),
@@ -1564,6 +1653,25 @@ class TestFloatPeriod:
         assert abs(result.iloc[0, 4] + 336894) < 1
         assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
         assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
+
+    def test_ibor_stub_fixings_table_right(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table(
+            {"1M": curve1, "3m": curve3}, disc_curve=curve1, right=dt(2022, 1, 1)
+        )
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == 0
 
     def test_ibor_non_stub_fixings_table(self) -> None:
         period = FloatPeriod(
