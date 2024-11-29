@@ -1428,7 +1428,7 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, right, risk=None):
         calendar = curve.calendar
-        fixing_dt = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
+        fixing_dt = calendar.lag(self.start, -self.method_param, False)
         if not isinstance(right, NoInput) and fixing_dt > right:
             # fixing not in scope, perform no calculations
             df = DataFrame(
