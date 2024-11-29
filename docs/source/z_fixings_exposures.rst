@@ -30,105 +30,123 @@ of the *Curve* which forecasts the exposed fixing.
    euribor3m = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.95}, calendar="tgt", id="euribor3m", convention="act360")
    euribor6m = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.95}, calendar="tgt", id="euribor6m", convention="act360")
 
-.. ipython:: python
+.. tabs::
 
-   irs = IRS(
-       effective=dt(2000, 1, 10),
-       termination="1w",
-       spec="eur_irs",
-       curves=estr,
-       notional=2e6,
-   )
-   irs.fixings_table()
+   .. tab:: IRS
 
-.. ipython:: python
+      .. ipython:: python
 
-   zcs = ZCS(
-       effective=dt(2000, 1, 10),
-       termination="4m",
-       frequency="M",
-       convention="act360",
-       leg2_fixing_method="ibor",
-       leg2_method_param=2,
-       curves=[euribor1m, estr],
-       notional=1.5e6,
-   )
-   zcs.fixings_table()
+         irs = IRS(
+             effective=dt(2000, 1, 10),
+             termination="1w",
+             spec="eur_irs",
+             curves=estr,
+             notional=2e6,
+         )
+         irs.fixings_table()
 
-.. ipython:: python
+   .. tab:: ZCS
 
-   sbs = SBS(
-       effective=dt(2000, 1, 6),
-       termination="6m",
-       spec="eur_sbs36",
-       curves=[euribor3m, estr, euribor6m, estr],
-       notional=3e6,
-   )
-   sbs.fixings_table()
+      .. ipython:: python
 
-.. ipython:: python
+         zcs = ZCS(
+             effective=dt(2000, 1, 10),
+             termination="4m",
+             frequency="M",
+             convention="act360",
+             leg2_fixing_method="ibor",
+             leg2_method_param=2,
+             curves=[euribor1m, estr],
+             notional=1.5e6,
+         )
+         zcs.fixings_table()
 
-   iirs = IIRS(
-       effective=dt(2000, 1, 10),
-       termination="3m",
-       frequency="M",
-       index_base=100.0,
-       index_lag=3,
-       leg2_fixing_method="ibor",
-       leg2_method_param=2,
-       curves=[estr, estr, euribor1m, estr],
-       notional=4e6,
-   )
-   iirs.fixings_table()
+   .. tab:: SBS
 
-.. ipython:: python
+      .. ipython:: python
 
-   fra = FRA(
-       effective=get_imm(code="H0"),
-       termination=get_imm(code="M0"),
-       roll="imm",
-       spec="eur_fra3",
-       curves=[euribor3m, estr],
-       notional=5e6,
-   )
-   fra.fixings_table()
+         sbs = SBS(
+             effective=dt(2000, 1, 6),
+             termination="6m",
+             spec="eur_sbs36",
+             curves=[euribor3m, estr, euribor6m, estr],
+             notional=3e6,
+         )
+         sbs.fixings_table()
 
-.. ipython:: python
+   .. tab:: IIRS
 
-   sofr = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.93}, calendar="nyc", id="sofr", convention="act360")
-   xcs = XCS(
-       effective=dt(2000, 1, 7),
-       termination="9m",
-       spec="eurusd_xcs",
-       leg2_fixed=True,
-       leg2_mtm=False,
-       fixing_method="ibor",
-       method_param=2,
-       curves=[euribor3m, estr, sofr, sofr],
-       notional=1e6,
-   )
-   xcs.fixings_table()
+      .. ipython:: python
 
-.. ipython:: python
+         iirs = IIRS(
+             effective=dt(2000, 1, 10),
+             termination="3m",
+             frequency="M",
+             index_base=100.0,
+             index_lag=3,
+             leg2_fixing_method="ibor",
+             leg2_method_param=2,
+             curves=[estr, estr, euribor1m, estr],
+             notional=4e6,
+         )
+         iirs.fixings_table()
 
-   stir = STIRFuture(
-       effective=get_imm(code="H0"),
-       termination="3m",
-       spec="eur_stir3",
-       curves=[euribor3m],
-       contracts=10,
-   )
-   stir.fixings_table()
+   .. tab:: FRA
 
-.. ipython:: python
+      .. ipython:: python
 
-   frn = FloatRateNote(
-      effective=dt(2000, 1, 13),
-      termination="6m",
-      frequency="Q",
-      fixing_method="ibor",
-      method_param=2,
-      float_spread=120.0,
-      curves=[euribor3m, estr]
-   )
-   frn.fixings_table()
+         fra = FRA(
+             effective=get_imm(code="H0"),
+             termination=get_imm(code="M0"),
+             roll="imm",
+             spec="eur_fra3",
+             curves=[euribor3m, estr],
+             notional=5e6,
+         )
+         fra.fixings_table()
+
+   .. tab:: XCS
+
+      .. ipython:: python
+
+         sofr = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.93}, calendar="nyc", id="sofr", convention="act360")
+         xcs = XCS(
+             effective=dt(2000, 1, 7),
+             termination="9m",
+             spec="eurusd_xcs",
+             leg2_fixed=True,
+             leg2_mtm=False,
+             fixing_method="ibor",
+             method_param=2,
+             curves=[euribor3m, estr, sofr, sofr],
+             notional=1e6,
+         )
+         xcs.fixings_table()
+
+   .. tab:: STIRFuture
+
+      .. ipython:: python
+
+         stir = STIRFuture(
+             effective=get_imm(code="H0"),
+             termination="3m",
+             spec="eur_stir3",
+             curves=[euribor3m],
+             contracts=10,
+         )
+         stir.fixings_table()
+
+   .. tab:: FRN
+
+      .. ipython:: python
+
+         frn = FloatRateNote(
+             effective=dt(2000, 1, 13),
+             termination="6m",
+             frequency="Q",
+             fixing_method="ibor",
+             method_param=2,
+             float_spread=120.0,
+             curves=[euribor3m, estr]
+         )
+         frn.fixings_table()
