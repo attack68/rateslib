@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from pandas import DataFrame, concat, DatetimeIndex, MultiIndex
+from pandas import DataFrame, DatetimeIndex, concat
 
 from rateslib import defaults
 from rateslib.calendars import dcf
@@ -753,7 +753,12 @@ class Portfolio(Sensitivities):
         for inst in self.instruments:
             try:
                 df = inst.fixings_table(
-                    curves=curves, solver=solver, fx=fx, base=base, approximate=approximate, right=right
+                    curves=curves,
+                    solver=solver,
+                    fx=fx,
+                    base=base,
+                    approximate=approximate,
+                    right=right,
                 )
             except AttributeError:
                 continue
