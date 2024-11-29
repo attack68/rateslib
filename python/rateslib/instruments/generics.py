@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from pandas import DataFrame, concat
+from pandas import DataFrame, concat, DatetimeIndex, MultiIndex
 
 from rateslib import defaults
 from rateslib.calendars import dcf
@@ -418,14 +418,25 @@ class Spread(Sensitivities):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
+        """
+        Return a DataFrame of fixing exposures on the *Instruments*.
+
+        For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
+        and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
+
+        Returns
+        -------
+        DataFrame
+        """
         pf = Portfolio(
             [
                 self.instrument1,
                 self.instrument2,
             ]
         )
-        return pf.fixings_table(curves, solver, fx, base, approximate)
+        return pf.fixings_table(curves, solver, fx, base, approximate, right=right)
 
 
 class Fly(Sensitivities):
@@ -546,7 +557,18 @@ class Fly(Sensitivities):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
+        """
+        Return a DataFrame of fixing exposures on the *Instruments*.
+
+        For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
+        and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
+
+        Returns
+        -------
+        DataFrame
+        """
         pf = Portfolio(
             [
                 self.instrument1,
@@ -554,7 +576,7 @@ class Fly(Sensitivities):
                 self.instrument3,
             ]
         )
-        return pf.fixings_table(curves, solver, fx, base, approximate)
+        return pf.fixings_table(curves, solver, fx, base, approximate, right=right)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -713,6 +735,7 @@ class Portfolio(Sensitivities):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures on the *Instruments*.
@@ -724,11 +747,13 @@ class Portfolio(Sensitivities):
         -------
         DataFrame
         """
-        df_result = DataFrame()
+        df_result = DataFrame(
+            index=DatetimeIndex([], name="obs_dates", freq=None),
+        )
         for inst in self.instruments:
             try:
                 df = inst.fixings_table(
-                    curves=curves, solver=solver, fx=fx, base=base, approximate=approximate
+                    curves=curves, solver=solver, fx=fx, base=base, approximate=approximate, right=right
                 )
             except AttributeError:
                 continue

@@ -298,3 +298,17 @@ bound, which avoids doing any calculation for exposures out-of-scope.
              curves=[euribor3m, estr]
          )
          frn.fixings_table(approximate=True, right=dt(2000, 8, 16))
+
+Aggregation of fixings exposures
+---------------------------------
+
+Adding many *Instruments* to a :class:`~rateslib.instruments.Portfolio`, provided those
+*Instruments* have been properly configured, allows their fixing exposures to be
+analysed and aggeragted. *Instruments* with no fixing exposures, such as a *FixedRateBond*,
+will simply be ignored.
+
+.. ipython:: python
+
+   frb = FixedRateBond(dt(2000, 1, 3), "10y", fixed_rate=2.5, spec="us_gb")
+   pf = Portfolio([irs, sbs, fra, xcs, frn, stir, iirs, zcs, frb])
+   pf.fixings_table(approximate=True, right=dt(2000, 8, 1))
