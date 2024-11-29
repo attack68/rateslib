@@ -769,6 +769,7 @@ class XCS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
@@ -796,6 +797,8 @@ class XCS(BaseDerivative):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -817,6 +820,7 @@ class XCS(BaseDerivative):
                 fx=fx_,
                 base=base_,
                 approximate=approximate,
+                right=right,
             )
         except AttributeError:
             df1 = DataFrame()
@@ -828,6 +832,7 @@ class XCS(BaseDerivative):
                 fx=fx_,
                 base=base_,
                 approximate=approximate,
+                right=right,
             )
         except AttributeError:
             df2 = DataFrame()

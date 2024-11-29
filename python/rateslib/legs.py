@@ -756,7 +756,6 @@ class _FloatLegMixin:
             warnings.filterwarnings("ignore", category=FutureWarning)
             return pd.concat(dfs)
 
-
     def _regular_period(
         self,
         start: datetime,
@@ -975,6 +974,7 @@ class FloatLeg(BaseLeg, _FloatLegMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
@@ -992,12 +992,16 @@ class FloatLeg(BaseLeg, _FloatLegMixin):
             Not used by ``fixings_table``.
         approximate: bool
             Whether to use a faster (3x) but marginally less accurate (0.1% error) calculation.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
         DataFrame
         """
-        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
+        return super()._fixings_table(
+            curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
+        )
 
     def _set_periods(self) -> None:
         return super()._set_periods()
@@ -1298,8 +1302,31 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> NoReturn:  # pragma: no cover
-        """Not yet implemented for ZeroFloatLeg"""
+        """
+        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.ZeroFloatLeg`.
+
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object.
+        disc_curve : Curve, optional
+            The discounting curve object used in calculations.
+            Set equal to ``curve`` if not given and ``curve`` is discount factor based.
+        fx : float, FXRates, FXForwards, optional
+            Only used in the case of :class:`~rateslib.legs.FloatLegMtm` to derive FX fixings.
+        base : str, optional
+            Not used by ``fixings_table``.
+        approximate: bool
+            Whether to use a faster (3x) but marginally less accurate (0.1% error) calculation.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
+
+        Returns
+        -------
+        DataFrame
+        """
         if disc_curve is NoInput.blank and isinstance(curve, dict):
             raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
         elif disc_curve is NoInput.blank:
@@ -1317,7 +1344,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                     continue
                 scalar = period.dcf / (1 + period.dcf * period.rate(curve) / 100.0)
                 risk = prod * scalar
-                dfs.append(period._ibor_fixings_table(curve, disc_curve, risk))
+                dfs.append(period._ibor_fixings_table(curve, disc_curve, right, risk))
         else:
             dfs = []
             prod = 1 + self.dcf * self.rate(curve) / 100.0
@@ -1328,7 +1355,10 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                 df[(curve.id, "notional")] *= scalar
                 dfs.append(df)
 
-        return pd.concat(dfs)
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            return pd.concat(dfs)
 
     def analytic_delta(
         self,
@@ -2697,6 +2727,7 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
@@ -2706,7 +2737,9 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
         """
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
-        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
+        return super()._fixings_table(
+            curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
+        )
 
 
 class CustomLeg(BaseLeg):

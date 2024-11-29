@@ -35,6 +35,7 @@ from rateslib.legs import (
 from rateslib.periods import (
     _disc_from_curve,
     _get_fx_and_base,
+    _trim_df_by_index,
 )
 from rateslib.solver import Solver
 
@@ -590,6 +591,7 @@ class IRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -615,6 +617,8 @@ class IRS(BaseDerivative):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -629,7 +633,7 @@ class IRS(BaseDerivative):
             self.leg1.currency,
         )
         return self.leg2.fixings_table(
-            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+            curve=curves[2], approximate=approximate, disc_curve=curves[3], right=right
         )
 
 
@@ -884,6 +888,7 @@ class STIRFuture(IRS):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -909,6 +914,8 @@ class STIRFuture(IRS):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -927,7 +934,7 @@ class STIRFuture(IRS):
 
         total_risk = df[(curves[2].id, "risk")].sum()
         df[[(curves[2].id, "notional"), (curves[2].id, "risk")]] *= risk / total_risk
-        return df
+        return _trim_df_by_index(df, NoInput(0), right)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1331,6 +1338,7 @@ class IIRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -1369,7 +1377,9 @@ class IIRS(BaseDerivative):
             NoInput(0),
             self.leg2.currency,
         )
-        df = self.leg2.fixings_table(curve=curves[2], approximate=approximate, disc_curve=curves[3])
+        df = self.leg2.fixings_table(
+            curve=curves[2], approximate=approximate, disc_curve=curves[3], right=right
+        )
         return df
 
 
@@ -1614,6 +1624,7 @@ class ZCS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.ZeroFloatLeg`.
@@ -1639,6 +1650,8 @@ class ZCS(BaseDerivative):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -1653,7 +1666,7 @@ class ZCS(BaseDerivative):
             self.leg1.currency,
         )
         return self.leg2.fixings_table(
-            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+            curve=curves[2], approximate=approximate, disc_curve=curves[3], right=right
         )
 
 
@@ -2216,6 +2229,7 @@ class SBS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -2241,6 +2255,8 @@ class SBS(BaseDerivative):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -2255,10 +2271,10 @@ class SBS(BaseDerivative):
             self.leg1.currency,
         )
         df1 = self.leg1.fixings_table(
-            curve=curves[0], approximate=approximate, disc_curve=curves[1]
+            curve=curves[0], approximate=approximate, disc_curve=curves[1], right=right
         )
         df2 = self.leg2.fixings_table(
-            curve=curves[2], approximate=approximate, disc_curve=curves[3]
+            curve=curves[2], approximate=approximate, disc_curve=curves[3], right=right
         )
         return _composit_fixings_table(df1, df2)
 
@@ -2584,6 +2600,7 @@ class FRA(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -2609,6 +2626,8 @@ class FRA(BaseDerivative):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -2628,7 +2647,7 @@ class FRA(BaseDerivative):
         scalar *= 1.0 / (1.0 + self.leg2.periods[0].dcf * rate / 100.0)
         df[(curves[2].id, "risk")] *= scalar
         df[(curves[2].id, "notional")] *= scalar
-        return df
+        return _trim_df_by_index(df, NoInput(0), right)
 
     def delta(self, *args, **kwargs):
         """
