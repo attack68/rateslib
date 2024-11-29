@@ -750,7 +750,12 @@ class _FloatLegMixin:
         for period in self.periods:
             if isinstance(period, FloatPeriod):
                 dfs.append(period.fixings_table(*args, **kwargs))
-        return pd.concat(dfs)
+
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            return pd.concat(dfs)
+
 
     def _regular_period(
         self,
