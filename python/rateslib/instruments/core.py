@@ -1008,7 +1008,10 @@ def _composit_fixings_table(df_result, df):
     DataFrame
     """
     # reindex the result DataFrame
-    df_result = df_result.reindex(index=df_result.index.union(df.index))
+    if df_result.empty:
+        return df
+    else:
+        df_result = df_result.reindex(index=df_result.index.union(df.index))
 
     # update existing columns with missing data from the new available data
     for c in [c for c in df.columns if c in df_result.columns and c[1] in ["dcf", "rates"]]:
@@ -1024,4 +1027,5 @@ def _composit_fixings_table(df_result, df):
     if len(a) > 0:
         df_result[a] = df[a]
 
+    # df_result.columns = MultiIndex.from_tuples(df_result.columns)
     return df_result

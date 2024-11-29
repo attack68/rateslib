@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from pandas import DataFrame, MultiIndex, Series
+from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
 
 from rateslib import defaults
 from rateslib.curves import Curve
@@ -823,7 +823,9 @@ class XCS(BaseDerivative):
                 right=right,
             )
         except AttributeError:
-            df1 = DataFrame()
+            df1 = DataFrame(
+                index=DatetimeIndex([], name="obs_dates", freq=None),
+            )
 
         try:
             df2 = self.leg2.fixings_table(
@@ -835,7 +837,9 @@ class XCS(BaseDerivative):
                 right=right,
             )
         except AttributeError:
-            df2 = DataFrame()
+            df2 = DataFrame(
+                index=DatetimeIndex([], name="obs_dates", freq=None),
+            )
 
         return _composit_fixings_table(df1, df2)
 
