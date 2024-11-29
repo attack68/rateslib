@@ -2727,6 +2727,7 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ):
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
@@ -2736,7 +2737,9 @@ class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
         """
         if not self._do_not_repeat_set_periods:
             self._set_periods(fx)
-        return super()._fixings_table(curve=curve, disc_curve=disc_curve, approximate=approximate)
+        return super()._fixings_table(
+            curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
+        )
 
 
 class CustomLeg(BaseLeg):

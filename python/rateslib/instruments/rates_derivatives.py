@@ -888,6 +888,7 @@ class STIRFuture(IRS):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
+        right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
@@ -913,6 +914,8 @@ class STIRFuture(IRS):
         approximate : bool, optional
             Perform a calculation that is broadly 10x faster but potentially loses
             precision upto 0.1%.
+        right : datetime, optional
+            Only calculate fixing exposures upto and including this date.
 
         Returns
         -------
@@ -931,7 +934,7 @@ class STIRFuture(IRS):
 
         total_risk = df[(curves[2].id, "risk")].sum()
         df[[(curves[2].id, "notional"), (curves[2].id, "risk")]] *= risk / total_risk
-        return df
+        return _trim_df_by_index(df, NoInput(0), right)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

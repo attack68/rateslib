@@ -260,7 +260,7 @@ bound, which avoids doing any calculation for exposures out-of-scope.
          sofr = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.93}, calendar="nyc", id="sofr", convention="act360")
          xcs = XCS(
              effective=dt(2000, 1, 7),
-             termination="9m",
+             termination="2y",
              spec="eurusd_xcs",
              leg2_fixed=True,
              leg2_mtm=False,
@@ -269,7 +269,7 @@ bound, which avoids doing any calculation for exposures out-of-scope.
              curves=[euribor3m, estr, sofr, sofr],
              notional=1e6,
          )
-         xcs.fixings_table()
+         xcs.fixings_table(approximate=True, right=dt(2000, 8, 16))
 
    .. tab:: STIRFuture
 
@@ -282,7 +282,7 @@ bound, which avoids doing any calculation for exposures out-of-scope.
              curves=[euribor3m],
              contracts=10,
          )
-         stir.fixings_table()
+         stir.fixings_table(approximate=True, right=dt(2000, 8, 16))
 
    .. tab:: FRN
 
@@ -290,11 +290,11 @@ bound, which avoids doing any calculation for exposures out-of-scope.
 
          frn = FloatRateNote(
              effective=dt(2000, 1, 13),
-             termination="6m",
+             termination="2y",
              frequency="Q",
              fixing_method="ibor",
              method_param=2,
              float_spread=120.0,
              curves=[euribor3m, estr]
          )
-         frn.fixings_table()
+         frn.fixings_table(approximate=True, right=dt(2000, 8, 16))
