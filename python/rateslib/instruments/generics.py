@@ -419,10 +419,12 @@ class Spread(Sensitivities):
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ):
-        pf = Portfolio([
-            self.instrument1,
-            self.instrument2,
-        ])
+        pf = Portfolio(
+            [
+                self.instrument1,
+                self.instrument2,
+            ]
+        )
         return pf.fixings_table(curves, solver, fx, base, approximate)
 
 
@@ -545,11 +547,13 @@ class Fly(Sensitivities):
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
     ):
-        pf = Portfolio([
-            self.instrument1,
-            self.instrument2,
-            self.instrument3,
-        ])
+        pf = Portfolio(
+            [
+                self.instrument1,
+                self.instrument2,
+                self.instrument3,
+            ]
+        )
         return pf.fixings_table(curves, solver, fx, base, approximate)
 
 

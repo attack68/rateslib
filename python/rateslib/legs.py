@@ -749,10 +749,12 @@ class _FloatLegMixin:
         dfs = []
         for period in self.periods:
             if isinstance(period, FloatPeriod):
-                df = period.fixings_table(*args, **kwargs)
-                dfs.append(df)
+                dfs.append(period.fixings_table(*args, **kwargs))
 
-        return pd.concat(dfs)
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            return pd.concat(dfs)
 
     def _regular_period(
         self,
@@ -1295,7 +1297,6 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
     ) -> NoReturn:  # pragma: no cover
         """Not yet implemented for ZeroFloatLeg"""
         if disc_curve is NoInput.blank and isinstance(curve, dict):
@@ -1315,7 +1316,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
                     continue
                 scalar = period.dcf / (1 + period.dcf * period.rate(curve) / 100.0)
                 risk = prod * scalar
-                dfs.append(period._ibor_fixings_table(curve, disc_curve, right, risk))
+                dfs.append(period._ibor_fixings_table(curve, disc_curve, risk))
         else:
             dfs = []
             prod = 1 + self.dcf * self.rate(curve) / 100.0
