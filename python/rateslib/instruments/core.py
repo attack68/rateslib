@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import warnings
 
-from pandas import DataFrame, concat, isna, MultiIndex
+from pandas import DataFrame, concat, isna
 
 from rateslib import defaults
 from rateslib.curves import Curve

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from pandas import DataFrame, MultiIndex, Series, DatetimeIndex
+from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
 
 from rateslib import defaults
 from rateslib.curves import Curve
