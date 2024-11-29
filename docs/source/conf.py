@@ -33,11 +33,13 @@ extensions = [
     "sphinx_automodapi.automodapi",
     "nbsphinx",
     "sphinx.ext.intersphinx",
-    "sphinxcontrib.googleanalytics"
+    "sphinxcontrib.googleanalytics",
+    "sphinx_tabs.tabs",
 ]
 intersphinx_mapping = {
     "rateslibxl": ("https://rateslib.com/excel/latest/", None),
 }
+sphinx_tabs_disable_tab_closing = True
 googleanalytics_id = os.getenv("googleanalytics_id", "G-0000000000")
 googleanalytics_enabled = googleanalytics_id != "G-0000000000"
 numpydoc_show_class_members = False  # for sphinx automod according to docs

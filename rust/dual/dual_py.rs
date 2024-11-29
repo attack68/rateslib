@@ -145,13 +145,13 @@ impl Dual {
 
     #[getter]
     #[pyo3(name = "dual")]
-    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'_, PyArray1<f64>>> {
+    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.dual().to_pyarray_bound(py))
     }
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<&PyArray2<f64>> {
+    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<&'py PyArray2<f64>> {
         Err(PyValueError::new_err(
             "`Dual` variable cannot possess `dual2` attribute.",
         ))
@@ -162,12 +162,12 @@ impl Dual {
         &'py self,
         py: Python<'py>,
         vars: Vec<String>,
-    ) -> PyResult<Bound<'_, PyArray1<f64>>> {
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.gradient1(vars).to_pyarray_bound(py))
     }
 
     #[pyo3(name = "grad2")]
-    fn grad2<'py>(&'py self, _py: Python<'py>, _vars: Vec<String>) -> PyResult<&PyArray2<f64>> {
+    fn grad2<'py>(&'py self, _py: Python<'py>, _vars: Vec<String>) -> PyResult<&'py PyArray2<f64>> {
         Err(PyValueError::new_err(
             "Cannot evaluate second order derivative on a Dual.",
         ))
@@ -475,13 +475,13 @@ impl Dual2 {
 
     #[getter]
     #[pyo3(name = "dual")]
-    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'_, PyArray1<f64>>> {
+    fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.dual.to_pyarray_bound(py))
     }
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'_, PyArray2<f64>>> {
+    fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Ok(self.dual2.to_pyarray_bound(py))
     }
 
@@ -490,7 +490,7 @@ impl Dual2 {
         &'py self,
         py: Python<'py>,
         vars: Vec<String>,
-    ) -> PyResult<Bound<'_, PyArray1<f64>>> {
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.gradient1(vars).to_pyarray_bound(py))
     }
 
@@ -499,7 +499,7 @@ impl Dual2 {
         &'py self,
         py: Python<'py>,
         vars: Vec<String>,
-    ) -> PyResult<Bound<'_, PyArray2<f64>>> {
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Ok(self.gradient2(vars).to_pyarray_bound(py))
     }
 
