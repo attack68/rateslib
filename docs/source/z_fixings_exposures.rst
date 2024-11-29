@@ -304,7 +304,7 @@ Aggregation of fixings exposures
 
 Adding many *Instruments* to a :class:`~rateslib.instruments.Portfolio`, provided those
 *Instruments* have been properly configured, allows their fixing exposures to be
-analysed and aggeragted. *Instruments* with no fixing exposures, such as a *FixedRateBond*,
+analysed and aggregated. *Instruments* with no fixing exposures, such as a *FixedRateBond*,
 will simply be ignored.
 
 .. ipython:: python
