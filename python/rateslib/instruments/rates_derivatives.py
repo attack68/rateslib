@@ -35,8 +35,8 @@ from rateslib.legs import (
 from rateslib.periods import (
     _disc_from_curve,
     _get_fx_and_base,
-    _trim_df_by_index,
     _maybe_local,
+    _trim_df_by_index,
 )
 from rateslib.solver import Solver
 
@@ -851,7 +851,6 @@ class STIRFuture(IRS):
         """
         fx, base = _get_fx_and_base(self.kwargs["currency"], fx, base)
         return fx * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
-
 
     def cashflows(
         self,
