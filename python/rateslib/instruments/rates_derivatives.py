@@ -35,6 +35,7 @@ from rateslib.legs import (
 from rateslib.periods import (
     _disc_from_curve,
     _get_fx_and_base,
+    _maybe_local,
     _trim_df_by_index,
 )
 from rateslib.solver import Solver
@@ -776,10 +777,7 @@ class STIRFuture(IRS):
 
         traded_price = 100 - self.leg1.fixed_rate
         _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
-        if local:
-            return {self.leg1.currency: _}
-        else:
-            return _
+        return _maybe_local(_, local, self.kwargs["currency"], fx, base)
 
     def rate(
         self,
@@ -838,14 +836,21 @@ class STIRFuture(IRS):
         else:
             raise ValueError("`metric` must be in {'price', 'rate'}.")
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ):
         """
         Return the analytic delta of the *STIRFuture*.
 
         See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         For *STIRFuture* this method requires no arguments.
         """
-        return -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+        fx, base = _get_fx_and_base(self.kwargs["currency"], fx, base)
+        return fx * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
 
     def cashflows(
         self,

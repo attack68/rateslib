@@ -3257,6 +3257,23 @@ class TestSTIRFuture:
         expected = (99.5 - (100 - 0.99250894761)) * 2500 * -1.0
         assert abs(result - expected) < 1e-7
 
+    def test_stir_npv_fx(self) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+        )
+
+        fxr = FXRates({"usdeur": 0.85})
+        result = stir.npv(curves=c1, fx=fxr, base="eur")
+        expected = ((99.5 - (100 - 0.99250894761)) * 2500 * -1.0) * 0.85
+
+        assert abs(result - expected) < 1e-7
+
     def test_stir_raises(self) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
@@ -3281,6 +3298,20 @@ class TestSTIRFuture:
         )
         expected = -2500.0
         result = stir.analytic_delta()
+        assert abs(result - expected) < 1e-10
+
+    def test_analytic_delta_fx(self) -> None:
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            curves="usdusd",
+            price=99.50,
+            contracts=100,
+        )
+        expected = -2500.0 * 0.85
+        fxr = FXRates({"usdeur": 0.85})
+        result = stir.analytic_delta(fx=fxr, base="eur")
         assert abs(result - expected) < 1e-10
 
     def test_fixings_table(self, curve):

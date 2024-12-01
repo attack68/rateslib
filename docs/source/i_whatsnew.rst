@@ -21,6 +21,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - Bug
+     - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
+       arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
+       :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
 
 1.6.0 (30th November 2024)
 ****************************
