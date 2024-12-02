@@ -8,7 +8,7 @@ User Guide
 Where to start?
 ===============
 
-It is important to understand that this library tends to follow the typical framework:
+*Rateslib* tends to follow the typical quant architecture:
 
 .. image:: _static/instdatamodel.PNG
    :alt: Library pricing framework
@@ -18,7 +18,7 @@ It is important to understand that this library tends to follow the typical fram
 This means that **financial instrument specification**, **curve and/or surface construction**
 from market data including **foreign exchange (FX)** will permit **pricing metrics** and **risk sensitivity**.
 These functionalities are interlinked and potentially dependent upon each
-other. This guide's intention is to introduce them in a structured way and give typical examples how they
+other. This guide will introduce them in a structured way and give typical examples how they
 are used in practice.
 
 .. |ico3| image:: _static/rlxl32.png
@@ -29,54 +29,208 @@ are used in practice.
    If you see this icon |ico3| at any point after a section it will link to a section in the
    *rateslib-excel* documentation which may demonstrate the equivalent Python example in Excel.
 
-Let's start with the fundamental constructors *Curve* and *Instrument*.
+Let's start with some fundamental *Curve* and *Instrument* constructors.
 
-A trivial example
+Trivial derivatives examples
 ----------------------------
 
-For example, we can construct :ref:`Curves<c-curves-doc>` in many different ways:
-here we create one by directly specifying discount factors (DFs) on certain node dates (sometimes
-called pillar dates in other publications).
+*Rateslib* has three fundamental :ref:`Curve types<c-curves-doc>`. All can be constructed
+independently by providing basic inputs.
 
-.. ipython:: python
+.. tabs::
 
-   from rateslib import *
+   .. tab:: Curve
 
-   usd_curve = Curve(
-       nodes={
-           dt(2022, 1, 1): 1.0,
-           dt(2022, 7, 1): 0.98,
-           dt(2023, 1, 1): 0.95
-       },
-       calendar="nyc",
-       id="sofr",
-   )
+      A :class:`~rateslib.curves.Curve` is discount factor (DF) based and is constructed
+      by providing DFs on specific node dates. Interpolation between ``nodes`` is
+      configurable, but the below uses the *"log-linear"* default.
 
-We can then construct an :ref:`Instrument<instruments-toc-doc>`. Here we create a short dated
-RFR interest rate swap (:class:`~rateslib.instruments.IRS`) using the conventional market specification
-*rateslib* offers many examples of *Instrument* specifications as all seen
-:ref:`here in defaults <defaults-arg-input>`.
+      .. ipython:: python
 
-.. ipython:: python
+         from rateslib import *
 
-   irs = IRS(
-       effective=dt(2022, 2, 15),
-       termination="6m",
-       notional=1000000000,
-       fixed_rate=2.0,
-       spec="usd_irs"
-   )
+         usd_curve = Curve(
+             nodes={
+                 dt(2022, 1, 1): 1.0,
+                 dt(2022, 7, 1): 0.98,
+                 dt(2023, 1, 1): 0.95
+             },
+             calendar="nyc",
+             id="sofr",
+         )
 
-We can value the *IRS* with the *Curve* in its local currency (USD) by default, and see
-the generated cashflows.
+   .. tab:: LineCurve
 
-.. ipython:: python
+      A :class:`~rateslib.curves.LineCurve` is value based and is constructed
+      by providing curve values on specific node dates. Interpolation between ``nodes`` is
+      configurable, with the default being *"linear"* interpolation (hence *LineCurve*).
 
-   irs.npv(usd_curve)
+      .. ipython:: python
 
-.. ipython:: python
+         usd_legacy_3mIBOR = LineCurve(
+             nodes={
+                 dt(2022, 1, 1): 2.635,
+                 dt(2022, 7, 1): 2.896,
+                 dt(2023, 1, 1): 2.989,
+             },
+             calendar="nyc",
+             id="us_ibor_3m",
+         )
 
-   irs.cashflows(usd_curve)
+   .. tab:: IndexCurve
+
+      An :class:`~rateslib.curves.IndexCurve` extends a *Curve* class by allowing
+      an ``index_base`` argument and the calculation of index values. It is DF based.
+      It is required for the pricing of index-linked *Instruments*.
+
+      .. ipython:: python
+
+         usd_cpi = IndexCurve(
+             nodes={
+                 dt(2022, 1, 1): 1.00,
+                 dt(2022, 7, 1): 0.97,
+                 dt(2023, 1, 1): 0.955,
+             },
+             index_base=308.95,
+             id="us_cpi",
+         )
+
+   .. tab:: *(Hazard Curve)*
+
+      A *Hazard Curve* is used by credit *Instruments* when a default is possible. *Hazard Curves*
+      utilise the same :class:`~rateslib.curves.Curve` class and the rates reflect overnight
+      hazard rates and the DFs reflect survival probabilities.
+
+      .. ipython:: python
+
+         pfizer_hazard = Curve(
+             nodes={
+                 dt(2022, 1, 1): 1.0,
+                 dt(2022, 7, 1): 0.998,
+                 dt(2023, 1, 1): 0.995
+             },
+             id="pfizer_hazard",
+         )
+
+
+Next, we will construct some basic derivative :ref:`Instruments<instruments-toc-doc>`.
+These will use some market conventions defined by *rateslib* through its
+:ref:`default argument specifications <defaults-arg-input>`, although all arguments can
+be supplied manually if and when required.
+
+.. tabs::
+
+   .. group-tab:: IRS
+
+      Here we create a short dated SOFR RFR interest rate swap (:class:`~rateslib.instruments.IRS`).
+
+      .. ipython:: python
+
+         irs = IRS(
+             effective=dt(2022, 2, 15),
+             termination="6m",
+             notional=1000000000,
+             fixed_rate=2.0,
+             spec="usd_irs"
+         )
+
+   .. group-tab:: STIRFuture
+
+      Here we create a SOFR STIR future (:class:`~rateslib.instruments.STIRFuture`).
+
+      .. ipython:: python
+
+         stir = STIRFuture(
+             effective=get_imm(code="H22"),
+             termination=get_imm(code="M22"),
+             contracts=100,
+             price=97.495,
+             spec="usd_stir",
+         )
+
+   .. group-tab:: FRA
+
+      A US LIBOR :class:`~rateslib.instruments.FRA` is an obsolete *Instrument*, but we can still
+      create one and these still trade in other currencies, e.g. EUR.
+
+      .. ipython:: python
+
+         fra = FRA(
+             effective=dt(2022, 2, 16),
+             termination="3m",
+             frequency="Q",
+             calendar="nyc",
+             convention="act360",
+             method_param=2,
+             fixed_rate=2.5
+         )
+
+   .. group-tab:: CDS
+
+      Here we construct a generic US investment grade credit default
+      swap (:class:`~rateslib.instruments.CDS`)
+
+      .. ipython:: python
+
+         cds = CDS(
+             effective=dt(2021, 12, 20),
+             termination=dt(2022, 9, 20),
+             notional=15e6,
+             spec="us_ig_cds",
+         )
+
+We can combine the *Curves* and the *Instruments* to give pricing metrics such as
+:meth:`~rateslib.instruments.BaseDerivative.npv`,
+:meth:`~rateslib.instruments.BaseDerivative.cashflows`, and the mid-market
+:meth:`~rateslib.instruments.BaseDerivative.rate`, as well as others. Without further specification
+these values are all expressed in the *Instrument's* local USD currency.
+
+.. tabs::
+
+   .. group-tab:: IRS
+
+      .. ipython:: python
+
+         irs.npv(usd_curve)
+
+      .. ipython:: python
+
+         irs.cashflows(usd_curve)
+
+   .. group-tab:: STIRFuture
+
+      .. ipython:: python
+
+         stir.npv(usd_curve)
+
+      .. ipython:: python
+
+         stir.rate(usd_curve, metric="price")
+
+   .. group-tab:: FRA
+
+      .. ipython:: python
+
+         fra.npv(curves=[usd_legacy_3mIBOR, usd_curve])
+
+      .. ipython:: python
+
+         fra.rate([usd_legacy_3mIBOR, usd_curve])
+
+   .. group-tab:: CDS
+
+      .. ipython:: python
+
+         cds.npv(curves=[pfizer_hazard, usd_curve])
+
+      .. ipython:: python
+
+         cds.rate([pfizer_hazard, usd_curve])
+
+      .. ipython:: python
+
+         cds.cashflows([pfizer_hazard, usd_curve])
+
 
 .. raw:: html
 
@@ -98,21 +252,50 @@ Spot rates and conversion
 -------------------------
 
 The above values were all calculated and displayed in USD. That is the default
-currency in *rateslib* and the local currency of the swap. We can convert this value to another
-currency using the :class:`~rateslib.fx.FXRates` class. This is a basic class which is
+currency in *rateslib* and the local currency of those *Instruments*. We can convert these values
+into another currency using the :class:`~rateslib.fx.FXRates` class. This is a basic class which is
 parametrised by some exchange rates.
 
-.. ipython:: python
+.. tabs::
 
-   fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25})
-   fxr.rates_table()
+   .. tab:: FXRates
+
+      .. ipython:: python
+
+         fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25})
+         fxr.rates_table()
 
 We now have a mechanism by which to specify values in other currencies.
 
-.. ipython:: python
+.. tabs::
 
-   irs.npv(usd_curve, fx=fxr, base="usd")
-   irs.npv(usd_curve, fx=fxr, base="eur")
+   .. group-tab:: IRS
+
+      .. ipython:: python
+
+         irs.npv(usd_curve, fx=fxr, base="usd")
+         irs.npv(usd_curve, fx=fxr, base="eur")
+
+   .. group-tab:: STIRFuture
+
+      .. ipython:: python
+
+         stir.npv(usd_curve, fx=fxr, base="usd")
+         stir.npv(usd_curve, fx=fxr, base="eur")
+
+   .. group-tab:: FRA
+
+      .. ipython:: python
+
+         fra.npv([usd_legacy_3mIBOR, usd_curve], fx=fxr, base="usd")
+         fra.npv([usd_legacy_3mIBOR, usd_curve], fx=fxr, base="eur")
+
+   .. group-tab:: CDS
+
+      .. ipython:: python
+
+         cds.npv([pfizer_hazard, usd_curve], fx=fxr, base="usd")
+         cds.npv([pfizer_hazard, usd_curve], fx=fxr, base="eur")
 
 .. raw:: html
 
