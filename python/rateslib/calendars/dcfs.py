@@ -110,13 +110,13 @@ def _dcf_actacticma(
     roll: str | int | NoInput,
     calendar: CalInput,
 ):
-    if frequency_months is NoInput.blank:
-        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
-    if termination is NoInput.blank:
+    if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
-    if stub is NoInput.blank:
+    if isinstance(stub, NoInput):
         raise ValueError("`stub` must be supplied with specified `convention`.")
-    if not stub and frequency_months < 13:  # This is a well defined period that is NOT zero coupon
+    if isinstance(frequency_months, NoInput):
+        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
+    elif not stub and frequency_months < 13:  # This is a well defined period that is NOT zero coupon
         return frequency_months / 12.0
     else:
         # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
