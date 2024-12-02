@@ -1528,6 +1528,82 @@ class TestZCIS:
         with pytest.raises(ValueError, match="Forecasting the `index_base`"):
             zcis.rate()
 
+    def test_gamma(self):
+        # gh 521
+        disc_curve = Curve(
+            {dt(2024, 12, 2): 1.0, dt(2027, 12, 2): 1.0, dt(2028, 12, 10): 1.0},
+            calendar="nyc",
+            id="sofr",
+        )
+        index_curve = IndexCurve(
+            {dt(2024, 12, 2): 1.0, dt(2027, 12, 2): 1.0, dt(2028, 12, 10): 1.0},
+            id="us_cpi",
+            index_base=100.0,
+        )
+        solver = Solver(
+            curves=[disc_curve, index_curve],
+            instruments=[
+                IRS(dt(2024, 12, 2), "3y", spec="usd_irs", curves="sofr"),
+                IRS(dt(2024, 12, 2), "4y", spec="usd_irs", curves="sofr"),
+                ZCIS(
+                    dt(2024, 12, 2),
+                    "3y",
+                    convention="1+",
+                    frequency="A",
+                    curves=["us_cpi", "sofr"],
+                    leg2_index_base=100.00,
+                    leg2_index_method="daily",
+                ),
+                ZCIS(
+                    dt(2024, 12, 2),
+                    "4y",
+                    convention="1+",
+                    frequency="A",
+                    curves=["us_cpi", "sofr"],
+                    leg2_index_base=100.00,
+                    leg2_index_method="daily",
+                ),
+            ],
+            s=[3.9, 3.8, 3.0, 4.0],
+            instrument_labels=["ir3y", "ir4y", "cpi3y", "cpi4y"],
+        )
+        zcis = ZCIS(
+            dt(2027, 12, 2),
+            "1y",
+            fixed_rate=7.058630,
+            convention="1+",
+            frequency="A",
+            curves=["us_cpi", "sofr"],
+            leg2_index_method="daily",
+            notional=100e6,
+        )
+        hedge1 = ZCIS(
+            dt(2024, 12, 2),
+            "3y",
+            fixed_rate=3.0,
+            notional=94.625e6,
+            convention="1+",
+            frequency="A",
+            curves=["us_cpi", "sofr"],
+            leg2_index_base=100.00,
+            leg2_index_method="daily",
+        )
+        hedge2 = ZCIS(
+            dt(2024, 12, 2),
+            "4y",
+            fixed_rate=4.0,
+            notional=-91.5148e6,
+            convention="1+",
+            frequency="A",
+            curves=["us_cpi", "sofr"],
+            leg2_index_base=100.00,
+            leg2_index_method="daily",
+        )
+        pf = Portfolio([zcis, hedge1, hedge2])
+        x = pf.delta(solver=solver)
+        result = pf.gamma(solver=solver)
+        pass
+
 
 class TestValue:
     def test_npv_adelta_cashflows_raises(self) -> None:
