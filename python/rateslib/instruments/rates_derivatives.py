@@ -1688,19 +1688,19 @@ class ZCIS(BaseDerivative):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-    index_base : float or None, optional
+    leg2_index_base : float or None, optional
         The base index applied to all periods.
-    index_fixings : float, or Series, optional
+    leg2_index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the first
         period.
         If a list of *n* fixings will be used as the index fixings for the first *n*
         periods.
         If a datetime indexed ``Series`` will use the fixings that are available in
         that object, and derive the rest from the ``curve``.
-    index_method : str
+    leg2_index_method : str
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month.
-    index_lag : int, optional
+    leg2_index_lag : int, optional
         The number of months by which the index value is lagged. Used to ensure
         consistency between curves and forecast values. Defined by default.
     kwargs : dict
@@ -1740,54 +1740,32 @@ class ZCIS(BaseDerivative):
        zcis = ZCIS(
            effective=dt(2022, 1, 1),
            termination="10Y",
-           frequency="A",
-           calendar="nyc",
-           currency="usd",
+           spec="usd_zcis",
            fixed_rate=2.05,
-           convention="1+",
            notional=100e6,
            leg2_index_base=100.0,
-           leg2_index_method="monthly",
-           leg2_index_lag=3,
            curves=["usd", "usd", "us_cpi", "usd"],
        )
-       zcis.rate(curves=[usd, usd, us_cpi, usd])
-       zcis.npv(curves=[usd, usd, us_cpi, usd])
+       zcis.rate(curves=[us_cpi, usd])
+       zcis.npv(curves=[us_cpi, usd])
        zcis.analytic_delta(usd, usd)
 
     A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
 
     .. ipython:: python
 
-       zcis.cashflows(curves=[usd, usd, us_cpi, usd])
+       zcis.cashflows(curves=[us_cpi, usd])
 
     For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCIS.delta`
     and :meth:`~rateslib.instruments.ZCIS.gamma`, construct a curve model.
 
     .. ipython:: python
 
-       sofr_kws = dict(
-           effective=dt(2022, 1, 1),
-           frequency="A",
-           convention="Act360",
-           calendar="nyc",
-           currency="usd",
-           curves=["usd"]
-       )
-       cpi_kws = dict(
-           effective=dt(2022, 1, 1),
-           frequency="A",
-           convention="1+",
-           calendar="nyc",
-           leg2_index_method="monthly",
-           currency="usd",
-           curves=["usd", "usd", "us_cpi", "usd"]
-       )
        instruments = [
-           IRS(termination="5Y", **sofr_kws),
-           IRS(termination="10Y", **sofr_kws),
-           ZCIS(termination="5Y", **cpi_kws),
-           ZCIS(termination="10Y", **cpi_kws),
+           IRS(dt(2022, 1, 1), "5Y", spec="usd_irs", curves="usd"),
+           IRS(dt(2022, 1, 1), "10Y", spec="usd_irs", curves="usd"),
+           ZCIS(dt(2022, 1, 1), "5Y", spec="usd_zcis", curves=["us_cpi", "usd"]),
+           ZCIS(dt(2022, 1, 1), "10Y", spec="usd_zcis", curves=["us_cpi", "usd"]),
        ]
        solver = Solver(
            curves=[usd, us_cpi],
