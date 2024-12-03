@@ -7,6 +7,7 @@ from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 CalTypes = Union[Cal, UnionCal, NamedCal]
 CalInput = Union[CalTypes, str, NoInput]
 
+
 def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     if isinstance(roll, str):
         return {
