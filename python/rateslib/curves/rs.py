@@ -43,7 +43,7 @@ class CurveRs:
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
             convention=_get_convention(_drb(defaults.convention, convention)),
             modifier=_get_modifier(_drb(defaults.modifier, modifier), True),
-            calendar=get_calendar(calendar, kind=False, named=True),
+            calendar=get_calendar(calendar, named=True),
             index_base=_drb(None, index_base),
         )
 

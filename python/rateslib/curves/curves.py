@@ -19,7 +19,8 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
+from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
+from rateslib.calendars.rs import _get_calendar
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
 from rateslib.default import NoInput, _drb, plot
@@ -324,7 +325,7 @@ class Curve(_Serialize):
         # Parameters for the rate derivation
         self.convention = defaults.convention if convention is NoInput.blank else convention
         self.modifier = defaults.modifier if modifier is NoInput.blank else modifier.upper()
-        self.calendar, self.calendar_type = get_calendar(calendar, kind=True)
+        self.calendar, self.calendar_type = _get_calendar(calendar, kind=True)
         if self.calendar_type == "named":
             self.calendar_type = f"named: {calendar.lower()}"
 
