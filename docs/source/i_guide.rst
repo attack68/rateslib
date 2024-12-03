@@ -436,6 +436,7 @@ around target mid-market rates, and generate market risks.
              calendar="tgt|fed",
          )
          fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxs.cashflows_table(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
 
    .. tab:: FXExchange
 
@@ -446,11 +447,12 @@ around target mid-market rates, and generate market risks.
          fxe = FXExchange(
              settlement=dt(2022, 4, 1),
              pair="eurusd",
-             notional=20e6,
+             notional=10e6,
              fx_rate=1.035,
          )
          fxe.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
          fxe.npv(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxe.cashflows_table(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
 
    .. tab:: XCS
 
@@ -468,6 +470,7 @@ around target mid-market rates, and generate market risks.
          )
          xcs.rate(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
          xcs.cashflows(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
+         xcs.cashflows_table(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
 
 .. raw:: html
 
