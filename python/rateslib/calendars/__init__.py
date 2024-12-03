@@ -569,16 +569,20 @@ def _get_fx_expiry_and_delivery(
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
                 roll = "eom" if (eom and _is_eom(spot)) else spot.day
-                delivery = add_tenor(spot, expiry, modifier, calendar, roll, True)
-                expiry = get_calendar(calendar).add_bus_days(delivery, -delivery_lag, False)
-                return expiry, delivery
+                delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
+                expiry_ = get_calendar(calendar).add_bus_days(delivery_, -delivery_lag, False)
+                return expiry_, delivery_
         else:
-            expiry = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+            expiry_ = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+    else:
+        expiry_ = expiry
 
     if isinstance(delivery_lag, datetime):
-        return expiry, delivery_lag
+        delivery_ = delivery_lag
     else:
-        return expiry, get_calendar(calendar).lag(expiry, delivery_lag, True)
+        delivery_ = get_calendar(calendar).lag(expiry_, delivery_lag, True)
+
+    return expiry_, delivery_
 
 
 __all__ = (
