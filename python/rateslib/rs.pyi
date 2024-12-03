@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Union
 
 class Convention:
     Act365F: Convention

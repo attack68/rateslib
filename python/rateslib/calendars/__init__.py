@@ -4,7 +4,6 @@ import calendar as calendar_mod
 from datetime import datetime
 
 from rateslib.calendars.dcfs import _DCF
-from rateslib.rs import Modifier, RollDay, Cal, UnionCal, NamedCal
 from rateslib.calendars.rs import (
     CalInput,
     CalTypes,
@@ -13,6 +12,7 @@ from rateslib.calendars.rs import (
     get_calendar,
 )
 from rateslib.default import NoInput, _drb
+from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
