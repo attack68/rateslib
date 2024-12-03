@@ -4,14 +4,10 @@ import calendar as calendar_mod
 from datetime import datetime
 
 from rateslib.calendars.dcfs import _DCF
+from rateslib.rs import Modifier, RollDay, Cal, UnionCal, NamedCal
 from rateslib.calendars.rs import (
-    Cal,
     CalInput,
     CalTypes,
-    Modifier,
-    NamedCal,
-    RollDay,
-    UnionCal,
     _get_modifier,
     _get_rollday,
     get_calendar,
@@ -21,6 +17,9 @@ from rateslib.default import NoInput, _drb
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+Modifier.__doc__ = "Enumerable type for modification rules."
+RollDay.__doc__ = "Enumerable type for roll day types."
 
 
 def dcf(
