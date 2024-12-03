@@ -125,15 +125,14 @@ def get_calendar(
        tgt_and_nyc_cal.holidays[300:312]
 
     """
-    _: CalTypes = _get_calendar(calendar=calendar, kind=False, named=named)
+    _: CalTypes = _get_calendar_with_kind(calendar=calendar, named=named)[0]
     return _
 
 
-def _get_calendar(
+def _get_calendar_with_kind(
     calendar: CalInput,
-    kind: bool = False,
     named: bool = True,
-) -> Union[CalTypes, tuple[CalTypes, str]]:
+) -> tuple[CalTypes, str]:
     """
     Returns a calendar object either from an available set or a user defined input.
 
@@ -142,9 +141,6 @@ def _get_calendar(
     calendar : str, Cal, UnionCal, NamedCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
-    kind : bool
-        If `True` will also return the kind of calculation from `"null", "named",
-        "custom"`.
     named : bool
         If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more
         compactly serialized, otherwise will parse an input string and return a
@@ -152,44 +148,40 @@ def _get_calendar(
 
     Returns
     -------
-    NamedCal, Cal, UnionCal or tuple
+    tuple[NamedCal | Cal | UnionCal, str]
 
     """
     # TODO: rename calendars or make a more generalist statement about their names.
-    if isinstance(calendar, str) and named:
-        try:
-            return _get_calendar_labelled(NamedCal(calendar), "object", kind)
-        except ValueError:
-            named = False  # try parsing with Python only
-
-    if calendar is NoInput.blank:
-        return _get_calendar_labelled(defaults.calendars["all"], "null", kind)
-    elif isinstance(calendar, str) and not named:
-        # parse the string in Python and return Rust objects directly
-        vectors = calendar.split("|")
-        if len(vectors) == 1:
-            calendars = vectors[0].lower().split(",")
-            if len(calendars) == 1:  # only one named calendar is found
-                return _get_calendar_labelled(defaults.calendars[calendars[0]], "named", kind)
-            else:
-                cals = [defaults.calendars[_] for _ in calendars]
-                return _get_calendar_labelled(UnionCal(cals, None), "named", kind)
-        elif len(vectors) == 2:
-            calendars = vectors[0].lower().split(",")
-            cals = [defaults.calendars[_] for _ in calendars]
-            settlement_calendars = vectors[1].lower().split(",")
-            sets = [defaults.calendars[_] for _ in settlement_calendars]
-            return _get_calendar_labelled(UnionCal(cals, sets), "named", kind)
-        else:
-            raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
+    # these object categorisations do not seem to make sense.
+    if isinstance(calendar, str):
+        if named:
+            try:
+                return NamedCal(calendar), "object",
+            except ValueError:
+                # try parsing with Python only
+                pass
+        # parse the string in Python and return Rust Cal/UnionCal objects directly
+        return _parse_str_calendar(calendar), "named"
+    elif isinstance(calendar, NoInput):
+        return defaults.calendars["all"], "null"
     else:  # calendar is a Calendar object type
-        return _get_calendar_labelled(calendar, "custom", kind)
+        return calendar, "custom"
 
-
-def _get_calendar_labelled(
-    output: CalTypes, label: str, kind: bool
-) -> Union[CalTypes, tuple[CalTypes, str]]:
-    """Package the return for the get_calendar function"""
-    if kind:
-        return output, label
-    return output
+def _parse_str_calendar(calendar: str) -> CalTypes:
+    """Parse the calendar string using Python and construct calendar objects."""
+    vectors = calendar.split("|")
+    if len(vectors) == 1:
+        calendars = vectors[0].lower().split(",")
+        if len(calendars) == 1:  # only one named calendar is found
+            return defaults.calendars[calendars[0]]
+        else:
+            cals = [defaults.calendars[_] for _ in calendars]
+            return UnionCal(cals, None)
+    elif len(vectors) == 2:
+        calendars = vectors[0].lower().split(",")
+        cals = [defaults.calendars[_] for _ in calendars]
+        settlement_calendars = vectors[1].lower().split(",")
+        sets = [defaults.calendars[_] for _ in settlement_calendars]
+        return UnionCal(cals, sets)
+    else:
+        raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")

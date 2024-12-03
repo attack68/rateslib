@@ -11,7 +11,7 @@ from packaging import version
 from pandas import read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.rs import get_named_calendar
+from rateslib.rs import get_named_calendar, NamedCal, UnionCal, Cal
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -103,7 +103,7 @@ class Defaults:
         self.stub_length = "SHORT"
         self.eval_mode = "swaps_align"
         self.modifier = "MF"
-        self.calendars = {
+        self.calendars: dict[str, NamedCal | UnionCal | Cal] = {
             "all": get_named_calendar("all"),
             "bus": get_named_calendar("bus"),
             "tgt": get_named_calendar("tgt"),
