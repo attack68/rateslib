@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 import numpy as np
 import pandas
@@ -378,7 +379,7 @@ def plot3d(x, y, z, labels=None):
     return fig, ax, None
 
 
-def _drb(default, possible_blank):
+def _drb(default: Any, possible_blank: Any | NoInput) -> Any:
     """(D)efault (r)eplaces (b)lank"""
     return default if possible_blank is NoInput.blank else possible_blank
 
