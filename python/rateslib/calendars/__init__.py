@@ -137,7 +137,7 @@ def dcf(
 
 
 # TODO (deprecate): this function on 2.0.0
-def create_calendar(rules: list, week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
+def create_calendar(rules: list[datetime], week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
 
@@ -418,7 +418,7 @@ def _is_day_type_tenor(tenor: str) -> bool:
     return "D" in tenor_ or "B" in tenor_ or "W" in tenor_
 
 
-def _is_imm(date: datetime, hmuz=False) -> bool:
+def _is_imm(date: datetime, hmuz: bool = False) -> bool:
     """
     Test whether a given date is an IMM date, defined as third wednesday in month.
 
@@ -527,7 +527,7 @@ def _get_fx_expiry_and_delivery(
     calendar: CalInput,
     modifier: str,
     eom: bool,
-):
+) -> tuple[datetime, datetime]:
     """
     Determines the expiry and delivery date of an FX option using the following rules:
 

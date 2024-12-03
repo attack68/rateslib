@@ -131,6 +131,7 @@ def get_calendar(
     _: CalTypes = _get_calendar(calendar=calendar, kind=False, named=named)
     return _
 
+
 def _get_calendar(
     calendar: CalInput,
     kind: bool = False,
@@ -188,7 +189,9 @@ def _get_calendar(
         return _get_calendar_labelled(calendar, "custom", kind)
 
 
-def _get_calendar_labelled(output, label, kind):
+def _get_calendar_labelled(
+    output: CalTypes, label: str, kind: bool
+) -> Union[CalTypes, tuple[CalTypes, str]]:
     """Package the return for the get_calendar function"""
     if kind:
         return output, label

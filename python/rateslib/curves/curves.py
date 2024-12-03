@@ -20,9 +20,8 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
-from rateslib.calendars.rs import _get_calendar
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import Modifier
+from rateslib.calendars.rs import Modifier, _get_calendar
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
 from rateslib.rs import index_left_f64

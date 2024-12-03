@@ -3,7 +3,6 @@ from __future__ import annotations
 import calendar as calendar_mod
 import warnings
 from datetime import datetime
-
 from typing import Callable
 
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
@@ -39,12 +38,12 @@ def _get_convention(convention: str) -> Convention:
         raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
-def _dcf_act365f(start: datetime, end: datetime, *args) -> float:
+def _dcf_act365f(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
     return (end - start).days / 365.0
 
 
-def _dcf_act365fplus(start: datetime, end: datetime, *args) -> float:
-    """count the number of the years and then add a fractional ACT365F peruiod."""
+def _dcf_act365fplus(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+    """count the number of the years and then add a fractional ACT365F period."""
     if end <= datetime(start.year + 1, start.month, start.day):
         return _dcf_act365f(start, end)
     elif end <= datetime(end.year, start.month, start.day):
@@ -54,24 +53,26 @@ def _dcf_act365fplus(start: datetime, end: datetime, *args) -> float:
         return years + _dcf_act365f(datetime(end.year - 1, start.month, start.day), end)
 
 
-def _dcf_act360(start: datetime, end: datetime, *args) -> float:
+def _dcf_act360(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
     return (end - start).days / 360.0
 
 
-def _dcf_30360(start: datetime, end: datetime, *args) -> float:
+def _dcf_30360(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
     ds = min(30, start.day)
     de = min(ds, end.day) if ds == 30 else end.day
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360(start: datetime, end: datetime, *args) -> float:
+def _dcf_30e360(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
     ds, de = min(30, start.day), min(30, end.day)
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoInput, *args) -> float:
+def _dcf_30e360isda(
+    start: datetime, end: datetime, termination: datetime | NoInput, *args
+) -> float:  # type: ignore[no-untyped-def]
     if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
@@ -87,7 +88,7 @@ def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoIn
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_actactisda(start: datetime, end: datetime, *args) -> float:
+def _dcf_actactisda(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
     if start == end:
         return 0.0
 
@@ -118,7 +119,9 @@ def _dcf_actacticma(
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if isinstance(frequency_months, NoInput):
         raise ValueError("`frequency_months` must be supplied with specified `convention`.")
-    elif not stub and frequency_months < 13:  # This is a well defined period that is NOT zero coupon
+    elif (
+        not stub and frequency_months < 13
+    ):  # This is a well defined period that is NOT zero coupon
         return frequency_months / 12.0
     else:
         # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
@@ -234,11 +237,11 @@ def _dcf_actacticma_stub365f(
         return d_
 
 
-def _dcf_1(*args) -> float:
+def _dcf_1(*args) -> float:  # type: ignore[no-untyped-def]
     return 1.0
 
 
-def _dcf_1plus(start: datetime, end: datetime, *args) -> float:
+def _dcf_1plus(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
     return end.year - start.year + (end.month - start.month) / 12.0
 
 
@@ -288,7 +291,7 @@ def _dcf_bus252(
     return (len(dr) + subtract) / 252.0
 
 
-_DCF: dict[str, Callable] = {
+_DCF: dict[str, Callable[..., float]] = {
     "ACT365F": _dcf_act365f,
     "ACT365F+": _dcf_act365fplus,
     "ACT360": _dcf_act360,
