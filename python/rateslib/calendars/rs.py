@@ -156,7 +156,7 @@ def _get_calendar_with_kind(
     if isinstance(calendar, str):
         if named:
             try:
-                return NamedCal(calendar), "object",
+                return NamedCal(calendar), "object"
             except ValueError:
                 # try parsing with Python only
                 pass
@@ -166,6 +166,7 @@ def _get_calendar_with_kind(
         return defaults.calendars["all"], "null"
     else:  # calendar is a Calendar object type
         return calendar, "custom"
+
 
 def _parse_str_calendar(calendar: str) -> CalTypes:
     """Parse the calendar string using Python and construct calendar objects."""

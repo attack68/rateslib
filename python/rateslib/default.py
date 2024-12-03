@@ -11,7 +11,7 @@ from packaging import version
 from pandas import read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.rs import get_named_calendar, NamedCal, UnionCal, Cal
+from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
