@@ -9,7 +9,7 @@ from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_cal
 from rateslib.default import NoInput
 from rateslib.rs import Convention
 
-CONVENTIONS_MAP = {
+CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT365F": Convention.Act365F,
     "ACT365F+": Convention.Act365FPlus,
     "ACT360": Convention.Act360,
@@ -22,7 +22,7 @@ CONVENTIONS_MAP = {
     "ACTACT": Convention.ActActISDA,
     "ACTACTISDA": Convention.ActActISDA,
     "ACTACTICMA": Convention.ActActICMA,
-    "ACTACTICMA_STUB365F": "should panic",
+    # "ACTACTICMA_STUB365F": "should panic",
     "ACTACTISMA": Convention.ActActICMA,
     "ACTACTBOND": Convention.ActActICMA,
     "1": Convention.One,
@@ -70,9 +70,12 @@ def _dcf_30e360(start: datetime, end: datetime, *args) -> float:  # type: ignore
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360isda(
-    start: datetime, end: datetime, termination: datetime | NoInput, *args
-) -> float:  # type: ignore[no-untyped-def]
+def _dcf_30e360isda(  # type: ignore[no-untyped-def]
+    start: datetime,
+    end: datetime,
+    termination: datetime | NoInput,
+    *args,
+) -> float:
     if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
