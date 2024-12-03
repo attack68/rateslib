@@ -7,9 +7,6 @@ from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 CalTypes = Union[Cal, UnionCal, NamedCal]
 CalInput = Union[CalTypes, str, NoInput]
 
-Modifier.__doc__ = "Enumerable type for modification rules."
-RollDay.__doc__ = "Enumerable type for roll day types."
-
 
 def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
     if isinstance(roll, str):
@@ -53,9 +50,8 @@ def _get_modifier(modifier: str, mod_days: bool) -> Modifier:
 
 def get_calendar(
     calendar: CalInput,
-    kind: bool = False,
     named: bool = True,
-) -> Union[CalTypes, tuple[CalTypes, str]]:
+) -> CalTypes:
     """
     Returns a calendar object either from an available set or a user defined input.
 
@@ -129,6 +125,36 @@ def get_calendar(
        tgt_and_nyc_cal.holidays[300:312]
 
     """
+    _: CalTypes = _get_calendar(calendar=calendar, kind=False, named=named)
+    return _
+
+
+def _get_calendar(
+    calendar: CalInput,
+    kind: bool = False,
+    named: bool = True,
+) -> Union[CalTypes, tuple[CalTypes, str]]:
+    """
+    Returns a calendar object either from an available set or a user defined input.
+
+    Parameters
+    ----------
+    calendar : str, Cal, UnionCal, NamedCal
+        If `str`, then the calendar is returned from pre-calculated values.
+        If a specific user defined calendar this is returned without modification.
+    kind : bool
+        If `True` will also return the kind of calculation from `"null", "named",
+        "custom"`.
+    named : bool
+        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more
+        compactly serialized, otherwise will parse an input string and return a
+        :class:`~rateslib.calendars.Cal` or :class:`~rateslib.calendars.UnionCal` directly.
+
+    Returns
+    -------
+    NamedCal, Cal, UnionCal or tuple
+
+    """
     # TODO: rename calendars or make a more generalist statement about their names.
     if isinstance(calendar, str) and named:
         try:
@@ -160,7 +186,9 @@ def get_calendar(
         return _get_calendar_labelled(calendar, "custom", kind)
 
 
-def _get_calendar_labelled(output, label, kind):
+def _get_calendar_labelled(
+    output: CalTypes, label: str, kind: bool
+) -> Union[CalTypes, tuple[CalTypes, str]]:
     """Package the return for the get_calendar function"""
     if kind:
         return output, label
