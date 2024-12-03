@@ -337,9 +337,11 @@ def get_imm(
     -------
     datetime
     """
-    if code is not NoInput.blank:
+    if isinstance(code, str):
         year = int(code[1:]) + 2000
         month = MONTHS[code[0].upper()]
+    elif isinstance(month, NoInput) or isinstance(year, NoInput):
+        raise ValueError("`month` and `year` must each be valid integers if `code`not given.")
     return _get_imm(month, year)
 
 
@@ -471,12 +473,12 @@ def _is_eom(date: datetime) -> bool:
     return date.day == calendar_mod.monthrange(date.year, date.month)[1]
 
 
-def _is_eom_cal(date: datetime, cal: CalInput):
+def _is_eom_cal(date: datetime, cal: CalInput) -> bool:
     """Test whether a given date is end of month under a specific calendar"""
-    udate = calendar_mod.monthrange(date.year, date.month)[1]
-    udate = datetime(date.year, date.month, udate)
-    aeom = _adjust_date(udate, "P", cal)
-    return date == aeom
+    end_day = calendar_mod.monthrange(date.year, date.month)[1]
+    eom = datetime(date.year, date.month, end_day)
+    adj_eom = _adjust_date(eom, "P", cal)
+    return date == adj_eom
 
 
 def _get_eom(month: int, year: int) -> datetime:
@@ -523,7 +525,7 @@ def _get_fx_expiry_and_delivery(
     expiry: str | datetime,
     delivery_lag: int | datetime,
     calendar: CalInput,
-    modifier: str | NoInput,
+    modifier: str,
     eom: bool,
 ):
     """
@@ -552,7 +554,7 @@ def _get_fx_expiry_and_delivery(
     tuple of datetime
     """
     if isinstance(expiry, str):
-        if eval_date is NoInput.blank:
+        if isinstance(eval_date, NoInput):
             raise ValueError("`expiry` as string tenor requires `eval_date`.")
         # then the expiry will be implied
         e = expiry.upper()

@@ -25,6 +25,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
        :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
+       ``kind`` argument being only useful internally.
 
 1.6.0 (30th November 2024)
 ****************************

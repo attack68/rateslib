@@ -4,6 +4,8 @@ import calendar as calendar_mod
 import warnings
 from datetime import datetime
 
+from typing import Callable
+
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
 from rateslib.rs import Convention
@@ -37,11 +39,11 @@ def _get_convention(convention: str) -> Convention:
         raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
-def _dcf_act365f(start: datetime, end: datetime, *args):
+def _dcf_act365f(start: datetime, end: datetime, *args) -> float:
     return (end - start).days / 365.0
 
 
-def _dcf_act365fplus(start: datetime, end: datetime, *args):
+def _dcf_act365fplus(start: datetime, end: datetime, *args) -> float:
     """count the number of the years and then add a fractional ACT365F peruiod."""
     if end <= datetime(start.year + 1, start.month, start.day):
         return _dcf_act365f(start, end)
@@ -52,28 +54,28 @@ def _dcf_act365fplus(start: datetime, end: datetime, *args):
         return years + _dcf_act365f(datetime(end.year - 1, start.month, start.day), end)
 
 
-def _dcf_act360(start: datetime, end: datetime, *args):
+def _dcf_act360(start: datetime, end: datetime, *args) -> float:
     return (end - start).days / 360.0
 
 
-def _dcf_30360(start: datetime, end: datetime, *args):
+def _dcf_30360(start: datetime, end: datetime, *args) -> float:
     ds = min(30, start.day)
     de = min(ds, end.day) if ds == 30 else end.day
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360(start: datetime, end: datetime, *args):
+def _dcf_30e360(start: datetime, end: datetime, *args) -> float:
     ds, de = min(30, start.day), min(30, end.day)
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoInput, *args):
-    if termination is NoInput.blank:
+def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoInput, *args) -> float:
+    if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
-    def _is_end_feb(date):
+    def _is_end_feb(date: datetime) -> bool:
         if date.month == 2:
             _, end_feb = calendar_mod.monthrange(date.year, 2)
             return date.day == end_feb
@@ -85,7 +87,7 @@ def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoIn
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_actactisda(start: datetime, end: datetime, *args):
+def _dcf_actactisda(start: datetime, end: datetime, *args) -> float:
     if start == end:
         return 0.0
 
@@ -109,7 +111,7 @@ def _dcf_actacticma(
     stub: bool | NoInput,
     roll: str | int | NoInput,
     calendar: CalInput,
-):
+) -> float:
     if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
     if isinstance(stub, NoInput):
@@ -175,18 +177,18 @@ def _dcf_actacticma_stub365f(
     stub: bool | NoInput,
     roll: str | int | NoInput,
     calendar: CalInput,
-):
+) -> float:
     """
     Applies regular actacticma unless a stub period where Act365F is used.
     [designed for Canadian Government Bonds with stubs]
     """
-    if frequency_months is NoInput.blank:
-        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
-    if termination is NoInput.blank:
+    if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
-    if stub is NoInput.blank:
+    if isinstance(stub, NoInput):
         raise ValueError("`stub` must be supplied with specified `convention`.")
-    if not stub:
+    if isinstance(frequency_months, NoInput):
+        raise ValueError("`frequency_months` must be supplied with specified `convention`.")
+    elif not stub:
         return frequency_months / 12.0
     else:
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
@@ -232,11 +234,11 @@ def _dcf_actacticma_stub365f(
         return d_
 
 
-def _dcf_1(*args):
+def _dcf_1(*args) -> float:
     return 1.0
 
 
-def _dcf_1plus(start: datetime, end: datetime, *args):
+def _dcf_1plus(start: datetime, end: datetime, *args) -> float:
     return end.year - start.year + (end.month - start.month) / 12.0
 
 
@@ -248,7 +250,7 @@ def _dcf_bus252(
     stub: bool | NoInput,
     roll: str | int | NoInput,
     calendar: CalInput,
-):
+) -> float:
     """
     Counts the number of business days in a range and divides by 252
     [designed for Brazilian interest rate swaps]
@@ -286,7 +288,7 @@ def _dcf_bus252(
     return (len(dr) + subtract) / 252.0
 
 
-_DCF = {
+_DCF: dict[str, Callable] = {
     "ACT365F": _dcf_act365f,
     "ACT365F+": _dcf_act365fplus,
     "ACT360": _dcf_act360,
