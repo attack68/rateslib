@@ -196,7 +196,7 @@ class FXRates:
         return tuple(f"fx_{pair}" for pair in self.pairs)
 
     @property
-    def _ad(self):
+    def _ad(self) -> int:
         return self.obj.ad
 
     def rate(self, pair: str) -> DualTypes:

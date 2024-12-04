@@ -1,6 +1,11 @@
 from datetime import datetime
 from rateslib.dual import DualTypes
 
+class ADOrder:
+    Zero: ADOrder
+    One: ADOrder
+    Two: ADOrder
+
 class Convention:
     Act365F: Convention
     Act365FPlus: Convention
@@ -115,4 +120,5 @@ class FXRates:
     def get_ccy_index(self, currency: Ccy) -> int | None: ...
     def rate(self, lhs: Ccy, rhs: Ccy) -> DualTypes | None: ...
     def update(self, fx_rates: list[FXRate]) -> None: ...
+    def set_ad_order(self, ad: ADOrder) -> None: ...
 
