@@ -536,18 +536,17 @@ class FXForwards:
             return d_idx, f_idx, path
 
         # perform a fast conversion if settlement aligns with known dates,
-        if settlement is NoInput.blank:
-            settlement = self.immediate
-        elif settlement < self.immediate:  # type: ignore[operator]
+        settlement_ : datetime = self.immediate if isinstance(settlement, NoInput) else settlement
+        if settlement_ < self.immediate:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
 
-        if settlement == self.fx_rates_immediate.settlement:
+        if settlement_ == self.fx_rates_immediate.settlement:
             rate_ = self.fx_rates_immediate.rate(pair)
             if return_path:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
                 return rate_, path
             return rate_
-        elif isinstance(self.fx_rates, FXRates) and settlement == self.fx_rates.settlement:
+        elif isinstance(self.fx_rates, FXRates) and settlement_ == self.fx_rates.settlement:
             rate_ = self.fx_rates.rate(pair)
             if return_path:
                 _, _, path = _get_d_f_idx_and_path(pair, path)
@@ -561,16 +560,16 @@ class FXForwards:
             if "col" in route:
                 coll_ccy = self.currencies_list[current_idx]
                 cash_ccy = self.currencies_list[route["col"]]
-                w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
-                v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
+                w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement_]
+                v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement_]
                 rate_ *= self.fx_rates_immediate.fx_array[route["col"], current_idx]
                 rate_ *= w_i / v_i
                 current_idx = route["col"]
             elif "row" in route:
                 coll_ccy = self.currencies_list[route["row"]]
                 cash_ccy = self.currencies_list[current_idx]
-                w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
-                v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
+                w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement_]
+                v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement_]
                 rate_ *= self.fx_rates_immediate.fx_array[route["row"], current_idx]
                 rate_ *= v_i / w_i
                 current_idx = route["row"]
