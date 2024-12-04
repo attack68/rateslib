@@ -38,6 +38,7 @@ Defaults
 .. automodapi:: rateslib.default
    :no-heading:
    :no-inheritance-diagram:
+   :skip: Any
    :skip: plot
    :skip: plot3d
    :skip: datetime

@@ -179,6 +179,22 @@ be supplied manually if and when required.
              spec="us_ig_cds",
          )
 
+   .. group-tab:: ZCIS
+
+      This constructs a zero-coupon inflation swap
+      (:class:`~rateslib.instruments.ZCIS`) with usual
+      daily index interpolation and 3-month index lag.
+
+      .. ipython:: python
+
+         zcis = ZCIS(
+             effective=dt(2022, 2, 2),
+             termination="9m",
+             notional=-25e6,
+             fixed_rate=3.25,
+             spec="usd_zcis",
+         )
+
 We can combine the *Curves* and the *Instruments* to give pricing metrics such as
 :meth:`~rateslib.instruments.BaseDerivative.npv`,
 :meth:`~rateslib.instruments.BaseDerivative.cashflows`, and the mid-market
@@ -231,6 +247,19 @@ these values are all expressed in the *Instrument's* local USD currency.
 
          cds.cashflows([pfizer_hazard, usd_curve])
 
+   .. group-tab:: ZCIS
+
+      .. ipython:: python
+
+         zcis.npv([usd_cpi, usd_curve])
+
+      .. ipython:: python
+
+         zcis.rate([usd_cpi, usd_curve])
+
+      .. ipython:: python
+
+         zcis.cashflows([usd_cpi, usd_curve])
 
 .. raw:: html
 
@@ -297,6 +326,13 @@ We now have a mechanism by which to specify values in other currencies.
          cds.npv([pfizer_hazard, usd_curve], fx=fxr, base="usd")
          cds.npv([pfizer_hazard, usd_curve], fx=fxr, base="eur")
 
+   .. group-tab:: ZCIS
+
+      .. ipython:: python
+
+         zcis.npv([usd_cpi, usd_curve], fx=fxr, base="usd")
+         zcis.npv([usd_cpi, usd_curve], fx=fxr, base="eur")
+
 .. raw:: html
 
    <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
@@ -315,37 +351,41 @@ FX forwards
 ------------
 
 For multi-currency derivatives we need more than basic, spot exchange rates.
-We can also create an
-:class:`~rateslib.fx.FXForwards` class. This stores the FX rates and the interest
+We need an :class:`~rateslib.fx.FXForwards` market.
+This stores the FX rates and the interest
 rates curves that are used for all the FX-interest rate parity derivations. With these
 we can calculate forward FX rates and also ad-hoc FX swap rates.
 
 When defining the ``fx_curves`` dict mapping, the key *"eurusd"* should be interpreted as; **the
 Curve for EUR cashflows, collateralised in USD**, and similarly for other entries.
 
-.. ipython:: python
+.. tabs::
 
-   eur_curve = Curve({
-       dt(2022, 1, 1): 1.0,
-       dt(2022, 7, 1): 0.972,
-       dt(2023, 1, 1): 0.98},
-       calendar="tgt",
-   )
-   eurusd_curve = Curve({
-       dt(2022, 1, 1): 1.0,
-       dt(2022, 7, 1): 0.973,
-       dt(2023, 1, 1): 0.981}
-   )
-   fxf = FXForwards(
-       fx_rates=FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1)),
-       fx_curves={
-           "usdusd": usd_curve,
-           "eureur": eur_curve,
-           "eurusd": eurusd_curve,
-       }
-   )
-   fxf.rate("eurusd", settlement=dt(2023, 1, 1))
-   fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 2)])
+   .. tab:: FXForwards
+
+      .. ipython:: python
+
+         eur_curve = Curve({
+             dt(2022, 1, 1): 1.0,
+             dt(2022, 7, 1): 0.972,
+             dt(2023, 1, 1): 0.98},
+             calendar="tgt",
+         )
+         eurusd_curve = Curve({
+             dt(2022, 1, 1): 1.0,
+             dt(2022, 7, 1): 0.973,
+             dt(2023, 1, 1): 0.981}
+         )
+         fxf = FXForwards(
+             fx_rates=FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1)),
+             fx_curves={
+                 "usdusd": usd_curve,
+                 "eureur": eur_curve,
+                 "eurusd": eurusd_curve,
+             }
+         )
+         fxf.rate("eurusd", settlement=dt(2023, 1, 1))
+         fxf.swap("eurusd", settlements=[dt(2022, 2, 1), dt(2022, 5, 2)])
 
 .. raw:: html
 
@@ -368,36 +408,69 @@ Curve for EUR cashflows, collateralised in USD**, and similarly for other entrie
 More about instruments
 ======================
 
-We saw an example of the :class:`~rateslib.instruments.IRS` instrument above.
+We've seen some *single currency derivatives* above.
 A complete guide for all of the :ref:`Instruments<instruments-toc-doc>` is available in
-this link. It is
-recommended to also, in advance, review :ref:`Periods<periods-doc>` and
-then :ref:`Legs<legs-doc>`, since
-the documentation for these building blocks provides technical descriptions of the
-parameters that are used to build up the instruments.
+this link. That will also introduce the building blocks; :ref:`Legs<legs-doc>` and :ref:`Periods<periods-doc>`.
 
 Multi-currency instruments
 --------------------------
 
-Let's take a look at an example of a multi-currency instrument: the
-:class:`~rateslib.instruments.FXSwap`. All instruments have a mid-market pricing
-function :meth:`rate()<rateslib.instruments.BaseDerivative.rate>`. Keeping a
-consistent function name across all *Instruments* allows any of them to be used within a
-:class:`~rateslib.solver.Solver` to calibrate *Curves* around target mid-market rates.
+Let's take a look at the multi-currency instruments. Notice how these *Instruments*
+maintain consistent method naming conventions with those above. This makes it possible to plug
+any *Instruments* into a :class:`~rateslib.solver.Solver` to calibrate *Curves*
+around target mid-market rates, and generate market risks.
 
-This *FXSwap* *Instrument* prices to the same mid-market rate as the ad-hox *swap* rate
-used in the example above (as expected).
+.. tabs::
 
-.. ipython:: python
+   .. tab:: FXSwap
 
-   fxs = FXSwap(
-       effective=dt(2022, 2, 1),
-       termination="3m",  # May-1 is a holiday, May-2 is business end date.
-       pair="eurusd",
-       notional=20e6,
-       calendar="tgt|fed",
-   )
-   fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+      This is an :class:`~rateslib.instruments.FXSwap`.
+
+      .. ipython:: python
+
+         fxs = FXSwap(
+             effective=dt(2022, 2, 1),
+             termination="3m",  # May-1 is a holiday, May-2 is business end date.
+             pair="eurusd",
+             notional=20e6,
+             calendar="tgt|fed",
+         )
+         fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxs.cashflows_table(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+
+   .. tab:: FXExchange
+
+      An :class:`~rateslib.instruments.FXExchange` is a forward FX transaction.
+
+      .. ipython:: python
+
+         fxe = FXExchange(
+             settlement=dt(2022, 4, 1),
+             pair="eurusd",
+             notional=10e6,
+             fx_rate=1.035,
+         )
+         fxe.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxe.npv(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxe.cashflows_table(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+
+   .. tab:: XCS
+
+      Cross-currency swaps (:class:`~rateslib.instruments.XCS`) are easily configured and
+      analysed in *rateslib*.
+
+      .. ipython:: python
+
+         xcs = XCS(
+             effective=dt(2022, 4, 1),
+             termination="6m",
+             spec="eurusd_xcs",
+             float_spread=-3.0,
+             notional=25e6,
+         )
+         xcs.rate(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
+         xcs.cashflows(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
+         xcs.cashflows_table(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
 
 .. raw:: html
 
