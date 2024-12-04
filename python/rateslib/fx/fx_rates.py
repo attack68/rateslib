@@ -141,7 +141,7 @@ class FXRates:
         obj.__init_post_obj__()
         return obj
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
             return (
                 f"<rl.FXRates:[{','.join(self.currencies_list[:2])},+{len(self.currencies_list)-2} "
@@ -151,45 +151,48 @@ class FXRates:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @property
-    def fx_array(self):
+    def fx_array(self) -> np.ndarray:
         if self._fx_array is None:
-            self._fx_array = np.array(self.obj.fx_array)
-        return self._fx_array
+            _: np.ndarray = np.array(self.obj.fx_array)
+            self._fx_array = _
+            return _
+        else:
+            return self._fx_array
 
     @property
-    def base(self):
+    def base(self) -> str:
         return self.obj.base.name
 
     @property
-    def settlement(self):
+    def settlement(self) -> datetime:
         return self.obj.fx_rates[0].settlement
 
     @property
-    def pairs(self):
+    def pairs(self) -> list[str]:
         return [fxr.pair for fxr in self.obj.fx_rates]
 
     @property
-    def fx_rates(self):
+    def fx_rates(self) -> dict[str, DualTypes]:
         return {fxr.pair: fxr.rate for fxr in self.obj.fx_rates}
 
     @property
-    def currencies_list(self):
+    def currencies_list(self) -> list[str]:
         return [ccy.name for ccy in self.obj.currencies]
 
     @property
-    def q(self):
+    def q(self) -> int:
         return len(self.obj.currencies)
 
     @property
-    def fx_vector(self):
+    def fx_vector(self) -> np.array:
         return self.fx_array[0, :]
 
     @property
-    def pairs_settlement(self):
+    def pairs_settlement(self) -> dict[str, datetime]:
         return {k: self.settlement for k in self.pairs}
 
     @property
-    def variables(self):
+    def variables(self) -> tuple[str]:
         return tuple(f"fx_{pair}" for pair in self.pairs)
 
     @property
@@ -220,7 +223,7 @@ class FXRates:
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
         return self.fx_array[domi][fori]
 
-    def restate(self, pairs: list[str], keep_ad: bool = False):
+    def restate(self, pairs: list[str], keep_ad: bool = False) -> FXRates:
         """
         Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
 
