@@ -441,9 +441,9 @@ class FXRates:
 
     def positions(
         self,
-        value,
-        base: Union[str, NoInput] = NoInput(0),
-    ):
+        value: DualTypes,
+        base: str | NoInput = NoInput(0),
+    ) -> Series:
         """
         Convert a base value with FX rate sensitivities into an array of cash positions.
 
@@ -470,12 +470,12 @@ class FXRates:
         """
         if isinstance(value, (float, int)):
             value = Dual(value, [], [])
-        base = self.base if base is NoInput.blank else base.lower()
-        _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
+        base_ : str = self.base if isinstance(base, NoInput) else base.lower()
+        _ = np.array([0 if ccy != base_ else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = gradient(value, [pair])[0]
-                _ += self._get_positions_from_delta(delta, pair[3:], base)
+                _ += self._get_positions_from_delta(delta, pair[3:], base_)
         return Series(_, index=self.currencies_list)
 
     def _get_positions_from_delta(self, delta: float, pair: str, base: str):
