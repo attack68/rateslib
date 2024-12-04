@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
+from functools import cached_property
 from typing import Any, Union
 
 import numpy as np
@@ -126,7 +127,10 @@ class FXRates:
 
     def __init_post_obj__(self) -> None:
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
-        self._fx_array = None
+        self.__clear_cached_properties__()
+
+    def __clear_cached_properties__(self):
+        self.__dict__.pop("fx_array", None)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
@@ -150,14 +154,10 @@ class FXRates:
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
-    @property
-    def fx_array(self) -> np.ndarray:
-        if self._fx_array is None:
-            _: np.ndarray = np.array(self.obj.fx_array)
-            self._fx_array = _
-            return _
-        else:
-            return self._fx_array
+    @cached_property
+    def fx_array(self):
+        # caching this prevents repetitive data transformations between Rust/Python
+        return np.array(self.obj.fx_array)
 
     @property
     def base(self) -> str:
