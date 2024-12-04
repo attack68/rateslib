@@ -1,6 +1,7 @@
 import warnings
 from datetime import datetime
 from typing import Any, Union
+from functools import cached_property
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -124,7 +125,7 @@ class FXRates:
 
     def __init_post_obj__(self):
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
-        self._fx_array = None
+        self.__dict__.pop("fx_array", None)  # clear the cached property
 
     def __eq__(self, other: Any):
         if isinstance(other, FXRates):
@@ -148,11 +149,9 @@ class FXRates:
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
-    @property
+    @cached_property
     def fx_array(self):
-        if self._fx_array is None:
-            self._fx_array = np.array(self.obj.fx_array)
-        return self._fx_array
+        return np.array(self.obj.fx_array)
 
     @property
     def base(self):
