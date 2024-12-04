@@ -9,6 +9,9 @@ import numpy as np
 import pandas
 from packaging import version
 from pandas import read_csv
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
@@ -339,10 +342,7 @@ Miscellaneous:\n
         return _
 
 
-def plot(x, y: list, labels=NoInput(0)):
-    import matplotlib.dates as mdates  # type: ignore[import]
-    import matplotlib.pyplot as plt  # type: ignore[import]
-
+def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput :
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []

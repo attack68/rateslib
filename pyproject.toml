@@ -136,6 +136,13 @@ ignore = [
 "__init__.py" = ["E402", "N801"]
 "python/tests/*" = ["F401", "B", "N", "S", "ANN"]
 
+[tool.mypy]
+files = [
+    "python/rateslib/calendars/**/*.py",
+    "python/rateslib/fx/**/*.py",
+]
+strict = true
+
 [tool.isort]
 profile = "black"
 line_length = 100

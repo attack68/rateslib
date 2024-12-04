@@ -14,6 +14,7 @@ Dual.__doc__ = "Dual number data type to perform first derivative automatic diff
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
 DualTypes = Union[float, Dual, Dual2, Variable]
+Number = Union[float, Dual, Dual2]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
