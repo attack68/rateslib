@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from functools import cached_property
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -100,8 +100,8 @@ class FXRates:
     def __init__(
         self,
         fx_rates: dict[str, DualTypes],
-        settlement: Union[datetime, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        settlement: datetime | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         settlement_: datetime | None = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
@@ -278,7 +278,7 @@ class FXRates:
         )
         return restated_fx_rates
 
-    def update(self, fx_rates: Union[dict[str, float], NoInput] = NoInput(0)) -> None:
+    def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
         """
         Update all or some of the FX rates of the instance with new market data.
 
@@ -351,9 +351,9 @@ class FXRates:
 
     def convert(
         self,
-        value: Union[Dual, float],
+        value: Dual | float,
         domestic: str,
-        foreign: Union[str, NoInput] = NoInput(0),
+        foreign: str | NoInput = NoInput(0),
         on_error: str = "ignore",
     ):
         """
@@ -406,8 +406,8 @@ class FXRates:
 
     def convert_positions(
         self,
-        array: Union[np.ndarray, list[float]],
-        base: Union[str, NoInput] = NoInput(0),
+        array: np.ndarray | list[float],
+        base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Convert an array of currency cash positions into a single base currency.
@@ -470,7 +470,7 @@ class FXRates:
         """
         if isinstance(value, (float, int)):
             value = Dual(value, [], [])
-        base_ : str = self.base if isinstance(base, NoInput) else base.lower()
+        base_: str = self.base if isinstance(base, NoInput) else base.lower()
         _ = np.array([0 if ccy != base_ else float(value) for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
