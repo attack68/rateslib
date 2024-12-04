@@ -478,7 +478,9 @@ class FXRates:
                 _ += self._get_positions_from_delta(delta, pair[3:], base_)
         return Series(_, index=self.currencies_list)
 
-    def _get_positions_from_delta(self, delta: float, pair: str, base: str) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+    def _get_positions_from_delta(
+        self, delta: float, pair: str, base: str
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         """Return an array of cash positions determined from an FX pair delta risk."""
         b_idx = self.currencies[base]
         domestic, foreign = pair[:3], pair[3:]

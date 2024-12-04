@@ -12,8 +12,8 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, plot, PlotOutput
-from rateslib.dual import Dual, DualTypes, gradient, Number
+from rateslib.default import NoInput, PlotOutput, plot
+from rateslib.dual import Dual, DualTypes, Number, gradient
 from rateslib.fx.fx_rates import FXRates
 
 """
@@ -330,7 +330,9 @@ class FXForwards:
             return f"<rl.FXForwards:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @staticmethod
-    def _get_curves_for_currencies(fx_curves: dict[str, Curve], currencies: list[str]) -> dict[str, Curve]:
+    def _get_curves_for_currencies(
+        fx_curves: dict[str, Curve], currencies: list[str]
+    ) -> dict[str, Curve]:
         """produces a complete subset of fx curves given a list of currencies"""
         ps = product(currencies, currencies)
         ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
@@ -530,7 +532,9 @@ class FXForwards:
 
         """  # noqa: E501
 
-        def _get_d_f_idx_and_path(pair, path: list[dict[str, int]] | None) -> tuple[int, int, list[dict[str, int]]]:
+        def _get_d_f_idx_and_path(
+            pair, path: list[dict[str, int]] | None
+        ) -> tuple[int, int, list[dict[str, int]]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]

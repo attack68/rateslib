@@ -5,17 +5,17 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 from packaging import version
 from pandas import read_csv
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
-
-PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
+
+PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
