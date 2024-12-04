@@ -125,7 +125,7 @@ class FXRates:
 
     def __init_post_obj__(self):
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
-        self.__dict__.pop("fx_array", None)  # clear the cached property
+        self.__dict__.pop("fx_array", None)  # clear cached_property
 
     def __eq__(self, other: Any):
         if isinstance(other, FXRates):
