@@ -151,6 +151,7 @@ class FXRates:
 
     @cached_property
     def fx_array(self):
+        # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)
 
     @property
