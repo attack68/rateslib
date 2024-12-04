@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 from datetime import datetime
 from typing import Any, Union
@@ -102,7 +104,7 @@ class FXRates:
     ):
         settlement = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
-        if base is NoInput(0):
+        if isinstance(base, NoInput):
             default_ccy = defaults.base_currency.lower()
             if any(default_ccy in k.lower() for k in fx_rates):
                 base_ = Ccy(defaults.base_currency)
@@ -114,7 +116,7 @@ class FXRates:
         self.__init_post_obj__()
 
     @classmethod
-    def __init_from_obj__(cls, obj):
+    def __init_from_obj__(cls, obj: FXRatesObj) -> FXRates:
         """Construct the class instance from a given rust object which is wrapped."""
         # create a default instance and overwrite it
         new = cls({"usdeur": 1.0}, datetime(2000, 1, 1))
@@ -122,19 +124,19 @@ class FXRates:
         new.__init_post_obj__()
         return new
 
-    def __init_post_obj__(self):
+    def __init_post_obj__(self) -> None:
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
         self._fx_array = None
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
             return self.obj == other.obj
         return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    def __copy__(self):
+    def __copy__(self) -> FXRates:
         obj = FXRates.__init_from_obj__(self.obj.__copy__())
         obj.__init_post_obj__()
         return obj
