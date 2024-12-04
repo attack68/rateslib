@@ -103,8 +103,8 @@ class FXRates:
         settlement: Union[datetime, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
     ):
-        settlement = _drb(None, settlement)
-        fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
+        settlement_: datetime | None = _drb(None, settlement)
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
         if isinstance(base, NoInput):
             default_ccy = defaults.base_currency.lower()
             if any(default_ccy in k.lower() for k in fx_rates):
@@ -129,7 +129,7 @@ class FXRates:
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
         self.__clear_cached_properties__()
 
-    def __clear_cached_properties__(self):
+    def __clear_cached_properties__(self) -> None:
         self.__dict__.pop("fx_array", None)
 
     def __eq__(self, other: Any) -> bool:
@@ -155,7 +155,7 @@ class FXRates:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @cached_property
-    def fx_array(self):
+    def fx_array(self) -> np.ndarray:
         # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)
 
@@ -406,9 +406,9 @@ class FXRates:
 
     def convert_positions(
         self,
-        array: Union[np.ndarray, list],
+        array: Union[np.ndarray, list[float]],
         base: Union[str, NoInput] = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Convert an array of currency cash positions into a single base currency.
 

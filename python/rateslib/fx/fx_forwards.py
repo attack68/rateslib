@@ -1046,7 +1046,7 @@ class FXForwards:
         return json.dumps(container, default=str)
 
     @classmethod
-    def from_json(cls, fx_forwards, **kwargs):
+    def from_json(cls, fx_forwards: str, **kwargs) -> str:  # type: ignore[no-untyped-def]
         """
         Loads an FXForwards object from JSON.
 
@@ -1079,7 +1079,7 @@ class FXForwards:
         base = serial["base"]
         return FXForwards(fx_rates, fx_curves, base)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """Test two FXForwards are identical"""
         if type(self) is not type(other):
             return False
@@ -1112,10 +1112,10 @@ class FXForwards:
 
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
-    def copy(self):
+    def copy(self) -> FXForwards:
         """
         An FXForwards copy creates a new object with copied references.
         """
