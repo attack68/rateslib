@@ -623,9 +623,9 @@ class FXForwards:
         """
         if isinstance(value, (float, int)):
             value = Dual(value, [], [])
-        base = self.base if base is NoInput.blank else base.lower()
+        base_: str = self.base if isinstance(base, NoInput) else base.lower()
         _ = np.array(
-            [0 if ccy != base else float(value) for ccy in self.currencies_list],
+            [0 if ccy != base_ else float(value) for ccy in self.currencies_list],
         )  # this is an NPV so is assumed to be immediate settlement
 
         if isinstance(self.fx_rates, list):
@@ -637,14 +637,14 @@ class FXForwards:
         if self.immediate not in dates:
             dates.insert(0, self.immediate)
         df = DataFrame(0.0, index=self.currencies_list, columns=dates)
-        df.loc[base, self.immediate] = float(value)
+        df.loc[base_, self.immediate] = float(value)
         for pair in value.vars:
             if pair[:3] == "fx_":
                 dom_, for_ = pair[3:6], pair[6:9]
                 for fxr in fx_rates:
                     if dom_ in fxr.currencies_list and for_ in fxr.currencies_list:
                         delta = gradient(value, [pair])[0]
-                        _ = fxr._get_positions_from_delta(delta, pair[3:], base)
+                        _ = fxr._get_positions_from_delta(delta, pair[3:], base_)
                         _ = Series(_, index=fxr.currencies_list, name=fxr.settlement)
                         df = df.add(_.to_frame(), fill_value=0.0)
 
@@ -715,9 +715,9 @@ class FXForwards:
            fxf.convert(1000, "usd", "cad")
 
         """
-        foreign = self.base if foreign is NoInput.blank else foreign.lower()
+        foreign = self.base if isinstance(foreign, NoInput) else foreign.lower()
         domestic = domestic.lower()
-        collateral = domestic if collateral is NoInput.blank else collateral.lower()
+        collateral = domestic if isinstance(collateral, NoInput) else collateral.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
                 if on_error == "ignore":
