@@ -192,7 +192,7 @@ class FXRates:
         return {k: self.settlement for k in self.pairs}
 
     @property
-    def variables(self) -> tuple[str]:
+    def variables(self) -> tuple[str, ...]:
         return tuple(f"fx_{pair}" for pair in self.pairs)
 
     @property
@@ -343,7 +343,7 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
-        if fx_rates is NoInput.blank:
+        if isinstance(fx_rates, NoInput):
             return None
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
