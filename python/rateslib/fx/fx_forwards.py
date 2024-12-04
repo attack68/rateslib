@@ -4,6 +4,7 @@ import json
 import warnings
 from datetime import datetime, timedelta
 from itertools import product
+from typing import Any
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -1033,7 +1034,7 @@ class FXForwards:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
 
-    def to_json(self):
+    def to_json(self) -> str:
         if isinstance(self.fx_rates, list):
             fx_rates = [_.to_json() for _ in self.fx_rates]
         else:
@@ -1046,7 +1047,7 @@ class FXForwards:
         return json.dumps(container, default=str)
 
     @classmethod
-    def from_json(cls, fx_forwards, **kwargs):
+    def from_json(cls, fx_forwards: str, **kwargs) -> FXForwards:  # type: ignore[no-untyped-def]
         """
         Loads an FXForwards object from JSON.
 
@@ -1079,7 +1080,7 @@ class FXForwards:
         base = serial["base"]
         return FXForwards(fx_rates, fx_curves, base)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """Test two FXForwards are identical"""
         if type(self) is not type(other):
             return False
@@ -1112,10 +1113,10 @@ class FXForwards:
 
         return True
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self.__eq__(other)
 
-    def copy(self):
+    def copy(self) -> FXForwards:
         """
         An FXForwards copy creates a new object with copied references.
         """
