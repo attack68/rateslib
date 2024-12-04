@@ -2,6 +2,7 @@
 from rateslib.curves.rs import CurveRs
 from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
+from typing import Any
 
 NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,
@@ -9,7 +10,7 @@ NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
 }
 
 
-def from_json(json: str):
+def from_json(json: str) -> Any:
     """
     Create an object from JSON string.
 

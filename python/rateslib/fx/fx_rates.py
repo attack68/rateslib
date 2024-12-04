@@ -278,7 +278,7 @@ class FXRates:
         )
         return restated_fx_rates
 
-    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)) -> None:
+    def update(self, fx_rates: Union[dict[str, float], NoInput] = NoInput(0)) -> None:
         """
         Update all or some of the FX rates of the instance with new market data.
 
@@ -478,7 +478,7 @@ class FXRates:
                 _ += self._get_positions_from_delta(delta, pair[3:], base_)
         return Series(_, index=self.currencies_list)
 
-    def _get_positions_from_delta(self, delta: float, pair: str, base: str):
+    def _get_positions_from_delta(self, delta: float, pair: str, base: str) -> np.ndarray:
         """Return an array of cash positions determined from an FX pair delta risk."""
         b_idx = self.currencies[base]
         domestic, foreign = pair[:3], pair[3:]
@@ -494,7 +494,7 @@ class FXRates:
         _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
         return _  # calculation is more efficient from a domestic pov than foreign
 
-    def rates_table(self):
+    def rates_table(self) -> DataFrame:
         """
         Return a DataFrame of all FX rates in the object.
 
@@ -508,7 +508,7 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def _set_ad_order(self, order):
+    def _set_ad_order(self, order) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
@@ -516,7 +516,7 @@ class FXRates:
         self.obj.set_ad_order(_get_adorder(order))
         self.__init_post_obj__()
 
-    def to_json(self):
+    def to_json(self) -> str:
         return _make_py_json(self.obj.to_json(), "FXRates")
 
 
