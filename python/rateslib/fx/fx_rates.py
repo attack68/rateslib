@@ -129,13 +129,6 @@ class FXRates:
 
     def __clear_cached_properties__(self):
         self.__dict__.pop("fx_array", None)
-        self.__dict__.pop("base", None)
-        self.__dict__.pop("settlement", None)
-        self.__dict__.pop("pairs", None)
-        self.__dict__.pop("fx_rates", None)
-        self.__dict__.pop("currencies_list", None)
-        self.__dict__.pop("pairs_settlement", None)
-        self.__dict__.pop("variables", None)
 
     def __eq__(self, other: Any):
         if isinstance(other, FXRates):
@@ -164,23 +157,23 @@ class FXRates:
         # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)
 
-    @cached_property
+    @property
     def base(self):
         return self.obj.base.name
 
-    @cached_property
+    @property
     def settlement(self):
         return self.obj.fx_rates[0].settlement
 
-    @cached_property
+    @property
     def pairs(self):
         return [fxr.pair for fxr in self.obj.fx_rates]
 
-    @cached_property
+    @property
     def fx_rates(self):
         return {fxr.pair: fxr.rate for fxr in self.obj.fx_rates}
 
-    @cached_property
+    @property
     def currencies_list(self):
         return [ccy.name for ccy in self.obj.currencies]
 
@@ -192,11 +185,11 @@ class FXRates:
     def fx_vector(self):
         return self.fx_array[0, :]
 
-    @cached_property
+    @property
     def pairs_settlement(self):
         return {k: self.settlement for k in self.pairs}
 
-    @cached_property
+    @property
     def variables(self):
         return tuple(f"fx_{pair}" for pair in self.pairs)
 
