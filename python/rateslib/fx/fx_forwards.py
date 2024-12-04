@@ -99,7 +99,7 @@ class FXForwards:
     def update(
         self,
         fx_rates: FXRates | list[FXRates] | NoInput = NoInput(0),
-        fx_curves: dict | NoInput = NoInput(0),
+        fx_curves: dict[str, Curve] | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> None:
         """
@@ -282,7 +282,7 @@ class FXForwards:
                         {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
                     )
 
-            if base is not NoInput.blank:
+            if not isinstance(base, NoInput):
                 acyclic_fxf.base = base.lower()
 
             for attr in [
@@ -330,13 +330,16 @@ class FXForwards:
             return f"<rl.FXForwards:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @staticmethod
-    def _get_curves_for_currencies(fx_curves, currencies):
+    def _get_curves_for_currencies(fx_curves: dict[str, Curve], currencies: list[str]) -> dict[str, Curve]:
+        """produces a complete subset of fx curves given a list of currencies"""
         ps = product(currencies, currencies)
         ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
         return ret
 
     @staticmethod
-    def _get_forwards_transformation_matrix(q, currencies, fx_curves):
+    def _get_forwards_transformation_matrix(
+        q: int, currencies: dict[str, int], fx_curves: dict[str, Curve]
+    ) -> np.ndarray[tuple[int, int], np.dtype[np.int_]]:
         """
         Performs checks to ensure FX forwards can be generated from provided DF curves.
 
@@ -344,7 +347,7 @@ class FXForwards:
         by column.
         """
         # Define the transformation matrix with unit elements in each valid pair.
-        T = np.zeros((q, q))
+        T = np.zeros((q, q), dtype=int)
         for k, _ in fx_curves.items():
             cash, coll = k[:3].lower(), k[3:].lower()
             try:
@@ -369,11 +372,11 @@ class FXForwards:
 
     @staticmethod
     def _get_recursive_chain(
-        T: np.ndarray,
+        T: np.ndarray[tuple[int, int], np.dtype[np.int_]],
         start_idx: int,
         search_idx: int,
         traced_paths: list[int],
-        recursive_path: list[dict],
+        recursive_path: list[dict[str, int]],
     ) -> tuple[bool, list[dict[str, int]]]:
         """
         Recursively calculate map from a cash currency to another via collateral curves.
@@ -446,7 +449,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _update_fx_rates_immediate(self):
+    def _update_fx_rates_immediate(self) -> FXRates:
         """
         Find the immediate FX rates values.
 
@@ -481,9 +484,9 @@ class FXForwards:
         self,
         pair: str,
         settlement: datetime | NoInput = NoInput(0),
-        path: list[dict] | NoInput = NoInput(0),
+        path: list[dict[str, int]] | NoInput = NoInput(0),
         return_path: bool = False,
-    ) -> Number | tuple[Number, list[dict]]:
+    ) -> Number | tuple[Number, list[dict[str, int]]]:
         """
         Return the fx forward rate for a currency pair.
 
@@ -527,7 +530,7 @@ class FXForwards:
 
         """  # noqa: E501
 
-        def _get_d_f_idx_and_path(pair, path: list[dict] | None) -> tuple[int, int, list[dict]]:
+        def _get_d_f_idx_and_path(pair, path: list[dict[str, int]] | None) -> tuple[int, int, list[dict[str, int]]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
@@ -536,7 +539,7 @@ class FXForwards:
             return d_idx, f_idx, path
 
         # perform a fast conversion if settlement aligns with known dates,
-        settlement_ : datetime = self.immediate if isinstance(settlement, NoInput) else settlement
+        settlement_: datetime = self.immediate if isinstance(settlement, NoInput) else settlement
         if settlement_ < self.immediate:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
 
@@ -578,7 +581,9 @@ class FXForwards:
             return rate_, path
         return rate_
 
-    def positions(self, value, base: str | NoInput = NoInput(0), aggregate: bool = False):
+    def positions(
+        self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
+    ) -> Series | DataFrame:
         """
         Convert a base value with FX rate sensitivities into an array of cash positions
         by settlement date.

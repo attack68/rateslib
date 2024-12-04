@@ -281,9 +281,9 @@ class Curve(_Serialize):
 
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
-    _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
-    _base_type = "dfs"
-    collateral = None
+    _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
+    _base_type: str = "dfs"
+    collateral: str | None = None
 
     def __init__(
         self,

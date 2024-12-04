@@ -11,6 +11,7 @@ from packaging import version
 from pandas import read_csv
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
@@ -342,7 +343,7 @@ Miscellaneous:\n
         return _
 
 
-def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput :
+def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
