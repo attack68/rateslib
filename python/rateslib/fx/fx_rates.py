@@ -1,7 +1,7 @@
 import warnings
 from datetime import datetime
-from typing import Any, Union
 from functools import cached_property
+from typing import Any, Union
 
 import numpy as np
 from pandas import DataFrame, Series
