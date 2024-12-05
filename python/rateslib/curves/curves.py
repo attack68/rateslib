@@ -41,7 +41,7 @@ class _Serialize:
     Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
     """
 
-    def to_json(self):
+    def to_json(self) -> str:
         """
         Convert the parameters of the curve to JSON format.
 
@@ -88,7 +88,7 @@ class _Serialize:
         return json.dumps(container, default=str)
 
     @classmethod
-    def from_json(cls, curve, **kwargs):
+    def from_json(cls, curve: str, **kwargs) -> Curve | LineCurve:  # type: ignore[no-untyped-def]
         """
         Reconstitute a curve from JSON.
 
@@ -143,7 +143,7 @@ class _Serialize:
                 return False
         return True
 
-    def _set_ad_order(self, order):
+    def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
@@ -281,9 +281,9 @@ class Curve(_Serialize):
 
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
-    _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
-    _base_type = "dfs"
-    collateral = None
+    _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
+    _base_type: str = "dfs"
+    collateral: str | None = None
 
     def __init__(
         self,
@@ -2833,11 +2833,11 @@ class ProxyCurve(Curve):
         """
         return NotImplementedError("`from_json` not available on proxy curve.")
 
-    def _set_ad_order(self):  # pragma: no cover
+    def _set_ad_order(self) -> None:  # pragma: no cover
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
-        return NotImplementedError("`set_ad_order` not available on proxy curve.")
+        raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
     def _get_node_vector(self):
         return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
