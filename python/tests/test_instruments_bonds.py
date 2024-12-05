@@ -2198,6 +2198,70 @@ class TestFloatRateNote:
         assert result.iloc[1, 0] == -1e6
         assert result.iloc[2, 0] == -1e6
 
+    def test_ibor_ytm_rate(self, curve):
+        # test a FixedRateBond and FloatRateNote with same conventions and cashflows have same ytm
+        ibor_curve = LineCurve({dt(2021, 12, 1): 4.0, dt(2027, 12, 2): 4.0})
+        disc_curve = Curve({dt(2021, 12, 1): 1.0, dt(2027, 12, 2): 0.92})
+        frn = FloatRateNote(
+            effective=dt(2021, 11, 7),
+            termination=dt(2022, 8, 7),
+            frequency="q",
+            fixing_method="ibor",
+            convention="actacticma",
+            calendar="nyc",
+            modifier="none",
+            fixings=[4.0],
+            curves=[ibor_curve, disc_curve],
+            calc_mode="us_gb",
+            settle=1,
+        )
+        frb = FixedRateBond(
+            effective=dt(2021, 11, 7),
+            termination=dt(2022, 8, 7),
+            spec="us_gb",
+            frequency="q",
+            fixed_rate=4.0,
+            curves=[disc_curve],
+        )
+        dp1 = frn.rate(metric="dirty_price")
+        dp2 = frb.rate(metric="dirty_price")
+        assert abs(dp1 - dp2) < 1e-12  # FRN and equivalent FRB have the same dirty price.
+
+        y2 = frb.rate(metric="ytm")
+        y1 = frn.rate(metric="ytm")
+        assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRB have the same yield-to-maturity.
+
+    def test_ytm_rate_fixings_provided(self, curve):
+        # test a FixedRateBond and FloatRateNote with same conventions and cashflows have same ytm
+        disc_curve = Curve({dt(2021, 12, 1): 1.0, dt(2027, 12, 2): 0.92})
+        frn = FloatRateNote(
+            effective=dt(2021, 11, 7),
+            termination=dt(2022, 8, 7),
+            frequency="q",
+            fixing_method="ibor",
+            convention="actacticma",
+            calendar="nyc",
+            modifier="none",
+            fixings=[4.0, 4.0, 4.0],
+            calc_mode="us_gb",
+            settle=1,
+        )
+        frb = FixedRateBond(
+            effective=dt(2021, 11, 7),
+            termination=dt(2022, 8, 7),
+            spec="us_gb",
+            frequency="q",
+            fixed_rate=4.0,
+            curves=[disc_curve],
+        )
+        dp1 = frn.rate(metric="dirty_price", curves=[None, disc_curve])
+        dp2 = frb.rate(metric="dirty_price")
+        assert abs(dp1 - dp2) < 1e-12  # FRN and equivalent FRB have the same dirty price.
+
+        y2 = frb.ytm(price=dp2, dirty=True, settlement=dt(2022, 12, 1))
+        y1 = frn.ytm(price=dp1, dirty=True, settlement=dt(2022, 12, 1))
+        assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRB have the same yield-to-maturity.
+
 
 class TestBondFuture:
     def test_repr(self):
