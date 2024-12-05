@@ -1701,10 +1701,9 @@ class TestFloatPeriod:
         result = period.npv(curve, local=True)
         assert result == {"usd": 0.0}
 
-    @pytest.mark.parametrize("curve", [
-        NoInput(0),
-        LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})
-    ])
+    @pytest.mark.parametrize(
+        "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
+    )
     @pytest.mark.parametrize("fixing_method", ["ibor", "rfr_payment_delay_avg"])
     @pytest.mark.parametrize("fixings", [3.0, NoInput(0)])
     def test_rate_optional_curve(self, fixings, fixing_method, curve) -> None:
@@ -1728,14 +1727,16 @@ class TestFloatPeriod:
             result = period.rate(curve)
             assert abs(result - 3.0) < 1e-8  # uses fixing
 
-    @pytest.mark.parametrize("fixings", [
-        [2.0, 2.0, 2.0],  # some unknown
-        [2.0] * 31  # exhaustive
-    ])
-    @pytest.mark.parametrize("curve", [
-        NoInput(0),
-        LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})
-    ])
+    @pytest.mark.parametrize(
+        "fixings",
+        [
+            [2.0, 2.0, 2.0],  # some unknown
+            [2.0] * 31,  # exhaustive
+        ],
+    )
+    @pytest.mark.parametrize(
+        "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
+    )
     def test_rate_optional_curve_rfr(self, curve, fixings) -> None:
         # GH530. Test RFR periods what happens when supply/not supply a Curve and fixings
         # are either exhaustive/ not exhaustive
@@ -1757,6 +1758,7 @@ class TestFloatPeriod:
         else:
             # it will conclude without fail.
             period.rate(curve)
+
 
 class TestFixedPeriod:
     def test_fixed_period_analytic_delta(self, curve, fxr) -> None:
