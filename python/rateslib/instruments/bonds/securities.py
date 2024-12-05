@@ -62,7 +62,7 @@ class BondMixin:
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
         curve: Curve | LineCurve | NoInput,
     ):
-        pass
+        pass  # pragma: no cover
 
     # def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
     #     """
