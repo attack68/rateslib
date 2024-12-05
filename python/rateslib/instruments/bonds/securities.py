@@ -284,15 +284,16 @@ class BondMixin:
         if isinstance(calc_mode_, str):
             calc_mode_ = BOND_MODE_MAP[calc_mode_]
         try:
-            func = partial(
-                self._generic_ytm,
+            return self._generic_ytm(
+                ytm=ytm,
+                settlement=settlement,
+                dirty=dirty,
                 f1=calc_mode_._v1,
                 f2=calc_mode_._v2,
                 f3=calc_mode_._v3,
                 accrual=calc_mode_._ytm_acc_frac_func,
                 curve=curve,
             )
-            return func(ytm, settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
@@ -1634,7 +1635,7 @@ class IndexFixedRateBond(FixedRateBond):
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
         curve: Curve | LineCurve | NoInput,
     ):
-        """Indexed bonds use the known "cashflow" attribute on the *Period*."""
+        """Indexed bonds use the known "real_cashflow" attribute on the *Period*."""
         return period.real_cashflow
 
     def __init__(
