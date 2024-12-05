@@ -940,7 +940,20 @@ class FloatPeriod(BasePeriod):
 
         return _maybe_local(value, local, self.currency, fx, base)
 
-    def cashflow(self, curve: Curve | LineCurve | dict) -> None | DualTypes:
+    def cashflow(self, curve: Curve | LineCurve | dict | None) -> DualTypes | None:
+        """
+        Forecast the *Period* cashflow based on a *Curve* providing index rates.
+
+        Parameters
+        ----------
+        curve : Curve, LineCurve, dict of such keyed by string tenor
+            The forecast *Curve* for calculating the *Period* rate. If not given returns *None*.
+
+        Returns
+        -------
+        float, Dual, Dual2, None
+
+        """
         if curve is None:
             return None
         else:

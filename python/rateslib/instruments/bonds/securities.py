@@ -2800,19 +2800,21 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         )
         return df
 
-    def ytm(self, price: DualTypes, settlement: datetime, dirty: bool = False) -> DualTypes:
+    def ytm(self, price: Number, settlement: datetime, dirty: bool = False) -> Number:
         """
         Calculate the yield-to-maturity of the security given its price.
 
         Parameters
         ----------
-        price : float
+        price : float, Dual, Dual2
             The price, per 100 nominal, against which to determine the yield.
         settlement : datetime
             The settlement date on which to determine the price.
         dirty : bool, optional
             If `True` will assume the
             :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
+        forecast_curve : Curve, LineCurve
+            Curve used to forecast cashflows.
 
         Returns
         -------
@@ -2825,34 +2827,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         as the same type with the variables passed through accordingly.
 
         """  # noqa: E501
-
-        def root(y):
-            # we set this to work in float arithmetic for efficiency. Dual is added
-            # back below, see PR GH3
-            return self._price_from_ytm(y, settlement, self.calc_mode, dirty) - float(price)
-
-        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
-        # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
-
-        if isinstance(price, Dual):
-            # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(Dual(x, ["y"], []), settlement, self.calc_mode, dirty)
-            return Dual(x, price.vars, 1 / gradient(p, ["y"])[0] * price.dual)
-        elif isinstance(price, Dual2):
-            # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(Dual2(x, ["y"], [], []), settlement, self.calc_mode, dirty)
-            dydP = 1 / gradient(p, ["y"])[0]
-            d2ydP2 = -gradient(p, ["y"], order=2)[0][0] * gradient(p, ["y"])[0] ** -3
-            dual = dydP * price.dual
-            dual2 = 0.5 * (
-                dydP * gradient(price, price.vars, order=2)
-                + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
-            )
-
-            return Dual2(x, price.vars, dual.tolist(), list(dual2.flat))
-        else:
-            return x
+        return self._ytm(price=price, settlement=settlement, dirty=dirty)
 
 
 def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
