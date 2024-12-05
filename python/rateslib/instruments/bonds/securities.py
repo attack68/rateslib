@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 import warnings
 from datetime import datetime, timedelta
-from functools import partial
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -12,7 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, gradient, Number
+from rateslib.dual import Dual, Dual2, DualTypes, Number, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
@@ -33,13 +32,13 @@ from rateslib.instruments.core import (
 )
 from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg, IndexMixin
 from rateslib.periods import (
+    Cashflow,
+    FixedPeriod,
     FloatPeriod,
+    IndexCashflow,
+    IndexFixedPeriod,
     _disc_maybe_from_curve,
     _maybe_local,
-    FixedPeriod,
-    IndexFixedPeriod,
-    IndexCashflow,
-    Cashflow,
 )
 from rateslib.solver import Solver, quadratic_eqn
 
@@ -1385,7 +1384,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2], []), dt(1999, 5, 27), True)
 
         """  # noqa: E501
-        return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=NoInput(-1))
+        return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=NoInput(0))
 
     def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
         """
@@ -2392,7 +2391,11 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         curve: Curve | LineCurve | NoInput,
     ):
         """FloatRateNotes must forecast cashflows with a *Curve* on the *Period*."""
-        return period.cashflow(curve)
+        if isinstance(period, FloatPeriod):
+            _ = period.cashflow(curve)
+        else:
+            _ = period.cashflow  # will be called for Cashflow types
+        return _
 
     def __init__(
         self,
@@ -2749,7 +2752,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "spread"}
+            "dirty_price", "spread", "ytm"}
         forward_settlement : datetime, optional
             The forward settlement date. If not give uses the discount *Curve* and the bond's
             ``settle`` attribute.}.
@@ -2769,10 +2772,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         )
 
         metric = metric.lower()
-        if metric in ["clean_price", "dirty_price", "spread"]:
+        if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
             if forward_settlement is NoInput.blank:
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves[1].node_dates[0],
+                    curves[1].node_dates[0],  # discount curve
                     self.kwargs["settle"],
                     True,
                 )
@@ -2790,8 +2793,12 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
                 z = 0.0 if self.float_spread is NoInput.blank else self.float_spread
                 return _ + z
+            elif metric == "ytm":
+                return self.ytm(
+                    price=dirty_price, settlement=settlement, dirty=True, curve=curves[0]
+                )
 
-        raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread'}.")
+        raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread', 'ytm'}.")
 
     def delta(self, *args, **kwargs):
         """
