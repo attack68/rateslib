@@ -2231,6 +2231,7 @@ class TestFloatRateNote:
         y1 = frn.rate(metric="ytm")
         assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRN have the same yield-to-maturity.
 
+
 class TestBondFuture:
     def test_repr(self):
         kwargs = dict(
