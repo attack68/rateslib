@@ -2199,7 +2199,7 @@ class TestFloatRateNote:
         assert result.iloc[2, 0] == -1e6
 
     def test_ibor_ytm_rate(self, curve):
-        # see test FloatPeriod.test_ibor_fixings_table_historical_before_curve
+        # test a FixedRateBond and FloatRateNote with same conventions and cashflows have same ytm
         ibor_curve = LineCurve({dt(2021, 12, 1): 4.0, dt(2027, 12, 2): 4.0})
         disc_curve = Curve({dt(2021, 12, 1): 1.0, dt(2027, 12, 2): 0.92})
         frn = FloatRateNote(
@@ -2229,7 +2229,7 @@ class TestFloatRateNote:
 
         y2 = frb.rate(metric="ytm")
         y1 = frn.rate(metric="ytm")
-        assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRN have the same yield-to-maturity.
+        assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRB have the same yield-to-maturity.
 
 
 class TestBondFuture:
