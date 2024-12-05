@@ -1728,6 +1728,36 @@ class TestFloatPeriod:
             result = period.rate(curve)
             assert abs(result - 3.0) < 1e-8  # uses fixing
 
+    @pytest.mark.parametrize("fixings", [
+        [2.0, 2.0, 2.0],  # some unknown
+        [2.0] * 31  # exhaustive
+    ])
+    @pytest.mark.parametrize("curve", [
+        NoInput(0),
+        LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})
+    ])
+    def test_rate_optional_curve_rfr(self, curve, fixings) -> None:
+        # GH530. Test RFR periods what happens when supply/not supply a Curve and fixings
+        # are either exhaustive/ not exhaustive
+        period = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 2, 1),
+            fixing_method="rfr_payment_delay_avg",
+            frequency="m",
+            calendar="all",
+            fixings=fixings,
+            payment=dt(2000, 2, 1),
+        )
+
+        # When a curve is not supplied for RFR period currently it will still fail
+        # even if exhaustive fixings are available. There is currently no branching handling this.
+        if isinstance(curve, NoInput):
+            with pytest.raises(ValueError, match="Must supply a valid `curve` for forec"):
+                period.rate(curve)
+        else:
+            # it will conclude without fail.
+            period.rate(curve)
+
 class TestFixedPeriod:
     def test_fixed_period_analytic_delta(self, curve, fxr) -> None:
         fixed_period = FixedPeriod(
