@@ -929,7 +929,7 @@ class FloatPeriod(BasePeriod):
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
+        if not isinstance(disc_curve_, Curve):
             raise TypeError("`curves` have not been supplied correctly.")
         if self.payment < disc_curve_.node_dates[0]:
             if local:
@@ -4160,10 +4160,10 @@ def _disc_maybe_from_curve(
     curve: Curve | NoInput | dict,
     disc_curve: Curve | NoInput,
 ) -> Curve | NoInput:
-    if disc_curve is NoInput.blank:
+    if isinstance(disc_curve, NoInput):
         if isinstance(curve, dict):
             raise ValueError("`disc_curve` cannot be inferred from a dictionary of curves.")
-        _: Curve = curve
+        _: Curve | NoInput = curve
     else:
         _ = disc_curve
     return _
