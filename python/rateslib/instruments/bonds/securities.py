@@ -2265,6 +2265,18 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
+    calc_mode : str
+        A calculation mode for dealing with bonds under different conventions. See notes.
+    curves : CurveType, str or list of such, optional
+        A single *Curve* or string id or a list of such.
+
+        A list defines the following curves in the order:
+
+        - Forecasting *Curve* for ``leg1``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
 
     Notes
     -----
