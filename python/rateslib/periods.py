@@ -948,14 +948,15 @@ class FloatPeriod(BasePeriod):
             _ = -self.notional * self.dcf * rate / 100
             return _
 
-    def rate(self, curve: Curve | LineCurve | dict):
+    def rate(self, curve: Curve | LineCurve | dict | NoInput = NoInput(0)) -> float:
         """
         Calculating the floating rate for the period.
 
         Parameters
         ----------
-        curve : Curve, LineCurve, IndexCurve, dict of curves
-            The forecasting curve object.
+        curve : Curve, LineCurve, IndexCurve, dict of curves, optional
+            The forecasting curve object. If ``fixings`` are available on the Period may be able
+            to return a value without, otherwise will raise.
 
         Returns
         -------
@@ -976,7 +977,7 @@ class FloatPeriod(BasePeriod):
            period.rate({"1m": curve, "3m": curve, "6m": curve, "12m": curve})
         """
         if isinstance(self.fixings, (float, Dual, Dual2)):
-            # if fixings is a single value then return that value (curve unused)
+            # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
                 self.spread_compound_method in ["isda_compounding", "isda_flat_compounding"]
                 and self.float_spread != 0
@@ -1004,7 +1005,7 @@ class FloatPeriod(BasePeriod):
                 return method[curve._base_type](curve)
             except AttributeError:
                 raise ValueError(
-                    "Must supply a valid curve for forecasting.\n"
+                    "Must supply a valid `curve` for forecasting rates for the FloatPeriod.\n"
                     "Do not supply a dict of curves for RFR based methods.",
                 )
         elif "ibor" in self.fixing_method:
@@ -1012,7 +1013,11 @@ class FloatPeriod(BasePeriod):
                 "dfs": self._ibor_rate_from_df_curve,
                 "values": self._ibor_rate_from_line_curve,
             }
-            if not isinstance(curve, dict):
+            if isinstance(curve, NoInput):
+                raise ValueError(
+                    "Must supply a valid `curve` for forecasting rates for the FloatPeriod."
+                )
+            elif not isinstance(curve, dict):
                 return method[curve._base_type](curve)
             else:
                 if not self.stub:

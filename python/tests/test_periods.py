@@ -1701,6 +1701,29 @@ class TestFloatPeriod:
         result = period.npv(curve, local=True)
         assert result == {"usd": 0.0}
 
+    @pytest.mark.parametrize("curve", [
+        NoInput(0),
+        LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})
+    ])
+    @pytest.mark.parametrize("fixing_method", ["ibor", "rfr_payment_delay_avg"])
+    @pytest.mark.parametrize("fixings", [2.0, NoInput(0)])
+    def test_rate_optional_curve(self, fixings, fixing_method, curve) -> None:
+        # GH530. Allow forecasting rates without necessarily providing curve if unnecessary
+        period = FloatPeriod(
+            start=dt(2000, 1, 12),
+            end=dt(2000, 4, 12),
+            fixing_method=fixing_method,
+            frequency="q",
+            fixings=fixings,
+            payment=dt(2000, 4, 12),
+        )
+        if isinstance(curve, NoInput) and isinstance(fixings, NoInput):
+            # then no data to price
+            with pytest.raises(ValueError, match="Must supply a valid `curve` for forec"):
+                period.rate(curve)
+        else:
+            result = period.rate(curve)
+            assert abs(result - 2.0) < 1e-8
 
 class TestFixedPeriod:
     def test_fixed_period_analytic_delta(self, curve, fxr) -> None:
