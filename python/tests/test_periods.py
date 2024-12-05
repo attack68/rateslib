@@ -1631,7 +1631,7 @@ class TestFloatPeriod:
             float_spread=0.0,
             stub=True,
         )
-        with pytest.raises(ValueError, match="Must supply a valid curve for forecasting"):
+        with pytest.raises(ValueError, match="Must supply a valid `curve` for forecasting"):
             period.rate({"rfr": curve})
 
     def test_ibor_stub_fixings_table(self) -> None:
@@ -1700,6 +1700,64 @@ class TestFloatPeriod:
         period = FloatPeriod(dt(2021, 1, 1), dt(2021, 4, 1), dt(2021, 4, 1), "Q")
         result = period.npv(curve, local=True)
         assert result == {"usd": 0.0}
+
+    @pytest.mark.parametrize(
+        "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
+    )
+    @pytest.mark.parametrize("fixing_method", ["ibor", "rfr_payment_delay_avg"])
+    @pytest.mark.parametrize("fixings", [3.0, NoInput(0)])
+    def test_rate_optional_curve(self, fixings, fixing_method, curve) -> None:
+        # GH530. Allow forecasting rates without necessarily providing curve if unnecessary
+        period = FloatPeriod(
+            start=dt(2000, 1, 12),
+            end=dt(2000, 4, 12),
+            fixing_method=fixing_method,
+            frequency="q",
+            fixings=fixings,
+            payment=dt(2000, 4, 12),
+        )
+        if isinstance(curve, NoInput) and isinstance(fixings, NoInput):
+            # then no data to price
+            with pytest.raises(ValueError, match="Must supply a valid `curve` for forec"):
+                period.rate(curve)
+        elif isinstance(fixings, NoInput):
+            result = period.rate(curve)
+            assert abs(result - 2.0) < 1e-8  # uses curve
+        else:
+            result = period.rate(curve)
+            assert abs(result - 3.0) < 1e-8  # uses fixing
+
+    @pytest.mark.parametrize(
+        "fixings",
+        [
+            [2.0, 2.0, 2.0],  # some unknown
+            [2.0] * 31,  # exhaustive
+        ],
+    )
+    @pytest.mark.parametrize(
+        "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
+    )
+    def test_rate_optional_curve_rfr(self, curve, fixings) -> None:
+        # GH530. Test RFR periods what happens when supply/not supply a Curve and fixings
+        # are either exhaustive/ not exhaustive
+        period = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 2, 1),
+            fixing_method="rfr_payment_delay_avg",
+            frequency="m",
+            calendar="all",
+            fixings=fixings,
+            payment=dt(2000, 2, 1),
+        )
+
+        # When a curve is not supplied for RFR period currently it will still fail
+        # even if exhaustive fixings are available. There is currently no branching handling this.
+        if isinstance(curve, NoInput):
+            with pytest.raises(ValueError, match="Must supply a valid `curve` for forec"):
+                period.rate(curve)
+        else:
+            # it will conclude without fail.
+            period.rate(curve)
 
 
 class TestFixedPeriod:
