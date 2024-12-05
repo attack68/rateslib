@@ -1631,7 +1631,7 @@ class TestFloatPeriod:
             float_spread=0.0,
             stub=True,
         )
-        with pytest.raises(ValueError, match="Must supply a valid curve for forecasting"):
+        with pytest.raises(ValueError, match="Must supply a valid `curve` for forecasting"):
             period.rate({"rfr": curve})
 
     def test_ibor_stub_fixings_table(self) -> None:
