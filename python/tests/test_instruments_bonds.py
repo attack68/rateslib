@@ -2262,6 +2262,25 @@ class TestFloatRateNote:
         y1 = frn.ytm(price=dp1, dirty=True, settlement=dt(2022, 12, 1))
         assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRB have the same yield-to-maturity.
 
+    def test_cashflows_known_fixings(self):
+        fixings = Series(2.0, index=date_range(dt(1999, 12, 1), dt(2004, 6, 2)))
+
+        frn = FloatRateNote(
+            effective=dt(2000, 12, 7),
+            termination=dt(2001, 12, 7),
+            frequency="S",
+            currency="gbp",
+            convention="Act365F",
+            ex_div=3,
+            fixings=fixings,
+            fixing_method="rfr_observation_shift_avg",
+            method_param=5,
+        )
+        result = frn.cashflows()
+        assert isinstance(result, DataFrame)
+        assert abs(result["Cashflow"].iloc[0] + 10000) < 50.0
+        assert abs(result["Cashflow"].iloc[1] + 10000) < 50.0
+
 
 class TestBondFuture:
     def test_repr(self):

@@ -898,20 +898,29 @@ class FloatPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
 
-        if curve is not NoInput.blank:
-            cashflow = float(self.cashflow(curve))
-            rate = float(100 * cashflow / (-self.notional * self.dcf))
-            npv = float(self.npv(curve, disc_curve_))
+        try:
+            cashflow = self.cashflow(curve)
+        except ValueError:
+            # curve may not have been provided or other fixings errors have occured
+            cashflow, rate = None, None
+        else:
+            if cashflow is None:
+                rate = None
+            else:
+                rate = 100 * cashflow / (-self.notional * self.dcf)
+
+        if disc_curve_ is not NoInput.blank:
+            npv = self.npv(curve, disc_curve_)
             npv_fx = npv * float(fx)
         else:
-            cashflow, rate, npv, npv_fx = None, None, None, None
+            npv, npv_fx = None, None
 
         return {
             **super().cashflows(curve, disc_curve_, fx, base),
-            defaults.headers["rate"]: rate,
+            defaults.headers["rate"]: _float_or_none(rate),
             defaults.headers["spread"]: float(self.float_spread),
-            defaults.headers["cashflow"]: cashflow,
-            defaults.headers["npv"]: npv,
+            defaults.headers["cashflow"]: _float_or_none(cashflow),
+            defaults.headers["npv"]: _float_or_none(npv),
             defaults.headers["fx"]: float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
@@ -1256,7 +1265,7 @@ class FloatPeriod(BasePeriod):
         rates = Series(NA, index=obs_dates[:-1])
         if not isinstance(self.fixings, NoInput):
             # then fixings will be a list or Series, scalars are already processed.
-            assert not isinstance(self.fixings, (float, Dual, Dual2, Variable)) # noqa: S101
+            assert not isinstance(self.fixings, (float, Dual, Dual2, Variable))  # noqa: S101
 
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
