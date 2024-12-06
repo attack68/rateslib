@@ -10,7 +10,7 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb, _make_py_json
-from rateslib.dual import Dual, DualTypes, _get_adorder, gradient, Number
+from rateslib.dual import Dual, DualTypes, Number, _get_adorder, gradient
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 

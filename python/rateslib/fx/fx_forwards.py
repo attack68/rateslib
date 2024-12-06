@@ -8,9 +8,8 @@ from typing import Any
 
 import numpy as np
 from pandas import DataFrame, Series
-from pandas.tseries.offsets import CustomBusinessDay
 
-from rateslib.calendars import add_tenor, CalInput
+from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, plot
 from rateslib.dual import Dual, DualTypes, Number, gradient
@@ -764,7 +763,10 @@ class FXForwards:
 
     def convert_positions(
         self,
-        array: np.ndarray[tuple[int], np.dtype[np.float64]] | list[float] | DataFrame | Series[float],
+        array: np.ndarray[tuple[int], np.dtype[np.float64]]
+        | list[float]
+        | DataFrame
+        | Series[float],
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
