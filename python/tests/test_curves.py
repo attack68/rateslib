@@ -1176,6 +1176,7 @@ class TestCurve:
         )
         assert isinstance(curve, Curve)
 
+
 class TestLineCurve:
     def test_repr(self):
         curve = LineCurve(
