@@ -45,6 +45,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
        ``kind`` argument being only useful internally.
        (`524 <https://github.com/attack68/rateslib/pull/524>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`FXForwards.rate <rateslib.fx.FXForwards.rate>`
+       has dropped the ``path`` and ``return_path`` arguments being mainly useful internally.
+       Replicable functionality is achieved by importing and using the internal method
+       :meth:`rateslib.fx.FXForwards._rate_with_path`.
+       (`537 <https://github.com/attack68/rateslib/pull/537>`_)
 
 1.6.0 (30th November 2024)
 ****************************
