@@ -19,10 +19,6 @@ from rateslib.instruments.bonds import (
     FloatRateNote,
     IndexFixedRateBond,
 )
-from rateslib.instruments.core import (
-    BaseMixin,
-    Sensitivities,
-)
 from rateslib.instruments.fx_volatility import (
     FXBrokerFly,
     FXCall,
@@ -34,6 +30,10 @@ from rateslib.instruments.fx_volatility import (
     FXStrangle,
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
+from rateslib.instruments.inst_core import (
+    BaseMixin,
+    Sensitivities,
+)
 from rateslib.instruments.rates_derivatives import (
     CDS,
     FRA,

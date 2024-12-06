@@ -22,7 +22,7 @@ from rateslib.instruments.bonds.conventions import (
 )
 
 # from scipy.optimize import brentq
-from rateslib.instruments.core import (
+from rateslib.instruments.inst_core import (
     BaseMixin,
     Sensitivities,
     _get,
