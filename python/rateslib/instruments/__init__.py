@@ -19,7 +19,7 @@ from rateslib.instruments.bonds import (
     FloatRateNote,
     IndexFixedRateBond,
 )
-from rateslib.instruments.core import (
+from rateslib.instruments.inst_core import (
     BaseMixin,
     Sensitivities,
 )

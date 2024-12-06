@@ -11,7 +11,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.bonds.securities import FixedRateBond
-from rateslib.instruments.core import Sensitivities
+from rateslib.instruments.inst_core import Sensitivities
 from rateslib.periods import (
     _get_fx_and_base,
 )
