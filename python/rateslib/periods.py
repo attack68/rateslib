@@ -29,7 +29,7 @@ import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf, CalTypes
+from rateslib.calendars import CalInput, CalTypes, _get_eom, add_tenor, dcf
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
@@ -1441,8 +1441,6 @@ class FloatPeriod(BasePeriod):
             return _trim_df_by_index(df, NoInput(0), right)
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
-
-
 
     def _ibor_fixings_table(self, curve, disc_curve, right, risk=None):
         """
