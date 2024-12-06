@@ -521,6 +521,7 @@ class FXForwards:
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
         """  # noqa: E501
+        return self._rate_with_path(pair, settlement)[0]
 
     def _rate_with_path(
         self,
@@ -546,27 +547,8 @@ class FXForwards:
 
         Returns
         -------
-        float, Dual, Dual2 or tuple
-
-        Notes
-        -----
-        Uses the formula,
-
-        .. math::
-
-           f_{DOMFOR, i} = \\frac{w_{dom:for, i}}{v_{for:for, i}} F_{DOMFOR,0} = \\frac{v_{dom:dom, i}}{w_{for:dom, i}} F_{DOMFOR,0}
-
-        where :math:`v` is a local currency discount curve and :math:`w` is a discount
-        curve collateralised with an alternate currency.
-
-        Where curves do not exist in the relevant currencies we chain rates available
-        given the available curves.
-
-        .. math::
-
-           f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
-
-        """  # noqa: E501
+        tuple
+        """
 
         def _get_d_f_idx_and_path(
             pair: str, path: list[dict[str, int]] | NoInput
@@ -913,7 +895,7 @@ class FXForwards:
         days = (end - self.immediate).days
         nodes = {
             k: (
-                self._rate_with_path(f"{cash_ccy}{coll_ccy}", k, path=path)
+                self._rate_with_path(f"{cash_ccy}{coll_ccy}", k, path=path)[0]
                 / self.fx_rates_immediate.fx_array[cash_idx, coll_idx]
                 * self.fx_curves[f"{coll_ccy}{coll_ccy}"][k]
             )
@@ -1052,7 +1034,7 @@ class FXForwards:
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
         _, path = self._rate_with_path(pair, x[0])
-        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path) for _ in x]
+        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
         if not fx_swap:
             y: list[Number] = [rates]
         else:

@@ -23,7 +23,7 @@ from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier, _get_calendar_with_kind
 from rateslib.default import NoInput, _drb, plot
-from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
+from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert, Number
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -2813,9 +2813,9 @@ class ProxyCurve(Curve):
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
-    def __getitem__(self, date: datetime):
+    def __getitem__(self, date: datetime) -> Number:
         return (
-            self.fx_forwards.rate(self.pair, date, path=self.path)
+            self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
             / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
             * self.fx_forwards.fx_curves[self.coll_pair][date]
         )
