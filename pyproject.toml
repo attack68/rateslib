@@ -140,6 +140,7 @@ ignore = [
 files = [
     "python/rateslib/calendars/**/*.py",
     "python/rateslib/fx/**/*.py",
+    "python/rateslib/dual/**/*.py"
 ]
 strict = true
 
