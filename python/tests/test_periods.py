@@ -5,7 +5,7 @@ from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import NA, DataFrame, Index, MultiIndex, Series
+from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
@@ -700,7 +700,9 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
-        _d = period._rfr_get_individual_fixings_data(rfr_curve)
+        _d = period._rfr_get_individual_fixings_data(
+            rfr_curve.calendar, rfr_curve.convention, rfr_curve
+        )
         rate, table = period._rfr_fixings_array(
             d=_d,
             disc_curve=curve,
@@ -721,7 +723,9 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(period._rfr_get_individual_fixings_data(rfr_curve), rfr_curve)
+            period._rfr_fixings_array(period._rfr_get_individual_fixings_data(
+                rfr_curve.calendar, rfr_curve.convention, rfr_curve
+            ), rfr_curve)
 
     def test_rfr_fixings_array_raises2(self, line_curve) -> None:
         period = FloatPeriod(
@@ -1732,6 +1736,7 @@ class TestFloatPeriod:
         [
             [2.0, 2.0, 2.0],  # some unknown
             [2.0] * 31,  # exhaustive
+            Series(2.0, index=date_range(dt(2000, 1, 1), dt(2001, 1, 1)))
         ],
     )
     @pytest.mark.parametrize(
@@ -1752,11 +1757,11 @@ class TestFloatPeriod:
 
         # When a curve is not supplied for RFR period currently it will still fail
         # even if exhaustive fixings are available. There is currently no branching handling this.
-        if isinstance(curve, NoInput):
-            with pytest.raises(ValueError, match="Must supply a valid `curve` for forec"):
+        if isinstance(curve, NoInput) and len(fixings) == 3:
+            with pytest.raises(ValueError, match="Must supply a `curve` to FloatPeriod.rate()"):
                 period.rate(curve)
         else:
-            # it will conclude without fail.
+            # it will conclude without fail, the exhaustive case is captured.
             period.rate(curve)
 
 
