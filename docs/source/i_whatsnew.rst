@@ -31,6 +31,16 @@ email contact, see `rateslib <https://rateslib.com>`_.
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
        :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
        (`519 <https://github.com/attack68/rateslib/pull/519>`_)
+   * - Bug
+     - :meth:`~rateslib.periods.FloatPeriod.rate` now correctly calculates when ``fixings``
+       are provided in any of the acceptable formats and contains all data to do so, in the
+       absense of a forecast ``curve``, instead of returning *None* for some cases.
+       This allows for :meth:`~rateslib.periods.FloatPeriod.cashflows` to return values even
+       when ``curve`` is not constructed.
+       (`530 <https://github.com/attack68/rateslib/pull/530>`_)
+       (`532 <https://github.com/attack68/rateslib/pull/532>`_)
+       (`535 <https://github.com/attack68/rateslib/pull/535>`_)
+       (`536 <https://github.com/attack68/rateslib/pull/536>`_)
    * - Refactor
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
        ``kind`` argument being only useful internally.
