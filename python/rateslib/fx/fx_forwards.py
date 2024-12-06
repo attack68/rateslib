@@ -500,7 +500,7 @@ class FXForwards:
 
         Returns
         -------
-        float, Dual, Dual2 or tuple
+        float, Dual, Dual2
 
         Notes
         -----
@@ -513,8 +513,8 @@ class FXForwards:
         where :math:`v` is a local currency discount curve and :math:`w` is a discount
         curve collateralised with an alternate currency.
 
-        Where curves do not exist in the relevant currencies we chain rates available
-        given the available curves.
+        If required curves do not exist in the relevant currencies then forwards rates are chained
+        using those calculable from available curves. The chain is found using a search algorithm.
 
         .. math::
 
