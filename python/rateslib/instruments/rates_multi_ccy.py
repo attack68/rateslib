@@ -10,7 +10,7 @@ from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.instruments.core import (
+from rateslib.instruments.f_core import (
     BaseMixin,
     Sensitivities,
     _composit_fixings_table,
