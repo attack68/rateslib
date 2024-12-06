@@ -21,7 +21,7 @@ Number = Union[float, Dual, Dual2]
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def set_order(val, order):
+def set_order(val: Number, order: int) -> Number:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
     unchanged.
@@ -49,7 +49,9 @@ def set_order(val, order):
     return val
 
 
-def set_order_convert(val, order, tag, vars_from=None):
+def set_order_convert(
+    val: Number, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
+) -> Number:
     """
     Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
 
@@ -87,7 +89,14 @@ def set_order_convert(val, order, tag, vars_from=None):
     return set_order(val, order)
 
 
-def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold: bool = False):
+def gradient(
+    dual: Dual | Dual2 | Variable,
+    vars: list[str] | None = None,
+    order: int = 1,
+    keep_manifold: bool = False,
+) -> (
+    np.ndarray[tuple[int], np.dtype[np.float64]] | np.ndarray[tuple[int, int], np.dtype[np.float64]]
+):
     """
     Return derivatives of a dual number.
 
@@ -135,7 +144,7 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
         raise ValueError("`order` must be in {1, 2} for gradient calculation.")
 
 
-def dual_exp(x):
+def dual_exp(x: DualTypes) -> Number:
     """
     Calculate the exponential value of a regular int or float or a dual number.
 
@@ -153,7 +162,7 @@ def dual_exp(x):
     return math.exp(x)
 
 
-def dual_log(x, base=None):
+def dual_log(x: DualTypes, base: int | None = None) -> Number:
     """
     Calculate the logarithm of a regular int or float or a dual number.
 
@@ -180,7 +189,7 @@ def dual_log(x, base=None):
         return math.log(x, base)
 
 
-def dual_norm_pdf(x):
+def dual_norm_pdf(x: DualTypes) -> Number:
     """
     Return the standard normal probability density function.
 
@@ -195,7 +204,7 @@ def dual_norm_pdf(x):
     return dual_exp(-0.5 * x**2) / math.sqrt(2.0 * math.pi)
 
 
-def dual_norm_cdf(x):
+def dual_norm_cdf(x: DualTypes) -> Number:
     """
     Return the cumulative standard normal distribution for given value.
 
@@ -213,7 +222,7 @@ def dual_norm_cdf(x):
         return NormalDist().cdf(x)
 
 
-def dual_inv_norm_cdf(x):
+def dual_inv_norm_cdf(x: DualTypes) -> Number:
     """
     Return the inverse cumulative standard normal distribution for given value.
 
@@ -231,7 +240,12 @@ def dual_inv_norm_cdf(x):
         return NormalDist().inv_cdf(x)
 
 
-def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
+def dual_solve(
+    A: np.ndarray[tuple[int, int], np.dtype[np.object_]],
+    b: np.ndarray[tuple[int], np.dtype[np.object_]],
+    allow_lsq: bool = False,
+    types: tuple[Number, Number] = (Dual, Dual),
+) -> np.ndarray[tuple[int], np.dtype[np.object_]]:
     """
     Solve a linear system of equations involving dual number data types.
 
@@ -289,7 +303,7 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     return np.array(out)[:, None]
 
 
-def _get_adorder(order: int):
+def _get_adorder(order: int) -> ADOrder:
     if order == 1:
         return ADOrder.One
     elif order == 0:
