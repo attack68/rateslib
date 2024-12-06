@@ -10,7 +10,7 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb, _make_py_json
-from rateslib.dual import Dual, DualTypes, _get_adorder, gradient
+from rateslib.dual import Dual, DualTypes, _get_adorder, gradient, Number
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 
@@ -155,7 +155,7 @@ class FXRates:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @cached_property
-    def fx_array(self) -> np.ndarray:
+    def fx_array(self) -> np.ndarray[tuple[int, int], np.dtype[np.object_]]:
         # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)
 
@@ -184,7 +184,7 @@ class FXRates:
         return len(self.obj.currencies)
 
     @property
-    def fx_vector(self) -> np.array:
+    def fx_vector(self) -> np.ndarray[tuple[int], np.dtype[np.object_]]:
         return self.fx_array[0, :]
 
     @property
@@ -351,11 +351,11 @@ class FXRates:
 
     def convert(
         self,
-        value: Dual | float,
+        value: DualTypes,
         domestic: str,
         foreign: str | NoInput = NoInput(0),
         on_error: str = "ignore",
-    ):
+    ) -> Number | None:
         """
         Convert an amount of a domestic currency into a foreign currency.
 
@@ -386,7 +386,7 @@ class FXRates:
            fxr.convert(1000000, "nok", "inr")  # <- returns None, "inr" not in fxr.
 
         """
-        foreign = self.base if foreign is NoInput.blank else foreign.lower()
+        foreign = self.base if isinstance(foreign, NoInput) else foreign.lower()
         domestic = domestic.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
@@ -406,9 +406,9 @@ class FXRates:
 
     def convert_positions(
         self,
-        array: np.ndarray | list[float],
+        array: np.ndarray[tuple[int], np.dtype[np.float64]] | list[float],
         base: str | NoInput = NoInput(0),
-    ) -> DualTypes:
+    ) -> Number:
         """
         Convert an array of currency cash positions into a single base currency.
 
@@ -434,7 +434,7 @@ class FXRates:
            fxr.currencies
            fxr.convert_positions([0, 1000000], "usd")
         """
-        base = self.base if base is NoInput.blank else base.lower()
+        base = self.base if isinstance(base, NoInput) else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
         return np.sum(array_ * self.fx_array[:, j])
@@ -443,7 +443,7 @@ class FXRates:
         self,
         value: DualTypes,
         base: str | NoInput = NoInput(0),
-    ) -> Series:
+    ) -> Series[float]:
         """
         Convert a base value with FX rate sensitivities into an array of cash positions.
 
@@ -485,7 +485,7 @@ class FXRates:
         b_idx = self.currencies[base]
         domestic, foreign = pair[:3], pair[3:]
         d_idx, f_idx = self.currencies[domestic], self.currencies[foreign]
-        _ = np.zeros(self.q, dtype=np.float64)
+        _: np.ndarray[tuple[int], np.dtype[np.float64]] = np.zeros(self.q, dtype=np.float64)
 
         # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx,f_idx])**2
         # _[f_idx] = f_val
@@ -510,7 +510,7 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def _set_ad_order(self, order) -> None:
+    def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """

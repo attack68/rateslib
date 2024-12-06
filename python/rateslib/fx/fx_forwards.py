@@ -10,7 +10,7 @@ import numpy as np
 from pandas import DataFrame, Series
 from pandas.tseries.offsets import CustomBusinessDay
 
-from rateslib.calendars import add_tenor
+from rateslib.calendars import add_tenor, CalInput
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, plot
 from rateslib.dual import Dual, DualTypes, Number, gradient
@@ -305,7 +305,7 @@ class FXForwards:
                 self.currencies,
                 self.fx_curves,
             )
-            self.base: str = self.fx_rates.base if base is NoInput.blank else base
+            self.base: str = self.fx_rates.base if isinstance(base, NoInput) else base
             self.pairs = self.fx_rates.pairs
             self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
             self.fx_rates_immediate = self._update_fx_rates_immediate()
@@ -314,13 +314,13 @@ class FXForwards:
     def __init__(
         self,
         fx_rates: FXRates | list[FXRates],
-        fx_curves: dict,
+        fx_curves: dict[str, Curve],
         base: str | NoInput = NoInput(0),
-    ):
+    ) -> None:
         self._ad = 1
         self.update(fx_rates, fx_curves, base)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
             return (
                 f"<rl.FXForwards:[{','.join(self.currencies_list[:2])},"
@@ -479,18 +479,57 @@ class FXForwards:
                 pair = f"{cash_ccy}{coll_ccy}"
                 fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
-        fx_rates_immediate = FXRates(fx_rates_immediate, self.immediate, self.base)
-        return fx_rates_immediate.restate(self.fx_rates.pairs, keep_ad=True)
+        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.base)
+        return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
 
     def rate(
         self,
         pair: str,
         settlement: datetime | NoInput = NoInput(0),
-        path: list[dict[str, int]] | NoInput = NoInput(0),
-        return_path: bool = False,
-    ) -> Number | tuple[Number, list[dict[str, int]]]:
+    ) -> Number:
         """
         Return the fx forward rate for a currency pair.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair in usual domestic:foreign convention (6 digit code).
+        settlement : datetime, optional
+            The settlement date of currency exchange. If not given defaults to
+            immediate settlement.
+
+        Returns
+        -------
+        float, Dual, Dual2 or tuple
+
+        Notes
+        -----
+        Uses the formula,
+
+        .. math::
+
+           f_{DOMFOR, i} = \\frac{w_{dom:for, i}}{v_{for:for, i}} F_{DOMFOR,0} = \\frac{v_{dom:dom, i}}{w_{for:dom, i}} F_{DOMFOR,0}
+
+        where :math:`v` is a local currency discount curve and :math:`w` is a discount
+        curve collateralised with an alternate currency.
+
+        Where curves do not exist in the relevant currencies we chain rates available
+        given the available curves.
+
+        .. math::
+
+           f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
+
+        """  # noqa: E501
+
+    def _rate_with_path(
+        self,
+        pair: str,
+        settlement: datetime | NoInput = NoInput(0),
+        path: list[dict[str, int]] | NoInput = NoInput(0),
+    ) -> tuple[Number, list[dict[str, int]]]:
+        """
+        Return the fx forward rate for a currency pair, including the path taken to traverse ccys.
 
         Parameters
         ----------
@@ -504,9 +543,6 @@ class FXForwards:
             This is calculated automatically and this argument is provided for
             internal calculation to avoid repeatedly calculating the same path. Use of
             this argument in normal circumstances is not recommended.
-        return_path : bool
-            If `True` returns the path in a tuple alongside the rate. Use of this
-            argument in normal circumstances is not recommended.
 
         Returns
         -------
@@ -533,12 +569,12 @@ class FXForwards:
         """  # noqa: E501
 
         def _get_d_f_idx_and_path(
-            pair, path: list[dict[str, int]] | None
+            pair: str, path: list[dict[str, int]] | NoInput
         ) -> tuple[int, int, list[dict[str, int]]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
-            if path is NoInput.blank:
+            if isinstance(path, NoInput):
                 path = self._get_recursive_chain(self.transform, f_idx, d_idx, [], [])[1]
             return d_idx, f_idx, path
 
@@ -549,16 +585,13 @@ class FXForwards:
 
         if settlement_ == self.fx_rates_immediate.settlement:
             rate_ = self.fx_rates_immediate.rate(pair)
-            if return_path:
-                _, _, path = _get_d_f_idx_and_path(pair, path)
-                return rate_, path
-            return rate_
+            _, _, path = _get_d_f_idx_and_path(pair, path)
+            return rate_, path
+
         elif isinstance(self.fx_rates, FXRates) and settlement_ == self.fx_rates.settlement:
             rate_ = self.fx_rates.rate(pair)
-            if return_path:
-                _, _, path = _get_d_f_idx_and_path(pair, path)
-                return rate_, path
-            return rate_
+            _, _, path = _get_d_f_idx_and_path(pair, path)
+            return rate_, path
 
         # otherwise must rely on curves and path search which is slower
         d_idx, f_idx, path = _get_d_f_idx_and_path(pair, path)
@@ -581,13 +614,11 @@ class FXForwards:
                 rate_ *= v_i / w_i
                 current_idx = route["row"]
 
-        if return_path:
-            return rate_, path
-        return rate_
+        return rate_, path
 
     def positions(
         self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
-    ) -> Series | DataFrame:
+    ) -> Series[float] | DataFrame:
         """
         Convert a base value with FX rate sensitivities into an array of cash positions
         by settlement date.
@@ -751,7 +782,7 @@ class FXForwards:
 
     def convert_positions(
         self,
-        array: np.ndarray[tuple[int], np.dtype[np.float64]] | list[float] | DataFrame | Series,
+        array: np.ndarray[tuple[int], np.dtype[np.float64]] | list[float] | DataFrame | Series[float],
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -825,7 +856,7 @@ class FXForwards:
         pair: str,
         settlements: list[datetime],
         path: list[dict[str, int]] | NoInput = NoInput(0),
-    ) -> DualTypes:
+    ) -> Number:
         """
         Return the FXSwap mid-market rate for the given currency pair.
 
@@ -845,8 +876,8 @@ class FXForwards:
         -------
         Dual
         """
-        fx0: DualTypes = self.rate(pair, settlements[0], path)
-        fx1: DualTypes = self.rate(pair, settlements[1], path)
+        fx0, path_ = self._rate_with_path(pair, settlements[0], path)
+        fx1, _ = self._rate_with_path(pair, settlements[1], path_)
         return (fx1 - fx0) * 10000
 
     def _full_curve(self, cashflow: str, collateral: str) -> Curve:
@@ -882,7 +913,7 @@ class FXForwards:
         days = (end - self.immediate).days
         nodes = {
             k: (
-                self.rate(f"{cash_ccy}{coll_ccy}", k, path=path)
+                self._rate_with_path(f"{cash_ccy}{coll_ccy}", k, path=path)
                 / self.fx_rates_immediate.fx_array[cash_idx, coll_idx]
                 * self.fx_curves[f"{coll_ccy}{coll_ccy}"][k]
             )
@@ -900,7 +931,7 @@ class FXForwards:
         collateral: str,
         convention: str | NoInput = NoInput(0),
         modifier: str | bool = False,
-        calendar: CustomBusinessDay | str | bool = False,
+        calendar: CalInput | bool = False,
         id: str | NoInput = NoInput(0),
     ) -> Curve:
         """
@@ -1020,8 +1051,8 @@ class FXForwards:
 
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
-        _, path = self.rate(pair, x[0], return_path=True)
-        rates: list[DualTypes] = [self.rate(pair, _, path=path) for _ in x]
+        _, path = self._rate_with_path(pair, x[0])
+        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path) for _ in x]
         if not fx_swap:
             y: list[Number] = [rates]
         else:
