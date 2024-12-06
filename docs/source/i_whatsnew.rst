@@ -21,13 +21,20 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - Instruments
+     - :meth:`~rateslib.instruments.FloatRateNote.ytm` added to
+       :class:`~rateslib.instruments.FloatRateNote` to allow the calculation of
+       yield-to-maturity for that *Instrument* based on ``calc_mode`` similar to
+       *FixedRateBonds*. (`529 <https://github.com/attack68/rateslib/pull/529>`_)
    * - Bug
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
        :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
+       (`519 <https://github.com/attack68/rateslib/pull/519>`_)
    * - Refactor
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
        ``kind`` argument being only useful internally.
+       (`524 <https://github.com/attack68/rateslib/pull/524>`_)
 
 1.6.0 (30th November 2024)
 ****************************
