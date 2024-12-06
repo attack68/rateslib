@@ -385,6 +385,6 @@ def _drb(default: Any, possible_blank: Any | NoInput) -> Any:
     return default if possible_blank is NoInput.blank else possible_blank
 
 
-def _make_py_json(json, class_name):
+def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"Py":' + json + "}"

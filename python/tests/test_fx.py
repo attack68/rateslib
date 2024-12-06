@@ -789,7 +789,7 @@ def test_rate_path_immediate(settlement) -> None:
             "nokeur": nokeur,
         },
     )
-    _, result = fxf.rate("nokusd", settlement, return_path=True)
+    _, result = fxf._rate_with_path("nokusd", settlement)
     expected = [{"col": 1}, {"col": 2}]
     assert result == expected
 
