@@ -941,7 +941,7 @@ class FloatPeriod(BasePeriod):
 
         return _maybe_local(value, local, self.currency, fx, base)
 
-    def cashflow(self, curve: Curve | LineCurve | dict | NoInput = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: Curve | dict | NoInput = NoInput(0)) -> DualTypes | None:
         """
         Forecast the *Period* cashflow based on a *Curve* providing index rates.
 
@@ -959,12 +959,12 @@ class FloatPeriod(BasePeriod):
             _ = -self.notional * self.dcf * self.rate(curve) / 100
             return _
         except ValueError as e:
-            if isinstance(curve, (Curve, LineCurve, dict)):
+            if isinstance(curve, (Curve, dict)):
                 raise e
             # probably "needs a `curve` to forecast rate
             return None
 
-    def rate(self, curve: Curve | LineCurve | dict | NoInput = NoInput(0)) -> float:
+    def rate(self, curve: Curve | dict | NoInput = NoInput(0)) -> float:
         """
         Calculating the floating rate for the period.
 
@@ -1029,7 +1029,7 @@ class FloatPeriod(BasePeriod):
         else:
             raise ValueError("`fixing_method` not valid for the FloatPeriod.")  # pragma: no cover
 
-    def _rate_ibor(self, curve: Curve | LineCurve | dict | NoInput) -> Number:
+    def _rate_ibor(self, curve: Curve | dict | NoInput) -> Number:
         # function will try to forecast a rate without a `curve` when fixings are available.
         if isinstance(self.fixings, (float, Dual, Dual2, Variable)):
             return self.fixings + self.float_spread / 100
@@ -1099,7 +1099,7 @@ class FloatPeriod(BasePeriod):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
-        def _rate(c: Curve | LineCurve | IndexCurve, tenor):
+        def _rate(c: Curve, tenor):
             if c._base_type == "dfs":
                 return c.rate(self.start, tenor)
             else:  # values
@@ -1131,7 +1131,7 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: Curve | LineCurve | dict,
+        curve: Curve | dict,
         approximate: bool = False,
         disc_curve: Curve = NoInput(0),
         right: datetime | NoInput = NoInput(0),
