@@ -723,9 +723,12 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(period._rfr_get_individual_fixings_data(
-                rfr_curve.calendar, rfr_curve.convention, rfr_curve
-            ), rfr_curve)
+            period._rfr_fixings_array(
+                period._rfr_get_individual_fixings_data(
+                    rfr_curve.calendar, rfr_curve.convention, rfr_curve
+                ),
+                rfr_curve,
+            )
 
     def test_rfr_fixings_array_raises2(self, line_curve) -> None:
         period = FloatPeriod(
@@ -1736,7 +1739,7 @@ class TestFloatPeriod:
         [
             [2.0, 2.0, 2.0],  # some unknown
             [2.0] * 31,  # exhaustive
-            Series(2.0, index=date_range(dt(2000, 1, 1), dt(2001, 1, 1)))
+            Series(2.0, index=date_range(dt(2000, 1, 1), dt(2001, 1, 1))),
         ],
     )
     @pytest.mark.parametrize(
