@@ -298,15 +298,16 @@ def dual_solve(
     b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        out = _dsolve1(a_, b_, allow_lsq)
+        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]
     elif types == (Dual2, Dual2):
-        out = _dsolve2(a_, b_, allow_lsq)
+        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]
     elif types == (float, Dual):
-        out = _fdsolve1(A_, b_, allow_lsq)
+        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]
     elif types == (float, Dual2):
-        out = _fdsolve2(A_, b_, allow_lsq)
-
-    return np.array(out)[:, None]
+        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
+    else:
+        raise TypeError("Provided `types` argument are not permitted. Must be a 2-tuple with "
+                        "elements from {float, Dual, Dual2}")
 
 
 def _get_adorder(order: int) -> ADOrder:
