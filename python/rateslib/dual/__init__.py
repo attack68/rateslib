@@ -7,7 +7,7 @@ from typing import Union
 
 import numpy as np
 
-from rateslib.dual.variable import FLOATS, INTS, Variable
+from rateslib.dual.variable import FLOATS, INTS, Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
@@ -98,9 +98,7 @@ def gradient(
     vars: list[str] | None = None,
     order: int = 1,
     keep_manifold: bool = False,
-) -> (
-    np.ndarray[tuple[int], np.dtype[np.float64]] | np.ndarray[tuple[int, int], np.dtype[np.float64]]
-):
+) -> Arr1dF64 | Arr2dF64:
     """
     Return derivatives of a dual number.
 
@@ -140,6 +138,7 @@ def gradient(
     elif order == 2:
         if isinstance(dual, Variable):
             dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
+
         if vars is None:
             return 2.0 * dual.dual2
         else:
@@ -245,14 +244,14 @@ def dual_inv_norm_cdf(x: DualTypes) -> Number:
 
 
 def dual_solve(
-    A: np.ndarray[tuple[int, int], np.dtype[np.object_]],
-    b: np.ndarray[tuple[int], np.dtype[np.object_]],
+    A: Arr2dObj | Arr2dF64,
+    b: Arr1dObj | Arr1dF64,
     allow_lsq: bool = False,
     types: tuple[type[float] | type[Dual] | type[Dual2], type[float] | type[Dual] | type[Dual2]] = (
         Dual,
         Dual,
     ),
-) -> np.ndarray[tuple[int], np.dtype[np.object_]]:
+) -> Arr1dObj | Arr1dF64:
     """
     Solve a linear system of equations involving dual number data types.
 
@@ -280,9 +279,9 @@ def dual_solve(
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
         else:
-            return np.linalg.solve(A, b)
+            return np.linalg.solve(A, b)  # type: ignore[arg-type]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
@@ -295,17 +294,17 @@ def dual_solve(
     A_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None))(A)
     b_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None))(b)
 
-    a = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
-    b = b_[:, 0].tolist()
+    a_ = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
+    b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        out = _dsolve1(a, b, allow_lsq)
+        out = _dsolve1(a_, b_, allow_lsq)
     elif types == (Dual2, Dual2):
-        out = _dsolve2(a, b, allow_lsq)
+        out = _dsolve2(a_, b_, allow_lsq)
     elif types == (float, Dual):
-        out = _fdsolve1(A_, b, allow_lsq)
+        out = _fdsolve1(A_, b_, allow_lsq)
     elif types == (float, Dual2):
-        out = _fdsolve2(A_, b, allow_lsq)
+        out = _fdsolve2(A_, b_, allow_lsq)
 
     return np.array(out)[:, None]
 

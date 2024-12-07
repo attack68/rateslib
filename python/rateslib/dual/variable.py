@@ -15,6 +15,8 @@ FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
 INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 Arr1dF64 = np.ndarray[tuple[int], np.dtype[np.float64]]
 Arr2dF64 = np.ndarray[tuple[int, int], np.dtype[np.float64]]
+Arr1dObj = np.ndarray[tuple[int], np.dtype[np.object_]]
+Arr2dObj = np.ndarray[tuple[int, int], np.dtype[np.object_]]
 
 
 class Variable:
@@ -192,7 +194,7 @@ class Variable:
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__norm_inv_cdf__()
 
-    def __pow__(self, exponent: float | Dual | Dual2, modulo: int) -> Dual | Dual2:
+    def __pow__(self, exponent: float | Dual | Dual2, modulo: int | None = None) -> Dual | Dual2:
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__pow__(exponent, modulo)
 
