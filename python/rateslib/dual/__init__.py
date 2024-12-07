@@ -78,13 +78,17 @@ def set_order_convert(
         elif order == 1:
             if vars_from is None:
                 return Dual(val, _, [])
-            else:
+            elif isinstance(vars_from, Dual):
                 return Dual.vars_from(vars_from, val, _, [])
+            else:
+                raise TypeError("`vars_from` must be a Dual when converting to ADOrder:1.")
         elif order == 2:
             if vars_from is None:
                 return Dual2(val, _, [], [])
-            else:
+            elif isinstance(vars_from, Dual2):
                 return Dual2.vars_from(vars_from, val, _, [], [])
+            else:
+                raise TypeError("`vars_from` must be a Dual2 when converting to ADOrder:2.")
     # else val is Dual or Dual2 so convert directly
     return set_order(val, order)
 
@@ -244,7 +248,7 @@ def dual_solve(
     A: np.ndarray[tuple[int, int], np.dtype[np.object_]],
     b: np.ndarray[tuple[int], np.dtype[np.object_]],
     allow_lsq: bool = False,
-    types: tuple[Number, Number] = (Dual, Dual),
+    types: tuple[type[float] | type[Dual] | type[Dual2], type[float] | type[Dual] | type[Dual2]] = (Dual, Dual),
 ) -> np.ndarray[tuple[int], np.dtype[np.object_]]:
     """
     Solve a linear system of equations involving dual number data types.

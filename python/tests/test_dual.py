@@ -894,6 +894,12 @@ def test_numpy_dtypes(z, dtype) -> None:
     dtype(2) + z
 
 
+# def test_dual2_vars_from():
+#     x = Dual2(2.0, ["x", "y", "z"], [], [])
+#     y = Dual2.vars_from(x, 2.0, [], [], [])
+#     assert x.ptr_eq(y)
+
+
 class TestVariable:
     @pytest.mark.parametrize(
         ("op", "exp"),
