@@ -248,7 +248,10 @@ def dual_solve(
     A: np.ndarray[tuple[int, int], np.dtype[np.object_]],
     b: np.ndarray[tuple[int], np.dtype[np.object_]],
     allow_lsq: bool = False,
-    types: tuple[type[float] | type[Dual] | type[Dual2], type[float] | type[Dual] | type[Dual2]] = (Dual, Dual),
+    types: tuple[type[float] | type[Dual] | type[Dual2], type[float] | type[Dual] | type[Dual2]] = (
+        Dual,
+        Dual,
+    ),
 ) -> np.ndarray[tuple[int], np.dtype[np.object_]]:
     """
     Solve a linear system of equations involving dual number data types.
