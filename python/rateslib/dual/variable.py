@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -14,6 +15,7 @@ FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
 INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 Arr1dF64 = np.ndarray[tuple[int], np.dtype[np.float64]]
 Arr2dF64 = np.ndarray[tuple[int, int], np.dtype[np.float64]]
+
 
 class Variable:
     """
