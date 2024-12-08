@@ -22,6 +22,7 @@ from rateslib.calendars import (
     _is_som,
     add_tenor,
     get_calendar,
+    CalInput,
 )
 from rateslib.default import NoInput
 
@@ -262,7 +263,7 @@ class Schedule:
         roll: str | int | NoInput = NoInput(0),
         eom: bool | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
-        calendar: CustomBusinessDay | str | NoInput = NoInput(0),
+        calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
         eval_date: datetime | NoInput = NoInput(0),
         eval_mode: str | NoInput = NoInput(0),
@@ -272,15 +273,15 @@ class Schedule:
         self.eom = eom
 
         self.eval_date = eval_date
-        self.eval_mode = defaults.eval_mode if eval_mode is NoInput.blank else eval_mode.lower()
+        self.eval_mode = defaults.eval_mode if isinstance(eval_mode, NoInput) else eval_mode.lower()
 
-        if modifier is NoInput.blank:  # then get default
+        if isinstance(modifier, NoInput):  # then get default
             modifier_: str = defaults.modifier
         else:
             modifier_ = modifier
         self.modifier = modifier_
 
-        if payment_lag is NoInput.blank:
+        if isinstance(payment_lag, NoInput):
             payment_lag_: int = defaults.payment_lag
         else:
             payment_lag_ = payment_lag
@@ -294,7 +295,7 @@ class Schedule:
         self.frequency = frequency
 
         if isinstance(effective, str):
-            if self.eval_date is NoInput.blank:
+            if isinstance(self.eval_date, NoInput):
                 raise ValueError(
                     "For `effective` given as string tenor, must also supply a `base_eval` date.",
                 )
@@ -335,10 +336,10 @@ class Schedule:
                 # be used later according to roll inference rules, for monthly and yearly tenors.
                 if (
                     self.eom
-                    and roll is NoInput.blank
+                    and isinstance(roll, NoInput)
                     and _is_eom_cal(self.effective, self.calendar)
                 ):
-                    roll_ = 31
+                    roll_: str | int | NoInput = 31
                 else:
                     roll_ = roll
                 termination_ = add_tenor(
@@ -366,7 +367,7 @@ class Schedule:
             self._attribute_schedules()
             return None
 
-        if stub is NoInput.blank:
+        if isinstance(stub, NoInput):
             # if specific stub dates are given we cannot know if these are long or short
             if front_stub is NoInput.blank:
                 stub = defaults.stub if back_stub is NoInput.blank else "BACK"
@@ -549,7 +550,7 @@ class Schedule:
                 self.back_stub = parsed_args["utermination"]
                 self.roll = parsed_args["roll"]
 
-    def _attribute_schedules(self):
+    def _attribute_schedules(self) -> None:
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
@@ -561,10 +562,10 @@ class Schedule:
         if self.back_stub is not NoInput(0):
             self.stubs[-1] = True
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.Schedule at {hex(id(self))}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         str = (
             f"freq: {self.frequency},  stub: {self.stub},  roll: {self.roll}"
             f",  pay lag: {self.payment_lag},  modifier: {self.modifier}\n"
@@ -572,7 +573,7 @@ class Schedule:
         return str + self.table.__repr__()
 
     @property
-    def table(self):
+    def table(self) -> DataFrame:
         """
         DataFrame : Rows of schedule dates and information.
         """
@@ -589,7 +590,7 @@ class Schedule:
         return df
 
     @property
-    def n_periods(self):
+    def n_periods(self) -> int:
         """
         int : Number of periods contained in the schedule.
         """
@@ -601,7 +602,7 @@ class Schedule:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int):
+def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int) -> bool:
     """
     Test whether two dates' months define a period divisible by frequency months.
 
@@ -628,7 +629,7 @@ def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int
     return months % frequency_months == 0
 
 
-def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool):
+def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool) -> str | int:
     """
     Infer a roll day from given effective and termination dates of a regular swap.
 
@@ -698,7 +699,7 @@ def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def _get_date_category(date: datetime):
+def _get_date_category(date: datetime) -> int:
     """
     Assign a date to a specific category for roll parsing.
 
