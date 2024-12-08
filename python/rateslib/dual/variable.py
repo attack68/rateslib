@@ -10,8 +10,8 @@ from rateslib.default import NoInput
 from rateslib.rs import Dual, Dual2
 
 PRECISION = 1e-14
-FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
-INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
+FLOATS = float | np.float16 | np.float32 | np.float64 | np.longdouble
+INTS = int | np.int8 | np.int16 | np.int32 | np.int32 | np.int64 
 
 
 class Variable:
