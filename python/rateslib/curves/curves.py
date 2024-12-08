@@ -2210,7 +2210,7 @@ class CompositeCurve(IndexCurve):
 
     def _validate_curve_collection(self):
         """Perform checks to ensure CompositeCurve can exist"""
-        if type(self) is MultiCsaCurve and isinstance(self.curves[0], (LineCurve, IndexCurve)):
+        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve | IndexCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
 
         if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:

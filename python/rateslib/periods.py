@@ -74,7 +74,7 @@ def _get_fx_and_base(
     if base is None:
         raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
-    if isinstance(fx, (FXRates, FXForwards)):
+    if isinstance(fx, FXRates | FXForwards):
         base = fx.base if base is NoInput.blank else base.lower()
         if base == currency:
             fx = 1.0
@@ -968,7 +968,7 @@ class FloatPeriod(BasePeriod):
             _ = -self.notional * self.dcf * self.rate(curve) / 100
             return _
         except ValueError as e:
-            if isinstance(curve, (Curve, dict)):
+            if isinstance(curve, Curve | dict):
                 raise e
             # probably "needs a `curve` to forecast rate
             return None
@@ -1036,7 +1036,7 @@ class FloatPeriod(BasePeriod):
 
     def _rate_ibor(self, curve: Curve | dict | NoInput) -> Number:
         # function will try to forecast a rate without a `curve` when fixings are available.
-        if isinstance(self.fixings, (float, Dual, Dual2, Variable)):
+        if isinstance(self.fixings, float | Dual | Dual2 | Variable):
             return self.fixings + self.float_spread / 100
         elif isinstance(self.fixings, Series):
             # check if we return published IBOR rate
@@ -1121,7 +1121,7 @@ class FloatPeriod(BasePeriod):
             return _
 
     def _rate_rfr(self, curve: Curve | dict | NoInput) -> Number:
-        if isinstance(self.fixings, (float, Dual, Dual2)):
+        if isinstance(self.fixings, float | Dual | Dual2):
             # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
                 self.spread_compound_method in ["isda_compounding", "isda_flat_compounding"]
@@ -1139,7 +1139,7 @@ class FloatPeriod(BasePeriod):
             return self.fixings + self.float_spread / 100
 
             # else next calculations made based on fixings in (None, list, Series)
-        elif isinstance(self.fixings, (Series, list)):
+        elif isinstance(self.fixings, Series | list):
             # try to calculate rate purely from the fixings
             return self._rfr_rate_from_individual_fixings(curve)
 
@@ -1265,7 +1265,7 @@ class FloatPeriod(BasePeriod):
         rates = Series(NA, index=obs_dates[:-1])
         if not isinstance(self.fixings, NoInput):
             # then fixings will be a list or Series, scalars are already processed.
-            assert not isinstance(self.fixings, (float, Dual, Dual2, Variable))  # noqa: S101
+            assert not isinstance(self.fixings, float | Dual | Dual2 | Variable)  # noqa: S101
 
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
@@ -2438,7 +2438,7 @@ class CreditProtectionPeriod(BasePeriod):
         float
         """
         rr = self.recovery_rate
-        if isinstance(rr, (Dual, Dual2, Variable)):
+        if isinstance(rr, Dual | Dual2 | Variable):
             self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
         else:
             self.recovery_rate = Variable(float(rr), ["__recovery_rate__"])

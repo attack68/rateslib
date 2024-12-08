@@ -733,7 +733,7 @@ class FXOptionStrat:
 
     def _vol_as_list(self, vol, solver):
         """Standardise a vol input over the list of periods"""
-        if not isinstance(vol, (list, tuple)):
+        if not isinstance(vol, list | tuple):
             vol = [vol] * len(self.periods)
         return [_get_vol_maybe_from_solver(self.vol, _, solver) for _ in vol]
 

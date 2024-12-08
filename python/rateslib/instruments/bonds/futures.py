@@ -366,7 +366,7 @@ class BondFuture(Sensitivities):
         -------
         DataFrame
         """
-        if not isinstance(repo_rate, (tuple, list)):
+        if not isinstance(repo_rate, tuple | list):
             r_ = (repo_rate,) * len(self.basket)
         else:
             r_ = tuple(repo_rate)
@@ -580,7 +580,7 @@ class BondFuture(Sensitivities):
         else:
             f_settlement = delivery
 
-        if not isinstance(repo_rate, (list, tuple)):
+        if not isinstance(repo_rate, list | tuple):
             r_ = (repo_rate,) * len(self.basket)
         else:
             r_ = repo_rate

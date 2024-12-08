@@ -120,7 +120,7 @@ def gradient(
     -------
     float, ndarray, Dual2
     """
-    if not isinstance(dual, (Dual, Dual2, Variable)):
+    if not isinstance(dual, Dual | Dual2 | Variable):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
         if isinstance(dual, Variable):
@@ -157,7 +157,7 @@ def dual_exp(x: DualTypes) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__exp__()
     return math.exp(x)
 
@@ -177,7 +177,7 @@ def dual_log(x: DualTypes, base: int | None = None) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         val = x.__log__()
         if base is None:
             return val
@@ -216,7 +216,7 @@ def dual_norm_cdf(x: DualTypes) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_cdf__()
     else:
         return NormalDist().cdf(x)
@@ -234,7 +234,7 @@ def dual_inv_norm_cdf(x: DualTypes) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_inv_cdf__()
     else:
         return NormalDist().inv_cdf(x)

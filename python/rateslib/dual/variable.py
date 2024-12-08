@@ -108,7 +108,7 @@ class Variable:
             _1 = self._to_dual_type(defaults._global_ad_order)
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__add__(_2)
-        elif isinstance(other, (FLOATS, INTS)):
+        elif isinstance(other, FLOATS | INTS):
             return Variable(self.real + float(other), vars=self.vars, dual=self.dual)
         elif isinstance(other, Dual):
             _ = Dual(self.real, vars=self.vars, dual=self.dual)
@@ -133,7 +133,7 @@ class Variable:
             _1 = self._to_dual_type(defaults._global_ad_order)
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__mul__(_2)
-        elif isinstance(other, (FLOATS, INTS)):
+        elif isinstance(other, FLOATS | INTS):
             return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))
         elif isinstance(other, Dual):
             _ = Dual(self.real, vars=self.vars, dual=self.dual)
@@ -152,7 +152,7 @@ class Variable:
             _1 = self._to_dual_type(defaults._global_ad_order)
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__truediv__(_2)
-        elif isinstance(other, (FLOATS, INTS)):
+        elif isinstance(other, FLOATS | INTS):
             return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))
         elif isinstance(other, Dual):
             _ = Dual(self.real, vars=self.vars, dual=self.dual)
@@ -167,7 +167,7 @@ class Variable:
         if isinstance(other, Variable):
             # cannot reach this line
             raise TypeError("Impossible line execution - please report issue.")  # pragma: no cover
-        elif isinstance(other, (FLOATS, INTS)):
+        elif isinstance(other, FLOATS | INTS):
             _1 = Variable(other, ())
             return _1 / self
         elif isinstance(other, Dual):
