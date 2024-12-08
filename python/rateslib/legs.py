@@ -272,7 +272,7 @@ class BaseLeg(metaclass=ABCMeta):
                 for i in range(self.schedule.n_periods - 1)
             ]
             interleaved_periods = [
-                val for pair in zip(regular_periods, amortization) for val in pair
+                val for pair in zip(regular_periods, amortization, strict=False) for val in pair
             ]
             interleaved_periods.append(regular_periods[-1])  # add last regular period
         else:
@@ -419,7 +419,7 @@ class BaseLeg(metaclass=ABCMeta):
         disc_ad = disc_curve.ad
         disc_curve._set_ad_order(2)
 
-        if isinstance(fx, (FXRates, FXForwards)):
+        if isinstance(fx, FXRates | FXForwards):
             _fx = None if fx is None else fx._ad
             fx._set_ad_order(2)
 
@@ -449,7 +449,7 @@ class BaseLeg(metaclass=ABCMeta):
         self.float_spread = _fs
         fore_curve._set_ad_order(fore_ad)
         disc_curve._set_ad_order(disc_ad)
-        if isinstance(fx, (FXRates, FXForwards)):
+        if isinstance(fx, FXRates | FXForwards):
             fx._set_ad_order(_fx)
         _ = set_order(_, disc_ad)  # use disc_ad: credit spread from disc curve
 
@@ -522,7 +522,7 @@ class _FixedLegMixin:
     def fixed_rate(self, value):
         self._fixed_rate = value
         for period in getattr(self, "periods", []):
-            if isinstance(period, (FixedPeriod, CreditPremiumPeriod)):
+            if isinstance(period, FixedPeriod | CreditPremiumPeriod):
                 period.fixed_rate = value
 
     def _regular_period(
@@ -1082,7 +1082,7 @@ class _IndexLegMixin:
     def index_fixings(self, value):
         self._index_fixings = value
         for i, period in enumerate(self.periods):
-            if isinstance(period, (IndexFixedPeriod, IndexCashflow)):
+            if isinstance(period, IndexFixedPeriod | IndexCashflow):
                 if isinstance(value, Series):
                     _ = IndexMixin._index_value(
                         i_fixings=value,
@@ -1118,7 +1118,7 @@ class _IndexLegMixin:
         self._index_base = value
         # if value is not None:
         for period in self.periods:
-            if isinstance(period, (IndexFixedPeriod, IndexCashflow)):
+            if isinstance(period, IndexFixedPeriod | IndexCashflow):
                 period.index_base = value
 
 
@@ -2260,7 +2260,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
                 for i in range(self.schedule.n_periods - 1)
             ]
             interleaved_periods = [
-                val for pair in zip(regular_periods, amortization) for val in pair
+                val for pair in zip(regular_periods, amortization, strict=False) for val in pair
             ]
             interleaved_periods.append(regular_periods[-1])  # add last regular period
         else:
@@ -2393,7 +2393,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             self._fx_fixings = []
         elif isinstance(value, list):
             self._fx_fixings = value
-        elif isinstance(value, (float, Dual, Dual2)):
+        elif isinstance(value, float | Dual | Dual2):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
             self._fx_fixings = self._get_fx_fixings_from_series(value)
@@ -2516,7 +2516,9 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             )
             for i in range(len(fx_fixings) - 1)
         ]
-        interleaved_periods = [val for pair in zip(regular_periods, mtm_flows) for val in pair]
+        interleaved_periods = [
+            val for pair in zip(regular_periods, mtm_flows, strict=False) for val in pair
+        ]
         interleaved_periods.append(regular_periods[-1])
         self.periods.extend(interleaved_periods)
 
@@ -2776,7 +2778,7 @@ class CustomLeg(BaseLeg):
     """  # noqa: E501
 
     def __init__(self, periods):
-        if not all(isinstance(p, (FixedPeriod, FloatPeriod, Cashflow)) for p in periods):
+        if not all(isinstance(p, FixedPeriod | FloatPeriod | Cashflow) for p in periods):
             raise ValueError(
                 "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}.",
             )

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import calendar as calendar_mod
 import warnings
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput

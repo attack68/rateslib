@@ -74,7 +74,7 @@ def _get_base_maybe_from_fx(
         # from solver.fx, to preserve single currency instruments being defaulted
         # to their local currency.
         base_ = local_ccy
-    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
+    elif isinstance(fx, FXRates | FXForwards) and base is NoInput.blank:
         base_ = fx.base
     else:
         base_ = base
@@ -128,7 +128,7 @@ def _get_curves_maybe_from_solver(
         # set the `curves` input as that which is set as attribute at instrument init.
         curves = curves_attr
 
-    if not isinstance(curves, (list, tuple)):
+    if not isinstance(curves, list | tuple):
         # convert isolated value input to list
         curves = [curves]
 
@@ -249,7 +249,7 @@ def _get_vol_maybe_from_solver(
                 "String `vol` ids require a `solver` to be mapped. No `solver` provided.",
             )
         return vol
-    elif isinstance(vol, (float, Dual, Dual2)):
+    elif isinstance(vol, float | Dual | Dual2):
         return vol
     elif isinstance(vol, str):
         return solver.pre_curves[vol]

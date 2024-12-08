@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from functools import partial
 from statistics import NormalDist
-from typing import Union
 
 import numpy as np
 
@@ -13,8 +12,8 @@ from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fd
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-DualTypes = Union[float, Dual, Dual2, Variable]
-Number = Union[float, Dual, Dual2]
+DualTypes = float | Dual | Dual2 | Variable
+Number = float | Dual | Dual2
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -71,7 +70,7 @@ def set_order_convert(
     -------
     float, Dual, Dual2
     """
-    if isinstance(val, (*FLOATS, *INTS)):
+    if isinstance(val, FLOATS | INTS):
         _ = [] if tag is None else tag
         if order == 0:
             return float(val)
@@ -120,7 +119,7 @@ def gradient(
     -------
     float, ndarray, Dual2
     """
-    if not isinstance(dual, (Dual, Dual2, Variable)):
+    if not isinstance(dual, Dual | Dual2 | Variable):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
         if isinstance(dual, Variable):
@@ -157,7 +156,7 @@ def dual_exp(x: DualTypes) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__exp__()
     return math.exp(x)
 
@@ -177,7 +176,7 @@ def dual_log(x: DualTypes, base: int | None = None) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         val = x.__log__()
         if base is None:
             return val
@@ -216,7 +215,7 @@ def dual_norm_cdf(x: DualTypes) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_cdf__()
     else:
         return NormalDist().cdf(x)
@@ -234,7 +233,7 @@ def dual_inv_norm_cdf(x: DualTypes) -> Number:
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_inv_cdf__()
     else:
         return NormalDist().inv_cdf(x)
