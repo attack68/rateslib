@@ -683,7 +683,7 @@ class FXForwards:
         value_date: datetime | NoInput = NoInput(0),
         collateral: str | NoInput = NoInput(0),
         on_error: str = "ignore",
-    ) -> Number:
+    ) -> Number | None:
         """
         Convert an amount of a domestic currency, as of a settlement date
         into a foreign currency, valued on another date.
@@ -1036,7 +1036,7 @@ class FXForwards:
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
         _, path = self._rate_with_path(pair, x[0])
-        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
+        rates: list[Number] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
         if not fx_swap:
             y: list[Number] = [rates]
         else:
@@ -1155,7 +1155,7 @@ def forward_fx(
     curve_foreign: Curve,
     fx_rate: DualTypes,
     fx_settlement: datetime | NoInput = NoInput(0),
-) -> Dual:
+) -> DualTypes:
     """
     Return a forward FX rate based on interest rate parity.
 

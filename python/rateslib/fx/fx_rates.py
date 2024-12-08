@@ -11,6 +11,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.default import NoInput, _drb, _make_py_json
 from rateslib.dual import Dual, DualTypes, Number, _get_adorder, gradient
+from rateslib.dual.variable import Arr1dF64, Arr1dObj, Arr2dObj
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 
@@ -155,9 +156,13 @@ class FXRates:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @cached_property
-    def fx_array(self) -> np.ndarray[tuple[int, int], np.dtype[np.object_]]:
+    def fx_array(self) -> Arr2dObj:
         # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)
+
+    def fx_array_el(self, i: int, j: int) -> Number:
+        # this is for typing since this numpy object array can only hold float | Dual | Dual2
+        return self.fx_array[i, j]  # type: ignore
 
     @property
     def base(self) -> str:
@@ -184,7 +189,7 @@ class FXRates:
         return len(self.obj.currencies)
 
     @property
-    def fx_vector(self) -> np.ndarray[tuple[int], np.dtype[np.object_]]:
+    def fx_vector(self) -> Arr1dObj:
         return self.fx_array[0, :]
 
     @property
@@ -199,7 +204,7 @@ class FXRates:
     def _ad(self) -> int:
         return self.obj.ad
 
-    def rate(self, pair: str) -> DualTypes:
+    def rate(self, pair: str) -> Number:
         """
         Return a specified FX rate for a given currency pair.
 
@@ -221,7 +226,7 @@ class FXRates:
            fxr.rate("eurgbp")
         """
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
-        return self.fx_array[domi][fori]
+        return self.fx_array_el(domi, fori)
 
     def restate(self, pairs: list[str], keep_ad: bool = False) -> FXRates:
         """
@@ -355,7 +360,7 @@ class FXRates:
         domestic: str,
         foreign: str | NoInput = NoInput(0),
         on_error: str = "ignore",
-    ) -> Number | None:
+    ) -> DualTypes | None:
         """
         Convert an amount of a domestic currency into a foreign currency.
 
@@ -402,11 +407,11 @@ class FXRates:
                     raise ValueError(f"'{ccy}' not in FXRates.currencies.")
 
         i, j = self.currencies[domestic.lower()], self.currencies[foreign.lower()]
-        return value * self.fx_array[i, j]
+        return value * self.fx_array_el(i, j)
 
     def convert_positions(
         self,
-        array: np.ndarray[tuple[int], np.dtype[np.float64]] | list[float],
+        array: Arr1dF64 | list[float],
         base: str | NoInput = NoInput(0),
     ) -> Number:
         """
@@ -491,9 +496,9 @@ class FXRates:
         # _[f_idx] = f_val
         # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
         # return _
-        f_val = delta * float(self.fx_array[b_idx, f_idx])
+        f_val = delta * float(self.fx_array_el(b_idx, f_idx))
         _[d_idx] = f_val
-        _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
+        _[f_idx] = -f_val / float(self.fx_array_el(f_idx, d_idx))
         return _  # calculation is more efficient from a domestic pov than foreign
 
     def rates_table(self) -> DataFrame:
