@@ -3,24 +3,24 @@ from __future__ import annotations
 import math
 from functools import partial
 from statistics import NormalDist
-from typing import Union
 
 import numpy as np
 
-from rateslib.dual.variable import FLOATS, INTS, Variable
+from rateslib.dual.variable import FLOATS, INTS, Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-DualTypes = Union[float, Dual, Dual2, Variable]
+DualTypes = float | Dual | Dual2 | Variable
+Number = float | Dual | Dual2
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def set_order(val, order):
+def set_order(val: Number, order: int) -> Number:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
     unchanged.
@@ -48,7 +48,9 @@ def set_order(val, order):
     return val
 
 
-def set_order_convert(val, order, tag, vars_from=None):
+def set_order_convert(
+    val: Number, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
+) -> Number:
     """
     Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
 
@@ -68,25 +70,34 @@ def set_order_convert(val, order, tag, vars_from=None):
     -------
     float, Dual, Dual2
     """
-    if isinstance(val, (*FLOATS, *INTS)):
+    if isinstance(val, FLOATS | INTS):
         _ = [] if tag is None else tag
         if order == 0:
             return float(val)
         elif order == 1:
             if vars_from is None:
                 return Dual(val, _, [])
-            else:
+            elif isinstance(vars_from, Dual):
                 return Dual.vars_from(vars_from, val, _, [])
+            else:
+                raise TypeError("`vars_from` must be a Dual when converting to ADOrder:1.")
         elif order == 2:
             if vars_from is None:
                 return Dual2(val, _, [], [])
-            else:
+            elif isinstance(vars_from, Dual2):
                 return Dual2.vars_from(vars_from, val, _, [], [])
+            else:
+                raise TypeError("`vars_from` must be a Dual2 when converting to ADOrder:2.")
     # else val is Dual or Dual2 so convert directly
     return set_order(val, order)
 
 
-def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold: bool = False):
+def gradient(
+    dual: Dual | Dual2 | Variable,
+    vars: list[str] | None = None,
+    order: int = 1,
+    keep_manifold: bool = False,
+) -> Arr1dF64 | Arr2dF64:
     """
     Return derivatives of a dual number.
 
@@ -110,7 +121,7 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
     -------
     float, ndarray, Dual2
     """
-    if not isinstance(dual, (Dual, Dual2, Variable)):
+    if not isinstance(dual, Dual | Dual2 | Variable):
         raise TypeError("Can call `gradient` only on dual-type variables.")
     if order == 1:
         if isinstance(dual, Variable):
@@ -126,6 +137,7 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
     elif order == 2:
         if isinstance(dual, Variable):
             dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
+
         if vars is None:
             return 2.0 * dual.dual2
         else:
@@ -134,7 +146,7 @@ def gradient(dual, vars: list[str] | None = None, order: int = 1, keep_manifold:
         raise ValueError("`order` must be in {1, 2} for gradient calculation.")
 
 
-def dual_exp(x):
+def dual_exp(x: DualTypes) -> Number:
     """
     Calculate the exponential value of a regular int or float or a dual number.
 
@@ -147,12 +159,12 @@ def dual_exp(x):
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__exp__()
     return math.exp(x)
 
 
-def dual_log(x, base=None):
+def dual_log(x: DualTypes, base: int | None = None) -> Number:
     """
     Calculate the logarithm of a regular int or float or a dual number.
 
@@ -167,7 +179,7 @@ def dual_log(x, base=None):
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         val = x.__log__()
         if base is None:
             return val
@@ -179,7 +191,7 @@ def dual_log(x, base=None):
         return math.log(x, base)
 
 
-def dual_norm_pdf(x):
+def dual_norm_pdf(x: DualTypes) -> Number:
     """
     Return the standard normal probability density function.
 
@@ -194,7 +206,7 @@ def dual_norm_pdf(x):
     return dual_exp(-0.5 * x**2) / math.sqrt(2.0 * math.pi)
 
 
-def dual_norm_cdf(x):
+def dual_norm_cdf(x: DualTypes) -> Number:
     """
     Return the cumulative standard normal distribution for given value.
 
@@ -206,13 +218,13 @@ def dual_norm_cdf(x):
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_cdf__()
     else:
         return NormalDist().cdf(x)
 
 
-def dual_inv_norm_cdf(x):
+def dual_inv_norm_cdf(x: DualTypes) -> Number:
     """
     Return the inverse cumulative standard normal distribution for given value.
 
@@ -224,13 +236,21 @@ def dual_inv_norm_cdf(x):
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, (Dual, Dual2, Variable)):
+    if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_inv_cdf__()
     else:
         return NormalDist().inv_cdf(x)
 
 
-def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
+def dual_solve(
+    A: Arr2dObj | Arr2dF64,
+    b: Arr1dObj | Arr1dF64,
+    allow_lsq: bool = False,
+    types: tuple[type[float] | type[Dual] | type[Dual2], type[float] | type[Dual] | type[Dual2]] = (
+        Dual,
+        Dual,
+    ),
+) -> Arr1dObj | Arr1dF64:
     """
     Solve a linear system of equations involving dual number data types.
 
@@ -258,9 +278,9 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
         else:
-            return np.linalg.solve(A, b)
+            return np.linalg.solve(A, b)  # type: ignore[arg-type]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
@@ -273,22 +293,25 @@ def dual_solve(A, b, allow_lsq=False, types=(Dual, Dual)):
     A_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None))(A)
     b_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None))(b)
 
-    a = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
-    b = b_[:, 0].tolist()
+    a_ = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
+    b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        out = _dsolve1(a, b, allow_lsq)
+        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]
     elif types == (Dual2, Dual2):
-        out = _dsolve2(a, b, allow_lsq)
+        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]
     elif types == (float, Dual):
-        out = _fdsolve1(A_, b, allow_lsq)
+        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]
     elif types == (float, Dual2):
-        out = _fdsolve2(A_, b, allow_lsq)
+        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
+    else:
+        raise TypeError(
+            "Provided `types` argument are not permitted. Must be a 2-tuple with "
+            "elements from {float, Dual, Dual2}"
+        )
 
-    return np.array(out)[:, None]
 
-
-def _get_adorder(order: int):
+def _get_adorder(order: int) -> ADOrder:
     if order == 1:
         return ADOrder.One
     elif order == 0:

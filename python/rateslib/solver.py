@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from itertools import combinations
 from time import time
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -2114,7 +2115,7 @@ def newton_1dim(
 
     # # Final iteration method to preserve AD
     f0, f1 = f(g1, *(*args, *final_args))
-    if isinstance(f0, (Dual, Dual2)) or isinstance(f1, (Dual, Dual2)):
+    if isinstance(f0, Dual | Dual2) or isinstance(f1, Dual | Dual2):
         i += 1
         g1 = g1 - f0 / f1
     if isinstance(f0, Dual2) or isinstance(f1, Dual2):

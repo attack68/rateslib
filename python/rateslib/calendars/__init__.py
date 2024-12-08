@@ -5,22 +5,21 @@ from datetime import datetime
 
 from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
-    Cal,
     CalInput,
     CalTypes,
-    Modifier,
-    NamedCal,
-    RollDay,
-    UnionCal,
     _get_modifier,
     _get_rollday,
     get_calendar,
 )
 from rateslib.default import NoInput, _drb
+from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+Modifier.__doc__ = "Enumerable type for modification rules."
+RollDay.__doc__ = "Enumerable type for roll day types."
 
 
 def dcf(
@@ -137,7 +136,7 @@ def dcf(
 
 
 # TODO (deprecate): this function on 2.0.0
-def create_calendar(rules: list, week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
+def create_calendar(rules: list[datetime], week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
 
@@ -337,9 +336,11 @@ def get_imm(
     -------
     datetime
     """
-    if code is not NoInput.blank:
+    if isinstance(code, str):
         year = int(code[1:]) + 2000
         month = MONTHS[code[0].upper()]
+    elif isinstance(month, NoInput) or isinstance(year, NoInput):
+        raise ValueError("`month` and `year` must each be valid integers if `code`not given.")
     return _get_imm(month, year)
 
 
@@ -416,7 +417,7 @@ def _is_day_type_tenor(tenor: str) -> bool:
     return "D" in tenor_ or "B" in tenor_ or "W" in tenor_
 
 
-def _is_imm(date: datetime, hmuz=False) -> bool:
+def _is_imm(date: datetime, hmuz: bool = False) -> bool:
     """
     Test whether a given date is an IMM date, defined as third wednesday in month.
 
@@ -471,12 +472,12 @@ def _is_eom(date: datetime) -> bool:
     return date.day == calendar_mod.monthrange(date.year, date.month)[1]
 
 
-def _is_eom_cal(date: datetime, cal: CalInput):
+def _is_eom_cal(date: datetime, cal: CalInput) -> bool:
     """Test whether a given date is end of month under a specific calendar"""
-    udate = calendar_mod.monthrange(date.year, date.month)[1]
-    udate = datetime(date.year, date.month, udate)
-    aeom = _adjust_date(udate, "P", cal)
-    return date == aeom
+    end_day = calendar_mod.monthrange(date.year, date.month)[1]
+    eom = datetime(date.year, date.month, end_day)
+    adj_eom = _adjust_date(eom, "P", cal)
+    return date == adj_eom
 
 
 def _get_eom(month: int, year: int) -> datetime:
@@ -523,9 +524,9 @@ def _get_fx_expiry_and_delivery(
     expiry: str | datetime,
     delivery_lag: int | datetime,
     calendar: CalInput,
-    modifier: str | NoInput,
+    modifier: str,
     eom: bool,
-):
+) -> tuple[datetime, datetime]:
     """
     Determines the expiry and delivery date of an FX option using the following rules:
 
@@ -552,7 +553,7 @@ def _get_fx_expiry_and_delivery(
     tuple of datetime
     """
     if isinstance(expiry, str):
-        if eval_date is NoInput.blank:
+        if isinstance(eval_date, NoInput):
             raise ValueError("`expiry` as string tenor requires `eval_date`.")
         # then the expiry will be implied
         e = expiry.upper()
@@ -567,16 +568,20 @@ def _get_fx_expiry_and_delivery(
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
                 roll = "eom" if (eom and _is_eom(spot)) else spot.day
-                delivery = add_tenor(spot, expiry, modifier, calendar, roll, True)
-                expiry = get_calendar(calendar).add_bus_days(delivery, -delivery_lag, False)
-                return expiry, delivery
+                delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
+                expiry_ = get_calendar(calendar).add_bus_days(delivery_, -delivery_lag, False)
+                return expiry_, delivery_
         else:
-            expiry = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+            expiry_ = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+    else:
+        expiry_ = expiry
 
     if isinstance(delivery_lag, datetime):
-        return expiry, delivery_lag
+        delivery_ = delivery_lag
     else:
-        return expiry, get_calendar(calendar).lag(expiry, delivery_lag, True)
+        delivery_ = get_calendar(calendar).lag(expiry_, delivery_lag, True)
+
+    return expiry_, delivery_
 
 
 __all__ = (
