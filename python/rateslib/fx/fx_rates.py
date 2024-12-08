@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.default import NoInput, _drb, _make_py_json
 from rateslib.dual import Dual, DualTypes, Number, _get_adorder, gradient
-from rateslib.dual.variable import Arr1dObj, Arr2dObj, Arr1dF64
+from rateslib.dual.variable import Arr1dF64, Arr1dObj, Arr2dObj
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 

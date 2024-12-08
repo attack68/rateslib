@@ -15,10 +15,10 @@ FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
 INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 
 # https://stackoverflow.com/questions/68916893/
-Arr1dF64: TypeAlias = 'np.ndarray[tuple[int], np.dtype[np.float64]]'
-Arr2dF64: TypeAlias = 'np.ndarray[tuple[int, int], np.dtype[np.float64]]'
-Arr1dObj: TypeAlias = 'np.ndarray[tuple[int], np.dtype[np.object_]]'
-Arr2dObj: TypeAlias = 'np.ndarray[tuple[int, int], np.dtype[np.object_]]'
+Arr1dF64: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.float64]]"
+Arr2dF64: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.float64]]"
+Arr1dObj: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.object_]]"
+Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
 
 class Variable:

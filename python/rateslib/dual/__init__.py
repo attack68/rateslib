@@ -306,8 +306,10 @@ def dual_solve(
     elif types == (float, Dual2):
         return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
     else:
-        raise TypeError("Provided `types` argument are not permitted. Must be a 2-tuple with "
-                        "elements from {float, Dual, Dual2}")
+        raise TypeError(
+            "Provided `types` argument are not permitted. Must be a 2-tuple with "
+            "elements from {float, Dual, Dual2}"
+        )
 
 
 def _get_adorder(order: int) -> ADOrder:
