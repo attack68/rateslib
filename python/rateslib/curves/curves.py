@@ -1195,7 +1195,12 @@ class Curve(_Serialize):
         y_ = [y] if not difference else []
         for _, comparator in enumerate(comparators):
             if difference:
-                y_.append([self._plot_diff(_x, tenor, _y, comparator) for _x, _y in zip(x, y, strict=False)])
+                y_.append(
+                    [
+                        self._plot_diff(_x, tenor, _y, comparator)
+                        for _x, _y in zip(x, y, strict=False)
+                    ]
+                )
             else:
                 pm_ = comparator._plot_modifier(tenor)
                 y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])

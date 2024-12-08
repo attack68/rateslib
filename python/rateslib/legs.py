@@ -2516,7 +2516,9 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             )
             for i in range(len(fx_fixings) - 1)
         ]
-        interleaved_periods = [val for pair in zip(regular_periods, mtm_flows, strict=False) for val in pair]
+        interleaved_periods = [
+            val for pair in zip(regular_periods, mtm_flows, strict=False) for val in pair
+        ]
         interleaved_periods.append(regular_periods[-1])
         self.periods.extend(interleaved_periods)
 
