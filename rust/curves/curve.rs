@@ -32,6 +32,11 @@ pub trait CurveInterpolation {
         // let timestamp = date.and_utc().timestamp();
         index_left(&nodes.keys(), &date_timestamp, None)
     }
+
+    /// Calibrate the interpolator to the Curve nodes if necessary
+    fn calibrate(&self, nodes: &NodesTimestamp) -> Result<(), PyErr> {
+        Ok(())
+    }
 }
 
 impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
