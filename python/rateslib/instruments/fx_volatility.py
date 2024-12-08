@@ -771,7 +771,7 @@ class FXOptionStrat:
         weights = map_[metric]
 
         _ = 0.0
-        for option, vol_, weight in zip(self.periods, vol, weights):
+        for option, vol_, weight in zip(self.periods, vol, weights, strict=False):
             _ += option.rate(curves, solver, fx, base, vol_, metric) * weight
         return _
 
@@ -789,7 +789,7 @@ class FXOptionStrat:
 
         results = [
             option.npv(curves, solver, fx, base, local, vol_)
-            for (option, vol_) in zip(self.periods, vol)
+            for (option, vol_) in zip(self.periods, vol, strict=False)
         ]
 
         if local:
@@ -814,7 +814,7 @@ class FXOptionStrat:
             vol = [vol] * len(self.periods)
 
         y = None
-        for option, vol_ in zip(self.periods, vol):
+        for option, vol_ in zip(self.periods, vol, strict=False):
             x, y_ = option._plot_payoff(range, curves, solver, fx, base, local, vol_)
             if y is None:
                 y = y_
@@ -888,7 +888,7 @@ class FXOptionStrat:
         vol = self._vol_as_list(vol, solver)
 
         gks = []
-        for option, _vol in zip(self.periods, vol):
+        for option, _vol in zip(self.periods, vol, strict=False):
             # by calling on the OptionPeriod directly the strike is maintained from rate call.
             gks.append(
                 option.periods[0].analytic_greeks(
@@ -1019,7 +1019,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
             raise ValueError(
                 "`strike` for FXRiskReversal must be set to list of 2 numeric or string values.",
             )
-        for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
+        for k, p in zip(self.kwargs["strike"], self.kwargs["premium"], strict=False):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
                     "FXRiskReversal with string delta as `strike` cannot be initialised with a "
@@ -1222,7 +1222,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             raise ValueError(
                 "`strike` for FXStrangle must be set to list of 2 numeric or string values.",
             )
-        for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
+        for k, p in zip(self.kwargs["strike"], self.kwargs["premium"], strict=False):
             if isinstance(k, str) and p != NoInput.blank:
                 raise ValueError(
                     "FXStrangle with string delta as `strike` cannot be initialised with a "
@@ -1648,7 +1648,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         else:
             weights = self.rate_weight_vol
         _ = 0.0
-        for option_strat, vol_, weight in zip(self.periods, vol, weights):
+        for option_strat, vol_, weight in zip(self.periods, vol, weights, strict=False):
             _ += option_strat.rate(curves, solver, fx, base, vol_, metric) * weight
         return _
 

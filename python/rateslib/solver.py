@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from itertools import combinations
 from time import time
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 import numpy as np

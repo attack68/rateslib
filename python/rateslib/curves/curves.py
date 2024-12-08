@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import json
 import warnings
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import numpy as np
@@ -1194,7 +1195,7 @@ class Curve(_Serialize):
         y_ = [y] if not difference else []
         for _, comparator in enumerate(comparators):
             if difference:
-                y_.append([self._plot_diff(_x, tenor, _y, comparator) for _x, _y in zip(x, y)])
+                y_.append([self._plot_diff(_x, tenor, _y, comparator) for _x, _y in zip(x, y, strict=False)])
             else:
                 pm_ = comparator._plot_modifier(tenor)
                 y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])

@@ -591,7 +591,7 @@ class FXDeltaVolSmile:
                     / 100.0
                     * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
                 )
-                for (_1, _2) in zip(x, vols)
+                for (_1, _2) in zip(x, vols, strict=False)
             ]
 
         if not difference:
@@ -715,7 +715,7 @@ class FXDeltaVolSurface:
         self.delta_type = _validate_delta_type(delta_type)
         self.smiles = [
             FXDeltaVolSmile(
-                nodes=dict(zip(self.delta_indexes, node_values[i, :])),
+                nodes=dict(zip(self.delta_indexes, node_values[i, :], strict=False)),
                 expiry=expiry,
                 eval_date=self.eval_date,
                 delta_type=self.delta_type,
@@ -811,7 +811,7 @@ class FXDeltaVolSurface:
                         vol2=vol1,
                         bounds_flag=1,
                     )
-                    for k, vol1 in zip(self.delta_indexes, self.smiles[e_idx + 1].nodes.values())
+                    for k, vol1 in zip(self.delta_indexes, self.smiles[e_idx + 1].nodes.values(), strict=False)
                 },
                 eval_date=self.eval_date,
                 expiry=expiry,
@@ -833,7 +833,7 @@ class FXDeltaVolSurface:
                         vol2=vol1,
                         bounds_flag=-1,
                     )
-                    for k, vol1 in zip(self.delta_indexes, self.smiles[0].nodes.values())
+                    for k, vol1 in zip(self.delta_indexes, self.smiles[0].nodes.values(), strict=False)
                 },
                 eval_date=self.eval_date,
                 expiry=expiry,
@@ -856,7 +856,7 @@ class FXDeltaVolSurface:
                     for k, vol1, vol2 in zip(
                         self.delta_indexes,
                         ls.nodes.values(),
-                        rs.nodes.values(),
+                        rs.nodes.values(), strict=False,
                     )
                 },
                 eval_date=self.eval_date,
