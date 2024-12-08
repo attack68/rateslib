@@ -43,8 +43,13 @@ pub mod fx;
 use fx::rates::ccy::Ccy;
 use fx::rates::{FXRate, FXRates};
 
+pub mod custom;
+use custom::DataProvider;
+
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<DataProvider>()?;
+
     // JSON
     m.add_function(wrap_pyfunction!(from_json_py, m)?)?;
 
