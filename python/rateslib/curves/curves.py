@@ -10,20 +10,21 @@ from __future__ import annotations
 
 import json
 import warnings
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
+from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import Modifier
+from rateslib.calendars.rs import Modifier, _get_calendar_with_kind
 from rateslib.default import NoInput, _drb, plot
-from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
+from rateslib.dual import Dual, Dual2, DualTypes, Number, dual_exp, dual_log, set_order_convert
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -41,7 +42,7 @@ class _Serialize:
     Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
     """
 
-    def to_json(self):
+    def to_json(self) -> str:
         """
         Convert the parameters of the curve to JSON format.
 
@@ -88,7 +89,7 @@ class _Serialize:
         return json.dumps(container, default=str)
 
     @classmethod
-    def from_json(cls, curve, **kwargs):
+    def from_json(cls, curve: str, **kwargs) -> Curve | LineCurve:  # type: ignore[no-untyped-def]
         """
         Reconstitute a curve from JSON.
 
@@ -143,7 +144,7 @@ class _Serialize:
                 return False
         return True
 
-    def _set_ad_order(self, order):
+    def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
@@ -281,9 +282,9 @@ class Curve(_Serialize):
 
     _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
     _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
-    _ini_solve = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
-    _base_type = "dfs"
-    collateral = None
+    _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
+    _base_type: str = "dfs"
+    collateral: str | None = None
 
     def __init__(
         self,
@@ -324,7 +325,7 @@ class Curve(_Serialize):
         # Parameters for the rate derivation
         self.convention = defaults.convention if convention is NoInput.blank else convention
         self.modifier = defaults.modifier if modifier is NoInput.blank else modifier.upper()
-        self.calendar, self.calendar_type = get_calendar(calendar, kind=True)
+        self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
         if self.calendar_type == "named":
             self.calendar_type = f"named: {calendar.lower()}"
 
@@ -1194,7 +1195,12 @@ class Curve(_Serialize):
         y_ = [y] if not difference else []
         for _, comparator in enumerate(comparators):
             if difference:
-                y_.append([self._plot_diff(_x, tenor, _y, comparator) for _x, _y in zip(x, y)])
+                y_.append(
+                    [
+                        self._plot_diff(_x, tenor, _y, comparator)
+                        for _x, _y in zip(x, y, strict=False)
+                    ]
+                )
             else:
                 pm_ = comparator._plot_modifier(tenor)
                 y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
@@ -2209,7 +2215,7 @@ class CompositeCurve(IndexCurve):
 
     def _validate_curve_collection(self):
         """Perform checks to ensure CompositeCurve can exist"""
-        if type(self) is MultiCsaCurve and isinstance(self.curves[0], (LineCurve, IndexCurve)):
+        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve | IndexCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
 
         if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:
@@ -3053,9 +3059,9 @@ class ProxyCurve(Curve):
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
-    def __getitem__(self, date: datetime):
+    def __getitem__(self, date: datetime) -> Number:
         return (
-            self.fx_forwards.rate(self.pair, date, path=self.path)
+            self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
             / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
             * self.fx_forwards.fx_curves[self.coll_pair][date]
         )
@@ -3073,11 +3079,11 @@ class ProxyCurve(Curve):
         """
         return NotImplementedError("`from_json` not available on proxy curve.")
 
-    def _set_ad_order(self):  # pragma: no cover
+    def _set_ad_order(self) -> None:  # pragma: no cover
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
-        return NotImplementedError("`set_ad_order` not available on proxy curve.")
+        raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
     def _get_node_vector(self):
         return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")

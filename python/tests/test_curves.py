@@ -1165,6 +1165,18 @@ class TestCurve:
             # no clear cache required, but value will re-calc anyway
             assert curve[dt(2001, 1, 1)] != v2
 
+    def test_typing_as_curve(self):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="sofr",
+        )
+        assert isinstance(curve, Curve)
+
 
 class TestLineCurve:
     def test_repr(self):
@@ -1179,6 +1191,18 @@ class TestLineCurve:
         )
         expected = f"<rl.LineCurve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
+
+    def test_typing_as_curve(self):
+        curve = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="libor1m",
+        )
+        assert isinstance(curve, Curve)
 
 
 class TestIndexCurve:
@@ -1259,6 +1283,12 @@ class TestIndexCurve:
         )
         expected = f"<rl.IndexCurve:us_cpi at {hex(id(curve))}>"
         assert expected == curve.__repr__()
+
+    def test_typing_as_curve(self):
+        curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
+        )
+        assert isinstance(curve, Curve)
 
 
 class TestCompositeCurve:
@@ -1590,6 +1620,45 @@ class TestCompositeCurve:
         assert expected == curve.__repr__()
         assert isinstance(curve.id, str)
 
+    def test_typing_as_curve(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            t=[
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+            ],
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        curve = CompositeCurve([curve1, curve2])
+        assert isinstance(curve, Curve)
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:
@@ -1757,6 +1826,40 @@ class TestMultiCsaCurve:
         assert expected == curve.__repr__()
         assert isinstance(curve.id, str)
 
+    def test_typing_as_curve(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        c3 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99979455,  # 3.5%
+                dt(2022, 1, 4): 0.99969869,  # 3.5%
+                dt(2022, 1, 5): 0.99958915,  # 4%
+            },
+            convention="Act365F",
+        )
+        curve = MultiCsaCurve([c1, c2, c3])
+        assert isinstance(curve, Curve)
+
 
 class TestProxyCurve:
     def test_repr(self) -> None:
@@ -1776,6 +1879,22 @@ class TestProxyCurve:
         expected = f"<rl.ProxyCurve:{curve.id} at {hex(id(curve))}>"
         assert curve.__repr__() == expected
         assert isinstance(curve.id, str)
+
+    def test_typing_as_curve(self):
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+            },
+        )
+        curve = fxf.curve("cad", "eur")
+        assert isinstance(curve, Curve)
 
 
 class TestPlotCurve:

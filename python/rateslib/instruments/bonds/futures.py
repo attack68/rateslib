@@ -11,7 +11,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.bonds.securities import FixedRateBond
-from rateslib.instruments.core import Sensitivities
+from rateslib.instruments.inst_core import Sensitivities
 from rateslib.periods import (
     _get_fx_and_base,
 )
@@ -366,7 +366,7 @@ class BondFuture(Sensitivities):
         -------
         DataFrame
         """
-        if not isinstance(repo_rate, (tuple, list)):
+        if not isinstance(repo_rate, tuple | list):
             r_ = (repo_rate,) * len(self.basket)
         else:
             r_ = tuple(repo_rate)
@@ -580,7 +580,7 @@ class BondFuture(Sensitivities):
         else:
             f_settlement = delivery
 
-        if not isinstance(repo_rate, (list, tuple)):
+        if not isinstance(repo_rate, list | tuple):
             r_ = (repo_rate,) * len(self.basket)
         else:
             r_ = repo_rate
@@ -849,7 +849,7 @@ class BondFuture(Sensitivities):
             ctd_index_ = implied_repo.index(max(implied_repo))
             return ctd_index_
         else:
-            _ = dict(zip(range(len(implied_repo)), implied_repo))
+            _ = dict(zip(range(len(implied_repo)), implied_repo, strict=False))
             _ = dict(sorted(_.items(), key=lambda item: -item[1]))
             return list(_.keys())
 

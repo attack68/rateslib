@@ -1,8 +1,8 @@
 [package]
 name = "rateslib"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2021"
-exclude = [".github/*", "benches/*", "notebooks/*", ".readthedocs.yaml", "docs/*"]
+exclude = [".github/*", "benches/*", "notebooks/*", ".readthedocs.yaml", "docs/*", "PACKAGING.md"]
 
 [lib]
 name = "rateslib"
@@ -40,10 +40,10 @@ serde_json = "1.0"
 
 [features]
 # multiple-pymethods = ["pyo3/multiple-pymethods"]
-abi3-py39 = ["pyo3/abi3-py39"]
+abi3-py310 = ["pyo3/abi3-py310"]
 pyo3-chrono = ["pyo3/chrono"]
 pyo3-indexmap = ["pyo3/indexmap"]
-default = ["abi3-py39", "pyo3-chrono", "pyo3-indexmap"]
+default = ["abi3-py310", "pyo3-chrono", "pyo3-indexmap"]
 # 'extension-module' has been added to 'features' of [tool.maturin] in pyproject.toml
 #extension-module = ["pyo3/extension-module"]
 #default = ["extension-module", "abi3-py39", "chrono"]

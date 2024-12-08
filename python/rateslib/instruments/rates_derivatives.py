@@ -11,7 +11,7 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
 from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments.core import (
+from rateslib.instruments.inst_core import (
     BaseMixin,
     Sensitivities,
     _composit_fixings_table,
@@ -35,6 +35,7 @@ from rateslib.legs import (
 from rateslib.periods import (
     _disc_from_curve,
     _get_fx_and_base,
+    _maybe_local,
     _trim_df_by_index,
 )
 from rateslib.solver import Solver
@@ -776,10 +777,7 @@ class STIRFuture(IRS):
 
         traded_price = 100 - self.leg1.fixed_rate
         _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
-        if local:
-            return {self.leg1.currency: _}
-        else:
-            return _
+        return _maybe_local(_, local, self.kwargs["currency"], fx, base)
 
     def rate(
         self,
@@ -838,14 +836,21 @@ class STIRFuture(IRS):
         else:
             raise ValueError("`metric` must be in {'price', 'rate'}.")
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ):
         """
         Return the analytic delta of the *STIRFuture*.
 
         See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         For *STIRFuture* this method requires no arguments.
         """
-        return -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+        fx, base = _get_fx_and_base(self.kwargs["currency"], fx, base)
+        return fx * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
 
     def cashflows(
         self,
@@ -1683,19 +1688,19 @@ class ZCIS(BaseDerivative):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-    index_base : float or None, optional
+    leg2_index_base : float or None, optional
         The base index applied to all periods.
-    index_fixings : float, or Series, optional
+    leg2_index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the first
         period.
         If a list of *n* fixings will be used as the index fixings for the first *n*
         periods.
         If a datetime indexed ``Series`` will use the fixings that are available in
         that object, and derive the rest from the ``curve``.
-    index_method : str
+    leg2_index_method : str
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month.
-    index_lag : int, optional
+    leg2_index_lag : int, optional
         The number of months by which the index value is lagged. Used to ensure
         consistency between curves and forecast values. Defined by default.
     kwargs : dict
@@ -1735,54 +1740,32 @@ class ZCIS(BaseDerivative):
        zcis = ZCIS(
            effective=dt(2022, 1, 1),
            termination="10Y",
-           frequency="A",
-           calendar="nyc",
-           currency="usd",
+           spec="usd_zcis",
            fixed_rate=2.05,
-           convention="1+",
            notional=100e6,
            leg2_index_base=100.0,
-           leg2_index_method="monthly",
-           leg2_index_lag=3,
            curves=["usd", "usd", "us_cpi", "usd"],
        )
-       zcis.rate(curves=[usd, usd, us_cpi, usd])
-       zcis.npv(curves=[usd, usd, us_cpi, usd])
+       zcis.rate(curves=[us_cpi, usd])
+       zcis.npv(curves=[us_cpi, usd])
        zcis.analytic_delta(usd, usd)
 
     A DataFrame of :meth:`~rateslib.instruments.ZCIS.cashflows`.
 
     .. ipython:: python
 
-       zcis.cashflows(curves=[usd, usd, us_cpi, usd])
+       zcis.cashflows(curves=[us_cpi, usd])
 
     For accurate sensitivity calculations; :meth:`~rateslib.instruments.ZCIS.delta`
     and :meth:`~rateslib.instruments.ZCIS.gamma`, construct a curve model.
 
     .. ipython:: python
 
-       sofr_kws = dict(
-           effective=dt(2022, 1, 1),
-           frequency="A",
-           convention="Act360",
-           calendar="nyc",
-           currency="usd",
-           curves=["usd"]
-       )
-       cpi_kws = dict(
-           effective=dt(2022, 1, 1),
-           frequency="A",
-           convention="1+",
-           calendar="nyc",
-           leg2_index_method="monthly",
-           currency="usd",
-           curves=["usd", "usd", "us_cpi", "usd"]
-       )
        instruments = [
-           IRS(termination="5Y", **sofr_kws),
-           IRS(termination="10Y", **sofr_kws),
-           ZCIS(termination="5Y", **cpi_kws),
-           ZCIS(termination="10Y", **cpi_kws),
+           IRS(dt(2022, 1, 1), "5Y", spec="usd_irs", curves="usd"),
+           IRS(dt(2022, 1, 1), "10Y", spec="usd_irs", curves="usd"),
+           ZCIS(dt(2022, 1, 1), "5Y", spec="usd_zcis", curves=["us_cpi", "usd"]),
+           ZCIS(dt(2022, 1, 1), "10Y", spec="usd_zcis", curves=["us_cpi", "usd"]),
        ]
        solver = Solver(
            curves=[usd, us_cpi],
