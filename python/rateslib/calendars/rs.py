@@ -1,14 +1,12 @@
-from typing import Union
-
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
-CalTypes = Union[Cal, UnionCal, NamedCal]
-CalInput = Union[CalTypes, str, NoInput]
+CalTypes = Cal | UnionCal | NamedCal
+CalInput = CalTypes | str | NoInput
 
 
-def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
+def _get_rollday(roll: str | int | NoInput) -> RollDay:
     if isinstance(roll, str):
         return {
             "EOM": RollDay.EoM(),

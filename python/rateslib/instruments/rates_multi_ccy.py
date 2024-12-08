@@ -133,7 +133,7 @@ class FXExchange(Sensitivities, BaseMixin):
                 "Must have some FX information to price FXExchange, either `fx` or "
                 "`solver` containing an FX object.",
             )
-        if not isinstance(fx_, (FXRates, FXForwards)):
+        if not isinstance(fx_, FXRates | FXForwards):
             # force base_ leg1 currency to be converted consistent.
             leg1_npv = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
             leg2_npv = self.leg2.npv(curves[2], curves[3], 1.0, base_, local)
@@ -208,7 +208,7 @@ class FXExchange(Sensitivities, BaseMixin):
             base,
             self.leg1.currency,
         )
-        if isinstance(fx_, (FXRates, FXForwards)):
+        if isinstance(fx_, FXRates | FXForwards):
             imm_fx = fx_.rate(self.pair)
         else:
             imm_fx = fx_
@@ -452,7 +452,7 @@ class XCS(BaseDerivative):
                 self.fx_fixings = float(fx_fixings.rate(self.pair, self.leg2.periods[0].payment))
             elif isinstance(fx_fixings, FXRates):
                 self.fx_fixings = float(fx_fixings.rate(self.pair))
-            elif isinstance(fx_fixings, (float, Dual, Dual2)):
+            elif isinstance(fx_fixings, float | Dual | Dual2):
                 self.fx_fixings = float(fx_fixings)
             else:
                 self._fx_fixings = NoInput(0)

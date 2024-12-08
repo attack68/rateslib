@@ -641,7 +641,7 @@ class FXForwards:
            )
 
         """
-        if isinstance(value, (float, int)):
+        if isinstance(value, float | int):
             value = Dual(value, [], [])
         base_: str = self.base if isinstance(base, NoInput) else base.lower()
         _ = np.array(
@@ -961,7 +961,7 @@ class FXForwards:
         from the combination of curves and FX rates that are available within
         the given :class:`FXForwards` instance.
         """
-        if isinstance(collateral, (list, tuple)):
+        if isinstance(collateral, list | tuple):
             curves = []
             for coll in collateral:
                 curves.append(self.curve(cashflow, coll, convention, modifier, calendar))

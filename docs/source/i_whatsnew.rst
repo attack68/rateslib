@@ -41,6 +41,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`532 <https://github.com/attack68/rateslib/pull/532>`_)
        (`535 <https://github.com/attack68/rateslib/pull/535>`_)
        (`536 <https://github.com/attack68/rateslib/pull/536>`_)
+   * - Dependencies
+     - Drop support for Python 3.9, only versions 3.10 - 3.13 now supported.
    * - Refactor
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
        ``kind`` argument being only useful internally.

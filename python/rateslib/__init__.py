@@ -35,7 +35,7 @@ class default_context(ContextDecorator):
         if len(args) % 2 != 0 or len(args) < 2:
             raise ValueError("Need to invoke as option_context(pat, val, [(pat, val), ...]).")
 
-        self.ops = list(zip(args[::2], args[1::2]))
+        self.ops = list(zip(args[::2], args[1::2], strict=False))
 
     def __enter__(self) -> None:
         self.undo = [(pat, getattr(defaults, pat, None)) for pat, _ in self.ops]
@@ -244,4 +244,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"

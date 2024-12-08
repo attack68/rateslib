@@ -473,7 +473,7 @@ class FXRates:
            fxr.positions(100, base="nok")
 
         """
-        if isinstance(value, (float, int)):
+        if isinstance(value, float | int):
             value = Dual(value, [], [])
         base_: str = self.base if isinstance(base, NoInput) else base.lower()
         _ = np.array([0 if ccy != base_ else float(value) for ccy in self.currencies_list])
