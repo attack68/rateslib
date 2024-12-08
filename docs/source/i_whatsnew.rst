@@ -12,7 +12,49 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-1.6.0 (No release date)
+1.7.0 (No Release Date)
+****************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Instruments
+     - :meth:`~rateslib.instruments.FloatRateNote.ytm` added to
+       :class:`~rateslib.instruments.FloatRateNote` to allow the calculation of
+       yield-to-maturity for that *Instrument* based on ``calc_mode`` similar to
+       *FixedRateBonds*. (`529 <https://github.com/attack68/rateslib/pull/529>`_)
+   * - Bug
+     - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
+       arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
+       :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
+       (`519 <https://github.com/attack68/rateslib/pull/519>`_)
+   * - Bug
+     - :meth:`~rateslib.periods.FloatPeriod.rate` now correctly calculates when ``fixings``
+       are provided in any of the acceptable formats and contains all data to do so, in the
+       absense of a forecast ``curve``, instead of returning *None* for some cases.
+       This allows for :meth:`~rateslib.periods.FloatPeriod.cashflows` to return values even
+       when ``curve`` is not constructed.
+       (`530 <https://github.com/attack68/rateslib/pull/530>`_)
+       (`532 <https://github.com/attack68/rateslib/pull/532>`_)
+       (`535 <https://github.com/attack68/rateslib/pull/535>`_)
+       (`536 <https://github.com/attack68/rateslib/pull/536>`_)
+   * - Dependencies
+     - Drop support for Python 3.9, only versions 3.10 - 3.13 now supported.
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
+       ``kind`` argument being only useful internally.
+       (`524 <https://github.com/attack68/rateslib/pull/524>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`FXForwards.rate <rateslib.fx.FXForwards.rate>`
+       has dropped the ``path`` and ``return_path`` arguments being mainly useful internally.
+       Replicable functionality is achieved by importing and using the internal method
+       :meth:`rateslib.fx.FXForwards._rate_with_path`.
+       (`537 <https://github.com/attack68/rateslib/pull/537>`_)
+
+1.6.0 (30th November 2024)
 ****************************
 
 .. list-table::

@@ -60,7 +60,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - -
      - :ref:`usd_stir <spec-usd-stir>`, :ref:`usd_stir1 <spec-usd-stir1>`
      -
-     -
+     - :ref:`usd_zcis <spec-usd-zcis>`
      -
      -
      -
@@ -73,7 +73,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`eur_sbs36 <spec-eur-sbs36>`
      - :ref:`eur_stir <spec-eur-stir>`, :ref:`eur_stir1 <spec-eur-stir1>`, :ref:`eur_stir3 <spec-eur-stir3>`
      -
-     -
+     - :ref:`eur_zcis <spec-eur-zcis>`
      -
      -
      -
@@ -86,7 +86,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - -
      - :ref:`gbp_stir <spec-gbp-stir>`,
      -
-     -
+     - :ref:`gbp_zcis <spec-gbp-zcis>`
      -
      -
      -
@@ -260,6 +260,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/fixedratebond.rst
     spec/bill.rst
     spec/stir.rst
+    spec/zcis.rst
 
 
 The NoInput argument

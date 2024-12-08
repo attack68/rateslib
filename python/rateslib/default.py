@@ -3,14 +3,19 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 from packaging import version
 from pandas import read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.rs import get_named_calendar
+from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
+
+PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -102,7 +107,7 @@ class Defaults:
         self.stub_length = "SHORT"
         self.eval_mode = "swaps_align"
         self.modifier = "MF"
-        self.calendars = {
+        self.calendars: dict[str, NamedCal | UnionCal | Cal] = {
             "all": get_named_calendar("all"),
             "bus": get_named_calendar("bus"),
             "tgt": get_named_calendar("tgt"),
@@ -338,10 +343,7 @@ Miscellaneous:\n
         return _
 
 
-def plot(x, y: list, labels=NoInput(0)):
-    import matplotlib.dates as mdates  # type: ignore[import]
-    import matplotlib.pyplot as plt  # type: ignore[import]
-
+def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
@@ -378,11 +380,11 @@ def plot3d(x, y, z, labels=None):
     return fig, ax, None
 
 
-def _drb(default, possible_blank):
+def _drb(default: Any, possible_blank: Any | NoInput) -> Any:
     """(D)efault (r)eplaces (b)lank"""
     return default if possible_blank is NoInput.blank else possible_blank
 
 
-def _make_py_json(json, class_name):
+def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"Py":' + json + "}"

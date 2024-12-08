@@ -15,7 +15,7 @@ features = ["pyo3/extension-module"]
 
 [project]
 name = "rateslib"
-version = "1.6.0"
+version = "1.7.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -26,7 +26,7 @@ dependencies = [
     "matplotlib>=3.5.1,<4.0",
     "pandas>=1.4.1,<3.0",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -91,7 +91,7 @@ exclude = [
 line-length = 100
 indent-width = 4
 # Assume Python 3.12
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -136,6 +136,14 @@ ignore = [
 "__init__.py" = ["E402", "N801"]
 "python/tests/*" = ["F401", "B", "N", "S", "ANN"]
 
+[tool.mypy]
+files = [
+    "python/rateslib/calendars/**/*.py",
+    "python/rateslib/fx/**/*.py",
+    "python/rateslib/dual/**/*.py"
+]
+strict = true
+
 [tool.isort]
 profile = "black"
 line_length = 100
@@ -143,4 +151,4 @@ src_paths = ["python"]
 
 [tool.black]
 line-length = 100
-target-version = ['py39']
+target-version = ['py310']

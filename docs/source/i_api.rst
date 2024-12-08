@@ -38,6 +38,7 @@ Defaults
 .. automodapi:: rateslib.default
    :no-heading:
    :no-inheritance-diagram:
+   :skip: Any
    :skip: plot
    :skip: plot3d
    :skip: datetime
@@ -186,6 +187,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 .. automodapi:: rateslib.periods
    :no-heading:
+   :skip: Index
    :skip: NoInput
    :skip: ABCMeta
    :skip: IndexCurve
