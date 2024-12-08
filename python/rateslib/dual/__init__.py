@@ -70,7 +70,7 @@ def set_order_convert(
     -------
     float, Dual, Dual2
     """
-    if isinstance(val, (*FLOATS, *INTS)):
+    if isinstance(val, FLOATS | INTS):
         _ = [] if tag is None else tag
         if order == 0:
             return float(val)
