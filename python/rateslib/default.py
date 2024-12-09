@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from datetime import datetime
 from enum import Enum
 from typing import Any

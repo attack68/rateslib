@@ -11,6 +11,8 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import (
+    CalInput,
+    CalTypes,
     _adjust_date,
     _get_modifier,
     _get_roll,
@@ -22,8 +24,6 @@ from rateslib.calendars import (
     _is_som,
     add_tenor,
     get_calendar,
-    CalInput,
-    CalTypes
 )
 from rateslib.default import NoInput, _drb
 
@@ -319,7 +319,6 @@ class Schedule:
             )
 
         self._attribute_schedules()
-
 
     def _dual_sided_stub_parsing(self, front_stub, back_stub, roll):
         """This is called when the provided `stub` argument implies dual sided stubs."""
@@ -1463,11 +1462,13 @@ def _raise_date_value_error(effective, termination, front_stub, back_stub, roll,
         f"`roll`: {roll},\n"
     )
 
+
 def _validate_frequency(frequency: str) -> str:
     frequency = frequency.upper()
     if frequency not in ["M", "B", "Q", "T", "S", "A", "Z"]:
         raise ValueError("`frequency` must be in {M, B, Q, T, S, A, Z}.")
     return frequency
+
 
 def _validate_effective(
     effective: datetime | str,
@@ -1505,6 +1506,7 @@ def _validate_effective(
             )
     else:
         return effective
+
 
 def _validate_termination(
     termination: datetime | str,
@@ -1549,10 +1551,9 @@ def _validate_termination(
         raise ValueError("Schedule `termination` must be after `effective`.")
     return termination_
 
+
 def _validate_stub(
-    stub: str | NoInput,
-    front_stub: datetime | NoInput,
-    back_stub: datetime | NoInput
+    stub: str | NoInput, front_stub: datetime | NoInput, back_stub: datetime | NoInput
 ) -> str:
     """
     Sets a default type stub depending upon the `front_stub` and `back_stub` values.
@@ -1570,6 +1571,7 @@ def _validate_stub(
     else:
         stub_ = stub.upper()
     return stub_
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
