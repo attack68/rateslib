@@ -380,9 +380,9 @@ def plot3d(x, y, z, labels=None):
     return fig, ax, None
 
 
-def _drb(default: Any, possible_blank: Any | NoInput) -> Any:
+def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
     """(D)efault (r)eplaces (b)lank"""
-    return default if possible_blank is NoInput.blank else possible_blank
+    return default if isinstance(possible_ni, NoInput) else possible_ni
 
 
 def _make_py_json(json: str, class_name: str) -> str:

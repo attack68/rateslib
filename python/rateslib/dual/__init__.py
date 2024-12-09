@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from functools import partial
 from statistics import NormalDist
+from typing import TypeAlias
 
 import numpy as np
 
@@ -12,8 +13,8 @@ from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fd
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-type DualTypes = float | Dual | Dual2 | Variable
-type Number = float | Dual | Dual2
+DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
+Number: TypeAlias = "float | Dual | Dual2"
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

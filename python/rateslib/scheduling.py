@@ -24,7 +24,7 @@ from rateslib.calendars import (
     get_calendar,
     CalInput,
 )
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -269,8 +269,7 @@ class Schedule:
         eval_mode: str | NoInput = NoInput(0),
     ):
         # Arg validation
-        eom = defaults.eom if eom is NoInput.blank else eom
-        self.eom = eom
+        self.eom = _drb(defaults.eom, eom)
 
         self.eval_date = eval_date
         self.eval_mode = defaults.eval_mode if isinstance(eval_mode, NoInput) else eval_mode.lower()
