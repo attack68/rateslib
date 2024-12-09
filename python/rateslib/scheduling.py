@@ -277,113 +277,49 @@ class Schedule:
         self.payment_lag: int = _drb(defaults.payment_lag, payment_lag)
         self.calendar: CalTypes = get_calendar(calendar)
         self.frequency: str = _validate_frequency(frequency)
-
-        if isinstance(effective, str):
-            if isinstance(self.eval_date, NoInput):
-                raise ValueError(
-                    "For `effective` given as string tenor, must also supply a `base_eval` date.",
-                )
-            if self.eval_mode == "swaps_align":
-                # effective date is calculated as unadjusted
-                effective_: datetime = add_tenor(
-                    self.eval_date,
-                    effective,
-                    "NONE",
-                    NoInput(0),
-                    roll,
-                )
-            elif self.eval_mode == "swaptions_align":
-                effective_ = add_tenor(
-                    self.eval_date,
-                    effective,
-                    self.modifier,
-                    self.calendar,
-                    roll,
-                )
-        else:
-            effective_ = effective
-        self.effective: datetime = effective_
-
-        if isinstance(termination, str):
-            if _is_day_type_tenor(termination):
-                termination_: datetime = add_tenor(
-                    start=self.effective,
-                    tenor=termination,
-                    modifier=self.modifier,
-                    calendar=self.calendar,
-                    roll=NoInput(0),
-                    settlement=False,
-                    mod_days=False,
-                )
-            else:
-                # if termination is string the end date is calculated as unadjusted, which will
-                # be used later according to roll inference rules, for monthly and yearly tenors.
-                if (
-                    self.eom
-                    and isinstance(roll, NoInput)
-                    and _is_eom_cal(self.effective, self.calendar)
-                ):
-                    roll_: str | int | NoInput = 31
-                else:
-                    roll_ = roll
-                termination_ = add_tenor(
-                    self.effective,
-                    termination,
-                    "NONE",
-                    self.calendar,  # calendar is unused for NONE type modifier
-                    roll_,
-                )
-        else:
-            termination_ = termination
-        self.termination: datetime = termination_
-
-        if self.termination <= self.effective:
-            raise ValueError("`termination` must be after `effective`.")
+        self.effective: datetime = _validate_effective(
+            effective, self.eval_mode, self.eval_date, self.modifier, self.calendar, roll
+        )
+        self.termination: datetime = _validate_termination(
+            termination, self.effective, self.modifier, self.calendar, roll, self.eom
+        )
 
         if self.frequency == "Z":
-            self.ueffective = NoInput(0)
-            self.utermination = NoInput(0)
-            self.stub = NoInput(0)
-            self.front_stub = NoInput(0)
-            self.back_stub = NoInput(0)
-            self.roll = NoInput(0)
-            self.uschedule = [self.effective, self.termination]
-            self._attribute_schedules()
-            return None
-
-        if isinstance(stub, NoInput):
-            # if specific stub dates are given we cannot know if these are long or short
-            if front_stub is NoInput.blank:
-                stub = defaults.stub if back_stub is NoInput.blank else "BACK"
+            # Then stubs cannot exist so pre-populate schedule data before attribution.
+            self.ueffective: datetime = self.effective
+            self.utermination: datetime = self.termination
+            self.stub: str = defaults.stub
+            self.front_stub: datetime | NoInput = NoInput(0)
+            self.back_stub: datetime | NoInput = NoInput(0)
+            self.roll: str | int | NoInput = NoInput(0)
+            self.uschedule: list[datetime] = [self.effective, self.termination]
+        else:
+            # will attempt to populate stubs via inference over all parameters
+            self.stub: str = _validate_stub(stub, front_stub, back_stub)
+            if "FRONT" in self.stub and "BACK" in self.stub:
+                self._dual_sided_stub_parsing(front_stub, back_stub, roll)
+            elif "FRONT" in self.stub:
+                self._front_sided_stub_parsing(front_stub, back_stub, roll)
+            elif "BACK" in self.stub:
+                self._back_sided_stub_parsing(front_stub, back_stub, roll)
             else:
-                stub = "FRONT" if back_stub is NoInput.blank else "FRONTBACK"
-        else:
-            stub = stub.upper()
-        self.stub = stub
+                raise ValueError(
+                    "`stub` should be combinations of {'SHORT', 'LONG'} with {'FRONT', 'BACK'}.",
+                )
 
-        if "FRONT" in stub and "BACK" in stub:
-            self._dual_sided_stub_parsing(front_stub, back_stub, roll)
-        elif "FRONT" in stub:
-            self._front_sided_stub_parsing(front_stub, back_stub, roll)
-        elif "BACK" in stub:
-            self._back_sided_stub_parsing(front_stub, back_stub, roll)
-        else:
-            raise ValueError(
-                "`stub` should be combinations of {'SHORT', 'LONG'} with {'FRONT', 'BACK'}.",
+            self.uschedule = list(
+                _generate_irregular_schedule_unadjusted(
+                    self.ueffective,
+                    self.utermination,
+                    self.frequency,
+                    self.roll,
+                    self.front_stub,
+                    self.back_stub,
+                ),
             )
 
-        self.uschedule = list(
-            _generate_irregular_schedule_unadjusted(
-                self.ueffective,
-                self.utermination,
-                self.frequency,
-                self.roll,
-                self.front_stub,
-                self.back_stub,
-            ),
-        )
         self._attribute_schedules()
-        return None
+
 
     def _dual_sided_stub_parsing(self, front_stub, back_stub, roll):
         """This is called when the provided `stub` argument implies dual sided stubs."""
@@ -1532,6 +1468,108 @@ def _validate_frequency(frequency: str) -> str:
     if frequency not in ["M", "B", "Q", "T", "S", "A", "Z"]:
         raise ValueError("`frequency` must be in {M, B, Q, T, S, A, Z}.")
     return frequency
+
+def _validate_effective(
+    effective: datetime | str,
+    eval_mode: str,
+    eval_date: datetime | NoInput,
+    modifier: str,
+    calendar: CalTypes,
+    roll: int | str | NoInput,
+) -> datetime:
+    """
+    Determine the effective date of a schedule if it is given in string form from
+    other parameters such as the eval date and the eval mode.
+    """
+    if isinstance(effective, str):
+        if isinstance(eval_date, NoInput):
+            raise ValueError(
+                "For `effective` given as string tenor, must also supply a base `eval_date`.",
+            )
+        if eval_mode == "swaps_align":
+            # effective date is calculated as unadjusted
+            return add_tenor(
+                eval_date,
+                effective,
+                "NONE",
+                NoInput(0),
+                roll,
+            )
+        else:  # eval_mode == "swaptions_align":
+            return add_tenor(
+                eval_date,
+                effective,
+                modifier,
+                calendar,
+                roll,
+            )
+    else:
+        return effective
+
+def _validate_termination(
+    termination: datetime | str,
+    effective: datetime,
+    modifier: str,
+    calendar: CalTypes,
+    roll: int | str | NoInput,
+    eom: bool,
+) -> datetime:
+    """
+    Determine the termination date of a schedule if it is given in string form from
+    """
+    if isinstance(termination, str):
+        if _is_day_type_tenor(termination):
+            termination_: datetime = add_tenor(
+                start=effective,
+                tenor=termination,
+                modifier=modifier,
+                calendar=calendar,
+                roll=NoInput(0),
+                settlement=False,
+                mod_days=False,
+            )
+        else:
+            # if termination is string the end date is calculated as unadjusted, which will
+            # be used later according to roll inference rules, for monthly and yearly tenors.
+            if eom and isinstance(roll, NoInput) and _is_eom_cal(effective, calendar):
+                roll_: str | int | NoInput = 31
+            else:
+                roll_ = roll
+            termination_ = add_tenor(
+                effective,
+                termination,
+                "NONE",
+                calendar,  # calendar is unused for NONE type modifier
+                roll_,
+            )
+    else:
+        termination_ = termination
+
+    if termination_ <= effective:
+        raise ValueError("Schedule `termination` must be after `effective`.")
+    return termination_
+
+def _validate_stub(
+    stub: str | NoInput,
+    front_stub: datetime | NoInput,
+    back_stub: datetime | NoInput
+) -> str:
+    """
+    Sets a default type stub depending upon the `front_stub` and `back_stub` values.
+    """
+    if isinstance(stub, NoInput):
+        # if specific stub dates are given we cannot know if these are long or short
+        if isinstance(front_stub, NoInput) and isinstance(back_stub, NoInput):
+            stub_: str = defaults.stub
+        elif isinstance(front_stub, NoInput):
+            stub_ = "BACK"
+        elif isinstance(back_stub, NoInput):
+            stub_ = "FRONT"
+        else:
+            stub_ = "FRONTBACK"
+    else:
+        stub_ = stub.upper()
+    return stub_
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
