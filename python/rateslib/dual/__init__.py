@@ -12,8 +12,8 @@ from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fd
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-DualTypes = float | Dual | Dual2 | Variable
-Number = float | Dual | Dual2
+type DualTypes = float | Dual | Dual2 | Variable
+type Number = float | Dual | Dual2
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
