@@ -6,7 +6,12 @@ use pyo3::{pyclass};
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug)]
 pub struct DataProvider {
+    #[pyo3(get, set)]
     pub(crate) dates: Vec<NaiveDateTime>,
+    #[pyo3(get, set)]
+    pub(crate) val: f64,
+    #[pyo3(get, set)]
+    pub(crate) vals: Vec<f64>,
 }
 
 impl DataProvider {
@@ -16,11 +21,11 @@ impl DataProvider {
                 ndt(2001, 1, 1),
                 ndt(2001, 1, 2),
                 ndt(2001, 1, 3),
-            ]
+                ndt(2001, 1, 4),
+                ndt(2001, 1, 5),
+            ],
+            val: 3.5_f64,
+            vals: vec![1_f64, 2_f64, 3_f64, 4_f64, 5_f64],
         }
     }
-
-    // pub fn get_dates(&self) -> Vec<NaiveDateTime> {
-    //     self.dates.clone()
-    // }
 }
