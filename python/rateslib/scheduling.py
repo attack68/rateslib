@@ -23,6 +23,7 @@ from rateslib.calendars import (
     add_tenor,
     get_calendar,
     CalInput,
+    CalTypes
 )
 from rateslib.default import NoInput, _drb
 
@@ -268,30 +269,14 @@ class Schedule:
         eval_date: datetime | NoInput = NoInput(0),
         eval_mode: str | NoInput = NoInput(0),
     ):
-        # Arg validation
-        self.eom = _drb(defaults.eom, eom)
-
-        self.eval_date = eval_date
-        self.eval_mode = defaults.eval_mode if isinstance(eval_mode, NoInput) else eval_mode.lower()
-
-        if isinstance(modifier, NoInput):  # then get default
-            modifier_: str = defaults.modifier
-        else:
-            modifier_ = modifier
-        self.modifier = modifier_
-
-        if isinstance(payment_lag, NoInput):
-            payment_lag_: int = defaults.payment_lag
-        else:
-            payment_lag_ = payment_lag
-        self.payment_lag = payment_lag_
-
-        self.calendar = get_calendar(calendar)
-
-        frequency = frequency.upper()
-        if frequency not in ["M", "B", "Q", "T", "S", "A", "Z"]:
-            raise ValueError("`frequency` must be in {M, B, Q, T, S, A, Z}.")
-        self.frequency = frequency
+        # Arg validation and defaults
+        self.eom: bool = _drb(defaults.eom, eom)
+        self.eval_date: datetime | NoInput = eval_date
+        self.eval_mode: str = _drb(defaults.eval_mode, eval_mode).lower()
+        self.modifier: str = _drb(defaults.modifier, modifier).upper()
+        self.payment_lag: int = _drb(defaults.payment_lag, payment_lag)
+        self.calendar: CalTypes = get_calendar(calendar)
+        self.frequency: str = _validate_frequency(frequency)
 
         if isinstance(effective, str):
             if isinstance(self.eval_date, NoInput):
@@ -355,7 +340,7 @@ class Schedule:
         if self.termination <= self.effective:
             raise ValueError("`termination` must be after `effective`.")
 
-        if frequency == "Z":
+        if self.frequency == "Z":
             self.ueffective = NoInput(0)
             self.utermination = NoInput(0)
             self.stub = NoInput(0)
@@ -1542,6 +1527,11 @@ def _raise_date_value_error(effective, termination, front_stub, back_stub, roll,
         f"`roll`: {roll},\n"
     )
 
+def _validate_frequency(frequency: str) -> str:
+    frequency = frequency.upper()
+    if frequency not in ["M", "B", "Q", "T", "S", "A", "Z"]:
+        raise ValueError("`frequency` must be in {M, B, Q, T, S, A, Z}.")
+    return frequency
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

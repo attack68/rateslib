@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -129,7 +130,7 @@ class Defaults:
             "T": 4,
             "S": 6,
             "A": 12,
-            "Z": 1e8,
+            "Z": 120000,  # corresponds to 10,000 years
         }
         self.eom = False
         self.eom_fx = True
