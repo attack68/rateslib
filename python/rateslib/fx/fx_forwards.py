@@ -669,10 +669,11 @@ class FXForwards:
                         df = df.add(_.to_frame(), fill_value=0.0)
 
         if aggregate:
-            _ = df.sum(axis=1).rename(dates[0])
-            return _
+            _s: Series[float] = df.sum(axis=1).rename(dates[0])
+            return _s
         else:
-            return df.sort_index(axis=1)
+            _d: DataFrame = df.sort_index(axis=1)
+            return _d
 
     def convert(
         self,
@@ -683,7 +684,7 @@ class FXForwards:
         value_date: datetime | NoInput = NoInput(0),
         collateral: str | NoInput = NoInput(0),
         on_error: str = "ignore",
-    ) -> Number | None:
+    ) -> DualTypes | None:
         """
         Convert an amount of a domestic currency, as of a settlement date
         into a foreign currency, valued on another date.

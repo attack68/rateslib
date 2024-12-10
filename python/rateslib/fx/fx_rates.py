@@ -442,7 +442,7 @@ class FXRates:
         base = self.base if isinstance(base, NoInput) else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
-        return np.sum(array_ * self.fx_array[:, j])
+        return np.sum(array_ * self.fx_array[:, j])  # type: ignore[no-any-return]
 
     def positions(
         self,
@@ -476,7 +476,7 @@ class FXRates:
         if isinstance(value, float | int):
             value = Dual(value, [], [])
         base_: str = self.base if isinstance(base, NoInput) else base.lower()
-        _ = np.array([0 if ccy != base_ else float(value) for ccy in self.currencies_list])
+        _ = np.array([0 if ccy != base_ else value.real for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = gradient(value, [pair])[0]
