@@ -23,7 +23,9 @@ from rateslib.scheduling import (
     _get_unadjusted_short_stub_date,
     _get_unadjusted_stub_date,
     _infer_stub_date,
+    _InvalidSchedule,
     _is_divisible_months,
+    _ValidSchedule,
 )
 
 
@@ -119,13 +121,13 @@ def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_) -> None:
         NoInput(0),
         cal_,
     )
-    assert result[0]
+    assert isinstance(result, _ValidSchedule)
     if "FRONT" in stub:
-        assert result[1]["front_stub"] == exp_stub
-        assert result[1]["roll"] == exp_roll
+        assert result.front_stub == exp_stub
+        assert result.roll == exp_roll
     else:
-        assert result[1]["back_stub"] == exp_stub
-        assert result[1]["roll"] == exp_roll
+        assert result.back_stub == exp_stub
+        assert result.roll == exp_roll
 
 
 @pytest.mark.parametrize(
@@ -150,13 +152,13 @@ def test_infer_stub_date_no_inference_on_regular(e, t, stub, exp_roll, exp_stub,
         NoInput(0),
         cal_,
     )
-    assert result[0]
+    assert isinstance(result, _ValidSchedule)
     if "FRONT" in stub:
-        assert result[1]["front_stub"] == exp_stub
-        assert result[1]["roll"] == exp_roll
+        assert result.front_stub == exp_stub
+        assert result.roll == exp_roll
     else:
-        assert result[1]["back_stub"] == exp_stub
-        assert result[1]["roll"] == exp_roll
+        assert result.back_stub == exp_stub
+        assert result.roll == exp_roll
 
 
 def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
@@ -172,9 +174,9 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
         NoInput(0),
         cal_,
     )
-    assert result[0]
-    assert result[1]["front_stub"] is NoInput(0)
-    assert result[1]["roll"] == 26
+    assert isinstance(result, _ValidSchedule)
+    assert result.front_stub is NoInput(0)
+    assert result.roll == 26
 
     result = _infer_stub_date(
         dt(2022, 2, 26),
@@ -188,9 +190,9 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
         NoInput(0),
         cal_,
     )
-    assert result[0]
-    assert result[1]["back_stub"] is NoInput(0)
-    assert result[1]["roll"] == 26
+    assert isinstance(result, _ValidSchedule)
+    assert result.back_stub is NoInput(0)
+    assert result.roll == 26
 
 
 @pytest.mark.parametrize(
@@ -204,7 +206,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
 )
 def test_infer_stub_date_invalid_roll(e, t, stub, cal_) -> None:
     result = _infer_stub_date(e, t, "Q", stub, NoInput(0), NoInput(0), "MF", NoInput(0), 14, cal_)
-    assert result[0] is False
+    assert isinstance(result, _ValidSchedule) is False
 
 
 @pytest.mark.parametrize(
@@ -216,12 +218,12 @@ def test_infer_stub_date_invalid_roll(e, t, stub, cal_) -> None:
 )
 def test_infer_stub_date_dual_sided(e, fs, t, stub, exp_roll, exp_stub, cal_) -> None:
     result = _infer_stub_date(e, t, "Q", stub, fs, NoInput(0), "MF", NoInput(0), NoInput(0), cal_)
-    assert result[0]
-    assert result[1]["ueffective"] == e
-    assert result[1]["front_stub"] == fs
-    assert result[1]["back_stub"] == exp_stub
-    assert result[1]["utermination"] == t
-    assert result[1]["roll"] == exp_roll
+    assert isinstance(result, _ValidSchedule)
+    assert result.ueffective == e
+    assert result.front_stub == fs
+    assert result.back_stub == exp_stub
+    assert result.utermination == t
+    assert result.roll == exp_roll
 
 
 @pytest.mark.parametrize(
@@ -233,12 +235,12 @@ def test_infer_stub_date_dual_sided(e, fs, t, stub, exp_roll, exp_stub, cal_) ->
 )
 def test_infer_stub_date_dual_sided2(e, bs, t, stub, exp_roll, exp_stub, cal_) -> None:
     result = _infer_stub_date(e, t, "Q", stub, NoInput(0), bs, "MF", False, NoInput(0), cal_)
-    assert result[0]
-    assert result[1]["ueffective"] == e
-    assert result[1]["front_stub"] == exp_stub
-    assert result[1]["back_stub"] == bs
-    assert result[1]["utermination"] == t
-    assert result[1]["roll"] == exp_roll
+    assert isinstance(result, _ValidSchedule)
+    assert result.ueffective == e
+    assert result.front_stub == exp_stub
+    assert result.back_stub == bs
+    assert result.utermination == t
+    assert result.roll == exp_roll
 
 
 def test_infer_stub_date_dual_sided_invalid(cal_) -> None:
@@ -254,7 +256,7 @@ def test_infer_stub_date_dual_sided_invalid(cal_) -> None:
         9,
         cal_,
     )
-    assert not result[0]
+    assert not isinstance(result, _ValidSchedule)
 
 
 def test_infer_stub_date_eom(cal_) -> None:
@@ -270,7 +272,7 @@ def test_infer_stub_date_eom(cal_) -> None:
         NoInput(0),
         cal_,
     )
-    assert result[1]["front_stub"] == dt(2022, 5, 31)
+    assert result.front_stub == dt(2022, 5, 31)
 
 
 def test_repr():
@@ -388,8 +390,9 @@ def test_schedule_raises(cal_) -> None:
     ],
 )
 def test_unadjusted_regular_swap(eff, term, f, roll, exp) -> None:
-    result = _check_unadjusted_regular_swap(eff, term, f, False, roll)[0]
-    assert result == exp
+    result = _check_unadjusted_regular_swap(eff, term, f, False, roll)
+    typ = _ValidSchedule if exp else _InvalidSchedule
+    assert isinstance(result, typ)
 
 
 @pytest.mark.parametrize(
@@ -418,7 +421,8 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp) -> None:
 def test_check_regular_swap(eff, term, f, m, roll, exp, cal_) -> None:
     # modifier is unadjusted: should mirror test_unadjusted_regular_swap
     result = _check_regular_swap(eff, term, f, m, False, roll, cal_)
-    assert result[0] == exp
+    typ = _ValidSchedule if exp else _InvalidSchedule
+    assert isinstance(result, typ)
 
 
 # 12th and 13th of Feb and March are Saturday and Sunday
@@ -442,11 +446,12 @@ def test_check_regular_swap(eff, term, f, m, roll, exp, cal_) -> None:
 )
 def test_check_regular_swap_mf(eff, term, roll, e_bool, e_ueff, e_uterm, e_roll, cal_) -> None:
     result = _check_regular_swap(eff, term, "M", "MF", False, roll, cal_)
-    assert result[0] == e_bool
+    typ = _ValidSchedule if e_bool else _InvalidSchedule
+    assert isinstance(result, typ)
     if e_bool:
-        assert result[1]["ueffective"] == e_ueff
-        assert result[1]["utermination"] == e_uterm
-        assert result[1]["roll"] == e_roll
+        assert result.ueffective == e_ueff
+        assert result.utermination == e_uterm
+        assert result.roll == e_roll
 
 
 @pytest.mark.parametrize(
