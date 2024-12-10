@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import calendar as calendar_mod
-from collections.abc import Iterator, Callable
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 from itertools import product
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 from pandas import DataFrame
 
@@ -296,7 +296,9 @@ class Schedule:
             # will attempt to populate stubs via inference over all parameters
             self.stub = _validate_stub(stub, front_stub, back_stub)
             if "FRONT" in self.stub and "BACK" in self.stub:
-                parsing_results: _ValidSchedule = self._dual_sided_stub_parsing(front_stub, back_stub, roll)
+                parsing_results: _ValidSchedule = self._dual_sided_stub_parsing(
+                    front_stub, back_stub, roll
+                )
             elif "FRONT" in self.stub:
                 parsing_results = self._front_sided_stub_parsing(front_stub, back_stub, roll)
             elif "BACK" in self.stub:
@@ -384,7 +386,7 @@ class Schedule:
                     result.utermination,
                     result.frequency,
                     result.roll,
-                    result.eom
+                    result.eom,
                 )
 
     def _front_sided_stub_parsing(
@@ -754,7 +756,11 @@ def _check_unadjusted_regular_swap(
         return _InvalidSchedule("Months date separation not aligned with frequency.")
 
     roll = "eom" if roll == 31 else roll
-    iter_: list[tuple[str, Callable[..., bool]]] = [("eom", _is_eom), ("imm", _is_imm), ("som", _is_som)]
+    iter_: list[tuple[str, Callable[..., bool]]] = [
+        ("eom", _is_eom),
+        ("imm", _is_imm),
+        ("som", _is_som),
+    ]
     for roll_, _is_roll in iter_:
         if str(roll).lower() == roll_:
             if not _is_roll(ueffective):
@@ -959,7 +965,7 @@ def _infer_stub_date(
                     result.utermination,
                     result.frequency,
                     result.roll,
-                    result.eom
+                    result.eom,
                 )
             else:
                 stub_ = _get_default_stub("FRONT", stub)
@@ -995,7 +1001,7 @@ def _infer_stub_date(
                     NoInput(0),
                     result.frequency,
                     result.roll,
-                    result.eom
+                    result.eom,
                 )
             else:
                 stub_ = _get_default_stub("BACK", stub)
@@ -1049,9 +1055,7 @@ def _infer_stub_date(
             return result
         elif isinstance(result, _ValidSchedule):
             # utermination aligns with ueffective then dead_too_short_period: GH484
-            _raise_date_value_error(
-                effective, termination, front_stub, back_stub, roll, calendar
-            )
+            _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar)
             # for typing purposes. above will raise
             raise RuntimeError("")  # pragma: no cover
         else:
@@ -1105,9 +1109,7 @@ def _infer_stub_date(
             return result
         elif isinstance(result, _ValidSchedule):
             # utermination aligns with ueffective then dead_too_short_period: GH484
-            _raise_date_value_error(
-                effective, termination, front_stub, back_stub, roll, calendar
-            )
+            _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar)
             # for typing purposes. above will raise
             raise RuntimeError("")  # pragma: no cover
         else:
@@ -1413,7 +1415,9 @@ def _generate_regular_schedule_unadjusted(
 # Utility Functions
 
 
-def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: CalTypes) -> list[datetime]:
+def _get_unadjusted_date_alternatives(
+    date: datetime, modifier: str, cal: CalTypes
+) -> list[datetime]:
     """
     Return all possible unadjusted dates that result in given date under modifier/cal.
 
@@ -1483,12 +1487,12 @@ def _get_n_periods_in_regular(
 
 
 def _raise_date_value_error(
-    effective:datetime,
+    effective: datetime,
     termination: datetime,
     front_stub: datetime | NoInput,
     back_stub: datetime | NoInput,
     roll: str | int | NoInput,
-    calendar: CalTypes
+    calendar: CalTypes,
 ) -> None:
     raise ValueError(
         "date, stub and roll inputs are invalid\n"

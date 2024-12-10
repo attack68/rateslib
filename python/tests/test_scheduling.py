@@ -23,9 +23,9 @@ from rateslib.scheduling import (
     _get_unadjusted_short_stub_date,
     _get_unadjusted_stub_date,
     _infer_stub_date,
+    _InvalidSchedule,
     _is_divisible_months,
     _ValidSchedule,
-    _InvalidSchedule,
 )
 
 
