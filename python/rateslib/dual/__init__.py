@@ -133,7 +133,7 @@ def gradient(
             return dual.grad1(vars)
         elif isinstance(dual, Dual): # and keep_manifold:
             raise TypeError("Dual type cannot perform `keep_manifold`.")
-        _ = dual.grad1_manifold(vars)
+        _ = dual.grad1_manifold(dual.vars if vars is None else vars)
         return np.asarray(_)
 
     elif order == 2:
