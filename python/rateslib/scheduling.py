@@ -7,7 +7,6 @@ from itertools import product
 from typing import Any
 
 from pandas import DataFrame
-from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import (
@@ -295,17 +294,25 @@ class Schedule:
             self.uschedule: list[datetime] = [self.effective, self.termination]
         else:
             # will attempt to populate stubs via inference over all parameters
-            self.stub: str = _validate_stub(stub, front_stub, back_stub)
+            self.stub = _validate_stub(stub, front_stub, back_stub)
             if "FRONT" in self.stub and "BACK" in self.stub:
-                self._dual_sided_stub_parsing(front_stub, back_stub, roll)
+                parsing_results: tuple[
+                    datetime, datetime, datetime | NoInput, datetime | NoInput, str | int
+                ] = self._dual_sided_stub_parsing(front_stub, back_stub, roll)
             elif "FRONT" in self.stub:
-                self._front_sided_stub_parsing(front_stub, back_stub, roll)
+                parsing_results = self._front_sided_stub_parsing(front_stub, back_stub, roll)
             elif "BACK" in self.stub:
-                self._back_sided_stub_parsing(front_stub, back_stub, roll)
+                parsing_results = self._back_sided_stub_parsing(front_stub, back_stub, roll)
             else:
                 raise ValueError(
                     "`stub` should be combinations of {'SHORT', 'LONG'} with {'FRONT', 'BACK'}.",
                 )
+
+            self.ueffective = parsing_results[0]
+            self.utermination = parsing_results[1]
+            self.front_stub = parsing_results[2]
+            self.back_stub = parsing_results[3]
+            self.roll = parsing_results[4]
 
             self.uschedule = list(
                 _generate_irregular_schedule_unadjusted(
@@ -320,14 +327,19 @@ class Schedule:
 
         self._attribute_schedules()
 
-    def _dual_sided_stub_parsing(self, front_stub, back_stub, roll):
+    def _dual_sided_stub_parsing(
+        self,
+        front_stub: datetime | NoInput,
+        back_stub: datetime | NoInput,
+        roll: str | int | NoInput,
+    ) -> tuple[datetime, datetime, datetime | NoInput, datetime | NoInput, str | int]:
         """This is called when the provided `stub` argument implies dual sided stubs."""
-        if front_stub is NoInput.blank and back_stub is NoInput.blank:
+        if isinstance(front_stub, NoInput) and isinstance(back_stub, NoInput):
             raise ValueError(
                 "Must supply at least one stub date with dual sided stub type.\n"
                 "Require `front_stub` or `back_stub` or both.",
             )
-        elif front_stub is NoInput.blank or back_stub is NoInput.blank:
+        elif isinstance(front_stub, NoInput) or isinstance(back_stub, NoInput):
             valid, parsed_args = _infer_stub_date(
                 self.effective,
                 self.termination,
@@ -341,15 +353,17 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                return _raise_date_value_error(
+                _raise_date_value_error(
                     self.effective, self.termination, front_stub, back_stub, roll, self.calendar
                 )
-            else:
-                self.ueffective = parsed_args["ueffective"]
-                self.utermination = parsed_args["utermination"]
-                self.front_stub = parsed_args["front_stub"]
-                self.back_stub = parsed_args["back_stub"]
-                self.roll = parsed_args["roll"]
+            return (
+                parsed_args["ueffective"],
+                parsed_args["utermination"],
+                parsed_args["front_stub"],
+                parsed_args["back_stub"],
+                parsed_args["roll"],
+            )
+
         else:
             # check regular swap and populate attributes
             valid, parsed_args = _check_regular_swap(
@@ -362,20 +376,26 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                return _raise_date_value_error(
+                _raise_date_value_error(
                     self.effective, self.termination, front_stub, back_stub, roll, self.calendar
                 )
-            else:
-                self.ueffective = self.effective
-                self.utermination = self.termination
-                self.front_stub = parsed_args["ueffective"]
-                self.back_stub = parsed_args["utermination"]
-                self.roll = parsed_args["roll"]
+            return (
+                self.effective,
+                self.termination,
+                parsed_args["ueffective"],
+                parsed_args["utermination"],
+                parsed_args["roll"],
+            )
 
-    def _front_sided_stub_parsing(self, front_stub, back_stub, roll):
-        if back_stub is not NoInput.blank:
+    def _front_sided_stub_parsing(
+        self,
+        front_stub: datetime | NoInput,
+        back_stub: datetime | NoInput,
+        roll: str | int | NoInput,
+    ) -> tuple[datetime, datetime, datetime | NoInput, datetime | NoInput, str | int]:
+        if not isinstance(back_stub, NoInput):
             raise ValueError("`stub` is only front sided but `back_stub` given.")
-        if front_stub is NoInput.blank:
+        if isinstance(front_stub, NoInput):
             valid, parsed_args = _infer_stub_date(
                 self.effective,
                 self.termination,
@@ -389,15 +409,17 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                return _raise_date_value_error(
+                _raise_date_value_error(
                     self.effective, self.termination, front_stub, back_stub, roll, self.calendar
                 )
-            else:
-                self.ueffective = parsed_args["ueffective"]
-                self.utermination = parsed_args["utermination"]
-                self.front_stub = parsed_args["front_stub"]
-                self.back_stub = parsed_args["back_stub"]
-                self.roll = parsed_args["roll"]
+            return (
+                parsed_args["ueffective"],
+                parsed_args["utermination"],
+                parsed_args["front_stub"],
+                parsed_args["back_stub"],
+                parsed_args["roll"],
+            )
+
         else:
             # check regular swap and populate attibutes
             valid, parsed_args = _check_regular_swap(
@@ -410,21 +432,24 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                return _raise_date_value_error(
+                _raise_date_value_error(
                     self.effective, self.termination, front_stub, back_stub, roll, self.calendar
                 )
-            else:
-                # stub inference is not required, no stubs are necessary
-                self.ueffective = self.effective
-                self.utermination = parsed_args["utermination"]
-                self.front_stub = parsed_args["ueffective"]
-                self.back_stub = NoInput(0)
-                self.roll = parsed_args["roll"]
+            # stub inference is not required, no stubs are necessary
+            return (
+                self.effective,
+                parsed_args["utermination"],
+                parsed_args["ueffective"],
+                NoInput(0),
+                parsed_args["roll"],
+            )
 
-    def _back_sided_stub_parsing(self, front_stub, back_stub, roll):
-        if front_stub is not NoInput.blank:
+    def _back_sided_stub_parsing(
+        self, front_stub, back_stub, roll
+    ) -> tuple[datetime, datetime, datetime | NoInput, datetime | NoInput, str | int]:
+        if not isinstance(front_stub, NoInput):
             raise ValueError("`stub` is only back sided but `front_stub` given.")
-        if back_stub is NoInput.blank:
+        if isinstance(back_stub, NoInput):
             valid, parsed_args = _infer_stub_date(
                 self.effective,
                 self.termination,
@@ -438,15 +463,17 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                return _raise_date_value_error(
+                _raise_date_value_error(
                     self.effective, self.termination, front_stub, back_stub, roll, self.calendar
                 )
-            else:
-                self.ueffective = parsed_args["ueffective"]
-                self.utermination = parsed_args["utermination"]
-                self.front_stub = parsed_args["front_stub"]
-                self.back_stub = parsed_args["back_stub"]
-                self.roll = parsed_args["roll"]
+            return (
+                parsed_args["ueffective"],
+                parsed_args["utermination"],
+                parsed_args["front_stub"],
+                parsed_args["back_stub"],
+                parsed_args["roll"],
+            )
+
         else:
             # check regular swap and populate attributes
             valid, parsed_args = _check_regular_swap(
@@ -459,15 +486,16 @@ class Schedule:
                 self.calendar,
             )
             if not valid:
-                return _raise_date_value_error(
+                _raise_date_value_error(
                     self.effective, self.termination, front_stub, back_stub, roll, self.calendar
                 )
-            else:
-                self.ueffective = parsed_args["ueffective"]
-                self.utermination = self.termination
-                self.front_stub = NoInput(0)
-                self.back_stub = parsed_args["utermination"]
-                self.roll = parsed_args["roll"]
+            return (
+                parsed_args["ueffective"],
+                self.termination,
+                NoInput(0),
+                parsed_args["utermination"],
+                parsed_args["roll"],
+            )
 
     def _attribute_schedules(self) -> None:
         """Attributes additional schedules according to date adjust and payment lag."""
@@ -746,8 +774,8 @@ def _check_regular_swap(
     frequency: str,
     modifier: str,
     eom: bool,
-    roll: str | int | None,
-    calendar: CustomBusinessDay,
+    roll: str | int | NoInput,
+    calendar: CalTypes,
 ):
     """
     Tests whether the given the parameters define a regular leg schedule without stubs.
@@ -823,7 +851,7 @@ def _is_invalid_very_short_stub(
     date_to_modify: datetime,
     date_fixed: datetime,
     modifier: str,
-    calendar: CustomBusinessDay,
+    calendar: CalTypes,
 ):
     """
     This tests that a very short, i.e. 1 to a few days, stub has not been erroneously
@@ -847,7 +875,7 @@ def _infer_stub_date(
     modifier: str,
     eom: bool,
     roll: str | int | NoInput,
-    calendar: CustomBusinessDay,
+    calendar: CalTypes,
 ) -> tuple[bool, Any]:
     """
     Attempts to infer either a front or back stub in an unspecified schedule.
@@ -1287,8 +1315,8 @@ def _generate_irregular_schedule_unadjusted(
     utermination: datetime,
     frequency: str,
     roll: int | str,
-    ufront_stub: datetime | None,
-    uback_stub: datetime | None,
+    ufront_stub: datetime | NoInput,
+    uback_stub: datetime | NoInput,
 ) -> Iterator[datetime]:
     """
     Generate unadjusted dates defining an irregular swap schedule.
@@ -1312,7 +1340,7 @@ def _generate_irregular_schedule_unadjusted(
     ------
     datetime
     """
-    if ufront_stub is NoInput(0):
+    if isinstance(ufront_stub, NoInput):
         yield from _generate_regular_schedule_unadjusted(
             ueffective,
             utermination if uback_stub is NoInput.blank else uback_stub,
@@ -1327,7 +1355,7 @@ def _generate_irregular_schedule_unadjusted(
             frequency,
             roll,
         )
-    if uback_stub is not NoInput(0):
+    if not isinstance(uback_stub, NoInput):
         yield utermination
 
 
@@ -1383,7 +1411,7 @@ def _generate_regular_schedule_unadjusted(
 # Utility Functions
 
 
-def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: CustomBusinessDay):
+def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: CalTypes):
     """
     Return all possible unadjusted dates that result in given date under modifier/cal.
 
@@ -1452,7 +1480,7 @@ def _get_n_periods_in_regular(
     return int(n_months / frequency_months)
 
 
-def _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar):
+def _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar) -> None:
     raise ValueError(
         "date, stub and roll inputs are invalid\n"
         f"`effective`: {effective} (is business day? {calendar.is_bus_day(effective)})\n"
