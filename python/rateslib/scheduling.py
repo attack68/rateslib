@@ -740,7 +740,7 @@ def _check_unadjusted_regular_swap(
 
     Returns
     -------
-    _SwapResult
+    _ValidSchedule or _InvalidSchedule
 
     Notes
     -----
@@ -774,7 +774,7 @@ def _check_unadjusted_regular_swap(
             if utermination.day != roll:
                 return _InvalidSchedule(f"Termination date not aligned with {roll} rolls.")
 
-    if roll is NoInput.blank:
+    if isinstance(roll, NoInput):
         roll = _get_unadjusted_roll(ueffective, utermination, eom)
         if roll == 0:
             return _InvalidSchedule("Roll day could not be inferred from given dates.")
@@ -1108,6 +1108,8 @@ def _infer_stub_date(
             _raise_date_value_error(
                 effective, termination, front_stub, back_stub, roll, calendar
             )
+            # for typing purposes. above will raise
+            raise RuntimeError("")  # pragma: no cover
         else:
             stub_ = _get_default_stub("BACK", stub)
             back_stub = _get_unadjusted_stub_date(
@@ -1261,7 +1263,7 @@ def _get_unadjusted_short_stub_date(
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = cal_.add_months(
+                _: datetime = cal_.add_months(
                     ueffective,
                     frequency_months * direction,
                     _get_modifier("NONE", True),
@@ -1343,7 +1345,7 @@ def _generate_irregular_schedule_unadjusted(
     if isinstance(ufront_stub, NoInput):
         yield from _generate_regular_schedule_unadjusted(
             ueffective,
-            utermination if uback_stub is NoInput.blank else uback_stub,
+            utermination if isinstance(uback_stub, NoInput) else uback_stub,
             frequency,
             roll,
         )
@@ -1351,7 +1353,7 @@ def _generate_irregular_schedule_unadjusted(
         yield ueffective
         yield from _generate_regular_schedule_unadjusted(
             ufront_stub,
-            utermination if uback_stub is NoInput.blank else uback_stub,
+            utermination if isinstance(uback_stub, NoInput) else uback_stub,
             frequency,
             roll,
         )
@@ -1411,7 +1413,7 @@ def _generate_regular_schedule_unadjusted(
 # Utility Functions
 
 
-def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: CalTypes):
+def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: CalTypes) -> list[datetime]:
     """
     Return all possible unadjusted dates that result in given date under modifier/cal.
 
@@ -1480,7 +1482,14 @@ def _get_n_periods_in_regular(
     return int(n_months / frequency_months)
 
 
-def _raise_date_value_error(effective, termination, front_stub, back_stub, roll, calendar) -> None:
+def _raise_date_value_error(
+    effective:datetime,
+    termination: datetime,
+    front_stub: datetime | NoInput,
+    back_stub: datetime | NoInput,
+    roll: str | int | NoInput,
+    calendar: CalTypes
+) -> None:
     raise ValueError(
         "date, stub and roll inputs are invalid\n"
         f"`effective`: {effective} (is business day? {calendar.is_bus_day(effective)})\n"
