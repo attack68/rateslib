@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from functools import partial
 from statistics import NormalDist
+from typing import TypeAlias
 
 import numpy as np
 
@@ -12,8 +13,8 @@ from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fd
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
 
-DualTypes = float | Dual | Dual2 | Variable
-Number = float | Dual | Dual2
+DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
+Number: TypeAlias = "float | Dual | Dual2"
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -130,13 +131,16 @@ def gradient(
             return dual.dual
         elif vars is not None and not keep_manifold:
             return dual.grad1(vars)
-
-        _ = dual.grad1_manifold(vars)
+        elif isinstance(dual, Dual): # and keep_manifold:
+            raise TypeError("Dual type cannot perform `keep_manifold`.")
+        _ = dual.grad1_manifold(dual.vars if vars is None else vars)
         return np.asarray(_)
 
     elif order == 2:
         if isinstance(dual, Variable):
             dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
+        elif isinstance(dual, Dual):
+            raise TypeError("Dual type cannot derive second order automatic derivatives.")
 
         if vars is None:
             return 2.0 * dual.dual2
