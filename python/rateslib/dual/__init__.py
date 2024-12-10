@@ -131,13 +131,16 @@ def gradient(
             return dual.dual
         elif vars is not None and not keep_manifold:
             return dual.grad1(vars)
-
-        _ = dual.grad1_manifold(vars)
+        elif isinstance(dual, Dual): # and keep_manifold:
+            raise TypeError("Dual type cannot perform `keep_manifold`.")
+        _ = dual.grad1_manifold(dual.vars if vars is None else vars)
         return np.asarray(_)
 
     elif order == 2:
         if isinstance(dual, Variable):
             dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
+        elif isinstance(dual, Dual):
+            raise TypeError("Dual type cannot derive second order automatic derivatives.")
 
         if vars is None:
             return 2.0 * dual.dual2
