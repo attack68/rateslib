@@ -95,6 +95,22 @@ class FXForwards:
     fx_rates_immediate : FXRates
     """
 
+    def _update_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
+        self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
+
+        self.terminal: datetime = datetime(2200, 1, 1)
+        for flag, (k, curve) in enumerate(self.fx_curves.items()):
+            curve.collateral = k[3:6]  # label curves with collateral
+
+            if flag == 0:
+                self.immediate: datetime = curve.node_dates[0]
+            elif self.immediate != curve.node_dates[0]:
+                raise ValueError("`fx_curves` do not have the same initial date.")
+            if isinstance(curve, LineCurve):
+                raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
+            if curve.node_dates[-1] < self.terminal:
+                self.terminal = curve.node_dates[-1]
+
     def update(
         self,
         fx_rates: FXRates | list[FXRates] | NoInput = NoInput(0),
@@ -212,74 +228,60 @@ class FXForwards:
            fxf.rate("usdeur", dt(2022, 7, 15))
 
         """
-        if isinstance(fx_curves, dict):
-            self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
+        if not isinstance(fx_curves, NoInput):
+            self._update_fx_curves(fx_curves)
 
-            self.terminal = datetime(2200, 1, 1)
-            for flag, (k, curve) in enumerate(self.fx_curves.items()):
-                curve.collateral = k[3:6]  # label curves with collateral
+        if isinstance(fx_rates, list):
+            # Get values for the first FXRates ibn the list
+            sub_curves = self._get_curves_for_currencies(
+                self.fx_curves,
+                fx_rates[0].currencies_list,
+            )
+            acyclic_fxf: FXForwards = FXForwards(
+                fx_rates=fx_rates[0],
+                fx_curves=sub_curves,
+            )
+            settlement_pairs = {
+                pair: fx_rates[0].settlement for pair in fx_rates[0].pairs
+            }
 
-                if flag == 0:
-                    self.immediate: datetime = curve.node_dates[0]
-                elif self.immediate != curve.node_dates[0]:
-                    raise ValueError("`fx_curves` do not have the same initial date.")
-                if isinstance(curve, LineCurve):
-                    raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
-                if curve.node_dates[-1] < self.terminal:
-                    self.terminal = curve.node_dates[-1]
 
-        if not isinstance(fx_rates, NoInput):
-            self.fx_rates = fx_rates
-
-        if isinstance(self.fx_rates, list):
-            for flag, fx_rates_obj in enumerate(self.fx_rates):
+            for fx_rates_obj in fx_rates[1:]:
                 # create sub FXForwards for each FXRates instance and re-combine.
                 # This reuses the arg validation of a single FXRates object and
                 # dependency of FXRates with fx_curves.
-                if flag == 0:
-                    sub_curves = self._get_curves_for_currencies(
-                        self.fx_curves,
-                        fx_rates_obj.currencies_list,
+
+                # calculate additional FX rates from previous objects
+                # in the same settlement frame.
+                overlapping_currencies = [
+                    ccy
+                    for ccy in fx_rates_obj.currencies_list
+                    if ccy in acyclic_fxf.currencies_list
+                ]
+                pre_currencies = [
+                    ccy
+                    for ccy in acyclic_fxf.currencies_list
+                    if ccy not in fx_rates_obj.currencies_list
+                ]
+                pre_rates = {
+                    f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
+                        f"{overlapping_currencies[0]}{ccy}",
+                        fx_rates_obj.settlement,
                     )
-                    acyclic_fxf: FXForwards = FXForwards(
-                        fx_rates=fx_rates_obj,
-                        fx_curves=sub_curves,
-                    )
-                    settlement_pairs = {
-                        pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs
-                    }
-                else:
-                    # calculate additional FX rates from previous objects
-                    # in the same settlement frame.
-                    overlapping_currencies = [
-                        ccy
-                        for ccy in fx_rates_obj.currencies_list
-                        if ccy in acyclic_fxf.currencies_list
-                    ]
-                    pre_currencies = [
-                        ccy
-                        for ccy in acyclic_fxf.currencies_list
-                        if ccy not in fx_rates_obj.currencies_list
-                    ]
-                    pre_rates = {
-                        f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
-                            f"{overlapping_currencies[0]}{ccy}",
-                            fx_rates_obj.settlement,
-                        )
-                        for ccy in pre_currencies
-                    }
-                    combined_fx_rates = FXRates(
-                        fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
-                        settlement=fx_rates_obj.settlement,
-                    )
-                    sub_curves = self._get_curves_for_currencies(
-                        self.fx_curves,
-                        fx_rates_obj.currencies_list + pre_currencies,
-                    )
-                    acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
-                    settlement_pairs.update(
-                        {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
-                    )
+                    for ccy in pre_currencies
+                }
+                combined_fx_rates = FXRates(
+                    fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
+                    settlement=fx_rates_obj.settlement,
+                )
+                sub_curves = self._get_curves_for_currencies(
+                    self.fx_curves,
+                    fx_rates_obj.currencies_list + pre_currencies,
+                )
+                acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
+                settlement_pairs.update(
+                    {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
+                )
 
             if not isinstance(base, NoInput):
                 acyclic_fxf.base = base.lower()
@@ -295,7 +297,10 @@ class FXForwards:
             ]:
                 setattr(self, attr, getattr(acyclic_fxf, attr))
             self.pairs_settlement = settlement_pairs
+            self.fx_rates: list[FXRates] | FXRates = fx_rates
         else:
+            if not isinstance(fx_rates, NoInput):
+                self.fx_rates = fx_rates
             self.currencies = self.fx_rates.currencies
             self.q = len(self.currencies.keys())
             self.currencies_list: list[str] = list(self.currencies.keys())
