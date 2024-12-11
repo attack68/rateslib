@@ -95,31 +95,12 @@ class FXForwards:
     fx_rates_immediate : FXRates
     """
 
-    def update(
-        self,
-    ) -> None:
+    def update(self) -> None:
         """
         Update the FXForward object with the latest FX rates and FX curves values.
 
         The update method is primarily used to allow synchronous updating within a
         ``Solver``.
-
-        Parameters
-        ----------
-        fx_rates : FXRates, or list of such, optional
-            An ``FXRates`` object with an associated settlement date. If multiple
-            settlement dates are relevant, e.g. GBPUSD (T+2) and USDCAD(T+1), then a
-            list of ``FXRates`` object is allowed to create a no arbitrage framework.
-        fx_curves : dict, optional
-            A dict of DF ``Curve`` objects defined by keys of two currency labels.
-            First, by the currency in which cashflows occur (3-digit code), combined
-            with the currency by which the future cashflow is collateralised in a
-            derivatives sense (3-digit code). There must also be a curve in each
-            currency for local discounting, i.e. where the cashflow and collateral
-            currency are the same. See examples of instance instantiation.
-        base : str, optional
-            The base currency (3-digit code). If not given defaults to the base
-            currency of the first given ``fx_rates`` object.
 
         Returns
         -------
@@ -209,7 +190,7 @@ class FXForwards:
            fxf.rate("usdeur", dt(2022, 7, 15))
 
         """
-        self._init_immediate_rates(fx_rates=self.fx_rates)
+        self._calculate_immediate_rates(base=self.base, init=False)
 
     def __init__(
         self,
@@ -220,7 +201,7 @@ class FXForwards:
         self._ad = 1
         self._validate_fx_curves(fx_curves)
         self.fx_rates: FXRates | list[FXRates] = fx_rates
-        self._init_immediate_rates(fx_rates, base)
+        self._calculate_immediate_rates(base, init=True)
 
     def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
         self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
@@ -238,42 +219,43 @@ class FXForwards:
             if curve.node_dates[-1] < self.terminal:
                 self.terminal = curve.node_dates[-1]
 
-    def _init_immediate_rates(
+    def _calculate_immediate_rates(
         self,
-        fx_rates: FXRates | list[FXRates],
-        base: str | NoInput = NoInput(0),
+        base: str | NoInput,
+        init: bool
     ) -> None:
-        if not isinstance(fx_rates, list):
-            # Then populate the attributes directly
-            self.currencies = fx_rates.currencies
-            self.q = len(self.currencies.keys())
-            self.currencies_list: list[str] = list(self.currencies.keys())
-            self.transform = self._get_forwards_transformation_matrix(
-                self.q,
-                self.currencies,
-                self.fx_curves,
-            )
-            self.base: str = fx_rates.base if isinstance(base, NoInput) else base
-            self.pairs = fx_rates.pairs
-            self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
-            self.fx_rates_immediate = self._update_fx_rates_immediate(fx_rates)
-            self.pairs_settlement = fx_rates.pairs_settlement
+        if not isinstance(self.fx_rates, list):
+            # if in initialisation phase (and not update phase) populate immutable values
+            if init:
+                self.currencies = self.fx_rates.currencies
+                self.q = len(self.currencies.keys())
+                self.currencies_list: list[str] = list(self.currencies.keys())
+                self.transform = self._get_forwards_transformation_matrix(
+                    self.q,
+                    self.currencies,
+                    self.fx_curves,
+                )
+                self.base: str = self.fx_rates.base if isinstance(base, NoInput) else base
+                self.pairs = self.fx_rates.pairs
+                self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
+                self.pairs_settlement = self.fx_rates.pairs_settlement
+            self.fx_rates_immediate = self._calculate_immediate_rates_same_settlement_frame()
         else:
             # Get values for the first FXRates in the list
             sub_curves = self._get_curves_for_currencies(
                 self.fx_curves,
-                fx_rates[0].currencies_list,
+                self.fx_rates[0].currencies_list,
             )
             acyclic_fxf: FXForwards = FXForwards(
-                fx_rates=fx_rates[0],
+                fx_rates=self.fx_rates[0],
                 fx_curves=sub_curves,
             )
             settlement_pairs = {
-                pair: fx_rates[0].settlement for pair in fx_rates[0].pairs
+                pair: self.fx_rates[0].settlement for pair in self.fx_rates[0].pairs
             }
 
             # Now itertate through the remaining FXRates objects and patch them into the fxf
-            for fx_rates_obj in fx_rates[1:]:
+            for fx_rates_obj in self.fx_rates[1:]:
                 # create sub FXForwards for each FXRates instance and re-combine.
                 # This reuses the arg validation of a single FXRates object and
                 # dependency of FXRates with fx_curves.
@@ -326,9 +308,9 @@ class FXForwards:
             self.pairs_settlement = settlement_pairs
 
 
-    def _update_fx_rates_immediate(self, fx_rates: FXRates) -> FXRates:
+    def _calculate_immediate_rates_same_settlement_frame(self) -> FXRates:
         """
-        Find the immediate FX rates values.
+        Calculate the immediate FX rates values given current Curves and input FXRates obj.
 
         Notes
         -----
@@ -336,14 +318,18 @@ class FXForwards:
         found a pair uses the relevant curves and the FX rate to determine the
         immediate FX rate for that pair.
         """
-        fx_rates_immediate: dict[str, Number] = {}
+        # this method can only be performed on an FXForwards object that is associated to a
+        # single FXRates obj (hence the use of the acyclic_fxf)
+        assert not isinstance(self.fx_rates, list)
+
+        fx_rates_immediate: dict[str, DualTypes] = {}
         for row in range(self.q):
             for col in range(self.q):
                 if row == col or self.transform[row, col] == 0:
                     continue
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
-                settlement = fx_rates.settlement
+                settlement = self.fx_rates.settlement
                 if settlement is NoInput.blank or settlement is None:
                     raise ValueError(
                         "`fx_rates` as FXRates supplied to FXForwards must contain a "
@@ -352,10 +338,10 @@ class FXForwards:
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
                 pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update({pair: fx_rates.fx_array[row, col] * v_i / w_i})
+                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
         fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.base)
-        return fx_rates_immediate_.restate(fx_rates.pairs, keep_ad=True)
+        return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
 
     def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
