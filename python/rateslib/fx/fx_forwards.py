@@ -808,12 +808,12 @@ class FXForwards:
             d_sum: DualTypes = 0.0
             for ccy in array_.index:
                 # typing d is a datetime by default.
-                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d) # type: ignore[arg-type]
+                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)  # type: ignore[arg-type]
                 d_sum += 0.0 if value_ is None else value_
             if abs(d_sum) < 1e-2:
                 sum += d_sum
             else:  # only discount if there is a real value
-                value_ = self.convert(d_sum, base, base, d, self.immediate) # type: ignore[arg-type]
+                value_ = self.convert(d_sum, base, base, d, self.immediate)  # type: ignore[arg-type]
                 sum += 0.0 if value_ is None else value_
         return sum
 
