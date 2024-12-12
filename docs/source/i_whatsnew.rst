@@ -57,7 +57,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - :red:`Minor Breaking Change!` :meth:`FXForwards.update <rateslib.fx.FXForwards.update>`
        has dropped the ``fx_curves`` argument and amended the ``fx_rates`` argument to
        provide a safer architecture for mutability of objects after market data changes.
-       (`537 <https://github.com/attack68/rateslib/pull/537>`_)
+       (`544 <https://github.com/attack68/rateslib/pull/544>`_)
 
 1.6.0 (30th November 2024)
 ****************************
