@@ -53,6 +53,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        Replicable functionality is achieved by importing and using the internal method
        :meth:`rateslib.fx.FXForwards._rate_with_path`.
        (`537 <https://github.com/attack68/rateslib/pull/537>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`FXForwards.update <rateslib.fx.FXForwards.update>`
+       has dropped the ``fx_curves`` argument and amended the ``fx_rates`` argument to
+       provide a safer architecture for mutability of objects after market data changes.
+       (`537 <https://github.com/attack68/rateslib/pull/537>`_)
 
 1.6.0 (30th November 2024)
 ****************************

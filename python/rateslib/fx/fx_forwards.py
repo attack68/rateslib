@@ -114,13 +114,13 @@ class FXForwards:
 
         Notes
         -----
-        An *FXForwards* object contain associations to external objects, those being
+        An *FXForwards* object contains associations to external objects, those being
         :class:`~rateslib.fx.FXRates` and :class:`~rateslib.curves.Curve`, and its purpose is
         to be able to combine those object to yield FX forward rates.
 
         When those external objects have themselves been updated it is necessary to *also*
         update the container object. If the *FXRates* object
-        is updated without also updating the *FXForwards* spurious results may be seen.
+        is updated without also updating the *FXForwards* spurious results may be seen, as below.
 
         .. ipython:: python
 
@@ -131,6 +131,7 @@ class FXForwards:
                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
            fxf = FXForwards(fxr, fx_curves)
+           fxf.rate("eurusd", dt(2022, 8, 15))
 
         .. ipython:: python
 
@@ -150,7 +151,7 @@ class FXForwards:
         the *Curves*.
 
         The ``fx_rates`` argument allows the *FXRates* classes to be updated directly from
-        this call instead of individually.
+        this call instead of individually, avoiding the potential of a broken update chain.
 
         Examples
         --------
