@@ -865,6 +865,14 @@ def test_delta_risk_equivalence() -> None:
     assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 
 
+def test_rates_update_empty_dict() -> None:
+    # test updating an FXRates with empty dict does nothing.
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+    fxr.update({})
+    assert float(fxr.rate("usdeur")) == 2.0
+    assert float(fxr.rate("usdgbp")) == 2.5
+
+
 def test_oo_update_rates_and_id() -> None:
     # Test the FXRates object can be updated with new FX Rates without creating new
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
@@ -892,6 +900,34 @@ def test_oo_update_forwards_rates() -> None:
     fxf.update()
     updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 8.797 = 1.0 * 8.888
     assert original_fwd != updated_fwd
+
+@pytest.mark.parametrize("curve_up", [True, False])
+@pytest.mark.parametrize("fxr_up", [True, False])
+def test_oo_update_forwards(curve_up, fxr_up) -> None:
+    # FXForwards.update() has dependencies to FXRates and Curve.
+    # If either is updated then the immediates FXRates should change
+    start, end = dt(2022, 1, 1), dt(2023, 1, 1)
+    curve = Curve({start: 1.0, end: 0.96}, id="uu", ad=1)
+    fx_curves = {
+        "usdusd": curve,
+        "eureur": Curve({start: 1.0, end: 0.99}, id="ee", ad=1),
+        "eurusd": Curve({start: 1.0, end: 0.991}, id="eu", ad=1),
+        "noknok": Curve({start: 1.0, end: 0.98}, id="nn", ad=1),
+        "nokeur": Curve({start: 1.0, end: 0.978}, id="ne", ad=1),
+    }
+    fx_rates1 = FXRates({"usdeur": 0.9}, dt(2022, 1, 2))
+    fx_rates2 = FXRates({"eurnok": 8.888889}, dt(2022, 1, 3))
+    fxf = FXForwards([fx_rates1, fx_rates2], fx_curves)
+    original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))
+
+    if curve_up:
+        curve._set_node_vector([0.94], 1)
+    if fxr_up:
+        fx_rates1.update({"usdeur": 0.8})
+    fxf.update()
+    new_fwd = fxf.rate("usdnok", dt(2022, 7, 15))
+
+    assert (new_fwd != original_fwd) is (curve_up or fxr_up)
 
 
 def test_oo_update_forwards_rates_list() -> None:

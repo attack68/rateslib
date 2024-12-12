@@ -102,6 +102,10 @@ class FXForwards:
         The update method is primarily used to allow synchronous updating within a
         ``Solver``.
 
+        Parameters
+        ----------
+
+
         Returns
         -------
         None

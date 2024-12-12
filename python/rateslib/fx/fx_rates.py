@@ -348,7 +348,7 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
-        if isinstance(fx_rates, NoInput):
+        if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
             return None
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
