@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 from packaging import version
-from pandas import read_csv, DataFrame, Series
+from pandas import Series, read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
@@ -343,7 +343,7 @@ Miscellaneous:\n
         return _
 
 
-def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput =NoInput(0)) -> PlotOutput:
+def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
@@ -366,7 +366,9 @@ def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput =NoInput(
     return fig, ax, lines
 
 
-def plot3d(x: list[Any], y: list[Any], z: np.ndarray[tuple[int, int], np.dtype[np.float64]]) -> tuple[plt.Figure, plt.Axes, None]:
+def plot3d(
+    x: list[Any], y: list[Any], z: np.ndarray[tuple[int, int], np.dtype[np.float64]]
+) -> tuple[plt.Figure, plt.Axes, None]:
     import matplotlib.pyplot as plt
     from matplotlib import cm
 
