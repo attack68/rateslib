@@ -803,15 +803,18 @@ class FXForwards:
 
         # j = self.currencies[base]
         # return np.sum(array_ * self.fx_array[:, j])
-        sum = 0.0
+        sum: DualTypes = 0.0
         for d in array_.columns:
-            d_sum = 0.0
+            d_sum: DualTypes = 0.0
             for ccy in array_.index:
-                d_sum += self.convert(array_.loc[ccy, d], ccy, base, d)
+                # typing d is a datetime by default.
+                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d) # type: ignore[arg-type]
+                d_sum += 0.0 if value_ is None else value_
             if abs(d_sum) < 1e-2:
                 sum += d_sum
             else:  # only discount if there is a real value
-                sum += self.convert(d_sum, base, base, d, self.immediate)
+                value_ = self.convert(d_sum, base, base, d, self.immediate) # type: ignore[arg-type]
+                sum += 0.0 if value_ is None else value_
         return sum
 
     def swap(
@@ -1017,7 +1020,7 @@ class FXForwards:
         _, path = self._rate_with_path(pair, x[0])
         rates: list[Number] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
         if not fx_swap:
-            y: list[Number] = [rates]
+            y: list[Number] = rates
         else:
             y = [(rate - rates[0]) * 10000 for rate in rates]
         return plot(x, y)
@@ -1214,7 +1217,7 @@ def forward_fx(
     elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:  # noqa: SIM114
         return fx_rate  # noqa: SIM114
 
-    _ = curve_domestic[date] / curve_foreign[date]
+    _: DualTypes = curve_domestic[date] / curve_foreign[date]
     if not isinstance(fx_settlement, NoInput):
         _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
     # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0

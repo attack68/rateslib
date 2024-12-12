@@ -107,6 +107,9 @@ class Variable:
     #  and https://github.com/PyO3/pyo3/discussions/3911
     #     return self.real
 
+    def __abs__(self) -> float:
+        return abs(self.real)
+
     def __neg__(self) -> Variable:
         return Variable(-self.real, vars=self.vars, dual=-self.dual)
 
