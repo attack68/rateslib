@@ -158,7 +158,7 @@ class FXRates:
     @cached_property
     def fx_array(self) -> Arr2dObj:
         # caching this prevents repetitive data transformations between Rust/Python
-        return np.array(self.obj.fx_array)
+        return np.array(self.obj.fx_array)  # type: ignore[return-value]
 
     def _fx_array_el(self, i: int, j: int) -> Number:
         # this is for typing since this numpy object array can only hold float | Dual | Dual2
@@ -190,7 +190,7 @@ class FXRates:
 
     @property
     def fx_vector(self) -> Arr1dObj:
-        return self.fx_array[0, :]
+        return self.fx_array[0, :]  # type: ignore[return-value]
 
     @property
     def pairs_settlement(self) -> dict[str, datetime]:
