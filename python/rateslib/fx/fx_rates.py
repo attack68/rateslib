@@ -292,7 +292,8 @@ class FXRates:
         fx_rates : dict, optional
             Dict whose keys are 6-character domestic-foreign currency pairs and
             which are present in FXRates.pairs, and whose
-            values are the relevant rates to update.
+            values are the relevant rates to update. An empty dict will be ignored and
+            perform no update.
 
         Returns
         -------

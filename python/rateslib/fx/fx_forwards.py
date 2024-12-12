@@ -95,7 +95,7 @@ class FXForwards:
     fx_rates_immediate : FXRates
     """
 
-    def update(self) -> None:
+    def update(self, fx_rates: list[dict[str, float]] | NoInput = NoInput(0)) -> None:
         """
         Update the FXForward object with the latest FX rates and FX curves values.
 
@@ -104,7 +104,9 @@ class FXForwards:
 
         Parameters
         ----------
-
+        fx_rates: list of dict, optional
+            A list of dictionaries with new rates to update the associated
+            :class:`~rateslib.fx.FXRates` objects associated with the *FXForwards* object.
 
         Returns
         -------
@@ -112,15 +114,13 @@ class FXForwards:
 
         Notes
         -----
-        .. warning::
+        An *FXForwards* object contain associations to external objects, those being
+        :class:`~rateslib.fx.FXRates` and :class:`~rateslib.curves.Curve`, and its purpose is
+        to be able to combine those object to yield FX forward rates.
 
-           **Rateslib** is an object-oriented library that uses complex associations. It
-           is best practice to create objects and any associations and then use the
-           ``update`` methods to push new market data to them. Recreating objects with
-           new data will break object-oriented associations and possibly lead to
-           undetected market data based pricing errors.
-
-        Do **not** do this..
+        When those external objects have themselves been updated it is necessary to *also*
+        update the container object. If the *FXRates* object
+        is updated without also updating the *FXForwards* spurious results may be seen.
 
         .. ipython:: python
 
@@ -131,69 +131,53 @@ class FXForwards:
                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
            fxf = FXForwards(fxr, fx_curves)
-           id(fxr) == id(fxf.fx_rates)  #  <- these objects are associated
-           fxr = FXRates({"eurusd": 1.06}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr) == id(fxf.fx_rates)  #  <- this association is broken by new instance
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <- wrong price because it is broken
-
-        Instead **do this**..
 
         .. ipython:: python
 
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           fx_curves = {
-               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-           }
-           fxf = FXForwards(fxr, fx_curves)
-           fxr.update({"eurusd": 1.06})
+           fxr.update({"eurusd": 2.0})
+           fxf.rate("eurusd", dt(2022, 8, 15))  # <-- rate is unchanged
+           fxf.rate("eurusd", dt(2022, 1, 3))  # <-- rate is taken directly from updated fxr
+
+        However, after the *FXForwards* is updated and the immediate FX rates are re-calculated,
+        all is now synchronised.
+
+        .. ipython:: python
+
            fxf.update()
-           id(fxr) == id(fxf.fx_rates)  #  <- this association is maintained
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <- correct new price
+           fxf.rate("eurusd", dt(2022, 8, 15))
 
-        For regular use, an ``FXForwards`` class has its associations, with ``FXRates``
-        and ``Curve`` s, set at instantiation. This means that the most common
-        form of this method will be to call it with no new arguments, but after
-        either one of the ``FXRates`` or ``Curve`` objects has itself been updated.
+        The :class:`~rateslib.solver.Solver` automatically updates when it mutates and solves
+        the *Curves*.
+
+        The ``fx_rates`` argument allows the *FXRates* classes to be updated directly from
+        this call instead of individually.
 
         Examples
         --------
-        Updating a component ``FXRates`` instance before updating the ``FXForwards``.
+        This example replicates the above but with direct update.
 
         .. ipython:: python
 
-           uu_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="uu")
+           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
            fx_curves = {
-               "usdusd": uu_curve,
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee"),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="eu"),
+               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
+               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
+               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
-           fx_rates = FXRates({"usdeur": 0.9}, dt(2022, 1, 3))
-           fxf = FXForwards(fx_rates, fx_curves)
-           fxf.rate("usdeur", dt(2022, 7, 15))
-           fx_rates.update({"usdeur": 1.0})
-           fxf.update()
-           fxf.rate("usdeur", dt(2022, 7, 15))
-
-        Updating an ``FXForwards`` instance with a new ``FXRates`` instance.
-
-        .. ipython:: python
-
-           fxf = FXForwards(FXRates({"usdeur": 0.9}, dt(2022, 1, 3)), fx_curves)
-           fxf.update(FXRates({"usdeur": 1.0}, dt(2022, 1, 3)))
-           fxf.rate("usdeur", dt(2022, 7, 15))
-
-        Updating a ``Curve`` component before updating the ``FXForwards``.
-
-        .. ipython:: python
-
-           fxf = FXForwards(FXRates({"usdeur": 0.9}, dt(2022, 1, 3)), fx_curves)
-           uu_curve.nodes[dt(2023, 1, 1)] = 0.98
-           fxf.update()
-           fxf.rate("usdeur", dt(2022, 7, 15))
+           fxf = FXForwards(fxr, fx_curves)
+           fxf.update([{"eurusd": 2.0}])
+           fxf.rate("eurusd", dt(2022, 8, 15))
 
         """
+        if not isinstance(fx_rates, NoInput):
+            self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
+            if not isinstance(fx_rates, list) or len(self_fx_rates) != len(fx_rates):
+                raise ValueError(
+                    "`fx_rates` must be a list of dicts with length equal to the number of FXRates "
+                    f"objects associated with the *FXForwards* object: {len(self_fx_rates)}."
+                )
+            for fxr_obj, fxr_up in zip(self_fx_rates, fx_rates, strict=True):
+                fxr_obj.update(fxr_up)
         self._calculate_immediate_rates(base=self.base, init=False)
 
     def __init__(
