@@ -352,7 +352,7 @@ class Curve(_Serialize):
 
         self._set_ad_order(order=ad)
 
-    def __getitem__(self, date: datetime):
+    def __getitem__(self, date: datetime) -> Number:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 

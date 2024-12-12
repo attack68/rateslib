@@ -95,12 +95,7 @@ class FXForwards:
     fx_rates_immediate : FXRates
     """
 
-    def update(
-        self,
-        fx_rates: FXRates | list[FXRates] | NoInput = NoInput(0),
-        fx_curves: dict[str, Curve] | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-    ) -> None:
+    def update(self, fx_rates: list[dict[str, float]] | NoInput = NoInput(0)) -> None:
         """
         Update the FXForward object with the latest FX rates and FX curves values.
 
@@ -109,20 +104,9 @@ class FXForwards:
 
         Parameters
         ----------
-        fx_rates : FXRates, or list of such, optional
-            An ``FXRates`` object with an associated settlement date. If multiple
-            settlement dates are relevant, e.g. GBPUSD (T+2) and USDCAD(T+1), then a
-            list of ``FXRates`` object is allowed to create a no arbitrage framework.
-        fx_curves : dict, optional
-            A dict of DF ``Curve`` objects defined by keys of two currency labels.
-            First, by the currency in which cashflows occur (3-digit code), combined
-            with the currency by which the future cashflow is collateralised in a
-            derivatives sense (3-digit code). There must also be a curve in each
-            currency for local discounting, i.e. where the cashflow and collateral
-            currency are the same. See examples of instance instantiation.
-        base : str, optional
-            The base currency (3-digit code). If not given defaults to the base
-            currency of the first given ``fx_rates`` object.
+        fx_rates: list of dict, optional
+            A list of dictionaries with new rates to update the associated
+            :class:`~rateslib.fx.FXRates` objects associated with the *FXForwards* object.
 
         Returns
         -------
@@ -130,15 +114,13 @@ class FXForwards:
 
         Notes
         -----
-        .. warning::
+        An *FXForwards* object contains associations to external objects, those being
+        :class:`~rateslib.fx.FXRates` and :class:`~rateslib.curves.Curve`, and its purpose is
+        to be able to combine those object to yield FX forward rates.
 
-           **Rateslib** is an object-oriented library that uses complex associations. It
-           is best practice to create objects and any associations and then use the
-           ``update`` methods to push new market data to them. Recreating objects with
-           new data will break object-oriented associations and possibly lead to
-           undetected market data based pricing errors.
-
-        Do **not** do this..
+        When those external objects have themselves been updated it is necessary to *also*
+        update the container object. If the *FXRates* object
+        is updated without also updating the *FXForwards* spurious results may be seen, as below.
 
         .. ipython:: python
 
@@ -149,137 +131,151 @@ class FXForwards:
                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
            fxf = FXForwards(fxr, fx_curves)
-           id(fxr) == id(fxf.fx_rates)  #  <- these objects are associated
-           fxr = FXRates({"eurusd": 1.06}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr) == id(fxf.fx_rates)  #  <- this association is broken by new instance
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <- wrong price because it is broken
-
-        Instead **do this**..
+           fxf.rate("eurusd", dt(2022, 8, 15))
 
         .. ipython:: python
 
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           fx_curves = {
-               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-           }
-           fxf = FXForwards(fxr, fx_curves)
-           fxr.update({"eurusd": 1.06})
+           fxr.update({"eurusd": 2.0})
+           fxf.rate("eurusd", dt(2022, 8, 15))  # <-- rate is unchanged
+           fxf.rate("eurusd", dt(2022, 1, 3))  # <-- rate is taken directly from updated fxr
+
+        However, after the *FXForwards* is updated and the immediate FX rates are re-calculated,
+        all is now synchronised.
+
+        .. ipython:: python
+
            fxf.update()
-           id(fxr) == id(fxf.fx_rates)  #  <- this association is maintained
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <- correct new price
+           fxf.rate("eurusd", dt(2022, 8, 15))
 
-        For regular use, an ``FXForwards`` class has its associations, with ``FXRates``
-        and ``Curve`` s, set at instantiation. This means that the most common
-        form of this method will be to call it with no new arguments, but after
-        either one of the ``FXRates`` or ``Curve`` objects has itself been updated.
+        The :class:`~rateslib.solver.Solver` automatically updates when it mutates and solves
+        the *Curves*.
+
+        The ``fx_rates`` argument allows the *FXRates* classes to be updated directly from
+        this call instead of individually, avoiding the potential of a broken update chain.
 
         Examples
         --------
-        Updating a component ``FXRates`` instance before updating the ``FXForwards``.
+        This example replicates the above but with direct update.
 
         .. ipython:: python
 
-           uu_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}, id="uu")
+           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
            fx_curves = {
-               "usdusd": uu_curve,
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee"),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.991}, id="eu"),
+               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
+               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
+               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
-           fx_rates = FXRates({"usdeur": 0.9}, dt(2022, 1, 3))
-           fxf = FXForwards(fx_rates, fx_curves)
-           fxf.rate("usdeur", dt(2022, 7, 15))
-           fx_rates.update({"usdeur": 1.0})
-           fxf.update()
-           fxf.rate("usdeur", dt(2022, 7, 15))
-
-        Updating an ``FXForwards`` instance with a new ``FXRates`` instance.
-
-        .. ipython:: python
-
-           fxf = FXForwards(FXRates({"usdeur": 0.9}, dt(2022, 1, 3)), fx_curves)
-           fxf.update(FXRates({"usdeur": 1.0}, dt(2022, 1, 3)))
-           fxf.rate("usdeur", dt(2022, 7, 15))
-
-        Updating a ``Curve`` component before updating the ``FXForwards``.
-
-        .. ipython:: python
-
-           fxf = FXForwards(FXRates({"usdeur": 0.9}, dt(2022, 1, 3)), fx_curves)
-           uu_curve.nodes[dt(2023, 1, 1)] = 0.98
-           fxf.update()
-           fxf.rate("usdeur", dt(2022, 7, 15))
+           fxf = FXForwards(fxr, fx_curves)
+           fxf.update([{"eurusd": 2.0}])
+           fxf.rate("eurusd", dt(2022, 8, 15))
 
         """
-        if isinstance(fx_curves, dict):
-            self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
-
-            self.terminal = datetime(2200, 1, 1)
-            for flag, (k, curve) in enumerate(self.fx_curves.items()):
-                curve.collateral = k[3:6]  # label curves with collateral
-
-                if flag == 0:
-                    self.immediate: datetime = curve.node_dates[0]
-                elif self.immediate != curve.node_dates[0]:
-                    raise ValueError("`fx_curves` do not have the same initial date.")
-                if isinstance(curve, LineCurve):
-                    raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
-                if curve.node_dates[-1] < self.terminal:
-                    self.terminal = curve.node_dates[-1]
-
         if not isinstance(fx_rates, NoInput):
-            self.fx_rates = fx_rates
+            self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
+            if not isinstance(fx_rates, list) or len(self_fx_rates) != len(fx_rates):
+                raise ValueError(
+                    "`fx_rates` must be a list of dicts with length equal to the number of FXRates "
+                    f"objects associated with the *FXForwards* object: {len(self_fx_rates)}."
+                )
+            for fxr_obj, fxr_up in zip(self_fx_rates, fx_rates, strict=True):
+                fxr_obj.update(fxr_up)
+        self._calculate_immediate_rates(base=self.base, init=False)
 
-        if isinstance(self.fx_rates, list):
-            for flag, fx_rates_obj in enumerate(self.fx_rates):
+    def __init__(
+        self,
+        fx_rates: FXRates | list[FXRates],
+        fx_curves: dict[str, Curve],
+        base: str | NoInput = NoInput(0),
+    ) -> None:
+        self._ad = 1
+        self._validate_fx_curves(fx_curves)
+        self.fx_rates: FXRates | list[FXRates] = fx_rates
+        self._calculate_immediate_rates(base, init=True)
+
+    def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
+        self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
+
+        self.terminal: datetime = datetime(2200, 1, 1)
+        for flag, (k, curve) in enumerate(self.fx_curves.items()):
+            curve.collateral = k[3:6]  # label curves with collateral
+
+            if flag == 0:
+                self.immediate: datetime = curve.node_dates[0]
+            elif self.immediate != curve.node_dates[0]:
+                raise ValueError("`fx_curves` do not have the same initial date.")
+            if isinstance(curve, LineCurve):
+                raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
+            if curve.node_dates[-1] < self.terminal:
+                self.terminal = curve.node_dates[-1]
+
+    def _calculate_immediate_rates(self, base: str | NoInput, init: bool) -> None:
+        if not isinstance(self.fx_rates, list):
+            # if in initialisation phase (and not update phase) populate immutable values
+            if init:
+                self.currencies = self.fx_rates.currencies
+                self.q = len(self.currencies.keys())
+                self.currencies_list: list[str] = list(self.currencies.keys())
+                self.transform = self._get_forwards_transformation_matrix(
+                    self.q,
+                    self.currencies,
+                    self.fx_curves,
+                )
+                self.base: str = self.fx_rates.base if isinstance(base, NoInput) else base
+                self.pairs = self.fx_rates.pairs
+                self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
+                self.pairs_settlement = self.fx_rates.pairs_settlement
+            self.fx_rates_immediate = self._calculate_immediate_rates_same_settlement_frame()
+        else:
+            # Get values for the first FXRates in the list
+            sub_curves = self._get_curves_for_currencies(
+                self.fx_curves,
+                self.fx_rates[0].currencies_list,
+            )
+            acyclic_fxf: FXForwards = FXForwards(
+                fx_rates=self.fx_rates[0],
+                fx_curves=sub_curves,
+            )
+            settlement_pairs = {
+                pair: self.fx_rates[0].settlement for pair in self.fx_rates[0].pairs
+            }
+
+            # Now itertate through the remaining FXRates objects and patch them into the fxf
+            for fx_rates_obj in self.fx_rates[1:]:
                 # create sub FXForwards for each FXRates instance and re-combine.
                 # This reuses the arg validation of a single FXRates object and
                 # dependency of FXRates with fx_curves.
-                if flag == 0:
-                    sub_curves = self._get_curves_for_currencies(
-                        self.fx_curves,
-                        fx_rates_obj.currencies_list,
+
+                # calculate additional FX rates from previous objects
+                # in the same settlement frame.
+                overlapping_currencies = [
+                    ccy
+                    for ccy in fx_rates_obj.currencies_list
+                    if ccy in acyclic_fxf.currencies_list
+                ]
+                pre_currencies = [
+                    ccy
+                    for ccy in acyclic_fxf.currencies_list
+                    if ccy not in fx_rates_obj.currencies_list
+                ]
+                pre_rates = {
+                    f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
+                        f"{overlapping_currencies[0]}{ccy}",
+                        fx_rates_obj.settlement,
                     )
-                    acyclic_fxf: FXForwards = FXForwards(
-                        fx_rates=fx_rates_obj,
-                        fx_curves=sub_curves,
-                    )
-                    settlement_pairs = {
-                        pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs
-                    }
-                else:
-                    # calculate additional FX rates from previous objects
-                    # in the same settlement frame.
-                    overlapping_currencies = [
-                        ccy
-                        for ccy in fx_rates_obj.currencies_list
-                        if ccy in acyclic_fxf.currencies_list
-                    ]
-                    pre_currencies = [
-                        ccy
-                        for ccy in acyclic_fxf.currencies_list
-                        if ccy not in fx_rates_obj.currencies_list
-                    ]
-                    pre_rates = {
-                        f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
-                            f"{overlapping_currencies[0]}{ccy}",
-                            fx_rates_obj.settlement,
-                        )
-                        for ccy in pre_currencies
-                    }
-                    combined_fx_rates = FXRates(
-                        fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
-                        settlement=fx_rates_obj.settlement,
-                    )
-                    sub_curves = self._get_curves_for_currencies(
-                        self.fx_curves,
-                        fx_rates_obj.currencies_list + pre_currencies,
-                    )
-                    acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
-                    settlement_pairs.update(
-                        {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
-                    )
+                    for ccy in pre_currencies
+                }
+                combined_fx_rates = FXRates(
+                    fx_rates={**fx_rates_obj.fx_rates, **pre_rates},
+                    settlement=fx_rates_obj.settlement,
+                )
+                sub_curves = self._get_curves_for_currencies(
+                    self.fx_curves,
+                    fx_rates_obj.currencies_list + pre_currencies,
+                )
+                acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
+                settlement_pairs.update(
+                    {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
+                )
 
             if not isinstance(base, NoInput):
                 acyclic_fxf.base = base.lower()
@@ -295,29 +291,42 @@ class FXForwards:
             ]:
                 setattr(self, attr, getattr(acyclic_fxf, attr))
             self.pairs_settlement = settlement_pairs
-        else:
-            self.currencies = self.fx_rates.currencies
-            self.q = len(self.currencies.keys())
-            self.currencies_list: list[str] = list(self.currencies.keys())
-            self.transform = self._get_forwards_transformation_matrix(
-                self.q,
-                self.currencies,
-                self.fx_curves,
-            )
-            self.base: str = self.fx_rates.base if isinstance(base, NoInput) else base
-            self.pairs = self.fx_rates.pairs
-            self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
-            self.fx_rates_immediate = self._update_fx_rates_immediate()
-            self.pairs_settlement = self.fx_rates.pairs_settlement
 
-    def __init__(
-        self,
-        fx_rates: FXRates | list[FXRates],
-        fx_curves: dict[str, Curve],
-        base: str | NoInput = NoInput(0),
-    ) -> None:
-        self._ad = 1
-        self.update(fx_rates, fx_curves, base)
+    def _calculate_immediate_rates_same_settlement_frame(self) -> FXRates:
+        """
+        Calculate the immediate FX rates values given current Curves and input FXRates obj.
+
+        Notes
+        -----
+        Searches the non-diagonal elements of transformation matrix, once it has
+        found a pair uses the relevant curves and the FX rate to determine the
+        immediate FX rate for that pair.
+        """
+        # this method can only be performed on an FXForwards object that is associated to a
+        # single FXRates obj (hence the use of the acyclic_fxf)
+        # since this is an internal method this line is used for testing
+        assert not isinstance(self.fx_rates, list)  # noqa: S101
+
+        fx_rates_immediate: dict[str, DualTypes] = {}
+        for row in range(self.q):
+            for col in range(self.q):
+                if row == col or self.transform[row, col] == 0:
+                    continue
+                cash_ccy = self.currencies_list[row]
+                coll_ccy = self.currencies_list[col]
+                settlement = self.fx_rates.settlement
+                if settlement is NoInput.blank or settlement is None:
+                    raise ValueError(
+                        "`fx_rates` as FXRates supplied to FXForwards must contain a "
+                        "`settlement` argument.",
+                    )
+                v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
+                w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
+                pair = f"{cash_ccy}{coll_ccy}"
+                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
+
+        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.base)
+        return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
 
     def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
@@ -449,37 +458,6 @@ class FXForwards:
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def _update_fx_rates_immediate(self) -> FXRates:
-        """
-        Find the immediate FX rates values.
-
-        Notes
-        -----
-        Searches the non-diagonal elements of transformation matrix, once it has
-        found a pair uses the relevant curves and the FX rate to determine the
-        immediate FX rate for that pair.
-        """
-        fx_rates_immediate = {}
-        for row in range(self.q):
-            for col in range(self.q):
-                if row == col or self.transform[row, col] == 0:
-                    continue
-                cash_ccy = self.currencies_list[row]
-                coll_ccy = self.currencies_list[col]
-                settlement = self.fx_rates.settlement
-                if settlement is NoInput.blank or settlement is None:
-                    raise ValueError(
-                        "`fx_rates` as FXRates supplied to FXForwards must contain a "
-                        "`settlement` argument.",
-                    )
-                v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
-                w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
-                pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
-
-        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.base)
-        return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
 
     def rate(
         self,
@@ -669,10 +647,11 @@ class FXForwards:
                         df = df.add(_.to_frame(), fill_value=0.0)
 
         if aggregate:
-            _ = df.sum(axis=1).rename(dates[0])
-            return _
+            _s: Series[float] = df.sum(axis=1).rename(dates[0])
+            return _s
         else:
-            return df.sort_index(axis=1)
+            _d: DataFrame = df.sort_index(axis=1)
+            return _d
 
     def convert(
         self,
@@ -683,7 +662,7 @@ class FXForwards:
         value_date: datetime | NoInput = NoInput(0),
         collateral: str | NoInput = NoInput(0),
         on_error: str = "ignore",
-    ) -> Number | None:
+    ) -> DualTypes | None:
         """
         Convert an amount of a domestic currency, as of a settlement date
         into a foreign currency, valued on another date.

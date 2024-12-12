@@ -292,7 +292,8 @@ class FXRates:
         fx_rates : dict, optional
             Dict whose keys are 6-character domestic-foreign currency pairs and
             which are present in FXRates.pairs, and whose
-            values are the relevant rates to update.
+            values are the relevant rates to update. An empty dict will be ignored and
+            perform no update.
 
         Returns
         -------
@@ -348,7 +349,7 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
-        if isinstance(fx_rates, NoInput):
+        if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
             return None
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
@@ -442,7 +443,7 @@ class FXRates:
         base = self.base if isinstance(base, NoInput) else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
-        return np.sum(array_ * self.fx_array[:, j])
+        return np.sum(array_ * self.fx_array[:, j])  # type: ignore[no-any-return]
 
     def positions(
         self,
@@ -476,7 +477,7 @@ class FXRates:
         if isinstance(value, float | int):
             value = Dual(value, [], [])
         base_: str = self.base if isinstance(base, NoInput) else base.lower()
-        _ = np.array([0 if ccy != base_ else float(value) for ccy in self.currencies_list])
+        _ = np.array([0 if ccy != base_ else value.real for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = gradient(value, [pair])[0]

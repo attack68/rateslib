@@ -131,7 +131,7 @@ def gradient(
             return dual.dual
         elif vars is not None and not keep_manifold:
             return dual.grad1(vars)
-        elif isinstance(dual, Dual): # and keep_manifold:
+        elif isinstance(dual, Dual):  # and keep_manifold:
             raise TypeError("Dual type cannot perform `keep_manifold`.")
         _ = dual.grad1_manifold(dual.vars if vars is None else vars)
         return np.asarray(_)

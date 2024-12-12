@@ -9,7 +9,7 @@ from typing import NamedTuple
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import (
+from rateslib.calendars import (  # type: ignore[attr-defined]
     CalInput,
     CalTypes,
     _adjust_date,
