@@ -343,7 +343,7 @@ Miscellaneous:\n
         return _
 
 
-def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput:
+def plot(x: list[Any], y: list[list[Any]], labels=NoInput(0)) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []

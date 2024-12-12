@@ -1020,9 +1020,9 @@ class FXForwards:
         _, path = self._rate_with_path(pair, x[0])
         rates: list[Number] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
         if not fx_swap:
-            y: list[Number] = rates
+            y: list[list[Number]] = [rates]
         else:
-            y = [(rate - rates[0]) * 10000 for rate in rates]
+            y = [[(rate - rates[0]) * 10000 for rate in rates]]
         return plot(x, y)
 
     def _set_ad_order(self, order: int) -> None:
