@@ -882,11 +882,15 @@ def test_oo_update_rates_and_id() -> None:
     assert fxr.rate("eurgbp") == Dual(1.5, ["fx_usdeur", "fx_usdgbp"], [-0.75, 0.5])
     assert id(fxr) == id_
 
-@pytest.mark.parametrize(("fx_rates", "err"), [
-    ({"usdeur": 1.2}, "`fx_rates` must be a list of dicts"),
-    ([{"usdjpy": 100.5}, {"eursek": 3.0}], "The given `fx_rates` pairs are not contained"),
-    ([{"usdeur": 100.5}], "`fx_rates` must be a list of dicts with length"),
-])
+
+@pytest.mark.parametrize(
+    ("fx_rates", "err"),
+    [
+        ({"usdeur": 1.2}, "`fx_rates` must be a list of dicts"),
+        ([{"usdjpy": 100.5}, {"eursek": 3.0}], "The given `fx_rates` pairs are not contained"),
+        ([{"usdeur": 100.5}], "`fx_rates` must be a list of dicts with length"),
+    ],
+)
 def test_fx_forwards_update_list(fx_rates, err):
     start, end = dt(2022, 1, 1), dt(2023, 1, 1)
     fx_curves = {
@@ -901,6 +905,7 @@ def test_fx_forwards_update_list(fx_rates, err):
     fxf = FXForwards([fxr1, fxr2], fx_curves)
     with pytest.raises(ValueError, match=err):
         fxf.update(fx_rates)
+
 
 def test_oo_update_forwards_rates() -> None:
     # Test the FXForwards object update method will react to an update of FXRates
@@ -919,6 +924,7 @@ def test_oo_update_forwards_rates() -> None:
     fxf.update()
     updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 8.797 = 1.0 * 8.888
     assert original_fwd != updated_fwd
+
 
 @pytest.mark.parametrize("curve_up", [True, False])
 @pytest.mark.parametrize("fxr_up", [True, False])

@@ -208,11 +208,7 @@ class FXForwards:
             if curve.node_dates[-1] < self.terminal:
                 self.terminal = curve.node_dates[-1]
 
-    def _calculate_immediate_rates(
-        self,
-        base: str | NoInput,
-        init: bool
-    ) -> None:
+    def _calculate_immediate_rates(self, base: str | NoInput, init: bool) -> None:
         if not isinstance(self.fx_rates, list):
             # if in initialisation phase (and not update phase) populate immutable values
             if init:
@@ -296,7 +292,6 @@ class FXForwards:
                 setattr(self, attr, getattr(acyclic_fxf, attr))
             self.pairs_settlement = settlement_pairs
 
-
     def _calculate_immediate_rates_same_settlement_frame(self) -> FXRates:
         """
         Calculate the immediate FX rates values given current Curves and input FXRates obj.
@@ -309,7 +304,8 @@ class FXForwards:
         """
         # this method can only be performed on an FXForwards object that is associated to a
         # single FXRates obj (hence the use of the acyclic_fxf)
-        assert not isinstance(self.fx_rates, list)
+        # since this is an internal method this line is used for testing
+        assert not isinstance(self.fx_rates, list)  # noqa: S101
 
         fx_rates_immediate: dict[str, DualTypes] = {}
         for row in range(self.q):
