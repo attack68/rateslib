@@ -160,7 +160,7 @@ class FXRates:
         # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)
 
-    def fx_array_el(self, i: int, j: int) -> Number:
+    def _fx_array_el(self, i: int, j: int) -> Number:
         # this is for typing since this numpy object array can only hold float | Dual | Dual2
         return self.fx_array[i, j]  # type: ignore
 
@@ -226,7 +226,7 @@ class FXRates:
            fxr.rate("eurgbp")
         """
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
-        return self.fx_array_el(domi, fori)
+        return self._fx_array_el(domi, fori)
 
     def restate(self, pairs: list[str], keep_ad: bool = False) -> FXRates:
         """
@@ -408,7 +408,7 @@ class FXRates:
                     raise ValueError(f"'{ccy}' not in FXRates.currencies.")
 
         i, j = self.currencies[domestic.lower()], self.currencies[foreign.lower()]
-        return value * self.fx_array_el(i, j)
+        return value * self._fx_array_el(i, j)
 
     def convert_positions(
         self,
@@ -497,9 +497,9 @@ class FXRates:
         # _[f_idx] = f_val
         # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
         # return _
-        f_val = delta * float(self.fx_array_el(b_idx, f_idx))
+        f_val = delta * float(self._fx_array_el(b_idx, f_idx))
         _[d_idx] = f_val
-        _[f_idx] = -f_val / float(self.fx_array_el(f_idx, d_idx))
+        _[f_idx] = -f_val / float(self._fx_array_el(f_idx, d_idx))
         return _  # calculation is more efficient from a domestic pov than foreign
 
     def rates_table(self) -> DataFrame:
