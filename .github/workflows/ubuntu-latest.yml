@@ -51,7 +51,7 @@ jobs:
         coverage report -m
     - name: MyPy type checking
       run: |
-        mypy
+        mypy --config-file pyproject.toml
     - name: Install Pandoc
       uses: r-lib/actions/setup-pandoc@v2
       with:
