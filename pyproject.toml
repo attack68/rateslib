@@ -144,7 +144,8 @@ files = [
     "python/rateslib/fx/**/*.py",
     "python/rateslib/dual/**/*.py",
     "python/rateslib/scheduling.py",
-    "python/rateslib/splines.py"
+    "python/rateslib/splines.py",
+    "python/rateslib/default.py"
 ]
 strict = true
 
