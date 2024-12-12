@@ -795,7 +795,7 @@ class FXForwards:
         base = self.base if isinstance(base, NoInput) else base.lower()
 
         if isinstance(array, Series):
-            array_ = array.to_frame(name=self.immediate)
+            array_: DataFrame = array.to_frame(name=self.immediate)
         elif isinstance(array, DataFrame):
             array_ = array
         else:
