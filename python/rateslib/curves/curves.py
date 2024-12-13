@@ -311,7 +311,7 @@ class Curve:
         return json.dumps(container, default=str)
 
     @classmethod
-    def from_json(cls, curve: str, **kwargs) -> _Serialize:  # type: ignore[no-untyped-def]
+    def from_json(cls, curve: str, **kwargs) -> Curve:  # type: ignore[no-untyped-def]
         """
         Reconstitute a curve from JSON.
 
@@ -2841,7 +2841,9 @@ class ProxyCurve(Curve):
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
-def average_rate(effective: datetime, termination: datetime, convention: str, rate: DualTypes) -> tuple[DualTypes, float, int]:
+def average_rate(
+    effective: datetime, termination: datetime, convention: str, rate: DualTypes
+) -> tuple[DualTypes, float, int]:
     """
     Return the geometric, 1 calendar day, average rate for the rate in a period.
 
@@ -2869,13 +2871,13 @@ def average_rate(effective: datetime, termination: datetime, convention: str, ra
 
 
 def interpolate(
-        x: DualTypes,
-        x_1: DualTypes,
-        y_1: DualTypes,
-        x_2: DualTypes,
-        y_2: DualTypes,
-        interpolation: str,
-        start: DualTypes | None = None
+    x: DualTypes,
+    x_1: DualTypes,
+    y_1: DualTypes,
+    x_2: DualTypes,
+    y_2: DualTypes,
+    interpolation: str,
+    start: DualTypes | None = None,
 ) -> DualTypes:
     """
     Perform local interpolation between two data points.
@@ -2931,7 +2933,7 @@ def interpolate(
     elif interpolation == "linear_zero_rate":
         # convention not used here since we just determine linear rate interpolation
         # 86400. scalar relates to using posix timestamp conversion
-        assert start is not None
+        assert start is not None  # noqa: S101
         y_2 = dual_log(y_2) / ((start - x_2) / (365.0 * 86400.0))
         if start == x_1:
             y_1 = y_2
