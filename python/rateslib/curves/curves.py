@@ -1216,11 +1216,15 @@ class Curve:
 
         return plot(x, y_, labels)
 
-    def _plot_diff(self, date, tenor, rate, comparator):
+    def _plot_diff(self, date: datetime, tenor: str, rate: Number | None, comparator: Curve) -> Number | None:
+        if rate is None:
+            return None
         rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
-        return (rate2 - rate) if rate2 is not None else None
+        if rate2 is None:
+            return None
+        return (rate2 - rate)
 
-    def _plot_modifier(self, upper_tenor):
+    def _plot_modifier(self, upper_tenor: str) -> str:
         """If tenor is in days do not allow modified for plot purposes"""
         if "B" in upper_tenor or "D" in upper_tenor or "W" in upper_tenor:
             if "F" in self.modifier:
@@ -1232,10 +1236,10 @@ class Curve:
     def _plot_rates(
         self,
         upper_tenor: str,
-        left: datetime | str | NoInput = NoInput(0),
-        right: datetime | str | NoInput = NoInput(0),
-    ):
-        if left is NoInput.blank:
+        left: datetime | str | NoInput,
+        right: datetime | str | NoInput,
+    ) -> tuple[list[datetime], list[Number | None]]:
+        if isinstance(left, NoInput):
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
             left_ = add_tenor(self.node_dates[0], left, "F", self.calendar)
@@ -1244,7 +1248,7 @@ class Curve:
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
-        if right is NoInput.blank:
+        if isinstance(right, NoInput):
             # pre-adjust the end date to enforce business date.
             right_: datetime = add_tenor(
                 self.calendar.roll(self.node_dates[-1], Modifier.P, False),
@@ -1265,10 +1269,10 @@ class Curve:
 
     def _plot_rate(
         self,
-        effective,
-        termination,
-        modifier=NoInput(0),
-    ):
+        effective: datetime,
+        termination: str,
+        modifier: str,
+    ) -> Number | None:
         try:
             rate = self.rate(effective, termination, modifier)
         except ValueError:
@@ -1280,10 +1284,10 @@ class Curve:
         curve_foreign: Curve,
         fx_rate: float | Dual,
         fx_settlement: datetime | NoInput = NoInput(0),
-        left: datetime = None,
-        right: datetime = None,
-        points: int = None,
-    ):  # pragma: no cover
+        # left: datetime = None,
+        # right: datetime = None,
+        # points: int = None,
+    ) -> PlotOutput:  # pragma: no cover
         """
         Debugging method?
         """
@@ -1296,7 +1300,7 @@ class Curve:
             fx_settlement: datetime | NoInput,
         ) -> DualTypes:
             _: DualTypes = self[date] / curve_foreign[date]
-            if isinstance(fx_settlement, NoInput):
+            if not isinstance(fx_settlement, NoInput):
                 _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
             _ *= fx_rate
             return _
