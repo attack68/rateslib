@@ -13,7 +13,7 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Type
 from uuid import uuid4
 
 import numpy as np
@@ -161,8 +161,12 @@ class Curve:
        plt.show()
     """
 
-    _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
-    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
+    _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
+        dual_exp
+    )  # Curve is DF based: log-cubic spline is exp'ed
+    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
+        dual_log
+    )  # Curve is DF based: spline is applied over log
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type: str = "dfs"
     collateral: str | None = None
@@ -1284,9 +1288,15 @@ class Curve:
         Debugging method?
         """
 
-        def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
-            _ = self[date] / curve_foreign[date]
-            if fx_settlement is not NoInput.blank:
+        def forward_fx(
+            date: datetime,
+            curve_domestic: Curve,
+            curve_foreign: Curve,
+            fx_rate: DualTypes,
+            fx_settlement: datetime | NoInput,
+        ) -> DualTypes:
+            _: DualTypes = self[date] / curve_foreign[date]
+            if isinstance(fx_settlement, NoInput):
                 _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
             _ *= fx_rate
             return _
@@ -1301,37 +1311,39 @@ class Curve:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
         self.clear_cache()
 
-        DualType = Dual if ad == 1 else Dual2
-        DualArgs = ([],) if ad == 1 else ([], [])
+        DualType: Type[Dual | Dual2] = Dual if ad == 1 else Dual2
+        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
+            ([],) if ad == 1 else ([], [])
+        )
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
-        ident = np.eye(self.n)
+        ident: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.eye(self.n, dtype=np.float64)
 
         if self._ini_solve == 1:
             # then the first node on the Curve is not updated but
             # set it as a dual type with consistent vars.
             self.nodes[self.node_keys[0]] = DualType.vars_from(
-                base_obj,
+                base_obj,  # type: ignore[arg-type]
                 self.nodes[self.node_keys[0]].real,
                 base_obj.vars,
-                ident[0, :].tolist(),
+                ident[0, :].tolist(),  # type: ignore[arg-type]
                 *DualArgs[1:],
             )
 
         for i, k in enumerate(self.node_keys[self._ini_solve :]):
             self.nodes[k] = DualType.vars_from(
-                base_obj,
+                base_obj,  # type: ignore[arg-type]
                 vector[i].real,
                 base_obj.vars,
-                ident[i + self._ini_solve, :].tolist(),
+                ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
                 *DualArgs[1:],
             )
         self.csolve()
 
-    def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:
+    def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[Any]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array(list(self.nodes.values())[self._ini_solve :])
 
-    def _get_node_vars(self) -> Arr1dObj | Arr1dF64:
+    def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
         return tuple(f"{self.id}{i}" for i in range(self._ini_solve, self.n))
 
@@ -1461,7 +1473,9 @@ class LineCurve(Curve):
     """
 
     _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
-    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(lambda x: x)  # LineCurve spline is not log based so no log needed
+    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
+        lambda x: x
+    )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = "values"
 
